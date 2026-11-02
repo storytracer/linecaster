@@ -1,0 +1,19 @@
+[project]
+name = "linecaster"
+version = "0.0.1"
+description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognisers plus post-processing as datatrove pipelines"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Sebastian Majstorovic", email = "storytracer@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+# spark and forge share one uv.lock; an older uv may not read a lockfile written by a newer one
+required-version = ">=0.13.6"
