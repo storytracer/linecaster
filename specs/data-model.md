@@ -27,6 +27,10 @@ Decisions taken while building the first version, with the reason for each. Open
    orphan rows last, rows within each region — exactly squiddleocr's order, so batches are composed
    the same way. `reading_order` is the separate reading rank (regions by reading order, then rows).
 
+8. **Text-only transcriptions** (a delivered plain text such as the Common Pile's BHL text) are lines
+   without geometry (`bbox`, `polygon` None), one per text line, `source.kind = "converted"`,
+   `source.format = "text"`. They cannot be written as ALTO/PAGE/hOCR.
+
 ## Environment lesson (2026-11-03)
 
 `[tool.uv.sources]` applies only to a project's own dependencies. The engine environment listed the

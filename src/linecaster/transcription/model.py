@@ -48,7 +48,7 @@ class Line(_Model):
     region_id: str | None = None
     reading_order: int = 0                   # rank of the line on the page, 0-based
     row: int = 0                             # visual row within its region
-    bbox: BBox
+    bbox: BBox | None = None                 # None for text-only transcriptions (a delivered plain text)
     polygon: list[Point] | None = None
     baseline: list[Point] | None = None
     score: float | None = None               # the line step's detection score
