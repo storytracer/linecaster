@@ -235,8 +235,27 @@ different pages at the same time. Scores are identical on all three (CER reading
 | L40S | 0.13 | 0.12 | 0.44 | 0.02 |
 | RTX 4000 SFF Ada (forge) | 0.17 | 0.12 | 0.69 | – |
 
-With one worker per model the L40S finishes about twice as fast as an L4; a second recognition
-worker on large GPUs is not measured yet.
+With one worker per model the L40S finishes about twice as fast as an L4.
+
+### Replicas: several copies of the recognition model on one GPU
+
+`linecaster serve --replicas recognition=N` loads N copies, each with its own worker thread on the
+model's queue. Full ground truth, complete chain, 4 tasks on HF Jobs; seconds per page = the sum of the
+tasks' recognition-block wall time / 2,165 (the chain runs at the pace of recognition). Lines, words and
+tables are identical for every N (2,165/2,165 pages).
+
+| GPU | 1 replica | 2 replicas | 3 replicas |
+|---|---|---|---|
+| L4 | 0.819 | 0.756 (−7.6 %) | – |
+| L40S | 0.452 | 0.416 (−7.9 %) | 0.405 (−10.4 %) |
+| RTX 4000 SFF Ada (forge, 310 pages) | 0.714 | 0.686 (−4 %) | 0.671 (−6 %) |
+
+(L4 1 and 2 replicas from the same commit; L40S 1 replica from the earlier run of the same chain.)
+Recognition is GPU-bound, not GIL-bound: per-request time roughly doubles with two replicas (L4 0.81 →
+1.49 s), and on forge kraken in two separate processes reaches the same total throughput as one (80
+pages in 52 s alone; 2 × 80 pages in 102 s side by side). Replicas only fill the gaps between a page's
+batches. The lever left is the recogniser's GPU efficiency (8 lines per forward pass in bf16), which
+changes numerics if the batching changes.
 
 ### Region recognition with a page model
 
