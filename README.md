@@ -41,19 +41,14 @@ change.
 
 ## Architecture
 
-```
-            pipeline (CPU)                                   model servers (GPU)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
+  <img src="docs/architecture-light.svg" width="960" alt="A linecaster pipeline is one datatrove task. Reader, layout, lines, recognition, tables, typography, document and writer blocks pass one Transcription along; each model block adds its part. The model blocks reach their models on a GPU through saturate and linecaster serve; chat blocks reach a vision-language model on vLLM the same way. The executor runs many copies of the task.">
+</picture>
 
- reader ─▶ layout ─▶ lines ─▶ recognition ─▶ … ─▶ writer     ┌──────────────────────┐
-             │         │           │                         │   linecaster serve   │
-             └─────────┴───────────┴──── saturate ──────────▶│  layout, lines,      │
-                                                             │  recognition, ...    │
- CPU blocks (reading order, typography, reflow,              └──────────────────────┘
- text variants, checks) run in the pipeline itself           ┌──────────────────────┐
-                                                             │  vLLM or any OpenAI- │
-                                                             │  compatible server   │
-                                                             └──────────────────────┘
-```
+*One datatrove task runs the whole chain on CPU. The shaded blocks are model steps: each sends a page to
+its model through saturate and gets the page back with its part added. The executor runs as many copies
+of the task as there are shards.*
 
 **Servers host models; the pipeline composes the chain.** A model step is a block with a *backend*,
 which says where its model runs:
