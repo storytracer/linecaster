@@ -40,7 +40,7 @@
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
+r"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
 lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
 and formula models after; then Unicode NFC, typography and document assembly. Page rows in OUT/rows; with
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
@@ -136,8 +136,8 @@ def pipeline(a, script: str) -> list:
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
-KIND = "chain/1"
+PIPELINE = "chain.v1"
 SLOTS = {"layout": "layout", "lines": "lines", "recognition": "recognizer", "tables": "tables", "formulas": "formulas"}
 
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, models, pipeline, KIND, SLOTS)
+    run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)

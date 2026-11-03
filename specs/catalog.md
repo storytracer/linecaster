@@ -1,4 +1,4 @@
-# The catalogue: models, presets, evidence
+# The catalogue: models, presets, recipes, evidence
 
 Status: adopted 2026-11-03. Role models: HTRMoPo v1 and Hugging Face model cards (Markdown with YAML front
 matter), OCR-D (functional steps, declared resources, provenance per processing step), Docling (typed options
@@ -6,30 +6,54 @@ per engine, one factory per stage), spaCy (versioned registry names that stay re
 surya and chandra (configuration declared once, evidence with its source), Daniel van Strien's
 `uv-scripts/ocr/models.json` (one catalogue, support levels), ocrscout's profiles (label mappings as data).
 
-## Documents, pipelines and one ledger
+## One catalogue
+
+There is one catalogue, `src/linecaster/catalog/data/`, shipped with linecaster: every model, preset, recipe
+and evidence record, whichever engine runs it. Engine packages are code only. (Until 2026-11-04 each engine
+package and squiddleocr shipped a catalogue of its own, merged at run time; people expect one catalogue, so
+they were moved into this one and the lock was re-released.)
+
+```
+src/linecaster/catalog/data/
+  models/<id>/model.md                    # + upstream/<revision>/ (the card, verbatim)
+  presets/<step>/<id>.md                  # layout, lines, recognition, tables, formulas, page
+  recipes/<id>.md
+  evidence/<date>-<subject>-<dataset>.yaml
+  catalog.lock
+```
+
+The generated docs (`linecaster catalog docs`) are grouped by component: `docs/catalog/{engines, models,
+presets/<step>, pipelines, recipes}/` and an index. Engine and pipeline pages are read from the source
+(`linecaster.catalog.code`, with `ast`): the engines need not be installed, which they cannot all be at once.
+
+## Components
+
+"Component" is the umbrella word: engine, model, preset, pipeline, recipe. Engines and pipelines are code and
+named by a versioned id (`kraken.recognition.v1`, `chain.v1`); models, presets and recipes are documents.
 
 | Document | Holds | Written by | Format |
 |---|---|---|---|
 | model | one artifact: source, pinned revisions, file hashes, licence, languages, scripts, lineage; the upstream card verbatim | `linecaster catalog pin` | `models/<id>/model.md` + `models/<id>/upstream/<revision>/…` |
-| preset | one engine + one model pin + options, ready to use, with provenance and support level | people | `presets/<id>.md` |
-| recipe | a named, opinionated combination: one pipeline (by kind, `chain/1`), a preset edition for each slot, the pipeline's options; provenance, support level | people | `recipes/<id>.md` |
+| preset | one engine (`engine: kraken.recognition.v1`) + one model pin + the engine's `options`, ready to use, with provenance and support level | people | `presets/<step>/<id>.md` |
+| recipe | a named, opinionated combination: one pipeline (`pipeline: chain.v1`), a preset edition for each slot, the pipeline's options; provenance, support level | people | `recipes/<id>.md` |
 | evidence | one measurement of one preset or recipe edition, with its source; a preset measured inside a pipeline names the rest as `context` | runs and people | `evidence/<date>-<subject>-<dataset>.yaml` |
 | run record | what a run resolved: presets with editions and hashes, overrides, software | the run | `OUT/run.yaml`; per page in `ModelInfo` |
 | `catalog.lock` | the released preset and recipe editions: resolved functional content and its hash | `linecaster catalog release` | `catalog.lock` (YAML) |
 
-Pipelines are code: a shape with slots plus the run-anywhere command line (`pipelines/chain.py`, kind
-`chain/1`; `pipelines/vlm.py`, `vlm/1`). They have no default presets: the user fills every slot, or names a
-recipe (`--recipe id[@edition]`, or a recipe file), with single flags on top recorded as overrides.
+Pipelines are code: a shape with slots plus the run-anywhere command line (`pipelines/chain.py`, id
+`chain.v1`; `pipelines/vlm.py`, `vlm.v1`; each script's `PIPELINE` and `SLOTS`). They have no default presets:
+the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
+overrides.
 
 Engines are code (`engines/<engine>/`, one package each), not documents.
 
-A recipe's functional content is its pipeline kind, each slot's preset edition with that edition's hash
+A recipe's functional content is its pipeline id, each slot's preset edition with that edition's hash
 (which covers its model pin) and the options it states; a recipe is released only on released preset
 editions, so one recipe edition pins a whole run down to the weights' files. Measurements of a whole run
-(goldens, CER of the pipeline) are the recipe's evidence. Recipes live in any catalogue: a derivative ships
-its own (squiddleocr's `squiddle`).
+(goldens, CER of the pipeline) are the recipe's evidence. A derivative's recipe lives here too (squiddleocr's
+`squiddle`): the derivative names it by id.
 
-Model and preset documents are Markdown with YAML front matter: the front matter is data, validated by
+Model, preset and recipe documents are Markdown with YAML front matter: the front matter is data, validated by
 `linecaster.catalog.schema`; the body is prose for people (why these settings, limitations, changes). Evidence,
 the lock and run records are plain YAML. Bulk data (page rows, exports) stays JSON Lines / Parquet.
 
@@ -63,7 +87,7 @@ document starts with `schema: linecaster.<type>/<n>`. JSON Schemas for editors c
 
 `linecaster catalog release <id>` writes the current edition's resolved functional content and its sha256 into
 `catalog.lock`. Functional content is what can change outputs: `step`, the model pin (`id`, `revision`,
-`files`), `engine` (`kind`, `options`), `settings`, `labels` and `serve`. Only what the document states counts (a new optional schema field changes no hash). Prose,
+`files`; `submodels` likewise), `engine`, `options`, `settings`, `labels` and `serve`. Only what the document states counts (a new optional schema field changes no hash). Prose,
 provenance, support level, capabilities and limitations are not part of it. `linecaster catalog verify` (and `tests/test_catalog.py`)
 fails when a released edition's content changed; such a change is a new edition. Old editions stay
 resolvable from the lock (`dots-ocr@1` after the file moved on to edition 2). Unreleased editions are drafts.
@@ -89,12 +113,15 @@ Layout presets map their native labels to DoclingDocument labels (`docling_core.
 
 ## Engines
 
-An engine is a class registered under a versioned kind in the entry-point group `linecaster.engines`
-(`kraken.recognition/1 = linecaster_kraken:KrakenRecognitionModel`). It declares `kind`, `step`, `Options`
-(a Pydantic model whose fields have descriptions; the recipe CLI, `linecaster engines` and the docs come from
-it) and `capabilities`. A backward-incompatible change of options is a new kind (`/2`); the old one stays
-registered. Each package that ships catalogue documents registers its catalogue directory in the entry-point
-group `linecaster.catalog`.
+An engine is a class registered under its versioned id in the entry-point group `linecaster.engines`
+(`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionModel"`); linecaster's own is `chat.v1`
+(VLM presets, served only). It declares `engine_id`, `step`, `Options` (a Pydantic model whose fields have
+descriptions; the docs come from it) and `capabilities`. A preset names it directly, `engine: <id>`, with its
+`options` beside it; there is no separate "kind" or "type". A backward-incompatible change of options is a new
+id (`.v2`); the old one stays registered.
+
+Ids of code (`CODE_ID`): lowercase dotted names ending in `.v<n>`. The version is the contract of the options
+(engines) or slots and options (pipelines), not the package's release.
 
 ## Evidence
 

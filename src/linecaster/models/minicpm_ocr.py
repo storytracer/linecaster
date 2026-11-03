@@ -68,7 +68,7 @@ class MiniCPMOCR(ChatModel):
         return {**e, "slice_nums": int(self.config["slice_nums"])}
 
     def speculative_args(self, draft: str, revision: str | None = None) -> list[str]:
-        """Speculative decoding (DSpark, ``engine.options.draft.speculative``) with ``draft`` (a local
+        """Speculative decoding (DSpark, ``serve.draft.speculative``) with ``draft`` (a local
         directory, or a Hub id pinned by ``revision``)."""
         sp = dict(self.draft_config)
         config = {"method": sp.pop("method"), "model": draft, **sp}

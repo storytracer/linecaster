@@ -142,7 +142,7 @@ class PaddleLayoutModel:
     The model files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name``
     (``weights.resolve``)."""
 
-    kind: ClassVar[str] = "paddlex.layout/1"
+    engine_id: ClassVar[str] = "paddlex.layout.v1"
     step = "layout"
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order"]}
 

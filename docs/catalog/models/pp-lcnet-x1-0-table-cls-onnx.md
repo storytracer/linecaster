@@ -1,0 +1,32 @@
+# pp-lcnet-x1-0-table-cls-onnx
+
+*Model · PP-LCNet_x1_0_table_cls · Apache-2.0*
+
+PaddleOCR's PP-LCNet_x1_0_table_cls: the wired/wireless table classifier of PaddleX's table pipeline. This is the ONNX package PaddleX downloads for its ONNX Runtime engine
+(`PaddlePaddle/PP-LCNet_x1_0_table_cls_onnx`, an export of `PaddlePaddle/PP-LCNet_x1_0_table_cls`; the card does not say from which revision).
+Licence and languages are the card's.
+
+PaddleX itself always downloads the repository's current `main`; linecaster pins the commit that was `main` on
+2026-11-03 (for every model PaddleX had already downloaded on spark, among them those of squiddleocr's goldens,
+the commit its cached files came from) and loads that snapshot from the Hugging Face cache through
+`create_predictor(model_dir=...)`. On three pages (text, table, formulas) it gave the same output as PaddleX's
+own download (2026-11-03).
+
+|  |  |
+|---|---|
+| Source | [PaddlePaddle/PP-LCNet_x1_0_table_cls_onnx](https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_table_cls_onnx) |
+| Licence | Apache-2.0 |
+| Languages | eng, zho |
+| Derived from | converted of PaddlePaddle/PP-LCNet_x1_0_table_cls |
+
+## Pins
+
+Each with the upstream card as published at that revision, verbatim.
+
+| Revision | Pinned | Tag | Files | Card |
+|---|---|---|---|---|
+| `605f623b09f67a562bae77e781d5d5266f14905a` | 2026-11-03 |  | 1 | [README.md](../../../src/linecaster/catalog/data/models/pp-lcnet-x1-0-table-cls-onnx/upstream/605f623b09f67a562bae77e781d5d5266f14905a/README.md) |
+
+## Presets
+
+- [`slanet-plus`](../presets/tables/slanet-plus.md)

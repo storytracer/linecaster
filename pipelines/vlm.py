@@ -108,8 +108,8 @@ def pipeline(a, script: str):
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
-KIND = "vlm/1"
+PIPELINE = "vlm.v1"
 SLOTS = {"vlm": "vlm", "layout": "layout"}
 
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, models, pipeline, KIND, SLOTS)
+    run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)

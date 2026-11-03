@@ -2,8 +2,8 @@
 schema: linecaster.catalog-lock/1
 presets:
   chandra-ocr-2@1:
-    sha256: sha256:02232dc62ee089ba0801c19a17676b1b8e4b0ff87cd75db3554d313f68a5c074
-    released: '2026-11-03'
+    sha256: sha256:99fe13e9b2ab72b92bfb512e977f721f4cbdfbbe8cf88196b72bdbb2e5b58ea5
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -14,10 +14,9 @@ presets:
           handwritten_form.png: sha256:5915e7608cf8a857b5b846d56673e62164ba17c106917480e09703a0b5a189ce
           model.safetensors: sha256:0804568be9f099d6479fad9ed77a4da4611f3c1e7bc6e009af7dce45e8aa3847
           tokenizer.json: sha256:87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4
-      engine:
-        kind: chat/1
-        options:
-          adapter: chandra-ocr
+      engine: chat.v1
+      options:
+        adapter: chandra-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -86,8 +85,8 @@ presets:
         - --dtype
         - bfloat16
   deepseek-ocr-2@1:
-    sha256: sha256:9d1e78ac2a93a495cabef6b1c7c537410e33d178b603e14f38526789d0a69ce6
-    released: '2026-11-03'
+    sha256: sha256:fdb0afaf97a344f34bcb20df882bd6b37cf58792c96272cc8c8edceffd3e9925
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -97,10 +96,9 @@ presets:
         files:
           assets/fig1.png: sha256:bfa3301b397df240c5eba7206c7865cae3d9aaf6674a6c8a68904a9c98bcbc77
           model-00001-of-000001.safetensors: sha256:d8ff67a424ba6f4dd077885eb9d6a05d2537e76fe5491f0e2a9b712f8c8870fa
-      engine:
-        kind: chat/1
-        options:
-          adapter: deepseek-ocr
+      engine: chat.v1
+      options:
+        adapter: deepseek-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -128,8 +126,8 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   deepseek-ocr@1:
-    sha256: sha256:0bd7b1e1a6b90c118625482e603870e67b11ee8530129e4212079ca848622a0a
-    released: '2026-11-03'
+    sha256: sha256:1fdc24c95e532492a07abe8c7e5ffdc42b86a0ede45768823aa4ba426bc5b8a8
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -143,10 +141,9 @@ presets:
           assets/show3.jpg: sha256:cd24b0cfc7b6c0b1b34bd1aa55bc385e746298fdd82410db6c0d4e0bf69085c0
           assets/show4.jpg: sha256:2fe88eacc470c34d00225151372d3770948864f3d9cfaae16afa15b2432d7793
           model-00001-of-000001.safetensors: sha256:1169e7cdc28ff2fb6186556acb2175db148ad26a62097df4c45a17e523180d3f
-      engine:
-        kind: chat/1
-        options:
-          adapter: deepseek-ocr
+      engine: chat.v1
+      options:
+        adapter: deepseek-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -174,8 +171,8 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   dots-mocr@1:
-    sha256: sha256:f607bb1bfddb5013ec2288add66f24cc486afea21dc1dd1e5f36f3222f900037
-    released: '2026-11-03'
+    sha256: sha256:782102a1f0543279fbcf13de3e83c8295fed174b8f6a27ef42136da6efe7d4a7
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -185,10 +182,9 @@ presets:
         files:
           model-00001-of-00002.safetensors: sha256:d8f4bc75340279da003609fe93f2eb02cc1a77087f5dfb6ba46c0980e1b4da81
           model-00002-of-00002.safetensors: sha256:0101b36fe6620ba135d4bb8efbbf275fc27b4363b10b7f632c058c0955f3dc4d
-      engine:
-        kind: chat/1
-        options:
-          adapter: dots
+      engine: chat.v1
+      options:
+        adapter: dots
       settings:
         sampling:
           max_tokens: 16384
@@ -212,8 +208,8 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   dots-ocr@1:
-    sha256: sha256:f999f4c31bd6b702752c6991912421fea6b45bf02baa9e9fa3d1b9d3138ac2a8
-    released: '2026-11-03'
+    sha256: sha256:10f5d0947fb87d56b995805bd287ec75abd0b874a7a085aa95b7a95e377fe884
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -223,10 +219,9 @@ presets:
         files:
           model-00001-of-00002.safetensors: sha256:ea1d532184f3adf5cbcfcc00b2cf5b2abfa6fe182768a3ae63d441a9b5fc99ac
           model-00002-of-00002.safetensors: sha256:26ab1ec6c8b4e4116befbd59af42159f1dbcb0ad0c045a15e890bb2f6e8b0dae
-      engine:
-        kind: chat/1
-        options:
-          adapter: dots
+      engine: chat.v1
+      options:
+        adapter: dots
       settings:
         sampling:
           temperature: 0.0
@@ -246,8 +241,8 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   glm-ocr@1:
-    sha256: sha256:499e730288745e86becfd4211038561ba4ce2178950be4e72625e716f946be1d
-    released: '2026-11-03'
+    sha256: sha256:471ffdb456eff1a357db305a1b0e0deb1f1dae0c7c0872423236ef0cb4334d2b
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -256,10 +251,9 @@ presets:
         revision: ca5d8b3e287e52589e37c28385d9655ee4372f9d
         files:
           model.safetensors: sha256:a16eb0de98d199293371c560f95f83130d2a2c9612449df16839f08ff9498815
-      engine:
-        kind: chat/1
-        options:
-          adapter: glm-ocr
+      engine: chat.v1
+      options:
+        adapter: glm-ocr
       settings:
         sampling:
           temperature: 0.01
@@ -281,9 +275,60 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  kraken-ppocrv6-medium@1:
+    sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: kraken-ppocrv6-medium
+        revision: f7fd70f3fd22b615f41bada4674ac2462f938339
+        files:
+          medium.safetensors: sha256:15313b51ace64cbfa81f8f6ef25ad64f04e5a6fb7f7823e67b107527bc081ac9
+      engine: kraken.recognition.v1
+      options:
+        model: medium
+        batch_size: 8
+        precision: auto
+        text_direction: horizontal-lr
+  kraken-ppocrv6-small@1:
+    sha256: sha256:60361857796abfcc500b21155eda18c6e35205f0f1997c390fdefff61a6646d7
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: kraken-ppocrv6-small
+        revision: 49c249bf81d95ab2c5f699638d066f7935da6f16
+        files:
+          small.safetensors: sha256:3108259779f5abfed3908a1c9eafba64d17e4a2a169368c539ecfeff04c018f3
+      engine: kraken.recognition.v1
+      options:
+        model: small
+        batch_size: 8
+        precision: auto
+        text_direction: horizontal-lr
+  kraken-ppocrv6-tiny@1:
+    sha256: sha256:fee7e3c0623db99db8aa348c937449e1a1f7dbbee531f44416b4c70cc5922589
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: kraken-ppocrv6-tiny
+        revision: 045d350d5a7664054370539b87bab0e790724ee2
+        files:
+          tiny.safetensors: sha256:972700b1c72de14bdde028f9b06d77f13c88ec60da5e942bb9e57aca421fa361
+      engine: kraken.recognition.v1
+      options:
+        model: tiny
+        batch_size: 8
+        precision: auto
+        text_direction: horizontal-lr
   lightonocr-2-1b-regions@1:
-    sha256: sha256:7b966bb1bd13ff7acfa2084bf56218ef879ed8fc651bb0f548996430cdca3e80
-    released: '2026-11-03'
+    sha256: sha256:230c8b9cd87a8fe68ca59de09be4a0a5d46e70a4301417b3d233630a7cb03aa3
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: recognition
@@ -295,10 +340,9 @@ presets:
           lightonocr-banner.png: sha256:e32c44dc131d4e07b344a41bb9651eb97ce4ce73d4e78463821267467810462c
           model.safetensors: sha256:cbe12d0831cca119facce91268fc7c5fb72babdf919a6e352e3131bda85c8fbb
           tokenizer.json: sha256:f54b55fa0c3aba0c91ce09ea79ae4e62da24e2a1a630f96c4bae34aba25e234a
-      engine:
-        kind: chat/1
-        options:
-          adapter: lighton-ocr-2
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-2
       settings:
         sampling:
           max_tokens: 4096
@@ -321,8 +365,8 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-2-1b@1:
-    sha256: sha256:c02ea978602eaa27046137cc87da5e6f63ccb6cfff873ff16a714cc7fef3da63
-    released: '2026-11-03'
+    sha256: sha256:4020d2f983cb2a2c46a8903d8928630c1deef2840d55b026134703410b5a8942
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -334,10 +378,9 @@ presets:
           lightonocr-banner.png: sha256:e32c44dc131d4e07b344a41bb9651eb97ce4ce73d4e78463821267467810462c
           model.safetensors: sha256:cbe12d0831cca119facce91268fc7c5fb72babdf919a6e352e3131bda85c8fbb
           tokenizer.json: sha256:f54b55fa0c3aba0c91ce09ea79ae4e62da24e2a1a630f96c4bae34aba25e234a
-      engine:
-        kind: chat/1
-        options:
-          adapter: lighton-ocr-2
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-2
       settings:
         sampling:
           max_tokens: 4096
@@ -359,8 +402,8 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-3-0.8b@1:
-    sha256: sha256:282240daca69c9d1bee26e63a2e018d362cc07e4e1dd52980c35b67d907bf493
-    released: '2026-11-03'
+    sha256: sha256:88f074fbdfe0c5ae366d58ddd7bb94fa856b2a393fa0592993800686ca24c3a8
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -371,10 +414,9 @@ presets:
           lightonocr3_logo.png: sha256:768eee79d378518cfea9ed8d81ba3a53a0cff17ccf4b12c22a9e5ebedde32bcf
           model.safetensors: sha256:ae46aa6fd7136d57297ac006ed9ec345b7a2083feb2e99501bedcb014ca3efdf
           tokenizer.json: sha256:06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523
-      engine:
-        kind: chat/1
-        options:
-          adapter: lighton-ocr-3
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-3
       settings:
         sampling:
           max_tokens: 4096
@@ -400,8 +442,8 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-3-4b@1:
-    sha256: sha256:1387d4ff8e17ec516ac6de618938de330dadd86a547113e785dcd6e64d1c61ee
-    released: '2026-11-03'
+    sha256: sha256:c7f0c443789ff7716a510d13ec23c73f3c3c860e29dbc258e7dc2f3daf4b6576
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -412,10 +454,9 @@ presets:
           lightonocr3_logo.png: sha256:768eee79d378518cfea9ed8d81ba3a53a0cff17ccf4b12c22a9e5ebedde32bcf
           model.safetensors: sha256:6b0dab74a2dab02d5b10ca56322255024ed8dca35c02746b42e9f296aaeb4e67
           tokenizer.json: sha256:87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4
-      engine:
-        kind: chat/1
-        options:
-          adapter: lighton-ocr-3
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-3
       settings:
         sampling:
           max_tokens: 4096
@@ -441,8 +482,8 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   minicpm-ocr-1.0@1:
-    sha256: sha256:047d0cbcfc05c9363d610791bc46c669b8073e4832277add955cc7a1c9576d80
-    released: '2026-11-03'
+    sha256: sha256:7837d022105b4ea68e7fddd9a8cb48886f30f8205fff8b3d94ab3b6b7769e223
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: recognition
@@ -452,11 +493,10 @@ presets:
         files:
           model.safetensors: sha256:83f4e433b044fd23f9ea7eb3acbc7d59e4fe11a1fdf3c3129b7021d0ab4f8fd4
           tokenizer.json: sha256:6269eb38f25c20c0f2ba676577f2e5603f79eab3be573dfdaa727ca6eeb5522d
-      engine:
-        kind: chat/1
-        options:
-          adapter: minicpm-ocr
-          served_name: minicpm-ocr
+      engine: chat.v1
+      options:
+        adapter: minicpm-ocr
+        served_name: minicpm-ocr
       settings:
         sampling:
           temperature: 0.01
@@ -596,8 +636,8 @@ presets:
             num_speculative_tokens: 15
             enable_adaptive_verification: false
   nemotron-3.5-parse@1:
-    sha256: sha256:fbd809e960abd167539d18374e63372a6b08b6036b7cbdf80f270583c30154a3
-    released: '2026-11-03'
+    sha256: sha256:6d4398678205ab556a9c459d75e2142342a2f204f7795c7842d47033e4322bf5
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -609,21 +649,20 @@ presets:
           reference/parsebench/paddle_optimized/predictions.jsonl.gz: sha256:e7eb3cc72209f7f5e38b226cb9e2c6025051ed4b686b2b9040fd39cd59e3248f
           reference/parsebench/reference_results/mtp/predictions.jsonl.gz: sha256:64d61579fa98ca6e252a492b3a662b0e7858c84a7712b4fa0e5c3d951e500e12
           reference/parsebench/reference_results/no_mtp/predictions.jsonl.gz: sha256:c65fbc4ce76a84b46fe752cc4e0cbc64a7217bd196e2034ad90769a353676e8a
-      engine:
-        kind: chat/1
-        options:
-          adapter: nemotron-parse
-          plugin_patterns:
-          - pyproject.toml
-          - LICENSE
-          - THIRD_PARTY_NOTICES.md
-          - TOKENIZER_ATTRIBUTION.md
-          - postprocessing.py
-          - latex2html.py
-          - nemotron_parse/*
-          - nemotron_parse/**
-          - vllm_tied_patch/*
-          - reference/parse_3_5/inference.constraints.txt
+      engine: chat.v1
+      options:
+        adapter: nemotron-parse
+        plugin_patterns:
+        - pyproject.toml
+        - LICENSE
+        - THIRD_PARTY_NOTICES.md
+        - TOKENIZER_ATTRIBUTION.md
+        - postprocessing.py
+        - latex2html.py
+        - nemotron_parse/*
+        - nemotron_parse/**
+        - vllm_tied_patch/*
+        - reference/parse_3_5/inference.constraints.txt
       settings:
         sampling:
           temperature: 0.0
@@ -654,8 +693,8 @@ presets:
         - --attention-config
         - '{"flash_attn_version": 3}'
   olmocr-2-7b-1025-fp8@1:
-    sha256: sha256:729df8d4cb136fea950345a3d7288834b7298d6fbd332e20e3815d745cc88e62
-    released: '2026-11-03'
+    sha256: sha256:a9c7d9defe995ea5d7dcf91dffaa43be5ebaa9b367ff2848e5565f0b25038109
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -667,10 +706,9 @@ presets:
           model-00002-of-00003.safetensors: sha256:65cb798f6478260b7eba5120cba2041ca252d3f94c9a2e32cc7fba16231f0c4a
           model-00003-of-00003.safetensors: sha256:4a185c74b8147aff33829d1d7384e2781c8dd09461d50499afbd1d80a13e7e1a
           tokenizer.json: sha256:9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa
-      engine:
-        kind: chat/1
-        options:
-          adapter: olmocr
+      engine: chat.v1
+      options:
+        adapter: olmocr
       settings:
         sampling:
           temperature: 0.1
@@ -700,8 +738,8 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   ovisocr2@1:
-    sha256: sha256:5422633cadc6a8686543b03cb4d8ff697dc6d1e1fb316224ccebfa2ec2d1f061
-    released: '2026-11-03'
+    sha256: sha256:4d3969d8aa7581c8428a19551e7177257a60e623cac63cea8d58c9370bac4212
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -714,10 +752,9 @@ presets:
           performance_omnidocbench_v16.png: sha256:f67200bf177cc8fc14774f1895386aab06ca544bf0a672d0789778a5fb15f087
           performance_puredocbench.png: sha256:65c8a4ce9391f29ab35d2c4e379d0aeac38a315409c0ff4dd210f3627a3cc1a7
           tokenizer.json: sha256:5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42
-      engine:
-        kind: chat/1
-        options:
-          adapter: ovis-ocr
+      engine: chat.v1
+      options:
+        adapter: ovis-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -745,8 +782,8 @@ presets:
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
   ovisocr3@1:
-    sha256: sha256:4587eb58ef051e0af088ba0643fd56f480a403db35906bd49dc71a5844116879
-    released: '2026-11-03'
+    sha256: sha256:56a4c405d6f43150a72306b030ff1ca580b5b7bcdb2fc9eae09f995c45bbd64c
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -758,10 +795,9 @@ presets:
           assets/ovisocr3_performance_overview.png: sha256:dc3715147ca9591d7b235f81847a8bbe70c3947e4d0b82f75d198cc747464ecd
           model.safetensors: sha256:aa2311c6b22b07cf3afe9aac6e8bcb02a2b19dd8671b2a91d0b144071577e600
           tokenizer.json: sha256:5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42
-      engine:
-        kind: chat/1
-        options:
-          adapter: ovis-ocr
+      engine: chat.v1
+      options:
+        adapter: ovis-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -792,8 +828,8 @@ presets:
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
   paddleocr-vl-1.6@1:
-    sha256: sha256:4c541f0a7326be0f1ca97ea63414bab873a190ab9769d2b57f6801c7ba04762d
-    released: '2026-11-03'
+    sha256: sha256:8914e1d024aff906f4acf11fdff1529f6eb913268437a1177e5187a90d25e4bf
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -804,10 +840,9 @@ presets:
           model.safetensors: sha256:85a479d506a11e724e7285d395c551be69f41dbc16b6342d3cacfb189aed71db
           tokenizer.json: sha256:c8a215a59183d0d0781adc33bacd3ce6162716f7fd568fb30234a74d69803a7d
           tokenizer.model: sha256:34ef7db83df785924fb83d7b887b6e822a031c56e15cff40aaf9b982988180df
-      engine:
-        kind: chat/1
-        options:
-          adapter: paddleocr-vl
+      engine: chat.v1
+      options:
+        adapter: paddleocr-vl
       settings:
         sampling:
           temperature: 0.0
@@ -833,9 +868,275 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  paddlex-ppocrv6-medium@1:
+    sha256: sha256:c059585934c0501fe247121ab0fb83330a4a9edb3749912533cd22d79459facf
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: pp-ocrv6-medium-rec-onnx
+        revision: 50c7eacafc52fa7bcf4194e8cd08e46f8558504b
+        files:
+          inference.onnx: sha256:9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba
+      engine: paddlex.recognition.v1
+      options:
+        model_name: PP-OCRv6_medium_rec
+        batch_size: 8
+        words: true
+  paddlex-ppocrv6-small@1:
+    sha256: sha256:5acc518c2847656517a53daa0faaab26298d0a820ca3ad43ec6d73ca25876431
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: pp-ocrv6-small-rec-onnx
+        revision: b8f84f0b80c529de40b4fbb3544b84fa7233a513
+        files:
+          inference.onnx: sha256:5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634
+      engine: paddlex.recognition.v1
+      options:
+        model_name: PP-OCRv6_small_rec
+        batch_size: 8
+        words: true
+  paddlex-ppocrv6-tiny@1:
+    sha256: sha256:a002f2d9c9fa103035e512d5b0ced4fde5f44199ad4101f7bfa5d32a20305490
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: pp-ocrv6-tiny-rec-onnx
+        revision: 2612ab37152ae0a677521bae4e1e3d4fb4cf7c30
+        files:
+          inference.onnx: sha256:9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6
+      engine: paddlex.recognition.v1
+      options:
+        model_name: PP-OCRv6_tiny_rec
+        batch_size: 8
+        words: true
+  pp-doclayout-plus-l@1:
+    sha256: sha256:add0bdb21842b44e74baec1f451df4449ca9efe24b70632bbe8076f0c70688b8
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: layout
+      model:
+        id: pp-doclayout-plus-l-onnx
+        revision: feb74619326f634e0e883218598096a3733ad9f7
+        files:
+          inference.onnx: sha256:77afb2caa74dd13240d087d2eced91d7fcd2caebd16006a0a66162fc8707ff0e
+      engine: paddlex.layout.v1
+      options:
+        model_name: PP-DocLayout_plus-L
+        threshold:
+          '0': 0.3
+          '1': 0.5
+          '2': 0.4
+          '3': 0.5
+          '4': 0.5
+          '5': 0.5
+          '6': 0.5
+          '7': 0.3
+          '8': 0.5
+          '9': 0.5
+          '10': 0.5
+          '11': 0.5
+          '12': 0.5
+          '13': 0.5
+          '14': 0.5
+          '15': 0.45
+          '16': 0.5
+          '17': 0.5
+          '18': 0.5
+          '19': 0.5
+        header_zone: 0.15
+        nms: true
+        merge_mode: large
+        max_containment: 0.8
+      labels:
+        paragraph_title: section_header
+        image: picture
+        text: text
+        abstract: text
+        content: text
+        figure_title: caption
+        formula: formula
+        table: table
+        reference: reference
+        doc_title: title
+        footnote: footnote
+        header: page_header
+        algorithm: code
+        footer: page_footer
+        seal: seal
+        chart: picture
+        formula_number: text
+        aside_text: text
+        reference_content: reference
+  pp-doclayoutv3@1:
+    sha256: sha256:a76f9337c505909134ae1f26859fa8b07f70c7ff4d6f97d57fbf009fea0eba87
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: layout
+      model:
+        id: pp-doclayoutv3-onnx
+        revision: 46bbdf188bb0a772c08aed74882ce7e51a8f1ea6
+        files:
+          inference.onnx: sha256:45bf71750b00739a41fc209f132eb104a4d6b5bb29483c9078164d8b87cf28ba
+      engine: paddlex.layout.v1
+      options:
+        model_name: PP-DocLayoutV3
+        threshold: 0.3
+        header_zone: 0.15
+        nms: true
+        merge_mode:
+          '0': union
+          '1': union
+          '2': union
+          '3': large
+          '4': union
+          '5': large
+          '6': large
+          '7': union
+          '8': union
+          '9': union
+          '10': union
+          '11': union
+          '12': union
+          '13': union
+          '14': union
+          '15': large
+          '16': union
+          '17': large
+          '18': union
+          '19': union
+          '20': union
+          '21': union
+          '22': union
+          '23': union
+          '24': union
+        max_containment: 0.8
+      labels:
+        abstract: text
+        algorithm: code
+        aside_text: text
+        chart: picture
+        content: text
+        display_formula: formula
+        doc_title: title
+        figure_title: caption
+        footer: page_footer
+        footer_image: picture
+        footnote: footnote
+        formula_number: text
+        header: page_header
+        header_image: picture
+        image: picture
+        inline_formula: formula
+        paragraph_title: section_header
+        reference: reference
+        reference_content: reference
+        seal: seal
+        table: table
+        text: text
+        vertical_text: text
+        vision_footnote: footnote
+  pp-formulanet-l@1:
+    sha256: sha256:fdea3d2ae7765935383b6c337ae6ab6117d01511287c0cf5e0a575e586a6d90b
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: formulas
+      model:
+        id: pp-formulanet-l-safetensors
+        revision: 69869f2891cc61347d230ef234bcc8b8d297c43a
+        files:
+          model.safetensors: sha256:8e923c2c2502c8fb9b7bb13cff2498c2dbdbb63d2d98b9e1623674299e716e8f
+      engine: paddlex.formulas.v1
+      options:
+        model_name: PP-FormulaNet-L
+        batch_size: 8
+  pp-formulanet-plus-l@1:
+    sha256: sha256:15cd51d26ee7f253e4bdd4b1da5d56516e2af01c06ac680a622cdcb6c519a4bf
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: formulas
+      model:
+        id: pp-formulanet-plus-l-safetensors
+        revision: 6cc004a8e91ea3f3819b05317f40b290cbe99c2b
+        files:
+          model.safetensors: sha256:582848cf9b7066bb1cf3166ad75a476da492c3661ffa61bb7439f9fd098bde13
+      engine: paddlex.formulas.v1
+      options:
+        model_name: PP-FormulaNet_plus-L
+        batch_size: 8
+  pp-ocrv6-medium-det@1:
+    sha256: sha256:a8ab13d76b42f9b5b69dbb0d48e1da4135fd5e84a106f3df6d5dac613f05852e
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: lines
+      model:
+        id: pp-ocrv6-medium-det-onnx
+        revision: 61323801669c338b7891481ec7bac61ce31b576a
+        files:
+          inference.onnx: sha256:eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1
+      engine: paddlex.lines.v1
+      options:
+        model_name: PP-OCRv6_medium_det
+        per_region: false
+        unclip_ratio: 1.5
+        box_thresh: 0.6
+        thresh: 0.3
+        pad: 0
+        mask: false
+  pp-ocrv6-small-det@1:
+    sha256: sha256:33426816bbe1d89a3651fe8077c098a6fbf2fd3db63d7c1121a542efa6cffd6e
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: lines
+      model:
+        id: pp-ocrv6-small-det-onnx
+        revision: 28fe5895c24fd108c19eb3e8479f4ab385fbfc62
+        files:
+          inference.onnx: sha256:d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e
+      engine: paddlex.lines.v1
+      options:
+        model_name: PP-OCRv6_small_det
+        per_region: false
+        unclip_ratio: 1.5
+        box_thresh: 0.6
+        thresh: 0.3
+        pad: 0
+        mask: false
+  pp-ocrv6-tiny-det@1:
+    sha256: sha256:de36ae98438d4809c0154989d816647a59e077a1cc32a6f59930f909a747e34b
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: lines
+      model:
+        id: pp-ocrv6-tiny-det-onnx
+        revision: 2ba1506c0380b8f0b03dd142459aac66d4421f6c
+        files:
+          inference.onnx: sha256:193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8
+      engine: paddlex.lines.v1
+      options:
+        model_name: PP-OCRv6_tiny_det
+        per_region: false
+        unclip_ratio: 1.5
+        box_thresh: 0.6
+        thresh: 0.3
+        pad: 0
+        mask: false
   qianfan-ocr@1:
-    sha256: sha256:13f9a0ff6dc00a37508a2638709d1871e1f1fd1b5d82225ef21131690ea41905
-    released: '2026-11-03'
+    sha256: sha256:6f3094f0747ac30f8a92a57bfb5e6ce800f3fadee65a68166fd7eb977ec8acb0
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -849,10 +1150,9 @@ presets:
           model-00001-of-00002.safetensors: sha256:e2a59915dd6a1c51ccb11be3addf4585fcf0840ac4f63f8e9fb629db58f8db6e
           model-00002-of-00002.safetensors: sha256:96805d61fbb9523fd27a09ab40451d04da09e9ba4b102341eac0184d8f82a0b1
           tokenizer.json: sha256:29d2b7ab0e0ecc235df0d7d87fc3ac9b90826605e42117898c653e436c97fd03
-      engine:
-        kind: chat/1
-        options:
-          adapter: qianfan-ocr
+      engine: chat.v1
+      options:
+        adapter: qianfan-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -874,8 +1174,8 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   qwen3.5-9b@1:
-    sha256: sha256:2db8129b666bc4223ce58dc290a4a0caabe3c5981605bcf0ff3b7b1261ef33ca
-    released: '2026-11-03'
+    sha256: sha256:d246964baa6d533a8b7a4cd5f9d9d75cd93d538f17ae6b3b2bbbf7545d5b67ca
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -888,10 +1188,9 @@ presets:
           model.safetensors-00003-of-00004.safetensors: sha256:7ec36ba3a4176a44c3c0876ad80c56a2f70c84bf008d82e9501df642f17dadec
           model.safetensors-00004-of-00004.safetensors: sha256:b62b0c4cd7e44edee103ee8f4fe225f246d5e768e07bfd5f25b63a8aa1fdd0c6
           tokenizer.json: sha256:5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42
-      engine:
-        kind: chat/1
-        options:
-          adapter: qwen3.5
+      engine: chat.v1
+      options:
+        adapter: qwen3.5
       settings:
         sampling:
           max_tokens: 8192
@@ -919,9 +1218,41 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1, "video": 0}'
+  slanet-plus@2:
+    sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: tables
+      model:
+        id: slanet-plus-onnx
+        revision: 7dbe640e127602bf506815e822c09758de73c482
+        files:
+          inference.onnx: sha256:7790c0c13ce064782c9d22ebeb16b4da8216f83d3ba576da962c106ef58386da
+      submodels:
+        PP-LCNet_x1_0_table_cls:
+          id: pp-lcnet-x1-0-table-cls-onnx
+          revision: 605f623b09f67a562bae77e781d5d5266f14905a
+          files:
+            inference.onnx: sha256:f8e4cb1b58a29bebd36852edcb238b53e0acefa75116a8a4db443f13dbc72b0b
+        RT-DETR-L_wired_table_cell_det:
+          id: rt-detr-l-wired-table-cell-det-onnx
+          revision: b2c0720b5fe6f1c0dd40f8a7993a3f28e04252f8
+          files:
+            inference.onnx: sha256:bf5490020512a31f43813d90feadae9526a2c3474ffe807571f2c23594f5958f
+        RT-DETR-L_wireless_table_cell_det:
+          id: rt-detr-l-wireless-table-cell-det-onnx
+          revision: 94c021be206064f0136ef1383fbd4b68b168fa61
+          files:
+            inference.onnx: sha256:47515940ec5c37156e09aa9acb20c4e7e22456cad6ce49473661f1762fb46a78
+      engine: paddlex.tables.v1
+      options:
+        crop_pad: 8
+        e2e: true
+        name: table_recognition_v2/SLANet_plus
   smoldocling-256m-preview@1:
-    sha256: sha256:e3f82a261b9e8a53d32c3566a18e54c3ddb7a233d173b3d83c3e98e3a5624109
-    released: '2026-11-03'
+    sha256: sha256:6f35b2e9a893ce82b76bfda06367e7f62286e078009d3099accd02f79446231d
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -956,10 +1287,9 @@ presets:
           onnx/vision_encoder_q4f16.onnx: sha256:c0e3c83edfaf3c946e592f50d9b238eb422c0c4ef62643883a46d7c5ebb7284a
           onnx/vision_encoder_quantized.onnx: sha256:b5e42cf6c8719dba60582c3722cba72673de5e2b739c01e5147bc34d9193ae20
           onnx/vision_encoder_uint8.onnx: sha256:b5e42cf6c8719dba60582c3722cba72673de5e2b739c01e5147bc34d9193ae20
-      engine:
-        kind: chat/1
-        options:
-          adapter: smoldocling
+      engine: chat.v1
+      options:
+        adapter: smoldocling
       settings:
         sampling:
           temperature: 0.0
@@ -981,9 +1311,81 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  tesseract-best-eng@1:
+    sha256: sha256:88f0184bf11a1db40471ebfb94dec6bbabd8b3cd28050c931591a462f8877ef9
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: tessdata-best
+        revision: e12c65a915945e4c28e237a9b52bc4a8f39a0cec
+        files:
+          eng.traineddata: sha256:8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba
+          script/Latin.traineddata: sha256:cf7216998bf7f363f18e3def04cc6b28ae954d2a5a3bdad09f743c9d3538ef35
+      engine: tesseract.recognition.v1
+      options:
+        lang: eng
+        data: best
+        pad: 4
+        dpi: 300
+  tesseract-best-latin@1:
+    sha256: sha256:fc952da0f4a3b111cafa2154e547896a786c7b7f157e2c6b8517f4fe1021d58f
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: tessdata-best
+        revision: e12c65a915945e4c28e237a9b52bc4a8f39a0cec
+        files:
+          eng.traineddata: sha256:8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba
+          script/Latin.traineddata: sha256:cf7216998bf7f363f18e3def04cc6b28ae954d2a5a3bdad09f743c9d3538ef35
+      engine: tesseract.recognition.v1
+      options:
+        lang: script/Latin
+        data: best
+        pad: 4
+        dpi: 300
+  tesseract-fast-eng@1:
+    sha256: sha256:c06ef1dde3bfa8e236fc9f30ef24c0807b23bf3b678a6b9fcd970b1ef1b38c7c
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: tessdata-fast
+        revision: 87416418657359cb625c412a48b6e1d6d41c29bd
+        files:
+          eng.traineddata: sha256:7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+          script/Latin.traineddata: sha256:6dbdaf8ecc6c40f025c2648bf3b3f3fbffe073e1fd2df2047fde2e2b2f020d53
+      engine: tesseract.recognition.v1
+      options:
+        lang: eng
+        data: fast
+        pad: 4
+        dpi: 300
+  tesseract-fast-latin@1:
+    sha256: sha256:99d2bffd0000dac6aea086209a5f03f407a32eee4967073350768548fc42d6a0
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: tessdata-fast
+        revision: 87416418657359cb625c412a48b6e1d6d41c29bd
+        files:
+          eng.traineddata: sha256:7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+          script/Latin.traineddata: sha256:6dbdaf8ecc6c40f025c2648bf3b3f3fbffe073e1fd2df2047fde2e2b2f020d53
+      engine: tesseract.recognition.v1
+      options:
+        lang: script/Latin
+        data: fast
+        pad: 4
+        dpi: 300
   unlimited-ocr-2@1:
-    sha256: sha256:16a39f23b407ddf42db395923029a396a5bd5119a7c10951ad59fb7e0286c08c
-    released: '2026-11-03'
+    sha256: sha256:f02362df29626c66202bb336f75a603e53f5ffb4f6e28955aad1ba1dd9077faf
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -999,11 +1401,10 @@ presets:
           model-00001-of-00002.safetensors: sha256:4c40b740f209fd7682040d4ebf19409208acde5c401ccd2dde426d0f41542f18
           model-00002-of-00002.safetensors: sha256:9490b82fa47f89e5110eb5577f8ab1b6694c12121905dbc086ddb10207a4ba0c
           wheel/sglang-0.5.20.dev10+g8d62f5fb9c-py3-none-any.whl: sha256:a3f3e2c94e09de90b61b43d01475fd5d1aa818d16eec05204b8079c09c2ba70d
-      engine:
-        kind: chat/1
-        options:
-          adapter: unlimited-ocr-2
-          served_name: Unlimited-OCR-2
+      engine: chat.v1
+      options:
+        adapter: unlimited-ocr-2
+        served_name: Unlimited-OCR-2
       settings:
         sampling:
           max_tokens: 8000
@@ -1076,8 +1477,8 @@ presets:
           - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
         - - fastokens==0.3.2
   unlimited-ocr@1:
-    sha256: sha256:2c5254002abbaf1d1650b68ff645f0561f80f87bf7f12380299eb13d4d81eaa7
-    released: '2026-11-03'
+    sha256: sha256:88bd6b81609688d787c74b8c901196f194193142881c5686bc84e6ab95251fb0
+    released: '2026-11-04'
     linecaster: null
     resolved:
       step: page
@@ -1090,10 +1491,9 @@ presets:
           assets/long-horizon-ocr.gif: sha256:d4ba8964d33ffa3a3584d4a1259625ab659c02190e9655ddd51793d28307d962
           model-00001-of-000001.safetensors: sha256:2bc48a7a110061ea58fff65d3169367eebe3aee371ca6968dc2219c1b2855fc6
           wheel/sglang-0.0.0.dev11416+g92e8bb79e-py3-none-any.whl: sha256:2644a1f349c55f0ca822e70a70679c98475754ec4722c3be1b18a72bac477cd5
-      engine:
-        kind: chat/1
-        options:
-          adapter: unlimited-ocr
+      engine: chat.v1
+      options:
+        adapter: unlimited-ocr
       settings:
         sampling:
           temperature: 0.0
@@ -1117,3 +1517,28 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+recipes:
+  squiddle@1:
+    sha256: sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
+    released: '2026-11-04'
+    linecaster: null
+    resolved:
+      pipeline: chain.v1
+      options:
+        text: reflow
+      presets:
+        formulas:
+          ref: pp-formulanet-plus-l@1
+          sha256: sha256:15cd51d26ee7f253e4bdd4b1da5d56516e2af01c06ac680a622cdcb6c519a4bf
+        layout:
+          ref: pp-doclayoutv3@1
+          sha256: sha256:a76f9337c505909134ae1f26859fa8b07f70c7ff4d6f97d57fbf009fea0eba87
+        lines:
+          ref: pp-ocrv6-medium-det@1
+          sha256: sha256:a8ab13d76b42f9b5b69dbb0d48e1da4135fd5e84a106f3df6d5dac613f05852e
+        recognition:
+          ref: kraken-ppocrv6-medium@1
+          sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
+        tables:
+          ref: slanet-plus@2
+          sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4

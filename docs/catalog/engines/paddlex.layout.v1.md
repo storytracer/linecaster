@@ -1,0 +1,32 @@
+# paddlex.layout.v1
+
+*Engine · layout · package `linecaster-paddlex`*
+
+linecaster engine model for the layout step: fills `Transcription.regions` (Docling labels,
+the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
+The model files: `weights` (a catalogue pin) or the catalogue's newest pin for `model_name`
+(`weights.resolve`).
+
+|  |  |
+|---|---|
+| Class | `linecaster_paddlex:PaddleLayoutModel` |
+| Source | [layout.py](../../../engines/paddlex/src/linecaster_paddlex/layout.py) |
+| Reads | pages |
+| Produces | regions, reading_order |
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `model_name` | `str` | `'PP-DocLayoutV3'` | PaddleX layout model (PP-DocLayoutV3: learned reading order and polygons; others: XY-cut order) |
+| `device` | `str` | `'auto'` | auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers) |
+| `threshold` | `float \| dict[int, float] \| None` | `None` | score threshold, one or per class index; None: PaddleX's own for the model (PP-DocLayoutV3 0.3, PP-DocLayout_plus-L PP-StructureV3's per class) |
+| `header_zone` | `float` | `0.15` | share of the page height from the top in which a page number is a page header (below: a page footer) |
+| `nms` | `bool` | `True` | PaddleX's layout NMS |
+| `merge_mode` | `str \| dict[int, str] \| None` | `None` | PaddleX's box merge mode (large, union, small), one or per class index; None: PaddleX's own for the model |
+| `max_containment` | `float` | `0.8` | a region contained in another by more than this share of its area is dropped |
+
+## Presets
+
+- [`pp-doclayout-plus-l`](../presets/layout/pp-doclayout-plus-l.md)
+- [`pp-doclayoutv3`](../presets/layout/pp-doclayoutv3.md)

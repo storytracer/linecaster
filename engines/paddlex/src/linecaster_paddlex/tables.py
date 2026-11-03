@@ -186,7 +186,7 @@ class PaddleTableModel:
     ``submodel_revisions`` (each a pin of its model document; edition 1 of ``slanet-plus``), else their newest
     pins."""
 
-    kind: ClassVar[str] = "paddlex.tables/1"
+    engine_id: ClassVar[str] = "paddlex.tables.v1"
     step = "tables"
     capabilities: ClassVar[dict] = {"unit": "region", "produces": ["tables", "html"]}
     #: the structure model for both table classes, and the pipeline's other models (``table_pipeline_config``)

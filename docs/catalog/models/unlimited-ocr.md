@@ -1,0 +1,29 @@
+# unlimited-ocr
+
+*Model · Unlimited-OCR · MIT*
+
+Unlimited-OCR ("Unlimited OCR Works", arXiv 2606.23050) is Baidu's long-horizon document parser, which the
+card presents as pushing DeepSeek-OCR one step further: one pass over a single page (`document parsing.`) or a
+multi-page document or PDF (`Multi page parsing.`). The output is text blocks tagged with `<|det|>type
+[bbox]<|/det|>` grounding markers. It needs `trust_remote_code` (custom code); vLLM and SGLang are supported.
+The card says "multilingual" without a list and names no base checkpoint. Licence: MIT (licence file copied as
+`upstream/07dea832e22aefee32ad281d4b80551282e1c168/LICENSE`).
+The upstream card is in `upstream/07dea832e22aefee32ad281d4b80551282e1c168/README.md`.
+
+|  |  |
+|---|---|
+| Source | [baidu/Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR) |
+| Licence | MIT |
+| Languages | mul |
+
+## Pins
+
+Each with the upstream card as published at that revision, verbatim.
+
+| Revision | Pinned | Tag | Files | Card |
+|---|---|---|---|---|
+| `07dea832e22aefee32ad281d4b80551282e1c168` | 2026-11-03 |  | 5 | [README.md](../../../src/linecaster/catalog/data/models/unlimited-ocr/upstream/07dea832e22aefee32ad281d4b80551282e1c168/README.md) |
+
+## Presets
+
+- [`unlimited-ocr`](../presets/page/unlimited-ocr.md)

@@ -104,7 +104,7 @@ class KrakenRecognitionModel:
     The model file: ``weights`` (a catalogue pin, as a preset passes it) when given, else ``model``: a size
     name, resolved to its model document's newest pin, or a kraken model file."""
 
-    kind: ClassVar[str] = "kraken.recognition/1"
+    engine_id: ClassVar[str] = "kraken.recognition.v1"
     step = "recognition"
     capabilities: ClassVar[dict] = {"unit": "line",
                                     "produces": ["text", "words", "word_confidences", "line_confidences"]}

@@ -16,12 +16,10 @@ dependencies = [
     "Pillow>=11",
 ]
 
-# the engines by versioned kind, and the package's catalogue directory (specs/catalog.md)
+# the engines by versioned id (specs/catalog.md); their presets and models live in linecaster's catalogue
 [project.entry-points."linecaster.engines"]
-"kraken.recognition/1" = "linecaster_kraken:KrakenRecognitionModel"
+"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionModel"
 
-[project.entry-points."linecaster.catalog"]
-kraken = "linecaster_kraken.catalog:directory"
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]

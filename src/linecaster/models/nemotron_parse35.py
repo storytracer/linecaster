@@ -6,7 +6,7 @@
   client-side resize would resample twice);
 * the architecture is not in vLLM's registry: NVIDIA serves it through a vLLM general plugin shipped in the
   model repo. ``serve_setup`` installs it into the vLLM image's own Python before ``vllm serve``, as the
-  board's ``install-plugin.sh`` does: the files ``engine.options.plugin_patterns`` from the model repo at the
+  board's ``install-plugin.sh`` does: the files ``options.plugin_patterns`` from the model repo at the
   pinned revision, NVIDIA's inference constraints without their own ``nemotron-parse`` line, and a check
   that vLLM is still the preset's version.
 

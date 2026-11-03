@@ -2,6 +2,22 @@
 
 Measurements, decisions and open questions, newest first.
 
+## One catalogue (2026-11-04, spark)
+
+The catalogue is one folder, `src/linecaster/catalog/data/`: the engine packages' catalogues (kraken, PaddleX,
+Tesseract: 21 models, 18 presets, their evidence) and squiddleocr's (the recipe `squiddle` and its 4 evidence
+records) were moved into it, and the entry-point group `linecaster.catalog`, `--with-dir` and recipe file paths
+went. Presets are grouped by step (`presets/<step>/<id>.md`, the folder checked against `step`). "kind" is gone: a
+preset names its engine, `engine: kraken.recognition.v1`, with `options:` beside it; a recipe its pipeline,
+`pipeline: chain.v1`; code ids end in `.v<n>` (were `/1`). The generated docs are grouped by component
+(`docs/catalog/{engines,models,presets/<step>,pipelines,recipes}`); engine and pipeline pages are read from the
+source with `ast`, since no environment has every engine.
+
+- The lock was re-released from scratch: the functional content changed shape (`engine` a string, `options` at
+  the top), so every hash changed; the editions stayed (39 presets at edition 1, `slanet-plus` at 2; `squiddle@1`).
+  `slanet-plus@1` was dropped from the lock; no run had recorded it. This is the last re-baselining before runs
+  record editions in earnest; from now on a released edition changes only as a new edition.
+
 ## Pipelines and recipes (2026-11-03, spark)
 
 "Recipes" were pipeline shapes with slots, and since the defaults went they chose nothing: renamed `pipelines/`

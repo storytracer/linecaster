@@ -1,0 +1,33 @@
+# pp-formulanet-l-safetensors
+
+*Model · PP-FormulaNet-L · Apache-2.0*
+
+PaddleOCR's PP-FormulaNet-L, a formula recogniser (formula image in, LaTeX out), in the safetensors package PaddleX
+downloads for its transformers engine (`PaddlePaddle/PP-FormulaNet-L_safetensors`: Hugging Face transformers on torch; the
+official model source has no ONNX package for it). A conversion of `PaddlePaddle/PP-FormulaNet-L`; the card does not say
+from which revision, and is empty but for its licence. Formula recognition has no natural language, so
+`languages` and `scripts` stay empty.
+
+PaddleX itself always downloads the repository's current `main`; linecaster pins the commit that was `main` on
+2026-11-03 (for every model PaddleX had already downloaded on spark, among them those of squiddleocr's goldens,
+the commit its cached files came from) and loads that snapshot from the Hugging Face cache through
+`create_predictor(model_dir=...)`. Not compared with PaddleX's own download for this model (the models that were
+compared on three pages gave identical outputs, 2026-11-03).
+
+|  |  |
+|---|---|
+| Source | [PaddlePaddle/PP-FormulaNet-L_safetensors](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors) |
+| Licence | Apache-2.0 |
+| Derived from | converted of PaddlePaddle/PP-FormulaNet-L |
+
+## Pins
+
+Each with the upstream card as published at that revision, verbatim.
+
+| Revision | Pinned | Tag | Files | Card |
+|---|---|---|---|---|
+| `69869f2891cc61347d230ef234bcc8b8d297c43a` | 2026-11-03 |  | 1 | [README.md](../../../src/linecaster/catalog/data/models/pp-formulanet-l-safetensors/upstream/69869f2891cc61347d230ef234bcc8b8d297c43a/README.md) |
+
+## Presets
+
+- [`pp-formulanet-l`](../presets/formulas/pp-formulanet-l.md)

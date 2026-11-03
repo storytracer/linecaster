@@ -1,0 +1,46 @@
+# slanet-plus
+
+*Preset · edition 2 · tables · core*
+
+PaddleX's `table_recognition_v2` pipeline on every `table` region, fed with the page's own lines and their
+recognised text instead of its own OCR (`use_ocr_model=False` with an external OCR result); the cells come back
+with our text in PaddleX's HTML. The squiddle combination's table step.
+
+- SLANet_plus end to end for both table classes (`e2e`: structure and cell boxes from SLANet_plus's own
+  prediction, the RT-DETR cell detectors unused). Chosen 2026-09-07 from four variants on five BHL tables:
+  PP-StructureV3's own choice (SLANeXt_wired + cell detector for what the classifier calls wired) merged body rows
+  on old ruled tables; SLANet_plus end to end kept every body row apart and filled the most cells.
+- `crop_pad` 8: with the layout box exactly, the models can flip to a worse cell set (25 cells and 44 words on one
+  table against 17 cells and 121 words padded); from 8 px the result is stable.
+- The pipeline's other models are its `submodels`, by PaddleX name: the wired/wireless classifier
+  (`PP-LCNet_x1_0_table_cls`, which picks the branch) and the two cell detectors (loaded by the pipeline, unused
+  with `e2e`), each a pin of its model document, so their files are part of the edition's hash.
+
+Edition 2 (2026-11-03): the same models at the same revisions, moved from the option `submodel_revisions` (edition
+1) to `submodels`, so their file hashes count too. Edition 1 was dropped from the lock when the catalogues were
+merged into one (2026-11-04), before any run recorded it.
+- Unruled rows come back as one cell per column with every PaddleX table model.
+
+|  |  |
+|---|---|
+| Step | tables (reads regions) |
+| Engine | [`paddlex.tables.v1`](../../engines/paddlex.tables.v1.md) |
+| Model | [SLANet_plus](../../models/slanet-plus-onnx.md) |
+| Revision | [`7dbe640e127602bf506815e822c09758de73c482`](https://huggingface.co/PaddlePaddle/SLANet_plus_onnx/tree/7dbe640e127602bf506815e822c09758de73c482) |
+| Licence | Apache-2.0 |
+| Model (PP-LCNet_x1_0_table_cls) | [pp-lcnet-x1-0-table-cls-onnx](../../models/pp-lcnet-x1-0-table-cls-onnx.md) `605f623b09f6` |
+| Model (RT-DETR-L_wired_table_cell_det) | [rt-detr-l-wired-table-cell-det-onnx](../../models/rt-detr-l-wired-table-cell-det-onnx.md) `b2c0720b5fe6` |
+| Model (RT-DETR-L_wireless_table_cell_det) | [rt-detr-l-wireless-table-cell-det-onnx](../../models/rt-detr-l-wireless-table-cell-det-onnx.md) `94c021be2060` |
+| Produces | tables, html |
+
+## Options
+
+| Option | Value |
+|---|---|
+| crop_pad | `8` |
+| e2e | `True` |
+| name | `table_recognition_v2/SLANet_plus` |
+
+## Provenance
+
+- storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)

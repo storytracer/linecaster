@@ -2,9 +2,9 @@
 SGLang, ...), configured by catalogue presets (``specs/catalog.md``).
 
 Everything about a model that is data lives in its preset (``linecaster/catalog/data/presets/<id>.md``,
-``engine.kind: chat/1``): the model pin, the served name, sampling, prompts, page size, region padding, the
+``engine: chat.v1``): the model pin, the served name, sampling, prompts, page size, region padding, the
 server (vLLM or SGLang), its version, flags, environment and packages, the HF Jobs image it was validated
-with. What stays code is the **adapter** the preset names (``engine.options.adapter``): how a page image
+with. What stays code is the **adapter** the preset names (``options.adapter``): how a page image
 becomes a ``/chat/completions`` request, how the completion becomes a text-only ``Transcription``, which
 regions are read and how they are cut, and helpers such as an answer format's Markdown conversion. Models
 that share that code share an adapter (both DeepSeek-OCRs, both LightOnOCR-3s, both dots, both Ovis).
@@ -25,8 +25,8 @@ from typing import Any, ClassVar
 
 from ..transcription.model import Line, ModelInfo, Source, Transcription
 
-#: the engine kind of chat presets
-KIND = "chat/1"
+#: the engine of chat presets
+ENGINE = "chat.v1"
 #: files ``check_default_branch`` ignores by default
 PIN_IGNORE = ("README.md", ".gitattributes")
 
@@ -40,7 +40,7 @@ class ChatPreset:
     repo: str                                    # the model's Hugging Face id (also the default served name)
     revision: str | None
     step: str = "page"                           # the preset's step: page, or recognition (region by region)
-    options: dict = field(default_factory=dict)  # engine.options
+    options: dict = field(default_factory=dict)  # the preset's options
     settings: dict = field(default_factory=dict)
     serve: dict = field(default_factory=dict)    # the serve block
     draft: dict | None = None                    # a speculative-decoding draft: repo, revision, its config
@@ -51,7 +51,7 @@ class ChatModel:
     ``request``; ``parse`` has a text-only default. Every value comes from the preset:
 
     * ``model`` / ``revision``: the Hugging Face id and pinned commit; ``served_name``: the name the server
-      hosts it under (``engine.options.served_name``, default the Hub id);
+      hosts it under (``options.served_name``, default the Hub id);
     * ``sampling``, ``prompt``, ``page_longest`` (the page size the model expects, longest side in px; also
       the scale ``ChatRegionStep`` cuts regions at), ``region_pad`` and the adapter's own ``settings``;
     * ``server`` (``vllm`` or ``sglang``), ``server_version``, ``job_image``, ``serve_args`` (the server's
@@ -59,7 +59,7 @@ class ChatModel:
     * ``revision_flag`` (pass ``--revision``; ``False`` for a server that must load the default branch, which
       the serve block then checks file by file against the pin, ``pin_ignore`` aside) and
       ``server_packages`` (installed into the server's Python first) from the serve block or, until the
-      serve schema has them, ``engine.options``."""
+      serve schema has them, ``options``."""
 
     adapter: ClassVar[str]
 
@@ -262,7 +262,7 @@ def chat_presets(catalog=None) -> dict[str, str]:
 
     c = catalog or installed()
     return {pid: c.model(p.model.id).source.ref for pid, (_, p) in sorted(c.presets.items())
-            if p.engine.kind == KIND and p.model is not None}
+            if p.engine == ENGINE and p.model is not None}
 
 
 def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
@@ -289,10 +289,10 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     c = catalog or installed()
     r = c.resolve(preset_ref(ref, c, prefer))
     content = r.content
-    engine = content.get("engine") or {}
-    if engine.get("kind") != KIND:
-        raise ValueError(f"preset {r.ref} is not a chat preset (engine {engine.get('kind')!r}, not {KIND})")
-    options = dict(engine.get("options") or {})
+    engine = content.get("engine")
+    if engine != ENGINE:
+        raise ValueError(f"preset {r.ref} is not a chat preset (engine {engine!r}, not {ENGINE})")
+    options = dict(content.get("options") or {})
     m = c.model(content["model"]["id"])
     draft = None
     serve = dict(content.get("serve") or {})
@@ -307,5 +307,5 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     return adapter(options["adapter"])(preset, served_name=served_name)
 
 
-__all__ = ["ADAPTERS", "ChatModel", "ChatPreset", "KIND", "adapter", "adapters", "chat_model", "chat_presets",
+__all__ = ["ADAPTERS", "ChatModel", "ChatPreset", "ENGINE", "adapter", "adapters", "chat_model", "chat_presets",
            "png_longest", "preset_ref", "text_transcription"]

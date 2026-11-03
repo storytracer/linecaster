@@ -162,19 +162,19 @@ def rows(a: argparse.Namespace):
 from .serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
 
 
-def serve(argv: list[str], options: Callable, models: Callable, kind: str | None = None,
+def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
           slots: dict[str, str] | None = None) -> None:
     """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
     names others. The pipeline's model options (``--recognizer``, ``--layout-model``, ...) pick them."""
     from .cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
-    if kind:
+    if pipeline_id:
         ap.add_argument("--recipe")
     options(ap)
     a, rest = ap.parse_known_args(argv)
-    if kind:
-        apply_recipe(ap, a, kind, slots or {}, argv)
+    if pipeline_id:
+        apply_recipe(ap, a, pipeline_id, slots or {}, argv)
     if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
         rest = model_args(models(a)) + rest
     cli(["serve", *rest])
@@ -273,24 +273,25 @@ def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
     return any(arg == f or arg.startswith(f + "=") for arg in argv for f in flags)
 
 
-def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, kind: str, slots: dict[str, str],
-                 argv: list[str] | None = None) -> None:
-    """Fill ``a`` from the recipe ``a.recipe`` (an id[@edition] or a recipe file): each slot's preset edition
+def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id: str, slots: dict[str, str],
+                 argv: list[str] | None = None, c=None) -> None:
+    """Fill ``a`` from the recipe ``a.recipe`` (id[@edition] in the catalogue ``c``): each slot's preset edition
     and each option, unless the command line gives its own; what it gives instead is recorded as an override
     (``a.recipe_record``: the recipe edition, its hash and the overrides, for the run record)."""
     if not getattr(a, "recipe", None):
         return
-    from .catalog.registry import recipe_catalog, split_ref
+    from .catalog.registry import catalog, split_ref
 
     argv = sys.argv[1:] if argv is None else argv
-    c, ref = recipe_catalog(a.recipe)
+    c = catalog() if c is None else c
+    ref = a.recipe
     rid, edition = split_ref(ref)
     d, doc = c.recipes[rid] if rid in c.recipes else (None, None)
     if doc is None:
         raise SystemExit(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
     pipeline = doc.pipeline if edition in (None, doc.edition) else d.lock.recipes[ref].resolved["pipeline"]
-    if pipeline != kind:                         # before resolving: its presets may need other engines
-        raise SystemExit(f"recipe {ref} is for the pipeline {pipeline}, not {kind}")
+    if pipeline != pipeline_id:                  # before resolving: its presets may need other engines
+        raise SystemExit(f"recipe {ref} is for the pipeline {pipeline}, not {pipeline_id}")
     r = c.resolve_recipe(ref)
     overrides = {}
     for slot, p in r.content["presets"].items():
@@ -302,7 +303,7 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, kind: str, 
             overrides[slot] = given
     for name, value in r.content.get("options", {}).items():
         if not hasattr(a, name):
-            raise SystemExit(f"recipe {r.ref}: the pipeline {kind} has no option {name!r}")
+            raise SystemExit(f"recipe {r.ref}: the pipeline {pipeline_id} has no option {name!r}")
         if not _given(ap, argv, name):
             setattr(a, name, value)
         elif getattr(a, name) != value:
@@ -312,9 +313,9 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, kind: str, 
 
 
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
-         kind: str | None = None, slots: dict[str, str] | None = None) -> None:
-    """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``kind`` (e.g.
-    ``chain/1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
+         pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
+    """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``pipeline_id``
+    (e.g. ``chain.v1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
     argv = sys.argv[1:]
     if argv[:1] == ["ray"]:
         os.environ.setdefault(RAY_UV, "0")
@@ -323,16 +324,16 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         sys.argv = ["ray", *argv[1:]]
         sys.exit(ray_cli())
     if argv[:1] == ["serve"]:
-        return serve(argv[1:], options, models, kind, slots)
+        return serve(argv[1:], options, models, pipeline_id, slots)
     ap = parser(description)
     g = ap.add_argument_group("pipeline")
-    if kind:
-        g.add_argument("--recipe", help="a recipe (id[@edition], or a recipe file) filling the slots and options "
-                                        "the command line leaves open")
+    if pipeline_id:
+        g.add_argument("--recipe", help="a catalogue recipe (id[@edition]) filling the slots and options the "
+                                        "command line leaves open")
     options(g)
     a = ap.parse_args(argv)
-    if kind:
-        apply_recipe(ap, a, kind, slots or {}, argv)
+    if pipeline_id:
+        apply_recipe(ap, a, pipeline_id, slots or {}, argv)
     a = check(ap, a)
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})

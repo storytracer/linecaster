@@ -53,30 +53,30 @@ for _pkg in ("linecaster_kraken", "linecaster_paddlex", "linecaster_tesseract"):
     pytest.importorskip(_pkg)
 
 from linecaster.backends import InProcess, resolve  # noqa: E402
-from linecaster.catalog.registry import Catalog, catalog, catalogue_dirs, engine_class, engine_kinds  # noqa: E402
+from linecaster.catalog.registry import Catalog, catalog, engine_class, engine_ids  # noqa: E402
 from linecaster.catalog.schema import Capabilities  # noqa: E402
 
-KINDS = {
-    "kraken.recognition/1": "linecaster_kraken:KrakenRecognitionModel",
-    "paddlex.layout/1": "linecaster_paddlex:PaddleLayoutModel",
-    "paddlex.lines/1": "linecaster_paddlex:PaddleLineModel",
-    "paddlex.recognition/1": "linecaster_paddlex:PaddleRecognitionModel",
-    "paddlex.tables/1": "linecaster_paddlex:PaddleTableModel",
-    "paddlex.formulas/1": "linecaster_paddlex:PaddleFormulaModel",
-    "tesseract.recognition/1": "linecaster_tesseract:TesseractRecognitionModel",
+ENGINES = {
+    "kraken.recognition.v1": "linecaster_kraken:KrakenRecognitionModel",
+    "paddlex.layout.v1": "linecaster_paddlex:PaddleLayoutModel",
+    "paddlex.lines.v1": "linecaster_paddlex:PaddleLineModel",
+    "paddlex.recognition.v1": "linecaster_paddlex:PaddleRecognitionModel",
+    "paddlex.tables.v1": "linecaster_paddlex:PaddleTableModel",
+    "paddlex.formulas.v1": "linecaster_paddlex:PaddleFormulaModel",
+    "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionModel",
 }
-ENGINE_PRESETS = sorted(pid for pid, (_, p) in catalog().presets.items() if p.engine.kind in KINDS)
+ENGINE_PRESETS = sorted(pid for pid, (_, p) in catalog().presets.items() if p.engine in ENGINES)
 
 
-def test_engines_are_registered_under_their_kinds():
-    assert {k: v for k, v in engine_kinds().items() if k in KINDS} == KINDS
-    for kind in KINDS:
-        assert engine_class(kind).kind == kind
+def test_engines_are_registered_under_their_ids():
+    assert {k: v for k, v in engine_ids().items() if k in ENGINES} == ENGINES
+    for engine in ENGINES:
+        assert engine_class(engine).engine_id == engine
 
 
-@pytest.mark.parametrize("kind", sorted(KINDS))
-def test_options_mirror_the_constructor(kind):
-    cls = engine_class(kind)
+@pytest.mark.parametrize("engine", sorted(ENGINES))
+def test_options_mirror_the_constructor(engine):
+    cls = engine_class(engine)
     params = {name: p.default for name, p in inspect.signature(cls.__init__).parameters.items()
               if name not in ("self", "weights", "submodel_weights") and p.kind is not p.VAR_KEYWORD}
     assert "weights" in inspect.signature(cls.__init__).parameters
@@ -90,22 +90,17 @@ def test_options_mirror_the_constructor(kind):
         cls.Options(no_such_option=1)
 
 
-@pytest.mark.parametrize("kind", sorted(KINDS))
-def test_capabilities_use_the_vocabulary(kind):
-    cls = engine_class(kind)
+@pytest.mark.parametrize("engine", sorted(ENGINES))
+def test_capabilities_use_the_vocabulary(engine):
+    cls = engine_class(engine)
     caps = Capabilities.model_validate(cls.capabilities)
     assert caps.unit in ("line", "region", "page") and caps.produces
 
 
-def test_engine_catalogues_are_installed():
-    dirs = catalogue_dirs()
-    for pkg in ("linecaster_kraken", "linecaster_paddlex", "linecaster_tesseract"):
-        assert any(d.parts[-2:] == (pkg, "catalog") for d in dirs), (pkg, dirs)
+def test_the_catalogue_verifies_with_the_engines_installed():
+    """With the engines installed, verify also checks that every preset's engine is registered."""
     assert len(ENGINE_PRESETS) == 18
-
-
-def test_installed_catalogue_verifies():
-    assert Catalog(catalogue_dirs()).verify() == []
+    assert Catalog().verify() == []
 
 
 @pytest.mark.parametrize("pid", ENGINE_PRESETS)
@@ -115,14 +110,14 @@ def test_preset_constructs_its_engine(pid):
     assert b.preset == f"{pid}@{p.edition}" and b.preset_sha256.startswith("sha256:")
     assert b.kwargs["weights"]["model"] == p.model.id and b.kwargs["weights"]["revision"] == p.model.revision
     cls = resolve(b.spec)
-    assert cls.kind == p.engine.kind and cls.step == p.step
+    assert cls.engine_id == p.engine and cls.step == p.step
     model = cls(**b.kwargs)                         # constructed, not loaded
     assert model.weights == b.kwargs["weights"]
     # the preset states every option but the device (and what its submodels replace), so an edition does not
     # depend on code defaults
     replaced = {"submodel_revisions"} if p.submodels else set()
-    assert set(p.engine.options) == set(cls.Options.model_fields) - {"device"} - replaced
-    assert model.options.model_dump(exclude={"device"}) == cls.Options(**p.engine.options).model_dump(exclude={"device"})
+    assert set(p.options) == set(cls.Options.model_fields) - {"device"} - replaced
+    assert model.options.model_dump(exclude={"device"}) == cls.Options(**p.options).model_dump(exclude={"device"})
     assert Capabilities.model_validate(cls.capabilities).produces == p.capabilities.produces
 
 
@@ -169,7 +164,7 @@ def test_layout_presets_state_the_model_defaults():
     from linecaster_paddlex.layout import MODEL_DEFAULTS
 
     for pid, name in (("pp-doclayoutv3", "PP-DocLayoutV3"), ("pp-doclayout-plus-l", "PP-DocLayout_plus-L")):
-        o = engine_class("paddlex.layout/1").Options(**catalog().preset(pid).engine.options)
+        o = engine_class("paddlex.layout.v1").Options(**catalog().preset(pid).options)
         assert (o.threshold, o.merge_mode) == (MODEL_DEFAULTS[name]["threshold"], MODEL_DEFAULTS[name]["merge_mode"])
 
 
@@ -184,17 +179,14 @@ def test_table_submodels_are_pinned_models():
         catalog().model(ref.id).pin(ref.revision)
     b = InProcess.from_preset("slanet-plus")
     assert set(b.kwargs["submodel_weights"]) == set(PaddleTableModel.SUBMODELS)
-    old = catalog().resolve("slanet-plus@1")                # edition 1 stays resolvable from the lock
-    assert set(old.content["engine"]["options"]["submodel_revisions"]) == set(PaddleTableModel.SUBMODELS)
 
 
-def test_catalogue_files_ship_with_the_packages():
-    """uv_build puts everything under the module folder into the wheel; the documents live there."""
-    for d in catalogue_dirs()[1:]:
-        if d.parts[-2] in ("linecaster_kraken", "linecaster_paddlex", "linecaster_tesseract"):
-            assert (d / "__init__.py").exists() and (d / "catalog.lock").exists()
-            assert list(d.glob("models/*/model.md")) and list(d.glob("presets/*.md"))
-            assert Path(d).parent.name.startswith("linecaster_")
+def test_the_engine_packages_ship_no_catalogue():
+    """One catalogue: the engines' presets and models live in linecaster's (``src/linecaster/catalog/data``)."""
+    import importlib
+
+    for pkg in ("linecaster_kraken", "linecaster_paddlex", "linecaster_tesseract"):
+        assert not (Path(importlib.import_module(pkg).__file__).parent / "catalog").exists()
 
 
 if __name__ == "__main__":

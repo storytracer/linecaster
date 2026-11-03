@@ -60,7 +60,7 @@ class PaddleLineModel:
     bbox, score); text stays ``None``. Replaces any lines already present. The model files: ``weights`` (a
     catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
 
-    kind: ClassVar[str] = "paddlex.lines/1"
+    engine_id: ClassVar[str] = "paddlex.lines.v1"
     step = "lines"
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["lines"]}
 

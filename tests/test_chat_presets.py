@@ -1,4 +1,4 @@
-"""Chat presets (catalogue, engine chat/1): every preset resolves and builds its adapter, Hugging Face ids still
+"""Chat presets (catalogue, engine chat.v1): every preset resolves and builds its adapter, Hugging Face ids still
 work, the edition and its hash reach ModelInfo, and the blocks take preset refs."""
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from linecaster.backends import Served
 from linecaster.blocks.chat import ChatPageStep, ChatRegionStep
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.catalog.registry import catalog
-from linecaster.models import ADAPTERS, KIND, ChatModel, adapter, chat_model, chat_presets, preset_ref
+from linecaster.models import ADAPTERS, ENGINE, ChatModel, adapter, chat_model, chat_presets, preset_ref
 
 PRESETS = sorted(chat_presets())
 
@@ -25,7 +25,7 @@ def test_every_preset_builds_its_adapter(pid):
     c = catalog()
     p = c.preset(pid)
     spec = chat_model(pid)
-    assert isinstance(spec, ChatModel) and type(spec) is adapter(p.engine.options["adapter"])
+    assert isinstance(spec, ChatModel) and type(spec) is adapter(p.options["adapter"])
     m = c.model(p.model.id)
     assert (spec.model, spec.revision) == (m.source.ref, p.model.revision)
     m.pin(spec.revision)                                       # pinned in the model document
@@ -40,7 +40,7 @@ def test_every_preset_builds_its_adapter(pid):
 
 
 def test_every_adapter_is_used():
-    used = {catalog().preset(pid).engine.options["adapter"] for pid in PRESETS}
+    used = {catalog().preset(pid).options["adapter"] for pid in PRESETS}
     assert used == set(ADAPTERS)
 
 
@@ -91,4 +91,4 @@ def test_served_name_and_draft_come_from_the_preset():
 
 
 def test_presets_are_chat_engine_presets():
-    assert all(catalog().preset(pid).engine.kind == KIND for pid in PRESETS)
+    assert all(catalog().preset(pid).engine == ENGINE for pid in PRESETS)

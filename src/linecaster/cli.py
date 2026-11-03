@@ -38,17 +38,15 @@ def _serve(a) -> None:
 
 
 def _models(a) -> None:
-    from pathlib import Path
+    from .catalog.registry import catalog
 
-    from .catalog.registry import Catalog, catalogue_dirs
-
-    c = Catalog(catalogue_dirs() + [Path(d) for d in a.with_dir])
+    c = catalog()
     rows = [("preset", "step", "engine", "model", "licence", "support")]
     for pid, (_, p) in sorted(c.presets.items()):
         if a.step and p.step != a.step:
             continue
         lic = c.model(p.model.id).license if p.model else "-"
-        rows.append((p.ref, p.step, p.engine.kind, p.model.id if p.model else "-", lic, p.support))
+        rows.append((p.ref, p.step, p.engine, p.model.id if p.model else "-", lic, p.support))
     widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
     for r in rows:
         print("  ".join(x.ljust(w) for x, w in zip(r, widths)).rstrip())
@@ -63,27 +61,25 @@ def _catalog(a) -> None:
 
     from .catalog import registry
 
-    extra = [Path(d) for d in a.with_dir]
-    dirs = registry.catalogue_dirs() + [d for d in extra if d not in registry.catalogue_dirs()]
     if a.action == "verify":
-        problems = registry.Catalog(dirs).verify()
+        problems = registry.Catalog().verify()
         print("\n".join(problems) or "catalogue OK")
         sys.exit(1 if problems else 0)
     if a.action == "show":
         from .catalog import yamlio
 
-        c = registry.Catalog(dirs)
+        c = registry.Catalog()
         kind = "recipe" if a.ref.split("@", 1)[0] in c.recipes else "preset"
         r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
         print(yamlio.dump({kind: r.ref, "sha256": r.sha256, "released": r.released, **r.content}))
     elif a.action == "docs":
         from .catalog import docs
 
-        for path in docs.write(registry.Catalog(dirs), a.out if a.out != "schemas" else "docs/catalog",
+        for path in docs.write(registry.Catalog(), a.out if a.out != "schemas" else "docs/catalog",
                                readme=a.readme):
             print(path)
     elif a.action == "release":
-        e = registry.Catalog(dirs).release(a.ref, commit=a.commit)
+        e = registry.Catalog().release(a.ref, commit=a.commit)
         print(f"{a.ref}: {e.sha256} (released {e.released})")
     elif a.action == "schema":
         from .catalog import schema as S
@@ -97,11 +93,10 @@ def _catalog(a) -> None:
     elif a.action == "pin":
         from .catalog import pin
 
-        directory = Path(a.dir) if a.dir else registry.CORE
         if a.hf:
-            path = pin.pin_hf(directory, a.ref, a.hf, a.revision)
+            path = pin.pin_hf(registry.CORE, a.ref, a.hf, a.revision)
         else:
-            path = pin.pin_github(directory, a.ref, a.github, a.revision, a.file, tag=a.tag)
+            path = pin.pin_github(registry.CORE, a.ref, a.github, a.revision, a.file, tag=a.tag)
         print(path)
 
 
@@ -121,19 +116,15 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--decode-workers", type=int, default=4)
     m = sub.add_parser("models", help="the catalogue's presets")
     m.add_argument("--step", default=None)
-    m.add_argument("--with-dir", action="append", default=[], help="also this catalogue directory")
-    c = sub.add_parser("catalog", help="pin models, release and verify presets (specs/catalog.md)")
+    c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (specs/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schema", "docs"])
-    c.add_argument("ref", nargs="?", help="preset id[@edition] (show, release) or model id (pin)")
+    c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")
     c.add_argument("--revision", help="pin: commit, tag or branch (Hugging Face) / full commit (GitHub)")
     c.add_argument("--tag", help="pin (GitHub): the tag or branch the commit was taken from")
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
-    c.add_argument("--dir", help="pin: the catalogue directory (default linecaster's own)")
     c.add_argument("--commit", help="release: the linecaster commit")
-    c.add_argument("--with-dir", action="append", default=[],
-                   help="verify, release, docs: also this catalogue directory (e.g. an engine's, uninstalled)")
     c.add_argument("--out", default="schemas", help="schema, docs: output folder (docs: default docs/catalog)")
     c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
     a = ap.parse_args(argv)

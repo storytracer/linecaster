@@ -51,12 +51,15 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep` /
-  `ChatRegionStep` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat/1`,
+  `ChatRegionStep` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
   data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.models.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
-- **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): every model is a model document with its
+- **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
+  (engine packages and derivatives ship none): every model is a model document with its
   upstream card copied verbatim at the pinned revision (always, whatever the licence), every configuration
-  a preset (`id@edition`; `version`/`revision` are upstream's, `edition` ours), released editions frozen in
+  a preset (`presets/<step>/<id>.md`, `id@edition`; it names its engine by versioned id, `engine:
+  kraken.recognition.v1`, with `options` beside it, no "kind"; `version`/`revision` are upstream's, `edition`
+  ours), released editions frozen in
   `catalog.lock`, measurements as evidence records with their source. Engines with weights load exactly the
   pin (`weights`, `catalog.fetch`). Page files and `OUT/run.yaml` record preset, edition and hash.
 - **One page per request; batching only within a page** (kraken batches a page's lines). A page's
@@ -75,8 +78,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   for Ray's CLI from its environment). `pipelines/chain.py` (lines and a recogniser, optionally layout,
   tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/vlm.py` (a VLM per page or per
   region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalogue
-  document naming a pipeline kind (`chain/1`), a preset edition per slot and options, edition-frozen like
-  presets, with whole-run evidence (squiddleocr ships `squiddle`). `ServeModels(script=...)` starts a
+  document naming a pipeline id (`chain.v1`, the script's `PIPELINE`), a preset edition per slot and options,
+  edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
+  catalogue). Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
+  component (engines, models, presets, pipelines, recipes). `ServeModels(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
   `linecaster.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
@@ -147,10 +152,10 @@ and recorded in NOTES.md.
 
 kraken's models always come from their pinned Hugging Face mirrors, never from Zenodo (it
 throttles): `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}`, revisions and hashes in their
-model documents (`engines/kraken/src/linecaster_kraken/catalog/models/`; the Zenodo DOIs are provenance,
+model documents (`src/linecaster/catalog/data/models/kraken-ppocrv6-*`; the Zenodo DOIs are provenance,
 in each pin's `doi`); `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026)
 is still pinned in `linecaster_kraken.models` (no engine uses it). PaddleX's official models are its
-`PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the paddlex catalogue and loaded from
+`PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the catalogue and loaded from
 the pinned snapshot (`create_predictor(model_dir=...)`); new models: `linecaster catalog pin`.
 
 ## Environment and machines

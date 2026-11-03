@@ -29,7 +29,7 @@ class PaddleFormulaModel:
     ``weights`` (a catalogue pin of the ``_safetensors`` package) or the catalogue's newest pin for
     ``model_name`` (``weights.resolve``)."""
 
-    kind: ClassVar[str] = "paddlex.formulas/1"
+    engine_id: ClassVar[str] = "paddlex.formulas.v1"
     step = "formulas"
     capabilities: ClassVar[dict] = {"unit": "region", "produces": ["formulas", "latex"]}
 

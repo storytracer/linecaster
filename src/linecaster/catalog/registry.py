@@ -3,7 +3,7 @@
 A catalogue directory holds ``models/<id>/model.md`` (+ ``upstream/<revision>/``), ``presets/<id>.md``,
 ``evidence/*.yaml`` and ``catalog.lock``. linecaster's own is ``linecaster/catalog/data``; engine packages add
 theirs through the entry-point group ``linecaster.catalog`` (the entry point names a function returning the
-directory). Engines are found through the group ``linecaster.engines`` (kind -> ``module:Class``).
+directory). Engines are found through the group ``linecaster.engines`` (engine id -> ``module:Class``).
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from .schema import Evidence, Lock, LockEntry, ModelDoc, PresetDoc, RecipeDoc
 CORE = Path(__file__).resolve().parent / "data"
 LOCK = "catalog.lock"
 #: the preset fields that can change outputs; everything else is description
-FUNCTIONAL = ("step", "model", "submodels", "engine", "settings", "labels", "serve")
+FUNCTIONAL = ("step", "model", "submodels", "engine", "options", "settings", "labels", "serve")
 
 
 def sha256_file(path: str | Path) -> str:
@@ -70,11 +70,13 @@ class Directory:
             if m.id != p.parent.name:
                 raise ValueError(f"{p}: id {m.id!r} differs from its folder {p.parent.name!r}")
             d.models[m.id], d.model_bodies[m.id] = m, body
-        for p in sorted(d.root.glob("presets/*.md")):
+        for p in sorted(d.root.glob("presets/*/*.md")):            # presets/<step>/<id>.md
             meta, body = yamlio.read_front_matter(p)
             pr = _validate(PresetDoc, meta, p)
             if pr.id != p.stem:
                 raise ValueError(f"{p}: id {pr.id!r} differs from its file name {p.stem!r}")
+            if pr.step != p.parent.name:
+                raise ValueError(f"{p}: step {pr.step!r} differs from its folder {p.parent.name!r}")
             d.presets[pr.id], d.preset_bodies[pr.id] = pr, body
         for p in sorted(d.root.glob("recipes/*.md")):
             meta, body = yamlio.read_front_matter(p)
@@ -106,21 +108,11 @@ def _validate(model, data, path):
         raise ValueError(f"{path}: {e}") from e
 
 
-def catalogue_dirs() -> list[Path]:
-    """linecaster's own catalogue first, then every installed package's (``linecaster.catalog``)."""
-    dirs = [CORE]
-    for ep in sorted(entry_points(group="linecaster.catalog"), key=lambda e: e.name):
-        d = Path(ep.load()())
-        if d not in dirs:
-            dirs.append(d)
-    return dirs
-
-
 class Catalog:
-    """All installed catalogue directories, merged. Ids are unique across directories."""
+    """The catalogue (linecaster's own, ``CORE``); other directories only for tests. Ids are unique."""
 
     def __init__(self, dirs: list[str | Path] | None = None):
-        self.dirs = [Directory.load(d) for d in (dirs if dirs is not None else catalogue_dirs())]
+        self.dirs = [Directory.load(d) for d in (dirs if dirs is not None else [CORE])]
         self.models: dict[str, tuple[Directory, ModelDoc]] = {}
         self.presets: dict[str, tuple[Directory, PresetDoc]] = {}
         self.recipes: dict[str, tuple[Directory, RecipeDoc]] = {}
@@ -260,11 +252,11 @@ class Catalog:
                     continue
                 if p.superseded_by and split_ref(p.superseded_by)[0] not in self.presets:
                     problems.append(f"preset {pid}: superseded_by {p.superseded_by!r} is unknown")
-                family = p.engine.kind.split(".")[0].split("/")[0]
-                known = engine_kinds()
-                if p.engine.kind not in known and any(k.split(".")[0].split("/")[0] == family for k in known):
-                    problems.append(f"preset {pid}: engine {p.engine.kind!r} is not registered "
-                                    f"({sorted(k for k in known if k.startswith(family))} are)")
+                family = p.engine.split(".")[0]
+                known = engine_ids()
+                if p.engine not in known and any(k.split(".")[0] == family for k in known):
+                    problems.append(f"preset {pid}: engine {p.engine!r} is not registered "
+                                    f"({sorted(k for k in known if k.split('.')[0] == family)} are)")
                 entry = d.lock.presets.get(p.ref)
                 if entry is not None and entry.sha256 != canonical_sha256(self.functional(p)):
                     problems.append(f"preset {p.ref} is released, but its functional content changed: "
@@ -314,8 +306,8 @@ class Resolved:
         return f"{self.id}@{self.edition}"
 
     @property
-    def engine_kind(self) -> str:
-        return self.content["engine"]["kind"]
+    def engine(self) -> str:
+        return self.content["engine"]
 
 
 @lru_cache(maxsize=1)
@@ -326,21 +318,21 @@ def catalog() -> Catalog:
 
 # ----------------------------------------------------------------------------------------------- engines
 
-#: kinds linecaster itself provides; chat presets run behind an OpenAI-compatible server only
-BUILTIN_KINDS = {"chat/1": "linecaster.models:ChatModel"}
-SERVED_ONLY = {"chat/1"}
+#: engines linecaster itself provides; chat presets run behind an OpenAI-compatible server only
+BUILTIN_ENGINES = {"chat.v1": "linecaster.models:ChatModel"}
+SERVED_ONLY = {"chat.v1"}
 
 
-def engine_kinds() -> dict[str, str]:
-    """Engine kinds -> ``module:Class``: linecaster's own and the installed ones (``linecaster.engines``)."""
-    return {**BUILTIN_KINDS, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
+def engine_ids() -> dict[str, str]:
+    """Engine ids -> ``module:Class``: linecaster's own and the installed ones (``linecaster.engines``)."""
+    return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
 
 
-def engine_class(kind: str):
-    kinds = engine_kinds()
-    if kind not in kinds:
-        raise KeyError(f"engine {kind!r} is not installed; installed: {sorted(kinds)}")
-    module, _, name = kinds[kind].partition(":")
+def engine_class(engine: str):
+    known = engine_ids()
+    if engine not in known:
+        raise KeyError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
+    module, _, name = known[engine].partition(":")
     return getattr(import_module(module), name)
 
 
@@ -349,12 +341,12 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
     and ``linecaster serve`` take): the engine's options, plus ``weights`` (source, revision and files of the
     model pin) for presets with a model. Engines with weights take ``weights`` and fetch exactly that pin."""
     r = catalog().resolve(ref)
-    kinds = engine_kinds()
-    if r.engine_kind in SERVED_ONLY:
-        raise ValueError(f"preset {r.ref} ({r.engine_kind}) runs behind a server: use linecaster.models.chat_model")
-    if r.engine_kind not in kinds:
-        raise KeyError(f"preset {r.ref} needs engine {r.engine_kind!r}, which is not installed")
-    kwargs = dict(r.content["engine"].get("options", {}))
+    known = engine_ids()
+    if r.engine in SERVED_ONLY:
+        raise ValueError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.models.chat_model")
+    if r.engine not in known:
+        raise KeyError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
+    kwargs = dict(r.content.get("options", {}))
 
     def weights(pin: dict) -> dict:
         m = catalog().model(pin["id"])
@@ -364,17 +356,6 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
         kwargs["weights"] = weights(r.content["model"])
     if r.content.get("submodels"):
         kwargs["submodel_weights"] = {role: weights(pin) for role, pin in r.content["submodels"].items()}
-    return kinds[r.engine_kind], kwargs, r
+    return known[r.engine], kwargs, r
 
 
-def recipe_catalog(ref: str) -> tuple[Catalog, str]:
-    """The catalogue to resolve recipe ``ref`` in and the recipe's id[@edition]: an id in the installed
-    catalogue, or a recipe file (``.../recipes/<id>.md``), whose catalogue directory is added to it (a
-    derivative's recipe, e.g. squiddleocr's, without installing the derivative)."""
-    path = Path(ref.split("@", 1)[0])
-    if path.suffix == ".md" and path.exists():
-        root = path.resolve().parent.parent
-        edition = ref.split("@", 1)[1] if "@" in ref else None
-        dirs = catalogue_dirs()
-        return Catalog(dirs + ([root] if root not in dirs else [])), path.stem + (f"@{edition}" if edition else "")
-    return catalog(), ref

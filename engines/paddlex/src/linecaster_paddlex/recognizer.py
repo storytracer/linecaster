@@ -82,7 +82,7 @@ class PaddleRecognitionModel:
     (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model
     files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
 
-    kind: ClassVar[str] = "paddlex.recognition/1"
+    engine_id: ClassVar[str] = "paddlex.recognition.v1"
     step = "recognition"
     capabilities: ClassVar[dict] = {"unit": "line", "produces": ["text", "words", "line_confidences"]}
 

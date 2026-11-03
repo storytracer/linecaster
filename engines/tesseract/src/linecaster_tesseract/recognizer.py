@@ -42,7 +42,7 @@ class TesseractRecognitionModel:
     ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences.
     The language data: ``weights`` (a catalogue pin; only its files) or ``data``'s newest pin in the catalogue."""
 
-    kind: ClassVar[str] = "tesseract.recognition/1"
+    engine_id: ClassVar[str] = "tesseract.recognition.v1"
     step = "recognition"
     capabilities: ClassVar[dict] = {"unit": "line",
                                     "produces": ["text", "words", "word_confidences", "line_confidences"]}
@@ -54,7 +54,7 @@ class TesseractRecognitionModel:
                                              "script/Latin")
         data: Literal["best", "fast"] = Field("best", description="tessdata_best (float LSTM, most accurate) or "
                                                                   "tessdata_fast (integer, faster); with weights, "
-                                                                  "the kind the pin is of")
+                                                                  "the data set the pin belongs to")
         pad: int = Field(4, description="white pixels around each line image")
         dpi: int = Field(300, description="the resolution Tesseract assumes (user_defined_dpi)")
 
