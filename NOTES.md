@@ -37,7 +37,12 @@ Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, on
 | `--endpoint` against `uv run recipes/chain.py serve` | 1,560/1,560, 60/60 pages exact | | 47 s |
 | `--on ray`, Ray started with `uv run recipes/chain.py ray start` | 3/3 pages written | | |
 
-Not run: `recipes/vlm.py` on a GPU (dry runs only), HF Jobs (no Jobs launched).
+`recipes/vlm.py` on spark (vLLM 0.21.0, started in the task, `--gpu-memory-utilization 0.3`), sample-60:
+- page mode, LightOnOCR-2-1B: 60/60 pages in 232 s, CERread 0.0372 (CERdip 0.0738, 4 of 60 truncated), board lane.
+  The old HF Jobs recipe's run of the same model scores 0.0403 with today's harness; sampling is at temperature 0.2.
+- `--regions` (PP-DocLayoutV3 in-process + LightOnOCR-2-1B per region): 60/60 pages in 584 s, no errors, 418 regions
+  read; 64 of them ran into the token limit (LightOnOCR's known looping on crops). Not scored.
+- HF Jobs: a LightOnOCR page smoke was launched; MiniCPM regions was cancelled while it waited for an L4.
 
 ## Self-contained uv scripts instead of environment folders (2026-11-03, spark)
 
