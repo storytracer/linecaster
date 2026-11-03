@@ -24,24 +24,13 @@ from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep
 from linecaster.blocks.readers import HFImageDatasetReader, ImageFolderReader
 from linecaster.blocks.serve import ServeModels
 from linecaster.blocks.writers import PageJsonlWriter
+from linecaster.jobs import dependencies
 
 MODELS = [
     {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
     {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},
     {"name": "recognition", "spec": "linecaster_kraken:KrakenRecognitionModel", "kwargs": {"model": "medium", "batch_size": 8}},
 ]
-KRAKEN_FORK = "kraken @ git+https://github.com/storytracer/kraken@3d235ee8"
-# the versions the goldens were recorded with (envs/kraken-paddlex constraint-dependencies)
-PINS = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
-
-
-def dependencies(commit: str) -> list[str]:
-    repo = f"git+https://github.com/storytracer/linecaster@{commit}"
-    return [f"linecaster @ {repo}", f"linecaster-kraken @ {repo}#subdirectory=backends/kraken",
-            f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex", KRAKEN_FORK,
-            # PaddleX pins OpenCV's GUI build (needs libGL, absent in the Jobs image): the stub swaps in the
-            # headless build of the same version (stubs/README.md)
-            f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python", *PINS]
 
 
 def main() -> None:

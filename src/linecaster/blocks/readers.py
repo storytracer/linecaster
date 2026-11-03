@@ -118,8 +118,9 @@ class PageRowReader(PipelineStep):
 
             with self.data_folder.open(path, "rb") as f:
                 for row in pq.read_table(f).to_pylist():
-                    if isinstance(row.get("page"), str):
-                        row["page"] = json.loads(row["page"])
+                    for key in ("page", "errors"):     # PageParquetWriter stores both as JSON strings
+                        if isinstance(row.get(key), str):
+                            row[key] = json.loads(row[key])
                     yield row
             return
         with self.data_folder.open(path, "rb") as f:
@@ -142,7 +143,7 @@ class PageRowReader(PipelineStep):
                 if self.fetch_images and uri:
                     with fsspec.open(uri.split("#", 1)[0], "rb") as f:
                         media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri, media_bytes=f.read())]
-                doc = Document(text=row.get("text", ""), id=row["id"], media=media, metadata={"page": page})
+                doc = Document(text=row.get("text") or "", id=row["id"], media=media, metadata={"page": page})
                 if row.get("errors"):
                     doc.metadata["errors"] = row["errors"]
                 self.stat_update("pages")

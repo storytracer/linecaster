@@ -138,3 +138,33 @@ class Transcription(_Model):
 
     def lines_of(self, region_id: str) -> list[Line]:
         return sorted((ln for ln in self.lines if ln.region_id == region_id), key=lambda ln: ln.reading_order)
+
+    # ---------------------------------------------------------------- transforms
+    def scaled(self, sx: float, sy: float | None = None) -> "Transcription":
+        """A copy with every coordinate scaled (region polygons and boxes, line boxes, polygons and
+        baselines, word boxes): ``x * sx``, ``y * sy`` (``sy`` defaults to ``sx``). Use it to bring a
+        transcription made on one image to a derivative of another size. ``source.image_width`` /
+        ``image_height`` follow (rounded); the factors are recorded in ``source.extra["scale"]``
+        (multiplied with an earlier one). ``docling`` provenance is not touched."""
+        sy = sx if sy is None else sy
+        t = self.model_copy(deep=True)
+
+        def pts(p):
+            return None if p is None else [[x * sx, y * sy] for x, y in p]
+
+        def box(b):
+            return None if b is None else [b[0] * sx, b[1] * sy, b[2] * sx, b[3] * sy]
+
+        for r in t.regions:
+            r.polygon, r.bbox = pts(r.polygon), box(r.bbox)
+        for ln in t.lines:
+            ln.bbox, ln.polygon, ln.baseline = box(ln.bbox), pts(ln.polygon), pts(ln.baseline)
+            for w in ln.words:
+                w.bbox = box(w.bbox)
+        if t.source.image_width is not None:
+            t.source.image_width = round(t.source.image_width * sx)
+        if t.source.image_height is not None:
+            t.source.image_height = round(t.source.image_height * sy)
+        prev = t.source.extra.get("scale") or [1.0, 1.0]
+        t.source.extra["scale"] = [prev[0] * sx, prev[1] * sy]
+        return t
