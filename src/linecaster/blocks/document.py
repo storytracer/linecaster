@@ -1,7 +1,9 @@
-"""Post-recognition blocks without a model: the retyper (``Typography``), document assembly
-(``AssembleDocument``) and per-page export files (``PageExportsWriter``).
+"""Post-recognition blocks without a model: the retyper (``Typography``), document assembly per page
+(``AssembleDocument``) and per item (``AssembleItemDocument``), and export files (``PageExportsWriter``,
+``ItemExportsWriter``).
 
-In squiddleocr's order: ... recognition -> tables -> ``Typography`` -> ``AssembleDocument`` -> writers.
+In squiddleocr's order: ... recognition -> ``NormalizeUnicode`` -> tables -> ``Typography`` ->
+``AssembleDocument`` -> writers; ``AssembleItemDocument`` after them, on whole items.
 ``Typography`` changes regions and lines (``linecaster.retyper``); ``AssembleDocument`` fills the
 transcription's ``docling`` part from them (``linecaster.document``); ``PageExportsWriter`` writes
 ``<page id><suffix>.md`` / ``.txt`` / ``.json`` (the DoclingDocument) per page.
@@ -111,6 +113,112 @@ class PageExportsWriter(PipelineStep):
                     else:
                         content = json.dumps(t.docling, ensure_ascii=False, indent=2)
                     with self.folder.open(f"{page.page_id}{self.suffix}.{self.EXTENSIONS[fmt]}", "wt", encoding="utf-8") as f:
+                        f.write(content)
+                    self.stat_update(fmt)
+            yield doc
+
+
+class AssembleItemDocument(PipelineStep):
+    """One ``DoclingDocument`` per item from its pages (``linecaster.document.DocumentBuilder``):
+    paragraphs continued across page breaks (``text="reflow"``), optional ``sections``, page ``n`` of the
+    document = the item's ``n``-th page in order (``Page.sequence``, then page id).
+
+    **A task must see whole items**: linecaster's run layout buckets page rows by item (one item in one
+    file), and the pages of an item must arrive in one task. An item is emitted once all its pages have
+    arrived (``page.metadata[count_key]``, as ``ItemTexts`` does) or when the input ends.
+
+    Output: one ``Document`` per item, ``id`` = item id, ``text`` = the document's plain text (with
+    furniture), metadata ``item_id``, ``page_ids``, ``pages``, ``text_mode``, ``sections``, ``docling``
+    (the DoclingDocument as a dict) and ``region_of`` (item ref -> ``"<page_no>:<region id>"``, for the
+    Markdown dividers). Write it with ``ItemExportsWriter``."""
+
+    type = "🔠 - LINECASTER"
+    name = "📚 assemble item document"
+
+    def __init__(self, transcription: str = "ocr", text: str = "reflow", sections: bool = False, rtl: bool = False,
+                 count_key: str = "item_page_count"):
+        super().__init__()
+        from ..document import TEXT_MODES
+
+        if text not in TEXT_MODES:
+            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
+        self.transcription, self.text, self.sections, self.rtl, self.count_key = transcription, text, sections, rtl, count_key
+
+    def _emit(self, item: str, pages: list[Page]):
+        from datatrove.data import Document
+
+        from ..document import DocumentBuilder
+        from ..reflow import Stats
+        from ..transcription.model import Transcription
+
+        pages = sorted(pages, key=lambda p: (p.sequence is None, p.sequence or 0, p.page_id))
+        stats = Stats()
+        with self.track_time():
+            b = DocumentBuilder(item, text=self.text, sections=self.sections, rtl=self.rtl, stats=stats)
+            for p in pages:
+                t = p.transcriptions.get(self.transcription) or Transcription()
+                b.add_page(t, p.image.width if p.image else None, p.image.height if p.image else None)
+            doc = b.build()
+        self.stat_update("items")
+        for key in ("continuations", "marks_removed"):
+            if getattr(stats, key):
+                self.stat_update(key, value=getattr(stats, key))
+        yield Document(text=to_text(doc, furniture=True), id=item, metadata={
+            "item_id": item, "page_ids": [p.page_id for p in pages], "pages": len(pages), "text_mode": self.text,
+            "sections": self.sections, "docling": docling_dict(doc), "region_of": dict(b.region_of)})
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        items: dict[str, list[Page]] = {}
+        for doc in data:
+            page = page_of(doc)
+            self.stat_update("pages")
+            item = page.item_id or doc.id
+            items.setdefault(item, []).append(page)
+            expected = page.metadata.get(self.count_key)
+            if expected and len(items[item]) >= expected:
+                yield from self._emit(item, items.pop(item))
+        for item, pages in items.items():
+            if any(p.metadata.get(self.count_key) for p in pages):
+                self.stat_update("incomplete_items")
+            yield from self._emit(item, pages)
+
+
+class ItemExportsWriter(PipelineStep):
+    """Write ``AssembleItemDocument``'s documents as ``<item id><suffix>.md`` / ``.txt`` / ``.json``.
+    ``furniture`` keeps page headers and footers in md and txt; ``dividers`` puts ``---`` between the
+    items of consecutive layout regions in md. Documents pass through."""
+
+    type = "💽 - WRITER"
+    name = "📝 item exports"
+
+    def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
+                 furniture: bool = False, dividers: bool = False):
+        super().__init__()
+        unknown = set(formats) - {"md", "txt", "json"}
+        if unknown:
+            raise ValueError(f"unknown formats {sorted(unknown)}; choose from md, txt, json")
+        self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
+        self.furniture, self.dividers = furniture, dividers
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        from docling_core.types.doc import DoclingDocument
+
+        for doc in data:
+            meta = doc.metadata
+            if "docling" not in meta:
+                self.stat_update("no_document")
+                yield doc
+                continue
+            with self.track_time():
+                d = DoclingDocument.model_validate(meta["docling"])
+                for fmt in self.formats:
+                    if fmt == "md":
+                        content = to_markdown(d, self.furniture, meta.get("region_of") if self.dividers else None)
+                    elif fmt == "txt":
+                        content = to_text(d, self.furniture)
+                    else:
+                        content = json.dumps(meta["docling"], ensure_ascii=False, indent=2)
+                    with self.folder.open(f"{meta['item_id']}{self.suffix}.{fmt}", "wt", encoding="utf-8") as f:
                         f.write(content)
                     self.stat_update(fmt)
             yield doc

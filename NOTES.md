@@ -2,6 +2,50 @@
 
 Measurements, decisions and open questions, newest first.
 
+## NFC step and item-level documents (2026-11-03, spark)
+
+**NFC (`NormalizeUnicode`, after recognition).** The chain with the step against squiddleocr's goldens
+(7c8a052, spark), goldens NFC-normalised (the parity scripts' new default; `--no-nfc` for raw):
+
+| set | lines (box + words) | txt | md | raw, without NFC on the goldens |
+|---|---:|---:|---:|---:|
+| sample-60 | 1,560/1,560 | 60/60 | 60/60 | words 978/1,560, txt/md 27/60 |
+| tables-7 | 651/651 | 7/7 | 7/7 | words 556/651, txt/md 1/7 |
+
+Table padding in txt is unchanged by NFC: tabulate measures with `wcwidth` (a core dependency since the
+post-recognition merge), which gives `a` + U+0308 and `ä` the same display width, so NFC(golden) and
+linecaster's NFC output pad identically. (Without `wcwidth`, `len()` would count the combining mark and
+the decomposed golden would pad one space less per such character.)
+
+**Item-level documents (`AssembleItemDocument`, `ItemExportsWriter`).** Goldens made with squiddleocr main
+itself on the 6 books of sample-60 (10 pages each, in `seq` order): `squiddle_books.py` (squiddleocr's own
+`build_pipeline` with the `squiddle ocr` command's defaults, then its `--per-document` branch) for four
+combinations; cross-checked against the real command (`squiddle ocr BOOK --per-document --text lines
+--sections --dividers -f md,txt,json`) for all 6 books: 18/18 files byte-identical.
+
+| combination | from the same page rows without NFC (md / txt / JSON) | from the chain with NFC (md / txt) |
+|---|---:|---:|
+| reflow | 6/6 / 6/6 / 6/6 | 4/6 / 4/6 |
+| reflow, dividers, furniture | 6/6 / 6/6 / 6/6 | 4/6 / 4/6 |
+| lines, furniture | 6/6 / 6/6 / 6/6 | 6/6 / 6/6 |
+| lines, sections, dividers | 6/6 / 6/6 / 6/6 | 6/6 / 6/6 |
+
+- The port is exact: from the same rows, md, txt and docling JSON (structure; furniture layer and version
+  normalised) are identical for every book and combination, and squiddleocr's own `DocumentBuilder` fed
+  with the NFC'd rows gives linecaster's NFC output exactly (24/24).
+- With NFC, reflow differs on 2 books, for a reason, not by accident: squiddleocr's `ends_with_mark`
+  requires a letter before the hyphen, and in kraken's decomposed text that character is the combining
+  accent (category Mn), so `mâ-`/`choire`, `sé-`/`pare`, `exté¬`/`rieur` kept their division marks.
+  After NFC they are removed (11 decisions: 9 in histoirenaturell10cuvi, 2 in trudyrusskagoent; one
+  then continues a paragraph that the golden had broken). NFC before reflow is the consistent choice and
+  the better text; it stays. The item JSON also differs after NFC in charspans (lengths of NFC strings).
+- squiddleocr 7c8a052 crashes on `--text reflow --sections` when a page has a title (confirmed with the
+  command on birdsofgreatbrit02butl: "Document hierarchy is inconsistent"): its reflow path re-parents
+  the title into a new section without detaching it. linecaster opens the section first and puts the
+  title inside, as the lines mode does (a test covers it); this combination has no golden.
+- Docling renders a heading inside a section one `#` deeper (`### ` for level 2); squiddleocr's goldens
+  show the same.
+
 ## Post-recognition blocks: retyper and document assembly (2026-11-03, spark)
 
 `Typography` (squiddleocr's retyper) and `AssembleDocument` (squiddleocr's `DocumentBuilder`, `--text lines`)

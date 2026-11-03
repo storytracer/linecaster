@@ -41,6 +41,19 @@ Decisions taken while building the first version, with the reason for each. Open
     page, page headers/footers always in Docling's furniture layer; exports choose whether to include
     them (`furniture=True` = squiddleocr's `--furniture`).
 
+11. **The as-written layer is NFC, by a step of its own** (`NormalizeUnicode`, right after recognition;
+    `linecaster.unicode`). Recognisers do not all deliver NFC (kraken's PP-OCRv6 models write `ä` as
+    `a` + U+0308). Normalising in a separate, recorded step (`ModelInfo(step="unicode", settings={"form":
+    "NFC", "unicode_version"})`) keeps each engine's raw output exactly what the engine produced, so a
+    backend stays testable against the engine itself, and parity with a reference that did not
+    normalise is "byte-exact after NFC on both sides" (the parity scripts normalise the goldens by
+    default). Only canonical forms (NFC, NFD) are allowed; NFKC folding is the readable variants' job.
+12. **One `DoclingDocument` per item** (`AssembleItemDocument`, `linecaster.document.DocumentBuilder`):
+    page `n` of the document is the item's `n`-th page (sequence, then page id); paragraphs continue
+    across page breaks in reflow mode; optional sections; `region_of` (item ref -> `"<page_no>:<region
+    id>"`) travels with the document for Markdown dividers. A task must see whole items (the run layout
+    buckets page rows by item).
+
 ## Environment lesson (2026-11-03)
 
 `[tool.uv.sources]` applies only to a project's own dependencies. The engine environment listed the
