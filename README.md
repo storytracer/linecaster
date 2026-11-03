@@ -59,6 +59,63 @@ For every page:
 
 For every book, the same text is also joined into one file per version.
 
+## Design principles
+
+- **Every step is replaceable.** Steps share a data model and nothing else.
+- **Deployment is not part of the pipeline.** Executors and backends change; the steps do not.
+- **The text as written is kept.** Readable versions are derived from it and stored next to it.
+- **The core stays light.** Engines are separate packages with their own environments.
+- **Connectors stay generic.** Folders, buckets and Hugging Face datasets are built in. Adapters for a
+  particular collection or institution belong in the projects that use Linecaster.
+- **Open formats out.** ALTO, PAGE-XML, hOCR, plain text, Markdown and DoclingDocument.
+
+## Under the hood
+
+### The data model
+
+| Class | What it holds |
+|---|---|
+| `Item` | a multi-page unit: book, issue, manuscript, file |
+| `Page` | one page: its image and any number of named transcriptions |
+| `Transcription` | regions, lines and words with positions, reading order and confidences, plus a DoclingDocument |
+| `Text` | the text of a whole item in one version |
+
+A page can hold several transcriptions side by side, for example a delivered OCR text, a new
+recognition and the ground truth.
+
+Positions are pixels of the page image. Boxes are `[x, y, width, height]`; polygons and baselines are
+lists of points. A `Transcription` survives a round trip through JSON exactly, and through ALTO,
+PAGE-XML and hOCR without losing structure, text, positions or confidences. `specs/` describes the
+design in full.
+
+### Text versions
+
+Linecaster describes text along three independent axes. Each transform moves one step on one axis and
+leaves the others alone.
+
+| Axis | From | To |
+|---|---|---|
+| Characters | as written | normalised, expanded, regularised |
+| Flow | as laid out | flowed |
+| Scope | full page | body text only |
+
+Three combinations have names:
+
+- `verbatim_txt`: as written, as laid out, the full page.
+- `readable_txt` and `readable_md`: normalised characters, flowed paragraphs with hyphens joined, body
+  text only.
+
+All text is in Unicode NFC. Normalisation folds typographic forms such as long s, ligatures and
+r rotunda, and keeps letters such as æ, œ, ø and ß. Spelling is never modernised.
+
+### Why results are the same everywhere
+
+Models batch only the lines of one page, in a fixed order, and never mix pages. Model versions are
+pinned, and numerically relevant library versions are fixed per engine environment. A page's output
+therefore depends on the page and the models, not on the machine, the number of GPUs or what else is in
+flight. Different GPU types can still differ in the last digits of their arithmetic, which shows up as
+rare one-character differences.
+
 ## How it works
 
 ### A page goes through a chain of steps
@@ -237,63 +294,6 @@ A large job is easier to run, check and repeat in stages. Each stage reads the p
 one wrote (`PageRowReader`), adds one part and writes complete rows again. The original files are never
 changed. A check step (`ValidatePages`, `RejectSink`) puts pages that failed into `rejects/` with the
 reason, and datatrove keeps its logs and completion markers in `logs/`.
-
-## Under the hood
-
-### The data model
-
-| Class | What it holds |
-|---|---|
-| `Item` | a multi-page unit: book, issue, manuscript, file |
-| `Page` | one page: its image and any number of named transcriptions |
-| `Transcription` | regions, lines and words with positions, reading order and confidences, plus a DoclingDocument |
-| `Text` | the text of a whole item in one version |
-
-A page can hold several transcriptions side by side, for example a delivered OCR text, a new
-recognition and the ground truth.
-
-Positions are pixels of the page image. Boxes are `[x, y, width, height]`; polygons and baselines are
-lists of points. A `Transcription` survives a round trip through JSON exactly, and through ALTO,
-PAGE-XML and hOCR without losing structure, text, positions or confidences. `specs/` describes the
-design in full.
-
-### Text versions
-
-Linecaster describes text along three independent axes. Each transform moves one step on one axis and
-leaves the others alone.
-
-| Axis | From | To |
-|---|---|---|
-| Characters | as written | normalised, expanded, regularised |
-| Flow | as laid out | flowed |
-| Scope | full page | body text only |
-
-Three combinations have names:
-
-- `verbatim_txt`: as written, as laid out, the full page.
-- `readable_txt` and `readable_md`: normalised characters, flowed paragraphs with hyphens joined, body
-  text only.
-
-All text is in Unicode NFC. Normalisation folds typographic forms such as long s, ligatures and
-r rotunda, and keeps letters such as æ, œ, ø and ß. Spelling is never modernised.
-
-### Why results are the same everywhere
-
-Models batch only the lines of one page, in a fixed order, and never mix pages. Model versions are
-pinned, and numerically relevant library versions are fixed per engine environment. A page's output
-therefore depends on the page and the models, not on the machine, the number of GPUs or what else is in
-flight. Different GPU types can still differ in the last digits of their arithmetic, which shows up as
-rare one-character differences.
-
-## Design principles
-
-- **Every step is replaceable.** Steps share a data model and nothing else.
-- **Deployment is not part of the pipeline.** Executors and backends change; the steps do not.
-- **The text as written is kept.** Readable versions are derived from it and stored next to it.
-- **The core stays light.** Engines are separate packages with their own environments.
-- **Connectors stay generic.** Folders, buckets and Hugging Face datasets are built in. Adapters for a
-  particular collection or institution belong in the projects that use Linecaster.
-- **Open formats out.** ALTO, PAGE-XML, hOCR, plain text, Markdown and DoclingDocument.
 
 ## Extending Linecaster
 
