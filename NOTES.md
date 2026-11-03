@@ -2,6 +2,31 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Post-recognition blocks: retyper and document assembly (2026-11-03, spark)
+
+`Typography` (squiddleocr's retyper) and `AssembleDocument` (squiddleocr's `DocumentBuilder`, `--text lines`)
+after the in-process squiddle chain (layout, lines, assign, recognition, tables), exported with
+`PageExportsWriter(suffix=".paddle", furniture=True)`, compared byte for byte with squiddleocr's goldens
+(`7c8a052`, spark, `--text lines --furniture`; `tests/parity/compare_exports.py`):
+
+| set | txt | md | docling JSON (furniture layer and version field normalised) |
+|---|---:|---:|---:|
+| sample-60 | 60/60 | 60/60 | 60/60 |
+| tables-7 | 7/7 | 7/7 | 7/7 |
+
+- Without the retyper: md 40/60 and 4/7 (headings demoted 34 times on sample-60, page numbers dropped 3
+  times on tables-7). Headline splits and drop capitals do not occur on these pages; a differential check
+  against squiddleocr's own `retype_page` + `DocumentBuilder` on 2,000 random synthetic pages (470 splits,
+  442 drop capitals, 578 page numbers dropped, 678 demotions) gave identical md, txt and region ids,
+  labels, levels and order on all of them.
+- `wcwidth` is now a core dependency: tabulate (docling's text export of tables) pads with `wcwidth` when
+  installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
+  on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
+  text is not NFC yet; normalising it is a separate, recorded transform, not done here.)
+- Not ported: formula recognition (squiddleocr reads formula regions as LaTeX by default; no formula
+  regions on these 67 pages; `AssembleDocument` takes `region.extra["formula"]` when a formula step
+  provides it), reflow (`--text reflow`, squiddleocr's default), sections, Markdown dividers.
+
 ## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, spark)
 
 Setup:

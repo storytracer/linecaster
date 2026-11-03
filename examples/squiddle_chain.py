@@ -1,6 +1,7 @@
 """The squiddle combination as a linecaster pipeline: PP-DocLayoutV3 layout, PP-OCRv6 line detection on
 the whole page, lines assigned to regions, kraken's PP-OCRv6 recogniser, PaddleX's table structure for
-table regions (filled with the recognised lines).
+table regions (filled with the recognised lines), then the retyper (Typography) and document assembly
+(AssembleDocument; with --exports also per-page md/txt/json as squiddleocr writes them).
 
     # in-process (the parity reference), in the engine environment:
     envs/kraken-paddlex/.venv/bin/python examples/squiddle_chain.py IMAGES OUT --backend in-process
@@ -14,6 +15,7 @@ import argparse
 from datatrove.executor import LocalPipelineExecutor
 
 from linecaster.backends import InProcess, Served
+from linecaster.blocks.document import AssembleDocument, PageExportsWriter, Typography
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.readers import ImageFolderReader
@@ -34,7 +36,7 @@ def backends(kind: str, endpoint: str | None, endpoints: dict | None = None):
 
 
 def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | None = None, transcription: str = "ocr",
-             tables: bool = True, endpoints: dict | None = None):
+             tables: bool = True, endpoints: dict | None = None, exports: str | None = None):
     b = backends(kind, endpoint, endpoints)
     return [
         ImageFolderReader(images),
@@ -43,6 +45,10 @@ def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | No
         AssignLinesToRegions(transcription),
         RecognitionStep(b["recognition"], transcription),
         *([TablesStep(b["tables"], transcription)] if tables else []),
+        Typography(transcription),
+        AssembleDocument(transcription),
+        *([PageExportsWriter(exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
+                             transcription=transcription)] if exports else []),
         PageJsonlWriter(out, output_filename="${rank}.jsonl", compression=None),
     ]
 
@@ -54,9 +60,12 @@ if __name__ == "__main__":
     ap.add_argument("--endpoint", default="http://127.0.0.1:8100/v1")
     ap.add_argument("--tasks", type=int, default=1); ap.add_argument("--logs", default=None)
     ap.add_argument("--no-tables", action="store_true", help="skip the tables step")
+    ap.add_argument("--exports", default=None, metavar="DIR",
+                    help="also write <page>.paddle.md/.txt/.json (squiddleocr's --text lines --furniture) here")
     ap.add_argument("--endpoint-for", action="append", default=[], metavar="STEP=URL", help="a different server for one step")
     a = ap.parse_args()
     eps = dict(e.split("=", 1) for e in a.endpoint_for)
-    LocalPipelineExecutor(pipeline(a.images, a.out, a.backend, a.endpoint, tables=not a.no_tables, endpoints=eps),
+    LocalPipelineExecutor(pipeline(a.images, a.out, a.backend, a.endpoint, tables=not a.no_tables, endpoints=eps,
+                                   exports=a.exports),
                           tasks=a.tasks, workers=a.tasks,
                           logging_dir=a.logs or f"{a.out}/logs").run()
