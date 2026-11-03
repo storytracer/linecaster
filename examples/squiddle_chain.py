@@ -51,7 +51,7 @@ def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | No
         ImageFolderReader(images, item_from_parent=item_from_parent),
         LayoutStep(b["layout"], transcription),
         LinesStep(b["lines"], transcription),
-        AssignLinesToRegions(transcription),
+        AssignLinesToRegions(transcription, formulas_separately=formulas),   # without formulas: read as text
         RecognitionStep(b["recognition"], transcription),
         NormalizeUnicode(transcription),          # kraken writes decomposed text; the as-written layer is NFC
         *([TablesStep(b["tables"], transcription)] if tables else []),
