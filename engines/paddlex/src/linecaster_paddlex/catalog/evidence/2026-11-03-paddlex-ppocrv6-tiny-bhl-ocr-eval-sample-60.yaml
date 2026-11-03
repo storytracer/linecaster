@@ -1,0 +1,25 @@
+schema: linecaster.evidence/1
+preset: paddlex-ppocrv6-tiny@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_diplomatic: 0.0446
+  cer_reading: 0.0376
+  recall: 0.9123
+  wall_seconds: 33.0
+date: 2026-11-03
+hardware: DGX Spark (GB10, aarch64, CUDA 13)
+software:
+  linecaster: 7beadcc
+  kraken: storytracer/kraken@3d235ee8
+  torch: 2.14.0
+  onnxruntime-gpu: 1.29.0
+  paddlex: 3.7.2
+  tesserocr: 2.12.0 (Tesseract 5.5.3)
+notes: 'One row of the line-recogniser comparison of 2026-11-03 (NOTES.md, ''More line recognisers'').
+  The same chain for every row: PP-DocLayoutV3 -> PP-OCRv6 medium detection on the whole page -> lines
+  assigned to regions -> the recogniser -> NFC -> tables -> typography -> document -> Markdown, in-process,
+  one task. The other steps at the settings of pp-doclayoutv3@1, pp-ocrv6-medium-det@1 and slanet-plus@1.
+  Scored as-is (no post-processing) with the frozen bhl-ocr-eval harness (score_dataset). Wall time for
+  the 60 pages includes model loading. Run before the catalogue existed, with the settings and model revisions
+  this preset edition now states.'
