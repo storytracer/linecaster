@@ -43,6 +43,7 @@ class InProcess:
         self.spec, self.kwargs = spec, kwargs
         self.preset: str | None = None           # id@edition when built from a catalogue preset
         self.preset_sha256: str | None = None
+        self.overrides: dict | None = None       # options given over the preset's (recipes' --set)
         self._model = None
 
     @classmethod
@@ -66,7 +67,7 @@ class InProcess:
 
     def __getstate__(self):   # never pickle a loaded model (datatrove pickles the pipeline)
         return {"spec": self.spec, "kwargs": self.kwargs, "preset": self.preset, "preset_sha256": self.preset_sha256,
-                "_model": None}
+                "overrides": self.overrides, "_model": None}
 
 
 @dataclass

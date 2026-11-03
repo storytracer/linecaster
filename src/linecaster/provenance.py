@@ -185,9 +185,10 @@ def _served_models(pipeline: list) -> dict[str, dict]:
     return out
 
 
-def _engine(spec: str | None, kwargs: dict | None, preset: str | None, preset_sha256: str | None) -> dict[str, Any]:
-    """An engine model: its class, and the preset edition and hash it was built from; its options only when
-    there is no preset (a preset's hash covers them)."""
+def _engine(spec: str | None, kwargs: dict | None, preset: str | None, preset_sha256: str | None,
+            overrides: dict | None = None) -> dict[str, Any]:
+    """An engine model: its class, and the preset edition and hash it was built from, with the options given
+    over the preset's (``--set``); its options only when there is no preset (a preset's hash covers them)."""
     out: dict[str, Any] = {}
     if spec:
         out["engine"] = spec
@@ -195,6 +196,8 @@ def _engine(spec: str | None, kwargs: dict | None, preset: str | None, preset_sh
         out["preset"] = preset
         if preset_sha256:
             out["preset_sha256"] = preset_sha256
+        if overrides:
+            out["overrides"] = overrides
     elif kwargs:
         out["options"] = kwargs
     return out
@@ -220,18 +223,21 @@ def block_entry(block, served: dict[str, dict] | None = None) -> dict[str, Any]:
         if not backend.served:
             entry["backend"] = "in-process"
             entry.update(_engine(getattr(backend, "spec", None), getattr(backend, "kwargs", None),
-                                 getattr(backend, "preset", None), getattr(backend, "preset_sha256", None)))
+                                 getattr(backend, "preset", None), getattr(backend, "preset_sha256", None),
+                                 getattr(backend, "overrides", None)))
         else:
             entry["backend"] = "served"
             entry["endpoint"] = backend.endpoint
             entry["served_model"] = backend.model
             m = (served or {}).get(backend.model)
             if m is not None and getattr(block, "spec", None) is None:
-                entry.update(_engine(m.get("spec"), m.get("kwargs"), m.get("preset"), m.get("preset_sha256")))
+                entry.update(_engine(m.get("spec"), m.get("kwargs"), m.get("preset"), m.get("preset_sha256"),
+                                     m.get("overrides")))
     elif type(block).__name__ == "ServeModels":
         entry["port"] = block.port
         entry["models"] = [{"name": m["name"], **_engine(m.get("spec"), m.get("kwargs"), m.get("preset"),
-                                                         m.get("preset_sha256"))} for m in block.models]
+                                                         m.get("preset_sha256"), m.get("overrides"))}
+                           for m in block.models]
     elif type(block).__name__ == "ServeChatModel":
         entry["server"] = getattr(block, "server", None)
         entry["port"] = block.port

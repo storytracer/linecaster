@@ -110,6 +110,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
         for m in models:
             b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
             b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
+            b.overrides = m.get("overrides")
         return backends, []
     endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
     backends = {m["name"]: Served(endpoint, model=m["name"], max_window=window) for m in models}
@@ -117,6 +118,23 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
     return backends, [ServeModels(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
+
+
+def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
+    """``--set STEP.OPTION=VALUE`` items as ``{step: {option: value}}``; values are read as YAML (``4`` is a
+    number, ``true`` a boolean, anything else a string)."""
+    from .catalog import yamlio
+
+    out: dict[str, dict] = {}
+    for item in items:
+        key, sep, value = item.partition("=")
+        step, dot, option = key.partition(".")
+        if not sep or not dot or not option:
+            raise SystemExit(f"--set needs STEP.OPTION=VALUE, got {item!r}")
+        if step not in steps:
+            raise SystemExit(f"--set {item!r}: no step {step!r} in this pipeline ({', '.join(steps)})")
+        out.setdefault(step, {})[option] = yamlio.load(value) if value else ""
+    return out
 
 
 def preset_models(models: list[dict]) -> list[dict]:

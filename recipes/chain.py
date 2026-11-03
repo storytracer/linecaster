@@ -40,21 +40,22 @@
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""A chain of smaller models: layout (PP-DocLayoutV3), text lines (PP-OCRv6 detection on the whole page),
-lines assigned to their regions, a line recogniser (kraken, PaddleX or Tesseract), Unicode NFC, table
-structure (PaddleX, cells filled with the recognised lines), formulas as LaTeX, typography, document
-assembly. Page rows in OUT/rows; with --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the
-per-page md/txt/json squiddleocr writes, with --texts one text per item in each text version.
+"""A chain of smaller models, each step a catalogue preset: layout, text lines, lines assigned to their regions,
+a line recogniser (kraken, PaddleX or Tesseract), Unicode NFC, table structure (cells filled with the
+recognised lines), formulas as LaTeX, typography, document assembly. Page rows in OUT/rows; with --files
+per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with --texts
+one text per item in each text version.
 
     uv run recipes/chain.py IMAGES OUT                                   # in-process, this machine
-    uv run recipes/chain.py IMAGES OUT --recognizer tesseract --rec-model script/Latin
+    uv run recipes/chain.py IMAGES OUT --recognizer tesseract-best-latin
+    uv run recipes/chain.py IMAGES OUT --set recognition.batch_size=4    # an option over the preset's
     uv run recipes/chain.py IMAGES OUT --backend served                  # a server in the task
-    uv run recipes/chain.py serve                                        # linecaster serve, these models
+    uv run recipes/chain.py serve                                        # linecaster serve, these presets
     uv run recipes/chain.py ray start --head --num-gpus 8                # then --on ray --tasks 64
     uv run recipes/chain.py IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
 
-The defaults are the squiddle combination (kraken PP-OCRv6 medium, batch 8: the settings squiddleocr's
-goldens were recorded with). ``linecaster.run`` has the options every recipe shares.
+`linecaster models` lists the presets for each step. The defaults are the squiddle combination, the settings
+squiddleocr's goldens were recorded with. ``linecaster.run`` has the options every recipe shares.
 """
 from linecaster import run
 from linecaster.blocks.document import AssembleDocument, Typography
@@ -64,23 +65,19 @@ from linecaster.blocks.texts import ItemTexts
 from linecaster.blocks.unicode import NormalizeUnicode
 from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter, PageFilesWriter
 
-RECOGNIZERS = {   # engine class and the option --rec-model sets
-    "kraken": ("linecaster_kraken:KrakenRecognitionModel", "model"),
-    "paddlex": ("linecaster_paddlex:PaddleRecognitionModel", "model_name"),
-    "tesseract": ("linecaster_tesseract:TesseractRecognitionModel", "lang"),
-}
+#: the preset for each step by default; "none" skips tables or formulas
+DEFAULTS = {"layout": "pp-doclayoutv3", "lines": "pp-ocrv6-medium-det", "recognition": "kraken-ppocrv6-medium",
+            "tables": "slanet-plus", "formulas": "pp-formulanet-plus-l"}
 
 
 def options(ap):
-    ap.add_argument("--recognizer", choices=list(RECOGNIZERS), default="kraken")
-    ap.add_argument("--rec-model", help="kraken: tiny, small, medium (default) or a file; PaddleX: "
-                                        "PP-OCRv6_{tiny,small,medium}_rec; Tesseract: a language or script")
-    ap.add_argument("--tessdata", choices=["best", "fast"], default="best")
-    ap.add_argument("--batch-size", type=int, default=8, help="lines per forward pass (kraken, PaddleX)")
-    ap.add_argument("--layout-model", default="PP-DocLayoutV3")
-    ap.add_argument("--det-model", default="PP-OCRv6_medium_det")
-    ap.add_argument("--no-tables", action="store_true")
-    ap.add_argument("--no-formulas", action="store_true", help="formula regions are read as text")
+    ap.add_argument("--layout", default=DEFAULTS["layout"], help="layout preset")
+    ap.add_argument("--lines", default=DEFAULTS["lines"], help="line detection preset")
+    ap.add_argument("--recognizer", default=DEFAULTS["recognition"], help="line recogniser preset")
+    ap.add_argument("--tables", default=DEFAULTS["tables"], help="table preset, or none")
+    ap.add_argument("--formulas", default=DEFAULTS["formulas"], help="formula preset, or none (read as text)")
+    ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
+                    help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
     ap.add_argument("--text", choices=["lines", "reflow"], default="lines", help="document text")
     ap.add_argument("--files", metavar="DIR", help="per-page files <item>/<page>.<ext> here")
     ap.add_argument("--formats", default="hocr,alto,page,txt,md,json", help="formats for --files")
@@ -92,17 +89,11 @@ def options(ap):
 
 
 def models(a) -> list[dict]:
-    spec, key = RECOGNIZERS[a.recognizer]
-    rec = {"tesseract": {"data": a.tessdata}}.get(a.recognizer, {"batch_size": a.batch_size})
-    if a.rec_model or a.recognizer == "kraken":
-        rec = {key: a.rec_model or "medium", **rec}
-    return [
-        {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": a.layout_model}},
-        {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": a.det_model}},
-        {"name": "recognition", "spec": spec, "kwargs": rec},
-        *([] if a.no_tables else [{"name": "tables", "spec": "linecaster_paddlex:PaddleTableModel", "kwargs": {}}]),
-        *([] if a.no_formulas else [{"name": "formulas", "spec": "linecaster_paddlex:PaddleFormulaModel", "kwargs": {}}]),
-    ]
+    chosen = {"layout": a.layout, "lines": a.lines, "recognition": a.recognizer, "tables": a.tables,
+              "formulas": a.formulas}
+    sets = run.overrides(a.set, steps=[s for s, p in chosen.items() if p != "none"])
+    return [{"name": step, "preset": preset, **({"overrides": sets[step]} if step in sets else {})}
+            for step, preset in chosen.items() if preset != "none"]
 
 
 def pipeline(a, script: str) -> list:
@@ -116,11 +107,11 @@ def pipeline(a, script: str) -> list:
         run.reader(a),
         LayoutStep(b["layout"]),
         LinesStep(b["lines"]),
-        AssignLinesToRegions(formulas_separately=not a.no_formulas),
+        AssignLinesToRegions(formulas_separately=a.formulas != "none"),
         RecognitionStep(b["recognition"]),
         NormalizeUnicode(),                       # kraken writes decomposed text; the as-written layer is NFC
-        *([] if a.no_tables else [TablesStep(b["tables"])]),
-        *([] if a.no_formulas else [FormulasStep(b["formulas"])]),
+        *([TablesStep(b["tables"])] if "tables" in b else []),
+        *([FormulasStep(b["formulas"])] if "formulas" in b else []),
         Typography(),
         AssembleDocument(text=a.text),
         *([PageFilesWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
