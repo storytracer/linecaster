@@ -1,13 +1,17 @@
 """PP-OCRv6 text detection through PaddleX's ONNX Runtime engine."""
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import BBox, bbox_of, xywh
 from linecaster.transcription import Line, ModelInfo, Transcription
 
 from .compat import create_predictor, paddle_image
 from .crops import crop_bbox, crop_polygon
+from .weights import check, resolve
 
 DETECTORS = ("PP-OCRv6_medium_det", "PP-OCRv6_small_det", "PP-OCRv6_tiny_det")
 
@@ -20,10 +24,11 @@ class PaddleTextDetector:
     in front of the detector, so a neighbouring column cannot leak in)."""
 
     def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", unclip_ratio: float = 1.5,
-                 box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0, mask: bool = False):
+                 box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0, mask: bool = False,
+                 model_dir: str | None = None):
         self.model_name = model_name
         self.unclip_ratio, self.box_thresh, self.thresh, self.pad, self.mask = unclip_ratio, box_thresh, thresh, pad, mask
-        self.predictor = create_predictor(model_name, device)
+        self.predictor = create_predictor(model_name, device, model_dir=model_dir)
 
     def detect(self, page_image: np.ndarray, region=None) -> list[tuple[np.ndarray, float, str]]:
         """Line polygons (page coordinates), scores and the region id; ``region`` is a linecaster Region."""
@@ -52,16 +57,42 @@ class PaddleTextDetector:
 class PaddleLineModel:
     """linecaster engine model for the lines step: PP-OCRv6 detection on the whole page (default) or,
     with ``per_region``, on each region's crop. Fills ``Transcription.lines`` with geometry (polygon,
-    bbox, score); text stays ``None``. Replaces any lines already present."""
+    bbox, score); text stays ``None``. Replaces any lines already present. The model files: ``weights`` (a
+    catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
 
+    kind: ClassVar[str] = "paddlex.lines/1"
     step = "lines"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["lines"]}
 
-    def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", per_region: bool = False, **kwargs):
-        self.name, self.device, self.per_region, self.kwargs = model_name, device, per_region, kwargs
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+        model_name: str = Field("PP-OCRv6_medium_det", description="PaddleX text detector: "
+                                                                   "PP-OCRv6_{tiny,small,medium}_det")
+        device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
+        per_region: bool = Field(False, description="detect on each region's crop instead of the whole page")
+        unclip_ratio: float = Field(1.5, description="how far the DB boxes are grown around the text kernel "
+                                                     "(PaddleOCR's default 1.5)")
+        box_thresh: float = Field(0.6, description="minimum mean score of a box")
+        thresh: float = Field(0.3, description="binarisation threshold of the probability map")
+        pad: int = Field(0, description="per_region: pixels around a region's crop")
+        mask: bool = Field(False, description="per_region: paint everything outside the region polygon white")
+
+    def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", per_region: bool = False,
+                 unclip_ratio: float = 1.5, box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0,
+                 mask: bool = False, weights: dict | None = None):
+        o = self.Options(model_name=model_name, device=device, per_region=per_region, unclip_ratio=unclip_ratio,
+                         box_thresh=box_thresh, thresh=thresh, pad=pad, mask=mask)
+        check(o.model_name, weights)
+        self.options, self.weights = o, weights
+        self.name, self.device, self.per_region = o.model_name, o.device, o.per_region
+        self.kwargs = o.model_dump(exclude={"model_name", "device", "per_region"})
+        self.revision: str | None = weights["revision"] if weights else None
         self.detector: PaddleTextDetector | None = None
 
     def load(self) -> None:
-        self.detector = PaddleTextDetector(self.name, self.device, **self.kwargs)
+        model_dir, self.revision = resolve(self.name, self.weights)
+        self.detector = PaddleTextDetector(self.name, self.device, model_dir=model_dir, **self.kwargs)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         found = []
@@ -73,7 +104,8 @@ class PaddleLineModel:
         transcription.lines = [Line(id=f"det_{i}", region_id=rid or None, reading_order=i, bbox=xywh(BBox.of(pts)),
                                     polygon=pts.tolist(), score=score) for i, (pts, score, rid) in enumerate(found)]
         d = self.detector
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/onnxruntime",
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
+                                             backend="paddlex/onnxruntime",
                                              settings={"unclip_ratio": d.unclip_ratio, "box_thresh": d.box_thresh,
                                                        "thresh": d.thresh, "per_region": self.per_region}))
         return transcription

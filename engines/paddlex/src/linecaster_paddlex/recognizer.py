@@ -8,13 +8,17 @@ along the line rectangle by the CTC columns of its characters, the same mapping 
 ``cal_ocr_word_box`` (whose own word list groups punctuation separately)."""
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
 import regex
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import BBox, xywh
 from linecaster.transcription import ModelInfo, Transcription, Word
 
 from .compat import create_predictor, paddle_image
+from .weights import check, resolve
 
 RECOGNIZERS = ("PP-OCRv6_medium_rec", "PP-OCRv6_small_rec", "PP-OCRv6_tiny_rec")
 
@@ -75,17 +79,36 @@ def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word
 class PaddleRecognitionModel:
     """linecaster engine model for the recognition step: a PaddleOCR text recogniser on every line of the
     transcription (``RECOGNIZERS``). Fills text, confidence (the recogniser's mean character probability) and words
-    (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page."""
+    (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model
+    files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
 
+    kind: ClassVar[str] = "paddlex.recognition/1"
     step = "recognition"
+    capabilities: ClassVar[dict] = {"unit": "line", "produces": ["text", "words", "line_confidences"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+        model_name: str = Field("PP-OCRv6_medium_rec", description="PaddleX text recogniser: "
+                                                                   "PP-OCRv6_{tiny,small,medium}_rec")
+        device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
+        batch_size: int = Field(8, description="line images per forward pass (sorted by aspect ratio first, as "
+                                               "PaddleX's pipeline does)")
+        words: bool = Field(True, description="word boxes from the CTC columns (PaddleX's return_word_box)")
 
     def __init__(self, model_name: str = "PP-OCRv6_medium_rec", device: str = "auto", batch_size: int = 8,
-                 words: bool = True):
-        self.name, self.device, self.batch_size, self.words = model_name, device, batch_size, words
+                 words: bool = True, weights: dict | None = None):
+        o = self.Options(model_name=model_name, device=device, batch_size=batch_size, words=words)
+        check(o.model_name, weights)
+        self.options, self.weights = o, weights
+        self.name, self.device, self.batch_size, self.words = o.model_name, o.device, o.batch_size, o.words
+        self.revision: str | None = weights["revision"] if weights else None
         self.predictor = None
 
     def load(self) -> None:
-        self.predictor = create_predictor(self.name, self.device, batch_size=max(int(self.batch_size), 1))
+        model_dir, self.revision = resolve(self.name, self.weights)
+        self.predictor = create_predictor(self.name, self.device, batch_size=max(int(self.batch_size), 1),
+                                          model_dir=model_dir)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         lines = [ln for ln in transcription.lines if ln.polygon or ln.bbox]
@@ -112,6 +135,7 @@ class PaddleRecognitionModel:
             text, info = (rec[0], rec[1]) if isinstance(rec, tuple) else (rec, None)
             ln.text, ln.confidence = text, float(res["rec_score"])
             ln.words = line_words(text, info, boxes[i], ln.id) if info is not None else []
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/onnxruntime",
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
+                                             backend="paddlex/onnxruntime",
                                              settings={"batch_size": self.batch_size, "words": self.words}))
         return transcription

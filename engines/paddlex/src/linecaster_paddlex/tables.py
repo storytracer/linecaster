@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import html
 import re
-from typing import Sequence
+from typing import ClassVar, Sequence
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from dataclasses import dataclass, field
 
@@ -28,6 +29,7 @@ from linecaster.transcription import ModelInfo, Transcription
 
 from .compat import create_pipeline, paddle_image
 from .crops import crop_bbox
+from .weights import catalogue_weights, check, resolve
 
 
 @dataclass
@@ -55,10 +57,13 @@ _CELL = re.compile(r"<t([dh])([^>]*)>(.*?)</t[dh]>", re.S)
 
 
 def table_pipeline_config(wired: str = "SLANet_plus", wireless: str = "SLANet_plus", classifier: str = "PP-LCNet_x1_0_table_cls",
-                          wired_cells: str = "RT-DETR-L_wired_table_cell_det", wireless_cells: str = "RT-DETR-L_wireless_table_cell_det") -> dict:
+                          wired_cells: str = "RT-DETR-L_wired_table_cell_det", wireless_cells: str = "RT-DETR-L_wireless_table_cell_det",
+                          model_dirs: dict[str, str | None] | None = None) -> dict:
     """PaddleX's ``table_recognition_v2`` config without layout, preprocessing or its own OCR.
-    PP-StructureV3's own choice would be ``wired="SLANeXt_wired"``."""
-    mod = lambda module, name: {"module_name": module, "model_name": name, "model_dir": None}  # noqa: E731
+    PP-StructureV3's own choice would be ``wired="SLANeXt_wired"``. ``model_dirs``: model name -> local folder
+    (unnamed models are downloaded by PaddleX)."""
+    dirs = model_dirs or {}
+    mod = lambda module, name: {"module_name": module, "model_name": name, "model_dir": dirs.get(name)}  # noqa: E731
     return {"pipeline_name": "table_recognition_v2", "use_doc_preprocessor": False, "use_layout_detection": False, "use_ocr_model": False,
             "SubModules": {"TableClassification": mod("table_classification", classifier),
                            "WiredTableStructureRecognition": mod("table_structure_recognition", wired),
@@ -173,16 +178,53 @@ class PaddleTableModel:
     """linecaster engine model for the tables step: the cell structure of every ``table`` region, with the
     region's recognised lines placed into the cells (needs the recognition step first). The result goes
     into ``region.extra["table"]``: ``num_rows``, ``num_cols``, ``html`` and ``cells`` (text, row, col,
-    row_span, col_span, bbox, header)."""
+    row_span, col_span, bbox, header).
 
+    The pipeline's models: the structure model (``STRUCTURE``, for wired and wireless tables) from ``weights``
+    (a catalogue pin) or the catalogue's newest pin; the classifier and the two cell detectors (``SUBMODELS``) at
+    ``submodel_revisions`` (each a pin of its model document) or their newest pins."""
+
+    kind: ClassVar[str] = "paddlex.tables/1"
     step = "tables"
+    capabilities: ClassVar[dict] = {"unit": "region", "produces": ["tables", "html"]}
+    #: the structure model for both table classes, and the pipeline's other models (``table_pipeline_config``)
+    STRUCTURE = "SLANet_plus"
+    SUBMODELS = ("PP-LCNet_x1_0_table_cls", "RT-DETR-L_wired_table_cell_det", "RT-DETR-L_wireless_table_cell_det")
 
-    def __init__(self, device: str = "auto", crop_pad: int = 8, e2e: bool = True, name: str = "table_recognition_v2/SLANet_plus"):
-        self.device, self.crop_pad, self.e2e, self.name = device, crop_pad, e2e, name
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
+        crop_pad: int = Field(8, description="pixels the table region's crop is grown by (with the exact layout "
+                                             "box the models can flip to a worse cell set; stable from 8 px)")
+        e2e: bool = Field(True, description="structure and cell boxes from SLANet_plus's own prediction for both "
+                                            "table classes (False: the cell detectors, PP-StructureV3's route)")
+        name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded in ModelInfo")
+        submodel_revisions: dict[str, str] | None = Field(
+            None, description="PaddleX model name -> Hugging Face commit of its ONNX package, for the table "
+                              "classifier and the cell detectors; each must be a pin in the catalogue (None: the "
+                              "newest pins)")
+
+    def __init__(self, device: str = "auto", crop_pad: int = 8, e2e: bool = True, name: str = "table_recognition_v2/SLANet_plus",
+                 submodel_revisions: dict[str, str] | None = None, weights: dict | None = None):
+        o = self.Options(device=device, crop_pad=crop_pad, e2e=e2e, name=name, submodel_revisions=submodel_revisions)
+        check(self.STRUCTURE, weights)
+        unknown = set(o.submodel_revisions or {}) - set(self.SUBMODELS)
+        if unknown:
+            raise ValueError(f"submodel_revisions: {sorted(unknown)} are not models of the pipeline {self.SUBMODELS}")
+        self.options, self.weights = o, weights
+        self.device, self.crop_pad, self.e2e, self.name = o.device, o.crop_pad, o.e2e, o.name
+        self.revision: str | None = weights["revision"] if weights else None
         self.recognizer: PaddleTableRecognizer | None = None
 
     def load(self) -> None:
-        self.recognizer = PaddleTableRecognizer(self.device, self.crop_pad, self.e2e)
+        dirs = {}
+        dirs[self.STRUCTURE], self.revision = resolve(self.STRUCTURE, self.weights)
+        for name in self.SUBMODELS:
+            rev = (self.options.submodel_revisions or {}).get(name)
+            dirs[name] = resolve(name, catalogue_weights(name, revision=rev) if rev else None)[0]
+        self.recognizer = PaddleTableRecognizer(self.device, self.crop_pad, self.e2e,
+                                                config=table_pipeline_config(model_dirs=dirs))
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         n = 0
@@ -196,6 +238,7 @@ class PaddleTableModel:
                 "cells": [{"text": c.text, "row": c.row, "col": c.col, "row_span": c.row_span, "col_span": c.col_span,
                            "bbox": xywh(c.bbox) if c.bbox is not None else None, "header": c.header} for c in res.cells]}
             n += 1
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/onnxruntime",
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
+                                             backend="paddlex/onnxruntime",
                                              settings={"crop_pad": self.crop_pad, "e2e": self.e2e}, measurements={"tables": n}))
         return transcription

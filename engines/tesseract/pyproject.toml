@@ -13,6 +13,13 @@ dependencies = [
     "regex",
 ]
 
+# the engines by versioned kind, and the package's catalogue directory (specs/catalog.md)
+[project.entry-points."linecaster.engines"]
+"tesseract.recognition/1" = "linecaster_tesseract:TesseractRecognitionModel"
+
+[project.entry-points."linecaster.catalog"]
+tesseract = "linecaster_tesseract.catalog:directory"
+
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"

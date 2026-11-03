@@ -2,20 +2,22 @@
 
 Lines are extracted, transformed, batched, decoded and turned into ``ocr_record``s (text,
 per-character cuts and confidences) by kraken itself; the weights are kraken's safetensors from
-their Hugging Face mirrors (``models.KRAKEN_MODELS``), running on torch. Our part is ``segmentation.py`` (linecaster lines -> kraken's
+their Hugging Face mirrors (pinned in the catalogue: ``models``), running on torch. Our part is ``segmentation.py`` (linecaster lines -> kraken's
 ``Segmentation``) and turning records into linecaster lines and words (``record_words``, kraken's rule).
 """
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar, Literal
 
 import regex
 from PIL import Image
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import BBox, xywh
 from linecaster.transcription import ModelInfo, Transcription, Word
 
-from .models import KRAKEN_MODELS, resolve_kraken_model
+from .models import MODEL_IDS, SIZES, fetch_weights, resolve_kraken_model, size_weights
 from .segmentation import lines_to_segmentation
 
 
@@ -97,22 +99,53 @@ class KrakenRecognizer:
 class KrakenRecognitionModel:
     """linecaster engine model for the recognition step: kraken's PP-OCRv6 recogniser on every line of
     the transcription, in list order (the line step's processing order), ``batch_size`` lines per
-    forward pass. A page's result depends only on the page. Fills text, confidence and words."""
+    forward pass. A page's result depends only on the page. Fills text, confidence and words.
 
+    The model file: ``weights`` (a catalogue pin, as a preset passes it) when given, else ``model``: a size
+    name, resolved to its model document's newest pin, or a kraken model file."""
+
+    kind: ClassVar[str] = "kraken.recognition/1"
     step = "recognition"
+    capabilities: ClassVar[dict] = {"unit": "line",
+                                    "produces": ["text", "words", "word_confidences", "line_confidences"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        model: str = Field("medium", description="PP-OCRv6 size (tiny, small, medium) or a path to a kraken "
+                                                 "model file; with weights, the size the pin is of")
+        device: str = Field("auto", description="auto (CUDA if available), cpu or cuda")
+        batch_size: int = Field(8, description="lines per forward pass; kraken pads a batch to its widest line, "
+                                               "so the batch size can move numerics")
+        precision: str = Field("auto", description="Lightning precision at inference; auto: bf16-mixed on CUDA "
+                                                   "(the training precision), 32-true on the CPU")
+        text_direction: Literal["horizontal-lr", "horizontal-rl", "vertical-lr", "vertical-rl"] = Field(
+            "horizontal-lr", description="kraken's text direction of the lines (horizontal-rl: right to left)")
 
     def __init__(self, model: str = "medium", device: str = "auto", batch_size: int = 8, precision: str = "auto",
-                 text_direction: str = "horizontal-lr"):
-        self.model, self.device, self.batch_size, self.precision_setting = model, device, batch_size, precision
-        self.text_direction = text_direction
-        self.name = KRAKEN_MODELS[model].repo.split("/")[-1] if model in KRAKEN_MODELS else str(model)
+                 text_direction: str = "horizontal-lr", weights: dict | None = None):
+        o = self.Options(model=str(model), device=device, batch_size=batch_size, precision=precision,
+                         text_direction=text_direction)
+        self.options, self.weights = o, weights
+        self.model, self.device, self.batch_size, self.precision_setting = o.model, o.device, o.batch_size, o.precision
+        self.text_direction = o.text_direction
+        size = o.model.lower()
+        if weights is not None and MODEL_IDS.get(size) != weights["model"]:
+            raise ValueError(f"model={o.model!r} does not name the pinned weights {weights['model']!r}")
+        self.name = weights["model"] if weights else MODEL_IDS.get(size, o.model)
+        self.revision: str | None = weights["revision"] if weights else None
         self.recognizer: KrakenRecognizer | None = None
 
     def load(self) -> None:
         import torch
 
         torch.backends.cudnn.benchmark = False   # no autotuning: the same kernels for the same shapes every run
-        self.recognizer = KrakenRecognizer(resolve_kraken_model(self.model), self.device, self.batch_size,
+        weights = self.weights
+        if weights is None and self.model.lower() in SIZES and not Path(self.model).is_file():
+            weights = size_weights(self.model.lower())
+        path = fetch_weights(weights) if weights is not None else resolve_kraken_model(self.model)
+        self.revision = weights["revision"] if weights is not None else None
+        self.recognizer = KrakenRecognizer(path, self.device, self.batch_size,
                                            text_direction=self.text_direction, precision=self.precision_setting)
 
     def __call__(self, image, transcription: Transcription, **params) -> Transcription:
@@ -124,8 +157,7 @@ class KrakenRecognitionModel:
                 ln.text = rec.prediction
                 ln.confidence = mean_confidence(rec)
                 ln.words = record_words(rec, ln.id)
-        m = KRAKEN_MODELS.get(self.model)
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=m.revision if m else None,
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
                                              backend=f"kraken/torch ({self.recognizer.device})",
                                              settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
                                                        "text_direction": self.text_direction}))

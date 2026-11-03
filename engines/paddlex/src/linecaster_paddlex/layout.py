@@ -7,14 +7,17 @@ model) only gives boxes, so its regions are ordered with our XY-cut.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import BBox, xywh
 from linecaster.geometry.order import suppress_contained, xy_cut_order
 from linecaster.transcription import ModelInfo, Region as LCRegion, Transcription
 
 from .compat import create_predictor, paddle_image
+from .weights import check, resolve
 
 
 @dataclass
@@ -110,13 +113,13 @@ class PaddleLayout:
     def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
                  threshold: float | dict[int, float] | None = None,
                  header_zone: float = 0.15, nms: bool = True, merge_mode: str | dict[int, str] | None = None,
-                 max_containment: float = 0.8):
+                 max_containment: float = 0.8, model_dir: str | None = None):
         defaults = MODEL_DEFAULTS.get(model_name, {"threshold": 0.5, "merge_mode": "large"})
         self.model_name, self.header_zone = model_name, header_zone
         self.threshold = defaults["threshold"] if threshold is None else threshold
         self.merge_mode = defaults["merge_mode"] if merge_mode is None else merge_mode
         self.nms, self.max_containment = nms, max_containment
-        self.predictor = create_predictor(model_name, device)
+        self.predictor = create_predictor(model_name, device, model_dir=model_dir)
 
     def analyze(self, image: np.ndarray) -> list[Region]:
         res = next(iter(self.predictor.predict(paddle_image(image), threshold=self.threshold,
@@ -135,23 +138,56 @@ class PaddleLayout:
 
 class PaddleLayoutModel:
     """linecaster engine model for the layout step: fills ``Transcription.regions`` (Docling labels,
-    the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present."""
+    the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
+    The model files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name``
+    (``weights.resolve``)."""
 
+    kind: ClassVar[str] = "paddlex.layout/1"
     step = "layout"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order"]}
 
-    def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto", **kwargs):
-        self.name, self.device, self.kwargs = model_name, device, kwargs
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+        model_name: str = Field("PP-DocLayoutV3", description="PaddleX layout model (PP-DocLayoutV3: learned "
+                                                              "reading order and polygons; others: XY-cut order)")
+        device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
+        threshold: float | dict[int, float] | None = Field(
+            None, description="score threshold, one or per class index; None: PaddleX's own for the model "
+                              "(PP-DocLayoutV3 0.3, PP-DocLayout_plus-L PP-StructureV3's per class)")
+        header_zone: float = Field(0.15, description="share of the page height from the top in which a page "
+                                                     "number is a page header (below: a page footer)")
+        nms: bool = Field(True, description="PaddleX's layout NMS")
+        merge_mode: str | dict[int, str] | None = Field(
+            None, description="PaddleX's box merge mode (large, union, small), one or per class index; None: "
+                              "PaddleX's own for the model")
+        max_containment: float = Field(0.8, description="a region contained in another by more than this share "
+                                                        "of its area is dropped")
+
+    def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
+                 threshold: float | dict[int, float] | None = None, header_zone: float = 0.15, nms: bool = True,
+                 merge_mode: str | dict[int, str] | None = None, max_containment: float = 0.8,
+                 weights: dict | None = None):
+        o = self.Options(model_name=model_name, device=device, threshold=threshold, header_zone=header_zone, nms=nms,
+                         merge_mode=merge_mode, max_containment=max_containment)
+        check(o.model_name, weights)
+        self.options, self.weights = o, weights
+        self.name, self.device = o.model_name, o.device
+        self.kwargs = o.model_dump(exclude={"model_name", "device"})
+        self.revision: str | None = weights["revision"] if weights else None
         self.layout: PaddleLayout | None = None
 
     def load(self) -> None:
-        self.layout = PaddleLayout(self.name, self.device, **self.kwargs)
+        model_dir, self.revision = resolve(self.name, self.weights)
+        self.layout = PaddleLayout(self.name, self.device, model_dir=model_dir, **self.kwargs)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         regions = self.layout.analyze(image)
         transcription.regions = [
             LCRegion(id=r.id, label=r.label, raw_label=r.raw_label, polygon=np.asarray(r.polygon, dtype=float).tolist(),
                      bbox=xywh(r.bbox), score=r.score, reading_order=r.order) for r in regions]
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/onnxruntime",
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
+                                             backend="paddlex/onnxruntime",
                                              settings={"threshold": str(self.layout.threshold) if isinstance(self.layout.threshold, float) else "model default",
                                                        "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
         return transcription

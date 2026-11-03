@@ -22,6 +22,17 @@ dependencies = [
     "ftfy",
 ]
 
+# the engines by versioned kind, and the package's catalogue directory (specs/catalog.md)
+[project.entry-points."linecaster.engines"]
+"paddlex.layout/1" = "linecaster_paddlex:PaddleLayoutModel"
+"paddlex.lines/1" = "linecaster_paddlex:PaddleLineModel"
+"paddlex.recognition/1" = "linecaster_paddlex:PaddleRecognitionModel"
+"paddlex.tables/1" = "linecaster_paddlex:PaddleTableModel"
+"paddlex.formulas/1" = "linecaster_paddlex:PaddleFormulaModel"
+
+[project.entry-points."linecaster.catalog"]
+paddlex = "linecaster_paddlex.catalog:directory"
+
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"

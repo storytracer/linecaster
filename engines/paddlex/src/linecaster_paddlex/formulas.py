@@ -7,13 +7,17 @@ Inference is not used. A formula region's crop goes in, LaTeX comes out. Ported 
 """
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import bbox_of
 from linecaster.transcription import ModelInfo, Transcription
 
 from .compat import create_transformers_predictor, paddle_image
 from .crops import crop_bbox
+from .weights import check, resolve
 
 DEFAULT_FORMULA_MODEL = "PP-FormulaNet_plus-L"
 
@@ -21,16 +25,35 @@ DEFAULT_FORMULA_MODEL = "PP-FormulaNet_plus-L"
 class PaddleFormulaModel:
     """linecaster engine model for the formulas step: LaTeX for every ``formula`` region, into
     ``region.extra["formula"]``. The page's formula crops are read together, in the regions' list order,
-    ``batch_size`` crops per forward pass (a page's result depends only on the page)."""
+    ``batch_size`` crops per forward pass (a page's result depends only on the page). The model files:
+    ``weights`` (a catalogue pin of the ``_safetensors`` package) or the catalogue's newest pin for
+    ``model_name`` (``weights.resolve``)."""
 
+    kind: ClassVar[str] = "paddlex.formulas/1"
     step = "formulas"
+    capabilities: ClassVar[dict] = {"unit": "region", "produces": ["formulas", "latex"]}
 
-    def __init__(self, model_name: str = DEFAULT_FORMULA_MODEL, device: str = "auto", batch_size: int = 8):
-        self.name, self.device, self.batch_size = model_name, device, batch_size
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+        model_name: str = Field(DEFAULT_FORMULA_MODEL, description="PaddleX formula recogniser on the transformers "
+                                                                   "engine: PP-FormulaNet_plus-L or PP-FormulaNet-L")
+        device: str = Field("auto", description="auto (CUDA if available) or cpu (torch)")
+        batch_size: int = Field(8, description="formula crops per forward pass")
+
+    def __init__(self, model_name: str = DEFAULT_FORMULA_MODEL, device: str = "auto", batch_size: int = 8,
+                 weights: dict | None = None):
+        o = self.Options(model_name=model_name, device=device, batch_size=batch_size)
+        check(o.model_name, weights, engine="transformers")
+        self.options, self.weights = o, weights
+        self.name, self.device, self.batch_size = o.model_name, o.device, o.batch_size
+        self.revision: str | None = weights["revision"] if weights else None
         self.predictor = None
 
     def load(self) -> None:
-        self.predictor = create_transformers_predictor(self.name, self.device, batch_size=self.batch_size)
+        model_dir, self.revision = resolve(self.name, self.weights, engine="transformers")
+        self.predictor = create_transformers_predictor(self.name, self.device, batch_size=self.batch_size,
+                                                       model_dir=model_dir)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         targets = [r for r in transcription.regions if r.label == "formula"]
@@ -42,6 +65,7 @@ class PaddleFormulaModel:
                 latex[i] = str(res["rec_formula"]).strip()
         for region, text in zip(targets, latex):
             region.extra["formula"] = text
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/transformers",
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
+                                             backend="paddlex/transformers",
                                              settings={"batch_size": self.batch_size}, measurements={"formulas": len(targets)}))
         return transcription

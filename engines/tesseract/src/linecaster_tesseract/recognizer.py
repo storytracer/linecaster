@@ -8,13 +8,16 @@ Tesseract's, scaled to 0–1.
 """
 from __future__ import annotations
 
+from typing import ClassVar, Literal
+
 import numpy as np
 from PIL import Image
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.geometry import BBox, xywh
 from linecaster.transcription import ModelInfo, Transcription, Word
 
-from .models import TESSDATA, tessdata_dir
+from .models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
 
 
 def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, int]:
@@ -36,19 +39,42 @@ def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, in
 class TesseractRecognitionModel:
     """linecaster engine model for the recognition step: Tesseract 5 (LSTM) on every line of the
     transcription. ``lang`` is a tessdata language or script (``eng``, ``deu+lat``, ``script/Latin``),
-    ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences."""
+    ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences.
+    The language data: ``weights`` (a catalogue pin; only its files) or ``data``'s newest pin in the catalogue."""
 
+    kind: ClassVar[str] = "tesseract.recognition/1"
     step = "recognition"
+    capabilities: ClassVar[dict] = {"unit": "line",
+                                    "produces": ["text", "words", "word_confidences", "line_confidences"]}
 
-    def __init__(self, lang: str = "eng", data: str = "best", pad: int = 4, dpi: int = 300):
-        self.lang, self.data, self.pad, self.dpi = lang, data, pad, dpi
-        self.name = f"tesseract {data}/{lang}"
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        lang: str = Field("eng", description="tessdata language or script, + for several: eng, deu+lat, "
+                                             "script/Latin")
+        data: Literal["best", "fast"] = Field("best", description="tessdata_best (float LSTM, most accurate) or "
+                                                                  "tessdata_fast (integer, faster); with weights, "
+                                                                  "the kind the pin is of")
+        pad: int = Field(4, description="white pixels around each line image")
+        dpi: int = Field(300, description="the resolution Tesseract assumes (user_defined_dpi)")
+
+    def __init__(self, lang: str = "eng", data: str = "best", pad: int = 4, dpi: int = 300,
+                 weights: dict | None = None):
+        o = self.Options(lang=lang, data=data, pad=pad, dpi=dpi)
+        if weights is not None and weights["model"] != MODEL_IDS[o.data]:
+            raise ValueError(f"data={o.data!r} does not name the pinned weights {weights['model']!r}")
+        self.options, self.weights = o, weights
+        self.lang, self.data, self.pad, self.dpi = o.lang, o.data, o.pad, o.dpi
+        self.name = f"tesseract {o.data}/{o.lang}"
+        self.revision: str | None = weights["revision"] if weights else None
         self.api = None
 
     def load(self) -> None:
         import tesserocr
 
-        path = tessdata_dir(self.lang, self.data)
+        td = Tessdata.of(self.weights) if self.weights is not None else tessdata(self.data)
+        self.revision = td.commit
+        path = tessdata_dir(self.lang, self.data, td=td, strict=self.weights is not None)
         self.api = tesserocr.PyTessBaseAPI(path=str(path), lang=self.lang, psm=tesserocr.PSM.SINGLE_LINE,
                                            oem=tesserocr.OEM.LSTM_ONLY)
         self.api.SetVariable("user_defined_dpi", str(self.dpi))
@@ -87,8 +113,7 @@ class TesseractRecognitionModel:
             ln.words = words
             ln.text = " ".join(w.text for w in words)
             ln.confidence = float(np.mean([w.confidence for w in words])) if words else 0.0
-        td = TESSDATA[self.data]
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=td.commit,
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
                                              backend=f"tesseract {self.version} (tesserocr)",
                                              settings={"lang": self.lang, "data": self.data, "psm": 7,
                                                        "pad": self.pad, "dpi": self.dpi}))
