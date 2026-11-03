@@ -20,6 +20,7 @@ from pathlib import Path
 from datatrove.executor import JobsPipelineExecutor
 
 REPO = "https://github.com/storytracer/linecaster"
+# kraken takes its version from git history (versioningit), so the fork needs git+ (the default Jobs image has git)
 KRAKEN_FORK = "kraken @ git+https://github.com/storytracer/kraken@3d235ee8"
 #: the versions the goldens were recorded with (envs/kraken-paddlex constraint-dependencies)
 PINS = ("lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0")
@@ -28,8 +29,12 @@ WHEEL_MOUNT = "/wheels"
 
 def dependencies(commit: str, engines: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed). With
-    ``engines=False`` only linecaster itself (a CPU pipeline)."""
-    repo = f"git+{REPO}@{commit}"
+    ``engines=False`` only linecaster itself (a CPU pipeline, or a VLM pipeline whose image brings vLLM).
+
+    linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
+    some images (``vllm/vllm-openai``) have uv but no git executable. The kraken fork still needs git (its
+    version comes from git history); the default Jobs image, which engine Jobs use, has it."""
+    repo = f"{REPO}/archive/{commit}.tar.gz"
     deps = [f"linecaster @ {repo}"]
     if engines:
         deps += [f"linecaster-kraken @ {repo}#subdirectory=backends/kraken",
