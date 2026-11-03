@@ -2,6 +2,17 @@
 
 Measurements, decisions and open questions, newest first.
 
+## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
+
+- `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
+  the image, PNG with the longest side forced to 1288 px (LANCZOS), temperature 0.1, max_tokens 8192,
+  repetition_penalty 1.05, stop `<|im_end|>`/`<|endoftext|>`; `--max-model-len 16384`, no prefix
+  caching, no mm processor cache, one image per prompt; checkpoint pinned; vLLM 0.26.0 (the board's;
+  Daniel's recipe has since moved to 0.29.0).
+- The completion is kept verbatim; the YAML front matter is parsed into `extra["front_matter"]`.
+  Dropping it from the scored text is the board's post-processing (`drop_front_matter`), left to the
+  harness; `olmocr2.body()` does the same split.
+
 ## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, forge)
 
 Setup: `ImageFolderReader` → `LayoutStep` (`linecaster serve`, PP-DocLayoutV3 ONNX) → `ChatRegionStep(MiniCPMOCR)` →
