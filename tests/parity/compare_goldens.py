@@ -1,6 +1,9 @@
 """Compare a linecaster run (page-row JSONL) with squiddleocr goldens (hOCR) line by line.
 
-    python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr]
+    python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr] [--no-nfc]
+
+The goldens' word texts are NFC-normalised first (squiddleocr wrote kraken's decomposed text; linecaster
+normalises with NormalizeUnicode), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
 
 Per page and in total: lines present in both (by id), line boxes equal (kraken's integer clip of the
 polygon), word sequences equal (text and box), and the ids only one side has.
@@ -12,6 +15,7 @@ import glob
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from lxml import html
@@ -19,12 +23,12 @@ from lxml import html
 BBOX = re.compile(r"bbox (\d+) (\d+) (\d+) (\d+)")
 
 
-def golden(path: Path) -> dict:
+def golden(path: Path, nfc: bool = True) -> dict:
     doc = html.parse(str(path))
     out = {}
     for ln in doc.xpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ocr_line ') or contains(@class,'ocr_header') or contains(@class,'ocr_caption') or contains(@class,'ocr_textfloat')]"):
         box = tuple(int(v) for v in BBOX.search(ln.get("title")).groups())
-        words = [(w.text_content(), tuple(int(v) for v in BBOX.search(w.get("title")).groups()))
+        words = [(unicodedata.normalize("NFC", w.text_content()) if nfc else w.text_content(), tuple(int(v) for v in BBOX.search(w.get("title")).groups()))
                  for w in ln.xpath(".//*[contains(@class,'ocrx_word')]") if w.text_content().strip()]
         out[ln.get("id")] = (box, words)
     return out
@@ -48,11 +52,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("run"); ap.add_argument("goldens"); ap.add_argument("--transcription", default="ocr")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--no-nfc", action="store_true",
+                    help="compare the goldens' raw text (default: NFC, as linecaster's NormalizeUnicode writes it)")
     a = ap.parse_args()
     rows = [json.loads(l) for f in sorted(glob.glob(f"{a.run}/*.jsonl")) for l in open(f)]
     tot = dict(pages=0, lines_gold=0, lines_ours=0, common=0, box=0, words=0, pages_exact=0)
     for row in sorted(rows, key=lambda r: r["id"]):
-        g = golden(next(Path(a.goldens).glob(f"{row['id']}.*hocr")))
+        g = golden(next(Path(a.goldens).glob(f"{row['id']}.*hocr")), nfc=not a.no_nfc)
         img = row["page"]["image"]
         o = ours(row, a.transcription, img["width"], img["height"])
         common = set(g) & set(o)
