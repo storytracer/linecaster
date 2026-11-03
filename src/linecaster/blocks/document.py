@@ -6,16 +6,15 @@ In squiddleocr's order: ... recognition -> ``NormalizeUnicode`` -> tables -> ``T
 ``AssembleDocument`` -> writers; ``AssembleItemDocument`` after them, on whole items.
 ``Typography`` changes regions and lines (``linecaster.retyper``); ``AssembleDocument`` fills the
 transcription's ``docling`` part from them (``linecaster.document``); ``PageExportsWriter`` writes
-``<page id><suffix>.md`` / ``.txt`` / ``.json`` (the DoclingDocument) per page.
+``<page id><suffix>.md`` / ``.txt`` / ``.html`` / ``.doclang.xml`` / ``.json`` (the DoclingDocument) per
+page.
 """
 from __future__ import annotations
-
-import json
 
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
-from ..document import build_docling, docling_dict, load_docling, to_markdown, to_text
+from ..document import EXPORT_FORMATS, REGION_MAP_KEY, DocumentBuilder, docling_dict, export, load_docling, to_text
 from ..page import Page
 from ..retyper import retype
 from .base import PageStep, page_of
@@ -44,18 +43,23 @@ class Typography(PageStep):
 
 class AssembleDocument(PageStep):
     """Build the named transcription's ``docling`` part from its regions, lines and tables
-    (``linecaster.document.build_docling``; one document per page, named after the page id).
-    ``text``: ``lines`` (one row per line) or ``reflow`` (paragraphs; squiddleocr's default)."""
+    (``linecaster.document.DocumentBuilder``; one document per page, named after the page id).
+    ``text``: ``lines`` (one row per line) or ``reflow`` (paragraphs; squiddleocr's default).
+    ``sections``: every heading opens a Docling section group (JSON and DocLang gain the tree).
+
+    The map from each Docling item to its layout region (``"<page_no>:<region id>"``) is kept in
+    ``transcription.extra["docling_region_of"]``, for the Markdown dividers of the export writers."""
 
     name = "assemble document"
+    REGION_MAP = REGION_MAP_KEY
 
-    def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False):
+    def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False, sections: bool = False):
         super().__init__()
         from ..document import TEXT_MODES
 
         if text not in TEXT_MODES:
             raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
-        self.transcription, self.text, self.rtl = transcription, text, rtl
+        self.transcription, self.text, self.rtl, self.sections = transcription, text, rtl, sections
 
     def process_page(self, doc, page: Page) -> Page:
         t = page.transcriptions.get(self.transcription)
@@ -66,8 +70,10 @@ class AssembleDocument(PageStep):
         from ..reflow import Stats
 
         stats = Stats()
-        t.docling = docling_dict(build_docling(t, name=page.page_id, width=w, height=h, text=self.text, rtl=self.rtl,
-                                               stats=stats))
+        b = DocumentBuilder(page.page_id, text=self.text, sections=self.sections, rtl=self.rtl, stats=stats)
+        b.add_page(t, w, h)
+        t.docling = docling_dict(b.build())
+        t.extra[self.REGION_MAP] = dict(b.region_of)
         self.stat_update("documents")
         if self.text == "reflow":
             for key in ("paragraphs", "continuations", "marks_removed", "marks_kept"):
@@ -78,22 +84,25 @@ class AssembleDocument(PageStep):
 
 class PageExportsWriter(PipelineStep):
     """Write each page's document exports as files named ``<page id><suffix>.<ext>`` in
-    ``output_folder``: ``md`` (Markdown), ``txt`` (text), ``json`` (the DoclingDocument). ``furniture``
-    keeps page headers and footers in md and txt (squiddleocr's ``--furniture``). Pages pass through."""
+    ``output_folder``: ``md`` (Markdown), ``txt`` (text), ``html``, ``doclang`` (DocLang XML) and
+    ``json`` (the DoclingDocument), all docling-core's serialisers (``linecaster.document.export``).
+    ``furniture`` keeps page headers and footers in md, txt and html (squiddleocr's ``--furniture``);
+    ``dividers`` puts ``---`` between the items of consecutive layout regions in md (needs the region
+    map ``AssembleDocument`` keeps). Pages pass through."""
 
     type = "💽 - WRITER"
     name = "📝 page exports"
 
-    EXTENSIONS = {"md": "md", "txt": "txt", "json": "json"}
+    EXTENSIONS = EXPORT_FORMATS
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
-                 furniture: bool = False, transcription: str = "ocr"):
+                 furniture: bool = False, transcription: str = "ocr", dividers: bool = False):
         super().__init__()
         unknown = set(formats) - set(self.EXTENSIONS)
         if unknown:
             raise ValueError(f"unknown formats {sorted(unknown)}; choose from {sorted(self.EXTENSIONS)}")
         self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
-        self.furniture, self.transcription = furniture, transcription
+        self.furniture, self.transcription, self.dividers = furniture, transcription, dividers
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         for doc in data:
@@ -105,15 +114,11 @@ class PageExportsWriter(PipelineStep):
                 continue
             with self.track_time():
                 d = load_docling(t)
+                region_of = t.extra.get(AssembleDocument.REGION_MAP) if self.dividers else None
                 for fmt in self.formats:
-                    if fmt == "md":
-                        content = to_markdown(d, self.furniture)
-                    elif fmt == "txt":
-                        content = to_text(d, self.furniture)
-                    else:
-                        content = json.dumps(t.docling, ensure_ascii=False, indent=2)
+                    content = t.docling if fmt == "json" else d
                     with self.folder.open(f"{page.page_id}{self.suffix}.{self.EXTENSIONS[fmt]}", "wt", encoding="utf-8") as f:
-                        f.write(content)
+                        f.write(export(content, fmt, self.furniture, region_of))
                     self.stat_update(fmt)
             yield doc
 
@@ -147,7 +152,6 @@ class AssembleItemDocument(PipelineStep):
     def _emit(self, item: str, pages: list[Page]):
         from datatrove.data import Document
 
-        from ..document import DocumentBuilder
         from ..reflow import Stats
         from ..transcription.model import Transcription
 
@@ -184,9 +188,10 @@ class AssembleItemDocument(PipelineStep):
 
 
 class ItemExportsWriter(PipelineStep):
-    """Write ``AssembleItemDocument``'s documents as ``<item id><suffix>.md`` / ``.txt`` / ``.json``.
-    ``furniture`` keeps page headers and footers in md and txt; ``dividers`` puts ``---`` between the
-    items of consecutive layout regions in md. Documents pass through."""
+    """Write ``AssembleItemDocument``'s documents as ``<item id><suffix>.<ext>``: ``md``, ``txt``,
+    ``html``, ``doclang``, ``json`` (``linecaster.document.export``). ``furniture`` keeps page headers
+    and footers in md, txt and html; ``dividers`` puts ``---`` between the items of consecutive layout
+    regions in md. Documents pass through."""
 
     type = "💽 - WRITER"
     name = "📝 item exports"
@@ -194,9 +199,9 @@ class ItemExportsWriter(PipelineStep):
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
                  furniture: bool = False, dividers: bool = False):
         super().__init__()
-        unknown = set(formats) - {"md", "txt", "json"}
+        unknown = set(formats) - set(EXPORT_FORMATS)
         if unknown:
-            raise ValueError(f"unknown formats {sorted(unknown)}; choose from md, txt, json")
+            raise ValueError(f"unknown formats {sorted(unknown)}; choose from {', '.join(EXPORT_FORMATS)}")
         self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
         self.furniture, self.dividers = furniture, dividers
 
@@ -211,14 +216,11 @@ class ItemExportsWriter(PipelineStep):
                 continue
             with self.track_time():
                 d = DoclingDocument.model_validate(meta["docling"])
+                region_of = meta.get("region_of") if self.dividers else None
                 for fmt in self.formats:
-                    if fmt == "md":
-                        content = to_markdown(d, self.furniture, meta.get("region_of") if self.dividers else None)
-                    elif fmt == "txt":
-                        content = to_text(d, self.furniture)
-                    else:
-                        content = json.dumps(meta["docling"], ensure_ascii=False, indent=2)
-                    with self.folder.open(f"{meta['item_id']}{self.suffix}.{fmt}", "wt", encoding="utf-8") as f:
-                        f.write(content)
+                    content = meta["docling"] if fmt == "json" else d
+                    with self.folder.open(f"{meta['item_id']}{self.suffix}.{EXPORT_FORMATS[fmt]}", "wt",
+                                          encoding="utf-8") as f:
+                        f.write(export(content, fmt, self.furniture, region_of))
                     self.stat_update(fmt)
             yield doc

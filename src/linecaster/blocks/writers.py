@@ -2,7 +2,8 @@
 
 * page rows (everything but the image bytes, plus id and text): ``PageJsonlWriter``,
   ``PageParquetWriter``, one file per task (``${rank}``) or per item (``${item_id}``);
-* per-page files (hOCR, ALTO, PAGE, txt, md, DoclingDocument JSON, Transcription JSON):
+* per-page files (hOCR, ALTO, PAGE, txt, md, HTML, DocLang, DoclingDocument JSON, Transcription JSON,
+  layout plots):
   ``PageFilesWriter``, ``<item_id>/<page_id>.<ext>``;
 * per-item texts from ``ItemTexts``: ``ItemTextJsonlWriter`` (one folder per variant) and
   ``ItemTextFilesWriter`` (``<variant>/<item_id>.txt|.md``).
@@ -58,9 +59,15 @@ PAGE_FILE_EXTENSIONS = {
     "page": "page.xml",                   # PAGE-XML 2019
     "txt": "txt",                         # the DoclingDocument's text export, else the page text
     "md": "md",                           # the DoclingDocument's Markdown export, else the page text
+    "html": "html",                       # the DoclingDocument's HTML export
+    "doclang": "doclang.xml",             # the DoclingDocument's DocLang export
     "json": "json",                       # the DoclingDocument (from AssembleDocument)
     "transcription": "transcription.json",  # the Transcription as linecaster JSON
+    "plot": "layout.jpg",                 # the page image with regions and lines drawn in (linecaster.plots)
 }
+#: depth of hocr/alto/page: ``word`` (lines and words; linecaster has no glyph level) or ``line`` (text per line)
+DETAILS = ("word", "line")
+DOCUMENT_FORMATS = ("md", "txt", "html", "doclang", "json")
 
 
 class PageFilesWriter(PipelineStep):
@@ -68,12 +75,14 @@ class PageFilesWriter(PipelineStep):
     folder: local, ``s3://``, ``hf://buckets/...``). Pages pass through, so writers can be chained.
 
     * ``hocr``, ``alto``, ``page``: linecaster's serialisers (``to_hocr``/``to_alto``/``to_page``) at the
-      page image's size;
-    * ``md``, ``txt``, ``json``: the DoclingDocument's exports when the transcription has one
-      (``AssembleDocument``; ``furniture`` keeps page headers and footers in md and txt); without one,
-      md and txt fall back to ``Transcription.text`` (lines in reading order, tables as Markdown/HTML)
-      and json is skipped (counted as ``no_document``);
-    * ``transcription``: the ``Transcription`` itself as JSON.
+      page image's size; ``detail="line"`` leaves the words out (text per line);
+    * ``md``, ``txt``, ``html``, ``doclang``, ``json``: the DoclingDocument's exports
+      (``linecaster.document.export``) when the transcription has one (``AssembleDocument``;
+      ``furniture`` keeps page headers and footers in md, txt and html; ``dividers`` puts ``---``
+      between layout regions in md); without one, md and txt fall back to ``Transcription.text`` (lines
+      in reading order, tables as Markdown/HTML) and the others are skipped (counted as ``no_document``);
+    * ``transcription``: the ``Transcription`` itself as JSON;
+    * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.plots``).
 
     ``bucket_by_item=False`` writes ``<page_id><suffix>.<ext>`` flat (as squiddleocr and
     ``PageExportsWriter`` name their files); pages without ``item_id`` are always written flat."""
@@ -82,34 +91,52 @@ class PageFilesWriter(PipelineStep):
     name = "🗂️ page files"
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
-                 transcription: str = "ocr", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True):
+                 transcription: str = "ocr", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
+                 detail: str = "word", dividers: bool = False):
         super().__init__()
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
             raise ValueError(f"unknown formats {sorted(unknown)}; choose from {sorted(PAGE_FILE_EXTENSIONS)}")
+        if detail not in DETAILS:
+            raise ValueError(f"unknown detail {detail!r}; choose from {', '.join(DETAILS)}")
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
+        self.detail, self.dividers = detail, dividers
 
     def path(self, page) -> str:
         stem = f"{page.page_id}{self.suffix}"
         return f"{page.item_id}/{stem}" if self.bucket_by_item and page.item_id else stem
 
-    def render(self, page, t, fmt: str, document=None) -> str | bytes | None:
+    @staticmethod
+    def wordless(t):
+        """A copy of ``t`` without words (``detail="line"``)."""
+        return t.model_copy(update={"lines": [ln.model_copy(update={"words": []}) for ln in t.lines]})
+
+    def render(self, page, t, fmt: str, document=None, doc=None) -> str | bytes | None:
         from ..transcription import to_alto, to_hocr, to_page
 
         if fmt in ("hocr", "alto", "page"):
             uri = page.image.uri.rsplit("/", 1)[-1] if page.image and page.image.uri else None
             size = dict(image_width=page.image.width, image_height=page.image.height, image_uri=uri)
-            return {"hocr": to_hocr, "alto": to_alto, "page": to_page}[fmt](t, **size)
+            src = self.wordless(t) if self.detail == "line" else t
+            return {"hocr": to_hocr, "alto": to_alto, "page": to_page}[fmt](src, **size)
         if fmt == "transcription":
             return t.model_dump_json(indent=1)
-        if fmt == "json":
-            return json.dumps(t.docling, ensure_ascii=False, indent=2) if t.docling is not None else None
-        if document is not None:
-            from ..document import to_markdown, to_text
+        if fmt == "plot":
+            from ..plots import plot_layout
+            from .base import decode_rgb, image_bytes
 
-            return to_markdown(document, self.furniture) if fmt == "md" else to_text(document, self.furniture)
-        return t.text
+            return plot_layout(decode_rgb(image_bytes(doc)), t)
+        if fmt == "json":
+            from ..document import to_json
+
+            return to_json(t.docling) if t.docling is not None else None
+        if document is not None:
+            from ..document import REGION_MAP_KEY, export
+
+            region_of = t.extra.get(REGION_MAP_KEY) if self.dividers else None
+            return export(document, fmt, self.furniture, region_of)
+        return t.text if fmt in ("md", "txt") else None
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
@@ -125,14 +152,14 @@ class PageFilesWriter(PipelineStep):
                 yield doc
                 continue
             document = None
-            if t.docling is not None and {"md", "txt"} & set(self.formats):
+            if t.docling is not None and {"md", "txt", "html", "doclang"} & set(self.formats):
                 from ..document import load_docling
 
                 document = load_docling(t)
             stem = self.path(page)
             for fmt in self.formats:
                 with self.track_time(fmt):
-                    content = self.render(page, t, fmt, document)
+                    content = self.render(page, t, fmt, document, doc)
                 if content is None:
                     self.stat_update("no_document")
                     continue

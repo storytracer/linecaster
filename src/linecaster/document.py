@@ -18,7 +18,8 @@ rows joined with ``\\n``), one provenance entry with the region's box:
 Empty regions produce no item. ``build_docling`` makes the document of one page (page 1);
 ``DocumentBuilder`` makes one for all pages of an item, with paragraphs continued across page breaks,
 optional sections and the region map for Markdown dividers (squiddleocr's ``--per-document``,
-``--sections``, ``--dividers``).
+``--sections``, ``--dividers``). Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
+docling-core's own serialisers.
 
 ``text="reflow"`` is squiddleocr's default document mode (``linecaster.reflow``): the rows of a text
 region joined into paragraphs, the typesetter's division marks removed (the page's own words as the
@@ -96,6 +97,8 @@ def region_rows(lines: list[Line]):
 
 
 TEXT_MODES = ("lines", "reflow")
+#: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``AssembleDocument``)
+REGION_MAP_KEY = "docling_region_of"
 
 
 class DocumentBuilder:
@@ -343,3 +346,58 @@ def to_text(doc_or_t, furniture: bool = False) -> str:
     """Docling's plain-text export; page headers and footers only with ``furniture``."""
     doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
     return doc.export_to_text(included_content_layers=_layers(furniture))
+
+
+def to_html(doc_or_t, furniture: bool = False) -> str:
+    """Docling's HTML export (its own defaults); page headers and footers only with ``furniture``."""
+    doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
+    return doc.export_to_html(included_content_layers=_layers(furniture))
+
+
+def to_doclang(doc_or_t) -> str:
+    """Docling's DocLang XML, with named groups (sections survive as ``<group>``). DocLang keeps every
+    content layer and marks the furniture items (``<layer value="furniture"/>``), so it has no
+    ``furniture`` switch."""
+    doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
+    return doc.export_to_doclang(add_named_groups=True)
+
+
+def to_json(doc_or_dict) -> str:
+    """The DoclingDocument as JSON, formatted as docling-core's ``save_as_json`` writes it (indent 2,
+    ASCII-escaped)."""
+    import json
+
+    if isinstance(doc_or_dict, Transcription):
+        doc_or_dict = doc_or_dict.docling
+    data = doc_or_dict if isinstance(doc_or_dict, dict) else docling_dict(doc_or_dict)
+    return json.dumps(data, indent=2)
+
+
+#: document export formats (``export``) -> file extension
+EXPORT_FORMATS = {"md": "md", "txt": "txt", "html": "html", "doclang": "doclang.xml", "json": "json"}
+
+
+def export(doc, fmt: str, furniture: bool = False, region_of: dict[str, str] | None = None) -> str:
+    """One export of a ``DoclingDocument`` (or of a transcription's ``docling`` part): ``md``
+    (``region_of`` puts ``---`` dividers between layout regions), ``txt``, ``html``, ``doclang`` or
+    ``json``. ``furniture`` keeps page headers and footers in md, txt and html (json and doclang
+    always hold them, in Docling's furniture layer)."""
+    if fmt not in EXPORT_FORMATS:
+        raise ValueError(f"unknown export format {fmt!r}; choose from {', '.join(EXPORT_FORMATS)}")
+    if fmt == "json":
+        return to_json(doc)
+    if isinstance(doc, (Transcription, dict)):
+        doc = load_docling(doc) if isinstance(doc, Transcription) else _validate(doc)
+    if fmt == "md":
+        return to_markdown(doc, furniture, region_of)
+    if fmt == "txt":
+        return to_text(doc, furniture)
+    if fmt == "html":
+        return to_html(doc, furniture)
+    return to_doclang(doc)
+
+
+def _validate(data: dict):
+    from docling_core.types.doc import DoclingDocument
+
+    return DoclingDocument.model_validate(data)
