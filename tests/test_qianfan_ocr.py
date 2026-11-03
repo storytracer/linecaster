@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.qianfan_ocr import QianfanOCR, sniff_mime
+from linecaster.models.qianfan_ocr import sniff_mime
 
 MODEL = "baidu/Qianfan-OCR"
 
@@ -41,7 +41,7 @@ def test_unknown_image_bytes_raise_as_in_the_driver():
 
 
 def test_serve_args_match_the_board_driver():
-    spec = QianfanOCR()
+    spec = chat_model("qianfan-ocr")
     assert ServeChatModel(spec, port=8000).command()[:3] == ["vllm", "serve", MODEL]
     args = spec.vllm_args(0.85)
     assert args[:2] == ["--revision", "623bf5d20d446abdb36606aa4547cd0c18886fe5"]
@@ -54,7 +54,7 @@ def test_serve_args_match_the_board_driver():
 
 def test_parse_keeps_raw_verbatim():
     raw = "\n# THE BIRDS\n\nof Ceylon.\n"
-    t = QianfanOCR().parse({"choices": [{"message": {"content": raw}, "finish_reason": "length"}],
+    t = chat_model("qianfan-ocr").parse({"choices": [{"message": {"content": raw}, "finish_reason": "length"}],
                             "usage": {"prompt_tokens": 3400, "completion_tokens": 8192}})
     assert t.extra["raw"] == raw and t.text == raw and t.extra["finish_reason"] == "length"
-    assert t.model[0].revision == QianfanOCR.revision and t.model[0].measurements["completion_tokens"] == 8192
+    assert t.model[0].revision == chat_model("qianfan-ocr").revision and t.model[0].measurements["completion_tokens"] == 8192

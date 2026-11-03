@@ -9,7 +9,10 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.qwen35 import MAX_PIXELS, PROMPT, Qwen35, unwrap_fence
+from linecaster.models.qwen35 import unwrap_fence
+
+PROMPT = chat_model("qwen3.5-9b").prompt
+MAX_PIXELS = 2048 * 1024          # the driver's VISUAL_TOKEN_BUDGET x 1024 px
 
 MODEL = "Qwen/Qwen3.5-9B"
 
@@ -44,13 +47,13 @@ def test_request_matches_the_board_row():
     ((1024, 2048), (1024, 2048)),     # exactly the budget: untouched
 ])
 def test_image_is_area_capped_jpeg(size, expected):
-    im = sent_image(Qwen35().request(image(*size)))
+    im = sent_image(chat_model("qwen3.5-9b").request(image(*size)))
     assert im.format == "JPEG" and im.mode == "RGB" and im.size == expected
     assert im.size[0] * im.size[1] <= MAX_PIXELS
 
 
 def test_serve_args_match_the_board_driver():
-    spec = Qwen35()
+    spec = chat_model("qwen3.5-9b")
     cmd = ServeChatModel(spec, port=8000, gpu_memory_utilization=0.9).command()
     assert cmd[:3] == ["vllm", "serve", MODEL]
     args = spec.vllm_args(0.9)
@@ -66,13 +69,13 @@ def test_serve_args_match_the_board_driver():
 def test_prompt_hash_is_recorded():
     import hashlib
 
-    s = Qwen35().settings()
+    s = chat_model("qwen3.5-9b").settings()
     assert s["prompt_variant"] == "neutral" and s["prompt_sha8"] == hashlib.sha256(PROMPT.encode()).hexdigest()[:8]
 
 
 def test_parse_keeps_raw_and_unwrap_fence_is_the_boards():
     raw = "```markdown\nTHE BIRDS\n\nof Ceylon.\n```"
-    t = Qwen35().parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
+    t = chat_model("qwen3.5-9b").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
     assert t.extra["raw"] == raw and t.text == raw and t.model[0].name == MODEL
     assert unwrap_fence(raw) == "THE BIRDS\n\nof Ceylon."
     assert unwrap_fence("```\nplain\n```") == "plain"

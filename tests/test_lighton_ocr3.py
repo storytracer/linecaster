@@ -9,7 +9,6 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
 from linecaster.transcription.model import Transcription
 
 REVISIONS = {"lightonai/LightOnOCR-3-4B": "b71010f095dc3735de7ee6b9969bff8f8f50b39a",
@@ -40,8 +39,8 @@ def driver_encode_png(data: bytes) -> bytes:
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_registry_and_revisions(model):
     spec = chat_model(model)
-    assert type(spec) is {"lightonai/LightOnOCR-3-4B": LightOnOCR3,
-                          "lightonai/LightOnOCR-3-0.8B": LightOnOCR3Small}[model]
+    assert spec.adapter == "lighton-ocr-3" and spec.preset == {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b@1",
+                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b@1"}[model]
     assert spec.model == model and spec.revision == REVISIONS[model]
 
 
@@ -52,14 +51,14 @@ def test_registry_and_revisions(model):
     ((2048, 1000), (2048, 1000)),    # already at the target: untouched
 ])
 def test_request_thumbnails_to_2048(size, expected):
-    im = Image.open(io.BytesIO(sent_png(LightOnOCR3().request(image(*size)))))
+    im = Image.open(io.BytesIO(sent_png(chat_model("lightonocr-3-4b").request(image(*size)))))
     assert im.format == "PNG" and im.mode == "RGB" and im.size == expected
 
 
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA")])
 def test_request_image_bytes_equal_the_driver(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    assert sent_png(LightOnOCR3Small().request(data)) == driver_encode_png(data)
+    assert sent_png(chat_model("lightonocr-3-0.8b").request(data)) == driver_encode_png(data)
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
@@ -94,7 +93,7 @@ def test_parse_keeps_the_completion_verbatim():
     raw = "\n# THE HAWFINCH\n\nnest itself  \n"
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 3100, "completion_tokens": 9}}
-    t = LightOnOCR3Small().parse(body, backend="served x")
+    t = chat_model("lightonocr-3-0.8b").parse(body, backend="served x")
     assert t.extra["raw"] == raw and t.text == raw                       # not even a strip
     m = t.model[0]
     assert (m.name, m.revision) == ("lightonai/LightOnOCR-3-0.8B", REVISIONS["lightonai/LightOnOCR-3-0.8B"])

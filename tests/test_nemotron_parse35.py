@@ -9,7 +9,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.nemotron_parse35 import PROMPT, NemotronParse35, strip_underscore_emphasis
+from linecaster.models.nemotron_parse35 import strip_underscore_emphasis
+
+PROMPT = chat_model("nemotron-3.5-parse").prompt
 
 MODEL = "nvidia/Nemotron-3.5-Parse"
 REV = "62cb1e4ba153d113ff64aaf2be6e068c377cf53c"
@@ -37,7 +39,7 @@ def test_request_is_prompt_then_full_size_png_with_card_sampling():
 
 
 def test_serve_args_match_the_board_driver():
-    args = NemotronParse35().vllm_args(0.8)
+    args = chat_model("nemotron-3.5-parse").vllm_args(0.8)
     assert args[:2] == ["--revision", REV]
     expect = ["--max-model-len", "16384", "--trust-remote-code", "--dtype", "bfloat16",
               "--distributed-executor-backend", "uni", "--max-num-seqs", "192", "--max-num-batched-tokens",
@@ -49,7 +51,7 @@ def test_serve_args_match_the_board_driver():
 
 
 def test_serve_command_installs_the_plugin_before_vllm(tmp_path):
-    cmd = ServeChatModel(NemotronParse35(), port=8123, gpu_memory_utilization=0.8).command()
+    cmd = ServeChatModel(chat_model("nemotron-3.5-parse"), port=8123, gpu_memory_utilization=0.8).command()
     assert cmd[:2] == ["bash", "-c"]
     script = cmd[2]
     assert f"revision='{REV}'" in script and "inference.constraints.txt" in script
@@ -70,7 +72,7 @@ def test_serve_command_installs_the_plugin_before_vllm(tmp_path):
 def test_parse_keeps_the_block_stream_verbatim():
     raw = "<x_0.1><y_0.1>_Corvus corax_ L.<x_0.9><y_0.2><class_Text>"
     body = {"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}}
-    t = NemotronParse35().parse(body)
+    t = chat_model("nemotron-3.5-parse").parse(body)
     assert t.extra["raw"] == raw and t.text == raw
     assert t.model[0].settings["sampling"]["repetition_penalty"] == 1.1
 

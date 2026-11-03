@@ -10,7 +10,8 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.ovis_ocr import PROMPT, OvisOCR2, OvisOCR3
+
+PROMPT = chat_model("ovisocr3").prompt
 
 REVISIONS = {"ATH-MaaS/OvisOCR2": "65c619d374b55d4152e85150fc1b003700bc1f0c",
              "ATH-MaaS/OvisOCR3": "5f6ce6932efee9ec10c30746db55bd780214b7fd"}
@@ -43,12 +44,13 @@ def driver_encode_jpeg(data: bytes) -> bytes:
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_registry_and_revisions(model):
     spec = chat_model(model)
-    assert type(spec) is {"ATH-MaaS/OvisOCR2": OvisOCR2, "ATH-MaaS/OvisOCR3": OvisOCR3}[model]
+    assert spec.adapter == "ovis-ocr" and spec.preset == {"ATH-MaaS/OvisOCR2": "ovisocr2@1",
+                                                            "ATH-MaaS/OvisOCR3": "ovisocr3@1"}[model]
     assert spec.revision == REVISIONS[model]
 
 
 def test_prompts():
-    assert OvisOCR2.prompt == "\n" + PROMPT and OvisOCR3.prompt == PROMPT     # OvisOCR3: the repo's prompt file
+    assert chat_model("ovisocr2").prompt == "\n" + PROMPT and chat_model("ovisocr3").prompt == PROMPT     # OvisOCR3: the repo's prompt file
     assert PROMPT.startswith("Extract all readable content from the image in natural human reading order")
     assert '<img src="images/bbox_{left}_{top}_{right}_{bottom}.jpg" />' in PROMPT
 
@@ -71,7 +73,7 @@ def test_request_body_is_the_drivers(model):
     ((300, 400), (300, 400)),        # never upscaled
 ])
 def test_request_downscales_to_max_pixels(size, expected):
-    im = Image.open(io.BytesIO(sent(OvisOCR2().request(image(*size)))))
+    im = Image.open(io.BytesIO(sent(chat_model("ovisocr2").request(image(*size)))))
     assert (im.format, im.mode, im.size) == ("JPEG", "RGB", expected)
     assert im.size[0] * im.size[1] <= 8294400
 
@@ -79,7 +81,7 @@ def test_request_downscales_to_max_pixels(size, expected):
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA"), ("PNG", "L")])
 def test_request_image_bytes_equal_the_driver(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    assert sent(OvisOCR3().request(data)) == driver_encode_jpeg(data)
+    assert sent(chat_model("ovisocr3").request(data)) == driver_encode_jpeg(data)
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
@@ -101,7 +103,7 @@ def test_parse_keeps_bbox_placeholders_verbatim():
     raw = '# THE HAWFINCH\n\n<img src="images/bbox_102_300_880_640.jpg" />\n\nnest itself\n'
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 8200, "completion_tokens": 40}}
-    t = OvisOCR3().parse(body, backend="served x")
+    t = chat_model("ovisocr3").parse(body, backend="served x")
     assert t.text == raw and t.extra["raw"] == raw                     # drop_bbox_blocks stays in the harness
     m = t.model[0]
     assert (m.name, m.revision) == ("ATH-MaaS/OvisOCR3", REVISIONS["ATH-MaaS/OvisOCR3"])

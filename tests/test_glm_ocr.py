@@ -9,7 +9,6 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.glm_ocr import GLMOCR
 
 
 def image(w: int, h: int, fmt: str = "JPEG", mode: str = "RGB") -> bytes:
@@ -39,7 +38,7 @@ def test_request_matches_the_driver(size, expected):
 
 
 def test_serve_args_match_the_driver():
-    cmd = ServeChatModel(GLMOCR(), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = ServeChatModel(chat_model("glm-ocr"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "zai-org/GLM-OCR"]
     args = cmd[7:]
     assert args[:2] == ["--revision", "ca5d8b3e287e52589e37c28385d9655ee4372f9d"]
@@ -51,5 +50,5 @@ def test_serve_args_match_the_driver():
 
 def test_parse_keeps_the_completion_verbatim():
     raw = "\n# PROCEEDINGS\n\nShell 6 mm. × 2·5 mm.\n"
-    t = GLMOCR().parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}]})
-    assert t.text == raw and GLMOCR().parse({"choices": [{"message": {"content": None}}]}).text == ""
+    t = chat_model("glm-ocr").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}]})
+    assert t.text == raw and chat_model("glm-ocr").parse({"choices": [{"message": {"content": None}}]}).text == ""

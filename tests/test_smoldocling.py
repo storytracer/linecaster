@@ -9,7 +9,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.smoldocling import PROMPT, SmolDocling, to_markdown
+from linecaster.models.smoldocling import to_markdown
+
+PROMPT = chat_model("smoldocling-256m-preview").prompt
 
 MODEL = "ds4sd/SmolDocling-256M-preview"
 DOCTAGS = ("<doctag><page_header><loc_224><loc_42><loc_272><loc_50>APPENDIX</page_header>"
@@ -43,7 +45,7 @@ def test_request_is_image_then_prompt_jpeg_downscaled_only(size, expected):
 
 
 def test_serve_args_match_the_board_driver():
-    spec = SmolDocling()
+    spec = chat_model("smoldocling-256m-preview")
     args = spec.vllm_args(0.8)
     assert args[:2] == ["--revision", "ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8"]
     i = args.index("--max-model-len")
@@ -54,13 +56,13 @@ def test_serve_args_match_the_board_driver():
 
 
 def test_parse_keeps_doctags_verbatim_and_converts_as_the_harness():
-    t = SmolDocling().parse(completion(DOCTAGS), backend="served x")
+    t = chat_model("smoldocling-256m-preview").parse(completion(DOCTAGS), backend="served x")
     assert t.extra["raw"] == DOCTAGS and t.text == DOCTAGS
     # furniture (running head, page number) kept, picture placeholder empty
     assert t.extra["markdown"] == "APPENDIX\n\n205\n\nA female Orphean Warbler was shot."
     assert to_markdown("  \n") == ""
     m = t.model[0]
-    assert (m.name, m.revision, m.measurements["finish_reason"]) == (MODEL, SmolDocling.revision, "stop")
+    assert (m.name, m.revision, m.measurements["finish_reason"]) == (MODEL, chat_model("smoldocling-256m-preview").revision, "stop")
 
 
 def test_parse_keeps_the_page_when_conversion_fails(monkeypatch):
@@ -70,6 +72,6 @@ def test_parse_keeps_the_page_when_conversion_fails(monkeypatch):
         raise ValueError("bad doctags")
 
     monkeypatch.setattr(mod, "to_markdown", boom)
-    t = SmolDocling().parse(completion("<doctag><text>x"))
+    t = chat_model("smoldocling-256m-preview").parse(completion("<doctag><text>x"))
     assert t.extra["raw"] == "<doctag><text>x" and t.extra["markdown"] is None
     assert t.extra["markdown_error"] == "ValueError: bad doctags"

@@ -9,7 +9,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.paddleocr_vl import MAX_PIXELS, MIN_PIXELS, PaddleOCRVL16, smart_resize
+
+MIN_PIXELS, MAX_PIXELS = 28 * 28 * 130, 28 * 28 * 1280        # the recipe's smart_resize bounds
+smart_resize = chat_model("paddleocr-vl-1.6").smart_resize
 
 
 def image(w: int, h: int, fmt: str = "JPEG", mode: str = "RGB") -> bytes:
@@ -46,7 +48,7 @@ def test_request_matches_the_driver(size, expected):
 
 
 def test_serve_args_match_the_driver():
-    cmd = ServeChatModel(PaddleOCRVL16(), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = ServeChatModel(chat_model("paddleocr-vl-1.6"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "PaddlePaddle/PaddleOCR-VL-1.6"]
     args = cmd[7:]
     assert args[:2] == ["--revision", "66317acc4c9fc17bd154591ce650735cd2855f3e"]
@@ -59,5 +61,5 @@ def test_serve_args_match_the_driver():
 
 def test_parse_keeps_the_completion_verbatim():
     raw = "  12. Helix (Patula) rotundata, Müll.\nHab. Near Bristol.\n"
-    t = PaddleOCRVL16().parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}]})
+    t = chat_model("paddleocr-vl-1.6").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}]})
     assert t.text == raw and t.model[0].settings["prompt"] == "OCR:"

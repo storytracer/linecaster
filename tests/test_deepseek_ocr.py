@@ -9,7 +9,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.deepseek_ocr import LOGITS_PROCESSOR, DeepSeekOCR, DeepSeekOCR2, strip_grounding
+from linecaster.models.deepseek_ocr import strip_grounding
+
+LOGITS_PROCESSOR = "vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor"   # the drivers'
 
 REVISIONS = {"deepseek-ai/DeepSeek-OCR": "9f30c71f441d010e5429c532364a86705536c53a",
              "deepseek-ai/DeepSeek-OCR-2": "aaa02f3811945a91062062994c5c4a3f4c0af2b0"}
@@ -43,7 +45,7 @@ def test_request_matches_the_board_drivers(model):
 
 @pytest.mark.parametrize("fmt, mode", [("WEBP", "RGB"), ("PNG", "L"), ("JPEG", "L")])
 def test_other_images_become_full_size_rgb_png(fmt, mode):
-    head, raw = sent(DeepSeekOCR().request(image(3000, 4500, fmt, mode)))
+    head, raw = sent(chat_model("deepseek-ocr").request(image(3000, 4500, fmt, mode)))
     assert head == "data:image/png;base64"
     with Image.open(io.BytesIO(raw)) as im:
         assert (im.format, im.mode, im.size) == ("PNG", "RGB", (3000, 4500))
@@ -64,8 +66,8 @@ def test_serve_args_match_the_board_drivers(model):
 
 
 def test_v2_is_v1_but_the_checkpoint():
-    assert issubclass(DeepSeekOCR2, DeepSeekOCR)
-    assert DeepSeekOCR2().settings() == DeepSeekOCR().settings()
+    assert chat_model("deepseek-ocr-2").adapter == chat_model("deepseek-ocr").adapter == "deepseek-ocr"
+    assert chat_model("deepseek-ocr-2").settings() == chat_model("deepseek-ocr").settings()
 
 
 RAW = ("<|ref|>title<|/ref|><|det|>[[120, 80, 880, 130]]<|/det|>\n# THE BIRDS\n\n\n\n"
@@ -73,7 +75,7 @@ RAW = ("<|ref|>title<|/ref|><|det|>[[120, 80, 880, 130]]<|/det|>\n# THE BIRDS\n\
 
 
 def test_parse_keeps_grounding_verbatim_and_strip_is_the_boards():
-    t = DeepSeekOCR().parse({"choices": [{"message": {"content": RAW}, "finish_reason": "stop"}], "usage": {}})
+    t = chat_model("deepseek-ocr").parse({"choices": [{"message": {"content": RAW}, "finish_reason": "stop"}], "usage": {}})
     assert t.extra["raw"] == RAW and t.text == RAW
     assert strip_grounding(RAW) == "# THE BIRDS\n\nof Ceylon."
     with pytest.raises(ValueError, match="grounding markup"):

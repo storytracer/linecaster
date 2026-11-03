@@ -34,8 +34,9 @@ class ServeModels(PipelineStep):
 
 
 class ServeChatModel(PipelineStep):
-    """Start a chat VLM server for a task's ``ChatPageStep``, through saturate's ``Engine``. The spec's
-    ``server`` picks it:
+    """Start a chat VLM server for a task's ``ChatPageStep``, through saturate's ``Engine``. ``spec`` is a chat
+    preset's adapter (``linecaster.models.chat_model``) or the preset ref; the command comes from the preset's
+    ``serve`` block (server, flags, environment, packages), and its ``server`` picks it:
 
     * ``"vllm"``: ``vllm serve <spec.model> --host HOST --port PORT <spec.vllm_args(...)>``;
     * ``"sglang"``: ``PYTHON -m sglang.launch_server --model-path <spec.model> --host HOST --port PORT
@@ -49,9 +50,9 @@ class ServeChatModel(PipelineStep):
     deployment's choices on top of the spec's flags. The server is ready when it answers a trial chat
     request (saturate's alive-only gate).
 
-    Before the server starts: the spec's ``server_packages`` are installed into the server's Python
-    (``uv pip install --python <that Python> ...``; e.g. a patched SGLang wheel), and for a spec with
-    ``revision_flag = False`` (the server cannot be given ``--revision`` and loads the default branch) the
+    Before the server starts: the preset's ``server_packages`` are installed into the server's Python
+    (``uv pip install --python <that Python> ...``; e.g. a patched SGLang wheel), and for a preset with
+    ``revision_flag: false`` (the server cannot be given ``--revision`` and loads the default branch) the
     block refuses to start unless the default branch's files equal the pinned revision's
     (``check_default_branch``). ``server_env`` goes into the server's environment.
 
@@ -67,6 +68,10 @@ class ServeChatModel(PipelineStep):
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,
                  outside_venv: bool = False, python: str = "python3"):
         super().__init__()
+        if isinstance(spec, str):
+            from ..models import chat_model
+
+            spec = chat_model(spec)
         self.spec, self.port, self.host = spec, port, host
         self.gpu_memory_utilization, self.extra_args = gpu_memory_utilization, list(extra_args or [])
         self.vllm, self.boot_timeout, self.outside_venv, self.python = vllm, boot_timeout, outside_venv, python

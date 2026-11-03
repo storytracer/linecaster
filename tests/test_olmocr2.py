@@ -9,7 +9,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.olmocr2 import PROMPT, OlmOCR2, body, split_front_matter
+from linecaster.models.olmocr2 import body, split_front_matter
+
+PROMPT = chat_model("olmocr-2-7b-1025-fp8").prompt
 
 MODEL = "allenai/olmOCR-2-7B-1025-FP8"
 
@@ -37,7 +39,7 @@ def completion(content, finish="stop", usage=None):
     ((1000, 1288), (1000, 1288)),    # already at the target: untouched
 ])
 def test_request_forces_longest_side_to_1288(size, expected):
-    im = sent_image(OlmOCR2().request(image(*size)))
+    im = sent_image(chat_model("olmocr-2-7b-1025-fp8").request(image(*size)))
     assert im.format == "PNG" and im.mode == "RGB" and im.size == expected
 
 
@@ -55,7 +57,7 @@ def test_request_is_text_then_image_with_board_sampling():
 
 
 def test_serve_args_match_the_board_driver():
-    spec = OlmOCR2()
+    spec = chat_model("olmocr-2-7b-1025-fp8")
     args = spec.vllm_args(0.8)
     assert args[:2] == ["--revision", "40bd7202494b8264ee17ada08b401b5aab7a9ce1"]
     for flag in (["--max-model-len", "16384"], ["--limit-mm-per-prompt", '{"image": 1}'],
@@ -73,7 +75,7 @@ RAW = ("---\nprimary_language: en\nis_rotation_valid: True\nrotation_correction:
 
 
 def test_parse_keeps_raw_verbatim_and_reads_front_matter():
-    t = OlmOCR2().parse(completion(RAW), backend="served x")
+    t = chat_model("olmocr-2-7b-1025-fp8").parse(completion(RAW), backend="served x")
     assert t.extra["raw"] == RAW and t.text == RAW and t.extra["finish_reason"] == "stop"
     assert t.extra["front_matter"] == {"primary_language": "en", "is_rotation_valid": True,
                                        "rotation_correction": 0, "is_table": False, "is_diagram": False}
@@ -90,5 +92,5 @@ def test_body_splits_like_the_board_harness():
     assert meta == {"primary_language": None, "is_table": False} and text == ""
     # no front matter: the stripped text unchanged
     assert split_front_matter("\n plain text \n") == (None, "plain text")
-    t = OlmOCR2().parse(completion(None, usage={}))
+    t = chat_model("olmocr-2-7b-1025-fp8").parse(completion(None, usage={}))
     assert t.extra["raw"] == "" and t.extra["front_matter"] is None

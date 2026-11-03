@@ -9,7 +9,6 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.dots_ocr import DotsOCR
 
 REVISION = "c0111ce6bc07803dbc267932ffef0ae3a51dc951"
 
@@ -27,12 +26,12 @@ def sent(body: dict) -> tuple[str, bytes]:
 
 def test_registry_and_revision():
     spec = chat_model("rednote-hilab/dots.ocr")
-    assert type(spec) is DotsOCR and spec.revision == REVISION
+    assert spec.adapter == "dots" and spec.preset == "dots-ocr@1" and spec.revision == REVISION
 
 
 def test_request_matches_the_board_driver():
     data = image(2400, 3600, "JPEG")
-    body = DotsOCR().request(data)
+    body = chat_model("dots-ocr").request(data)
     assert set(body) == {"model", "messages", "temperature", "max_tokens"}   # no top_p
     assert body["model"] == "rednote-hilab/dots.ocr"
     assert (body["temperature"], body["max_tokens"]) == (0.0, 8192)
@@ -45,14 +44,14 @@ def test_request_matches_the_board_driver():
 
 @pytest.mark.parametrize("fmt, mode", [("WEBP", "RGB"), ("PNG", "L"), ("JPEG", "L"), ("PNG", "RGBA")])
 def test_other_images_become_full_size_rgb_png(fmt, mode):
-    head, raw = sent(DotsOCR().request(image(3000, 4500, fmt, mode)))
+    head, raw = sent(chat_model("dots-ocr").request(image(3000, 4500, fmt, mode)))
     assert head == "data:image/png;base64"
     with Image.open(io.BytesIO(raw)) as im:
         assert (im.format, im.mode, im.size) == ("PNG", "RGB", (3000, 4500))
 
 
 def test_serve_args_match_the_board_driver():
-    cmd = ServeChatModel(DotsOCR(), port=8000, gpu_memory_utilization=0.6).command()
+    cmd = ServeChatModel(chat_model("dots-ocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.ocr"]
     args = cmd[7:]
     for flag in (["--revision", REVISION], ["--max-model-len", "32768"], ["--mm-processor-cache-gb", "0"],
@@ -67,7 +66,7 @@ def test_parse_keeps_the_completion_verbatim():
     raw = "\nPROCEEDINGS OF THE ZOOLOGICAL SOCIETY\n\n12. Helix (Patula) rotundata, Müll.\n"
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 9000, "completion_tokens": 30}}
-    t = DotsOCR().parse(body, backend="served vllm")
+    t = chat_model("dots-ocr").parse(body, backend="served vllm")
     assert t.text == raw and t.extra["raw"] == raw                    # the strip stays in the harness
     m = t.model[0]
     assert (m.step, m.name, m.revision) == ("page", "rednote-hilab/dots.ocr", REVISION)

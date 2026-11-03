@@ -8,8 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.models import chat_model
-from linecaster.models.lighton_ocr2 import LightOnOCR2
-from linecaster.models.minicpm_ocr import MiniCPMOCR, region_blocks, sdk_label
+from linecaster.models.minicpm_ocr import region_blocks, sdk_label
 from linecaster.transcription.model import Line, Region, Transcription
 
 
@@ -41,7 +40,7 @@ def png(w=50, h=20):
     ("weird", "", "Text Recognition:", 8192),             # unknown altogether: the SDK default
 ])
 def test_request_per_region_type(label, raw, prompt, cap):
-    body = MiniCPMOCR().request_region(png(), reg("r", label, raw))
+    body = chat_model("minicpm-ocr-1.0").request_region(png(), reg("r", label, raw))
     content = body["messages"][0]["content"]
     assert content[0]["type"] == "image_url" and content[0]["image_url"]["url"].startswith("data:image/png;base64,")
     assert content[1] == {"type": "text", "text": prompt}          # image first, then the prompt
@@ -60,27 +59,27 @@ def test_regions_read_and_skipped():
     for raw in ("image", "header_image", "footer_image"):
         assert not spec.reads_region(reg("d", "picture", raw), frozenset())
     # LightOn keeps the label rule
-    assert LightOnOCR2().reads_region(reg("e", "text", "text"), frozenset({"text"}))
-    assert not LightOnOCR2().reads_region(reg("f", "picture", "image"), frozenset({"text"}))
+    assert chat_model("lightonocr-2-1b").reads_region(reg("e", "text", "text"), frozenset({"text"}))
+    assert not chat_model("lightonocr-2-1b").reads_region(reg("f", "picture", "image"), frozenset({"text"}))
 
 
 def test_crop_is_full_resolution_int_box_with_polygon_mask():
     img = Image.new("RGB", (200, 100), (0, 0, 0))
     tri = [[10.7, 10.2], [110.9, 10.2], [10.7, 60.8]]           # a triangle: the corner opposite is masked white
-    crop = MiniCPMOCR().crop_region(img, reg("r", "text", "text", tri))
+    crop = chat_model("minicpm-ocr-1.0").crop_region(img, reg("r", "text", "text", tri))
     assert crop.size == (100, 50)                                # int() truncation of 10.7..110.9 x 10.2..60.8
     assert crop.getpixel((1, 1)) == (0, 0, 0) and crop.getpixel((98, 48)) == (255, 255, 255)
-    assert MiniCPMOCR.page_longest is None and MiniCPMOCR.region_pad == 0
+    assert chat_model("minicpm-ocr-1.0").page_longest is None and chat_model("minicpm-ocr-1.0").region_pad == 0
 
 
 def test_serve_args_follow_the_sdk_tutorial():
-    args = MiniCPMOCR().vllm_args(0.85)
+    args = chat_model("minicpm-ocr-1.0").vllm_args(0.85)
     for flag, value in (("--max-model-len", "40960"), ("--max-num-seqs", "32"),
                         ("--mm-processor-kwargs", '{"downsample_mode":"4x"}'),
                         ("--default-chat-template-kwargs", '{"enable_thinking":false}')):
         assert args[args.index(flag) + 1] == value
     assert "--trust-request-mm-kwargs" in args and "--served-model-name" in args
-    spec = MiniCPMOCR.speculative_args("/draft")
+    spec = chat_model("minicpm-ocr-1.0").speculative_args("/draft")
     assert spec[0] == "--speculative-config" and '"method": "dspark"' in spec[1]
 
 

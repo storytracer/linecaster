@@ -9,8 +9,11 @@ request from the page image and parsing the completion into a text-only ``Transc
     from linecaster.backends import Served
     from linecaster.models import chat_model
 
-    spec = chat_model("lightonai/LightOnOCR-2-1B")
-    ChatPageStep(spec, Served("http://127.0.0.1:8000/v1", model=spec.model, max_window=48, initial_window=8))
+    spec = chat_model("lightonocr-2-1b")          # a catalogue preset (or its Hugging Face id)
+    ChatPageStep(spec, Served("http://127.0.0.1:8000/v1", model=spec.served_name, max_window=48, initial_window=8))
+
+``spec`` may also be the preset ref itself (``ChatPageStep("lightonocr-2-1b", ...)``). Every result's
+``ModelInfo`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the settings.
 
 The completion is kept verbatim (``Transcription.extra["raw"]``, and ``text`` equals it); its
 ``finish_reason`` and token counts go to ``extra`` and ``ModelInfo.measurements``. A completion cut
@@ -28,7 +31,7 @@ import queue
 import threading
 
 from ..backends import Served
-from ..models import ChatModel
+from ..models import ChatModel, chat_model
 from ..transcription.model import ModelInfo
 from .base import image_bytes, page_of, set_page
 from .models import _END, ModelStep
@@ -44,8 +47,10 @@ class ChatPageStep(ModelStep):
     step = "page"
     route = "/chat/completions"
 
-    def __init__(self, spec: ChatModel, backend: Served, transcription: str = "ocr", primary: str | None = None,
+    def __init__(self, spec: ChatModel | str, backend: Served, transcription: str = "ocr", primary: str | None = None,
                  skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
+        if isinstance(spec, str):
+            spec = chat_model(spec)
         if not getattr(backend, "served", False):
             raise TypeError("ChatPageStep needs a Served backend (an OpenAI-compatible chat endpoint)")
         super().__init__(backend, transcription, None, primary, skip_on_error,
@@ -83,8 +88,10 @@ class ChatRegionStep(ChatPageStep):
 
     step = "regions"
 
-    def __init__(self, spec: ChatModel, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
+    def __init__(self, spec: ChatModel | str, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
+        if isinstance(spec, str):
+            spec = chat_model(spec)
         super().__init__(spec, backend, transcription, primary, skip_on_error, prepare_workers,
                          name=f"regions ({spec.model}, served {backend.endpoint})")
         self.labels = frozenset(labels)
@@ -153,6 +160,8 @@ class ChatRegionStep(ChatPageStep):
                 self.stat_update(f"finish_{res['finish_reason']}")
         t.lines = lines
         t.model.append(ModelInfo(step=self.step, name=self.spec.model, revision=self.spec.revision,
+                                 preset=getattr(self.spec, "preset", None),
+                                 preset_sha256=getattr(self.spec, "preset_sha256", None),
                                  backend=self.backend.describe(), settings={**self.spec.settings(), "pad": self.pad,
                                                                             "page_scale": round(state["scale"], 6),
                                                                             "labels": sorted(self.labels)},

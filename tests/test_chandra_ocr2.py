@@ -10,7 +10,9 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.chandra_ocr2 import OCR_LAYOUT_PROMPT, ChandraOCR2, scale_to_fit
+from linecaster.models.chandra_ocr2 import scale_to_fit
+
+OCR_LAYOUT_PROMPT = chat_model("chandra-ocr-2").prompt   # the preset's, verbatim
 
 REVISION = "af93b47dba1b47b6640c86ccf487ed2260ab9a09"
 
@@ -29,7 +31,7 @@ def sent(body: dict) -> Image.Image:
 
 def test_registry_and_revision():
     spec = chat_model("datalab-to/chandra-ocr-2")
-    assert type(spec) is ChandraOCR2 and spec.revision == REVISION
+    assert spec.adapter == "chandra-ocr" and spec.revision == REVISION
 
 
 def test_prompt_is_chandra_v020_ocr_layout():
@@ -38,7 +40,7 @@ def test_prompt_is_chandra_v020_ocr_layout():
 
 
 def test_request_body_is_the_drivers():
-    body = ChandraOCR2().request(image(2400, 3600, "JPEG", "RGB"))
+    body = chat_model("chandra-ocr-2").request(image(2400, 3600, "JPEG", "RGB"))
     assert set(body) == {"model", "messages", "temperature", "top_p", "max_tokens"}
     assert body["model"] == "datalab-to/chandra-ocr-2"
     assert (body["temperature"], body["top_p"], body["max_tokens"]) == (0.0, 0.1, 12384)
@@ -49,7 +51,7 @@ def test_request_body_is_the_drivers():
 
 @pytest.mark.parametrize("size", [(2400, 3600), (3600, 2400), (5000, 7000)])
 def test_large_pages_scale_to_the_grid_under_the_pixel_cap(size):
-    im = sent(ChandraOCR2().request(image(*size)))
+    im = sent(chat_model("chandra-ocr-2").request(image(*size)))
     w, h = im.size
     assert (im.format, im.mode) == ("PNG", "RGB")
     assert w % 28 == 0 and h % 28 == 0 and w * h <= 3072 * 2048
@@ -66,7 +68,7 @@ def test_scale_to_fit_matches_the_vendor():
 
 
 def test_serve_args_match_the_board_driver():
-    cmd = ServeChatModel(ChandraOCR2(), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = ServeChatModel(chat_model("chandra-ocr-2"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "datalab-to/chandra-ocr-2"]
     args = cmd[7:]
     for flag in (["--revision", REVISION], ["--max-model-len", "20480"],
@@ -84,7 +86,7 @@ def test_parse_keeps_the_html_verbatim():
            '<div data-bbox="100 120 900 400" data-label="Text"><p>Helix rotundata, <i>Müll.</i></p></div>')
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 6700, "completion_tokens": 80}}
-    t = ChandraOCR2().parse(body, backend="served x")
+    t = chat_model("chandra-ocr-2").parse(body, backend="served x")
     assert t.text == raw and t.extra["raw"] == raw                     # HTML -> Markdown stays in the harness
     m = t.model[0]
     assert (m.step, m.name, m.revision) == ("page", "datalab-to/chandra-ocr-2", REVISION)

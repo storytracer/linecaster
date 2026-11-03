@@ -9,7 +9,6 @@ from PIL import Image
 
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
-from linecaster.models.dots_mocr import DotsMOCR
 
 
 def image(w: int, h: int, fmt: str, mode: str = "RGB") -> bytes:
@@ -43,14 +42,14 @@ def test_request_matches_the_board_driver():
 
 @pytest.mark.parametrize("fmt, mode", [("WEBP", "RGB"), ("PNG", "L"), ("JPEG", "L"), ("PNG", "RGBA")])
 def test_other_images_become_full_size_rgb_png(fmt, mode):
-    head, raw = sent(DotsMOCR().request(image(3000, 4500, fmt, mode)))
+    head, raw = sent(chat_model("dots-mocr").request(image(3000, 4500, fmt, mode)))
     assert head == "data:image/png;base64"
     with Image.open(io.BytesIO(raw)) as im:
         assert (im.format, im.mode, im.size) == ("PNG", "RGB", (3000, 4500))     # no resize
 
 
 def test_serve_args_match_the_board_driver():
-    cmd = ServeChatModel(DotsMOCR(), port=8000, gpu_memory_utilization=0.6).command()
+    cmd = ServeChatModel(chat_model("dots-mocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.mocr"]
     args = cmd[7:]
     pairs = {args[i]: args[i + 1] for i in range(len(args) - 1) if args[i].startswith("--") and not args[i + 1].startswith("--")}
@@ -69,11 +68,11 @@ def test_parse_keeps_the_completion_verbatim():
            "12. Helix (Patula) rotundata, Müll.\n"
            "Hab. Near Bristol, under stones; rare.\n\n"
            "Shell 6 mm. × 2·5 mm.; whorls 5½.\n")
-    t = DotsMOCR().parse(completion(raw), backend="served vllm")
+    t = chat_model("dots-mocr").parse(completion(raw), backend="served vllm")
     assert t.text == raw and t.extra["raw"] == raw                    # strip/empty check stay in the harness
     assert [ln.text for ln in t.lines][1] == "PROCEEDINGS OF THE ZOOLOGICAL SOCIETY"
     m = t.model[0]
     assert (m.step, m.name, m.revision) == ("page", "rednote-hilab/dots.mocr", "e539fbb52280393adc081b289ec597430a0f9031")
     assert m.measurements == {"prompt_tokens": 7012, "completion_tokens": 431, "finish_reason": "stop"}
     assert m.settings["prompt"] == "Extract the text content from this image."
-    assert DotsMOCR().parse(completion(None, usage={})).text == ""
+    assert chat_model("dots-mocr").parse(completion(None, usage={})).text == ""
