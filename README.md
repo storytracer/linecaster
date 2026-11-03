@@ -11,9 +11,6 @@ Museum Group Collection, CC BY-NC-SA 4.0. <a href="#-licence">Credit</a></sub></
 Build an OCR pipeline from interchangeable parts. Run the same pipeline on a laptop, a GPU server, a
 cluster or [Hugging Face Jobs][HF Jobs].
 
-> [!NOTE]
-> Linecaster is in early development. The ideas are settled; names and options may still change.
-
 **Jump to:** [Why](#-why-linecaster) · [Quick start](#-quick-start) · [How it works](#-how-it-works) ·
 [Run anywhere](#-run-it-anywhere) · [Outputs](#-what-you-get) · [Models](#-supported-models) ·
 [Reference](#-reference)
