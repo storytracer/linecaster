@@ -27,6 +27,8 @@ as the BHL board row did) and the board lane (consolidate → normalize postproc
   pixels (rounding, the polygon mask drawn by Pillow vs OpenCV) or decoding.
 - No region hit its token cap (LightOnOCR-2, a page model, looped on 16 % of region crops).
 - One sample-60 plate page has a single `image` region covering the page in linecaster's layout: nothing is read there.
+- tables-7: the 5 content pages score CERread 0.209 (recall 0.985); the aggregate 0.562 comes from the 2 sparse pages of
+  trudyrusskago, where both linecaster and the SDK read about 470 characters the GT does not transcribe (CER 74 on those pages).
 
 ## NFC step and item-level documents (2026-11-03, spark)
 
