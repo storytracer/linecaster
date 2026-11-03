@@ -43,12 +43,12 @@ change.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
-  <img src="docs/architecture-light.svg" width="960" alt="A linecaster pipeline is one datatrove task. Reader, layout, lines, recognition, tables, typography, document and writer blocks pass one Transcription along; each model block adds its part. The model blocks reach their models on a GPU through saturate and linecaster serve; chat blocks reach a vision-language model on vLLM the same way. The executor runs many copies of the task.">
+  <img src="docs/architecture-light.svg" width="760" alt="One page through a linecaster pipeline: page images are read, then layout, line detection, line assignment, recognition, tables, Unicode and typography and document assembly each add a part to the page's Transcription. The four model steps send the page through saturate to linecaster serve on a GPU and get it back with their part added. Pages with errors go to rejects; the rest are written as page rows, ALTO, PAGE, hOCR, text and Markdown. The executor runs many copies of this task.">
 </picture>
 
-*One datatrove task runs the whole chain on CPU. The shaded blocks are model steps: each sends a page to
-its model through saturate and gets the page back with its part added. The executor runs as many copies
-of the task as there are shards.*
+*The path of one page. Shaded steps are model steps: each sends the page through saturate to its model
+on the GPU and gets it back with its part added (left). CPU steps run inside the task. Pages with errors
+go to `rejects/` with the reason.*
 
 **Servers host models; the pipeline composes the chain.** A model step is a block with a *backend*,
 which says where its model runs:
