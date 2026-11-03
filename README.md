@@ -45,46 +45,41 @@ git clone https://github.com/storytracer/linecaster
 cd linecaster
 ```
 
-A pipeline is a list of blocks. Two examples follow; `examples/` has more.
+Two recipes cover the two ways to read a page. Both write a row per page to `out/rows`, and `--files`
+adds ALTO, PAGE-XML, hOCR, text and Markdown.
 
 > [!NOTE]
-> Every example, recipe and server is a self-contained [uv script][uv scripts]: a `# /// script`
-> block at the top lists what it needs, with pinned versions, and a `.lock` file sits next to it.
-> `uv run <script>` installs it on first use.
+> Each recipe is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
+> what it needs, with pinned versions, and a `.lock` file sits next to it. `uv run` installs it on the
+> first run; the models download on first use.
 
 ### 🤖 A vision-language model reads each page
 
-Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH. Save this as `vlm.py`:
+Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH.
 
-```python
-from datatrove.executor import LocalPipelineExecutor
-from linecaster.backends import Served
-from linecaster.blocks.chat import ChatPageStep
-from linecaster.blocks.readers import ImageFolderReader
-from linecaster.blocks.serve import ServeChatModel
-from linecaster.blocks.writers import PageFilesWriter
-from linecaster.models import chat_model
-
-spec = chat_model("lightonai/LightOnOCR-2-1B")
-S = "http://127.0.0.1:8000/v1"
-pipeline = [
-    ImageFolderReader("scans/"),
-    ChatPageStep(spec, Served(S, spec.model)),
-    PageFilesWriter("out/", formats=("md",)),
-    ServeChatModel(spec),  # starts vLLM; goes last
-]
-LocalPipelineExecutor(
-    pipeline, logging_dir="out/logs").run()
+```bash
+uv run recipes/vlm.py scans/ out/ \
+  --vlm lightonai/LightOnOCR-2-1B
 ```
 
-Run it with `uv run vlm.py`. Swap the model id for any of the
-[vision-language models](#-vision-language-models).
+Any of the [vision-language models](#-vision-language-models) works; `--regions` has it read each
+layout region instead of the whole page.
 
 ### 🧱 A chain of smaller models
 
-Layout, line detection and a line recogniser, then post-processing into a document. Save this as
-`examples/chain.py`, and put the `# /// script` block of `examples/squiddle_chain.py` at the top: it
-brings the kraken and PaddleX engines.
+Layout, line detection and a line recogniser, then post-processing into a document.
+
+```bash
+uv run recipes/chain.py scans/ out/ \
+  --files out/files --formats md,alto
+```
+
+The defaults are PP-DocLayoutV3, PP-OCRv6 lines and kraken; `--recognizer paddlex` or
+`--recognizer tesseract` swaps the [line recogniser](#%EF%B8%8F-line-recognisers).
+
+### ✍️ Your own pipeline
+
+A pipeline is a list of blocks. This is the chain above, cut down:
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
@@ -114,15 +109,13 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Run it with uv. The engines install on the first run, the models download on first use.
-
-```bash
-uv run examples/chain.py
-```
+Save it in `recipes/` with the `# /// script` block of `recipes/chain.py` at the top, which brings the
+engines, and `uv run` it. Built with `linecaster.run.main`, as the recipes are, it gets their command
+line for every machine.
 
 > [!TIP]
-> The two can be mixed: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
-> each layout region.
+> The two kinds mix: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
+> each layout region, which is what `recipes/vlm.py --regions` does.
 
 ## 🧩 How it works
 
@@ -148,82 +141,46 @@ Three ideas carry the design:
 
 ## 🌍 Run it anywhere
 
-The steps stay the same. Only the backends and the executor change.
+A recipe runs on every machine with the same steps. Only its flags change:
 
-| Where | Backend and executor |
+| Where | Flags |
 |---|---|
-| 💻 Laptop | `InProcess`<br>`LocalPipelineExecutor` |
-| 🖥️ GPU server | `Served`<br>`LocalPipelineExecutor` |
-| 🧮 Ray cluster | `Served` + a server block<br>`RayGPUExecutor` |
-| ☁️ HF Jobs | `Served` + a server block<br>`JobsPipelineExecutor` |
+| 💻 This machine | none: the models load inside the pipeline |
+| 🖥️ This machine, with a server | `--backend served` |
+| 🧮 A Ray cluster | `--on ray --tasks 64` |
+| ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
 
-Two server blocks start a model server inside each task and go last in the pipeline, so the server
-lives until every page is written:
-
-- `ServeChatModel(spec)` starts [vLLM] or [SGLang] for a vision-language model.
-- `ServeModels(MODELS)` starts `linecaster serve` for the other models, listed by name:
-
-```python
-MODELS = [
-    {"name": "layout",
-     "spec": "linecaster_paddlex:PaddleLayoutModel"},
-    {"name": "lines",
-     "spec": "linecaster_paddlex:PaddleLineModel"},
-    {"name": "recognition",
-     "spec": "linecaster_kraken:KrakenRecognitionModel",
-     "kwargs": {"model": "medium"}},
-]
-```
+On Ray and HF Jobs every task gets one GPU and starts its own model server on it.
 
 <details>
-<summary><b>🖥️ On a GPU server</b></summary>
+<summary><b>🖥️ A model server that stays up</b></summary>
 
-Start the server once and point the steps at it. For a vision-language model, start vLLM with the
-spec's flags (`ServeChatModel(spec).command()` gives the full command line). For the other models,
-start `linecaster serve` from the server script for their engines:
+`serve` starts `linecaster serve` with the recipe's models, in the recipe's environment, and keeps them
+loaded; `--endpoint` points runs at it:
 
 ```bash
-uv run servers/kraken-paddlex.py \
-  --config examples/squiddle_models.json
+uv run recipes/chain.py serve
+uv run recipes/chain.py scans/ out/ \
+  --endpoint http://127.0.0.1:8100/v1
 ```
 
-```python
-from linecaster.backends import Served
-
-S = "http://127.0.0.1:8100/v1"
-LayoutStep(Served(S, "layout"))
-LinesStep(Served(S, "lines"))
-RecognitionStep(Served(S, "recognition"))
-```
-
-The server keeps the models loaded and listens on loopback only.
+For a vision-language model, `--vlm-endpoint` points `recipes/vlm.py` at a running vLLM or SGLang. The
+servers listen on loopback only.
 
 </details>
 
 <details>
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
-Each task gets one GPU and starts its own server on it, from a server script.
-
-```python
-from linecaster.blocks.serve import ServeModels
-from linecaster.ray_executor import RayGPUExecutor
-
-S = "servers/kraken-paddlex.py"
-pipeline += [ServeModels(MODELS, script=S)]
-RayGPUExecutor(pipeline, tasks=64,
-    logging_dir="/shared/out/logs").run()
-```
-
-`recipes/ray/squiddle_chain.py` is a complete version. It also runs Ray's own command line from its
-environment, so every machine has the same Ray and Linecaster:
+`ray` runs Ray's own command line from the recipe's environment, so every machine has the same Ray
+and Linecaster:
 
 ```bash
-R=recipes/ray/squiddle_chain.py
+R=recipes/chain.py
 uv run $R ray start --head --num-gpus 8
 # on each other machine:
 # uv run $R ray start --address=<head>:6379
-uv run $R IMAGES OUT --tasks 64
+uv run $R scans/ out/ --on ray --tasks 64
 ```
 
 Images and output must be on storage every machine can reach.
@@ -234,25 +191,45 @@ Images and output must be on storage every machine can reach.
 <summary><b>☁️ On Hugging Face Jobs</b></summary>
 
 One Job per task, one GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines,
-sources and pins of a server script (`dependencies(commit, "kraken-paddlex")` reads
-`servers/kraken-paddlex.py`).
+sources and pins of the recipe's `# /// script` block:
 
-```python
-from datatrove.executor import JobsPipelineExecutor
-from linecaster.jobs import dependencies
-
-pipeline += [ServeModels(MODELS)]
-JobsPipelineExecutor(
-    pipeline, tasks=64, flavor="l4x1",
-    namespace="<namespace>",
-    dependencies=dependencies("<commit>"),
-    logging_dir="hf://buckets/<ns>/<b>/logs",
-).run()
+```bash
+uv run recipes/chain.py \
+  hf://datasets/<ns>/<images> \
+  hf://buckets/<ns>/<bucket>/<run> \
+  --on hf-jobs --commit <sha> --tasks 64
 ```
 
-On multi-GPU flavors such as `l4x4`, `GPUJobsExecutor` runs one task per GPU. Complete versions are in
-`recipes/hf-jobs/`: `chat_page.py` for any vision-language model, `squiddle_chain.py` for a chain of
-smaller models.
+`--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `recipes/vlm.py` picks the server image
+its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
+
+</details>
+
+<details>
+<summary><b>🧱 What the flags do, for your own pipeline</b></summary>
+
+- **Backends:** `InProcess("module:Class", **kwargs)` loads a model inside the pipeline;
+  `Served(endpoint, name)` sends pages to a server through [saturate].
+- **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
+  until every page is written: `ServeChatModel(spec)` starts [vLLM] or [SGLang],
+  `ServeModels(MODELS, script=...)` a recipe's `serve`.
+- **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsPipelineExecutor` or
+  `GPUJobsExecutor` with `dependencies(commit, script)`, which turns a script's `# /// script` block
+  into what each Job installs.
+
+`MODELS` names the models a server hosts:
+
+```python
+MODELS = [
+    {"name": "layout",
+     "spec": "linecaster_paddlex:PaddleLayoutModel"},
+    {"name": "recognition",
+     "spec": "linecaster_kraken:KrakenRecognitionModel",
+     "kwargs": {"model": "medium"}},
+]
+```
+
+`linecaster.run` puts these together for the recipes.
 
 </details>
 
@@ -372,8 +349,7 @@ languages and scripts, such as `eng`, `deu+lat` or `script/Latin`.
 | [tessdata_best] | ✅ |
 | [tessdata_fast] | |
 
-Engines that run together share a server script: `servers/kraken-paddlex.py` brings kraken and
-PaddleX, `servers/paddlex-tesseract.py` PaddleX and Tesseract.
+`recipes/chain.py` brings all three engines.
 
 ### 📊 Tables
 
@@ -544,9 +520,7 @@ Such a model runs both inside the pipeline and behind `linecaster serve` without
 |---|---|
 | `src/linecaster/` | data model, blocks, server, model specs, executors |
 | `backends/` | engine packages: [kraken], [PaddleX], [Tesseract] |
-| `servers/` | `linecaster serve` scripts, one per engine combination |
-| `examples/` | local pipelines |
-| `recipes/` | [Ray] and [Hugging Face Jobs][HF Jobs] |
+| `recipes/` | self-contained pipelines that run anywhere and serve their models |
 | `specs/` | design of the data model |
 | `docs/` | images for this README |
 

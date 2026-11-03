@@ -12,10 +12,11 @@ __all__ = ["Hosted", "build_app", "serve", "engine", "serve_command"]
 def serve_command(models: list[dict], port: int = 8100, python: str | None = None, max_queue: int = 16,
                   script: str | None = None) -> list[str]:
     """The command line that starts ``linecaster serve`` for ``models`` (dicts with name, spec, kwargs): with
-    ``script``, a server script run by uv in its own environment (``uv run --script servers/kraken-paddlex.py``);
-    otherwise ``python`` (default this interpreter) with ``-m linecaster.cli serve``."""
+    ``script``, a recipe's ``serve`` command, run by uv in the recipe's environment
+    (``uv run --script recipes/chain.py serve``); otherwise ``python`` (default this interpreter) with
+    ``-m linecaster.cli serve``."""
     if script:
-        cmd = ["uv", "run", "--quiet", "--script", str(script)]
+        cmd = ["uv", "run", "--quiet", "--script", str(script), "serve"]
     else:
         cmd = [python or sys.executable, "-m", "linecaster.cli", "serve"]
     cmd += ["--port", str(port), "--max-queue", str(max_queue)]

@@ -2,6 +2,43 @@
 
 Measurements, decisions and open questions, newest first.
 
+## One recipe per pipeline (2026-11-03, spark)
+
+The scripts had made the environments self-contained, but the pipelines were still copied once per machine: the
+squiddle chain three times (`examples/`, `recipes/ray/`, `recipes/hf-jobs/`), its model list four times (with
+`examples/squiddle_models.json`), the chat page and region pipelines twice each, the kraken + PaddleX metadata block
+twice. Now:
+- `recipes/chain.py`: layout → lines → assignment → kraken, PaddleX PP-OCRv6 or Tesseract (`--recognizer`) → NFC →
+  tables → formulas → typography → document, with --files/--exports/--texts. One environment holds all three
+  engines (torch + PaddleX + tesserocr resolve together), so the PaddleX + Tesseract combination needs no script of
+  its own. The HF Jobs chain now runs NFC, typography and document assembly too (it wrote raw page rows before).
+- `recipes/vlm.py`: a chat VLM per page, or per PP-DocLayoutV3 region with `--regions` (MiniCPM-OCR is one model it
+  takes; its DSpark draft comes from the spec, its image from the recipe's table of validated images).
+- `linecaster.run` gives both the same command line: `--on local|ray|hf-jobs`, `--backend in-process|served`
+  (default in-process here, served on Ray and Jobs), `--endpoint`, `serve` (`linecaster serve` with the recipe's
+  models, picked by its options) and `ray ...` (Ray's CLI from the recipe's environment). Page rows go to
+  `OUT/rows/${rank}.jsonl.gz`, logs to `OUT/logs`, on every machine.
+- `ServeModels(script=...)` starts a recipe's `serve`; `jobs.dependencies(commit, script)` reads a recipe's metadata
+  (`engines=False`: linecaster alone, for page VLMs in a vLLM image).
+- `point_to_gpu` moves each server and loopback client up by the GPU index instead of setting all of them to
+  `base_port + GPU`: with a layout server and vLLM in one task, the old rule put both on the same port.
+  `base_port` is gone from `RayGPUExecutor` and `GPUJobsExecutor`.
+- Dry runs (`--dry-run`) give the old recipes' plans: images, `--with` lists and server commands (MiniCPM: the
+  same vLLM flags with the DSpark speculative config, `outside_venv`, 0.8 of the GPU).
+- Both recipes carry `linecaster[ray]` for `--on ray`; `dependencies()` leaves the extra out of a Job's list. Adding
+  Ray and Tesseract changed no version in the lock the goldens run used (packages added only).
+
+Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, one task):
+
+| run of `recipes/chain.py` | sample-60 lines (box + words) | tables-7 lines | wall, sample-60 |
+|---|---:|---:|---:|
+| in-process | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 88 s |
+| `--backend served` (the task starts `serve`) | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 63 s |
+| `--endpoint` against `uv run recipes/chain.py serve` | 1,560/1,560, 60/60 pages exact | | 47 s |
+| `--on ray`, Ray started with `uv run recipes/chain.py ray start` | 3/3 pages written | | |
+
+Not run: `recipes/vlm.py` on a GPU (dry runs only), HF Jobs (no Jobs launched).
+
 ## Self-contained uv scripts instead of environment folders (2026-11-03, spark)
 
 `envs/kraken-paddlex` and `envs/paddlex-tesseract` are gone. Every example, recipe and server is a uv script

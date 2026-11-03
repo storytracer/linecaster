@@ -204,9 +204,9 @@ def test_minicpm_speculative_args_pin_the_draft():
 
 
 def test_job_dependencies_without_kraken():
-    from linecaster.jobs import dependencies
+    from linecaster.jobs import ROOT, dependencies
 
-    deps = dependencies("abc123", engines="paddlex-tesseract")
+    deps = dependencies("abc123", ROOT / "recipes/vlm.py")
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
-    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123"))
+    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "recipes/chain.py"))

@@ -1,4 +1,4 @@
-"""The self-contained uv scripts (PEP 723) under servers/, examples/, recipes/ and tests/ agree with each other:
+"""The self-contained uv scripts (PEP 723) under recipes/ and tests/ agree with each other:
 the same version pins and kraken source everywhere, a lock next to every script, and wheels for both Linux
 machines (aarch64 and x86_64) for every package with compiled wheels. uv's ``required-environments`` does not
 work in script metadata, so this test stands in for it."""
@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from linecaster.jobs import SERVERS, _name, dependencies, script_metadata
+from linecaster.jobs import _name, dependencies, script_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = sorted(p for d in ("servers", "examples", "recipes", "tests") for p in (ROOT / d).rglob("*.py")
+SCRIPTS = sorted(p for d in ("recipes", "tests") for p in (ROOT / d).rglob("*.py")
                  if p.read_text().startswith("# /// script"))
 IDS = [p.relative_to(ROOT).as_posix() for p in SCRIPTS]
 
@@ -20,7 +20,7 @@ def lock_of(script: Path) -> dict:
 
 
 def test_there_are_scripts():
-    assert {"servers/kraken-paddlex.py", "servers/paddlex-tesseract.py", "examples/squiddle_chain.py"} <= set(IDS)
+    assert {"recipes/chain.py", "recipes/vlm.py"} <= set(IDS)
 
 
 @pytest.mark.parametrize("script", SCRIPTS, ids=IDS)
@@ -80,18 +80,20 @@ def test_wheels_for_both_machines(script):
     assert missing == []
 
 
-def test_server_scripts_feed_the_jobs_helper():
-    for engines in ("kraken-paddlex", "paddlex-tesseract"):
-        assert (SERVERS / f"{engines}.py").exists()
-        deps = dependencies("abc123", engines)
+def test_recipes_feed_the_jobs_helper():
+    chain, vlm = ROOT / "recipes/chain.py", ROOT / "recipes/vlm.py"
+    for script in (chain, vlm):
+        deps = dependencies("abc123", script)
         assert deps[0] == "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
         assert not any(" @ ." in d or "path" in d for d in deps)
-    assert not any(_name(d) in ("lightning", "torch") for d in dependencies("abc123", "paddlex-tesseract"))
+    assert "kraken @ git+https://github.com/storytracer/kraken@3d235ee8" in dependencies("abc123", chain)
+    assert not any(_name(d) in ("lightning", "torch", "kraken") for d in dependencies("abc123", vlm))
+    assert dependencies("abc123", vlm, engines=False) == dependencies("abc123")
 
 
-def test_serve_command_for_a_server_script():
+def test_serve_command_for_a_recipe():
     from linecaster.serve import serve_command
 
-    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="servers/kraken-paddlex.py")
-    assert cmd[:5] == ["uv", "run", "--quiet", "--script", "servers/kraken-paddlex.py"]
-    assert cmd[5:9] == ["--port", "8101", "--max-queue", "16"]
+    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="recipes/chain.py")
+    assert cmd[:6] == ["uv", "run", "--quiet", "--script", "recipes/chain.py", "serve"]
+    assert cmd[6:10] == ["--port", "8101", "--max-queue", "16"]

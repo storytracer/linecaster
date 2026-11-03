@@ -32,8 +32,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
-  the job helpers and pipeline-assembly helpers; example pipelines only under `examples/`,
-  `recipes/` and `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
+  the job helpers and pipeline-assembly helpers; example pipelines only as recipes
+  (`recipes/`) and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
   pipeline in `storytracer/squiddleocr`, the BHL re-OCR in `finebooks/bhl-commonpile-pipeline`.
 
 ## Architecture: servers host models, the pipeline composes the chain
@@ -61,13 +61,16 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 - **Engines** live in `backends/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
   each its own package; an engine model is a class with `step`, `name`, `load()` and
   `__call__(image, transcription, **params) -> Transcription`. **No environment
-  folders: every example, recipe and server is a self-contained uv script** (PEP 723 block, a
-  `<script>.py.lock` next to it, `uv run <script>`). Engines that run together share a server
-  script, `servers/<combination>.py` (`kraken-paddlex`, `paddlex-tesseract`), which runs
-  `linecaster serve`; `ServeModels(script=...)` starts it with `uv run --script`, and
-  `linecaster.jobs.dependencies(commit, engines)` turns its metadata into a Job's `--with` list.
+  folders: a recipe is a self-contained uv script** (PEP 723 block, a `<script>.py.lock` next to it,
+  `uv run <script>`) that builds one pipeline, and **one recipe per pipeline, never one per
+  machine**: `linecaster.run.main` gives every recipe the same command line (`--on local|ray|hf-jobs`,
+  `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
+  for Ray's CLI from its environment). `recipes/chain.py` (layout, lines, kraken/PaddleX/Tesseract,
+  post-processing; defaults = the squiddle combination) and `recipes/vlm.py` (a VLM per page or per
+  region). `ServeModels(script=...)` starts a recipe's `serve` with `uv run --script`;
+  `linecaster.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
-  dependencies, so engine scripts list the kraken fork directly; the numerically relevant versions
+  dependencies, so scripts with kraken list the fork directly; the numerically relevant versions
   are pinned with `constraint-dependencies`, the same list in every engine script;
   `tests/test_scripts.py` checks pins, sources, locks and wheels for both machines (uv's
   `required-environments` does not work in scripts). PaddleX's GUI OpenCV pin is satisfied by
@@ -157,8 +160,8 @@ Namespace `finebooks` (cap agreed per session; report the cost of every run), fl
 outputs and datatrove `logging_dir` in the bucket `hf://buckets/finebooks/linecaster-runs`. Always
 a small smoke job before a full run. datatrove's `JobsPipelineExecutor` is experimental and
 dill-pickles the pipeline, so the launching machine and the Jobs must run the same Python minor
-version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.jobs.dependencies(commit, engines)`
-spells out a server script's dependencies, sources (as URLs; the commit must be pushed) and pins. Private derivatives ship their code as a wheel mounted from a bucket
+version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.jobs.dependencies(commit, script)`
+spells out a recipe's dependencies, sources (as URLs; the commit must be pushed) and pins. Private derivatives ship their code as a wheel mounted from a bucket
 folder (`WheelJobsExecutor`, `wheel_volume`); no credential is stored in a pipeline or a repo.
 
 ## Working style

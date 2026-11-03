@@ -2,8 +2,8 @@
 
 ``RayGPUExecutor`` is datatrove's ``RayPipelineExecutor`` with one GPU per task. Ray restricts each task
 to its GPU through ``CUDA_VISIBLE_DEVICES``. Several tasks share a machine, so each task moves the servers
-its pipeline starts (``ServeModels``, ``ServeChatModel``) and their loopback clients to port
-``base_port + <its GPU index>`` (``linecaster.jobs.point_to_gpu``). Ray itself is the ``ray`` extra.
+its pipeline starts (``ServeModels``, ``ServeChatModel``) and their loopback clients up by its GPU
+index (``linecaster.jobs.point_to_gpu``). Ray itself is the ``ray`` extra.
 """
 from __future__ import annotations
 
@@ -25,15 +25,14 @@ def assigned_gpu() -> int:
 
 class RayGPUExecutor(RayPipelineExecutor):
     """``RayPipelineExecutor`` for pipelines with a server block: one task per GPU, each task's servers on
-    their own port. Takes ``RayPipelineExecutor``'s arguments plus ``base_port``."""
+    their own ports (``point_to_gpu``). Takes ``RayPipelineExecutor``'s arguments."""
 
-    def __init__(self, *args, base_port: int = 8100, **kwargs):
+    def __init__(self, *args, **kwargs):
         kwargs.setdefault("gpus_per_task", 1)
         super().__init__(*args, **kwargs)
         if self.gpus_per_task != 1:
             raise ValueError("RayGPUExecutor runs one task per GPU (gpus_per_task=1)")
-        self.base_port = base_port
 
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
-        self.pipeline = point_to_gpu(self.pipeline, assigned_gpu(), self.base_port)
+        self.pipeline = point_to_gpu(self.pipeline, assigned_gpu())
         return super()._run_for_rank(rank, local_rank, node_rank)

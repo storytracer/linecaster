@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import gzip
 import json
 import re
 import sys
@@ -55,7 +56,8 @@ def main() -> int:
     ap.add_argument("--no-nfc", action="store_true",
                     help="compare the goldens' raw text (default: NFC, as linecaster's NormalizeUnicode writes it)")
     a = ap.parse_args()
-    rows = [json.loads(l) for f in sorted(glob.glob(f"{a.run}/*.jsonl")) for l in open(f)]
+    files = sorted(glob.glob(f"{a.run}/*.jsonl") + glob.glob(f"{a.run}/*.jsonl.gz"))
+    rows = [json.loads(l) for f in files for l in (gzip.open(f, "rt") if f.endswith(".gz") else open(f))]
     tot = dict(pages=0, lines_gold=0, lines_ours=0, common=0, box=0, words=0, pages_exact=0)
     for row in sorted(rows, key=lambda r: r["id"]):
         g = golden(next(Path(a.goldens).glob(f"{row['id']}.*hocr")), nfc=not a.no_nfc)

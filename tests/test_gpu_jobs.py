@@ -14,3 +14,14 @@ def test_point_to_gpu_moves_servers_and_loopback_clients():
     assert moved[1].backend.endpoint == "https://example.org/v1"
     assert moved[2].port == 8103
     assert pipeline[0].backend.endpoint == "http://127.0.0.1:8100/v1" and pipeline[2].port == 8100   # a copy
+
+
+def test_point_to_gpu_keeps_two_servers_apart():
+    from linecaster.blocks.serve import ServeChatModel
+    from linecaster.models import chat_model
+
+    spec = chat_model("lightonai/LightOnOCR-2-1B")
+    pipeline = [LayoutStep(Served("http://127.0.0.1:8100/v1", model="layout")),
+                ServeModels([{"name": "layout", "spec": "x:Y"}], port=8100), ServeChatModel(spec, port=8000)]
+    moved = point_to_gpu(pipeline, 2)
+    assert (moved[0].backend.endpoint, moved[1].port, moved[2].port) == ("http://127.0.0.1:8102/v1", 8102, 8002)

@@ -1,11 +1,10 @@
 """Hugging Face Jobs helpers for linecaster pipelines (on datatrove's ``JobsPipelineExecutor``).
 
-* ``dependencies(commit, engines)``: what a Job installs with ``uv run --with`` to run an engine
-  combination in-process or behind ``ServeModels``, read from that combination's server script
-  (``servers/<engines>.py``): its dependencies with the script's sources spelled out as URLs at
+* ``dependencies(commit, script)``: what a Job installs with ``uv run --with`` to run a recipe, read
+  from the recipe's inline metadata: its dependencies with the script's sources spelled out as URLs at
   ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
-  git+), the OpenCV stub (PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
-  and the script's version pins, for the packages its lock resolves.
+  git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
+  and its version pins, for the packages its lock resolves.
 * ``WheelJobsExecutor``: ``JobsPipelineExecutor`` that also mounts volumes into every Job. A private
   derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
   mounts that folder read-only (authorised by the Job's own HF token; no credential is persisted)
@@ -14,7 +13,7 @@
   ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*
   (``CUDA_VISIBLE_DEVICES``) and its own loopback port for the servers its pipeline starts.
 
-``uv run --with`` ignores ``[tool.uv.sources]``, so the server script's sources are spelled out as URLs.
+``uv run --with`` ignores ``[tool.uv.sources]``, so a recipe's sources are spelled out as URLs.
 """
 from __future__ import annotations
 
@@ -30,8 +29,8 @@ from pathlib import Path
 from datatrove.executor import JobsPipelineExecutor
 
 REPO = "https://github.com/storytracer/linecaster"
-#: the server scripts (one per engine combination), in the checkout the launcher runs from
-SERVERS = Path(__file__).resolve().parents[2] / "servers"
+#: the checkout the launcher runs from (recipes, backends, stubs)
+ROOT = Path(__file__).resolve().parents[2]
 WHEEL_MOUNT = "/wheels"
 _SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
 
@@ -51,31 +50,34 @@ def _name(requirement: str) -> str:
     return re.split(r"[\s\[<>=!~;@]", requirement, maxsplit=1)[0].lower().replace("_", "-")
 
 
-def dependencies(commit: str, engines: str | None = "kraken-paddlex") -> list[str]:
-    """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) with the engine
-    combination of ``servers/<engines>.py``: ``kraken-paddlex`` (the squiddle combination) or
-    ``paddlex-tesseract`` (PaddleX without kraken or torch, e.g. a layout server next to vLLM in a vLLM
-    image). ``engines=None``: linecaster alone (a CPU pipeline, or a VLM pipeline whose image brings vLLM).
+def dependencies(commit: str, script: str | Path | None = None, engines: bool = True) -> list[str]:
+    """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
+    metadata of ``script`` (a recipe): its dependencies with the script's sources spelled out as URLs at
+    ``commit`` and its version pins, for the packages its lock resolves. ``script=None`` or
+    ``engines=False``: linecaster alone (a VLM pipeline whose image brings vLLM, or a CPU pipeline).
 
     linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
     some images (``vllm/vllm-openai``) have uv but no git executable. The kraken fork still needs git (its
     version comes from git history); the default Jobs image, which engine Jobs use, has it."""
-    repo = f"{REPO}/archive/{commit}.tar.gz"
-    if engines is None:
-        return [f"linecaster @ {repo}"]
     import tomllib
 
-    script = SERVERS / f"{engines}.py"
+    repo = f"{REPO}/archive/{commit}.tar.gz"
+    if script is None or not engines:
+        return [f"linecaster @ {repo}"]
+    script = Path(script).resolve()
     meta = script_metadata(script)
     uv = meta.get("tool", {}).get("uv", {})
     sources = {_name(k): v for k, v in uv.get("sources", {}).items()}
-    root = SERVERS.parent
     deps = []
     for req in meta.get("dependencies", []):
         src = sources.get(_name(req))
         if src and "path" in src:
-            sub = (script.parent / src["path"]).resolve().relative_to(root).as_posix()
-            deps.append(f"{_name(req)} @ {repo}" + (f"#subdirectory={sub}" if sub != "." else ""))
+            sub = (script.parent / src["path"]).resolve().relative_to(ROOT).as_posix()
+            extras = req[len(_name(req)):].split(";")[0].strip() if "[" in req else ""
+            if _name(req) == "linecaster":   # a Job does not use Ray
+                kept = [e for e in extras.strip("[]").split(",") if e.strip() and e.strip() != "ray"]
+                extras = f"[{','.join(kept)}]" if kept else ""
+            deps.append(f"{_name(req)}{extras} @ {repo}" + (f"#subdirectory={sub}" if sub != "." else ""))
         elif src and "git" in src:
             deps.append(f"{_name(req)} @ git+{src['git']}@{src['rev']}")
         else:
@@ -147,35 +149,35 @@ class WheelJobsExecutor(JobsPipelineExecutor):
             huggingface_hub.run_uv_job = original
 
 
-def point_to_gpu(pipeline: list, local: int, base_port: int = 8100) -> list:
-    """The pipeline for task ``local`` of a multi-GPU Job: every block that starts a server
+def point_to_gpu(pipeline: list, local: int) -> list:
+    """The pipeline for task ``local`` of a multi-GPU machine: every block that starts a server
     (``ServeModels``, ``ServeChatModel``: attribute ``port``) and every served backend on loopback
-    moves to port ``base_port + local``, so each GPU has its own server and clients."""
+    moves ``local`` ports up, so each GPU has its own servers and clients (a layout server on 8100 and
+    vLLM on 8000 become 8103 and 8003 on GPU 3)."""
     from .backends import Served
     from .blocks.serve import ServeChatModel, ServeModels
 
-    port = base_port + local
     pipeline = deepcopy(pipeline)
     for step in pipeline:
         if isinstance(step, (ServeModels, ServeChatModel)):
-            step.port = port
+            step.port += local
         backend = getattr(step, "backend", None)
         if isinstance(backend, Served):
             u = urlsplit(backend.endpoint)
-            if u.hostname in ("127.0.0.1", "localhost"):
-                backend.endpoint = urlunsplit(u._replace(netloc=f"{u.hostname}:{port}"))
+            if u.hostname in ("127.0.0.1", "localhost") and u.port:
+                backend.endpoint = urlunsplit(u._replace(netloc=f"{u.hostname}:{u.port + local}"))
     return pipeline
 
 
 class GPUJobsExecutor(JobsPipelineExecutor):
     """``JobsPipelineExecutor`` for multi-GPU flavors: each Job takes ``gpus`` datatrove tasks and runs
-    them at the same time, one forked process per task, task *i* on GPU *i* with its servers on port
-    ``base_port + i`` (``point_to_gpu``). ``tasks`` should be a multiple of ``gpus``. The Job fails if
+    them at the same time, one forked process per task, task *i* on GPU *i* with its servers *i* ports
+    up (``point_to_gpu``). ``tasks`` should be a multiple of ``gpus``. The Job fails if
     any of its tasks fails; datatrove's completion markers make a rerun skip the finished ones."""
 
-    def __init__(self, *args, gpus: int, base_port: int = 8100, **kwargs):
+    def __init__(self, *args, gpus: int, **kwargs):
         super().__init__(*args, tasks_per_job=gpus, **kwargs)
-        self.gpus, self.base_port = gpus, base_port
+        self.gpus = gpus
 
     def _run_array_index(self, array_index: int):
         import multiprocessing
@@ -197,5 +199,5 @@ class GPUJobsExecutor(JobsPipelineExecutor):
 
     def _run_on_gpu(self, rank: int, local: int) -> None:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(local)
-        self.pipeline = point_to_gpu(self.pipeline, local, self.base_port)
+        self.pipeline = point_to_gpu(self.pipeline, local)
         self._run_for_rank(rank, local_rank=local)
