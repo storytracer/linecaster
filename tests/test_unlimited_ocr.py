@@ -190,3 +190,24 @@ def test_v2_settings_record_the_server():
     s = UnlimitedOCR2().parse(completion("<BLOCK>text[10, 20, 990, 60]<FORK>Shell 6 mm.")).model[0].settings
     assert s["server"] == "sglang" and s["server_env"]["SGLANG_UOCR_MAX_PAGE_TOKENS"] == "20000"
     assert s["custom_params"]["window_size"] == 128 and s["sampling"]["max_tokens"] == 8000
+
+
+def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, tmp_path):
+    import os
+    import stat
+
+    from linecaster.blocks.serve import ServeChatModel
+
+    bad, good = tmp_path / "venv" / "bin", tmp_path / "opt" / "bin"
+    for d, code in ((bad, 1), (good, 0)):
+        d.mkdir(parents=True)
+        py = d / "python3"
+        py.write_text(f"#!/bin/sh\nexit {code}\n")
+        py.chmod(py.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setenv("PATH", os.pathsep.join([str(bad), str(good), "/usr/bin"]))
+    monkeypatch.setattr(ServeChatModel, "SERVER_PYTHONS", ())
+    block = ServeChatModel(UnlimitedOCR2(), outside_venv=True)
+    assert block.server_python() == str(good / "python3")
+    good.joinpath("python3").write_text("#!/bin/sh\necho 'No module named sglang' >&2\nexit 1\n")
+    with pytest.raises(RuntimeError, match="No module named sglang"):
+        block.server_python()

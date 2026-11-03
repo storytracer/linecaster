@@ -113,15 +113,33 @@ class ServeChatModel(PipelineStep):
             env = ["-u", "VIRTUAL_ENV", f"PATH={self.server_path()}", *env]
         return ["env", *env, *cmd] if env else cmd
 
+    #: where server images usually keep their Python, tried after every python on the server's PATH
+    SERVER_PYTHONS = ("/opt/sglang/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3")
+
     def server_python(self) -> str:
-        """The absolute path of ``python`` on the server's ``PATH``; it must import the server (SGLang)."""
-        import shutil
+        """The first Python that imports the server (SGLang): every ``python`` on the server's ``PATH`` in
+        order, then ``SERVER_PYTHONS``. The import check runs without this interpreter's environment
+        variables (``VIRTUAL_ENV``, ``PYTHONPATH``, ``PYTHONHOME``). The error lists every candidate."""
+        import os
         import subprocess
 
-        py = shutil.which(self.python, path=self.server_path())
-        if not py or subprocess.run([py, "-c", "import sglang"], capture_output=True, check=False).returncode != 0:
-            raise RuntimeError(f"no {self.python} with sglang on the server's PATH (an SGLang image, outside_venv=True)")
-        return py
+        path = self.server_path()
+        found = []
+        for d in path.split(os.pathsep):
+            c = os.path.join(d, self.python)
+            if os.path.isfile(c) and os.access(c, os.X_OK) and c not in found:
+                found.append(c)
+        found += [c for c in self.SERVER_PYTHONS if os.path.isfile(c) and c not in found]
+        env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME")}
+        env["PATH"] = path
+        tried = []
+        for py in found:
+            r = subprocess.run([py, "-c", "import sglang"], capture_output=True, text=True, check=False, env=env)
+            if r.returncode == 0:
+                return py
+            tried.append(f"{py}: {(r.stderr.strip().splitlines() or ['?'])[-1][:200]}")
+        raise RuntimeError(f"no {self.python} with sglang (outside_venv={self.outside_venv}); PATH={path}; "
+                           f"tried: {tried or 'none found'}")
 
     def install_commands(self, python: str, uv: str = "uv") -> list[list[str]]:
         """One ``uv pip install`` per entry of the spec's ``server_packages``, into ``python``."""
