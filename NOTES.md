@@ -2,6 +2,32 @@
 
 Measurements, decisions and open questions, newest first.
 
+## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, forge)
+
+Setup: `ImageFolderReader` → `LayoutStep` (`linecaster serve`, PP-DocLayoutV3 ONNX) → `ChatRegionStep(MiniCPMOCR)` →
+page rows, then the SDK's own assembly (`linecaster.models.minicpm_ocr.assemble_markdown`, keep footnote and aside_text
+as the BHL board row did) and the board lane (consolidate → normalize postproc 3 → score_dataset).
+- vLLM nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`, cu130 wheel from the per-commit index, torch 2.14 cu130) with
+  transformers at OpenBMB's pin, in its own venv on forge (RTX 4000 SFF Ada 20 GB); `ninja` must be on PATH (the venv's
+  bin) or the engine fails at startup. Serve flags from the SDK tutorial, `--gpu-memory-utilization 0.85`, DSpark
+  speculative decoding with the matching draft model (mean acceptance length about 7).
+- Reference: OpenBMB's SDK itself (minicpm-ocr 1.0.1 with PaddlePaddle GPU 3.3.0 and the PP-DocLayoutV3 Paddle model, the
+  board image's lock) against the same server on the same pages.
+
+| run | sample-60 CERdip / CERread / recall | tables-7 CERdip / CERread / recall | loops | wall, sample-60 |
+|---|---|---|---:|---:|
+| linecaster | 0.0361 / 0.0243 / 0.9379 | 0.8893 / 0.5622 / 0.9850 | 0 of 460 regions | 73 s |
+| SDK | 0.0360 / 0.0241 / 0.9390 | 0.8885 / 0.5615 / 0.9843 | 0 | 77 s |
+
+- Per book the two agree within 0.002 CERread; 39 of 60 pages give byte-identical Markdown.
+- Layout: the region label sequence is the same on 52 of 60 pages, boxes within 3 px on 37. Differences come from the
+  ONNX export vs PaddlePaddle, linecaster's containment suppression vs PaddleX's `filter_overlap_boxes`, and the SDK's
+  `merge_blocks` (aligned text blocks merged into one composite crop), none of which is ported.
+- Where a region's box matches within 1 px, the completion is identical for 320 of 339 regions; the rest differ by crop
+  pixels (rounding, the polygon mask drawn by Pillow vs OpenCV) or decoding.
+- No region hit its token cap (LightOnOCR-2, a page model, looped on 16 % of region crops).
+- One sample-60 plate page has a single `image` region covering the page in linecaster's layout: nothing is read there.
+
 ## NFC step and item-level documents (2026-11-03, spark)
 
 **NFC (`NormalizeUnicode`, after recognition).** The chain with the step against squiddleocr's goldens
