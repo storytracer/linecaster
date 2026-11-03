@@ -2,7 +2,7 @@
 schema: linecaster.catalog-lock/1
 presets:
   tesseract-best-eng@1:
-    sha256: sha256:6a101dc868c8572fbcc2357e4e5ad89ca4c4b9876a9cb881fcb36a923eb451cb
+    sha256: sha256:16e2fed2e8b4788028d7a00a84ca57c2ac240c4c07b84ce2258c2494f5c3052c
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -20,11 +20,8 @@ presets:
           data: best
           pad: 4
           dpi: 300
-      settings: {}
-      labels: {}
-      serve: null
   tesseract-best-latin@1:
-    sha256: sha256:da0fccd1c75d154514612bb550d4a2dc13f59cccc0e79c47f340a2134b3ca3e0
+    sha256: sha256:f4dfac5f5ec7dc7f513c47156b349c6b212275e3b75d3066cebc546377415dd4
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -42,11 +39,8 @@ presets:
           data: best
           pad: 4
           dpi: 300
-      settings: {}
-      labels: {}
-      serve: null
   tesseract-fast-eng@1:
-    sha256: sha256:f0f999c6eedd8218038ed73b254ca169f5052478a139d3655a9cae8376066dda
+    sha256: sha256:67608cec193947b8efe457e1de3b8ffdcc93f7ab1742fdfb2ab2056cec32084f
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -64,11 +58,8 @@ presets:
           data: fast
           pad: 4
           dpi: 300
-      settings: {}
-      labels: {}
-      serve: null
   tesseract-fast-latin@1:
-    sha256: sha256:56a76cd28a52094fd89abe32dab41104c216a0020a83f35a105a1affe0e0db6d
+    sha256: sha256:2f913053437db6e5db5d142f937e44748bc15e3b45ca11c7cd49f2dac69aac01
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -86,6 +77,3 @@ presets:
           data: fast
           pad: 4
           dpi: 300
-      settings: {}
-      labels: {}
-      serve: null

@@ -127,6 +127,14 @@ class Serve(_Doc):
     image: str | None = Field(None, description="container image with digest, for HF Jobs")
     flags: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
+    revision_flag: bool = Field(True, description="pass --revision; false: the server loads the default branch, "
+                                                  "checked file by file against the pin")
+    pin_ignore: list[str] = Field(default_factory=list, description="globs the default-branch check ignores")
+    server_packages: list[list[str]] = Field(default_factory=list,
+                                             description="uv pip install argument lists run in the server's Python "
+                                                         "first; {repo} and {revision} are the model's")
+    draft: dict[str, Any] | None = Field(None, description="speculative decoding: {model: <model id>, revision, "
+                                                         "speculative: {...}}")
 
 
 class Capabilities(_Doc):

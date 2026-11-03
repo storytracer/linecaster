@@ -2,7 +2,7 @@
 schema: linecaster.catalog-lock/1
 presets:
   paddlex-ppocrv6-medium@1:
-    sha256: sha256:d6866bfed2012e6b626cc5092b5d4f1cbe5c8501c341a40613e5581e5670e7f4
+    sha256: sha256:c1ac7acd3e60a95130811bc796175625170a8cb5709451ea94a148cfaf828b6b
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -18,11 +18,8 @@ presets:
           model_name: PP-OCRv6_medium_rec
           batch_size: 8
           words: true
-      settings: {}
-      labels: {}
-      serve: null
   paddlex-ppocrv6-small@1:
-    sha256: sha256:2ffbe9aab6f8b2ce4d692c0db4e9f375b7dd70ae80c616d1ea67a4c73824c9ca
+    sha256: sha256:024118ba9fdf8c55b1cbbb058697b48d0b30dfaad1925c8b0175beb251a6a71f
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -38,11 +35,8 @@ presets:
           model_name: PP-OCRv6_small_rec
           batch_size: 8
           words: true
-      settings: {}
-      labels: {}
-      serve: null
   paddlex-ppocrv6-tiny@1:
-    sha256: sha256:a23dded98bce1df776908e76e8196fa6439f29f8679c48f604f51e04b021f58f
+    sha256: sha256:6f9ceb2e0f94899a0f5a807211d5b7d72e2063809be3db6b0c3b592e94a43698
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -58,11 +52,8 @@ presets:
           model_name: PP-OCRv6_tiny_rec
           batch_size: 8
           words: true
-      settings: {}
-      labels: {}
-      serve: null
   pp-doclayout-plus-l@1:
-    sha256: sha256:e7099fb19ddeaf139ea62ced991bcfed9c88de0bfc689b22908adc50f2d16bfb
+    sha256: sha256:72262f06f69fc1cbaeee48306f848e666067fafc94e2ecf95ac89cd6bae0b8bf
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -101,7 +92,6 @@ presets:
           nms: true
           merge_mode: large
           max_containment: 0.8
-      settings: {}
       labels:
         paragraph_title: section_header
         image: picture
@@ -122,9 +112,8 @@ presets:
         formula_number: text
         aside_text: text
         reference_content: reference
-      serve: null
   pp-doclayoutv3@1:
-    sha256: sha256:d5f35f355a208f56f1a3c6114901bbb4550c4faa090f6440b1f8a16fb10ee79a
+    sha256: sha256:d59dcf606b6e6706cad5c3dc706dd9c01d5c9865da57303d1608131904aca595
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -168,7 +157,6 @@ presets:
             '23': union
             '24': union
           max_containment: 0.8
-      settings: {}
       labels:
         abstract: text
         algorithm: code
@@ -194,9 +182,8 @@ presets:
         text: text
         vertical_text: text
         vision_footnote: footnote
-      serve: null
   pp-formulanet-l@1:
-    sha256: sha256:8f530628ef6d3f0ff9780d84e88f275ff024eb5d395c08130b2d1c8f54c99bbf
+    sha256: sha256:e5f519638620afbdd3d34f60e364f1b5894a7c2e2db1c042fc21f0120c830a78
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -211,11 +198,8 @@ presets:
         options:
           model_name: PP-FormulaNet-L
           batch_size: 8
-      settings: {}
-      labels: {}
-      serve: null
   pp-formulanet-plus-l@1:
-    sha256: sha256:652b4a30813c33884ae19bc2740822611c648672b9e91fe5f0b9e1491e4572fa
+    sha256: sha256:720fbd12256c39c67174f69a1d43ee6c21423c18f7f26c568a732733284a2158
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -230,11 +214,8 @@ presets:
         options:
           model_name: PP-FormulaNet_plus-L
           batch_size: 8
-      settings: {}
-      labels: {}
-      serve: null
   pp-ocrv6-medium-det@1:
-    sha256: sha256:f84c4ca262a5fdef48d1d6bd889250e4225fdfde25129be33bc5824c8536452e
+    sha256: sha256:e2824aba91ca65911ee93c7966a8eb98dd7dcde8fab312462903489d36b6383a
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -254,11 +235,8 @@ presets:
           thresh: 0.3
           pad: 0
           mask: false
-      settings: {}
-      labels: {}
-      serve: null
   pp-ocrv6-small-det@1:
-    sha256: sha256:227924e31acc66a0b84a6303f7c90182127d8b141fd2434068db0bbee518e635
+    sha256: sha256:63486c4ae08c3289526a8a442cf15b318a37ba7d0c092a812f51eac03a3376ff
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -278,11 +256,8 @@ presets:
           thresh: 0.3
           pad: 0
           mask: false
-      settings: {}
-      labels: {}
-      serve: null
   pp-ocrv6-tiny-det@1:
-    sha256: sha256:0136d2de1f2018780e275e7dfeff01dbc7e87c0251b3a1402e7769be303a6bea
+    sha256: sha256:1591042f5829f762151df343853ecfbcdee4ef6f715764b0d2b471a0fabbc8e3
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -302,9 +277,6 @@ presets:
           thresh: 0.3
           pad: 0
           mask: false
-      settings: {}
-      labels: {}
-      serve: null
   slanet-plus@1:
     sha256: sha256:7771daa988577a180cf1328565dc2c11a5197eb906eb30422629dfe786f5fc98
     released: '2026-11-03'
@@ -330,7 +302,7 @@ presets:
       labels: {}
       serve: null
   slanet-plus@2:
-    sha256: sha256:b54cd07b5d2f6098f2cef6a71cadc781af1498cdc1c33e9723e20854b4f3c5cd
+    sha256: sha256:229c5312c7e24acbf074b11fb51965c3ada23ee118ad345944de916dcac7adba
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -362,6 +334,3 @@ presets:
           crop_pad: 8
           e2e: true
           name: table_recognition_v2/SLANet_plus
-      settings: {}
-      labels: {}
-      serve: null

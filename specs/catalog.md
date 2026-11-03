@@ -53,8 +53,8 @@ document starts with `schema: linecaster.<type>/<n>`. JSON Schemas for editors c
 
 `linecaster catalog release <id>` writes the current edition's resolved functional content and its sha256 into
 `catalog.lock`. Functional content is what can change outputs: `step`, the model pin (`id`, `revision`,
-`files`), `engine` (`kind`, `options`), `settings`, `labels` and `serve`. Prose, provenance, support level,
-capabilities and limitations are not part of it. `linecaster catalog verify` (and `tests/test_catalog.py`)
+`files`), `engine` (`kind`, `options`), `settings`, `labels` and `serve`. Only what the document states counts (a new optional schema field changes no hash). Prose,
+provenance, support level, capabilities and limitations are not part of it. `linecaster catalog verify` (and `tests/test_catalog.py`)
 fails when a released edition's content changed; such a change is a new edition. Old editions stay
 resolvable from the lock (`dots-ocr@1` after the file moved on to edition 2). Unreleased editions are drafts.
 

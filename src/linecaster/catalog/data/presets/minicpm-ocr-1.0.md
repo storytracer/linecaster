@@ -11,13 +11,6 @@ engine:
   options:
     adapter: minicpm-ocr
     served_name: minicpm-ocr
-    draft:
-      model: minicpm-ocr-1.0-dspark
-      revision: 31e3feaf80e0061cd6aa73db23480d2d691d6452
-      speculative:
-        method: dspark
-        num_speculative_tokens: 15
-        enable_adaptive_verification: false
 settings:
   sampling:
     temperature: 0.01
@@ -149,6 +142,13 @@ serve:
   - --trust-request-mm-kwargs
   - --default-chat-template-kwargs
   - '{"enable_thinking":false}'
+  draft:
+    model: minicpm-ocr-1.0-dspark
+    revision: 31e3feaf80e0061cd6aa73db23480d2d691d6452
+    speculative:
+      method: dspark
+      num_speculative_tokens: 15
+      enable_adaptive_verification: false
 capabilities:
   unit: region
   produces:

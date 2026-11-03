@@ -2,7 +2,7 @@
 schema: linecaster.catalog-lock/1
 presets:
   kraken-ppocrv6-medium@1:
-    sha256: sha256:b1d0bbdc7da61c3a0352610f2366558cc3356a34281aa1c137dc68acae81c799
+    sha256: sha256:685b0119446d41c322f5d2130b69bbd81774e107cac00a66f05b4ae1ca120a35
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -19,11 +19,8 @@ presets:
           batch_size: 8
           precision: auto
           text_direction: horizontal-lr
-      settings: {}
-      labels: {}
-      serve: null
   kraken-ppocrv6-small@1:
-    sha256: sha256:e3e3f659b77e34df7dfc14b8f5c36f5c39cdd21ec885856a5b485a9a39fa7c80
+    sha256: sha256:bde2d6f594e19caf1e531b3fd80b070e58a4d8066938381b17a99d31b863828d
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -40,11 +37,8 @@ presets:
           batch_size: 8
           precision: auto
           text_direction: horizontal-lr
-      settings: {}
-      labels: {}
-      serve: null
   kraken-ppocrv6-tiny@1:
-    sha256: sha256:f9cf62afbaf4968fec8ecab3875c067332fd632a85245215d7ac98652abd1a4e
+    sha256: sha256:2ea3ae42c8be533c3ecaf3b603d21a2362788b454c77258220a37cb067af46aa
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -61,6 +55,3 @@ presets:
           batch_size: 8
           precision: auto
           text_direction: horizontal-lr
-      settings: {}
-      labels: {}
-      serve: null

@@ -2,7 +2,7 @@
 schema: linecaster.catalog-lock/1
 presets:
   chandra-ocr-2@1:
-    sha256: sha256:2ec10c6355c4edde0cb9b3dd7edae1b9b8d6ead1fdb3a36b47b4b448c1edf111
+    sha256: sha256:02232dc62ee089ba0801c19a17676b1b8e4b0ff87cd75db3554d313f68a5c074
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -69,7 +69,6 @@ presets:
           - 1792
           - 28
           grid: 28
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -86,9 +85,8 @@ presets:
         - --no-enable-prefix-caching
         - --dtype
         - bfloat16
-        env: {}
   deepseek-ocr-2@1:
-    sha256: sha256:2a00e0e07e75e812cf60b19988f6bcfc5e41cd565eb2dff7e0b59611c0e2c084
+    sha256: sha256:9d1e78ac2a93a495cabef6b1c7c537410e33d178b603e14f38526789d0a69ce6
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -116,7 +114,6 @@ presets:
           - 128821
           - 128822
         logits_processor: vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -130,9 +127,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   deepseek-ocr@1:
-    sha256: sha256:7e9bf15ded4071a6338e7d4f96f59bb39a4c4e668bd6d550574b9fbb54521578
+    sha256: sha256:0bd7b1e1a6b90c118625482e603870e67b11ee8530129e4212079ca848622a0a
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -164,7 +160,6 @@ presets:
           - 128821
           - 128822
         logits_processor: vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -178,9 +173,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   dots-mocr@1:
-    sha256: sha256:76b89d3bd3406441e97882775c476e267bce7d23e8cffa416c17f1edf49f820c
+    sha256: sha256:f607bb1bfddb5013ec2288add66f24cc486afea21dc1dd1e5f36f3222f900037
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -202,7 +196,6 @@ presets:
           top_p: 0.9
         prompt: Extract the text content from this image.
         image_placeholder: <|img|><|imgpad|><|endofimg|>
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -218,9 +211,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   dots-ocr@1:
-    sha256: sha256:de2f7a5d75c2303e0f44b012ea343f7e85112430de28defdca5b965f3d9a4280
+    sha256: sha256:f999f4c31bd6b702752c6991912421fea6b45bf02baa9e9fa3d1b9d3138ac2a8
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -240,7 +232,6 @@ presets:
           temperature: 0.0
           max_tokens: 8192
         prompt: Extract the text content from this image.
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -254,9 +245,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   glm-ocr@1:
-    sha256: sha256:bc033c66e639598112ef99782d040b4c5b7b72472eed15264c33960b7b768994
+    sha256: sha256:499e730288745e86becfd4211038561ba4ce2178950be4e72625e716f946be1d
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -279,7 +269,6 @@ presets:
         prompt: 'Text Recognition:'
         image:
           max_pixels: 9633792
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -292,9 +281,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   lightonocr-2-1b-regions@1:
-    sha256: sha256:ca1141329a504d1afac4ef666c617b41abd8ca8401e0e64a74c89ac2b6ac591f
+    sha256: sha256:7b966bb1bd13ff7acfa2084bf56218ef879ed8fc651bb0f548996430cdca3e80
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -320,7 +308,6 @@ presets:
           longest_side_px: 1540
         page_longest: 1540
         region_pad: 8
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -333,9 +320,8 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
-        env: {}
   lightonocr-2-1b@1:
-    sha256: sha256:13478c3f2a4c6f6ba4ae2bc5837c517d74d2b3537891de05e4b48bbf2ee607dc
+    sha256: sha256:c02ea978602eaa27046137cc87da5e6f63ccb6cfff873ff16a714cc7fef3da63
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -360,7 +346,6 @@ presets:
         image:
           longest_side_px: 1540
         page_longest: 1540
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -373,9 +358,8 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
-        env: {}
   lightonocr-3-0.8b@1:
-    sha256: sha256:54e378872a62ae6368a748b468d28f329edc9a00d767839546b8d74845605436
+    sha256: sha256:282240daca69c9d1bee26e63a2e018d362cc07e4e1dd52980c35b67d907bf493
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -401,7 +385,6 @@ presets:
         image:
           longest_side_px: 2048
         page_longest: 2048
-      labels: {}
       serve:
         server: vllm
         version: 0.30.0
@@ -416,9 +399,8 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
-        env: {}
   lightonocr-3-4b@1:
-    sha256: sha256:06576e2812511998675343e416d7c09e24d3d3fb4f4744d2410efae9c9ebec0f
+    sha256: sha256:1387d4ff8e17ec516ac6de618938de330dadd86a547113e785dcd6e64d1c61ee
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -444,7 +426,6 @@ presets:
         image:
           longest_side_px: 2048
         page_longest: 2048
-      labels: {}
       serve:
         server: vllm
         version: 0.30.0
@@ -459,9 +440,8 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
-        env: {}
   minicpm-ocr-1.0@1:
-    sha256: sha256:6223d18777951a5a7d79e38ae215a5d1032a024eb5d231eaa054e97ce2517295
+    sha256: sha256:047d0cbcfc05c9363d610791bc46c669b8073e4832277add955cc7a1c9576d80
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -477,13 +457,6 @@ presets:
         options:
           adapter: minicpm-ocr
           served_name: minicpm-ocr
-          draft:
-            model: minicpm-ocr-1.0-dspark
-            revision: 31e3feaf80e0061cd6aa73db23480d2d691d6452
-            speculative:
-              method: dspark
-              num_speculative_tokens: 15
-              enable_adaptive_verification: false
       settings:
         sampling:
           temperature: 0.01
@@ -597,7 +570,6 @@ presets:
         prompt_reserve: 512
         prompts_source: minicpm-ocr 1.0.1 DEFAULT_PROMPT_MAP
         region_pad: 0
-      labels: {}
       serve:
         server: vllm
         version: 0.32.1rc1.dev602+g5d35ce393
@@ -616,9 +588,15 @@ presets:
         - --trust-request-mm-kwargs
         - --default-chat-template-kwargs
         - '{"enable_thinking":false}'
-        env: {}
+        draft:
+          model: minicpm-ocr-1.0-dspark
+          revision: 31e3feaf80e0061cd6aa73db23480d2d691d6452
+          speculative:
+            method: dspark
+            num_speculative_tokens: 15
+            enable_adaptive_verification: false
   nemotron-3.5-parse@1:
-    sha256: sha256:28cdb7ae50206841e013b19552fbc0a592ed3ad3cbc3fc7e857eee1e370a3e29
+    sha256: sha256:fbd809e960abd167539d18374e63372a6b08b6036b7cbdf80f270583c30154a3
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -654,7 +632,6 @@ presets:
           repetition_penalty: 1.1
           skip_special_tokens: false
         prompt: </s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -676,9 +653,8 @@ presets:
         - '{"image": 1}'
         - --attention-config
         - '{"flash_attn_version": 3}'
-        env: {}
   olmocr-2-7b-1025-fp8@1:
-    sha256: sha256:b6e8e966e150a569a650dbc661d444fba6417daaa24491516a75eff34226e94a
+    sha256: sha256:729df8d4cb136fea950345a3d7288834b7298d6fbd332e20e3815d745cc88e62
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -711,7 +687,6 @@ presets:
         image:
           longest_side_px: 1288
         page_longest: 1288
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -724,9 +699,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   ovisocr2@1:
-    sha256: sha256:3c92294e2dc1d8188e6b43c8391a2656abc2dbd459a553197e10915a1bc2a332
+    sha256: sha256:5422633cadc6a8686543b03cb4d8ff697dc6d1e1fb316224ccebfa2ec2d1f061
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -756,7 +730,6 @@ presets:
         image:
           max_pixels: 8294400
           jpeg_quality: 95
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -771,9 +744,8 @@ presets:
         - '{"image": 1}'
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
-        env: {}
   ovisocr3@1:
-    sha256: sha256:aed51969f14bef324cb0751d89c425be7f8f744463037982929d85e0a6eaedc1
+    sha256: sha256:4587eb58ef051e0af088ba0643fd56f480a403db35906bd49dc71a5844116879
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -805,7 +777,6 @@ presets:
         image:
           max_pixels: 8294400
           jpeg_quality: 95
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -820,9 +791,8 @@ presets:
         - '{"image": 1}'
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
-        env: {}
   paddleocr-vl-1.6@1:
-    sha256: sha256:5723489c63ebf1dd74d0dc099070342cb8318e9b21cad389eaf64971ad0af6cd
+    sha256: sha256:4c541f0a7326be0f1ca97ea63414bab873a190ab9769d2b57f6801c7ba04762d
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -847,7 +817,6 @@ presets:
           factor: 28
           min_pixels: 101920
           max_pixels: 1003520
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -864,9 +833,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   qianfan-ocr@1:
-    sha256: sha256:5070c9b2fe78d03bb5c31d0314a2522a6999e42d8d0cc71a2a337c820c33dcc2
+    sha256: sha256:13f9a0ff6dc00a37508a2638709d1871e1f1fd1b5d82225ef21131690ea41905
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -893,7 +861,6 @@ presets:
         prompt: Parse this document to Markdown.
         chat_template_kwargs:
           enable_thinking: false
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -906,9 +873,8 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
-        env: {}
   qwen3.5-9b@1:
-    sha256: sha256:4edd66ebeada43d4d4344007bc024c183581aef9937c194b7c56c1081da5503d
+    sha256: sha256:2db8129b666bc4223ce58dc290a4a0caabe3c5981605bcf0ff3b7b1261ef33ca
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -939,7 +905,6 @@ presets:
         image:
           max_pixels: 2097152
           jpeg_quality: 95
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -954,9 +919,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1, "video": 0}'
-        env: {}
   smoldocling-256m-preview@1:
-    sha256: sha256:45d665325c45a881381138daf40746723fabf4bc21299a9dcde0120b9fd6820c
+    sha256: sha256:e3f82a261b9e8a53d32c3566a18e54c3ddb7a233d173b3d83c3e98e3a5624109
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -1005,7 +969,6 @@ presets:
         image:
           longest_side_max: 2048
           jpeg_quality: 95
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -1018,9 +981,8 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}
   unlimited-ocr-2@1:
-    sha256: sha256:0a6b1a9c8c32c77e443c571bb4f6afadb0958ec89f9b33d3807006f627f0a161
+    sha256: sha256:16a39f23b407ddf42db395923029a396a5bd5119a7c10951ad59fb7e0286c08c
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -1042,16 +1004,6 @@ presets:
         options:
           adapter: unlimited-ocr-2
           served_name: Unlimited-OCR-2
-          revision_flag: false
-          pin_ignore:
-          - README.md
-          - .gitattributes
-          - wheel/*
-          - '*.pdf'
-          server_packages:
-          - - --no-deps
-            - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
-          - - fastokens==0.3.2
       settings:
         sampling:
           max_tokens: 8000
@@ -1067,7 +1019,6 @@ presets:
           page_token_id: 128827
           eos_token_id: 1
           max_page_tokens: 20000
-      labels: {}
       serve:
         server: sglang
         version: 0.5.20.dev10+g8d62f5fb9c
@@ -1114,8 +1065,18 @@ presets:
           SGLANG_UOCR_SHM_WRAP_MIN_MB: '1'
           SGLANG_VLM_CACHE_SIZE_MB: '0'
           PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+        revision_flag: false
+        pin_ignore:
+        - README.md
+        - .gitattributes
+        - wheel/*
+        - '*.pdf'
+        server_packages:
+        - - --no-deps
+          - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
+        - - fastokens==0.3.2
   unlimited-ocr@1:
-    sha256: sha256:057f82eb09176f84d5d02f022ef62a6dc470d2ce33f72389c5dfb5591bd3dc18
+    sha256: sha256:2c5254002abbaf1d1650b68ff645f0561f80f87bf7f12380299eb13d4d81eaa7
     released: '2026-11-03'
     linecaster: null
     resolved:
@@ -1143,7 +1104,6 @@ presets:
           ngram_size: 35
           window_size: 128
         logits_processor: vllm.model_executor.models.unlimited_ocr:NGramPerReqLogitsProcessor
-      labels: {}
       serve:
         server: vllm
         version: 0.26.0
@@ -1157,4 +1117,3 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-        env: {}

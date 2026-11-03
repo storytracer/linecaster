@@ -295,8 +295,9 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     options = dict(engine.get("options") or {})
     m = c.model(content["model"]["id"])
     draft = None
-    if options.get("draft"):
-        d = dict(options["draft"])
+    serve = dict(content.get("serve") or {})
+    if serve.get("draft"):
+        d = dict(serve["draft"])
         dm = c.model(d["model"])
         dm.pin(d["revision"])                   # the draft's revision must be pinned in its model document
         draft = {"repo": dm.source.ref, "revision": d["revision"], "speculative": d.get("speculative") or {}}

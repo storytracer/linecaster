@@ -116,3 +116,11 @@ def test_repository_catalogues_are_consistent():
     c = Catalog(dirs)
     assert c.verify() == []
     assert len(c.presets) >= 18 and all(c.resolve(f"{pid}@{p.edition}").released for pid, (_, p) in c.presets.items())
+
+
+def test_unknown_engine_kinds_are_reported(tmp_path):
+    make(tmp_path)
+    meta, body = yamlio.read_front_matter(tmp_path / "presets" / "p.md")
+    meta["engine"]["kind"] = "chat/9"
+    yamlio.write_front_matter(tmp_path / "presets" / "p.md", meta, body)
+    assert any("'chat/9' is not registered" in p for p in Catalog([tmp_path]).verify())

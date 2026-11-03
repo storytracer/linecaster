@@ -36,7 +36,7 @@ def test_every_preset_builds_its_adapter(pid):
     assert spec.server == p.serve.server and spec.serve_args == p.serve.flags and spec.job_image
     assert spec.sampling and isinstance(spec.settings(), dict)
     assert pickle.loads(pickle.dumps(spec)).settings() == spec.settings()        # datatrove pickles the pipeline
-    assert p.provenance.derived_from and c.presets[pid][0].preset_bodies[pid].strip()        # provenance and reasons
+    assert p.provenance.derived_from and c.body(pid).strip()        # provenance and reasons
 
 
 def test_every_adapter_is_used():

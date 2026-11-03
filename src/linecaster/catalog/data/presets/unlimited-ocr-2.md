@@ -11,16 +11,6 @@ engine:
   options:
     adapter: unlimited-ocr-2
     served_name: Unlimited-OCR-2
-    revision_flag: false
-    pin_ignore:
-    - README.md
-    - .gitattributes
-    - wheel/*
-    - '*.pdf'
-    server_packages:
-    - - --no-deps
-      - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
-    - - fastokens==0.3.2
 settings:
   sampling:
     max_tokens: 8000
@@ -82,6 +72,16 @@ serve:
     SGLANG_UOCR_SHM_WRAP_MIN_MB: '1'
     SGLANG_VLM_CACHE_SIZE_MB: '0'
     PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  revision_flag: false
+  pin_ignore:
+  - README.md
+  - .gitattributes
+  - wheel/*
+  - '*.pdf'
+  server_packages:
+  - - --no-deps
+    - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
+  - - fastokens==0.3.2
 capabilities:
   unit: page
   produces:

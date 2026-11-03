@@ -133,15 +133,18 @@ class Catalog:
         except KeyError:
             raise KeyError(f"unknown preset {pid!r}; known: {sorted(self.presets)}") from None
 
+    def body(self, pid: str) -> str:
+        """The Markdown body of preset ``pid`` (the reasons, limitations, changes)."""
+        return self.presets[pid][0].preset_bodies[pid]
+
     def functional(self, p: PresetDoc) -> dict:
         """The preset's functional content, with the model pin resolved to revision and files."""
-        data = p.model_dump(mode="json", by_alias=True, include=set(FUNCTIONAL))
+        # only what the document states: a new optional schema field must not change released hashes
+        data = p.model_dump(mode="json", by_alias=True, include=set(FUNCTIONAL), exclude_unset=True)
         if p.model is not None:
             data["model"] = self._pin(p.model)
         if p.submodels:
             data["submodels"] = {role: self._pin(ref) for role, ref in sorted(p.submodels.items())}
-        else:
-            data.pop("submodels", None)      # absent, so presets without submodels hash as before
         return data
 
     def _pin(self, ref) -> dict:
@@ -204,6 +207,11 @@ class Catalog:
                     continue
                 if p.superseded_by and split_ref(p.superseded_by)[0] not in self.presets:
                     problems.append(f"preset {pid}: superseded_by {p.superseded_by!r} is unknown")
+                family = p.engine.kind.split(".")[0].split("/")[0]
+                known = engine_kinds()
+                if p.engine.kind not in known and any(k.split(".")[0].split("/")[0] == family for k in known):
+                    problems.append(f"preset {pid}: engine {p.engine.kind!r} is not registered "
+                                    f"({sorted(k for k in known if k.startswith(family))} are)")
                 entry = d.lock.presets.get(p.ref)
                 if entry is not None and entry.sha256 != canonical_sha256(self.functional(p)):
                     problems.append(f"preset {p.ref} is released, but its functional content changed: "
@@ -250,9 +258,14 @@ def catalog() -> Catalog:
 
 # ----------------------------------------------------------------------------------------------- engines
 
+#: kinds linecaster itself provides; chat presets run behind an OpenAI-compatible server only
+BUILTIN_KINDS = {"chat/1": "linecaster.models:ChatModel"}
+SERVED_ONLY = {"chat/1"}
+
+
 def engine_kinds() -> dict[str, str]:
-    """Installed engine kinds -> ``module:Class`` (entry-point group ``linecaster.engines``)."""
-    return {ep.name: ep.value for ep in entry_points(group="linecaster.engines")}
+    """Engine kinds -> ``module:Class``: linecaster's own and the installed ones (``linecaster.engines``)."""
+    return {**BUILTIN_KINDS, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
 
 
 def engine_class(kind: str):
@@ -269,6 +282,8 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
     model pin) for presets with a model. Engines with weights take ``weights`` and fetch exactly that pin."""
     r = catalog().resolve(ref)
     kinds = engine_kinds()
+    if r.engine_kind in SERVED_ONLY:
+        raise ValueError(f"preset {r.ref} ({r.engine_kind}) runs behind a server: use linecaster.models.chat_model")
     if r.engine_kind not in kinds:
         raise KeyError(f"preset {r.ref} needs engine {r.engine_kind!r}, which is not installed")
     kwargs = dict(r.content["engine"].get("options", {}))
