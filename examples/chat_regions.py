@@ -30,6 +30,6 @@ if __name__ == "__main__":
     LocalPipelineExecutor([
         ImageFolderReader(a.images),
         LayoutStep(Served(a.layout, "layout")),
-        ChatRegionStep(spec, Served(a.vlm, model=spec.model, max_window=a.window, initial_window=8)),
+        ChatRegionStep(spec, Served(a.vlm, model=spec.served_name, max_window=a.window, initial_window=8)),
         PageJsonlWriter(a.out, output_filename="${rank}.jsonl", compression=None),
     ], tasks=a.tasks, workers=a.tasks, logging_dir=f"{a.out}/logs").run()

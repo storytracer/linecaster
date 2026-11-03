@@ -809,6 +809,11 @@ dependencies = [
     { name = "wcwidth" },
 ]
 
+[package.optional-dependencies]
+minicpm-ocr = [
+    { name = "minicpm-ocr" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -819,6 +824,7 @@ requires-dist = [
     { name = "datatrove", extras = ["io"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", specifier = ">=2.95" },
     { name = "lxml", specifier = ">=5" },
+    { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
@@ -826,6 +832,7 @@ requires-dist = [
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
+provides-extras = ["minicpm-ocr"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
@@ -972,6 +979,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "minicpm-ocr"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/37/806bc40bcd0cad01f3432fd203022181166ead0a8a48821ac469c3ea7b66/minicpm_ocr-1.0.1.tar.gz", hash = "sha256:a46499ac23305c09964da87f507d4b8960f6d8199136b00329cfa957388be456", size = 89163, upload-time = "2026-10-27T16:02:36.91Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/48/6e185f8f106090dad9b9bd04139fe723b0c630e686e6e3ffcee9965e0725/minicpm_ocr-1.0.1-py3-none-any.whl", hash = "sha256:534dd14f4383842dd4a1b45e945690c4bf233cf7101271a89e5b2834960bc1c8", size = 105601, upload-time = "2026-10-27T16:02:35.227Z" },
 ]
 
 [[package]]

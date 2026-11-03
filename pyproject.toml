@@ -23,6 +23,10 @@ dependencies = [
     "saturate==0.3.0",
 ]
 
+[project.optional-dependencies]
+# MiniCPM-OCR 1.0: the SDK's own post-processing and Markdown assembly (pure Python; no Paddle without its [layout] extra)
+minicpm-ocr = ["minicpm-ocr==1.0.1"]
+
 [project.scripts]
 linecaster = "linecaster.cli:main"
 

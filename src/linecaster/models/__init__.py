@@ -40,10 +40,27 @@ class ChatModel:
         """The ``/chat/completions`` body for one page image (the image file's bytes)."""
         raise NotImplementedError
 
-    def request_region(self, crop: bytes) -> dict:
+    region_pad: ClassVar[int | None] = None       # crop padding (px at page scale); None = the block's default
+
+    def request_region(self, crop: bytes, region=None) -> dict:
         """The body for a crop of one region (``ChatRegionStep``), already scaled by the block to the page
-        scale the model expects (``page_longest``): sent as it is. Default: ``request(crop)``."""
+        scale the model expects (``page_longest``): sent as it is. ``region`` is the ``Region`` it was cut
+        from (a spec may choose its prompt by the region's type). Default: ``request(crop)``."""
         return self.request(crop)
+
+    def reads_region(self, region, labels) -> bool:
+        """Whether ``ChatRegionStep`` sends this region to the model. Default: its label is in ``labels``."""
+        return region.label in labels
+
+    def crop_region(self, image, region, scale: float = 1.0, pad: int = 0):
+        """The crop of ``region`` from the page ``image`` (already scaled by ``scale``): the region's box at
+        that scale with ``pad`` px around it. A spec overrides it to follow its model's own crop rule."""
+        from ..geometry import bbox_of
+
+        b = bbox_of(region.polygon)
+        box = (max(0, int((b.x0 - pad) * scale)), max(0, int((b.y0 - pad) * scale)),
+               min(image.width, int((b.x1 + pad) * scale + 0.999)), min(image.height, int((b.y1 + pad) * scale + 0.999)))
+        return image.crop(box)
 
     def settings(self) -> dict[str, Any]:
         """Everything that decides the output, recorded in ``ModelInfo.settings``."""
@@ -105,8 +122,9 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
 
 def _registry() -> dict[str, type[ChatModel]]:
     from .lighton_ocr2 import LightOnOCR2
+    from .minicpm_ocr import MiniCPMOCR
 
-    return {cls.model: cls for cls in (LightOnOCR2,)}
+    return {cls.model: cls for cls in (LightOnOCR2, MiniCPMOCR)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:

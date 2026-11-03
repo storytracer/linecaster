@@ -45,11 +45,11 @@ class ChatPageStep(ModelStep):
     route = "/chat/completions"
 
     def __init__(self, spec: ChatModel, backend: Served, transcription: str = "ocr", primary: str | None = None,
-                 skip_on_error: bool = True, prepare_workers: int = 4):
+                 skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
         if not getattr(backend, "served", False):
             raise TypeError("ChatPageStep needs a Served backend (an OpenAI-compatible chat endpoint)")
         super().__init__(backend, transcription, None, primary, skip_on_error,
-                         name=f"page ({spec.model}, served {backend.endpoint})")
+                         name=name or f"page ({spec.model}, served {backend.endpoint})")
         spec.served_name = backend.model
         self.spec, self.prepare_workers = spec, prepare_workers
 
@@ -85,9 +85,10 @@ class ChatRegionStep(ChatPageStep):
 
     def __init__(self, spec: ChatModel, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
-        super().__init__(spec, backend, transcription, primary, skip_on_error, prepare_workers)
-        self.name = f"regions ({spec.model}, served {backend.endpoint})"
-        self.labels, self.pad = frozenset(labels), pad
+        super().__init__(spec, backend, transcription, primary, skip_on_error, prepare_workers,
+                         name=f"regions ({spec.model}, served {backend.endpoint})")
+        self.labels = frozenset(labels)
+        self.pad = spec.region_pad if spec.region_pad is not None else pad
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         if self.skip_on_error:
@@ -100,11 +101,10 @@ class ChatRegionStep(ChatPageStep):
         import io
 
         state, region = row["state"], row["region"]
-        x0, y0, x1, y1 = row["box"]
-        crop = state["image"].crop((x0, y0, x1, y1))
+        crop = self.spec.crop_region(state["image"], region, state["scale"], self.pad)
         buf = io.BytesIO()
         crop.save(buf, format="PNG")
-        return self.spec.request_region(buf.getvalue())
+        return self.spec.request_region(buf.getvalue(), region)
 
     def _parse(self, body: dict) -> dict:
         raw, finish = self.spec.content(body)
@@ -115,12 +115,10 @@ class ChatRegionStep(ChatPageStep):
 
         from PIL import Image
 
-        from ..geometry import bbox_of
-
         for doc in data:
             page = page_of(doc)
             t = page.transcription(self.transcription)
-            regions = sorted((r for r in t.regions if r.label in self.labels),
+            regions = sorted((r for r in t.regions if self.spec.reads_region(r, self.labels)),
                              key=lambda r: (r.reading_order is None, r.reading_order or 0))
             if not regions:
                 results.put(("pass", doc))
@@ -132,10 +130,7 @@ class ChatRegionStep(ChatPageStep):
                 img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), Image.LANCZOS)
             state = {"doc": doc, "page": page, "image": img, "remaining": len(regions), "out": {}, "scale": scale}
             for r in regions:
-                b = bbox_of(r.polygon)
-                box = (max(0, int((b.x0 - self.pad) * scale)), max(0, int((b.y0 - self.pad) * scale)),
-                       min(img.width, int((b.x1 + self.pad) * scale + 0.999)), min(img.height, int((b.y1 + self.pad) * scale + 0.999)))
-                yield f"{doc.id}|{r.id}", {"state": state, "region": r, "box": box}
+                yield f"{doc.id}|{r.id}", {"state": state, "region": r}
 
     def _finish(self, state) -> object:
         from ..transcription.model import Line

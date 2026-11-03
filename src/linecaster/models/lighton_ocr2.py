@@ -40,7 +40,7 @@ class LightOnOCR2(ChatModel):
         b64, _ = png_longest(image, self.target_longest)
         return self._body(b64)
 
-    def request_region(self, crop: bytes) -> dict:
+    def request_region(self, crop: bytes, region=None) -> dict:
         """A region crop, already at the page's 1540-px scale: PNG as it is, no further resize."""
         import base64
 
