@@ -155,8 +155,8 @@ On Ray and HF Jobs every task gets one GPU and starts its own model server on it
 <details>
 <summary><b>🖥️ A model server that stays up</b></summary>
 
-`serve` starts `linecaster serve` with the recipe's models, in the recipe's environment, and keeps them
-loaded; `--endpoint` points runs at it:
+`serve` starts `linecaster serve` with the recipe's models and keeps them loaded; `--endpoint` points
+runs at it:
 
 ```bash
 uv run recipes/chain.py serve
@@ -172,8 +172,8 @@ servers listen on loopback only.
 <details>
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
-`ray` runs Ray's own command line from the recipe's environment, so every machine has the same Ray
-and Linecaster:
+`ray` runs Ray's own command line with the recipe's packages, so every machine has the same Ray and
+Linecaster:
 
 ```bash
 R=recipes/chain.py
@@ -467,7 +467,7 @@ Spelling is never modernised.
 <summary><b>🎯 Why results are the same everywhere</b></summary>
 
 - Models batch only the lines of one page, in a fixed order. Pages are never mixed.
-- Model revisions are pinned. Numerically relevant library versions are fixed per engine environment.
+- Model revisions are pinned. Numerically relevant library versions are pinned in each recipe.
 - So a page's output depends on the page and the models, not on the machine, the number of GPUs or what
   else is running.
 - Different GPU types can still differ in the last digits of their arithmetic, which causes rare
@@ -493,7 +493,7 @@ Spelling is never modernised.
 - **Deployment is not part of the pipeline.** Executors and backends change; steps do not.
 - **The text as written is kept.** Readable versions are derived from it and stored next to it.
 - **The core stays light.** No machine-learning libraries in the core; engines are separate packages
-  with their own environments.
+  that a recipe installs when it needs them.
 - **Connectors stay generic.** Folders, buckets and Hugging Face datasets. Collection-specific adapters
   belong in the projects that use Linecaster.
 - **Open formats out.** ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, DoclingDocument.
