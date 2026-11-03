@@ -1,4 +1,4 @@
-"""Layout analysis with PaddleX's PP-DocLayout models (``paddle`` extra).
+"""Layout analysis with PaddleX's PP-DocLayout models.
 
 ``PP-DocLayoutV3`` (default) predicts region polygons and the reading order itself; PaddleX hands
 its boxes back already sorted by that order. ``PP-DocLayout_plus-L`` (PP-StructureV3's layout
@@ -6,11 +6,31 @@ model) only gives boxes, so its regions are ordered with our XY-cut.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
-from ..paddle_compat import create_predictor, paddle_image
-from ..types import BBox, Page, Region
-from .order import suppress_contained, xy_cut_order
+from linecaster.geometry import BBox, xywh
+from linecaster.geometry.order import suppress_contained, xy_cut_order
+from linecaster.transcription import ModelInfo, Region as LCRegion, Transcription
+
+from .compat import create_predictor, paddle_image
+
+
+@dataclass
+class Region:
+    """A layout region while the model's output is post-processed (polygon as an array)."""
+
+    label: str
+    polygon: np.ndarray
+    score: float = 1.0
+    order: int | None = None
+    id: str = ""
+    raw_label: str = ""
+
+    @property
+    def bbox(self) -> BBox:
+        return BBox.of(self.polygon)
 
 #: PP-DocLayout labels -> Docling labels. ``number`` is a page number and is placed by position.
 LABEL_MAP = {
@@ -98,10 +118,10 @@ class PaddleLayout:
         self.nms, self.max_containment = nms, max_containment
         self.predictor = create_predictor(model_name, device)
 
-    def analyze(self, page: Page) -> list[Region]:
-        res = next(iter(self.predictor.predict(paddle_image(page.image), threshold=self.threshold,
+    def analyze(self, image: np.ndarray) -> list[Region]:
+        res = next(iter(self.predictor.predict(paddle_image(image), threshold=self.threshold,
                                                layout_nms=self.nms, layout_merge_bboxes_mode=self.merge_mode)))
-        regions, learned = regions_from_boxes(res["boxes"], page.height, self.header_zone)
+        regions, learned = regions_from_boxes(res["boxes"], image.shape[0], self.header_zone)
         regions = suppress_contained(regions, self.max_containment)
         if learned:
             regions.sort(key=lambda r: r.order)
@@ -111,3 +131,27 @@ class PaddleLayout:
             for rank, i in enumerate(xy_cut_order([r.bbox for r in regions])):
                 regions[i].order = rank
         return regions
+
+
+class PaddleLayoutModel:
+    """linecaster engine model for the layout step: fills ``Transcription.regions`` (Docling labels,
+    the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present."""
+
+    step = "layout"
+
+    def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto", **kwargs):
+        self.name, self.device, self.kwargs = model_name, device, kwargs
+        self.layout: PaddleLayout | None = None
+
+    def load(self) -> None:
+        self.layout = PaddleLayout(self.name, self.device, **self.kwargs)
+
+    def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
+        regions = self.layout.analyze(image)
+        transcription.regions = [
+            LCRegion(id=r.id, label=r.label, raw_label=r.raw_label, polygon=np.asarray(r.polygon, dtype=float).tolist(),
+                     bbox=xywh(r.bbox), score=r.score, reading_order=r.order) for r in regions]
+        transcription.model.append(ModelInfo(step=self.step, name=self.name, backend="paddlex/onnxruntime",
+                                             settings={"threshold": str(self.layout.threshold) if isinstance(self.layout.threshold, float) else "model default",
+                                                       "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
+        return transcription

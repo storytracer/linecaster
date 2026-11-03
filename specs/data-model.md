@@ -22,3 +22,18 @@ Decisions taken while building the first version, with the reason for each. Open
    settings, measurements), so a composed chain records every model it used.
 6. **A page is one datatrove `Document`**: `id` = page_id, `text` = the primary transcription's text,
    image bytes in `media[0]`, the page row under `metadata["page"]`.
+7. **Processing order vs reading order.** The list order of `Transcription.lines` after the line
+   steps is the order a recogniser processes (and batches) lines: regions in the layout step's order,
+   orphan rows last, rows within each region — exactly squiddleocr's order, so batches are composed
+   the same way. `reading_order` is the separate reading rank (regions by reading order, then rows).
+
+## Environment lesson (2026-11-03)
+
+`[tool.uv.sources]` applies only to a project's own dependencies. The engine environment listed the
+kraken fork as a source, but kraken came in transitively (through `linecaster-kraken`), so uv
+resolved upstream kraken 7.1.1, whose `--precision` is inert: the chain silently ran fp32 and 69 of
+1,560 lines differed from squiddleocr's bf16 goldens. Fix: kraken is a direct dependency of
+`envs/kraken-paddlex`, and the numerically relevant versions are pinned with
+`constraint-dependencies` to the ones the goldens were recorded with. After the fix the
+block-composed chain (in-process) reproduces squiddleocr's goldens exactly on the 60-page sample:
+1,560/1,560 lines identical in line box, text and word boxes.

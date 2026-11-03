@@ -1,0 +1,21 @@
+[project]
+name = "linecaster-kraken"
+version = "0.0.1"
+description = "kraken engines for linecaster: kraken's PP-OCRv6 line recogniser on torch"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "linecaster",
+    # kraken with the PP-OCRv6 code; the environment that installs this package pins the source (see envs/)
+    "kraken>=7.1.0",
+    # the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64); 2.14 is kraken's upper bound
+    "torch==2.14.0",
+    "torchvision==0.29.0",
+    "huggingface-hub>=1.0",
+    "regex",
+    "Pillow>=11",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

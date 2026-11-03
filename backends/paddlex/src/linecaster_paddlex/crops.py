@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .types import BBox
+from linecaster.geometry import BBox
 
 
 def crop_bbox(image: np.ndarray, bbox: BBox, pad: int = 0) -> np.ndarray:

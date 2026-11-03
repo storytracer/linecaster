@@ -1,10 +1,9 @@
-"""Bridge from SquiddleOCR's lines to kraken's containers (``kraken`` extra).
+"""Bridge from linecaster's lines to kraken's containers.
 
-kraken's recogniser and serialiser both take a ``Segmentation`` of line records. This builds one
-from ``TextLine``s: a ``BaselineLine`` (boundary polygon + baseline) when the detector gave a
-baseline, else a ``BBoxLine`` with the axis-aligned bounds of the box. Line ids are
-``<region id>_l<n>`` and each record names its region, which is how kraken's serialiser groups
-lines into regions.
+kraken's recogniser takes a ``Segmentation`` of line records. This builds one from linecaster
+``Line``s: a ``BaselineLine`` (boundary polygon + baseline) when the line step gave a baseline, else a
+``BBoxLine`` with the axis-aligned bounds of the polygon. Record ids are the lines' ids
+(``<region id>_l<n>``) and each record names its region.
 """
 from __future__ import annotations
 
@@ -12,43 +11,40 @@ from typing import Sequence
 
 import numpy as np
 
-from .types import BBox, Page, TextLine
+from linecaster.geometry import BBox, bbox_of
+from linecaster.transcription import Line
 
 
-def clip_points(poly: np.ndarray, page: Page) -> list[tuple[int, int]]:
+def clip_points(poly, width: int, height: int) -> list[tuple[int, int]]:
     pts = np.rint(np.asarray(poly, dtype=float)).astype(int)
-    pts[:, 0] = np.clip(pts[:, 0], 0, page.width - 1)
-    pts[:, 1] = np.clip(pts[:, 1], 0, page.height - 1)
+    pts[:, 0] = np.clip(pts[:, 0], 0, width - 1)
+    pts[:, 1] = np.clip(pts[:, 1], 0, height - 1)
     return [(int(x), int(y)) for x, y in pts]
 
 
-def clip_box(b: BBox, page: Page) -> tuple[int, int, int, int]:
-    (x0, y0), (x1, y1) = clip_points(np.array([[b.x0, b.y0], [b.x1, b.y1]]), page)
+def clip_box(b: BBox, width: int, height: int) -> tuple[int, int, int, int]:
+    (x0, y0), (x1, y1) = clip_points(np.array([[b.x0, b.y0], [b.x1, b.y1]]), width, height)
     return x0, y0, x1, y1
 
 
-def line_record(ln: TextLine, line_id: str, region_id: str | None, page: Page, text_direction: str = "horizontal-lr"):
-    """A kraken ``BaselineLine`` or ``BBoxLine`` for one ``TextLine``."""
+def line_record(ln: Line, width: int, height: int, text_direction: str = "horizontal-lr"):
+    """A kraken ``BaselineLine`` or ``BBoxLine`` for one ``Line``."""
     from kraken.containers import BaselineLine, BBoxLine
 
-    regions = [region_id] if region_id else None
+    regions = [ln.region_id] if ln.region_id else None
     if ln.baseline is not None:
-        return BaselineLine(id=line_id, baseline=clip_points(ln.baseline, page), boundary=clip_points(ln.polygon, page),
-                            regions=regions)
-    return BBoxLine(id=line_id, bbox=clip_box(ln.bbox, page), regions=regions, text_direction=text_direction)
+        return BaselineLine(id=ln.id, baseline=clip_points(ln.baseline, width, height),
+                            boundary=clip_points(ln.polygon, width, height), regions=regions)
+    box = bbox_of(ln.polygon) if ln.polygon else BBox(ln.bbox[0], ln.bbox[1], ln.bbox[0] + ln.bbox[2], ln.bbox[1] + ln.bbox[3])
+    return BBoxLine(id=ln.id, bbox=clip_box(box, width, height), regions=regions, text_direction=text_direction)
 
 
-def lines_to_segmentation(page: Page, lines: Sequence[TextLine], text_direction: str = "horizontal-lr"):
-    """A kraken ``Segmentation`` of ``lines`` in the given order (ids ``<region>_l<n>``, per region)."""
+def lines_to_segmentation(width: int, height: int, lines: Sequence[Line], text_direction: str = "horizontal-lr",
+                          imagename: str = ""):
+    """A kraken ``Segmentation`` of ``lines`` in the given order."""
     from kraken.containers import Segmentation
 
-    counters: dict[str, int] = {}
-    records = []
-    for ln in lines:
-        rid = ln.region_id or "line"
-        n = counters.get(rid, 0)
-        counters[rid] = n + 1
-        records.append(line_record(ln, f"{rid}_l{n}", ln.region_id or None, page, text_direction))
+    records = [line_record(ln, width, height, text_direction) for ln in lines]
     seg_type = "baselines" if any(r.type == "baselines" for r in records) else "bbox"
-    return Segmentation(type=seg_type, imagename=page.path.name if page.path else "", text_direction=text_direction,
+    return Segmentation(type=seg_type, imagename=imagename, text_direction=text_direction,
                         script_detection=False, lines=records)

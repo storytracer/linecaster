@@ -14,7 +14,7 @@ dependencies = [
     "lxml>=5",
     "numpy>=2",
     "Pillow>=11",
-    "datatrove>=0.10.1,<0.11",
+    "datatrove[io]>=0.10.1,<0.11",
     "saturate==0.3.0",
 ]
 

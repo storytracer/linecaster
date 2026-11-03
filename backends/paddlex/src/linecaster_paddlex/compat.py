@@ -1,4 +1,4 @@
-"""One place to create PaddleX predictors quietly (``paddle`` extra).
+"""One place to create PaddleX predictors quietly .
 
 Two engines: ``onnxruntime`` for the exported vision models (layout, text detection, tables) and
 ``transformers`` for the models PaddleX ships as safetensors for Hugging Face ``transformers`` on
@@ -7,7 +7,7 @@ torch (PP-FormulaNet). Paddle Inference itself is never used.
 PaddleX prints INFO lines about cached models and checks its model hosters on every start; ONNX
 Runtime reports unused initialisers in the official ONNX exports. None of that is actionable for a
 user, so predictors are created with PaddleX's logger at WARNING, the hoster check disabled and
-ONNX Runtime's log level at ERROR (``SQUIDDLE_VERBOSE=1`` restores PaddleX's INFO output).
+ONNX Runtime's log level at ERROR (``LINECASTER_VERBOSE=1`` restores PaddleX's INFO output).
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _configure() -> None:
     if _configured:
         return
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-    if not os.environ.get("SQUIDDLE_VERBOSE"):
+    if not os.environ.get("LINECASTER_VERBOSE"):
         import onnxruntime as ort
         from paddlex.utils import logging as pdx_logging
 

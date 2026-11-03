@@ -1,0 +1,30 @@
+[project]
+name = "linecaster-env-kraken-paddlex"
+version = "0.0.1"
+description = "Environment for linecaster's kraken and PaddleX engines together (the squiddle combination): `linecaster serve` and in-process runs"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "linecaster",
+    "linecaster-kraken",
+    "linecaster-paddlex",
+    # direct, so [tool.uv.sources] applies (sources only apply to a project's own dependencies; through
+    # linecaster-kraken alone uv resolved upstream kraken 7.1.1, whose --precision is inert)
+    "kraken",
+]
+
+[tool.uv]
+package = false
+required-version = ">=0.13.6"
+# the versions squiddleocr's goldens were recorded with (numerics: recognition, ONNX Runtime, decoding)
+constraint-dependencies = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.sources]
+linecaster = { path = "../..", editable = true }
+linecaster-kraken = { path = "../../backends/kraken", editable = true }
+linecaster-paddlex = { path = "../../backends/paddlex", editable = true }
+# kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix
+kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }

@@ -1,0 +1,25 @@
+[project]
+name = "linecaster-paddlex"
+version = "0.0.1"
+description = "PaddleX engines for linecaster: PP-DocLayout layout analysis and PP-OCRv6 text-line detection on ONNX Runtime"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "linecaster",
+    # ONNX Runtime for the PaddleX models with the CUDA 13 runtime libraries it loads from the nvidia-* packages
+    "onnxruntime-gpu>=1.23",
+    "nvidia-cuda-runtime>=13,<14",
+    "nvidia-cuda-nvrtc>=13,<14",
+    "nvidia-cublas>=13,<14",
+    "nvidia-cufft>=12",
+    "nvidia-curand>=10.4",
+    "nvidia-cudnn-cu13>=9",
+    "paddlepaddle>=3.2.2,<3.3",
+    "paddlex[ocr-core,ocr]>=3.7",
+    "opencv-python-headless>=4.8",
+    "numpy",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
