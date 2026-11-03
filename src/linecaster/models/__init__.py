@@ -30,6 +30,7 @@ class ChatModel:
     serve_args: ClassVar[list[str]] = []          # flags after ``vllm serve <model>`` (not port/host)
     vllm_version: ClassVar[str | None] = None     # the vLLM release the spec was validated with
     step: ClassVar[str] = "page"
+    page_longest: ClassVar[int | None] = None     # the page size the model expects (longest side, px), if any
 
     def __init__(self, served_name: str | None = None):
         self.served_name = served_name or self.model
@@ -38,6 +39,11 @@ class ChatModel:
     def request(self, image: bytes) -> dict:  # pragma: no cover - interface
         """The ``/chat/completions`` body for one page image (the image file's bytes)."""
         raise NotImplementedError
+
+    def request_region(self, crop: bytes) -> dict:
+        """The body for a crop of one region (``ChatRegionStep``), already scaled by the block to the page
+        scale the model expects (``page_longest``): sent as it is. Default: ``request(crop)``."""
+        return self.request(crop)
 
     def settings(self) -> dict[str, Any]:
         """Everything that decides the output, recorded in ``ModelInfo.settings``."""

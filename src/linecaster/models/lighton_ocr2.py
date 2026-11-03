@@ -26,6 +26,7 @@ class LightOnOCR2(ChatModel):
     model: ClassVar[str] = "lightonai/LightOnOCR-2-1B"
     revision: ClassVar[str | None] = "c97bd377f04481830395218fa8951df9deaba756"
     target_longest: ClassVar[int] = 1540
+    page_longest: ClassVar[int | None] = 1540
     sampling: ClassVar[dict[str, Any]] = {"max_tokens": 4096, "temperature": 0.2, "top_p": 0.9}
     serve_args: ClassVar[list[str]] = [
         "--max-model-len", "16384",
@@ -37,6 +38,15 @@ class LightOnOCR2(ChatModel):
 
     def request(self, image: bytes) -> dict:
         b64, _ = png_longest(image, self.target_longest)
+        return self._body(b64)
+
+    def request_region(self, crop: bytes) -> dict:
+        """A region crop, already at the page's 1540-px scale: PNG as it is, no further resize."""
+        import base64
+
+        return self._body(base64.b64encode(crop).decode())
+
+    def _body(self, b64: str) -> dict:
         return {
             "model": self.served_name,
             "messages": [{"role": "user", "content": [
