@@ -1,6 +1,15 @@
 # linecaster
 
+<p align="center">
+  <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="420">
+</p>
+<p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science Museum Group
+Collection, CC BY-NC-SA 4.0. <a href="#image-credit">Credit</a></sub></p>
+
 **Composable text recognition for printed and handwritten documents.**
+
+A linecaster was the machine that set metal type one line at a time. This project works in the other
+direction: it reads printed lines back into text.
 
 linecaster turns page images into text. You build the recognition chain from small, interchangeable
 blocks: a layout model, a line detector, a text recogniser, table and formula models, then
@@ -233,4 +242,19 @@ specs/                 design of the data model and the serialisers
 
 ## Licence
 
-Apache-2.0, see [LICENSE](LICENSE).
+The code is licensed under Apache-2.0, see [LICENSE](LICENSE). The drawing in `docs/linecaster.png`
+has its own licence, below.
+
+### Image credit
+
+The drawing of the linecaster is by Sebastian Majstorovic, made with Adobe Illustrator and Google
+Gemini. It is based on a photograph of the
+[Intertype C4 Linecaster](https://collection.sciencemuseumgroup.org.uk/objects/co8407592/intertype-c4-linecaster)
+(Intertype Ltd, Slough, 1961; object Y1990.104.12, gift of M.H. Whittaker & Son) in the Science
+Museum Group Collection. Photograph © The Board of Trustees of the Science Museum, released under
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). The photograph was redrawn as a
+black-and-white line drawing.
+
+The drawing is an adaptation of that photograph and is licensed under the same terms,
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It may not be used for
+commercial purposes. The Apache-2.0 licence of the code does not apply to it.
