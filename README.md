@@ -8,9 +8,6 @@
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science Museum Group
 Collection, CC BY-NC-SA 4.0. <a href="#image-credit">Credit</a></sub></p>
 
-A linecaster was the machine that set metal type one line at a time. This project works in the other
-direction: it reads printed lines back into text.
-
 linecaster turns page images into text. You build the recognition chain from small, interchangeable
 blocks: a layout model, a line detector, a text recogniser, table and formula models, then
 post-processing such as Unicode normalisation, dehyphenation and reflow. The chain is a
