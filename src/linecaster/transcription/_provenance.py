@@ -17,7 +17,7 @@ from .model import ModelInfo
 
 SOFTWARE = "linecaster"
 #: the ``ModelInfo`` fields a page file carries, in this order
-RECORD_KEYS = ("step", "name", "revision", "preset", "preset_sha256", "backend", "settings")
+RECORD_KEYS = ("step", "name", "revision", "preset", "preset_sha256", "recipe", "recipe_sha256", "backend", "settings")
 #: steps that put content into a transcription (the rest modify what is there: unicode, typography, ...)
 GENERATING_STEPS = ("layout", "lines", "recognition", "tables", "formulas", "page")
 

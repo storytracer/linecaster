@@ -82,6 +82,8 @@ class ModelInfo(_Model):
     revision: str | None = None
     preset: str | None = None                # the catalogue preset edition it ran as: id@edition
     preset_sha256: str | None = None         # the hash of that edition's functional content (catalog.lock)
+    recipe: str | None = None                # the recipe edition the run followed: id@edition
+    recipe_sha256: str | None = None
     backend: str | None = None               # in-process or served (with the server's address)
     settings: dict[str, Any] = Field(default_factory=dict)
     measurements: dict[str, Any] = Field(default_factory=dict)   # seconds, tokens, device, ...

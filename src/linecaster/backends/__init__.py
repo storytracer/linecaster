@@ -43,7 +43,7 @@ class InProcess:
         self.spec, self.kwargs = spec, kwargs
         self.preset: str | None = None           # id@edition when built from a catalogue preset
         self.preset_sha256: str | None = None
-        self.overrides: dict | None = None       # options given over the preset's (recipes' --set)
+        self.overrides: dict | None = None       # options given over the preset's (the pipelines' --set)
         self._model = None
 
     @classmethod

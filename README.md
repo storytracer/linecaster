@@ -45,11 +45,12 @@ git clone https://github.com/storytracer/linecaster
 cd linecaster
 ```
 
-Two recipes cover the two ways to read a page. Both write a row per page to `out/rows`, and `--files`
-adds ALTO, PAGE-XML, hOCR, text and Markdown.
+Two pipelines cover the two ways to read a page. A pipeline is a shape with slots; you fill each slot
+with a preset, or take a **recipe** that fills them for you. Both write a row per page to `out/rows`, and
+`--files` adds ALTO, PAGE-XML, hOCR, text and Markdown.
 
 > [!NOTE]
-> Each recipe is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
+> Each pipeline is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
 > what it needs, with pinned versions, and a `.lock` file sits next to it. `uv run` installs it on the
 > first run; the models download on first use.
 
@@ -58,7 +59,7 @@ adds ALTO, PAGE-XML, hOCR, text and Markdown.
 Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH.
 
 ```bash
-uv run recipes/vlm.py scans/ out/ \
+uv run pipelines/vlm.py scans/ out/ \
   --vlm lightonocr-2-1b
 ```
 
@@ -71,7 +72,7 @@ Layout, line detection and a line recogniser, then post-processing into a docume
 step's preset; `linecaster models` lists them.
 
 ```bash
-uv run recipes/chain.py scans/ out/ \
+uv run pipelines/chain.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognizer kraken-ppocrv6-medium \
@@ -80,6 +81,19 @@ uv run recipes/chain.py scans/ out/ \
 
 Without `--layout` the page is one region; `--tables` and `--formulas` add those steps.
 `--set recognition.batch_size=4` changes one option of a preset.
+
+### 🍳 A recipe
+
+A recipe is a named combination: one pipeline, a preset edition for each slot, and its options, with
+its own edition, provenance and evidence. SquiddleOCR's is `squiddle`:
+
+```bash
+uv run pipelines/chain.py scans/ out/ \
+  --recipe ../squiddleocr/src/squiddleocr/catalog/recipes/squiddle.md
+```
+
+A recipe takes an id when its package is installed, or its file. Flags on top change single slots or
+options; the run record lists them as overrides.
 
 ### ✍️ Your own pipeline
 
@@ -113,13 +127,13 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Save it in `recipes/` with the `# /// script` block of `recipes/chain.py` at the top, which brings the
-engines, and `uv run` it. Built with `linecaster.run.main`, as the recipes are, it gets their command
+Save it in `pipelines/` with the `# /// script` block of `pipelines/chain.py` at the top, which brings the
+engines, and `uv run` it. Built with `linecaster.run.main`, as the pipelines are, it gets their command
 line for every machine.
 
 > [!TIP]
 > The two kinds mix: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
-> each layout region, which is what `recipes/vlm.py --layout …` does.
+> each layout region, which is what `pipelines/vlm.py --layout …` does.
 
 ## 🧩 How it works
 
@@ -136,7 +150,7 @@ Three ideas carry the design:
 
 ## 🌍 Run it anywhere
 
-A recipe runs on every machine with the same steps. Only its flags change:
+A pipeline runs on every machine with the same steps. Only its flags change:
 
 | Where | Flags |
 |---|---|
@@ -157,12 +171,12 @@ runs at it:
 P="--layout pp-doclayoutv3
    --lines pp-ocrv6-medium-det
    --recognizer kraken-ppocrv6-medium"
-uv run recipes/chain.py serve $P
-uv run recipes/chain.py scans/ out/ $P \
+uv run pipelines/chain.py serve $P
+uv run pipelines/chain.py scans/ out/ $P \
   --endpoint http://127.0.0.1:8100/v1
 ```
 
-For a vision-language model, `--vlm-endpoint` points `recipes/vlm.py` at a running vLLM or SGLang. The
+For a vision-language model, `--vlm-endpoint` points `pipelines/vlm.py` at a running vLLM or SGLang. The
 servers listen on loopback only.
 
 </details>
@@ -170,11 +184,11 @@ servers listen on loopback only.
 <details>
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
-`ray` runs Ray's own command line with the recipe's packages, so every machine has the same Ray and
+`ray` runs Ray's own command line with the pipeline's packages, so every machine has the same Ray and
 Linecaster (`$P`: the presets, as above):
 
 ```bash
-R=recipes/chain.py
+R=pipelines/chain.py
 uv run $R ray start --head --num-gpus 8
 # on each other machine:
 # uv run $R ray start --address=<head>:6379
@@ -189,16 +203,16 @@ Images and output must be on storage every machine can reach.
 <summary><b>☁️ On Hugging Face Jobs</b></summary>
 
 One Job per task, one GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines,
-sources and pins of the recipe's `# /// script` block:
+sources and pins of the pipeline's `# /// script` block:
 
 ```bash
-uv run recipes/chain.py \
+uv run pipelines/chain.py \
   hf://datasets/<ns>/<images> \
   hf://buckets/<ns>/<bucket>/<run> $P \
   --on hf-jobs --commit <sha> --tasks 64
 ```
 
-`--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `recipes/vlm.py` picks the server image
+`--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/vlm.py` picks the server image
 its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
 
 </details>
@@ -210,7 +224,7 @@ its model was checked with; `--image` names another. `--dry-run` prints the plan
   `Served(endpoint, name)` sends pages to a server through [saturate].
 - **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
   until every page is written: `ServeChatModel(spec)` starts [vLLM] or [SGLang],
-  `ServeModels(MODELS, script=...)` a recipe's `serve`.
+  `ServeModels(MODELS, script=...)` a pipeline's `serve`.
 - **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsPipelineExecutor` or
   `GPUJobsExecutor` with `dependencies(commit, script)`, which turns a script's `# /// script` block
   into what each Job installs.
@@ -227,7 +241,7 @@ MODELS = [
 ]
 ```
 
-`linecaster.run` puts these together for the recipes.
+`linecaster.run` puts these together for the pipelines.
 
 </details>
 
@@ -421,7 +435,7 @@ Spelling is never modernised.
 <summary><b>🎯 Why results are the same everywhere</b></summary>
 
 - Models batch only the lines of one page, in a fixed order. Pages are never mixed.
-- Model revisions are pinned. Numerically relevant library versions are pinned in each recipe.
+- Model revisions are pinned. Numerically relevant library versions are pinned in each pipeline script.
 - So a page's output depends on the page and the models, not on the machine, the number of GPUs or what
   else is running.
 - Different GPU types can still differ in the last digits of their arithmetic, which causes rare
@@ -447,7 +461,7 @@ Spelling is never modernised.
 - **Deployment is not part of the pipeline.** Executors and backends change; steps do not.
 - **The text as written is kept.** Readable versions are derived from it and stored next to it.
 - **The core stays light.** No machine-learning libraries in the core; engines are separate packages
-  that a recipe installs when it needs them.
+  that a pipeline installs when it needs them.
 - **Connectors stay generic.** Folders, buckets and Hugging Face datasets. Collection-specific adapters
   belong in the projects that use Linecaster.
 - **Open formats out.** ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, DoclingDocument.
@@ -458,7 +472,7 @@ Spelling is never modernised.
 <summary><b>📚 The catalogue</b></summary>
 
 - **Documents:** a model (`model.md`, with the upstream card in `upstream/<revision>/`), a preset
-  (`presets/<id>.md`) and evidence records (`evidence/*.yaml`). Model and preset documents are Markdown
+  (`presets/<id>.md`), a recipe (`recipes/<id>.md`) and evidence records (`evidence/*.yaml`). Model and preset documents are Markdown
   with YAML front matter: data on top, the reasons below.
 - **Versions:** `version` and `revision` are upstream's, verbatim and exact. A preset has its own
   integer `edition`, referred to as `id@edition`.
@@ -468,7 +482,10 @@ Spelling is never modernised.
 - **Provenance:** each page file names the presets and revisions that made it (ALTO `Processing`,
   PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every preset, edition, hash
   and override.
-- **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim.
+- **Recipes** (`recipes/<id>.md`): a pipeline, a preset edition per slot, options. A recipe's hash covers
+  its presets' hashes, so one recipe edition pins everything down to the weights.
+- **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
+  pipeline's results belong to a recipe; a preset's to the preset, with the rest of the pipeline as context.
 - [specs/catalog.md](specs/catalog.md) has the full design.
 
 </details>
@@ -495,7 +512,8 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `src/linecaster/` | data model, blocks, server, catalogue, chat adapters, executors |
 | `src/linecaster/catalog/data/` | the catalogue: models with their cards, presets, evidence, `catalog.lock` |
 | `engines/` | engine packages: [kraken], [PaddleX], [Tesseract], each with its own catalogue |
-| `recipes/` | self-contained pipelines that run anywhere and serve their models |
+| `pipelines/` | self-contained pipelines that run anywhere and serve their models |
+| `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
 | `specs/` | design of the data model and the catalogue |
 | `docs/` | the generated catalogue pages, images for this README |
 

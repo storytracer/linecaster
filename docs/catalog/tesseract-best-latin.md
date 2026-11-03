@@ -24,7 +24,7 @@ On the 60-page BHL sample (2026-11-03, `evidence/`) `script/Latin` came close to
 
 | Date | Source | Dataset | Result |
 |---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | cer_diplomatic 0.043, cer_reading 0.0364, recall 0.9131, wall_seconds 132 |
+| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 (chain/1 with pp-doclayoutv3@1, pp-ocrv6-medium-det@1, slanet-plus@1, no formulas, text lines; only the recogniser varied) | cer_diplomatic 0.043, cer_reading 0.0364, recall 0.9131, wall_seconds 132 |
 
 ## Provenance
 

@@ -7,7 +7,7 @@
   identifying field (``lc:option="preset"``, ``preset_sha256``, ``revision``, ...). ``from_mets_agent`` reads
   it back.
 * ``step_entries(models)``: the steps as plain dicts, the shape the run record and the page files share.
-* ``run_record(...)``: the run record a recipe writes before it launches (``linecaster.run.run``): recipe,
+* ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.run.run``): script, recipe,
   command line, options, executor, the pipeline's blocks with their backends and presets, software.
 
 Import-light: lxml and the standard library (datatrove only for the blocks it inspects, lazily).
@@ -288,17 +288,17 @@ def _plain(v: Any) -> Any:
     return str(v)
 
 
-def recipe_entry(script: str | None) -> dict[str, Any] | None:
-    """The recipe: its path in its git checkout (else its file name) and the sha256 of the file."""
+def script_entry(script: str | None) -> dict[str, Any] | None:
+    """The pipeline script: its path in its git checkout (else its file name) and the sha256 of the file."""
     if not script:
         return None
     path = Path(script)
-    out: dict[str, Any] = {"script": path.name}
+    out: dict[str, Any] = {"path": path.name}
     try:
         top = subprocess.run(["git", "-C", str(path.resolve().parent), "rev-parse", "--show-toplevel"],
                              capture_output=True, text=True, timeout=10, check=False)
         if top.returncode == 0 and top.stdout.strip():
-            out["script"] = path.resolve().relative_to(Path(top.stdout.strip()).resolve()).as_posix()
+            out["path"] = path.resolve().relative_to(Path(top.stdout.strip()).resolve()).as_posix()
     except (OSError, ValueError, subprocess.SubprocessError):
         pass
     try:
@@ -310,8 +310,9 @@ def recipe_entry(script: str | None) -> dict[str, Any] | None:
 
 def run_record(options: dict[str, Any], pipeline: list, *, script: str | None = None, argv: list[str] | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
-               created: dt.datetime | None = None) -> dict[str, Any]:
-    """The run record (schema ``linecaster.run/1``): the time, the recipe, the command line (``--env``
+               created: dt.datetime | None = None, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The run record (schema ``linecaster.run/1``): the time, the pipeline script, the recipe (edition, hash,
+    what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline's
     blocks in order (model blocks with backend, engine and preset), ``extra`` (e.g. the Jobs' image and
     dependencies) and the software (linecaster release and commit, Python, key packages, engine packages)."""
@@ -320,7 +321,9 @@ def run_record(options: dict[str, Any], pipeline: list, *, script: str | None = 
         opts["env"] = [kv.split("=", 1)[0] + "=<redacted>" for kv in opts["env"]]
     when = (created or dt.datetime.now(dt.UTC)).astimezone(dt.UTC)
     rec: dict[str, Any] = {"schema": RUN_SCHEMA, "created": when.strftime("%Y-%m-%dT%H:%M:%SZ")}
-    recipe = recipe_entry(script)
+    entry = script_entry(script)
+    if entry:
+        rec["script"] = entry
     if recipe:
         rec["recipe"] = recipe
     if argv is not None:

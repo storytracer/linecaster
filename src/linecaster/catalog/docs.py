@@ -36,7 +36,7 @@ def _evidence(c: Catalog) -> dict[str, list]:
     by = defaultdict(list)
     for d in c.dirs:
         for _, ev in d.evidence:
-            by[ev.preset.rsplit("@", 1)[0]].append(ev)
+            by[ev.subject.rsplit("@", 1)[0]].append(ev)
     for v in by.values():
         v.sort(key=lambda e: (e.date, e.source), reverse=True)
     return by
@@ -87,14 +87,37 @@ def preset_page(c: Catalog, pid: str, evs: list, rel_root: str) -> str:
     if p.superseded_by:
         rows.append(("Superseded by", p.superseded_by))
     lines += ["| | |", "|---|---|", *[f"| {k} | {v} |" for k, v in rows], ""]
-    if evs:
-        lines += ["## Evidence", "", "| Date | Source | Dataset | Result |", "|---|---|---|---|"]
-        for e in evs:
-            res = ", ".join(f"{k} {v:g}" for k, v in e.metrics.items())
-            lines.append(f"| {e.date} | {SOURCE_NAMES[e.source]} | {e.dataset} | {res} |")
-        lines.append("")
+    lines += _evidence_table(evs)
     if p.provenance.derived_from:
         lines += ["## Provenance", "", *[f"- {x}" for x in p.provenance.derived_from], ""]
+    return "\n".join(lines)
+
+
+def _evidence_table(evs) -> list[str]:
+    if not evs:
+        return []
+    out = ["## Evidence", "", "| Date | Source | Dataset | Result |", "|---|---|---|---|"]
+    for e in evs:
+        res = ", ".join(f"{k} {v:g}" for k, v in e.metrics.items())
+        ctx = f" ({e.context})" if e.context else ""
+        out.append(f"| {e.date} | {SOURCE_NAMES[e.source]} | {e.dataset}{ctx} | {res} |")
+    return out + [""]
+
+
+def recipe_page(c: Catalog, rid: str, evs: list) -> str:
+    d, rc = c.recipes[rid]
+    body = d.recipe_bodies[rid].strip()
+    lines = [f"# {rid}", "", f"*Recipe · edition {rc.edition} · pipeline `{rc.pipeline}` · {rc.support}*", ""]
+    if body:
+        lines += [body, ""]
+    lines += ["| Slot | Preset |", "|---|---|"]
+    lines += [f"| {slot} | [`{ref}`]({ref.rsplit('@', 1)[0]}.md) |" for slot, ref in rc.presets.items()]
+    lines.append("")
+    if rc.options:
+        lines += ["| Option | Value |", "|---|---|", *[f"| {k} | `{v}` |" for k, v in rc.options.items()], ""]
+    lines += _evidence_table(evs)
+    if rc.provenance.derived_from:
+        lines += ["## Provenance", "", *[f"- {x}" for x in rc.provenance.derived_from], ""]
     return "\n".join(lines)
 
 
@@ -115,8 +138,16 @@ def index_page(c: Catalog, evs: dict) -> str:
     return "\n".join(lines)
 
 
+def _recipe_rows(c: Catalog, link) -> list[str]:
+    rows = []
+    for rid in sorted(c.recipes):
+        rc = c.recipe(rid)
+        rows.append(f"| [`{rid}`]({link(rid)}) | `{rc.pipeline}` | " + ", ".join(f"`{r}`" for r in rc.presets.values()) + " |")
+    return rows
+
+
 def readme_tables(c: Catalog, docs_rel: str) -> str:
-    """The README's model tables: one section per step, one preset per row."""
+    """The README's model tables: one section per step, one preset per row, then the recipes."""
     lines = []
     for step in STEPS:
         ps = sorted(pid for pid, (_, p) in c.presets.items() if p.step == step and p.support != "legacy")
@@ -131,6 +162,9 @@ def readme_tables(c: Catalog, docs_rel: str) -> str:
                 model = f"[{m.version or m.id}]({_model_url(c, p)})"
             lines.append(f"| [`{pid}`]({docs_rel}/{pid}.md) | {model} |")
         lines.append("")
+    if c.recipes:
+        lines += ["### 🍳 Recipes", "", "| Recipe | Pipeline | Presets |", "|---|---|---|",
+                  *_recipe_rows(c, lambda rid: f"{docs_rel}/{rid}.md"), ""]
     return "\n".join(lines).rstrip("\n")
 
 
@@ -142,6 +176,10 @@ def write(c: Catalog, out: str | Path, readme: str | Path | None = None) -> list
     for pid in sorted(c.presets):
         path = out / f"{pid}.md"
         path.write_text(preset_page(c, pid, evs.get(pid, []), str(out)), encoding="utf-8")
+        written.append(path)
+    for rid in sorted(c.recipes):
+        path = out / f"{rid}.md"
+        path.write_text(recipe_page(c, rid, evs.get(rid, [])), encoding="utf-8")
         written.append(path)
     (out / "README.md").write_text(index_page(c, evs), encoding="utf-8")
     written.append(out / "README.md")

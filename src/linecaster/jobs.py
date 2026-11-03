@@ -1,7 +1,7 @@
 """Hugging Face Jobs helpers for linecaster pipelines (on datatrove's ``JobsPipelineExecutor``).
 
-* ``dependencies(commit, script)``: what a Job installs with ``uv run --with`` to run a recipe, read
-  from the recipe's inline metadata: its dependencies with the script's sources spelled out as URLs at
+* ``dependencies(commit, script)``: what a Job installs with ``uv run --with`` to run a pipeline, read
+  from the pipeline script's inline metadata: its dependencies with the script's sources spelled out as URLs at
   ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
   git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
   and its version pins, for the packages its lock resolves.
@@ -13,7 +13,7 @@
   ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*
   (``CUDA_VISIBLE_DEVICES``) and its own loopback port for the servers its pipeline starts.
 
-``uv run --with`` ignores ``[tool.uv.sources]``, so a recipe's sources are spelled out as URLs.
+``uv run --with`` ignores ``[tool.uv.sources]``, so a pipeline script's sources are spelled out as URLs.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from pathlib import Path
 from datatrove.executor import JobsPipelineExecutor
 
 REPO = "https://github.com/storytracer/linecaster"
-#: the checkout the launcher runs from (recipes, backends, stubs)
+#: the checkout the launcher runs from (pipelines, engines, stubs)
 ROOT = Path(__file__).resolve().parents[2]
 WHEEL_MOUNT = "/wheels"
 _SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
@@ -52,7 +52,7 @@ def _name(requirement: str) -> str:
 
 def dependencies(commit: str, script: str | Path | None = None, engines: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
-    metadata of ``script`` (a recipe): its dependencies with the script's sources spelled out as URLs at
+    metadata of ``script`` (a pipeline): its dependencies with the script's sources spelled out as URLs at
     ``commit`` and its version pins, for the packages its lock resolves. ``script=None`` or
     ``engines=False``: linecaster alone (a VLM pipeline whose image brings vLLM, or a CPU pipeline).
 

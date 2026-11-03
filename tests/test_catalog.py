@@ -124,3 +124,83 @@ def test_unknown_engine_kinds_are_reported(tmp_path):
     meta["engine"]["kind"] = "chat/9"
     yamlio.write_front_matter(tmp_path / "presets" / "p.md", meta, body)
     assert any("'chat/9' is not registered" in p for p in Catalog([tmp_path]).verify())
+
+
+def make_recipe(root, preset="p@1", text="reflow", edition=1):
+    yamlio.write_front_matter(root / "recipes" / "r.md", {
+        "schema": "linecaster.recipe/1", "id": "r", "edition": edition, "pipeline": "chain/1",
+        "presets": {"recognition": preset}, "options": {"text": text}, "support": "core"}, "Why this combination.")
+
+
+def test_recipes_pin_released_preset_editions(tmp_path):
+    make(tmp_path)
+    make_recipe(tmp_path)
+    c = Catalog([tmp_path])
+    with pytest.raises(ValueError, match="release its presets first"):
+        c.release("r")
+    c.release("p")
+    c = Catalog([tmp_path])
+    entry = c.release("r")
+    assert entry.resolved["presets"] == {"recognition": {"ref": "p@1", "sha256": c.resolve("p@1").sha256}}
+    assert Catalog([tmp_path]).verify() == []
+    make_recipe(tmp_path, text="lines")                       # changed without a new edition
+    assert any("recipe r@1 is released" in p for p in Catalog([tmp_path]).verify())
+    make_recipe(tmp_path, text="lines", edition=2)
+    c = Catalog([tmp_path])
+    assert c.verify() == [] and c.resolve_recipe("r@1").content["options"] == {"text": "reflow"}
+    with pytest.raises(ValueError, match="exact preset editions"):
+        make_recipe(tmp_path, preset="p")
+        Catalog([tmp_path])
+
+
+def test_evidence_for_a_recipe(tmp_path):
+    make(tmp_path)
+    make_recipe(tmp_path)
+    Catalog([tmp_path]).release("p")
+    (tmp_path / "evidence").mkdir()
+    (tmp_path / "evidence" / "e.yaml").write_text(yamlio.dump({
+        "schema": "linecaster.evidence/1", "recipe": "r@1", "source": "own-run", "dataset": "d@r",
+        "metrics": {"lines_identical": 10}, "date": dt.date(2026, 11, 3)}))
+    assert Catalog([tmp_path]).verify() == []
+    (tmp_path / "evidence" / "e.yaml").write_text(yamlio.dump({
+        "schema": "linecaster.evidence/1", "recipe": "r@1", "preset": "p@1", "source": "own-run", "dataset": "d",
+        "metrics": {}, "date": dt.date(2026, 11, 3)}))
+    with pytest.raises(ValueError, match="one preset or one recipe"):
+        Catalog([tmp_path])
+
+
+def test_a_recipe_fills_a_pipeline(tmp_path, monkeypatch):
+    import argparse
+
+    from linecaster import run
+
+    make(tmp_path)
+    make_recipe(tmp_path)
+    Catalog([tmp_path]).release("p")
+    Catalog([tmp_path]).release("r")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--recipe")
+    ap.add_argument("--recognizer")
+    ap.add_argument("--text", default="lines")
+    argv = ["--recipe", str(tmp_path / "recipes" / "r.md")]
+    a = ap.parse_args(argv)
+    run.apply_recipe(ap, a, "chain/1", {"recognition": "recognizer"}, argv)
+    assert (a.recognizer, a.text) == ("p@1", "reflow")
+    assert a.recipe_record["ref"] == "r@1" and "overrides" not in a.recipe_record
+    argv += ["--text", "lines", "--recognizer", "other@1"]
+    a = ap.parse_args(argv)
+    run.apply_recipe(ap, a, "chain/1", {"recognition": "recognizer"}, argv)
+    assert a.recipe_record["overrides"] == {"recognition": "other@1", "text": "lines"}
+    with pytest.raises(SystemExit, match="not vlm/1"):
+        run.apply_recipe(ap, ap.parse_args(argv[:2]), "vlm/1", {}, argv[:2])
+
+
+def test_recipe_stamp_names_the_recipe_on_every_step():
+    from linecaster.blocks.recipe import RecipeStamp
+    from linecaster.page import Page
+    from linecaster.transcription import ModelInfo, Transcription
+
+    page = Page(page_id="p", item_id="i", transcriptions={"ocr": Transcription(model=[
+        ModelInfo(step="layout", name="a"), ModelInfo(step="recognition", name="b")])})
+    out = RecipeStamp("r@1", "sha256:" + "1" * 64).process_page(None, page)
+    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr"].model} == {("r@1", "sha256:1")}

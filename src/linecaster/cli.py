@@ -52,6 +52,10 @@ def _models(a) -> None:
     widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
     for r in rows:
         print("  ".join(x.ljust(w) for x, w in zip(r, widths)).rstrip())
+    if c.recipes and not a.step:
+        print("\nrecipe".ljust(1))
+        for rid, (_, rc) in sorted(c.recipes.items()):
+            print(f"{rc.ref}  {rc.pipeline}  " + " ".join(f"{k}={v}" for k, v in rc.presets.items()))
 
 
 def _catalog(a) -> None:
@@ -66,10 +70,12 @@ def _catalog(a) -> None:
         print("\n".join(problems) or "catalogue OK")
         sys.exit(1 if problems else 0)
     if a.action == "show":
-        r = registry.catalog().resolve(a.ref)
         from .catalog import yamlio
 
-        print(yamlio.dump({"preset": r.ref, "sha256": r.sha256, "released": r.released, **r.content}))
+        c = registry.Catalog(dirs)
+        kind = "recipe" if a.ref.split("@", 1)[0] in c.recipes else "preset"
+        r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
+        print(yamlio.dump({kind: r.ref, "sha256": r.sha256, "released": r.released, **r.content}))
     elif a.action == "docs":
         from .catalog import docs
 

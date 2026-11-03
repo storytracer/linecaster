@@ -38,10 +38,10 @@ region it finds (``ChatRegionStep``, a region preset). Each task starts vLLM or 
 serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in OUT/rows; the
 model's raw answer is in each page's transcription.
 
-    uv run recipes/vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
-    uv run recipes/vlm.py IMAGES OUT --vlm dots-ocr --vlm-endpoint http://127.0.0.1:8000/v1
-    uv run recipes/vlm.py IMAGES OUT --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0
-    uv run recipes/vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm unlimited-ocr-2
+    uv run pipelines/vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
+    uv run pipelines/vlm.py IMAGES OUT --vlm dots-ocr --vlm-endpoint http://127.0.0.1:8000/v1
+    uv run pipelines/vlm.py IMAGES OUT --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0
+    uv run pipelines/vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm unlimited-ocr-2
 
 --vlm takes a chat preset of the catalogue (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
@@ -107,5 +107,9 @@ def pipeline(a, script: str):
     return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": regions}
 
 
+#: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
+KIND = "vlm/1"
+SLOTS = {"vlm": "vlm", "layout": "layout"}
+
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, models, pipeline)
+    run.main(__file__, __doc__, options, models, pipeline, KIND, SLOTS)

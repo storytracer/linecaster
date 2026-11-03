@@ -6,18 +6,28 @@ per engine, one factory per stage), spaCy (versioned registry names that stay re
 surya and chandra (configuration declared once, evidence with its source), Daniel van Strien's
 `uv-scripts/ocr/models.json` (one catalogue, support levels), ocrscout's profiles (label mappings as data).
 
-## Five documents, one ledger
+## Documents, pipelines and one ledger
 
 | Document | Holds | Written by | Format |
 |---|---|---|---|
 | model | one artifact: source, pinned revisions, file hashes, licence, languages, scripts, lineage; the upstream card verbatim | `linecaster catalog pin` | `models/<id>/model.md` + `models/<id>/upstream/<revision>/…` |
 | preset | one engine + one model pin + options, ready to use, with provenance and support level | people | `presets/<id>.md` |
-| evidence | one measurement of one preset edition, with its source | runs and people | `evidence/<date>-<preset>-<dataset>.yaml` |
-| recipe | a named pipeline, preset ids per step | people | `recipes/*.py` (uv script) |
+| recipe | a named, opinionated combination: one pipeline (by kind, `chain/1`), a preset edition for each slot, the pipeline's options; provenance, support level | people | `recipes/<id>.md` |
+| evidence | one measurement of one preset or recipe edition, with its source; a preset measured inside a pipeline names the rest as `context` | runs and people | `evidence/<date>-<subject>-<dataset>.yaml` |
 | run record | what a run resolved: presets with editions and hashes, overrides, software | the run | `OUT/run.yaml`; per page in `ModelInfo` |
-| `catalog.lock` | the released preset editions: resolved functional content and its hash | `linecaster catalog release` | `catalog.lock` (YAML) |
+| `catalog.lock` | the released preset and recipe editions: resolved functional content and its hash | `linecaster catalog release` | `catalog.lock` (YAML) |
+
+Pipelines are code: a shape with slots plus the run-anywhere command line (`pipelines/chain.py`, kind
+`chain/1`; `pipelines/vlm.py`, `vlm/1`). They have no default presets: the user fills every slot, or names a
+recipe (`--recipe id[@edition]`, or a recipe file), with single flags on top recorded as overrides.
 
 Engines are code (`engines/<engine>/`, one package each), not documents.
+
+A recipe's functional content is its pipeline kind, each slot's preset edition with that edition's hash
+(which covers its model pin) and the options it states; a recipe is released only on released preset
+editions, so one recipe edition pins a whole run down to the weights' files. Measurements of a whole run
+(goldens, CER of the pipeline) are the recipe's evidence. Recipes live in any catalogue: a derivative ships
+its own (squiddleocr's `squiddle`).
 
 Model and preset documents are Markdown with YAML front matter: the front matter is data, validated by
 `linecaster.catalog.schema`; the body is prose for people (why these settings, limitations, changes). Evidence,

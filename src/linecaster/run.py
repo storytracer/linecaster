@@ -1,25 +1,25 @@
-"""One command line for a recipe on every machine. A recipe is a self-contained uv script that builds one
-pipeline; ``main`` gives it:
+"""One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
+that builds one pipeline shape with slots for presets; ``main`` gives it:
 
-    uv run recipes/chain.py IMAGES OUT                              # this machine
-    uv run recipes/chain.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
-    uv run recipes/chain.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
-    uv run recipes/chain.py serve                                   # linecaster serve with its models
-    uv run recipes/chain.py ray start --head                        # Ray's command line, same environment
+    uv run pipelines/chain.py IMAGES OUT                              # this machine
+    uv run pipelines/chain.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
+    uv run pipelines/chain.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
+    uv run pipelines/chain.py serve                                   # linecaster serve with its models
+    uv run pipelines/chain.py ray start --head                        # Ray's command line, same environment
 
 Engine models run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
 server that each task starts for itself (``--backend served``, the default on Ray and HF Jobs): the
-recipe's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
+pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
 ``--endpoint`` points them at a server that is already running instead.
 
-A recipe passes ``main`` its ``__file__``, its docstring, a function that adds its options, a function
+A pipeline passes ``main`` its ``__file__``, its docstring, a function that adds its options, a function
 that returns its engine models from the options (for ``serve``) and a function that builds the pipeline
 (``reader``, ``engines`` and ``rows`` help with the usual parts). The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
-the recipe's engine packages or linecaster alone.
+the pipeline's engine packages or linecaster alone.
 
 Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.provenance.run_record``:
-recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
+the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
 later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml`` next to it.
 ``--dry-run`` writes nothing and prints the record with the plan. A model dict may name a catalogue
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
@@ -162,14 +162,19 @@ def rows(a: argparse.Namespace):
 from .serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
 
 
-def serve(argv: list[str], options: Callable, models: Callable) -> None:
-    """``linecaster serve`` in the recipe's environment, with its models unless ``--model``/``--config``
-    names others. The recipe's model options (``--recognizer``, ``--layout-model``, ...) pick them."""
+def serve(argv: list[str], options: Callable, models: Callable, kind: str | None = None,
+          slots: dict[str, str] | None = None) -> None:
+    """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
+    names others. The pipeline's model options (``--recognizer``, ``--layout-model``, ...) pick them."""
     from .cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
+    if kind:
+        ap.add_argument("--recipe")
     options(ap)
     a, rest = ap.parse_known_args(argv)
+    if kind:
+        apply_recipe(ap, a, kind, slots or {}, argv)
     if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
         rest = model_args(models(a)) + rest
     cli(["serve", *rest])
@@ -186,8 +191,9 @@ def record(a: argparse.Namespace, pipeline: list, script: str | None, argv: list
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else None
-    return run_record(vars(a), pipeline, script=script, argv=sys.argv[1:] if argv is None else argv,
-                      executor=executor_name(a), extra=extra)
+    opts = {k: v for k, v in vars(a).items() if k != "recipe_record"}
+    return run_record(opts, pipeline, script=script, argv=sys.argv[1:] if argv is None else argv,
+                      executor=executor_name(a), extra=extra, recipe=getattr(a, "recipe_record", None))
 
 
 def write_record(out: str, rec: dict) -> str:
@@ -261,8 +267,54 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         print(json.dumps({"out": out, "commit": a.commit, "image": kw.get("image")}))
 
 
-def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable) -> None:
-    """The recipe's command line: ``serve``, ``ray ...`` or a run (see the module docstring)."""
+def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
+    """Whether the command line gives option ``dest`` itself (a value equal to the default counts too)."""
+    flags = [f for act in ap._actions if act.dest == dest for f in act.option_strings]
+    return any(arg == f or arg.startswith(f + "=") for arg in argv for f in flags)
+
+
+def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, kind: str, slots: dict[str, str],
+                 argv: list[str] | None = None) -> None:
+    """Fill ``a`` from the recipe ``a.recipe`` (an id[@edition] or a recipe file): each slot's preset edition
+    and each option, unless the command line gives its own; what it gives instead is recorded as an override
+    (``a.recipe_record``: the recipe edition, its hash and the overrides, for the run record)."""
+    if not getattr(a, "recipe", None):
+        return
+    from .catalog.registry import recipe_catalog, split_ref
+
+    argv = sys.argv[1:] if argv is None else argv
+    c, ref = recipe_catalog(a.recipe)
+    rid, edition = split_ref(ref)
+    d, doc = c.recipes[rid] if rid in c.recipes else (None, None)
+    if doc is None:
+        raise SystemExit(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
+    pipeline = doc.pipeline if edition in (None, doc.edition) else d.lock.recipes[ref].resolved["pipeline"]
+    if pipeline != kind:                         # before resolving: its presets may need other engines
+        raise SystemExit(f"recipe {ref} is for the pipeline {pipeline}, not {kind}")
+    r = c.resolve_recipe(ref)
+    overrides = {}
+    for slot, p in r.content["presets"].items():
+        dest = slots[slot]
+        given = getattr(a, dest)
+        if given is None:
+            setattr(a, dest, p["ref"])
+        elif given != p["ref"]:
+            overrides[slot] = given
+    for name, value in r.content.get("options", {}).items():
+        if not hasattr(a, name):
+            raise SystemExit(f"recipe {r.ref}: the pipeline {kind} has no option {name!r}")
+        if not _given(ap, argv, name):
+            setattr(a, name, value)
+        elif getattr(a, name) != value:
+            overrides[name] = getattr(a, name)
+    a.recipe_record = {"ref": r.ref, "sha256": r.sha256, "released": r.released,
+                       **({"overrides": overrides} if overrides else {})}
+
+
+def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
+         kind: str | None = None, slots: dict[str, str] | None = None) -> None:
+    """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``kind`` (e.g.
+    ``chain/1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
     argv = sys.argv[1:]
     if argv[:1] == ["ray"]:
         os.environ.setdefault(RAY_UV, "0")
@@ -271,10 +323,22 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         sys.argv = ["ray", *argv[1:]]
         sys.exit(ray_cli())
     if argv[:1] == ["serve"]:
-        return serve(argv[1:], options, models)
+        return serve(argv[1:], options, models, kind, slots)
     ap = parser(description)
-    options(ap.add_argument_group("pipeline"))
-    a = check(ap, ap.parse_args(argv))
+    g = ap.add_argument_group("pipeline")
+    if kind:
+        g.add_argument("--recipe", help="a recipe (id[@edition], or a recipe file) filling the slots and options "
+                                        "the command line leaves open")
+    options(g)
+    a = ap.parse_args(argv)
+    if kind:
+        apply_recipe(ap, a, kind, slots or {}, argv)
+    a = check(ap, a)
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
+    if getattr(a, "recipe_record", None):
+        from .blocks.recipe import RecipeStamp
+
+        first_writer = next((i for i, b in enumerate(pipeline) if type(b).__name__.endswith("Writer")), len(pipeline))
+        pipeline.insert(first_writer, RecipeStamp(a.recipe_record["ref"], a.recipe_record["sha256"]))
     run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)

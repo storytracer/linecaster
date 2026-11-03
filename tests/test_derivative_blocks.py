@@ -179,7 +179,7 @@ def test_page_row_reader_reads_parquet_rows_with_errors(tmp_path: Path):
 def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     from linecaster import jobs
 
-    deps = jobs.dependencies("abc123", jobs.ROOT / "recipes/chain.py")
+    deps = jobs.dependencies("abc123", jobs.ROOT / "pipelines/chain.py")
     assert deps[0] == "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     assert "opencv-contrib-python @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz#subdirectory=stubs/opencv-contrib-python" in deps
     assert "kraken @ git+https://github.com/storytracer/kraken@3d235ee8" in deps and "pillow==12.3.0" in deps

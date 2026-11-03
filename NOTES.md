@@ -2,6 +2,25 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Pipelines and recipes (2026-11-03, spark)
+
+"Recipes" were pipeline shapes with slots, and since the defaults went they chose nothing: renamed `pipelines/`
+(`chain.py`, kind `chain/1`; `vlm.py`, `vlm/1`; `cuda_probe.py` to `tools/`). A **recipe** is now a catalogue
+document: a pipeline kind, a preset edition for each slot, options; edition, provenance, support level and evidence
+like presets. Its hash covers its presets' hashes (and so their model pins), and it is released only on released
+preset editions. `--recipe id[@edition]` or a recipe file fills the slots and options the command line leaves open;
+what the command line gives instead goes into the run record as overrides. `RecipeStamp` (before the first writer)
+puts the recipe edition and hash into every `ModelInfo`, so page rows and ALTO/PAGE/hOCR name it.
+
+- squiddleocr ships `squiddle@1` (its catalogue, entry point `linecaster.catalog`): pp-doclayoutv3@1,
+  pp-ocrv6-medium-det@1, kraken-ppocrv6-medium@1, slanet-plus@2, pp-formulanet-plus-l@1, text reflow. Its evidence:
+  the goldens reproduced (sample-60 1,560/1,560 lines and tables-7 651/651, in-process and served).
+  `uv run pipelines/chain.py IMAGES OUT --recipe ../squiddleocr/src/squiddleocr/catalog/recipes/squiddle.md` on
+  sample-60: goldens 1,560/1,560, `squiddle@1` in every ALTO step and in `run.yaml`. `squiddle ocr` stamps the recipe
+  when its options are the recipe's.
+- The recogniser comparison stays preset evidence (it varied one preset), with the rest of the pipeline as
+  `context`.
+
 ## The catalogue: models, presets, evidence (2026-11-03, spark)
 
 `specs/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the

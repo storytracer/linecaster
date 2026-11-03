@@ -60,7 +60,7 @@ Decisions taken while building the first version, with the reason for each. Open
 kraken fork as a source, but kraken came in transitively (through `linecaster-kraken`), so uv
 resolved upstream kraken 7.1.1, whose `--precision` is inert: the chain silently ran fp32 and 69 of
 1,560 lines differed from squiddleocr's bf16 goldens. Fix: kraken is a direct dependency of
-the engine environment (now the recipe `recipes/chain.py`), and the numerically relevant versions are pinned with
+the engine environment (now the recipe `pipelines/chain.py`), and the numerically relevant versions are pinned with
 `constraint-dependencies` to the ones the goldens were recorded with. After the fix the
 block-composed chain (in-process) reproduces squiddleocr's goldens exactly on the 60-page sample:
 1,560/1,560 lines identical in line box, text and word boxes.

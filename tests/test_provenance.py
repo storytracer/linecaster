@@ -286,8 +286,8 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert "secret" not in text
     rec = yamlio.load(text)
     assert rec["schema"] == "linecaster.run/1" and rec["created"].endswith("Z")
-    assert rec["recipe"]["script"].endswith("tests/test_provenance.py")
-    assert rec["recipe"]["sha256"].startswith("sha256:")
+    assert rec["script"]["path"].endswith("tests/test_provenance.py")
+    assert rec["script"]["sha256"].startswith("sha256:")
     assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)

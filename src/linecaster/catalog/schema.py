@@ -8,7 +8,7 @@ import datetime as dt
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 #: what a step does; ``page`` is end to end (a whole page in, text out)
 STEPS = ("layout", "lines", "recognition", "tables", "formulas", "page")
@@ -190,9 +190,50 @@ class PresetDoc(_Doc):
 
 # ----------------------------------------------------------------------------------------------- evidence
 
+# ------------------------------------------------------------------------------------------------ recipes
+
+class RecipeDoc(_Doc):
+    """A named, opinionated combination: one pipeline, a preset edition for each of its slots, its options."""
+
+    schema_: Literal["linecaster.recipe/1"] = Field(alias="schema")
+    id: str
+    edition: int = Field(ge=1)
+    pipeline: str = Field(description="the pipeline's versioned kind, e.g. chain/1 (pipelines/chain.py)")
+    presets: dict[str, str] = Field(description="slot -> preset id@edition (always an explicit edition)")
+    options: dict[str, Any] = Field(default_factory=dict, description="the pipeline's options, by name")
+    provenance: Provenance = Field(default_factory=Provenance)
+    support: Literal["core", "experimental", "legacy"] = "experimental"
+    superseded_by: str | None = None
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    @field_validator("id")
+    @classmethod
+    def _id(cls, v):
+        if not SLUG.match(v):
+            raise ValueError(f"recipe ids are lowercase slugs: {v!r}")
+        return v
+
+    @field_validator("presets")
+    @classmethod
+    def _editions(cls, v):
+        bad = [f"{k}: {r}" for k, r in v.items() if "@" not in r]
+        if bad:
+            raise ValueError(f"a recipe names exact preset editions (id@edition): {bad}")
+        return v
+
+    @property
+    def ref(self) -> str:
+        return f"{self.id}@{self.edition}"
+
+
+# ----------------------------------------------------------------------------------------------- evidence
+
 class Evidence(_Doc):
     schema_: Literal["linecaster.evidence/1"] = Field(alias="schema")
-    preset: str = Field(description="id@edition")
+    preset: str | None = Field(None, description="the preset edition measured: id@edition")
+    recipe: str | None = Field(None, description="or the recipe edition measured (a whole pipeline): id@edition")
+    context: str | None = Field(None, description="for a preset measured inside a pipeline: the rest of it")
     source: Literal["own-run", "board", "card-claim", "vendor-benchmark"]
     dataset: str = Field(description="repo@revision, or a description for claims")
     metrics: dict[str, float]
@@ -204,12 +245,22 @@ class Evidence(_Doc):
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    @field_validator("preset")
+    @field_validator("preset", "recipe")
     @classmethod
     def _ref(cls, v):
-        if "@" not in v:
-            raise ValueError("evidence names an exact preset edition: id@edition")
+        if v is not None and "@" not in v:
+            raise ValueError("evidence names an exact edition: id@edition")
         return v
+
+    @model_validator(mode="after")
+    def _one(self):
+        if (self.preset is None) == (self.recipe is None):
+            raise ValueError("evidence measures one preset or one recipe edition")
+        return self
+
+    @property
+    def subject(self) -> str:
+        return self.preset or self.recipe
 
 
 # ------------------------------------------------------------------------------------------------- lock
@@ -224,5 +275,6 @@ class LockEntry(_Doc):
 class Lock(_Doc):
     schema_: Literal["linecaster.catalog-lock/1"] = Field("linecaster.catalog-lock/1", alias="schema")
     presets: dict[str, LockEntry] = Field(default_factory=dict)
+    recipes: dict[str, LockEntry] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)

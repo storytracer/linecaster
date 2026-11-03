@@ -46,16 +46,16 @@ and formula models after; then Unicode NFC, typography and document assembly. Pa
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
 --texts one text per item in each text version.
 
-    uv run recipes/chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
-    uv run recipes/chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+    uv run pipelines/chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
+    uv run pipelines/chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
         --recognizer tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
     ... --set recognition.batch_size=4          # an option over the preset's
     ... --backend served                        # a server in the task
-    uv run recipes/chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
-    uv run recipes/chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
+    uv run pipelines/chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
+    uv run pipelines/chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --commit <sha> --tasks 64
 
-``linecaster.run`` has the options every recipe shares.
+``linecaster.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
 from linecaster import run
 from linecaster.blocks.document import AssembleDocument, Typography
@@ -135,5 +135,9 @@ def pipeline(a, script: str) -> list:
     ]
 
 
+#: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
+KIND = "chain/1"
+SLOTS = {"layout": "layout", "lines": "lines", "recognition": "recognizer", "tables": "tables", "formulas": "formulas"}
+
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, models, pipeline)
+    run.main(__file__, __doc__, options, models, pipeline, KIND, SLOTS)
