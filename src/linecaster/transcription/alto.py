@@ -366,7 +366,8 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
             if synthetic:
                 continue
             if el.tag == "Illustration":
-                raw = raw if raw is not None else (el.get("TYPE") or "")
+                if raw is None:     # our own files carry a label tag; foreign ones only TYPE
+                    raw = "" if label is not None else (el.get("TYPE") or "")
                 label = label or X.docling_from_raw(el.get("TYPE"), "picture")
             else:
                 label = label or X.docling_from_raw(raw)

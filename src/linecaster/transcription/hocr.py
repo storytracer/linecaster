@@ -329,7 +329,10 @@ def _walk(el, t: Transcription, state, region: Region | None) -> None:
         if not isinstance(c.tag, str):
             continue
         cls = _classes(c)
-        if cls & LINE_CLASSES and (region is not None or not _has_line_descendant(c)):
+        # ocr_header/ocr_footer/ocr_textfloat are line classes inside a region (Tesseract) and
+        # region classes at page level: a page-level one is a line only as a span without lines
+        if cls & LINE_CLASSES and (region is not None or not (cls & REGION_CLASSES)
+                                   or (c.tag == "span" and not _has_line_descendant(c))):
             _line(c, t, state, region)
         elif region is None and cls & REGION_CLASSES:
             r = _region(c, cls, t, state)

@@ -175,6 +175,8 @@ class _Writer:
             ext["confidence"] = ln.confidence
         if ln.text is None and ln.words:
             ext["text"] = None
+        if ln.text is None and ln.alternatives:
+            ext["alternatives"] = ln.alternatives
         self.ext(el, ext)
 
     def word(self, line_el, w: Word, ln: Line) -> None:
@@ -413,6 +415,7 @@ def _line(tl, row: int, rank: int, region_id: str | None) -> Line:
         id=lid, region_id=region_id, reading_order=ext.get("reading_order", rank), row=ext.get("row", row),
         bbox=bbox, polygon=ext["polygon"] if "polygon" in ext else polygon,
         baseline=ext["baseline"] if "baseline" in ext else _baseline(tl),
-        score=_coords_conf(tl), text=text, confidence=ext.get("confidence", conf), alternatives=alts,
+        score=_coords_conf(tl), text=text, confidence=ext.get("confidence", conf),
+        alternatives=ext.get("alternatives", alts),
         words=words,
     )

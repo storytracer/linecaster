@@ -246,3 +246,96 @@ def test_hocr_structure(transcription):
     assert root.find(".//h:div[@id='page_header_0']", ns).get("class") == "ocr_header"
     line = root.find(".//h:span[@id='l2']", ns)
     assert "baseline 0 -10" in line.get("title")
+
+
+def test_page_clamps_negative_coordinates():
+    t = make_transcription()
+    t.regions[0].polygon[0] = [-3.4, -1.0]
+    t.lines[0].baseline[0] = [-2.0, 125.0]
+    got = from_page(to_page(t))
+    assert got.regions[0].polygon[0] == [0.0, 0.0]
+    assert got.lines[0].baseline[0] == [0.0, 125.0]
+    page = _schema("pagecontent-2019-07-15.xsd")
+    assert page.validate(etree.fromstring(to_page(t))), page.error_log
+
+
+def test_output_is_deterministic(transcription):
+    for to in (to_alto, to_page, to_hocr):
+        assert to(transcription) == to(make_transcription())
+
+
+def test_transcription_import_stays_light():
+    import subprocess
+    import sys
+    code = ("import sys, linecaster.transcription; "
+            "bad = [m for m in ('datatrove', 'saturate', 'torch', 'kraken') if m in sys.modules]; "
+            "print(bad); sys.exit(1 if bad else 0)")
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+
+
+def _random_transcription(seed: int) -> Transcription:
+    import random
+    rnd = random.Random(seed)
+
+    def f(lo=0.0, hi=2000.0):
+        v = rnd.uniform(lo, hi)
+        return rnd.choice([float(int(v)), round(v, 2), v])
+
+    def box():
+        return [f(), f(), f(1, 500), f(1, 200)]
+
+    def pts(n):
+        return [[f(), f()] for _ in range(n)]
+
+    def conf():
+        return rnd.choice([None, rnd.random(), 1.0, 0.0])
+
+    labels = ["text", "title", "section_header", "page_header", "page_footer", "picture", "table",
+              "formula", "footnote", "caption", "list_item", "chart", "code"]
+    regions = []
+    order = list(range(rnd.randint(0, 5)))
+    rnd.shuffle(order)
+    for i, ro in enumerate(order):
+        regions.append(Region(id=f"r{i}", label=rnd.choice(labels), raw_label=rnd.choice(["", "x_y", "heading"]),
+                              polygon=pts(rnd.randint(3, 6)), bbox=box(), score=conf(),
+                              reading_order=rnd.choice([ro, ro * 3, None]),
+                              heading_level=rnd.choice([None, 1, 2])))
+    lines = []
+    n = rnd.randint(0, 10)
+    ranks = list(range(n))
+    rnd.shuffle(ranks)
+    for i in range(n):
+        words = []
+        for k in range(rnd.choice([0, 0, 1, 3])):
+            words.append(Word(id=f"l{i}_w{k}", text=rnd.choice(["a", "bc-", "Déjà", "x y", ""]),
+                              bbox=rnd.choice([None, box()]), confidence=conf(),
+                              hyphen=rnd.random() < 0.2,
+                              alternatives=rnd.choice([[], ["alt"]])))
+        text = rnd.choice([None, "", " ".join(w.text for w in words), "free  text"])
+        lines.append(Line(id=f"l{i}", region_id=rnd.choice([None] + [r.id for r in regions]),
+                          reading_order=ranks[i], row=rnd.randint(0, 3), bbox=box(),
+                          polygon=rnd.choice([None, pts(4)]), baseline=rnd.choice([None, pts(2), pts(3)]),
+                          score=conf(), text=text, confidence=conf(), words=words,
+                          alternatives=rnd.choice([[], ["other"]])))
+    return Transcription(regions=regions, lines=lines, source=Transcription().source.model_copy(
+        update={"image_width": 3000, "image_height": 3000}))
+
+
+@pytest.mark.parametrize("fmt", list(FORMATS))
+@pytest.mark.parametrize("seed", range(300))
+def test_random_roundtrip(fmt, seed):
+    t = _random_transcription(seed)
+    assert_same(roundtrip(t, fmt), _expected_for(t, fmt))
+    if seed % 10 == 0 and fmt in ("alto", "page"):
+        to = to_alto if fmt == "alto" else to_page
+        schema = _cached_schema("alto-4-4.xsd" if fmt == "alto" else "pagecontent-2019-07-15.xsd")
+        assert schema.validate(etree.fromstring(to(t))), schema.error_log
+
+
+_SCHEMA_CACHE: dict = {}
+
+
+def _cached_schema(name):
+    if name not in _SCHEMA_CACHE:
+        _SCHEMA_CACHE[name] = _schema(name)
+    return _SCHEMA_CACHE[name]
