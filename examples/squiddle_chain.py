@@ -17,7 +17,7 @@ from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess, Served
 from linecaster.blocks.document import AssembleDocument, PageExportsWriter, Typography
 from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep, TablesStep
+from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.writers import PageJsonlWriter
 
@@ -26,6 +26,7 @@ ENGINES = {
     "lines": ("linecaster_paddlex:PaddleLineModel", {"model_name": "PP-OCRv6_medium_det"}),
     "recognition": ("linecaster_kraken:KrakenRecognitionModel", {"model": "medium", "batch_size": 8}),
     "tables": ("linecaster_paddlex:PaddleTableModel", {}),
+    "formulas": ("linecaster_paddlex:PaddleFormulaModel", {}),
 }
 
 
@@ -37,7 +38,7 @@ def backends(kind: str, endpoint: str | None, endpoints: dict | None = None):
 
 def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | None = None, transcription: str = "ocr",
              tables: bool = True, endpoints: dict | None = None, exports: str | None = None,
-             text: str = "lines"):
+             text: str = "lines", formulas: bool = True):
     b = backends(kind, endpoint, endpoints)
     return [
         ImageFolderReader(images),
@@ -46,6 +47,7 @@ def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | No
         AssignLinesToRegions(transcription),
         RecognitionStep(b["recognition"], transcription),
         *([TablesStep(b["tables"], transcription)] if tables else []),
+        *([FormulasStep(b["formulas"], transcription)] if formulas else []),
         Typography(transcription),
         AssembleDocument(transcription, text=text),
         *([PageExportsWriter(exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
@@ -61,6 +63,7 @@ if __name__ == "__main__":
     ap.add_argument("--endpoint", default="http://127.0.0.1:8100/v1")
     ap.add_argument("--tasks", type=int, default=1); ap.add_argument("--logs", default=None)
     ap.add_argument("--no-tables", action="store_true", help="skip the tables step")
+    ap.add_argument("--no-formulas", action="store_true", help="skip the formulas step")
     ap.add_argument("--exports", default=None, metavar="DIR",
                     help="also write <page>.paddle.md/.txt/.json (squiddleocr's --text lines --furniture) here")
     ap.add_argument("--text", choices=["lines", "reflow"], default="lines", help="document text mode")
@@ -68,6 +71,6 @@ if __name__ == "__main__":
     a = ap.parse_args()
     eps = dict(e.split("=", 1) for e in a.endpoint_for)
     LocalPipelineExecutor(pipeline(a.images, a.out, a.backend, a.endpoint, tables=not a.no_tables, endpoints=eps,
-                                   exports=a.exports, text=a.text),
+                                   exports=a.exports, text=a.text, formulas=not a.no_formulas),
                           tasks=a.tasks, workers=a.tasks,
                           logging_dir=a.logs or f"{a.out}/logs").run()

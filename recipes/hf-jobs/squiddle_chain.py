@@ -20,7 +20,7 @@ from datatrove.executor import JobsPipelineExecutor
 
 from linecaster.backends import Served
 from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep, TablesStep
+from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.readers import HFImageDatasetReader, ImageFolderReader
 from linecaster.blocks.serve import ServeModels
 from linecaster.blocks.writers import PageJsonlWriter
@@ -31,6 +31,7 @@ MODELS = [
     {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},
     {"name": "recognition", "spec": "linecaster_kraken:KrakenRecognitionModel", "kwargs": {"model": "medium", "batch_size": 8}},
     {"name": "tables", "spec": "linecaster_paddlex:PaddleTableModel", "kwargs": {}},
+    {"name": "formulas", "spec": "linecaster_paddlex:PaddleFormulaModel", "kwargs": {}},
 ]
 
 
@@ -60,6 +61,7 @@ def main() -> None:
         AssignLinesToRegions(),
         RecognitionStep(served["recognition"]),
         TablesStep(served["tables"]),
+        FormulasStep(served["formulas"]),
         PageJsonlWriter(f"{run}/processed/squiddle", output_filename="${rank}.jsonl.gz"),
         ServeModels(MODELS, port=8100),   # last: lives until every page is written (see the block's docstring)
     ]

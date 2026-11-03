@@ -145,3 +145,7 @@ class RecognitionStep(ModelStep):
 
 class TablesStep(ModelStep):
     step = "tables"
+
+
+class FormulasStep(ModelStep):
+    step = "formulas"

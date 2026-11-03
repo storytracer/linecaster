@@ -18,7 +18,7 @@ dependencies = [
 package = false
 required-version = ">=0.13.6"
 # the versions squiddleocr's goldens were recorded with (numerics: recognition, ONNX Runtime, decoding)
-constraint-dependencies = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
+constraint-dependencies = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0", "transformers==5.12.1", "tokenizers==0.22.2"]
 required-environments = [
     "sys_platform == 'linux' and platform_machine == 'aarch64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",

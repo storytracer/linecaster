@@ -23,7 +23,7 @@ REPO = "https://github.com/storytracer/linecaster"
 # kraken takes its version from git history (versioningit), so the fork needs git+ (the default Jobs image has git)
 KRAKEN_FORK = "kraken @ git+https://github.com/storytracer/kraken@3d235ee8"
 #: the versions the goldens were recorded with (envs/kraken-paddlex constraint-dependencies)
-PINS = ("lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0")
+PINS = ("lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0", "transformers==5.12.1", "tokenizers==0.22.2")
 WHEEL_MOUNT = "/wheels"
 
 

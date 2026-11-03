@@ -17,6 +17,9 @@ dependencies = [
     "paddlepaddle>=3.2.2,<3.3",
     "paddlex[ocr-core,ocr]>=3.7",
     "numpy",
+    # PP-FormulaNet runs on PaddleX's transformers engine (Hugging Face transformers on torch)
+    "transformers>=5",
+    "ftfy",
 ]
 
 [build-system]

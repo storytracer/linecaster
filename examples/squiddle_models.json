@@ -26,6 +26,11 @@
    "name": "tables",
    "spec": "linecaster_paddlex:PaddleTableModel",
    "kwargs": {}
+  },
+  {
+   "name": "formulas",
+   "spec": "linecaster_paddlex:PaddleFormulaModel",
+   "kwargs": {}
   }
  ]
 }
