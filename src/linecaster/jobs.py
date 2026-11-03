@@ -27,9 +27,11 @@ PINS = ("lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0", "transf
 WHEEL_MOUNT = "/wheels"
 
 
-def dependencies(commit: str, engines: bool = True) -> list[str]:
+def dependencies(commit: str, engines: bool = True, kraken: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed). With
     ``engines=False`` only linecaster itself (a CPU pipeline, or a VLM pipeline whose image brings vLLM).
+    With ``kraken=False`` the PaddleX engines without kraken (no git needed, no lightning/torch): e.g. a
+    PP-DocLayoutV3 layout server next to vLLM in a vLLM image.
 
     linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
     some images (``vllm/vllm-openai``) have uv but no git executable. The kraken fork still needs git (its
@@ -37,9 +39,12 @@ def dependencies(commit: str, engines: bool = True) -> list[str]:
     repo = f"{REPO}/archive/{commit}.tar.gz"
     deps = [f"linecaster @ {repo}"]
     if engines:
-        deps += [f"linecaster-kraken @ {repo}#subdirectory=backends/kraken",
-                 f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex", KRAKEN_FORK,
-                 f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python", *PINS]
+        deps += [f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex",
+                 f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python"]
+        if kraken:
+            deps += [f"linecaster-kraken @ {repo}#subdirectory=backends/kraken", KRAKEN_FORK, *PINS]
+        else:
+            deps += [p for p in PINS if not p.startswith("lightning")]
     return deps
 
 

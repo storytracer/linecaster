@@ -176,3 +176,37 @@ def test_chat_page_step_records_server_errors(fake_server):
     assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "page"
     assert "404" in out[0].metadata["errors"][0]["error"]
     assert "ocr" not in page_of(out[0]).transcriptions
+
+
+def test_serve_block_outside_venv(monkeypatch):
+    import os
+    import sys
+
+    own = os.path.join(sys.prefix, "bin")
+    monkeypatch.setenv("PATH", os.pathsep.join([own, "/usr/local/bin", "/usr/bin"]))
+    monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
+    block = ServeChatModel(LightOnOCR2(), port=8123, outside_venv=True)
+    cmd = block.launch_command()
+    assert cmd[:4] == ["env", "-u", "VIRTUAL_ENV", "PATH=/usr/local/bin:/usr/bin"]
+    assert cmd[4:] == block.command()
+    assert ServeChatModel(LightOnOCR2()).launch_command() == ServeChatModel(LightOnOCR2()).command()
+
+
+def test_minicpm_speculative_args_pin_the_draft():
+    import json
+
+    from linecaster.models.minicpm_ocr import MiniCPMOCR
+
+    flag, config = MiniCPMOCR.speculative_args(MiniCPMOCR.draft_model, MiniCPMOCR.draft_revision)
+    assert flag == "--speculative-config"
+    assert json.loads(config) == {"method": "dspark", "model": "openbmb/MiniCPM-OCR-1.0-DSpark", "num_speculative_tokens": 15,
+                                  "enable_adaptive_verification": False, "revision": MiniCPMOCR.draft_revision}
+
+
+def test_job_dependencies_without_kraken():
+    from linecaster.jobs import dependencies
+
+    deps = dependencies("abc123", kraken=False)
+    assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
+    assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
+    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123"))
