@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from linecaster.transcription import (Line, Region, Transcription, Word, from_alto, from_hocr,
+from linecaster.transcription import (Line, ModelInfo, Region, Transcription, Word, from_alto, from_hocr,
                                       from_page, to_alto, to_hocr, to_page)
 from linecaster.transcription import _xml as X
 from linecaster.transcription.hocr import quantise_confidence
@@ -75,6 +75,12 @@ def assert_same(got: Transcription, want: Transcription) -> None:
     for w in want.lines:
         assert got_l[w.id] == w, f"line {w.id}"
     assert got.text == want.text
+    assert [steps(m) for m in got.model] == [steps(m) for m in want.model]
+
+
+def steps(m: ModelInfo) -> dict:
+    """What a page file keeps of a step: everything but the measurements."""
+    return m.model_dump(exclude={"measurements"})
 
 
 def _expected_for(t, fmt):
@@ -317,7 +323,21 @@ def _random_transcription(seed: int) -> Transcription:
                           polygon=rnd.choice([None, pts(4)]), baseline=rnd.choice([None, pts(2), pts(3)]),
                           score=conf(), text=text, confidence=conf(), words=words,
                           alternatives=rnd.choice([[], ["other"]])))
-    return Transcription(regions=regions, lines=lines, source=Transcription().source.model_copy(
+    values = [None, True, False, 0, 16, 0.1, -2.5, "", "16", "true", "null", "medium", "a;b {c}", ' "x" ',
+              "line\nbreak", "Déjà vu", [1, "2"], {"nested": {"k": [None]}}]
+    model = []
+    for i in range(rnd.choice([0, 1, 3])):
+        model.append(ModelInfo(
+            step=rnd.choice(["layout", "lines", "recognition", "unicode", "typography", "page"]),
+            name=rnd.choice(["kraken-ppocrv6-medium", "PP-DocLayoutV3", "Qwen/Qwen3-VL 8B", "naïve name"]),
+            revision=rnd.choice([None, "0123abcd", "10.5281/zenodo.1"]),
+            preset=rnd.choice([None, f"preset-{i}@{rnd.randint(1, 9)}"]),
+            preset_sha256=rnd.choice([None, "sha256:" + "0f" * 32]),
+            backend=rnd.choice([None, "in-process", "served http://127.0.0.1:8100/v1 (recognition)"]),
+            settings={f"k{j}": rnd.choice(values) for j in range(rnd.choice([0, 1, 4]))},
+            measurements=rnd.choice([{}, {"seconds": 0.5}, {"seconds": 1, "datetime": "2026-11-03T12:00:00Z"}]),
+        ))
+    return Transcription(regions=regions, lines=lines, model=model, source=Transcription().source.model_copy(
         update={"image_width": 3000, "image_height": 3000}))
 
 

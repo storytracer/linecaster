@@ -8,7 +8,9 @@ Mapping (see ``specs/serialisation.md``):
 * line -> ``span.ocr_line`` (``bbox``, ``poly``, ``baseline``, ``x_wconf``); lines without a region
   sit directly in the ``ocr_page``;
 * word -> ``span.ocrx_word`` (``bbox``, ``x_wconf``), separated by spaces;
-* reading order is document order.
+* reading order is document order;
+* ``ocr-system`` is linecaster with its release, ``ocr-capabilities`` what the file contains, each step of
+  ``model`` a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back into ``model``.
 
 hOCR coordinates are integers (rounded half up, boxes by their corners) and ``x_wconf`` is an
 integer percentage, so confidences round-trip to 0.01. hOCR's ``baseline`` is a straight line
@@ -23,8 +25,9 @@ from typing import Any
 
 from lxml import etree
 
+from . import _provenance as P
 from . import _xml as X
-from .model import Line, Region, Source, Transcription, Word
+from .model import Line, ModelInfo, Region, Source, Transcription, Word
 
 XHTML = "http://www.w3.org/1999/xhtml"
 DOCTYPE = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
@@ -58,6 +61,11 @@ CLASS_TO_LABEL = {
 }
 REGION_CLASSES = set(CLASS_TO_LABEL)
 LINE_CLASSES = {"ocr_line", "ocr_textfloat", "ocr_caption", "ocr_header", "ocr_footer", "ocr_pageno"}
+#: ``meta`` name prefix of linecaster's step records (``linecaster-step-0``, ``-1``, ...)
+STEP_META = "linecaster-step-"
+#: the order of ``ocr-capabilities`` (element classes as they nest, then properties)
+CAPABILITY_ORDER = ("ocr_page", "ocr_carea", "ocr_header", "ocr_footer", "ocr_photo", "ocr_table", "ocr_math",
+                    "ocr_par", "ocr_line", "ocrx_word", "ocrp_lang", "ocrp_poly", "ocrp_wconf")
 
 
 def _conf_pct(c: float) -> int:
@@ -103,6 +111,7 @@ class _Writer:
         self.extensions = extensions
         self.used = {r.id for r in t.regions} | {ln.id for ln in t.lines} | {
             w.id for ln in t.lines for w in ln.words}
+        self.capabilities: set[str] = {"ocr_page"}   # what the file contains (``ocr-capabilities``)
 
     def new_id(self, base: str) -> str:
         i, cand = 0, base
@@ -115,10 +124,14 @@ class _Writer:
     def el(self, parent, tag: str, cls: str, el_id: str | None, props: list[str]) -> etree._Element:
         e = etree.SubElement(parent, f"{{{XHTML}}}{tag}")
         e.set("class", cls)
+        self.capabilities.add(cls)
         if el_id is not None:
             e.set("id", el_id)
         if props:
             e.set("title", "; ".join(props))
+            for prop, cap in (("poly ", "ocrp_poly"), ("x_wconf ", "ocrp_wconf")):
+                if any(p.startswith(prop) for p in props):
+                    self.capabilities.add(cap)
         e.text = ""
         return e
 
@@ -209,12 +222,22 @@ class _Writer:
             html.set("{http://www.w3.org/XML/1998/namespace}lang", language)
         head = etree.SubElement(html, f"{{{XHTML}}}head")
         etree.SubElement(head, f"{{{XHTML}}}title").text = ""
-        for name, content in (("ocr-system", "linecaster"),
-                              ("ocr-capabilities", "ocr_page ocr_carea ocr_par ocr_line ocrx_word "
-                                                   "ocrp_wconf ocrp_poly ocrp_baseline")):
+
+        def meta(name: str, content: str) -> etree._Element:
             m = etree.SubElement(head, f"{{{XHTML}}}meta")
             m.set("name", name)
             m.set("content", content)
+            return m
+
+        meta("ocr-system", P.software())
+        capabilities = meta("ocr-capabilities", "")     # filled in once the page is written
+        meta("ocr-number-of-pages", "1")
+        if language and re.fullmatch(r"[a-z]{2}", language):     # hOCR names ISO 639-1 codes
+            meta("ocr-langs", language)
+        for i, m in enumerate(t.model):
+            meta(f"{STEP_META}{i}", P.dumps(P.record(m)))
+        if language:
+            self.capabilities.add("ocrp_lang")
         body = etree.SubElement(html, f"{{{XHTML}}}body")
         props = []
         if uri:
@@ -228,6 +251,7 @@ class _Writer:
                 parent = self.region(page, u.region, u.lines, ranks[u.region.id])
             for ln in u.lines:
                 self.line(parent, ln, pos)
+        capabilities.set("content", " ".join(c for c in CAPABILITY_ORDER if c in self.capabilities))
         return etree.tostring(html, xml_declaration=True, encoding="UTF-8", doctype=DOCTYPE,
                               pretty_print=True)
 
@@ -311,10 +335,29 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0) -> Tr
     pbox = _bbox(pprops)
     image = pprops.get("image", "").strip().strip('"') or None
     t.language = root.get("lang") or None
+    t.model = _steps(root)
     t.source = Source(kind="converted", format="hocr", uri=uri or image,
                       image_width=int(pbox[2]) if pbox else None,
                       image_height=int(pbox[3]) if pbox else None)
     return t
+
+
+def _steps(root) -> list[ModelInfo]:
+    """linecaster's step records from the ``linecaster-step-<n>`` metas, in ``n`` order; for a foreign file,
+    the software named by ``ocr-system`` as one ``page`` step."""
+    metas = {}
+    for m in root.iter("meta"):
+        name, content = m.get("name") or "", m.get("content")
+        if content is not None:
+            metas.setdefault(name, content)
+    steps = sorted(((int(k[len(STEP_META):]), v) for k, v in metas.items()
+                    if k.startswith(STEP_META) and k[len(STEP_META):].isdigit()), key=lambda kv: kv[0])
+    if steps:
+        return [P.from_record(X.ext_loads(v)) for _, v in steps]
+    system = (metas.get("ocr-system") or "").strip()
+    if system and not system.startswith(P.SOFTWARE):
+        return [ModelInfo(step="page", name=system)]
+    return []
 
 
 def _has_line_descendant(el) -> bool:

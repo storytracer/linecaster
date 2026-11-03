@@ -8,19 +8,25 @@ Mapping (see ``specs/serialisation.md``):
 * line -> ``TextLine`` (``BASELINE`` as a points list, polygon as ``Shape/Polygon``);
 * word -> ``String`` (``WC`` 0..1, ``ALTERNATIVE``), ``SP`` between words, a line-end hyphen as
   ``HYP``; a line without words is written as one ``String`` carrying the line's text;
-* lines without a region go into a synthetic ``TextBlock`` the reader drops again.
+* lines without a region go into a synthetic ``TextBlock`` the reader drops again;
+* each step of ``model`` -> ``Description/Processing`` (category, date if recorded, the step, the step
+  record as JSON in ``processingStepSettings``, linecaster as ``softwareCreator`` with the model and its
+  revision), all referenced from ``Page/@PROCESSINGREFS``; read back into ``model`` (foreign files: their
+  ``Processing`` or ``OCRProcessing`` steps).
 
 What ALTO has no place for (line confidence, detection scores, heading level, ...) goes into a
 per-element extension, only when a reader would infer something else (see ``_xml``).
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from lxml import etree
 
+from . import _provenance as P
 from . import _xml as X
-from .model import Line, Region, Source, Transcription, Word
+from .model import Line, ModelInfo, Region, Source, Transcription, Word
 
 NS = "http://www.loc.gov/standards/alto/ns-v4#"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
@@ -162,6 +168,33 @@ class _Writer:
             a = _e(s, "ALTERNATIVE")
             a.text = alt
 
+    # ------------------------------------------------------------ provenance
+    def processing(self, desc, i: int, m: ModelInfo) -> str:
+        """One ``Processing`` per step (ALTO 4.4 order: category, date, description, settings, software).
+        ``processingStepSettings`` is the step record as JSON (revision, preset, preset hash, backend,
+        settings); ``processingSoftware`` names linecaster as creator and the model with its revision."""
+        pid = self.new_id(f"lc_processing_{i}")
+        p = _e(desc, "Processing", ID=pid)
+        _e(p, "processingCategory").text = P.category(m)
+        when = P.processed_at(m)
+        if when:
+            _e(p, "processingDateTime").text = when
+        _e(p, "processingStepDescription").text = m.step
+        rec = {k: v for k, v in P.record(m).items() if k not in ("step", "name")}
+        _e(p, "processingStepSettings").text = P.dumps(rec)
+        sw = _e(p, "processingSoftware")
+        _e(sw, "softwareCreator").text = P.SOFTWARE
+        _e(sw, "softwareName").text = m.name
+        if m.revision:
+            _e(sw, "softwareVersion").text = m.revision
+        about = [P.software()]
+        if m.preset:
+            about.append(f"preset {m.preset}")
+        if m.backend:
+            about.append(f"backend {m.backend}")
+        _e(sw, "applicationDescription").text = "; ".join(about)
+        return pid
+
     # ------------------------------------------------------------ document
     def write(self, width: int, height: int, uri: str | None) -> bytes:
         t = self.t
@@ -183,19 +216,11 @@ class _Writer:
         if uri:
             sii = _e(desc, "sourceImageInformation")
             _e(sii, "fileName").text = uri
-        for i, m in enumerate(t.model):
-            p = _e(desc, "Processing", ID=self.new_id(f"lc_processing_{i}"))
-            _e(p, "processingStepDescription").text = m.step
-            if m.settings:
-                _e(p, "processingStepSettings").text = X.ext_dumps(m.settings)
-            sw = _e(p, "processingSoftware")
-            _e(sw, "softwareName").text = m.name
-            if m.revision:
-                _e(sw, "softwareVersion").text = m.revision
+        processing_ids = [self.processing(desc, i, m) for i, m in enumerate(t.model)]
 
         layout = etree.Element(f"{{{NS}}}Layout")
         page = _e(layout, "Page", ID=self.new_id("page_1"), PHYSICAL_IMG_NR="1",
-                  WIDTH=str(width), HEIGHT=str(height))
+                  WIDTH=str(width), HEIGHT=str(height), PROCESSINGREFS=" ".join(processing_ids) or None)
         ps = _e(page, "PrintSpace", HPOS="0", VPOS="0", WIDTH=str(width), HEIGHT=str(height))
         for u in units:
             if u.synthetic:
@@ -320,7 +345,7 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     ro_el = X.child(root, "ReadingOrder")
     ro_refs = _reading_order_refs(ro_el) if ro_el is not None else None
 
-    t = Transcription()
+    t = Transcription(model=_processing(desc) if desc is not None else [])
     region_ro_ext: dict[str, Any] = {}
     real_ids_in_doc: list[str] = []
     line_no = 0
@@ -398,6 +423,50 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
                                   "scale": None if sc.identity else [sc.sx, sc.sy]}.items() if v},
     )
     return t
+
+
+def _text(el, name: str, strip: bool = True) -> str | None:
+    c = X.child(el, name) if el is not None else None
+    if c is None or not c.text or not c.text.strip():
+        return None
+    return c.text.strip() if strip else c.text
+
+
+def _step(p) -> ModelInfo:
+    """A ``ModelInfo`` from a ``Processing`` (or an ``OCRProcessing`` step) element: linecaster's own carry
+    the step record as JSON in ``processingStepSettings``; for foreign ones the description is the step, the
+    software name and version are the model and its revision, other settings are kept as ``raw`` text."""
+    sw = X.child(p, "processingSoftware")
+    raw = _text(p, "processingStepSettings")
+    data = None
+    if sw is not None and _text(sw, "softwareCreator") == P.SOFTWARE and raw:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            pass
+    ours = isinstance(data, dict) and set(data) <= set(P.RECORD_KEYS)
+    rec: dict[str, Any] = {      # linecaster's own are read exactly as written (names may have spaces)
+        "step": _text(p, "processingStepDescription", strip=not ours) or _text(p, "processingCategory"),
+        "name": _text(sw, "softwareName", strip=not ours), "revision": _text(sw, "softwareVersion")}
+    if ours:
+        rec.update(data)
+    elif raw:
+        rec["settings"] = {"raw": raw}
+    when = _text(p, "processingDateTime")
+    m = P.from_record(rec)
+    if when:
+        m.measurements["datetime"] = when
+    return m
+
+
+def _processing(desc) -> list[ModelInfo]:
+    """The steps recorded in ``Description``: ``Processing`` (ALTO 4), else the deprecated ``OCRProcessing``
+    with its pre-, OCR and post-processing steps (ALTO 1-3)."""
+    steps = [_step(p) for p in X.children(desc, "Processing")]
+    if not steps:
+        for op in X.children(desc, "OCRProcessing"):
+            steps += [_step(s) for s in X.children(op, "preProcessingStep", "ocrProcessingStep", "postProcessingStep")]
+    return steps
 
 
 def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> Line:
