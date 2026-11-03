@@ -100,10 +100,10 @@ class ServeChatModel(PipelineStep):
         path = os.environ.get("PATH", "")
         if not self.outside_venv:
             return path
-        own = {os.path.realpath(os.path.join(sys.prefix, "bin"))}
-        if os.environ.get("VIRTUAL_ENV"):
-            own.add(os.path.realpath(os.path.join(os.environ["VIRTUAL_ENV"], "bin")))
-        return os.pathsep.join(p for p in path.split(os.pathsep) if os.path.realpath(p) not in own)
+        # only this interpreter's own environment: an image may set VIRTUAL_ENV to the environment that has
+        # the server (the SGLang image: /opt/sglang), which must stay on the PATH
+        own = os.path.realpath(os.path.join(sys.prefix, "bin"))
+        return os.pathsep.join(p for p in path.split(os.pathsep) if os.path.realpath(p) != own)
 
     def launch_command(self, python: str | None = None) -> list[str]:
         """``command()``, behind ``env [-u VIRTUAL_ENV PATH=...] [spec.server_env...]`` when either applies."""

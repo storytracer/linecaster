@@ -98,6 +98,7 @@ def test_v2_sglang_command_and_environment(monkeypatch):
 
     own = os.path.join(sys.prefix, "bin")
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/opt/sglang/bin", "/usr/bin"]))
+    monkeypatch.setenv("VIRTUAL_ENV", "/opt/sglang")   # the SGLang image sets it to its own environment: keep that
     block = ServeChatModel(UnlimitedOCR2(), port=8000, outside_venv=True)
     cmd = block.command("/opt/sglang/bin/python3")
     assert cmd[:10] == ["/opt/sglang/bin/python3", "-m", "sglang.launch_server", "--model-path", "baidu/Unlimited-OCR-2",
