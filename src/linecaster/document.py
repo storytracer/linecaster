@@ -163,6 +163,14 @@ class DocumentBuilder:
         return page_no
 
     def build(self):
+        """The document, validated by docling-core (``validate_document``: a consistent tree, and every
+        provenance box clamped to its page, as docling-core does whenever it validates a document, e.g. on
+        loading; its out-of-bounds warnings are silenced, layout boxes often reach a few pixels past the edge)."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*outside page bounds.*", category=UserWarning)
+            self.doc.validate_document()
         return self.doc
 
     # ---------------------------------------------------------------- regions

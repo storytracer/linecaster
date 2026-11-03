@@ -152,3 +152,15 @@ def test_item_exports_html_doclang_json(tmp_path: Path):
     assert (tmp_path / "book.x.json").read_text() == to_json(doc)
     assert '<group' in (tmp_path / "book.x.doclang.xml").read_text()
     assert json.loads((tmp_path / "book.x.json").read_text())["name"] == "book"
+
+
+def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
+    from docling_core.types.doc import DoclingDocument
+
+    t = assembled()
+    t.regions[4].polygon = [[-18, -3], [300, -3], [300, 1034], [-18, 1034]]     # the picture, past the page edge
+    doc = build_docling(t, name="p1", width=1000, height=1000)
+    b = doc.pictures[0].prov[0].bbox
+    assert (b.l, b.t, b.r, b.b) == (0, 0, 300, 1000)
+    assert DoclingDocument.model_validate(doc.export_to_dict()).export_to_dict() == doc.export_to_dict()
+    assert t.regions[4].polygon[0] == [-18, -3]                                    # the layout itself is untouched
