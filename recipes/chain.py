@@ -40,42 +40,41 @@
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""A chain of smaller models, each step a catalogue preset: layout, text lines, lines assigned to their regions,
-a line recogniser (kraken, PaddleX or Tesseract), Unicode NFC, table structure (cells filled with the
-recognised lines), formulas as LaTeX, typography, document assembly. Page rows in OUT/rows; with --files
-per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with --texts
-one text per item in each text version.
+"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
+lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
+and formula models after; then Unicode NFC, typography and document assembly. Page rows in OUT/rows; with
+--files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
+--texts one text per item in each text version.
 
-    uv run recipes/chain.py IMAGES OUT                                   # in-process, this machine
-    uv run recipes/chain.py IMAGES OUT --recognizer tesseract-best-latin
-    uv run recipes/chain.py IMAGES OUT --set recognition.batch_size=4    # an option over the preset's
-    uv run recipes/chain.py IMAGES OUT --backend served                  # a server in the task
-    uv run recipes/chain.py serve                                        # linecaster serve, these presets
-    uv run recipes/chain.py ray start --head --num-gpus 8                # then --on ray --tasks 64
-    uv run recipes/chain.py IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
+    uv run recipes/chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
+    uv run recipes/chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+        --recognizer tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
+    ... --set recognition.batch_size=4          # an option over the preset's
+    ... --backend served                        # a server in the task
+    uv run recipes/chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
+    uv run recipes/chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
+    ... --on hf-jobs --commit <sha> --tasks 64
 
-`linecaster models` lists the presets for each step. The defaults are the squiddle combination, the settings
-squiddleocr's goldens were recorded with. ``linecaster.run`` has the options every recipe shares.
+``linecaster.run`` has the options every recipe shares.
 """
 from linecaster import run
 from linecaster.blocks.document import AssembleDocument, Typography
+from linecaster.blocks.layout import SingleRegionLayout
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.texts import ItemTexts
 from linecaster.blocks.unicode import NormalizeUnicode
 from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter, PageFilesWriter
 
-#: the preset for each step by default; "none" skips tables or formulas
-DEFAULTS = {"layout": "pp-doclayoutv3", "lines": "pp-ocrv6-medium-det", "recognition": "kraken-ppocrv6-medium",
-            "tables": "slanet-plus", "formulas": "pp-formulanet-plus-l"}
+STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 
 
 def options(ap):
-    ap.add_argument("--layout", default=DEFAULTS["layout"], help="layout preset")
-    ap.add_argument("--lines", default=DEFAULTS["lines"], help="line detection preset")
-    ap.add_argument("--recognizer", default=DEFAULTS["recognition"], help="line recogniser preset")
-    ap.add_argument("--tables", default=DEFAULTS["tables"], help="table preset, or none")
-    ap.add_argument("--formulas", default=DEFAULTS["formulas"], help="formula preset, or none (read as text)")
+    ap.add_argument("--layout", help="layout preset (none: the page is one region)")
+    ap.add_argument("--lines", help="line detection preset (needed)")
+    ap.add_argument("--recognizer", help="line recogniser preset (needed)")
+    ap.add_argument("--tables", help="table preset (needs --layout)")
+    ap.add_argument("--formulas", help="formula preset (needs --layout; without, formulas are read as text)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
     ap.add_argument("--text", choices=["lines", "reflow"], default="lines", help="document text")
@@ -88,26 +87,37 @@ def options(ap):
                     help="a different server for one step")
 
 
+def chosen(a) -> dict[str, str]:
+    picks = {"layout": a.layout, "lines": a.lines, "recognition": a.recognizer, "tables": a.tables,
+             "formulas": a.formulas}
+    return {step: preset for step, preset in picks.items() if preset}
+
+
 def models(a) -> list[dict]:
-    chosen = {"layout": a.layout, "lines": a.lines, "recognition": a.recognizer, "tables": a.tables,
-              "formulas": a.formulas}
-    sets = run.overrides(a.set, steps=[s for s, p in chosen.items() if p != "none"])
+    picks = chosen(a)
+    sets = run.overrides(a.set, steps=list(picks))
     return [{"name": step, "preset": preset, **({"overrides": sets[step]} if step in sets else {})}
-            for step, preset in chosen.items() if preset != "none"]
+            for step, preset in picks.items()]
 
 
 def pipeline(a, script: str) -> list:
     from linecaster.backends import Served
 
+    picks = chosen(a)
+    missing = [f"--{'recognizer' if s == 'recognition' else s}" for s in ("lines", "recognition") if s not in picks]
+    if missing:
+        raise SystemExit(f"chain: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
+    if not a.layout and (a.tables or a.formulas):
+        raise SystemExit("chain: --tables and --formulas work on layout regions; pick --layout too")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)
         b[step] = Served(url, model=step, max_window=a.window)
     return [
         run.reader(a),
-        LayoutStep(b["layout"]),
+        LayoutStep(b["layout"]) if "layout" in b else SingleRegionLayout(),
         LinesStep(b["lines"]),
-        AssignLinesToRegions(formulas_separately=a.formulas != "none"),
+        AssignLinesToRegions(formulas_separately="formulas" in b),
         RecognitionStep(b["recognition"]),
         NormalizeUnicode(),                       # kraken writes decomposed text; the as-written layer is NFC
         *([TablesStep(b["tables"])] if "tables" in b else []),

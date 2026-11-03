@@ -72,8 +72,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `uv run <script>`) that builds one pipeline, and **one recipe per pipeline, never one per
   machine**: `linecaster.run.main` gives every recipe the same command line (`--on local|ray|hf-jobs`,
   `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
-  for Ray's CLI from its environment). `recipes/chain.py` (layout, lines, kraken/PaddleX/Tesseract,
-  post-processing; defaults = the squiddle combination) and `recipes/vlm.py` (a VLM per page or per
+  for Ray's CLI from its environment). `recipes/chain.py` (lines and a recogniser, optionally layout,
+  tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `recipes/vlm.py` (a VLM per page or per
   region). `ServeModels(script=...)` starts a recipe's `serve` with `uv run --script`;
   `linecaster.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct

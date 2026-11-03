@@ -32,27 +32,26 @@
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""A vision-language model reads the page: the whole page (``ChatPageStep``) or, with --regions, each region
-PP-DocLayoutV3 finds (``ChatRegionStep``). Each task starts vLLM or SGLang for the model itself
-(``ServeChatModel``, last in the pipeline) unless --vlm-endpoint names a running server; with --regions
-it also serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in
-OUT/rows; the model's raw answer is in each page's transcription.
+"""A vision-language model reads the page: the whole page (``ChatPageStep``) or, with a --layout preset, each
+region it finds (``ChatRegionStep``, a region preset). Each task starts vLLM or SGLang for the model itself
+(``ServeChatModel``, last in the pipeline) unless --vlm-endpoint names a running server; with --layout it also
+serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in OUT/rows; the
+model's raw answer is in each page's transcription.
 
     uv run recipes/vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
-    uv run recipes/vlm.py IMAGES OUT --vlm-endpoint http://127.0.0.1:8000/v1   # a running server
-    uv run recipes/vlm.py IMAGES OUT --vlm minicpm-ocr-1.0 --regions
+    uv run recipes/vlm.py IMAGES OUT --vlm dots-ocr --vlm-endpoint http://127.0.0.1:8000/v1
+    uv run recipes/vlm.py IMAGES OUT --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0
     uv run recipes/vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm unlimited-ocr-2
 
 --vlm takes a chat preset of the catalogue (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
-id (that model's page preset, with --regions its region preset where it has one). On HF Jobs the server runs
+id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
-has ``uv``, Python 3.12 and ``vllm`` on PATH,
-so the pipeline runs in the uv environment the executor builds (linecaster alone for page models;
-with --regions also linecaster-paddlex for the layout model), and ``ServeChatModel`` starts the image's
-own server. SGLang presets and --regions start it outside that environment (``outside_venv``), so neither
-the image's Python nor its CUDA libraries see the pipeline's packages. vLLM takes
---gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own share); with
---regions the layout server loads into the rest after vLLM's memory profiling.
+has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
+(linecaster alone for page models; with --layout also linecaster-paddlex for the layout model), and
+``ServeChatModel`` starts the image's own server. SGLang presets and region reading start it outside that
+environment (``outside_venv``), so neither the image's Python nor its CUDA libraries see the pipeline's
+packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own
+share); with --layout the layout server loads into the rest after vLLM's memory profiling.
 """
 from linecaster import run
 from linecaster.backends import Served
@@ -65,10 +64,8 @@ VLM_PORT = 8000
 
 
 def options(ap):
-    ap.add_argument("--vlm", default=None, help="a chat preset (id[@edition]) or a model's Hugging Face id "
-                    "(default: lightonocr-2-1b, with --regions lightonocr-2-1b-regions)")
-    ap.add_argument("--regions", action="store_true", help="layout first, then the model on each region")
-    ap.add_argument("--layout-model", default="PP-DocLayoutV3")
+    ap.add_argument("--vlm", help="a chat preset (id[@edition]) or a model's Hugging Face id (needed)")
+    ap.add_argument("--layout", help="a layout preset: the model then reads each region (a region preset)")
     ap.add_argument("--vlm-endpoint", help="a running OpenAI-compatible server for the model")
     ap.add_argument("--gpu-memory-utilization", type=float, default=None)
     ap.add_argument("--no-speculative", action="store_true", help="plain decoding where the spec has a draft")
@@ -79,19 +76,23 @@ def options(ap):
 
 
 def models(a) -> list[dict]:
-    return [{"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel",
-             "kwargs": {"model_name": a.layout_model}}] if a.regions else []
+    return [{"name": "layout", "preset": a.layout}] if a.layout else []
 
 
 def pipeline(a, script: str):
-    ref = a.vlm or ("lightonocr-2-1b-regions" if a.regions else "lightonocr-2-1b")
-    spec = chat_model(ref, prefer="recognition" if a.regions else "page")
+    if not a.vlm:
+        raise SystemExit("vlm: pick --vlm (`linecaster models` lists the presets)")
+    regions = bool(a.layout)
+    spec = chat_model(a.vlm, prefer="recognition" if regions else "page")
+    if regions != (spec.step == "regions"):
+        raise SystemExit(f"vlm: {a.vlm} reads {'regions' if spec.step == 'regions' else 'whole pages'}"
+                         + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
     sglang = spec.server == "sglang"
     vlm = Served(a.vlm_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
                  initial_window=a.initial_window, read_timeout=a.read_timeout)
     steps = [run.reader(a)]
     servers = []
-    if a.regions:
+    if regions:
         b, servers = run.engines(a, models(a), script, a.layout_window)
         steps += [LayoutStep(b["layout"]), ChatRegionStep(spec, vlm)]
     else:
@@ -102,8 +103,8 @@ def pipeline(a, script: str):
         gmu = a.gpu_memory_utilization if a.gpu_memory_utilization is not None or sglang else 0.8
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
         servers.append(ServeChatModel(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
-                                      outside_venv=sglang or a.regions))
-    return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": a.regions}
+                                      outside_venv=sglang or regions))
+    return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": regions}
 
 
 if __name__ == "__main__":

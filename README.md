@@ -62,21 +62,24 @@ uv run recipes/vlm.py scans/ out/ \
   --vlm lightonocr-2-1b
 ```
 
-Any [preset for whole pages](#-models-and-blocks) works; `--regions` has a region model read each
-layout region instead.
+Any [preset for whole pages](#-models-and-blocks) works. With a layout preset, a region model reads
+each region instead: `--layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
 
 ### 🧱 A chain of smaller models
 
-Layout, line detection and a line recogniser, then post-processing into a document.
+Layout, line detection and a line recogniser, then post-processing into a document. You pick each
+step's preset; `linecaster models` lists them.
 
 ```bash
 uv run recipes/chain.py scans/ out/ \
+  --layout pp-doclayoutv3 \
+  --lines pp-ocrv6-medium-det \
+  --recognizer kraken-ppocrv6-medium \
   --files out/files --formats md,alto
 ```
 
-Each step is a preset: the defaults are `pp-doclayoutv3`, `pp-ocrv6-medium-det` and
-`kraken-ppocrv6-medium`. `--recognizer tesseract-best-latin` swaps the recogniser, and
-`--set recognition.batch_size=4` changes one option. `linecaster models` lists the presets.
+Without `--layout` the page is one region; `--tables` and `--formulas` add those steps.
+`--set recognition.batch_size=4` changes one option of a preset.
 
 ### ✍️ Your own pipeline
 
@@ -116,7 +119,7 @@ line for every machine.
 
 > [!TIP]
 > The two kinds mix: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
-> each layout region, which is what `recipes/vlm.py --regions` does.
+> each layout region, which is what `recipes/vlm.py --layout …` does.
 
 ## 🧩 How it works
 
@@ -147,12 +150,15 @@ On Ray and HF Jobs every task gets one GPU and starts its own model server on it
 <details>
 <summary><b>🖥️ A model server that stays up</b></summary>
 
-`serve` starts `linecaster serve` with the recipe's models and keeps them loaded; `--endpoint` points
+`serve` starts `linecaster serve` with the presets you name and keeps them loaded; `--endpoint` points
 runs at it:
 
 ```bash
-uv run recipes/chain.py serve
-uv run recipes/chain.py scans/ out/ \
+P="--layout pp-doclayoutv3
+   --lines pp-ocrv6-medium-det
+   --recognizer kraken-ppocrv6-medium"
+uv run recipes/chain.py serve $P
+uv run recipes/chain.py scans/ out/ $P \
   --endpoint http://127.0.0.1:8100/v1
 ```
 
@@ -165,14 +171,14 @@ servers listen on loopback only.
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
 `ray` runs Ray's own command line with the recipe's packages, so every machine has the same Ray and
-Linecaster:
+Linecaster (`$P`: the presets, as above):
 
 ```bash
 R=recipes/chain.py
 uv run $R ray start --head --num-gpus 8
 # on each other machine:
 # uv run $R ray start --address=<head>:6379
-uv run $R scans/ out/ --on ray --tasks 64
+uv run $R scans/ out/ $P --on ray --tasks 64
 ```
 
 Images and output must be on storage every machine can reach.
@@ -188,7 +194,7 @@ sources and pins of the recipe's `# /// script` block:
 ```bash
 uv run recipes/chain.py \
   hf://datasets/<ns>/<images> \
-  hf://buckets/<ns>/<bucket>/<run> \
+  hf://buckets/<ns>/<bucket>/<run> $P \
   --on hf-jobs --commit <sha> --tasks 64
 ```
 
