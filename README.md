@@ -120,15 +120,6 @@ line for every machine.
 
 ## 🧩 How it works
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
-  <img src="docs/architecture-light.svg" width="760" alt="One page through a linecaster pipeline: page images are read, then layout, line detection, line assignment, recognition, tables, Unicode and typography and document assembly each add a part to the page's Transcription. The four model steps send the page through saturate to linecaster serve on a GPU and get it back with their part added. Pages with errors go to rejects; the rest are written as page rows, ALTO, PAGE, hOCR, text and Markdown. The executor runs many copies of this task.">
-</picture>
-
-*The path of one page through a chain of smaller models. Shaded steps run a model. A vision-language
-page model takes the place of layout, lines and recognition; a region model takes the place of lines
-and recognition.*
-
 Three ideas carry the design:
 
 1. 📋 **One record per page.** Every step reads the page's `Transcription` and adds its part: regions,
