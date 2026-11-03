@@ -1,0 +1,15 @@
+schema: linecaster.evidence/1
+preset: lightonocr-2-1b@1
+source: board
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_reading: 0.0321
+  cer_dip: 0.0656
+  recall: 0.9666
+date: 2026-11-03
+hardware: A10G
+software:
+  vllm: 0.26.0
+run: the BHL OCR board's own outputs (bhl-ocr-eval's consolidated rows), the same 60 pages
+notes: '4 of 60 pages looped. Scored the board''s way: consolidate, normalize_outputs postproc 3, score_dataset
+  (bhl-ocr-eval''s frozen harness).'

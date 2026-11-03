@@ -1,0 +1,15 @@
+schema: linecaster.evidence/1
+preset: dots-ocr@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_reading: 0.017
+date: 2026-11-03
+hardware: HF Jobs L4
+software:
+  vllm: 0.26.0
+run: recipes/hf-jobs/chat_page.py (ChatPageStep + ServeChatModel in one HF Job)
+notes: 'NOTES.md, "Board models as chat specs: validation on the 60-page sample". Scored the board''s
+  way: consolidate, normalize_outputs postproc 3, score_dataset (bhl-ocr-eval''s frozen harness). linecaster''s
+  run used the chat spec class that preceded this preset; its requests and server command are byte-identical
+  to this edition''s.'

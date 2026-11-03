@@ -1,0 +1,17 @@
+schema: linecaster.evidence/1
+preset: lightonocr-2-1b@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_reading: 0.0372
+  cer_dip: 0.0738
+date: 2026-11-03
+hardware: spark (GB10)
+software:
+  vllm: 0.21.0
+run: recipes/vlm.py, vLLM started in the task (--gpu-memory-utilization 0.3)
+notes: 'NOTES.md, "One recipe per pipeline". 60/60 pages in 232 s, 4 of 60 truncated. The old HF Jobs
+  recipe''s run of the same model scores 0.0403 with today''s harness; sampling is at temperature 0.2.
+  Scored the board''s way: consolidate, normalize_outputs postproc 3, score_dataset (bhl-ocr-eval''s frozen
+  harness). linecaster''s run used the chat spec class that preceded this preset; its requests and server
+  command are byte-identical to this edition''s.'

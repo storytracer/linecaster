@@ -1,0 +1,13 @@
+schema: linecaster.evidence/1
+preset: lightonocr-2-1b-regions@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_reading: 0.0402
+date: 2026-11-03
+hardware: spark (GB10)
+run: LayoutStep (PP-DocLayoutV3) then ChatRegionStep with LightOnOCR-2-1B
+notes: 'NOTES.md, "Region recognition with a page model": the model looped to its token limit on 68 of
+  418 region crops (page headers 30, footers 15, footnotes 15); this CER is with those regions left empty.
+  Whole pages with the page preset: 0.0285. linecaster''s run used the chat spec class that preceded this
+  preset; its requests and server command are byte-identical to this edition''s.'
