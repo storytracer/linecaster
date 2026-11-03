@@ -1,4 +1,4 @@
-# linecaster
+# Linecaster
 
 <p align="center">
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="420">
