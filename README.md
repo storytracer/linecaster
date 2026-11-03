@@ -31,7 +31,7 @@ Linecaster pulls these apart:
 
 - **Any OCR component.** Layout, line detection, recognition, tables and formulas are separate steps.
   Each step can use a model from a different engine: kraken, PaddleX, or a vision-language model served
-  by vLLM. Every step reads and writes the same record per page, so they combine freely.
+  by vLLM or SGLang. Every step reads and writes the same record per page, so they combine freely.
 - **Any machine.** You define the pipeline once. The same definition runs on one laptop, on one GPU, on
   every GPU of a server, on a Ray cluster, or on Hugging Face Jobs. Only the line that starts the run
   changes.
@@ -145,7 +145,7 @@ A model step has a *backend*:
 - **In-process:** the model loads inside the pipeline. Simplest, works without a GPU, and the reference
   when checking results.
 - **Served:** the model stays loaded on a GPU server and the step sends pages to it. `linecaster serve`
-  hosts the engine models (kraken, PaddleX); vision-language models run behind vLLM or any other
+  hosts the engine models (kraken, PaddleX); vision-language models run behind vLLM, SGLang or any other
   OpenAI-compatible server.
 
 Served steps reach their servers through [saturate](https://github.com/davanstrien/saturate), which keeps
@@ -277,7 +277,9 @@ On flavors with several GPUs (`l4x4`, `l40sx8`), `linecaster.jobs.GPUJobsExecuto
 
 `ChatPageStep` sends whole pages to an OpenAI-compatible server; `ChatRegionStep` sends one crop per
 layout region. A short model spec in `linecaster.models` holds the model's prompt, sampling, server flags
-and how to read its answer. They fit into the same pipelines and executors:
+and how to read its answer. Specs exist for twenty open OCR models, among them dots.ocr, chandra-ocr-2,
+olmOCR-2, LightOnOCR, OvisOCR, PaddleOCR-VL, GLM-OCR, MiniCPM-OCR, Qwen3.5, DeepSeek-OCR and
+Unlimited-OCR. They fit into the same pipelines and executors:
 
 ```python
 from linecaster.blocks.chat import ChatPageStep
