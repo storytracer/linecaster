@@ -1,6 +1,6 @@
 # Linecaster
 
-### Composable text recognition for printed and handwritten documents
+### Composable OCR pipelines you can run anywhere
 
 <p align="center">
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
@@ -8,41 +8,49 @@
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science Museum Group
 Collection, CC BY-NC-SA 4.0. <a href="#image-credit">Credit</a></sub></p>
 
-linecaster turns scanned pages into text you can read, search and train on. It works on printed books
-and on handwriting, old and new.
+Linecaster turns scanned pages into text. You give it a folder of page images; it gives back the text of
+every page, a version that is easier to read, and the file formats libraries use.
 
-You build the recognition chain from small steps: find the regions on a page, find the lines, read
-them, rebuild the tables, clean up the text. Each step is a separate building block, so you can swap
-one model for another without touching the rest. The same chain runs on a laptop, on a GPU
-workstation or on hundreds of machines.
+OCR (optical character recognition) in Linecaster is not one big model. It is a chain of small steps,
+each done by its own model or rule: find the text blocks on the page, find the lines, read them, rebuild
+the tables, tidy up the text. You can swap any step for a better one and the rest keeps working. The same
+chain runs on a laptop or on a hundred GPUs, without changes.
 
-linecaster is in early development. The ideas below are settled; names and signatures may still change.
+Linecaster is in early development. The ideas below are settled; names and options may still change.
 
 ## What you get
 
 For every page:
 
-- **The text as written**, line by line, exactly as the page shows it.
-- **Readable text**, with old letterforms such as long s folded, line-end hyphens joined and
-  paragraphs flowed across lines and pages.
+- **The text exactly as printed**, line by line, with its original spellings, letterforms and line
+  breaks. This is the version to check against a hand-made transcription.
+- **A readable version**, where old letterforms such as the long s (ſ) become their modern forms, words
+  split by a hyphen at the end of a line are joined again, and lines are joined into paragraphs.
 - **Markdown** with headings, tables and formulas.
-- **ALTO, PAGE-XML and hOCR**, the formats libraries and viewers use, with the position of every word.
-- **A page row** that keeps every intermediate result, so later work can start where earlier work
-  stopped.
+- **Library formats** (ALTO, PAGE-XML, hOCR) that record where each word sits on the page, so viewers
+  can highlight search hits on the scan.
+- **One record per page** that keeps every intermediate result, so later work can start where earlier
+  work stopped.
 
-For every book or other multi-page item, the same text joined into one file per variant.
+For every book, the same text is also joined into one file per version.
 
 ## How it works
 
-### A chain of steps
+### Reading a page, step by step
 
-A page goes through a fixed series of steps. Some steps run a model: a layout model finds text blocks,
-headings and tables; a line detector finds the lines; a recogniser reads each line. Other steps are
-plain processing: assigning lines to their blocks, normalising Unicode, removing typographic debris and
-assembling the document.
+Linecaster reads a page in stages, much as a person would:
 
-Each step is a block in a [datatrove](https://github.com/huggingface/datatrove) pipeline. A pipeline is
-simply a list of blocks, and any layout model can be combined with any line detector and any recogniser.
+1. **Layout:** see where the text blocks, headings, tables, pictures and page numbers are.
+2. **Lines:** find each line of text.
+3. **Recognition:** read each line, character by character.
+4. **Tables:** rebuild tables as rows and columns.
+5. **Clean-up:** normalise the characters and remove typesetting debris such as decorative initials.
+6. **Document:** put everything together in reading order.
+
+Steps 1 to 4 each use a machine-learning model; the others are plain rules. Each step is a separate
+building block, so you can, for example, keep the layout model and try a different recogniser. The blocks
+run on [datatrove](https://github.com/huggingface/datatrove), Hugging Face's library for large
+data-processing jobs.
 
 ### Every step adds to one record
 
@@ -54,37 +62,35 @@ simply a list of blocks, and any layout model can be combined with any line dete
 *The path of one page. Shaded steps run a model. On the left, what the page's record holds after each
 step.*
 
-The steps share one record per page, its `Transcription`. The layout step adds regions, the line step
-adds lines, the recogniser adds text and words, and so on. Steps never talk to each other directly; they
-only read and extend this record. That is what makes them interchangeable.
+Each page travels with one record, its `Transcription`, a bit like a form that every step fills in
+further. The layout step adds the text blocks, the line step adds the lines, the recogniser adds the text
+and the position of each word. Steps never talk to each other directly; they only read and extend this
+record. That is why they can be swapped.
 
-A page that fails along the way is not lost. It carries its error past the remaining model steps and
-is written with it; a check step (`ValidatePages`, `RejectSink`) sends such pages to `rejects/` together
-with the reason.
+A page that fails along the way is not lost. It keeps its error message and skips the remaining model
+steps; a check step at the end of the pipeline puts it in a `rejects/` folder together with the reason.
 
-### Models run where they fit
+### Where the models run
 
-Every model step has a *backend* that says where its model runs:
+The models are fastest on a GPU. Linecaster can run them in two ways:
 
-- **In-process.** The model loads inside the pipeline. This is the simplest setup, works on a CPU, and
-  is the reference when you check results.
-- **Served.** The model runs on a GPU server and the step sends pages to it. `linecaster serve` keeps
-  several engine models loaded on one GPU. Vision-language models run behind vLLM or any other
-  OpenAI-compatible server.
+- **Inside the pipeline.** The models load where the pipeline runs. This is the simplest setup, also
+  works without a GPU, and is the reference when checking results.
+- **On a model server.** `linecaster serve` keeps the models loaded on a GPU, and the pipeline sends
+  pages to it. Large vision-language models run the same way, behind a server such as vLLM.
 
-Served steps talk to their servers through [saturate](https://github.com/davanstrien/saturate). saturate
-keeps enough pages in flight that the server never waits, slows down when the server is busy, and
-passes each page on as soon as it is done. Because each model step has its own connection, the steps overlap: while
-the recogniser reads one page, the layout model is already on a later one.
+The pipeline talks to its servers through [saturate](https://github.com/davanstrien/saturate), which
+keeps enough pages in flight that the GPU never waits. Different steps work on different pages at the
+same time: while one page is being read, the layout of the next one is already being found.
 
 ### From one machine to many
 
-A pipeline does not change when it grows. datatrove's executors split the pages into tasks and run them
-on a single machine, a Slurm or Ray cluster, or Hugging Face Jobs. They record which tasks finished, so
-an interrupted run resumes where it stopped.
+A pipeline does not change when it grows. datatrove splits the pages into tasks and runs them on one
+machine, on a cluster (Ray or Slurm) or on Hugging Face Jobs. It records which tasks have finished, so an
+interrupted run picks up where it stopped.
 
-A page's result depends only on that page. Models batch lines within a page in a fixed order and never
-mix pages, so a run gives the same output on one machine or on a hundred.
+The result for a page depends only on that page, never on what else is running. So a run gives the same
+text on one machine or on a hundred.
 
 ## Getting started
 
@@ -189,6 +195,19 @@ JobsPipelineExecutor(pipeline, tasks=16, flavor="l4x1", dependencies=dependencie
 
 `ServeChatModel` does the same for vLLM. On machines with several GPUs, `GPUJobsExecutor` runs one task
 per GPU. `recipes/hf-jobs/` has complete examples.
+
+### Run on a Ray cluster
+
+Start Ray on every machine, then run the pipeline once from any of them. Each task gets one GPU and starts
+its own model server on it:
+
+```bash
+uv sync --extra ray
+.venv/bin/ray start --head --num-gpus 8          # other machines: ray start --address=<head>:6379
+.venv/bin/python recipes/ray/squiddle_chain.py IMAGES OUT --tasks 64
+```
+
+The page images and the output folder must be reachable from every machine.
 
 ### Split long runs into stages
 
