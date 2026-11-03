@@ -31,6 +31,18 @@ def executors(images: str, out: pathlib.Path, ep: str):
     return a, b
 
 
+def content(text: str) -> list:
+    """Page rows without timings (``ModelInfo.measurements`` differ from run to run)."""
+    rows = []
+    for line in text.splitlines():
+        row = json.loads(line)
+        for t in row["page"]["transcriptions"].values():
+            for m in t["model"]:
+                m["measurements"] = {}
+        rows.append(json.dumps(row, sort_keys=True))
+    return sorted(rows)
+
+
 def main() -> None:
     images, out = sys.argv[1], pathlib.Path(sys.argv[2])
     ep = sys.argv[3] if len(sys.argv) > 3 else "http://127.0.0.1:8100/v1"
@@ -44,7 +56,7 @@ def main() -> None:
     print("deleted task", victim.name, "output and completion marker; re-running")
     executors(images, out, ep)[1].run()
     second = {p.name: p.read_text() for p in sorted((out / "B").glob("*.jsonl"))}
-    same = sorted(first) == sorted(second) and all(sorted(first[k].splitlines()) == sorted(second[k].splitlines()) for k in first)
+    same = sorted(first) == sorted(second) and all(content(first[k]) == content(second[k]) for k in first)
     print(json.dumps({"pages": sum(len(v.splitlines()) for v in second.values()), "resume_identical": same}))
 
 
