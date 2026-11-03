@@ -21,17 +21,19 @@ from .base import PageStep, decode_rgb, image_bytes, page_of, set_page
 _END = object()
 
 
+
 class ModelStep(PageStep):
     """Run one model step on every page, adding its part to the page's ``transcription``."""
 
     step = "model"
 
     def __init__(self, backend: InProcess | Served, transcription: str = "ocr", params: dict | None = None,
-                 primary: str | None = None):
+                 primary: str | None = None, skip_on_error: bool = True):
+        self.name = f"{self.step} ({backend.describe()})"   # before the base __init__, which names the stats
         super().__init__()
         self.backend, self.transcription, self.params = backend, transcription, params or {}
-        self.primary = primary or transcription
-        self.name = f"{self.step} ({backend.describe()})"
+        self.primary, self.skip_on_error = primary or transcription, skip_on_error
+        self._skipped: list = []
 
     # ------------------------------------------------------------- in-process
     def process_page(self, doc, page: Page) -> Page:
@@ -44,10 +46,23 @@ class ModelStep(PageStep):
         return page
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        if self.skip_on_error:
+            data = self._passing_errors(data)
         if not self.backend.served:
             yield from super().run(data, rank, world_size)
-            return
-        yield from self._run_served(data)
+        else:
+            yield from self._run_served(data)
+        yield from self._skipped
+
+    def _passing_errors(self, data):
+        """Pages a previous step failed on bypass this step (they are written with their errors)."""
+        self._skipped = []
+        for doc in data:
+            if doc.metadata.get("errors"):
+                self.stat_update("skipped_after_error")
+                self._skipped.append(doc)
+            else:
+                yield doc
 
     # ----------------------------------------------------------------- served
     def _request(self, row: dict) -> dict:
@@ -96,8 +111,11 @@ class ModelStep(PageStep):
                 yield doc
                 continue
             page = page_of(doc)
-            page.transcriptions[self.transcription] = Transcription.model_validate(item.out["transcription"])
+            out = Transcription.model_validate(item.out["transcription"])
+            page.transcriptions[self.transcription] = out
             set_page(doc, page, self.primary)
+            if out.model and "seconds" in out.model[-1].measurements:
+                self.stat_update("model_seconds", value=out.model[-1].measurements["seconds"], unit="doc")
             yield doc
 
 
