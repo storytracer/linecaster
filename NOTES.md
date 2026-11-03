@@ -56,6 +56,15 @@ On HF Jobs (L4) the served chain gives the same harness scores as on spark to fo
 Served is faster than in-process because the three models work on different pages at the same time
 (one worker per model, saturate keeps several pages in flight).
 
+### Full ground truth (2,165 pages, HF Jobs, 4 × L4)
+
+The chain through datatrove + saturate on HF Jobs scores CERdip 0.0551, CERread 0.0451, recall 0.9754
+with the frozen bhl-ocr-eval harness (squiddleocr reference on forge: 0.0587 / 0.0432 / 0.9756). Most
+pages score identically; the CERread gap sits in index pages that are tables (conchologia):
+squiddleocr's PaddleX table step writes them row by row, matching the ground truth's line structure,
+while linecaster has no table step yet and writes each cell as its own line. The table step is the
+next block to port.
+
 ### Lessons
 
 - `[tool.uv.sources]` applies only to a project's own dependencies: the kraken fork came in
