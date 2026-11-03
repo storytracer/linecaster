@@ -46,8 +46,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   reference. A page that failed a step carries `doc.metadata["errors"]` and bypasses later model
   steps (`skip_on_error`).
 - **`linecaster serve`** hosts engine models: stateless (no state between requests), one worker per
-  model (several replicas per model were measured at +7–10 % and removed; NOTES.md) with a bounded queue (`--max-queue`, 429 with `Retry-After` when full), routes
-  `POST /v1/linecaster/{step}` (image + the transcription so far → the transcription with its part
+  model (several replicas per model were measured at +7–10 % and removed; NOTES.md) with a bounded
+  queue (`--max-queue`, 429 with `Retry-After` when full), routes `POST /v1/linecaster/{step}` (image + the transcription so far → the transcription with its part
   added), `GET /v1/models`, `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep`
   (`blocks/chat.py`) with a model spec (`linecaster.models`) on `/v1/chat/completions`; served only.
