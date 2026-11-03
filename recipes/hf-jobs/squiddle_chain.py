@@ -62,12 +62,12 @@ def main() -> None:
     served = {m["name"]: Served(endpoint, model=m["name"], max_window=a.window) for m in MODELS}
     pipeline = [
         reader,
-        ServeModels(MODELS, port=8100),
         LayoutStep(served["layout"]),
         LinesStep(served["lines"]),
         AssignLinesToRegions(),
         RecognitionStep(served["recognition"]),
         PageJsonlWriter(f"{run}/processed/squiddle", output_filename="${rank}.jsonl.gz"),
+        ServeModels(MODELS, port=8100),   # last: lives until every page is written (see the block's docstring)
     ]
     JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/squiddle",
                          flavor=a.flavor, namespace=a.namespace, dependencies=dependencies(a.commit), timeout=a.timeout,

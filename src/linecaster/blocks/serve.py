@@ -1,6 +1,10 @@
-"""A block that hosts models for the served blocks after it: ``linecaster serve`` starts (through
-saturate's ``Engine``) when the first page arrives and stops when the task's pages are done. For a
-pipeline that brings its own GPU, e.g. one HF Job per datatrove task."""
+"""A block that hosts models for a task's served blocks: ``linecaster serve`` starts (through saturate's
+``Engine``) when the task starts and stops when all its pages are through. For a pipeline that brings
+its own GPU, e.g. one HF Job per datatrove task.
+
+Put it **last** in the pipeline (after the writer): datatrove chains generators, so the last block's
+generator is the one that lives until every page has passed every block. Placed before the served
+blocks, it would stop the server as soon as the reader ran dry, with requests still in flight."""
 from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
