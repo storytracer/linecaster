@@ -122,9 +122,10 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
 
 def _registry() -> dict[str, type[ChatModel]]:
     from .lighton_ocr2 import LightOnOCR2
+    from .lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
     from .minicpm_ocr import MiniCPMOCR
 
-    return {cls.model: cls for cls in (LightOnOCR2, MiniCPMOCR)}
+    return {cls.model: cls for cls in (LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:
