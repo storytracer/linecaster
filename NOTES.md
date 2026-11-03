@@ -237,10 +237,12 @@ different pages at the same time. Scores are identical on all three (CER reading
 
 With one worker per model the L40S finishes about twice as fast as an L4.
 
-### Replicas: several copies of the recognition model on one GPU
+### Replicas: several copies of the recognition model on one GPU (measured, then removed)
 
-`linecaster serve --replicas recognition=N` loads N copies, each with its own worker thread on the
-model's queue. Full ground truth, complete chain, 4 tasks on HF Jobs; seconds per page = the sum of the
+**Decision: `linecaster serve` keeps one worker per model.** A `--replicas NAME=N` option (N copies of
+a model, each with its own worker thread on the model's queue; commit 3303cd3, reverted) was measured
+and removed: the gain is small, depends on the current batching, and the option suggests a scaling path
+that does not exist. Measurement: Full ground truth, complete chain, 4 tasks on HF Jobs; seconds per page = the sum of the
 tasks' recognition-block wall time / 2,165 (the chain runs at the pace of recognition). Lines, words and
 tables are identical for every N (2,165/2,165 pages).
 
@@ -256,6 +258,8 @@ Recognition is GPU-bound, not GIL-bound: per-request time roughly doubles with t
 pages in 52 s alone; 2 × 80 pages in 102 s side by side). Replicas only fill the gaps between a page's
 batches. The lever left is the recogniser's GPU efficiency (8 lines per forward pass in bf16), which
 changes numerics if the batching changes.
+Revisit only with a server that runs model copies on separate CUDA streams or processes, or after a
+change that makes recognition much faster (then layout, at about 0.2 s/page, sets the pace).
 
 ### Region recognition with a page model
 
