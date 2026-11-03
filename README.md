@@ -1,6 +1,6 @@
 # Linecaster
 
-### Composable OCR pipelines you can run anywhere
+### Modular OCR pipelines you can run anywhere
 
 <p align="center">
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
