@@ -85,6 +85,30 @@ parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in 
 Not exercised here: a right-to-left page, `--device tensorrt` / `coreml`, `-m` with a model file path,
 PP-FormulaNet-L, forge.
 
+## Unlimited-OCR, Unlimited-OCR-2, PaddleOCR-VL-1.6, GLM-OCR specs; SGLang in ServeChatModel (2026-11-03, not yet run)
+
+- Four page specs from the board drivers: `models/unlimited_ocr.py` (`UnlimitedOCR` on vLLM 0.26.0,
+  `UnlimitedOCR2` on SGLang), `models/paddleocr_vl.py`, `models/glm_ocr.py`. Checkpoints pinned to the
+  board's; completions verbatim, the board's post-processing (grounding strip, Baidu's Markdown
+  converter, strip) left to the harness.
+- PaddleOCR-VL-1.6 is run as the board runs it: the VLM alone on the whole page with `OCR:`, the
+  recipe's client-side `smart_resize`; not PaddleOCR-VL's PP-DocLayout + VLM pipeline.
+- `ServeChatModel` starts SGLang for a spec with `server = "sglang"`: `python -m sglang.launch_server
+  --model-path ... --enable-metrics`, the spec's `server_env` through `env`, its `server_packages`
+  installed into the server's Python with `uv pip install --python` first, and `gpu_memory_utilization`
+  passed as `--mem-fraction-static`. `recipes/hf-jobs/chat_page.py` runs SGLang specs with
+  `outside_venv` (the image's `/opt/sglang/bin/python3`).
+- Unlimited-OCR-2 cannot take `--revision` (Baidu's SGLang then skips its tokenizer fix-up). The board
+  refused to start unless the default branch was the pinned commit. Since then the default branch has
+  moved, with README and wheel changes only. So `revision_flag = False` makes the serve block compare
+  git blob ids between the default branch and the pin, ignoring README, `.gitattributes`, `wheel/` and
+  PDFs. Baidu's dev10 wheel is still read from the pinned revision (on main it is replaced by dev13).
+- `lmsysorg/sglang:v0.5.20-cu130` (amd64) from its image config: SGLang in `/opt/sglang` (Python 3.12),
+  first on PATH. The board's own Job ran `hf jobs uv run` on it, so uv is there.
+- Not checked: any of the four on a GPU, and Unlimited-OCR-2 on an L4. The board ran it on an RTX PRO
+  6000 with the card's flags for an 80 GB A800 (`--mem-fraction-static 0.7`, CUDA graphs up to 16384
+  prefill tokens).
+
 ## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
 
 - `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
