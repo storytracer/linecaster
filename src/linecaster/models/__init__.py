@@ -124,8 +124,9 @@ def _registry() -> dict[str, type[ChatModel]]:
     from .lighton_ocr2 import LightOnOCR2
     from .lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
     from .minicpm_ocr import MiniCPMOCR
+    from .olmocr2 import OlmOCR2
 
-    return {cls.model: cls for cls in (LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR)}
+    return {cls.model: cls for cls in (LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR, OlmOCR2)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:
