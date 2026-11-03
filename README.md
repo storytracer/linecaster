@@ -1,12 +1,12 @@
 # Linecaster
 
+### Composable text recognition for printed and handwritten documents
+
 <p align="center">
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
 </p>
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science Museum Group
 Collection, CC BY-NC-SA 4.0. <a href="#image-credit">Credit</a></sub></p>
-
-**Composable text recognition for printed and handwritten documents.**
 
 A linecaster was the machine that set metal type one line at a time. This project works in the other
 direction: it reads printed lines back into text.
