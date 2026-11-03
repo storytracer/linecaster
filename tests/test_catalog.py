@@ -103,3 +103,16 @@ def test_docs_from_the_catalogue(tmp_path):
     assert "| [p](p.md) | MIT | 0.0312 |" in (tmp_path / "docs" / "README.md").read_text()
     text = readme.read_text()
     assert "old" not in text and "[`p`](docs/p.md) ✅" in text and text.endswith("outro\n")
+
+
+def test_repository_catalogues_are_consistent():
+    """Every catalogue in the checkout, the engines' too, read as data (no engine installed)."""
+    from pathlib import Path
+
+    from linecaster.catalog.registry import CORE
+
+    root = Path(__file__).resolve().parents[1]
+    dirs = [CORE, *sorted(root.glob("engines/*/src/*/catalog"))]
+    c = Catalog(dirs)
+    assert c.verify() == []
+    assert len(c.presets) >= 18 and all(c.resolve(f"{pid}@{p.edition}").released for pid, (_, p) in c.presets.items())

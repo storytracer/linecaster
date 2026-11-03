@@ -23,7 +23,7 @@ from .schema import Evidence, Lock, LockEntry, ModelDoc, PresetDoc
 CORE = Path(__file__).resolve().parent / "data"
 LOCK = "catalog.lock"
 #: the preset fields that can change outputs; everything else is description
-FUNCTIONAL = ("step", "model", "engine", "settings", "labels", "serve")
+FUNCTIONAL = ("step", "model", "submodels", "engine", "settings", "labels", "serve")
 
 
 def sha256_file(path: str | Path) -> str:
@@ -137,9 +137,16 @@ class Catalog:
         """The preset's functional content, with the model pin resolved to revision and files."""
         data = p.model_dump(mode="json", by_alias=True, include=set(FUNCTIONAL))
         if p.model is not None:
-            pin = self.model(p.model.id).pin(p.model.revision)
-            data["model"] = {"id": p.model.id, "revision": pin.revision, "files": dict(sorted(pin.files.items()))}
+            data["model"] = self._pin(p.model)
+        if p.submodels:
+            data["submodels"] = {role: self._pin(ref) for role, ref in sorted(p.submodels.items())}
+        else:
+            data.pop("submodels", None)      # absent, so presets without submodels hash as before
         return data
+
+    def _pin(self, ref) -> dict:
+        pin = self.model(ref.id).pin(ref.revision)
+        return {"id": ref.id, "revision": pin.revision, "files": dict(sorted(pin.files.items()))}
 
     def resolve(self, ref: str) -> "Resolved":
         """A preset edition: the current file when its edition matches (released or draft), else the lock."""
@@ -186,12 +193,15 @@ class Catalog:
                     if pin.license_file and not (d.root / "models" / mid / pin.license_file).exists():
                         problems.append(f"model {mid}: licence file {pin.license_file} is missing")
             for pid, p in d.presets.items():
-                if p.model is not None:
+                bad = []
+                for ref in ([p.model] if p.model is not None else []) + list(p.submodels.values()):
                     try:
-                        self.model(p.model.id).pin(p.model.revision)
+                        self.model(ref.id).pin(ref.revision)
                     except KeyError as e:
-                        problems.append(f"preset {pid}: {e.args[0]}")
-                        continue
+                        bad.append(f"preset {pid}: {e.args[0]}")
+                if bad:
+                    problems += bad
+                    continue
                 if p.superseded_by and split_ref(p.superseded_by)[0] not in self.presets:
                     problems.append(f"preset {pid}: superseded_by {p.superseded_by!r} is unknown")
                 entry = d.lock.presets.get(p.ref)
@@ -262,8 +272,13 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
     if r.engine_kind not in kinds:
         raise KeyError(f"preset {r.ref} needs engine {r.engine_kind!r}, which is not installed")
     kwargs = dict(r.content["engine"].get("options", {}))
+
+    def weights(pin: dict) -> dict:
+        m = catalog().model(pin["id"])
+        return {"model": m.id, "source": m.source.model_dump(), "revision": pin["revision"], "files": pin["files"]}
+
     if r.content.get("model"):
-        m = catalog().model(r.content["model"]["id"])
-        kwargs["weights"] = {"model": m.id, "source": m.source.model_dump(), "revision": r.content["model"]["revision"],
-                             "files": r.content["model"]["files"]}
+        kwargs["weights"] = weights(r.content["model"])
+    if r.content.get("submodels"):
+        kwargs["submodel_weights"] = {role: weights(pin) for role, pin in r.content["submodels"].items()}
     return kinds[r.engine_kind], kwargs, r

@@ -31,9 +31,11 @@ def _serve(a) -> None:
 
 
 def _models(a) -> None:
-    from .catalog.registry import catalog
+    from pathlib import Path
 
-    c = catalog()
+    from .catalog.registry import Catalog, catalogue_dirs
+
+    c = Catalog(catalogue_dirs() + [Path(d) for d in a.with_dir])
     rows = [("preset", "step", "engine", "model", "licence", "support")]
     for pid, (_, p) in sorted(c.presets.items()):
         if a.step and p.step != a.step:
@@ -50,8 +52,10 @@ def _catalog(a) -> None:
 
     from .catalog import registry
 
+    extra = [Path(d) for d in a.with_dir]
+    dirs = registry.catalogue_dirs() + [d for d in extra if d not in registry.catalogue_dirs()]
     if a.action == "verify":
-        problems = registry.Catalog().verify()
+        problems = registry.Catalog(dirs).verify()
         print("\n".join(problems) or "catalogue OK")
         sys.exit(1 if problems else 0)
     if a.action == "show":
@@ -62,11 +66,11 @@ def _catalog(a) -> None:
     elif a.action == "docs":
         from .catalog import docs
 
-        for path in docs.write(registry.Catalog(), a.out if a.out != "schemas" else "docs/catalog",
+        for path in docs.write(registry.Catalog(dirs), a.out if a.out != "schemas" else "docs/catalog",
                                readme=a.readme):
             print(path)
     elif a.action == "release":
-        e = registry.Catalog().release(a.ref, commit=a.commit)
+        e = registry.Catalog(dirs).release(a.ref, commit=a.commit)
         print(f"{a.ref}: {e.sha256} (released {e.released})")
     elif a.action == "schema":
         from .catalog import schema as S
@@ -103,6 +107,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--decode-workers", type=int, default=4)
     m = sub.add_parser("models", help="the catalogue's presets")
     m.add_argument("--step", default=None)
+    m.add_argument("--with-dir", action="append", default=[], help="also this catalogue directory")
     c = sub.add_parser("catalog", help="pin models, release and verify presets (specs/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schema", "docs"])
     c.add_argument("ref", nargs="?", help="preset id[@edition] (show, release) or model id (pin)")
@@ -113,6 +118,8 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
     c.add_argument("--dir", help="pin: the catalogue directory (default linecaster's own)")
     c.add_argument("--commit", help="release: the linecaster commit")
+    c.add_argument("--with-dir", action="append", default=[],
+                   help="verify, release, docs: also this catalogue directory (e.g. an engine's, uninstalled)")
     c.add_argument("--out", default="schemas", help="schema, docs: output folder (docs: default docs/catalog)")
     c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
     a = ap.parse_args(argv)

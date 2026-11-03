@@ -78,7 +78,7 @@ def test_engines_are_registered_under_their_kinds():
 def test_options_mirror_the_constructor(kind):
     cls = engine_class(kind)
     params = {name: p.default for name, p in inspect.signature(cls.__init__).parameters.items()
-              if name not in ("self", "weights") and p.kind is not p.VAR_KEYWORD}
+              if name not in ("self", "weights", "submodel_weights") and p.kind is not p.VAR_KEYWORD}
     assert "weights" in inspect.signature(cls.__init__).parameters
     fields = cls.Options.model_fields
     assert set(params) == set(fields)
@@ -118,8 +118,10 @@ def test_preset_constructs_its_engine(pid):
     assert cls.kind == p.engine.kind and cls.step == p.step
     model = cls(**b.kwargs)                         # constructed, not loaded
     assert model.weights == b.kwargs["weights"]
-    # the preset states every option but the device, so an edition does not depend on code defaults
-    assert set(p.engine.options) == set(cls.Options.model_fields) - {"device"}
+    # the preset states every option but the device (and what its submodels replace), so an edition does not
+    # depend on code defaults
+    replaced = {"submodel_revisions"} if p.submodels else set()
+    assert set(p.engine.options) == set(cls.Options.model_fields) - {"device"} - replaced
     assert model.options.model_dump(exclude={"device"}) == cls.Options(**p.engine.options).model_dump(exclude={"device"})
     assert Capabilities.model_validate(cls.capabilities).produces == p.capabilities.produces
 
@@ -175,10 +177,15 @@ def test_table_submodels_are_pinned_models():
     from linecaster_paddlex import PaddleTableModel
     from linecaster_paddlex.weights import model_id
 
-    revs = catalog().preset("slanet-plus").engine.options["submodel_revisions"]
-    assert set(revs) == set(PaddleTableModel.SUBMODELS)
-    for name, rev in revs.items():
-        catalog().model(model_id(name)).pin(rev)
+    p = catalog().preset("slanet-plus")
+    assert set(p.submodels) == set(PaddleTableModel.SUBMODELS)
+    for name, ref in p.submodels.items():
+        assert ref.id == model_id(name)
+        catalog().model(ref.id).pin(ref.revision)
+    b = InProcess.from_preset("slanet-plus")
+    assert set(b.kwargs["submodel_weights"]) == set(PaddleTableModel.SUBMODELS)
+    old = catalog().resolve("slanet-plus@1")                # edition 1 stays resolvable from the lock
+    assert set(old.content["engine"]["options"]["submodel_revisions"]) == set(PaddleTableModel.SUBMODELS)
 
 
 def test_catalogue_files_ship_with_the_packages():

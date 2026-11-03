@@ -155,6 +155,8 @@ class PresetDoc(_Doc):
     edition: int = Field(ge=1)
     step: Literal["layout", "lines", "recognition", "tables", "formulas", "page"]
     model: ModelRef | None = Field(None, description="None for engines without weights (rules)")
+    submodels: dict[str, ModelRef] = Field(default_factory=dict,
+                                           description="further models of a multi-model engine, by role")
     engine: EngineRef
     settings: dict[str, Any] = Field(default_factory=dict)
     labels: dict[str, str] = Field(default_factory=dict, description="native label -> DoclingDocument label")

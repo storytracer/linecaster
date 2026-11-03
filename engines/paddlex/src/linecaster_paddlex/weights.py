@@ -11,7 +11,6 @@ own download.
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -29,44 +28,23 @@ def model_id(name: str, package: str = "onnx") -> str:
 def catalogue_weights(name: str, package: str = "onnx", revision: str | None = None) -> dict | None:
     """``weights`` for PaddleX model ``name`` from its model document: the pin with ``revision``, else the newest
     pin; ``None`` when the catalogue has no document for it."""
+    from linecaster.catalog.fetch import weights_of
     from linecaster.catalog.registry import catalog
 
-    c = catalog()
     mid = model_id(name, package)
-    if mid not in c.models:
+    if mid not in catalog().models:
         if revision is not None:
             raise KeyError(f"{name}: revision {revision} requested, but the catalogue has no model {mid!r}")
         return None
-    m = c.model(mid)
-    pin = m.pin(revision) if revision is not None else m.pins[-1]
-    return {"model": m.id, "source": m.source.model_dump(), "revision": pin.revision, "files": dict(pin.files)}
-
-
-def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return weights_of(mid, revision)
 
 
 def model_dir(weights: dict) -> str:
     """The snapshot of a pin (``weights``: model, source, revision, files) in the Hugging Face cache, downloaded
     on first use, every pinned file checked against its sha256."""
-    from huggingface_hub import snapshot_download
+    from linecaster.catalog.fetch import hf_snapshot
 
-    source = weights["source"]
-    if source.get("kind") != "hf":
-        raise ValueError(f"PaddleX weights come from Hugging Face; {weights['model']} is {source}")
-    revision = weights["revision"]
-    logger.info(f"PaddleX model {weights['model']}: {source['ref']}@{revision[:12]} (Hugging Face cache or download)")
-    root = Path(snapshot_download(source["ref"], revision=revision))
-    for name, sha in weights["files"].items():
-        path, expected = root / name, sha.split(":", 1)[1]
-        # the Hugging Face cache names an LFS blob by its sha256; anything else is hashed
-        if not path.exists() or (path.resolve().name != expected and _sha256(path) != expected):
-            raise ValueError(f"{path}: missing or its sha256 differs from the pin of {weights['model']}@{revision[:12]}")
-    return str(root)
+    return str(hf_snapshot(weights))
 
 
 def check(name: str, weights: dict | None, engine: str = "onnxruntime") -> None:

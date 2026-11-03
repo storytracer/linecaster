@@ -182,7 +182,9 @@ class PaddleTableModel:
 
     The pipeline's models: the structure model (``STRUCTURE``, for wired and wireless tables) from ``weights``
     (a catalogue pin) or the catalogue's newest pin; the classifier and the two cell detectors (``SUBMODELS``) at
-    ``submodel_revisions`` (each a pin of its model document) or their newest pins."""
+    ``submodel_weights`` (catalogue pins by PaddleX name, from a preset's ``submodels``), else
+    ``submodel_revisions`` (each a pin of its model document; edition 1 of ``slanet-plus``), else their newest
+    pins."""
 
     kind: ClassVar[str] = "paddlex.tables/1"
     step = "tables"
@@ -206,13 +208,14 @@ class PaddleTableModel:
                               "newest pins)")
 
     def __init__(self, device: str = "auto", crop_pad: int = 8, e2e: bool = True, name: str = "table_recognition_v2/SLANet_plus",
-                 submodel_revisions: dict[str, str] | None = None, weights: dict | None = None):
+                 submodel_revisions: dict[str, str] | None = None, weights: dict | None = None,
+                 submodel_weights: dict[str, dict] | None = None):
         o = self.Options(device=device, crop_pad=crop_pad, e2e=e2e, name=name, submodel_revisions=submodel_revisions)
         check(self.STRUCTURE, weights)
-        unknown = set(o.submodel_revisions or {}) - set(self.SUBMODELS)
+        unknown = (set(o.submodel_revisions or {}) | set(submodel_weights or {})) - set(self.SUBMODELS)
         if unknown:
             raise ValueError(f"submodel_revisions: {sorted(unknown)} are not models of the pipeline {self.SUBMODELS}")
-        self.options, self.weights = o, weights
+        self.options, self.weights, self.submodel_weights = o, weights, submodel_weights or {}
         self.device, self.crop_pad, self.e2e, self.name = o.device, o.crop_pad, o.e2e, o.name
         self.revision: str | None = weights["revision"] if weights else None
         self.recognizer: PaddleTableRecognizer | None = None
@@ -222,7 +225,8 @@ class PaddleTableModel:
         dirs[self.STRUCTURE], self.revision = resolve(self.STRUCTURE, self.weights)
         for name in self.SUBMODELS:
             rev = (self.options.submodel_revisions or {}).get(name)
-            dirs[name] = resolve(name, catalogue_weights(name, revision=rev) if rev else None)[0]
+            w = self.submodel_weights.get(name) or (catalogue_weights(name, revision=rev) if rev else None)
+            dirs[name] = resolve(name, w)[0]
         self.recognizer = PaddleTableRecognizer(self.device, self.crop_pad, self.e2e,
                                                 config=table_pipeline_config(model_dirs=dirs))
 
