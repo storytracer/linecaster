@@ -180,8 +180,8 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     from linecaster import jobs
 
     deps = jobs.dependencies("abc123")
-    assert deps[0] == "linecaster @ git+https://github.com/storytracer/linecaster@abc123"
-    assert "opencv-contrib-python @ git+https://github.com/storytracer/linecaster@abc123#subdirectory=stubs/opencv-contrib-python" in deps
+    assert deps[0] == "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
+    assert "opencv-contrib-python @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz#subdirectory=stubs/opencv-contrib-python" in deps
     assert jobs.KRAKEN_FORK in deps and "pillow==12.3.0" in deps
     assert jobs.dependencies("abc123", engines=False) == deps[:1]
     vol = jobs.wheel_volume("hf://buckets/ns/runs/run-1/wheels")
