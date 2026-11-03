@@ -8,55 +8,40 @@
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science Museum Group
 Collection, CC BY-NC-SA 4.0. <a href="#image-credit">Credit</a></sub></p>
 
-Linecaster turns scanned pages into text. You give it a folder of page images; it gives back the text of
-every page, a version that is easier to read, and the file formats libraries use.
-
-OCR (optical character recognition) in Linecaster is not one big model. It is a chain of small steps,
-each done by its own model or rule: find the text blocks on the page, find the lines, read them, rebuild
-the tables, tidy up the text. You can swap any step for a better one and the rest keeps working. The same
-chain runs on a laptop or on a hundred GPUs, without changes.
+Linecaster lets you build an OCR pipeline from interchangeable parts, and run that same pipeline on any
+machine: a laptop, a GPU server, a cluster, or Hugging Face Jobs. Moving from a test on ten pages to a run
+on millions does not mean rewriting anything. Neither does swapping one OCR model for a newer one.
 
 Linecaster is in early development. The ideas below are settled; names and options may still change.
 
-## The problems Linecaster solves
+## Why Linecaster
 
-**Much of the text in digital libraries comes from old OCR.** Many collections were scanned and read by
-machine years ago, with tools that struggle with old typefaces, tables and unusual layouts. Today's models
-read these pages far better, but re-reading millions of pages needs a tool built for that scale: fast,
-cheap to run and reliable over weeks.
+Reading a scanned page takes several models: one finds the layout, one finds the lines, one reads them,
+others rebuild tables or formulas. Each of these models comes from a different project, with its own
+software, its own way of running and its own output. And every place you might run them, from your own
+GPU to a rented cluster or Hugging Face Jobs, has its own way of starting work, spreading it over
+machines and coping with failures.
 
-**OCR tools usually come as one block.** A typical tool bundles finding the layout, finding the lines and
-reading them into one package. When a better layout model or a better recogniser appears, you have to
-replace the whole tool. In Linecaster each of these is a separate step, so you replace only the step that
-got better.
+So in practice the choice of models and the choice of machines get tangled up. A new recogniser means
+reworking the whole setup. A larger collection means writing new scripts for the cluster. A team that
+wants to compare a classic OCR engine with one of the new vision-language models has to build two
+separate pipelines.
 
-**Classic OCR engines and the new vision-language models live in separate worlds.** They need different
-software and give different kinds of output, which makes them hard to compare or combine. Linecaster runs
-both in the same kind of pipeline and writes the same records and files for both.
+Linecaster pulls these apart:
 
-**Results can change from one run to the next.** Many fast setups process pages from different jobs
-together, so the text for a page can depend on what else happened to be processed with it. For research,
-and for anyone who wants to re-run a collection later, that is a problem. In Linecaster the text for a page
-depends only on that page.
-
-**Different readers need different text.** People who measure OCR quality need the text exactly as
-printed. Training a language model works better with clean, flowing text. Libraries want standard files
-that record where each word sits, so their viewers can highlight search hits on the scan. Linecaster
-produces all of these in one run and always keeps the exact text next to the readable one.
-
-**A test on a laptop is far from a run on a whole collection.** A script that works on a hundred pages
-often has to be rewritten to run on millions of pages across many machines. In Linecaster the pipeline
-stays the same; only the way it is started changes.
-
-**Long runs fail halfway.** Over days or weeks, machines crash and some pages are damaged. Linecaster
-records which parts of a run have finished and picks up where it stopped. Damaged pages are set aside with
-the reason, and the run carries on.
-
-## Who it is for
-
-- **Libraries and archives** that want better text for collections they have already digitised.
-- **Researchers building text datasets**, for example to train language models on historical books.
-- **People who develop or compare OCR models**, who need to swap one part and measure the effect.
+- **Any OCR component.** Layout, line detection, recognition, tables and formulas are separate steps.
+  Each step can use a model from a different engine: kraken, PaddleX, or a vision-language model served
+  by vLLM. Every step reads and writes the same record per page, so they combine freely.
+- **Any machine.** You define the pipeline once. The same definition runs on one laptop, on one GPU, on
+  every GPU of a server, on a Ray cluster, or on Hugging Face Jobs. Only the line that starts the run
+  changes.
+- **Models served where they are needed.** A model can run inside the pipeline, or on a GPU server that
+  the pipeline talks to. On a cluster, each task starts its own model server on its GPU, so there is no
+  separate serving system to set up.
+- **The same result everywhere.** The text for a page depends only on that page and the models, never on
+  how many machines share the work or what else was running at the time.
+- **Built for long runs.** Work is split into tasks. A crashed run resumes where it stopped, and damaged
+  pages are set aside with the reason instead of stopping everything.
 
 ## What you get
 
@@ -76,23 +61,7 @@ For every book, the same text is also joined into one file per version.
 
 ## How it works
 
-### Reading a page, step by step
-
-Linecaster reads a page in stages, much as a person would:
-
-1. **Layout:** see where the text blocks, headings, tables, pictures and page numbers are.
-2. **Lines:** find each line of text.
-3. **Recognition:** read each line, character by character.
-4. **Tables:** rebuild tables as rows and columns.
-5. **Clean-up:** normalise the characters and remove typesetting debris such as decorative initials.
-6. **Document:** put everything together in reading order.
-
-Steps 1 to 4 each use a machine-learning model; the others are plain rules. Each step is a separate
-building block, so you can, for example, keep the layout model and try a different recogniser. The blocks
-run on [datatrove](https://github.com/huggingface/datatrove), Hugging Face's library for large
-data-processing jobs.
-
-### Every step adds to one record
+### A page goes through a chain of steps
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
@@ -102,41 +71,46 @@ data-processing jobs.
 *The path of one page. Shaded steps run a model. On the left, what the page's record holds after each
 step.*
 
+A page is read in stages, much as a person would read it: first see where the text blocks, headings and
+tables are, then find each line, read the lines, rebuild the tables, tidy up the characters, and finally
+put everything together in reading order.
+
 Each page travels with one record, its `Transcription`, a bit like a form that every step fills in
 further. The layout step adds the text blocks, the line step adds the lines, the recogniser adds the text
 and the position of each word. Steps never talk to each other directly; they only read and extend this
-record. That is why they can be swapped.
+record. That is why any step can be replaced.
 
-A page that fails along the way is not lost. It keeps its error message and skips the remaining model
-steps; a check step at the end of the pipeline puts it in a `rejects/` folder together with the reason.
+### Each model step chooses where its model runs
 
-### Where the models run
+A model step has a *backend*:
 
-The models are fastest on a GPU. Linecaster can run them in two ways:
+- **In-process:** the model loads inside the pipeline. Simplest, works without a GPU, and the reference
+  when checking results.
+- **Served:** the model stays loaded on a GPU server and the step sends pages to it. `linecaster serve`
+  hosts the engine models (kraken, PaddleX); vision-language models run behind vLLM or any other
+  OpenAI-compatible server.
 
-- **Inside the pipeline.** The models load where the pipeline runs. This is the simplest setup, also
-  works without a GPU, and is the reference when checking results.
-- **On a model server.** `linecaster serve` keeps the models loaded on a GPU, and the pipeline sends
-  pages to it. Large vision-language models run the same way, behind a server such as vLLM.
+Served steps reach their servers through [saturate](https://github.com/davanstrien/saturate), which keeps
+enough pages in flight that the GPU never waits. Different steps work on different pages at the same
+time: while one page is being read, the layout of the next one is already being found.
 
-The pipeline talks to its servers through [saturate](https://github.com/davanstrien/saturate), which
-keeps enough pages in flight that the GPU never waits. Different steps work on different pages at the
-same time: while one page is being read, the layout of the next one is already being found.
+### The executor decides where the pipeline runs
 
-### From one machine to many
+Pipelines are [datatrove](https://github.com/huggingface/datatrove) pipelines, Hugging Face's library for
+large data-processing jobs. datatrove splits the pages into tasks and hands them to an *executor*: on one
+machine, on a Ray cluster, or on Hugging Face Jobs. It records which tasks have finished, so an
+interrupted run picks up where it stopped. datatrove also has a Slurm executor; Linecaster has not been
+run on Slurm yet.
 
-A pipeline does not change when it grows. datatrove splits the pages into tasks and runs them on one
-machine, on a cluster (Ray or Slurm) or on Hugging Face Jobs. It records which tasks have finished, so an
-interrupted run picks up where it stopped.
-
-The result for a page depends only on that page, never on what else is running. So a run gives the same
-text on one machine or on a hundred.
+When a task brings its own GPU, the last block of the pipeline starts the model server for that task and
+stops it when the task's pages are written. On a machine with several GPUs, each task gets one GPU and a
+server of its own.
 
 ## Getting started
 
 ### Install
 
-linecaster needs Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
+Linecaster needs Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
 
 ```bash
 git clone https://github.com/storytracer/linecaster && cd linecaster
@@ -144,71 +118,108 @@ uv sync                                  # the core
 (cd envs/kraken-paddlex && uv sync)      # an environment with the kraken and PaddleX engines
 ```
 
-The core has no machine-learning dependencies. The engines bring their own, which often conflict, so
-each combination of engines gets its own environment under `envs/`.
+The core has no machine-learning dependencies. Engines bring their own, which often conflict, so each
+combination of engines gets its own environment under `envs/`.
 
-### Your first pipeline
-
-This pipeline reads a folder of scans, finds regions and lines, reads the text and writes ALTO and
-Markdown files plus one row per page. Run it with the engine environment's Python.
+### Define the pipeline once
 
 ```python
-from datatrove.executor import LocalPipelineExecutor
-
-from linecaster.backends import InProcess
+from linecaster.backends import InProcess, Served
 from linecaster.blocks.document import AssembleDocument, Typography
 from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep
+from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.unicode import NormalizeUnicode
 from linecaster.blocks.writers import PageFilesWriter, PageJsonlWriter
 
-pipeline = [
-    ImageFolderReader("scans/", item_from_parent=True),      # one subfolder per book
-    LayoutStep(InProcess("linecaster_paddlex:PaddleLayoutModel", model_name="PP-DocLayoutV3")),
-    LinesStep(InProcess("linecaster_paddlex:PaddleLineModel", model_name="PP-OCRv6_medium_det")),
-    AssignLinesToRegions(),
-    RecognitionStep(InProcess("linecaster_kraken:KrakenRecognitionModel", model="medium")),
-    NormalizeUnicode(),
-    Typography(),
-    AssembleDocument(),
-    PageFilesWriter("out/files", formats=("alto", "md")),
-    PageJsonlWriter("out/rows"),
+MODELS = [
+    {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
+    {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},
+    {"name": "recognition", "spec": "linecaster_kraken:KrakenRecognitionModel", "kwargs": {"model": "medium"}},
+    {"name": "tables", "spec": "linecaster_paddlex:PaddleTableModel", "kwargs": {}},
 ]
 
-LocalPipelineExecutor(pipeline, tasks=4, logging_dir="out/logs").run()
+def in_process(name):                        # the model loads inside the pipeline
+    m = next(m for m in MODELS if m["name"] == name)
+    return InProcess(m["spec"], **m["kwargs"])
+
+def served(name):                            # the model runs on a server
+    return Served("http://127.0.0.1:8100/v1", model=name)
+
+def ocr(images, out, backend):
+    return [
+        ImageFolderReader(images, item_from_parent=True),      # one subfolder per book
+        LayoutStep(backend("layout")),
+        LinesStep(backend("lines")),
+        AssignLinesToRegions(),
+        RecognitionStep(backend("recognition")),
+        NormalizeUnicode(),
+        TablesStep(backend("tables")),
+        Typography(),
+        AssembleDocument(),
+        PageFilesWriter(f"{out}/files", formats=("alto", "md")),
+        PageJsonlWriter(f"{out}/rows"),
+    ]
 ```
 
-### Move the models to a GPU server
+### Run it anywhere
 
-Start `linecaster serve` in the engine environment:
+**On a laptop or any single machine**, models in-process:
+
+```python
+from datatrove.executor import LocalPipelineExecutor
+
+LocalPipelineExecutor(ocr("scans/", "out", in_process), tasks=4, logging_dir="out/logs").run()
+```
+
+**On a GPU server.** Start `linecaster serve` in the engine environment, then use the served backend:
 
 ```bash
 envs/kraken-paddlex/.venv/bin/python -m linecaster.cli serve --port 8100 \
     --model layout=linecaster_paddlex:PaddleLayoutModel --kwargs 'layout={"model_name": "PP-DocLayoutV3"}' \
     --model lines=linecaster_paddlex:PaddleLineModel --kwargs 'lines={"model_name": "PP-OCRv6_medium_det"}' \
-    --model recognition=linecaster_kraken:KrakenRecognitionModel --kwargs 'recognition={"model": "medium"}'
+    --model recognition=linecaster_kraken:KrakenRecognitionModel --kwargs 'recognition={"model": "medium"}' \
+    --model tables=linecaster_paddlex:PaddleTableModel
 ```
-
-Then change only the backends. Everything else in the pipeline stays the same:
 
 ```python
-from linecaster.backends import Served
-
-server = "http://127.0.0.1:8100/v1"
-LayoutStep(Served(server, model="layout"))
-LinesStep(Served(server, model="lines"))
-RecognitionStep(Served(server, model="recognition"))
+LocalPipelineExecutor(ocr("scans/", "out", served), tasks=4, logging_dir="out/logs").run()
 ```
 
-The server can also read its models from a JSON file (`--config models.json`). It listens on loopback
-only, unless you tell it otherwise.
+**On every GPU of one or many machines, with Ray.** Each task gets a GPU and starts its own server:
 
-### Read pages with a vision-language model
+```python
+from linecaster.blocks.serve import ServeModels
+from linecaster.ray_executor import RayGPUExecutor
 
-`ChatPageStep` sends whole pages to an OpenAI-compatible server. `ChatRegionStep` sends one crop per
-layout region instead. A short model spec in `linecaster.models` holds the model's prompt, sampling,
-server flags and how to read its answer:
+pipeline = ocr("/shared/scans", "/shared/out", served) + [
+    ServeModels(MODELS, port=8100, python="envs/kraken-paddlex/.venv/bin/python")]   # last block
+RayGPUExecutor(pipeline, tasks=64, logging_dir="/shared/out/logs").run()
+```
+
+Start Ray first (`uv sync --extra ray`, then `ray start` on each machine). Images and output must be on
+storage every machine can reach.
+
+**On Hugging Face Jobs**, one GPU per Job:
+
+```python
+from datatrove.executor import JobsPipelineExecutor
+from linecaster.jobs import dependencies
+
+run = "hf://buckets/<namespace>/<bucket>/my-run"
+pipeline = ocr("hf://datasets/<namespace>/<dataset>/images", run, served) + [ServeModels(MODELS, port=8100)]
+JobsPipelineExecutor(pipeline, tasks=64, flavor="l4x1", namespace="<namespace>",
+                     dependencies=dependencies("<pushed linecaster commit>"), logging_dir=f"{run}/logs").run()
+```
+
+On flavors with several GPUs (`l4x4`, `l40sx8`), `linecaster.jobs.GPUJobsExecutor` runs one task per GPU.
+`recipes/` has complete versions of these pipelines.
+
+### Use a vision-language model
+
+`ChatPageStep` sends whole pages to an OpenAI-compatible server; `ChatRegionStep` sends one crop per
+layout region. A short model spec in `linecaster.models` holds the model's prompt, sampling, server flags
+and how to read its answer. They fit into the same pipelines and executors:
 
 ```python
 from linecaster.blocks.chat import ChatPageStep
@@ -218,43 +229,14 @@ spec = chat_model("lightonai/LightOnOCR-2-1B")
 ChatPageStep(spec, Served("http://127.0.0.1:8000/v1", model=spec.model))
 ```
 
-### Run on Hugging Face Jobs
-
-With one GPU per Job, each Job starts its own model server. Put the server block last in the pipeline,
-so the server stays up until every page is written:
-
-```python
-from datatrove.executor import JobsPipelineExecutor
-from linecaster.blocks.serve import ServeModels
-from linecaster.jobs import dependencies
-
-pipeline = [..., PageJsonlWriter("hf://buckets/<namespace>/<bucket>/run/rows"), ServeModels(models, port=8100)]
-JobsPipelineExecutor(pipeline, tasks=16, flavor="l4x1", dependencies=dependencies("<pushed commit>"),
-                     logging_dir="hf://buckets/<namespace>/<bucket>/run/logs").run()
-```
-
-`ServeChatModel` does the same for vLLM. On machines with several GPUs, `GPUJobsExecutor` runs one task
-per GPU. `recipes/hf-jobs/` has complete examples.
-
-### Run on a Ray cluster
-
-Start Ray on every machine, then run the pipeline once from any of them. Each task gets one GPU and starts
-its own model server on it:
-
-```bash
-uv sync --extra ray
-.venv/bin/ray start --head --num-gpus 8          # other machines: ray start --address=<head>:6379
-.venv/bin/python recipes/ray/squiddle_chain.py IMAGES OUT --tasks 64
-```
-
-The page images and the output folder must be reachable from every machine.
+`ServeChatModel` starts vLLM inside a task, the way `ServeModels` starts `linecaster serve`.
 
 ### Split long runs into stages
 
 A large job is easier to run, check and repeat in stages. Each stage reads the page rows the previous
 one wrote (`PageRowReader`), adds one part and writes complete rows again. The original files are never
-changed; rejected pages and their reasons go to `rejects/`, and datatrove's logs and completion markers
-go to `logs/`.
+changed. A check step (`ValidatePages`, `RejectSink`) puts pages that failed into `rejects/` with the
+reason, and datatrove keeps its logs and completion markers in `logs/`.
 
 ## Under the hood
 
@@ -265,7 +247,7 @@ go to `logs/`.
 | `Item` | a multi-page unit: book, issue, manuscript, file |
 | `Page` | one page: its image and any number of named transcriptions |
 | `Transcription` | regions, lines and words with positions, reading order and confidences, plus a DoclingDocument |
-| `Text` | the text of a whole item in one variant |
+| `Text` | the text of a whole item in one version |
 
 A page can hold several transcriptions side by side, for example a delivered OCR text, a new
 recognition and the ground truth.
@@ -275,9 +257,9 @@ lists of points. A `Transcription` survives a round trip through JSON exactly, a
 PAGE-XML and hOCR without losing structure, text, positions or confidences. `specs/` describes the
 design in full.
 
-### Text variants
+### Text versions
 
-linecaster describes text along three independent axes. Each transform moves one step on one axis and
+Linecaster describes text along three independent axes. Each transform moves one step on one axis and
 leaves the others alone.
 
 | Axis | From | To |
@@ -295,18 +277,25 @@ Three combinations have names:
 All text is in Unicode NFC. Normalisation folds typographic forms such as long s, ligatures and
 r rotunda, and keeps letters such as æ, œ, ø and ß. Spelling is never modernised.
 
+### Why results are the same everywhere
+
+Models batch only the lines of one page, in a fixed order, and never mix pages. Model versions are
+pinned, and numerically relevant library versions are fixed per engine environment. A page's output
+therefore depends on the page and the models, not on the machine, the number of GPUs or what else is in
+flight. Different GPU types can still differ in the last digits of their arithmetic, which shows up as
+rare one-character differences.
+
 ## Design principles
 
 - **Every step is replaceable.** Steps share a data model and nothing else.
+- **Deployment is not part of the pipeline.** Executors and backends change; the steps do not.
 - **The text as written is kept.** Readable versions are derived from it and stored next to it.
-- **Results are reproducible.** A page's output depends only on the page and the pinned models.
-- **Scaling belongs to the executor.** The pipeline stays the same from one machine to many.
 - **The core stays light.** Engines are separate packages with their own environments.
 - **Connectors stay generic.** Folders, buckets and Hugging Face datasets are built in. Adapters for a
-  particular collection or institution belong in the projects that use linecaster.
+  particular collection or institution belong in the projects that use Linecaster.
 - **Open formats out.** ALTO, PAGE-XML, hOCR, plain text, Markdown and DoclingDocument.
 
-## Extending linecaster
+## Extending Linecaster
 
 - **A new engine model** is a class with `step`, `name`, `load()` and
   `__call__(image, transcription, **params) -> Transcription`. Package it under `backends/` and it runs
@@ -318,10 +307,10 @@ r rotunda, and keeps letters such as æ, œ, ø and ß. Spelling is never modern
 ## Repository layout
 
 ```
-src/linecaster/        data model, blocks, model server, model specs, Jobs helpers
+src/linecaster/        data model, blocks, model server, model specs, executors and Jobs helpers
 backends/              engine packages (linecaster-kraken, linecaster-paddlex)
 envs/                  environments that install engines together
-examples/, recipes/    complete pipelines, local and on Hugging Face Jobs
+examples/, recipes/    complete pipelines: local, Ray, Hugging Face Jobs
 specs/                 design of the data model and the serialisers
 docs/                  images for this README
 ```
