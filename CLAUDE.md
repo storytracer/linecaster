@@ -27,8 +27,12 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. Heavy engines live in `backends/<engine>/`, each its own uv project with its own lock;
   these are NOT a uv workspace, because their pins conflict. No LiteLLM anywhere.
-- **Extras are named after the one dependency they bring:** `[datatrove]`, `[saturate]`; no
-  umbrella or alias extras; combinations are written out.
+- **datatrove and saturate are required dependencies**: datatrove + saturate is the integration
+  (blocks are datatrove `PipelineStep`s; served backends are reached through saturate). Pins:
+  `datatrove>=0.10.1,<0.11` (has `JobsPipelineExecutor`), `saturate==0.3.0` (0.x changes without
+  deprecation). Importing the data model and serialisation (`linecaster.transcription`) must not
+  import either. Extras only for genuinely optional things, each named after the one dependency it
+  brings (e.g. `[s3fs]`); no umbrella or alias extras.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
   the job contract and pipeline-assembly helpers; example pipelines only under `examples/` and
   `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle" pipeline in
