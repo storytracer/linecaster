@@ -95,3 +95,55 @@ class HFImageDatasetReader(PipelineStep):
                                         item_id=str(row[self.item_column]) if self.item_column else None, metadata=meta)
                 self.stat_update("pages")
                 yield doc
+
+
+class PageRowReader(PipelineStep):
+    """Page rows written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
+    enrichment chain: each pipeline reads the previous one's folder and adds one part. With
+    ``fetch_images`` the image bytes are read again from ``page.image.uri`` (rows never carry them)."""
+
+    type = "📖 - READER"
+    name = "📄 page rows"
+
+    def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True):
+        super().__init__()
+        self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
+
+    def _rows(self, path: str):
+        import gzip
+        import json
+
+        if path.endswith(".parquet"):
+            import pyarrow.parquet as pq
+
+            with self.data_folder.open(path, "rb") as f:
+                for row in pq.read_table(f).to_pylist():
+                    if isinstance(row.get("page"), str):
+                        row["page"] = json.loads(row["page"])
+                    yield row
+            return
+        with self.data_folder.open(path, "rb") as f:
+            stream = gzip.open(f, "rt") if path.endswith(".gz") else (line.decode() for line in f)
+            for line in stream:
+                if line.strip():
+                    yield json.loads(line)
+
+    def run(self, data=None, rank: int = 0, world_size: int = 1):
+        import fsspec
+        from datatrove.data import Document, Media, MediaType
+
+        if data:
+            yield from data
+        for path in sorted(self.data_folder.glob(self.glob_pattern))[rank::world_size]:
+            for row in self._rows(path):
+                page = row["page"]
+                media = []
+                uri = (page.get("image") or {}).get("uri")
+                if self.fetch_images and uri:
+                    with fsspec.open(uri.split("#", 1)[0], "rb") as f:
+                        media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri, media_bytes=f.read())]
+                doc = Document(text=row.get("text", ""), id=row["id"], media=media, metadata={"page": page})
+                if row.get("errors"):
+                    doc.metadata["errors"] = row["errors"]
+                self.stat_update("pages")
+                yield doc
