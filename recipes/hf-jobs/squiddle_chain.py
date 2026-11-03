@@ -4,7 +4,7 @@ the chain through saturate against it. Inputs: an image dataset on the Hub or an
 (``hf://...``); outputs and datatrove's logging_dir in a bucket.
 
     .venv/bin/python recipes/hf-jobs/squiddle_chain.py --run-id smoke-gt60 --commit <linecaster sha> \
-        --dataset finebooks/bhl-ocr-eval-sample-60 --revision <sha> --tasks 1
+        --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
     .venv/bin/python recipes/hf-jobs/squiddle_chain.py --run-id gt2165 --commit <sha> \
         --images hf://datasets/finebooks/bhl-impact-gt@<rev>/images --tasks 4
 

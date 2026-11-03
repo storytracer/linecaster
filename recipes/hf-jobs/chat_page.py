@@ -5,7 +5,7 @@ on the Hub (pinned revision) or an image folder (``hf://...``); page rows and da
 go to the bucket.
 
     .venv/bin/python recipes/hf-jobs/chat_page.py --run-id lighton2-smoke-gt60 --commit <linecaster sha> \
-        --dataset finebooks/bhl-ocr-eval-sample-60 --revision 41ff347552d13967c5d3001ca3eada800b0c22d7 --tasks 1
+        --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
 
 Image: ``vllm/vllm-openai:v0.26.0`` (the BHL board's vLLM for this model). It qualifies for the executor:
 it has ``uv`` (``pip install uv`` in vLLM's Dockerfile) and Python 3.12 (``PYTHON_VERSION=3.12``), and

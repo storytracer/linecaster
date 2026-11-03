@@ -1,7 +1,7 @@
 """lightonai/LightOnOCR-2-1B: request, parse and serve flags exactly as the BHL OCR board ran it.
 
-Source: bhl-ocr-eval ``drivers/lighton-ocr2-port.py`` (commit 76bc19d), the saturate driver that
-produced the board row, itself a port of Daniel van Strien's ``uv-scripts/ocr/lighton-ocr2-saturate.py``:
+Source: the saturate driver that produced the board row (in the board's evaluation harness), itself a
+port of Daniel van Strien's ``uv-scripts/ocr/lighton-ocr2-saturate.py``:
 
 * message = the page image ONLY, no text part (LightOnOCR-2's trained format, per the card);
 * the image re-encoded as PNG with the longest side forced to exactly 1540 px, in both directions
@@ -12,8 +12,7 @@ produced the board row, itself a port of Daniel van Strien's ``uv-scripts/ocr/li
   context); no ``--trust-remote-code`` (the architecture is registered in vLLM);
 * model revision pinned to the board's checkpoint.
 
-The completion is stored verbatim; the board's post-processing (``normalize_outputs``, postproc 3:
-a strip) stays in the harness. The board's vLLM is 0.26.0 (``vllm/vllm-openai:v0.26.0``);
+The completion is stored verbatim; the board's post-processing (a strip) stays in the harness. The board's vLLM is 0.26.0 (``vllm/vllm-openai:v0.26.0``);
 ``--gpu-memory-utilization`` is the deployment's choice (board 0.8 on an A10G) and not part of the spec.
 """
 from __future__ import annotations

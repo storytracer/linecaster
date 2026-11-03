@@ -6,12 +6,11 @@ Measurements, decisions and open questions, newest first.
 
 Setup:
 - Pipeline: `ImageFolderReader` → `ChatPageStep(LightOnOCR2, Served(..., max_window=48, initial_window=8), prepare_workers=4)` → `PageJsonlWriter`, run with `examples/chat_page.py`.
-- Server: vLLM 0.21.0 (the ocrscout environment, torch 2.11 cu130) at 127.0.0.1:8132.
+- Server: vLLM 0.21.0 (torch 2.11 cu130) on the same machine.
   - Flags: the spec's serve flags plus `--gpu-memory-utilization 0.22`, because the GPU was shared with `linecaster serve` and kraken-paddlex jobs.
   - The board pins vLLM 0.26.0. That version was not tested here.
 
-Scoring: the rows were converted to a saturate-shaped part file holding id, raw and finish_reason, then scored with bhl-ocr-eval @76bc19d along the board's path:
-`consolidate_run` → `normalize_outputs` (postproc 3) → `score_dataset` (norm 2026-10-30a, scorer 3.0).
+Scoring: the rows were converted to the harness's input shape (id, raw, finish_reason) and scored with the frozen bhl-ocr-eval harness along the FineBooks leaderboard's path (consolidation, output normalisation, scoring).
 
 | run | CERdip | CERread | recall µ | loops |
 |---|---:|---:|---:|---:|
