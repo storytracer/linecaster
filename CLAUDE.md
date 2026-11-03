@@ -58,7 +58,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `ServeChatModel` (vLLM) start the server through saturate's `Engine` and go **last** in the
   pipeline, after the writer: datatrove chains generators, and only the last one lives until every
   page is written.
-- **Engines** live in `backends/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
+- **Engines** live in `engines/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
   each its own package; an engine model is a class with `step`, `name`, `load()` and
   `__call__(image, transcription, **params) -> Transcription`. **No environment
   folders: a recipe is a self-contained uv script** (PEP 723 block, a `<script>.py.lock` next to it,

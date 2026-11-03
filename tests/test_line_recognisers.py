@@ -30,8 +30,8 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# linecaster-paddlex = { path = "../backends/paddlex", editable = true }
-# linecaster-tesseract = { path = "../backends/tesseract", editable = true }
+# linecaster-paddlex = { path = "../engines/paddlex", editable = true }
+# linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """The PaddleX and Tesseract line recognisers' geometry, without models. Skipped in the core environment;

@@ -29,7 +29,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# linecaster-paddlex = { path = "../backends/paddlex", editable = true }
+# linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """A vision-language model reads the page: the whole page (``ChatPageStep``) or, with --regions, each region

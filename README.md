@@ -506,7 +506,7 @@ Spelling is never modernised.
 | To add | Write |
 |---|---|
 | a vision-language model | a `ChatModel` subclass (model id, revision, sampling, server flags, request, parsing), registered in `linecaster.models` |
-| another model | a class with `step`, `name`, `load()` and `__call__(image, transcription)`, packaged under `backends/` |
+| another model | a class with `step`, `name`, `load()` and `__call__(image, transcription)`, packaged under `engines/` |
 | a processing step | a `PageStep` with `process_page(doc, page)` |
 
 Such a model runs both inside the pipeline and behind `linecaster serve` without further work.
@@ -519,7 +519,7 @@ Such a model runs both inside the pipeline and behind `linecaster serve` without
 | Folder | Contents |
 |---|---|
 | `src/linecaster/` | data model, blocks, server, model specs, executors |
-| `backends/` | engine packages: [kraken], [PaddleX], [Tesseract] |
+| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] |
 | `recipes/` | self-contained pipelines that run anywhere and serve their models |
 | `specs/` | design of the data model |
 | `docs/` | images for this README |

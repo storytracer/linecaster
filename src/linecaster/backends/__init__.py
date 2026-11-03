@@ -1,6 +1,6 @@
 """Where a block's model runs: in the pipeline's process, or behind a server reached through saturate.
 
-An engine model (in ``backends/<engine>/``, its own package and environment) is a class with a
+An engine model (in ``engines/<engine>/``, its own package and environment) is a class with a
 ``step`` (layout, lines, recognition, ...), a ``name``, ``load()`` and ``__call__(image, transcription,
 **params) -> Transcription``: it receives the page image (RGB uint8 array) and the transcription so
 far, and returns it with its part added. The same class serves both backends:
@@ -41,7 +41,19 @@ class InProcess:
 
     def __init__(self, spec: str, **kwargs):
         self.spec, self.kwargs = spec, kwargs
+        self.preset: str | None = None           # id@edition when built from a catalogue preset
+        self.preset_sha256: str | None = None
         self._model = None
+
+    @classmethod
+    def from_preset(cls, ref: str) -> "InProcess":
+        """The engine and options of catalogue preset ``ref`` (``id`` or ``id@edition``)."""
+        from ..catalog.registry import engine_spec
+
+        spec, kwargs, resolved = engine_spec(ref)
+        backend = cls(spec, **kwargs)
+        backend.preset, backend.preset_sha256 = resolved.ref, resolved.sha256
+        return backend
 
     def model(self) -> EngineModel:
         if self._model is None:
@@ -53,7 +65,8 @@ class InProcess:
         return "in-process"
 
     def __getstate__(self):   # never pickle a loaded model (datatrove pickles the pipeline)
-        return {"spec": self.spec, "kwargs": self.kwargs, "_model": None}
+        return {"spec": self.spec, "kwargs": self.kwargs, "preset": self.preset, "preset_sha256": self.preset_sha256,
+                "_model": None}
 
 
 @dataclass

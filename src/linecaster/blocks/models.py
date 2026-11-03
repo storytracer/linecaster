@@ -44,6 +44,8 @@ class ModelStep(PageStep):
         out = self.backend.model()(decode_rgb(image_bytes(doc)), t, **self.params)
         if out.model:
             out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+            if getattr(self.backend, "preset", None):        # built from a catalogue preset
+                out.model[-1].preset, out.model[-1].preset_sha256 = self.backend.preset, self.backend.preset_sha256
         page.transcriptions[self.transcription] = out
         return page
 

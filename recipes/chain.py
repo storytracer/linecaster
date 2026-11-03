@@ -33,9 +33,9 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# linecaster-kraken = { path = "../backends/kraken", editable = true }
-# linecaster-paddlex = { path = "../backends/paddlex", editable = true }
-# linecaster-tesseract = { path = "../backends/tesseract", editable = true }
+# linecaster-kraken = { path = "../engines/kraken", editable = true }
+# linecaster-paddlex = { path = "../engines/paddlex", editable = true }
+# linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }

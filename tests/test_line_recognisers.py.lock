@@ -12,8 +12,8 @@ resolution-markers = [
 [manifest]
 requirements = [
     { name = "linecaster", editable = "../" },
-    { name = "linecaster-paddlex", editable = "../backends/paddlex" },
-    { name = "linecaster-tesseract", editable = "../backends/tesseract" },
+    { name = "linecaster-paddlex", editable = "../engines/paddlex" },
+    { name = "linecaster-tesseract", editable = "../engines/tesseract" },
     { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
     { name = "pytest", specifier = ">=8" },
 ]
@@ -824,6 +824,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "saturate" },
     { name = "uniseg" },
     { name = "wcwidth" },
@@ -838,6 +839,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
@@ -851,7 +853,7 @@ dev = [{ name = "pytest", specifier = ">=8" }]
 [[package]]
 name = "linecaster-paddlex"
 version = "0.0.1"
-source = { editable = "../backends/paddlex" }
+source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
     { name = "linecaster" },
@@ -888,7 +890,7 @@ requires-dist = [
 [[package]]
 name = "linecaster-tesseract"
 version = "0.0.1"
-source = { editable = "../backends/tesseract" }
+source = { editable = "../engines/tesseract" }
 dependencies = [
     { name = "linecaster" },
     { name = "numpy" },

@@ -43,6 +43,8 @@ class Hosted:
     spec: str
     kwargs: dict
     max_queue: int = 16
+    preset: str | None = None          # id@edition when hosted from a catalogue preset
+    preset_sha256: str | None = None
     model: object = None
     jobs: queue.Queue = field(default_factory=queue.Queue)
     admitted: int = 0          # accepted and not yet answered (decoding, waiting or running)
@@ -68,6 +70,8 @@ class Hosted:
             start = time.perf_counter()
             try:
                 out = self.model(image, t, **params)
+                if self.preset and out.model:
+                    out.model[-1].preset, out.model[-1].preset_sha256 = self.preset, self.preset_sha256
                 if out.model:
                     out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
                 result = (200, {"transcription": out.model_dump(mode="json"),
