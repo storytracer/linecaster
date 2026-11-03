@@ -102,7 +102,7 @@ def test_docs_from_the_catalogue(tmp_path):
     assert "upstream/abc/README.md" in page
     assert "| [p](p.md) | MIT | 0.0312 |" in (tmp_path / "docs" / "README.md").read_text()
     text = readme.read_text()
-    assert "old" not in text and "[`p`](docs/p.md) ✅" in text and text.endswith("outro\n")
+    assert "old" not in text and "[`p`](docs/p.md) |" in text and "✅" not in text and text.endswith("outro\n")
 
 
 def test_repository_catalogues_are_consistent():

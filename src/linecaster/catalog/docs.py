@@ -129,11 +129,9 @@ def readme_tables(c: Catalog, docs_rel: str) -> str:
             if p.model is not None:
                 m = c.model(p.model.id)
                 model = f"[{m.version or m.id}]({_model_url(c, p)})"
-            mark = " ✅" if p.support == "core" else ""
-            lines.append(f"| [`{pid}`]({docs_rel}/{pid}.md){mark} | {model} |")
+            lines.append(f"| [`{pid}`]({docs_rel}/{pid}.md) | {model} |")
         lines.append("")
-    lines.append("✅ core: maintained and validated. The others are experimental.")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip("\n")
 
 
 def write(c: Catalog, out: str | Path, readme: str | Path | None = None) -> list[Path]:
