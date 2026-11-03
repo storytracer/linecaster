@@ -365,9 +365,10 @@ def to_html(doc_or_t, furniture: bool = False) -> str:
 def to_doclang(doc_or_t) -> str:
     """Docling's DocLang XML, with named groups (sections survive as ``<group>``). DocLang keeps every
     content layer and marks the furniture items (``<layer value="furniture"/>``), so it has no
-    ``furniture`` switch."""
+    ``furniture`` switch. docling-core's DocLang export rewrites the provenance charspans of the document it
+    serialises, so it runs on a copy (0.3's JSON depended on whether doclang was exported before it)."""
     doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
-    return doc.export_to_doclang(add_named_groups=True)
+    return doc.model_copy(deep=True).export_to_doclang(add_named_groups=True)
 
 
 def to_json(doc_or_dict) -> str:

@@ -164,3 +164,12 @@ def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
     assert (b.l, b.t, b.r, b.b) == (0, 0, 300, 1000)
     assert DoclingDocument.model_validate(doc.export_to_dict()).export_to_dict() == doc.export_to_dict()
     assert t.regions[4].polygon[0] == [-18, -3]                                    # the layout itself is untouched
+
+
+def test_doclang_export_leaves_the_document_alone():
+    t = assembled()
+    t.lines[1].text = "a longer first row"
+    doc = build_docling(t, name="p1", width=1000, height=1000, text="reflow")
+    before = doc.export_to_dict()
+    to_doclang(doc)
+    assert doc.export_to_dict() == before
