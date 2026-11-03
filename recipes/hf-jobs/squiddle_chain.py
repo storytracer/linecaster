@@ -47,13 +47,17 @@ def main() -> None:
     ap.add_argument("--namespace", default="finebooks"); ap.add_argument("--flavor", default="l4x1")
     ap.add_argument("--timeout", default="3h"); ap.add_argument("--limit", type=int, default=-1)
     ap.add_argument("--window", type=int, default=32, help="max pages in flight per model block")
+    ap.add_argument("--batch-size", type=int, default=8,
+                    help="lines per kraken forward pass (8 = squiddleocr's setting, which the goldens use)")
     a = ap.parse_args()
+    models = [{**m, "kwargs": {**m["kwargs"], "batch_size": a.batch_size}} if m["name"] == "recognition" else m
+              for m in MODELS]
 
     run = f"{a.bucket}/{a.run_id}"
     reader = (HFImageDatasetReader(a.dataset, a.revision, id_column=a.id_column, limit=a.limit) if a.dataset
               else ImageFolderReader(a.images, glob_pattern="**/*.webp", item_from_parent=True, limit=a.limit))
     endpoint = "http://127.0.0.1:8100/v1"
-    served = {m["name"]: Served(endpoint, model=m["name"], max_window=a.window) for m in MODELS}
+    served = {m["name"]: Served(endpoint, model=m["name"], max_window=a.window) for m in models}
     pipeline = [
         reader,
         LayoutStep(served["layout"]),
@@ -63,7 +67,7 @@ def main() -> None:
         TablesStep(served["tables"]),
         FormulasStep(served["formulas"]),
         PageJsonlWriter(f"{run}/processed/squiddle", output_filename="${rank}.jsonl.gz"),
-        ServeModels(MODELS, port=8100),   # last: lives until every page is written (see the block's docstring)
+        ServeModels(models, port=8100),   # last: lives until every page is written (see the block's docstring)
     ]
     JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/squiddle",
                          flavor=a.flavor, namespace=a.namespace, dependencies=dependencies(a.commit), timeout=a.timeout,
