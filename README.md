@@ -18,6 +18,46 @@ chain runs on a laptop or on a hundred GPUs, without changes.
 
 Linecaster is in early development. The ideas below are settled; names and options may still change.
 
+## The problems Linecaster solves
+
+**Much of the text in digital libraries comes from old OCR.** Many collections were scanned and read by
+machine years ago, with tools that struggle with old typefaces, tables and unusual layouts. Today's models
+read these pages far better, but re-reading millions of pages needs a tool built for that scale: fast,
+cheap to run and reliable over weeks.
+
+**OCR tools usually come as one block.** A typical tool bundles finding the layout, finding the lines and
+reading them into one package. When a better layout model or a better recogniser appears, you have to
+replace the whole tool. In Linecaster each of these is a separate step, so you replace only the step that
+got better.
+
+**Classic OCR engines and the new vision-language models live in separate worlds.** They need different
+software and give different kinds of output, which makes them hard to compare or combine. Linecaster runs
+both in the same kind of pipeline and writes the same records and files for both.
+
+**Results can change from one run to the next.** Many fast setups process pages from different jobs
+together, so the text for a page can depend on what else happened to be processed with it. For research,
+and for anyone who wants to re-run a collection later, that is a problem. In Linecaster the text for a page
+depends only on that page.
+
+**Different readers need different text.** People who measure OCR quality need the text exactly as
+printed. Training a language model works better with clean, flowing text. Libraries want standard files
+that record where each word sits, so their viewers can highlight search hits on the scan. Linecaster
+produces all of these in one run and always keeps the exact text next to the readable one.
+
+**A test on a laptop is far from a run on a whole collection.** A script that works on a hundred pages
+often has to be rewritten to run on millions of pages across many machines. In Linecaster the pipeline
+stays the same; only the way it is started changes.
+
+**Long runs fail halfway.** Over days or weeks, machines crash and some pages are damaged. Linecaster
+records which parts of a run have finished and picks up where it stopped. Damaged pages are set aside with
+the reason, and the run carries on.
+
+## Who it is for
+
+- **Libraries and archives** that want better text for collections they have already digitised.
+- **Researchers building text datasets**, for example to train language models on historical books.
+- **People who develop or compare OCR models**, who need to swap one part and measure the effect.
+
 ## What you get
 
 For every page:
