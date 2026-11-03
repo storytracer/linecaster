@@ -105,9 +105,12 @@ class PageRowReader(PipelineStep):
     type = "📖 - READER"
     name = "📄 page rows"
 
-    def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True):
+    def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
+                 uri_map: dict[str, str] | None = None):
+        """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files)."""
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
+        self.uri_map = uri_map or {}
 
     def _rows(self, path: str):
         import gzip
@@ -140,7 +143,11 @@ class PageRowReader(PipelineStep):
                 media = []
                 uri = (page.get("image") or {}).get("uri")
                 if self.fetch_images and uri:
-                    with fsspec.open(uri.split("#", 1)[0], "rb") as f:
+                    src = uri.split("#", 1)[0]
+                    for prefix, repl in self.uri_map.items():
+                        if src.startswith(prefix):
+                            src = repl + src[len(prefix):]
+                    with fsspec.open(src, "rb") as f:
                         media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri, media_bytes=f.read())]
                 doc = Document(text=row.get("text", ""), id=row["id"], media=media, metadata={"page": page})
                 if row.get("errors"):

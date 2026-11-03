@@ -129,3 +129,7 @@ class LinesStep(ModelStep):
 
 class RecognitionStep(ModelStep):
     step = "recognition"
+
+
+class TablesStep(ModelStep):
+    step = "tables"

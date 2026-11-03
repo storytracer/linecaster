@@ -114,8 +114,19 @@ class Transcription(_Model):
 
     @property
     def text(self) -> str:
-        """The recognised lines in reading order, one per line (as written, as laid out, full page)."""
-        return "\n".join(ln.text for ln in self.ordered_lines() if ln.text is not None)
+        """The page's text as written, as laid out, full page: the recognised lines in reading order, one
+        per line; a region with a table structure (``region.extra["table"]``, from a tables step) is
+        written as a Markdown table instead of its lines (an HTML table when a cell spans)."""
+        tables = {r.id: r.extra["table"] for r in self.regions if r.extra.get("table", {}).get("cells")}
+        out, done = [], set()
+        for ln in self.ordered_lines():
+            if ln.region_id in tables:
+                if ln.region_id not in done:
+                    done.add(ln.region_id)
+                    out.append(render_table(tables[ln.region_id]))
+            elif ln.text is not None:
+                out.append(ln.text)
+        return "\n".join(out)
 
     @property
     def confidence(self) -> float | None:
@@ -138,3 +149,29 @@ class Transcription(_Model):
 
     def lines_of(self, region_id: str) -> list[Line]:
         return sorted((ln for ln in self.lines if ln.region_id == region_id), key=lambda ln: ln.reading_order)
+
+
+def render_table(table: dict) -> str:
+    """A table structure (``cells`` with row, col, spans, text) as a Markdown pipe table, first row as the
+    header; as an HTML table when any cell spans rows or columns (Markdown cannot hold spans)."""
+    cells = table["cells"]
+    if any(c.get("row_span", 1) > 1 or c.get("col_span", 1) > 1 for c in cells):
+        rows: dict[int, list] = {}
+        for c in sorted(cells, key=lambda c: (c["row"], c["col"])):
+            span = "".join(f' {k}span="{c[k + "_span"]}"' for k in ("row", "col") if c.get(k + "_span", 1) > 1)
+            tag = "th" if c.get("header") else "td"
+            rows.setdefault(c["row"], []).append(f"<{tag}{span}>{_html_escape(c['text'])}</{tag}>")
+        return "<table>" + "".join(f"<tr>{''.join(r)}</tr>" for _, r in sorted(rows.items())) + "</table>"
+    n_rows = max((c["row"] + 1 for c in cells), default=0)
+    n_cols = max((c["col"] + 1 for c in cells), default=0)
+    grid = [[""] * n_cols for _ in range(n_rows)]
+    for c in cells:
+        grid[c["row"]][c["col"]] = " ".join(c["text"].split()).replace("|", "\\|")
+    lines = ["| " + " | ".join(row) + " |" for row in grid]
+    if lines:
+        lines.insert(1, "|" + "|".join("---" for _ in range(n_cols)) + "|")
+    return "\n".join(lines)
+
+
+def _html_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

@@ -1,5 +1,31 @@
-{"models": [
-  {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
-  {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},
-  {"name": "recognition", "spec": "linecaster_kraken:KrakenRecognitionModel", "kwargs": {"model": "medium", "batch_size": 8}}
-]}
+{
+ "models": [
+  {
+   "name": "layout",
+   "spec": "linecaster_paddlex:PaddleLayoutModel",
+   "kwargs": {
+    "model_name": "PP-DocLayoutV3"
+   }
+  },
+  {
+   "name": "lines",
+   "spec": "linecaster_paddlex:PaddleLineModel",
+   "kwargs": {
+    "model_name": "PP-OCRv6_medium_det"
+   }
+  },
+  {
+   "name": "recognition",
+   "spec": "linecaster_kraken:KrakenRecognitionModel",
+   "kwargs": {
+    "model": "medium",
+    "batch_size": 8
+   }
+  },
+  {
+   "name": "tables",
+   "spec": "linecaster_paddlex:PaddleTableModel",
+   "kwargs": {}
+  }
+ ]
+}

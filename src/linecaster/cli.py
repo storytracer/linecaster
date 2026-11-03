@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--kwargs", action="append", default=[], metavar="NAME=JSON")
     s.add_argument("--host", default="127.0.0.1", help="bind address (default loopback only)")
     s.add_argument("--port", type=int, default=8100)
-    s.add_argument("--max-queue", type=int, default=16, help="requests a model accepts before answering 429")
+    s.add_argument("--max-queue", type=int, default=64, help="requests a model accepts before answering 429")
     s.add_argument("--decode-workers", type=int, default=4)
     a = ap.parse_args(argv)
     if a.command == "serve":
