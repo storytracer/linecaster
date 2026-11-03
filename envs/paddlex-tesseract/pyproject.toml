@@ -1,0 +1,28 @@
+[project]
+name = "linecaster-env-paddlex-tesseract"
+version = "0.0.1"
+description = "Environment for linecaster's PaddleX and Tesseract engines together: PaddleX layout, lines, tables and recognition with Tesseract as another line recogniser"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "linecaster",
+    "linecaster-paddlex",
+    "linecaster-tesseract",
+    # PaddleX pins the GUI build of OpenCV; this stub swaps in the headless build of the same version
+    "opencv-contrib-python",
+]
+
+[tool.uv]
+package = false
+required-version = ">=0.13.6"
+# the same numerics as envs/kraken-paddlex for the PaddleX models
+constraint-dependencies = ["onnxruntime-gpu==1.29.0", "pillow==12.3.0", "transformers==5.12.1", "tokenizers==0.22.2"]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.sources]
+linecaster = { path = "../..", editable = true }
+linecaster-paddlex = { path = "../../backends/paddlex", editable = true }
+linecaster-tesseract = { path = "../../backends/tesseract", editable = true }
+opencv-contrib-python = { path = "../../stubs/opencv-contrib-python" }

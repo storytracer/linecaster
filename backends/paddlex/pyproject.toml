@@ -1,7 +1,7 @@
 [project]
 name = "linecaster-paddlex"
 version = "0.0.1"
-description = "PaddleX engines for linecaster: PP-DocLayout layout analysis and PP-OCRv6 text-line detection on ONNX Runtime"
+description = "PaddleX engines for linecaster: PP-DocLayout layout analysis, PP-OCRv6 text-line detection and PP-OCRv6 text recognition on ONNX Runtime"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [

@@ -2,6 +2,42 @@
 
 Measurements, decisions and open questions, newest first.
 
+## More line recognisers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, spark)
+
+Two more engines for `RecognitionStep`, next to kraken:
+- `linecaster_paddlex:PaddleRecognitionModel`: PaddleOCR's own PP-OCRv6 recognisers (`PP-OCRv6_{tiny,small,medium}_rec`)
+  on PaddleX's ONNX Runtime engine. Lines cut as PaddleX's OCR pipeline cuts them (minimum-area rectangle, warped upright),
+  sorted by aspect ratio, `batch_size` 8. Words: the text split at whitespace (kraken's rule), placed along the line
+  rectangle by the CTC columns of their characters (PaddleX's `return_word_box` mapping); no per-word confidence.
+  PP-OCRv5 left out on purpose: PP-OCRv6 only.
+- `linecaster_tesseract:TesseractRecognitionModel` (new package `linecaster-tesseract`): Tesseract 5.5.3 LSTM through
+  tesserocr 2.12.0 (the wheels bundle Tesseract and Leptonica on Linux aarch64 and x86_64), page segmentation mode 7 on
+  each line's bounding box, outside the polygon painted white, 4 px white padding. Words, boxes and confidences from
+  Tesseract. Language data from tessdata_best (default) or tessdata_fast, pinned to a commit, cached in
+  `~/.cache/linecaster/tessdata`. On the CPU, one line at a time.
+- New environment `envs/paddlex-tesseract` (PaddleX + Tesseract, no torch, so no PP-FormulaNet there).
+
+Comparison on the 60-page sample: the same chain for every row (PP-DocLayoutV3 → PP-OCRv6 medium detection → line
+assignment → *recogniser* → NFC → tables → typography → document → Markdown), in-process, one task, scored as-is
+(no postproc) with the frozen bhl-ocr-eval harness (`score_dataset`, sample-60 at 41ff3475). Wall includes model loading.
+
+| recogniser | CERdip | CERread | recall | wall, 60 pages |
+|---|---:|---:|---:|---:|
+| kraken PP-OCRv6 medium (bf16) | 0.0341 | 0.0270 | 0.9508 | 72 s |
+| PaddleX PP-OCRv6 medium | 0.0387 | 0.0315 | 0.9343 | 49 s |
+| PaddleX PP-OCRv6 small | 0.0375 | 0.0300 | 0.9351 | 44 s |
+| PaddleX PP-OCRv6 tiny | 0.0446 | 0.0376 | 0.9123 | 33 s |
+| Tesseract best, `script/Latin` | 0.0430 | 0.0364 | 0.9131 | 132 s |
+| Tesseract best, `eng` | 0.0595 | 0.0516 | 0.8570 | 110 s |
+
+- kraken's port reads better than PaddleX's own runtime of the same model family on every volume but one (cuvier); the
+  likely difference is the line image (kraken's polygon-based extraction against PaddleX's rectangle warp). Not
+  investigated further.
+- PaddleX small is as good as medium here (0.0300 vs 0.0315): a 60-page sample, no conclusion about defaults.
+- Tesseract with the Latin script model is close to PP-OCRv6 tiny; `eng` alone loses on the German, French, Latin and
+  Russian volumes. Tesseract is the slowest (CPU, single process); more tasks would spread it over cores.
+- No default changed.
+
 ## squiddleocr 0.3's features in linecaster (2026-11-03, spark)
 
 Every feature and option of squiddleocr 0.3's paddle pipeline (`squiddle legacy ocr --pipeline paddle`), where it

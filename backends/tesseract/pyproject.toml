@@ -1,0 +1,18 @@
+[project]
+name = "linecaster-tesseract"
+version = "0.0.1"
+description = "Tesseract engines for linecaster: Tesseract's LSTM line recogniser through tesserocr"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "linecaster",
+    # the wheels bundle Tesseract 5.5.3 and Leptonica on Linux (aarch64 and x86_64); no system packages
+    "tesserocr==2.12.0",
+    "numpy",
+    "Pillow>=11",
+    "regex",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

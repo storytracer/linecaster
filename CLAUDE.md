@@ -58,10 +58,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `ServeChatModel` (vLLM) start the server through saturate's `Engine` and go **last** in the
   pipeline, after the writer: datatrove chains generators, and only the last one lives until every
   page is written.
-- **Engines** live in `backends/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`), each its own
-  package; an engine model is a class with `step`, `name`, `load()` and
+- **Engines** live in `backends/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
+  each its own package; an engine model is a class with `step`, `name`, `load()` and
   `__call__(image, transcription, **params) -> Transcription`. **Environments** that install
-  engines together live in `envs/<combination>/` (`envs/kraken-paddlex`), each with its own lock;
+  engines together live in `envs/<combination>/` (`envs/kraken-paddlex`, `envs/paddlex-tesseract`), each with its own lock;
   these are NOT a uv workspace, because engine pins conflict. `[tool.uv.sources]` applies only to a
   project's direct dependencies, so an environment lists the kraken fork directly; numerically
   relevant versions are pinned with `constraint-dependencies`; PaddleX's GUI OpenCV pin is

@@ -269,8 +269,9 @@ such as a line recogniser.
 ## 🧰 Supported models and blocks
 
 Every model belongs to one step. Vision-language models run behind [vLLM] or [SGLang]. The other models
-run inside the pipeline or behind `linecaster serve`: [kraken] models come with the
-`linecaster-kraken` package, [PaddleX] models with `linecaster-paddlex`.
+run inside the pipeline or behind `linecaster serve`. They come in one package per engine:
+`linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract`
+([Tesseract]).
 
 ### 🤖 Vision-language models
 
@@ -340,7 +341,10 @@ reading order.
 
 ### 👁️ Line recognisers
 
-`RecognitionStep` reads each line and places every word on the page.
+`RecognitionStep` reads each line a line detector found and places every word on the page. Three
+engines can do it.
+
+**[kraken]**, on torch, from `linecaster-kraken`:
 
 | Model | Default |
 |---|---|
@@ -348,6 +352,25 @@ reading order.
 | [kraken PP-OCRv6 small][kraken-small] | |
 | [kraken PP-OCRv6 medium][kraken-medium] | ✅ |
 | any kraken model file | |
+
+**[PaddleX]**, on ONNX Runtime, from `linecaster-paddlex`: PaddleOCR's own recognisers.
+
+| Model | Default |
+|---|---|
+| [PP-OCRv6 tiny][PP-OCRv6_tiny_rec] | |
+| [PP-OCRv6 small][PP-OCRv6_small_rec] | |
+| [PP-OCRv6 medium][PP-OCRv6_medium_rec] | ✅ |
+
+**[Tesseract]** 5.5, on the CPU, through [tesserocr], from `linecaster-tesseract`: any of Tesseract's
+languages and scripts, such as `eng`, `deu+lat` or `script/Latin`.
+
+| Model | Default |
+|---|---|
+| [tessdata_best] | ✅ |
+| [tessdata_fast] | |
+
+Tesseract runs in `envs/paddlex-tesseract`, next to the PaddleX models; kraken and the PaddleX models
+run in `envs/kraken-paddlex`.
 
 ### 📊 Tables
 
@@ -517,7 +540,7 @@ Such a model runs both inside the pipeline and behind `linecaster serve` without
 | Folder | Contents |
 |---|---|
 | `src/linecaster/` | data model, blocks, server, model specs, executors |
-| `backends/` | engine packages: [kraken], [PaddleX] |
+| `backends/` | engine packages: [kraken], [PaddleX], [Tesseract] |
 | `envs/` | environments with several engines |
 | `examples/` | local pipelines |
 | `recipes/` | [Ray] and [Hugging Face Jobs][HF Jobs] |
@@ -600,3 +623,10 @@ commercial purposes. The Apache-2.0 licence of the code does not apply to it. Th
 [dots.mocr]: https://huggingface.co/dots-studio/dots.mocr
 [dots.ocr]: https://huggingface.co/dots-studio/dots.ocr
 [GLM-OCR]: https://huggingface.co/zai-org/GLM-OCR
+[PP-OCRv6_tiny_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec
+[PP-OCRv6_small_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec
+[PP-OCRv6_medium_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec
+[Tesseract]: https://github.com/tesseract-ocr/tesseract
+[tesserocr]: https://github.com/sirfz/tesserocr
+[tessdata_best]: https://github.com/tesseract-ocr/tessdata_best
+[tessdata_fast]: https://github.com/tesseract-ocr/tessdata_fast
