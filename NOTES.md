@@ -172,3 +172,22 @@ next block to port.
 - `/v1/chat/completions` preset route for OpenAI clients.
 - Deterministic algorithms flag: not set (squiddleocr does not set it and is run-to-run deterministic);
   cuDNN autotuning is off explicitly.
+
+## Per-page files and item texts in one run (2026-11-03, spark)
+
+`examples/squiddle_chain.py BOOKS OUT --item-from-parent --files OUT/files --texts OUT/texts`
+in-process on sample-60 (images grouped by book in subfolders, 6 books): 1 m 45 s; page rows, 360
+per-page files (`<item>/<page>.hocr|.alto.xml|.page.xml|.txt|.md|.json`) and 18 item texts.
+
+- All 60 ALTO and 60 PAGE files validate against the schemas in `tests/schemas/`; the 60 hOCR files
+  read back with `from_hocr` (1,560 lines, as recognised).
+- readable variants: ſ folded (`proſtrati` → `prostrati` on pisciumquerelaee), the as-written ſ kept
+  in verbatim_txt; line-end hyphens resolved (`Verbin-/dung`, `Meso-/pleurit`, `Differen-/zierung`
+  → joined, on daschitinskelett); page headers and numbers (`— 38 —`) gone from readable, kept in
+  verbatim; pages separated by form feeds in verbatim only.
+- tables-7 (2 books): table regions appear as HTML tables in readable_md (cells span) and as
+  tab-separated rows in readable_txt.
+- The test pages are not consecutive within a book, so the joins across page breaks seen here are
+  between unrelated pages; on a whole book they are the intended paragraph continuations.
+- Item page order: `ItemTexts` sorts by `sequence`; `ImageFolderReader` sets none, so pages fall back
+  to their ids (BHL PageIDs ascend with the sequence on these books).
