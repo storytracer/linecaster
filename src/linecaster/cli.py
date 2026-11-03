@@ -58,6 +58,12 @@ def _catalog(a) -> None:
         from .catalog import yamlio
 
         print(yamlio.dump({"preset": r.ref, "sha256": r.sha256, "released": r.released, **r.content}))
+    elif a.action == "docs":
+        from .catalog import docs
+
+        for path in docs.write(registry.Catalog(), a.out if a.out != "schemas" else "docs/catalog",
+                               readme=a.readme):
+            print(path)
     elif a.action == "release":
         e = registry.Catalog().release(a.ref, commit=a.commit)
         print(f"{a.ref}: {e.sha256} (released {e.released})")
@@ -97,7 +103,7 @@ def main(argv: list[str] | None = None) -> None:
     m = sub.add_parser("models", help="the catalogue's presets")
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets (specs/catalog.md)")
-    c.add_argument("action", choices=["verify", "show", "release", "pin", "schema"])
+    c.add_argument("action", choices=["verify", "show", "release", "pin", "schema", "docs"])
     c.add_argument("ref", nargs="?", help="preset id[@edition] (show, release) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")
@@ -106,7 +112,8 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
     c.add_argument("--dir", help="pin: the catalogue directory (default linecaster's own)")
     c.add_argument("--commit", help="release: the linecaster commit")
-    c.add_argument("--out", default="schemas", help="schema: output folder")
+    c.add_argument("--out", default="schemas", help="schema, docs: output folder (docs: default docs/catalog)")
+    c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
     a = ap.parse_args(argv)
     if a.command == "serve":
         _serve(a)

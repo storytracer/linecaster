@@ -83,3 +83,23 @@ def test_documents_are_strict(tmp_path):
 def test_installed_catalogue_is_consistent():
     c = Catalog(catalogue_dirs())
     assert c.verify() == []
+
+
+def test_docs_from_the_catalogue(tmp_path):
+    from linecaster.catalog import docs
+
+    root = tmp_path / "cat"
+    make(root)
+    (root / "evidence").mkdir()
+    (root / "evidence" / "e.yaml").write_text(yamlio.dump({
+        "schema": "linecaster.evidence/1", "preset": "p@1", "source": "own-run", "dataset": "d@r",
+        "metrics": {"cer_reading": 0.0312}, "date": dt.date(2026, 11, 3)}))
+    readme = tmp_path / "README.md"
+    readme.write_text("intro\n<!-- catalog:start -->\nold\n<!-- catalog:end -->\noutro\n")
+    docs.write(Catalog([root]), tmp_path / "docs", readme=readme)
+    page = (tmp_path / "docs" / "p.md").read_text()
+    assert "Why these settings." in page and "| 2026-11-03 | Linecaster run | d@r | cer_reading 0.0312 |" in page
+    assert "upstream/abc/README.md" in page
+    assert "| [p](p.md) | MIT | 0.0312 |" in (tmp_path / "docs" / "README.md").read_text()
+    text = readme.read_text()
+    assert "old" not in text and "[`p`](docs/p.md) ✅" in text and text.endswith("outro\n")
