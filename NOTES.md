@@ -506,3 +506,34 @@ per-page files (`<item>/<page>.hocr|.alto.xml|.page.xml|.txt|.md|.json`) and 18 
   between unrelated pages; on a whole book they are the intended paragraph continuations.
 - Item page order: `ItemTexts` sorts by `sequence`; `ImageFolderReader` sets none, so pages fall back
   to their ids (BHL PageIDs ascend with the sequence on these books).
+
+## Board models as chat specs: validation on the 60-page sample (2026-11-03)
+
+Each spec ran through `recipes/hf-jobs/chat_page.py` (ChatPageStep + ServeChatModel in one HF Job) on the
+sample-60 pages, and was scored the board's way (consolidate → `normalize_outputs` postproc 3 →
+`score_dataset`) next to the board's own outputs for the same 60 pages (bhl-ocr-eval's consolidated rows).
+CER reading, linecaster vs board:
+
+| Model | GPU | linecaster | board |
+|---|---|---|---|
+| rednote-hilab/dots.ocr | L4 | 0.0170 | 0.0170 |
+| datalab-to/chandra-ocr-2 | L4 | 0.0190 | 0.0197 |
+| baidu/Unlimited-OCR-2 (SGLang) | L4 | 0.0251 | 0.0262 |
+| ATH-MaaS/OvisOCR2 | L4 | 0.0276 | 0.0274 |
+| ATH-MaaS/OvisOCR3 | L4 | 0.0299 | 0.0325 |
+| PaddlePaddle/PaddleOCR-VL-1.6 | L4 | 0.0309 | 0.0309 |
+| Qwen/Qwen3.5-9B | L40S | 0.0358 | 0.0356 |
+| zai-org/GLM-OCR | L4 | 0.0368 | 0.0360 |
+| nvidia/Nemotron-3.5-Parse | H200 | 0.0403 | 0.0454 |
+| baidu/Unlimited-OCR | L4 | 0.0429 | 0.0449 |
+| baidu/Qianfan-OCR | L4 | 0.0482 | 0.0491 |
+| deepseek-ai/DeepSeek-OCR | L4 | 0.0551 | 0.0543 |
+| deepseek-ai/DeepSeek-OCR-2 | L4 | 0.0576 | 0.0628 |
+| ds4sd/SmolDocling-256M-preview | L4 | 0.0643 | 0.0556 |
+
+- Greedy decoding with identical requests reproduces the board exactly (PaddleOCR-VL-1.6, dots.ocr); the
+  others differ within sampling and GPU variation (CIs on 60 pages are about ±0.02).
+- SmolDocling is the largest gap (3 vs 5 truncated pages); the board copy compared against may not be the
+  scored run (see the SmolDocling section above). Worth a second look.
+- Not ported: indra-ocr (in-process ONNX package, not a server), OXR-1.0 and Falcon-OCR (vendor parse
+  APIs, not chat completions).
