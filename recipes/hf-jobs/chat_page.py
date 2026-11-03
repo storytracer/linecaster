@@ -1,10 +1,17 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster"]
+#
+# [tool.uv.sources]
+# linecaster = { path = "../..", editable = true }
+# ///
 """Page recognition with a chat VLM (default lightonai/LightOnOCR-2-1B) on Hugging Face Jobs: datatrove's
 JobsPipelineExecutor fans the pages out over Jobs; each Job starts vLLM (or SGLang) on its GPU (``ServeChatModel``,
 last in the pipeline) and runs ``ChatPageStep`` through saturate against it. Inputs: an image dataset
 on the Hub (pinned revision) or an image folder (``hf://...``); page rows and datatrove's logging_dir
 go to the bucket.
 
-    .venv/bin/python recipes/hf-jobs/chat_page.py --run-id lighton2-smoke-gt60 --commit <linecaster sha> \
+    uv run recipes/hf-jobs/chat_page.py --run-id lighton2-smoke-gt60 --commit <linecaster sha> \
         --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
 
 Image: ``vllm/vllm-openai:v0.26.0`` (the BHL board's vLLM for this model). It qualifies for the executor:
@@ -22,9 +29,9 @@ spec's ``server_packages`` into it, checks the pin and starts ``python3 -m sglan
 image has uv and Python 3.12 (``/opt/sglang``) like the vLLM one. ``--gpu-memory-utilization`` defaults to
 0.8 for vLLM and to the spec's own ``--mem-fraction-static`` for SGLang.
 
-    .venv/bin/python recipes/hf-jobs/chat_page.py ... --dry-run    # print the plan, pickle the pipeline
+    uv run recipes/hf-jobs/chat_page.py ... --dry-run    # print the plan, pickle the pipeline
 
-Run it from linecaster's core environment (Python 3.12). ``--commit`` must be pushed to GitHub.
+A self-contained uv script (Python 3.12, as on the Jobs). ``--commit`` must be pushed to GitHub.
 """
 from __future__ import annotations
 
@@ -90,7 +97,7 @@ def main() -> None:
         PageJsonlWriter(f"{run}/processed/{name}", output_filename="${rank}.jsonl.gz"),
         serve,   # last
     ]
-    deps = dependencies(a.commit, engines=False)
+    deps = dependencies(a.commit, engines=None)
     if a.dry_run:
         import dill
 

@@ -1,15 +1,23 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster"]
+#
+# [tool.uv.sources]
+# linecaster = { path = "../..", editable = true }
+# ///
 """The squiddle combination on Hugging Face Jobs: datatrove's JobsPipelineExecutor fans the pages out
 over Jobs; each Job starts ``linecaster serve`` (layout, lines, recognition models on its GPU) and runs
 the chain through saturate against it. Inputs: an image dataset on the Hub or an image folder
 (``hf://...``); outputs and datatrove's logging_dir in a bucket.
 
-    .venv/bin/python recipes/hf-jobs/squiddle_chain.py --run-id smoke-gt60 --commit <linecaster sha> \
+    uv run recipes/hf-jobs/squiddle_chain.py --run-id smoke-gt60 --commit <linecaster sha> \
         --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
-    .venv/bin/python recipes/hf-jobs/squiddle_chain.py --run-id gt2165 --commit <sha> \
+    uv run recipes/hf-jobs/squiddle_chain.py --run-id gt2165 --commit <sha> \
         --images hf://datasets/finebooks/bhl-impact-gt@<rev>/images --tasks 4
 
-Run it from linecaster's core environment (Python 3.12: datatrove pickles the pipeline with dill, so
-launcher and Jobs need the same minor version).
+A self-contained uv script with core linecaster (Python 3.12: datatrove pickles the pipeline with dill,
+so launcher and Jobs need the same minor version). The Jobs install the engines of
+``servers/kraken-paddlex.py`` (``linecaster.jobs.dependencies``).
 """
 from __future__ import annotations
 

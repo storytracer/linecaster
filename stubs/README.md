@@ -4,5 +4,5 @@
 GUI build, which needs `libGL.so.1` and fails to import in slim images (HF Jobs). This stub carries
 the same name and version and depends on `opencv-contrib-python-headless==4.10.0.84` (the same cv2
 code without GUI), so PaddleX's requirement and its runtime name check are satisfied and `cv2` is the
-headless build. Environments point the name at this stub (`envs/kraken-paddlex` via
-`[tool.uv.sources]`, HF Jobs via a direct git URL with `#subdirectory=stubs/opencv-contrib-python`).
+headless build. Scripts point the name at this stub (`servers/kraken-paddlex.py` and the other engine scripts via
+`[tool.uv.sources]`, HF Jobs via a direct URL with `#subdirectory=stubs/opencv-contrib-python`).

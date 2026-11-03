@@ -2,6 +2,37 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Self-contained uv scripts instead of environment folders (2026-11-03, spark)
+
+`envs/kraken-paddlex` and `envs/paddlex-tesseract` are gone. Every example, recipe and server is a uv script
+with inline metadata (PEP 723) and a `<script>.py.lock` next to it:
+- `servers/kraken-paddlex.py`, `servers/paddlex-tesseract.py`: `linecaster serve` with one engine combination.
+  `ServeModels(script=...)` starts one with `uv run --script`; `linecaster.jobs.dependencies(commit, engines)` reads
+  its metadata for a Job's `--with` list (sources as URLs at the commit, pins for the packages its lock resolves), so
+  the pins live in one place per combination instead of in `jobs.py`.
+- `examples/squiddle_chain.py` carries the kraken-paddlex block (in-process needs the engines); the VLM examples and
+  the HF Jobs launchers carry core linecaster only; `recipes/ray/squiddle_chain.py` carries linecaster with Ray and
+  runs Ray's own CLI from its environment (`uv run recipes/ray/squiddle_chain.py ray start --head`), because Ray's
+  `uv run` support (`RAY_ENABLE_UV_RUN_RUNTIME_ENV`) does not handle scripts: workers came up without Ray. It is
+  switched off in the recipe. Checked on spark: 3 pages, one task, server started from the script.
+- Locking the scripts afresh moved seven packages the old env lock had older: the CUDA libraries (cuBLAS 13.8,
+  NVRTC/runtime 13.4, cuFFT 12.4, cuRAND 10.4.4), cuDNN 9.27 (paddlex-tesseract) and scipy 1.16–1.18,
+  scikit-image 0.26. All are pinned back to the goldens' versions in `constraint-dependencies`, the same list in
+  every engine script; the kraken-paddlex lock then differs from the old env lock only in soupsieve, pyarrow and
+  ujson.
+- uv's `required-environments` is not accepted in script metadata. `tests/test_scripts.py` stands in: same pins and
+  kraken source in every script, a lock per script, the pins resolved, and Linux wheels for aarch64 and x86_64 for
+  every package with platform wheels. One allowed source build: coremltools (kraken's CoreML format, no aarch64
+  wheel; built from source on spark before as well; not on the recognition path).
+
+Parity of the scripts with squiddleocr's goldens (7c8a052, spark): `uv run examples/squiddle_chain.py`, in-process
+and served through `uv run servers/kraken-paddlex.py`:
+
+| run | sample-60 lines (box + words) | tables-7 lines | wall, sample-60 |
+|---|---:|---:|---:|
+| in-process | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 89 s |
+| served | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 48 s |
+
 ## More line recognisers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, spark)
 
 Two more engines for `RecognitionStep`, next to kraken:
@@ -15,7 +46,8 @@ Two more engines for `RecognitionStep`, next to kraken:
   each line's bounding box, outside the polygon painted white, 4 px white padding. Words, boxes and confidences from
   Tesseract. Language data from tessdata_best (default) or tessdata_fast, pinned to a commit, cached in
   `~/.cache/linecaster/tessdata`. On the CPU, one line at a time.
-- New environment `envs/paddlex-tesseract` (PaddleX + Tesseract, no torch, so no PP-FormulaNet there).
+- New engine combination PaddleX + Tesseract (no torch, so no PP-FormulaNet there); now the script
+  `servers/paddlex-tesseract.py`.
 
 Comparison on the 60-page sample: the same chain for every row (PP-DocLayoutV3 → PP-OCRv6 medium detection → line
 assignment → *recogniser* → NFC → tables → typography → document → Markdown), in-process, one task, scored as-is

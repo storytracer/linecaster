@@ -1,5 +1,41 @@
-"""The PaddleX and Tesseract line recognisers' geometry, without models; run in an engine environment
-(``envs/kraken-paddlex`` or ``envs/paddlex-tesseract``), skipped in the core one."""
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = [
+#     "linecaster",
+#     "linecaster-paddlex",
+#     "linecaster-tesseract",
+#     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
+#     "opencv-contrib-python",
+#     "pytest>=8",
+# ]
+#
+# [tool.uv]
+# # the versions squiddleocr's goldens were recorded with (numerics: recognition, ONNX Runtime, CUDA, decoding);
+# # the same list in every script (tests/test_scripts.py)
+# constraint-dependencies = [
+#     "lightning==2.6.6",
+#     "onnxruntime-gpu==1.29.0",
+#     "pillow==12.3.0",
+#     "transformers==5.12.1",
+#     "tokenizers==0.22.2",
+#     "nvidia-cublas==13.1.1.3",
+#     "nvidia-cuda-nvrtc==13.0.88",
+#     "nvidia-cuda-runtime==13.0.96",
+#     "nvidia-cudnn-cu13==9.24.0.43",
+#     "nvidia-cufft==12.0.0.61",
+#     "nvidia-curand==10.4.0.35",
+#     "scipy==1.15.3",
+#     "scikit-image==0.25.2",
+# ]
+#
+# [tool.uv.sources]
+# linecaster = { path = "..", editable = true }
+# linecaster-paddlex = { path = "../backends/paddlex", editable = true }
+# linecaster-tesseract = { path = "../backends/tesseract", editable = true }
+# opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
+# ///
+"""The PaddleX and Tesseract line recognisers' geometry, without models. Skipped in the core environment;
+with the engines: ``uv run tests/test_line_recognisers.py``."""
 import numpy as np
 import pytest
 
@@ -47,3 +83,7 @@ def test_tessdata_languages_and_commits():
     models = pytest.importorskip("linecaster_tesseract.models")
     assert set(models.TESSDATA) == {"best", "fast"}
     assert all(len(td.commit) == 40 for td in models.TESSDATA.values())
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))

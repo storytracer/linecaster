@@ -1,12 +1,19 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster"]
+#
+# [tool.uv.sources]
+# linecaster = { path = "../..", editable = true }
+# ///
 """MiniCPM-OCR 1.0 as a region reader on Hugging Face Jobs: PP-DocLayoutV3 layout (``linecaster serve``)
 → ``ChatRegionStep(MiniCPMOCR)`` (vLLM) → page rows, both servers in each Job on its one GPU.
 datatrove's JobsPipelineExecutor fans the pages out over Jobs; page rows and datatrove's logging_dir go
 to the bucket. The page Markdown is assembled afterwards from the rows
 (``linecaster.models.minicpm_ocr.assemble_markdown``, the SDK's own assembly).
 
-    .venv/bin/python recipes/hf-jobs/minicpm_regions.py --run-id minicpm-smoke-gt60 --commit <linecaster sha> \\
+    uv run recipes/hf-jobs/minicpm_regions.py --run-id minicpm-smoke-gt60 --commit <linecaster sha> \\
         --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
-    .venv/bin/python recipes/hf-jobs/minicpm_regions.py ... --dry-run    # print the plan, pickle the pipeline
+    uv run recipes/hf-jobs/minicpm_regions.py ... --dry-run    # print the plan, pickle the pipeline
 
 Image: ``cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`` (the BHL board's MiniCPM-OCR image): vLLM
 nightly 5d35ce3 (MiniCPM-OCR support and DSpark are not in a vLLM release yet) with transformers at
@@ -20,7 +27,7 @@ Two environments, one GPU:
   DSpark draft are pulled at the pinned revisions; serve flags from OpenBMB's SDK tutorial (the spec's
   ``serve_args``).
 * The pipeline and the layout server run in the uv environment the executor builds from
-  ``dependencies(commit, kraken=False)``: linecaster + linecaster-paddlex (PP-DocLayoutV3 on ONNX
+  ``dependencies(commit, engines="paddlex-tesseract")``: linecaster + linecaster-paddlex (PP-DocLayoutV3 on ONNX
   Runtime GPU with CUDA 13 libraries from the nvidia-* wheels); no kraken, so no git (the image has
   none) and no torch in that environment. ``ServeModels`` starts ``linecaster serve`` with it.
 
@@ -28,7 +35,7 @@ Both serving blocks go last (after the writer). The last block boots first: vLLM
 ``--gpu-memory-utilization`` share and finishes its memory profiling before the layout server loads
 into the rest (default 0.8 of an L4's 24 GB: about 4.5 GB stay for ONNX Runtime).
 
-Run it from linecaster's core environment (Python 3.12). ``--commit`` must be pushed to GitHub.
+A self-contained uv script (Python 3.12, as on the Jobs). ``--commit`` must be pushed to GitHub.
 """
 from __future__ import annotations
 
@@ -89,7 +96,7 @@ def main() -> None:
         ServeModels(LAYOUT, port=layout_port),   # boots second, after vLLM's memory profiling
         vllm,                                    # last: boots first, lives until every page is written
     ]
-    deps = dependencies(a.commit, kraken=False)
+    deps = dependencies(a.commit, engines="paddlex-tesseract")
     if a.dry_run:
         import dill
 

@@ -1,10 +1,17 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster"]
+#
+# [tool.uv.sources]
+# linecaster = { path = "..", editable = true }
+# ///
 """Page recognition with a chat VLM (default lightonai/LightOnOCR-2-1B) as a linecaster pipeline:
 image folder -> ChatPageStep (through saturate against an OpenAI-compatible server) -> page rows.
 
     # against a server you started (e.g. vllm serve ... --port 8000):
-    .venv/bin/python examples/chat_page.py IMAGES OUT --endpoint http://127.0.0.1:8000/v1
+    uv run examples/chat_page.py IMAGES OUT --endpoint http://127.0.0.1:8000/v1
     # or let the task start vLLM itself (needs `vllm` on PATH and a GPU):
-    .venv/bin/python examples/chat_page.py IMAGES OUT --serve --gpu-memory-utilization 0.5
+    uv run examples/chat_page.py IMAGES OUT --serve --gpu-memory-utilization 0.5
 
 Window: Auto(initial=8, max_limit=48), the uv-scripts recipe's setting (the BHL board driver used
 max_limit 12; on spark the recipe setting is ~29 % faster on one engine, see NOTES.md).

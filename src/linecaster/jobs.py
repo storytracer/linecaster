@@ -1,10 +1,11 @@
 """Hugging Face Jobs helpers for linecaster pipelines (on datatrove's ``JobsPipelineExecutor``).
 
-* ``dependencies(commit)``: what a Job installs with ``uv run --with`` to run the kraken + PaddleX
-  engines in-process or behind ``ServeModels``: linecaster and its two engine packages pinned by
-  commit (public GitHub), the kraken fork, the OpenCV stub (PaddleX pins OpenCV's GUI build, which
-  needs libGL; the Jobs image has none, so ``stubs/opencv-contrib-python`` satisfies the pin with the
-  headless build of the same version) and the versions the goldens were recorded with.
+* ``dependencies(commit, engines)``: what a Job installs with ``uv run --with`` to run an engine
+  combination in-process or behind ``ServeModels``, read from that combination's server script
+  (``servers/<engines>.py``): its dependencies with the script's sources spelled out as URLs at
+  ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
+  git+), the OpenCV stub (PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
+  and the script's version pins, for the packages its lock resolves.
 * ``WheelJobsExecutor``: ``JobsPipelineExecutor`` that also mounts volumes into every Job. A private
   derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
   mounts that folder read-only (authorised by the Job's own HF token; no credential is persisted)
@@ -13,12 +14,13 @@
   ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*
   (``CUDA_VISIBLE_DEVICES``) and its own loopback port for the servers its pipeline starts.
 
-``uv run --with`` ignores ``[tool.uv.sources]``, so everything here is spelled out as URLs.
+``uv run --with`` ignores ``[tool.uv.sources]``, so the server script's sources are spelled out as URLs.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 from copy import deepcopy
 from urllib.parse import urlsplit, urlunsplit
 
@@ -28,31 +30,60 @@ from pathlib import Path
 from datatrove.executor import JobsPipelineExecutor
 
 REPO = "https://github.com/storytracer/linecaster"
-# kraken takes its version from git history (versioningit), so the fork needs git+ (the default Jobs image has git)
-KRAKEN_FORK = "kraken @ git+https://github.com/storytracer/kraken@3d235ee8"
-#: the versions the goldens were recorded with (envs/kraken-paddlex constraint-dependencies)
-PINS = ("lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0", "transformers==5.12.1", "tokenizers==0.22.2")
+#: the server scripts (one per engine combination), in the checkout the launcher runs from
+SERVERS = Path(__file__).resolve().parents[2] / "servers"
 WHEEL_MOUNT = "/wheels"
+_SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
 
 
-def dependencies(commit: str, engines: bool = True, kraken: bool = True) -> list[str]:
-    """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed). With
-    ``engines=False`` only linecaster itself (a CPU pipeline, or a VLM pipeline whose image brings vLLM).
-    With ``kraken=False`` the PaddleX engines without kraken (no git needed, no lightning/torch): e.g. a
-    PP-DocLayoutV3 layout server next to vLLM in a vLLM image.
+def script_metadata(path: str | Path) -> dict:
+    """The inline metadata (PEP 723) of the script at ``path``."""
+    import tomllib
+
+    m = _SCRIPT.search(Path(path).read_text())
+    if not m:
+        raise ValueError(f"{path}: no '# /// script' block")
+    return tomllib.loads("".join(line[2:] if line.startswith("# ") else line[1:]
+                                 for line in m.group("content").splitlines(keepends=True)))
+
+
+def _name(requirement: str) -> str:
+    return re.split(r"[\s\[<>=!~;@]", requirement, maxsplit=1)[0].lower().replace("_", "-")
+
+
+def dependencies(commit: str, engines: str | None = "kraken-paddlex") -> list[str]:
+    """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) with the engine
+    combination of ``servers/<engines>.py``: ``kraken-paddlex`` (the squiddle combination) or
+    ``paddlex-tesseract`` (PaddleX without kraken or torch, e.g. a layout server next to vLLM in a vLLM
+    image). ``engines=None``: linecaster alone (a CPU pipeline, or a VLM pipeline whose image brings vLLM).
 
     linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
     some images (``vllm/vllm-openai``) have uv but no git executable. The kraken fork still needs git (its
     version comes from git history); the default Jobs image, which engine Jobs use, has it."""
     repo = f"{REPO}/archive/{commit}.tar.gz"
-    deps = [f"linecaster @ {repo}"]
-    if engines:
-        deps += [f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex",
-                 f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python"]
-        if kraken:
-            deps += [f"linecaster-kraken @ {repo}#subdirectory=backends/kraken", KRAKEN_FORK, *PINS]
+    if engines is None:
+        return [f"linecaster @ {repo}"]
+    import tomllib
+
+    script = SERVERS / f"{engines}.py"
+    meta = script_metadata(script)
+    uv = meta.get("tool", {}).get("uv", {})
+    sources = {_name(k): v for k, v in uv.get("sources", {}).items()}
+    root = SERVERS.parent
+    deps = []
+    for req in meta.get("dependencies", []):
+        src = sources.get(_name(req))
+        if src and "path" in src:
+            sub = (script.parent / src["path"]).resolve().relative_to(root).as_posix()
+            deps.append(f"{_name(req)} @ {repo}" + (f"#subdirectory={sub}" if sub != "." else ""))
+        elif src and "git" in src:
+            deps.append(f"{_name(req)} @ git+{src['git']}@{src['rev']}")
         else:
-            deps += [p for p in PINS if not p.startswith("lightning")]
+            deps.append(req)
+    # --with installs what it is given: pin only what the script's environment really contains
+    lock = script.with_name(script.name + ".lock")
+    resolved = {p["name"] for p in tomllib.loads(lock.read_text())["package"]}
+    deps += [c for c in uv.get("constraint-dependencies", []) if _name(c) in resolved]
     return deps
 
 

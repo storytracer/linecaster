@@ -60,12 +60,19 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   page is written.
 - **Engines** live in `backends/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
   each its own package; an engine model is a class with `step`, `name`, `load()` and
-  `__call__(image, transcription, **params) -> Transcription`. **Environments** that install
-  engines together live in `envs/<combination>/` (`envs/kraken-paddlex`, `envs/paddlex-tesseract`), each with its own lock;
-  these are NOT a uv workspace, because engine pins conflict. `[tool.uv.sources]` applies only to a
-  project's direct dependencies, so an environment lists the kraken fork directly; numerically
-  relevant versions are pinned with `constraint-dependencies`; PaddleX's GUI OpenCV pin is
-  satisfied by `stubs/opencv-contrib-python` (the headless build of the same version; one cv2).
+  `__call__(image, transcription, **params) -> Transcription`. **No environment
+  folders: every example, recipe and server is a self-contained uv script** (PEP 723 block, a
+  `<script>.py.lock` next to it, `uv run <script>`). Engines that run together share a server
+  script, `servers/<combination>.py` (`kraken-paddlex`, `paddlex-tesseract`), which runs
+  `linecaster serve`; `ServeModels(script=...)` starts it with `uv run --script`, and
+  `linecaster.jobs.dependencies(commit, engines)` turns its metadata into a Job's `--with` list.
+  Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
+  dependencies, so engine scripts list the kraken fork directly; the numerically relevant versions
+  are pinned with `constraint-dependencies`, the same list in every engine script;
+  `tests/test_scripts.py` checks pins, sources, locks and wheels for both machines (uv's
+  `required-environments` does not work in scripts). PaddleX's GUI OpenCV pin is satisfied by
+  `stubs/opencv-contrib-python` (the headless build of the same version; one cv2). After changing
+  a script's metadata: `uv lock --script <script>`.
 
 ## Data model and serialisation (from the EBDC pilot architecture)
 
@@ -133,7 +140,7 @@ hashes pinned in `linecaster_kraken.models`. The Zenodo DOIs are provenance only
 ## Environment and machines
 
 - Python 3.12 (`requires-python >=3.12`), uv ≥ 0.13.6 (`[tool.uv] required-version`) on every
-  machine, so all read the same `uv.lock`.
+  machine, so all read the same locks.
 - **spark**: DGX Spark, GB10, aarch64, CUDA 13. Main development machine; goldens recorded here.
 - **forge**: RTX 4000 SFF Ada 20 GB, x86_64, CUDA 13.4. The x86 validation machine; same GPU
   generation as HF Jobs' L4; keeps its own goldens.
@@ -150,9 +157,8 @@ Namespace `finebooks` (cap agreed per session; report the cost of every run), fl
 outputs and datatrove `logging_dir` in the bucket `hf://buckets/finebooks/linecaster-runs`. Always
 a small smoke job before a full run. datatrove's `JobsPipelineExecutor` is experimental and
 dill-pickles the pipeline, so the launching machine and the Jobs must run the same Python minor
-version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.jobs.dependencies(commit)`
-spells out linecaster, the engine packages, the kraken fork, the OpenCV stub and the pins as URLs
-(the commit must be pushed). Private derivatives ship their code as a wheel mounted from a bucket
+version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.jobs.dependencies(commit, engines)`
+spells out a server script's dependencies, sources (as URLs; the commit must be pushed) and pins. Private derivatives ship their code as a wheel mounted from a bucket
 folder (`WheelJobsExecutor`, `wheel_volume`); no credential is stored in a pipeline or a repo.
 
 ## Working style

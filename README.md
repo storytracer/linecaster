@@ -43,10 +43,14 @@ You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
 ```bash
 git clone https://github.com/storytracer/linecaster
 cd linecaster
-uv sync
 ```
 
 A pipeline is a list of blocks. Two examples follow; `examples/` has more.
+
+> [!NOTE]
+> Every example, recipe and server is a self-contained [uv script][uv scripts]: a `# /// script`
+> block at the top lists what it needs, with pinned versions, and a `.lock` file sits next to it.
+> `uv run <script>` installs it on first use.
 
 ### 🤖 A vision-language model reads each page
 
@@ -73,19 +77,14 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Run it with `.venv/bin/python vlm.py`. Swap the model id for any of the
+Run it with `uv run vlm.py`. Swap the model id for any of the
 [vision-language models](#-vision-language-models).
 
 ### 🧱 A chain of smaller models
 
-Layout, line detection and a line recogniser, then post-processing into a document. Install the
-engines first:
-
-```bash
-(cd envs/kraken-paddlex && uv sync)
-```
-
-Save this as `chain.py`:
+Layout, line detection and a line recogniser, then post-processing into a document. Save this as
+`examples/chain.py`, and put the `# /// script` block of `examples/squiddle_chain.py` at the top: it
+brings the kraken and PaddleX engines.
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
@@ -115,10 +114,10 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Run it with the engine environment's Python. The models download on first use.
+Run it with uv. The engines install on the first run, the models download on first use.
 
 ```bash
-envs/kraken-paddlex/.venv/bin/python chain.py
+uv run examples/chain.py
 ```
 
 > [!TIP]
@@ -181,11 +180,10 @@ MODELS = [
 
 Start the server once and point the steps at it. For a vision-language model, start vLLM with the
 spec's flags (`ServeChatModel(spec).command()` gives the full command line). For the other models,
-start `linecaster serve`:
+start `linecaster serve` from the server script for their engines:
 
 ```bash
-PY=envs/kraken-paddlex/.venv/bin/python
-$PY -m linecaster.cli serve --port 8100 \
+uv run servers/kraken-paddlex.py \
   --config examples/squiddle_models.json
 ```
 
@@ -205,34 +203,39 @@ The server keeps the models loaded and listens on loopback only.
 <details>
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
-Each task gets one GPU and starts its own server on it.
-
-```bash
-uv sync --extra ray
-.venv/bin/ray start --head --num-gpus 8
-# on each other machine:
-# ray start --address=<head>:6379
-```
+Each task gets one GPU and starts its own server on it, from a server script.
 
 ```python
 from linecaster.blocks.serve import ServeModels
 from linecaster.ray_executor import RayGPUExecutor
 
-PY = "envs/kraken-paddlex/.venv/bin/python"
-pipeline += [ServeModels(MODELS, python=PY)]
+S = "servers/kraken-paddlex.py"
+pipeline += [ServeModels(MODELS, script=S)]
 RayGPUExecutor(pipeline, tasks=64,
     logging_dir="/shared/out/logs").run()
 ```
 
-Images and output must be on storage every machine can reach. A complete version is
-`recipes/ray/squiddle_chain.py`.
+`recipes/ray/squiddle_chain.py` is a complete version. It also runs Ray's own command line from its
+environment, so every machine has the same Ray and Linecaster:
+
+```bash
+R=recipes/ray/squiddle_chain.py
+uv run $R ray start --head --num-gpus 8
+# on each other machine:
+# uv run $R ray start --address=<head>:6379
+uv run $R IMAGES OUT --tasks 64
+```
+
+Images and output must be on storage every machine can reach.
 
 </details>
 
 <details>
 <summary><b>☁️ On Hugging Face Jobs</b></summary>
 
-One Job per task, one GPU per Job. Each Job installs Linecaster at a pushed commit.
+One Job per task, one GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines,
+sources and pins of a server script (`dependencies(commit, "kraken-paddlex")` reads
+`servers/kraken-paddlex.py`).
 
 ```python
 from datatrove.executor import JobsPipelineExecutor
@@ -369,8 +372,8 @@ languages and scripts, such as `eng`, `deu+lat` or `script/Latin`.
 | [tessdata_best] | ✅ |
 | [tessdata_fast] | |
 
-Tesseract runs in `envs/paddlex-tesseract`, next to the PaddleX models; kraken and the PaddleX models
-run in `envs/kraken-paddlex`.
+Engines that run together share a server script: `servers/kraken-paddlex.py` brings kraken and
+PaddleX, `servers/paddlex-tesseract.py` PaddleX and Tesseract.
 
 ### 📊 Tables
 
@@ -541,7 +544,7 @@ Such a model runs both inside the pipeline and behind `linecaster serve` without
 |---|---|
 | `src/linecaster/` | data model, blocks, server, model specs, executors |
 | `backends/` | engine packages: [kraken], [PaddleX], [Tesseract] |
-| `envs/` | environments with several engines |
+| `servers/` | `linecaster serve` scripts, one per engine combination |
 | `examples/` | local pipelines |
 | `recipes/` | [Ray] and [Hugging Face Jobs][HF Jobs] |
 | `specs/` | design of the data model |
@@ -630,3 +633,4 @@ commercial purposes. The Apache-2.0 licence of the code does not apply to it. Th
 [tesserocr]: https://github.com/sirfz/tesserocr
 [tessdata_best]: https://github.com/tesseract-ocr/tessdata_best
 [tessdata_fast]: https://github.com/tesseract-ocr/tessdata_fast
+[uv scripts]: https://docs.astral.sh/uv/guides/scripts/

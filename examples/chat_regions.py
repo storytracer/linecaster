@@ -1,7 +1,14 @@
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster"]
+#
+# [tool.uv.sources]
+# linecaster = { path = "..", editable = true }
+# ///
 """Layout model + a chat VLM per region: PP-DocLayoutV3 regions (linecaster serve) and an OpenAI-compatible
 VLM reading each region's crop (e.g. vLLM with LightOnOCR-2-1B), both through saturate.
 
-    .venv/bin/python examples/chat_regions.py IMAGES OUT --layout http://127.0.0.1:8100/v1 \
+    uv run examples/chat_regions.py IMAGES OUT --layout http://127.0.0.1:8100/v1 \
         --vlm http://127.0.0.1:8132/v1 --model lightonai/LightOnOCR-2-1B
 """
 from __future__ import annotations

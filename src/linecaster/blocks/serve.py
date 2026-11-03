@@ -16,15 +16,16 @@ class ServeModels(PipelineStep):
     name = "🖥️ serve models"
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
-                 max_queue: int = 16):
+                 max_queue: int = 16, script: str | None = None):
         super().__init__()
         self.models, self.port, self.python, self.boot_timeout, self.max_queue = models, port, python, boot_timeout, max_queue
+        self.script = script
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from ..serve import engine
 
         with self.track_time("boot"):
-            server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue)
+            server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
             server.__enter__()
         try:
             yield from data
