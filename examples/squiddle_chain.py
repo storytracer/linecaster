@@ -1,5 +1,5 @@
 """The squiddle combination as a linecaster pipeline: PP-DocLayoutV3 layout, PP-OCRv6 line detection on
-the whole page, lines assigned to regions, kraken's PP-OCRv6 recogniser, PaddleX's table structure for
+the whole page, lines assigned to regions, kraken's PP-OCRv6 recogniser, NFC, PaddleX's table structure for
 table regions (filled with the recognised lines), then the retyper (Typography) and document assembly
 (AssembleDocument). Outputs: page rows (OUT); with --files per-page hOCR/ALTO/PAGE/txt/md/json
 (``<item>/<page>.<ext>``); with --exports per-page md/txt/json named as squiddleocr writes them; with
@@ -24,6 +24,7 @@ from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.texts import ItemTexts
+from linecaster.blocks.unicode import NormalizeUnicode
 from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter, PageFilesWriter, PageJsonlWriter
 
 ENGINES = {
@@ -52,6 +53,7 @@ def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | No
         LinesStep(b["lines"], transcription),
         AssignLinesToRegions(transcription),
         RecognitionStep(b["recognition"], transcription),
+        NormalizeUnicode(transcription),          # kraken writes decomposed text; the as-written layer is NFC
         *([TablesStep(b["tables"], transcription)] if tables else []),
         *([FormulasStep(b["formulas"], transcription)] if formulas else []),
         Typography(transcription),

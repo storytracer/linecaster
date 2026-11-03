@@ -15,8 +15,10 @@ rows joined with ``\\n``), one provenance entry with the region's box:
 - any other region (picture, chart, a table without a structure) -> a picture, with the text read
   inside it as a child text item.
 
-Empty regions produce no item. Pages are numbered 1 (one document per page; a book-level document,
-with paragraphs continued across pages, is a later block).
+Empty regions produce no item. ``build_docling`` makes the document of one page (page 1);
+``DocumentBuilder`` makes one for all pages of an item, with paragraphs continued across page breaks,
+optional sections and the region map for Markdown dividers (squiddleocr's ``--per-document``,
+``--sections``, ``--dividers``).
 
 ``text="reflow"`` is squiddleocr's default document mode (``linecaster.reflow``): the rows of a text
 region joined into paragraphs, the typesetter's division marks removed (the page's own words as the
@@ -96,90 +98,114 @@ def region_rows(lines: list[Line]):
 TEXT_MODES = ("lines", "reflow")
 
 
-def build_docling(t: Transcription, name: str = "page", width: int | None = None, height: int | None = None,
-                  text: str = "lines", rtl: bool = False, stats=None):
-    """The ``DoclingDocument`` of one page (see the module docstring). ``width``/``height``: the page
-    image's size (default: ``t.source.image_width``/``image_height``). ``text="reflow"``: rows joined
-    into paragraphs (``linecaster.reflow``), one item per paragraph with a provenance entry per row, a
-    paragraph continued into the next text region where it runs on; ``stats`` (``reflow.Stats``) sums
-    the decisions."""
-    from docling_core.types.doc import DocItemLabel, DoclingDocument, Size
+class DocumentBuilder:
+    """One ``DoclingDocument`` for one page or for all pages of an item, in order (squiddleocr's
+    ``DocumentBuilder``; ``add_page`` once per page). Page ``n`` of the document is the ``n``-th page added
+    (``page_no`` in every provenance entry).
 
-    if text not in TEXT_MODES:
-        raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
-    doc = DoclingDocument(name=name)
-    w, h = width or t.source.image_width, height or t.source.image_height
-    if w and h:
-        doc.add_page(page_no=1, size=Size(width=w, height=h))
-    by_region: dict[str, list[Line]] = {}
-    for ln in t.lines:
-        by_region.setdefault(ln.region_id, []).append(ln)
-    regions: list[Region] = sorted(t.regions, key=lambda r: r.reading_order if r.reading_order is not None else 1 << 30)
-    flow = _Reflow(doc, rtl, stats) if text == "reflow" else None
-    if flow is not None:
+    ``text``: ``lines`` or ``reflow`` (see the module docstring). In reflow mode the lexicon grows with
+    every page added and a paragraph left open at the foot of a page continues on the next page (an
+    item of digits only, a page number, between them does not close it).
+
+    ``sections``: every heading (title or section header) opens a Docling ``section`` group, named after
+    it, that holds it and everything after it up to the next heading, across pages; items before the
+    first heading stay in the body. Markdown and text read the same; JSON gains the tree. (squiddleocr
+    7c8a052 crashes on reflow + sections when a title appears; here a title opens its section the same
+    way in both modes: the group first, the title inside.)
+
+    ``region_of`` maps each item's ``self_ref`` to ``"<page_no>:<region id>"``, for the Markdown
+    dividers (``to_markdown(..., region_of=...)``)."""
+
+    def __init__(self, name: str = "document", text: str = "lines", sections: bool = False, rtl: bool = False,
+                 stats=None):
+        from docling_core.types.doc import DoclingDocument
+
+        from .reflow import Lexicon, Stats
+
+        if text not in TEXT_MODES:
+            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
+        self.doc = DoclingDocument(name=name)
+        self.text_mode, self.sections, self.rtl = text, sections, rtl
+        self.lexicon, self.stats = Lexicon(), stats if stats is not None else Stats()
+        self._section = None      # the open section GroupItem, or None for the body
+        self._open = None         # (TextItem, Paragraph, Margins) of a paragraph that may continue
+        self._level = 1
+        self.pages = 0
+        self.region_of: dict[str, str] = {}
+
+    # ------------------------------------------------------------------ pages
+    def add_page(self, t: Transcription, width: int | None = None, height: int | None = None,
+                 page_no: int | None = None) -> int:
+        from docling_core.types.doc import Size
+
+        self.pages += 1
+        page_no = page_no or self.pages
+        w, h = width or t.source.image_width, height or t.source.image_height
+        if w and h:
+            self.doc.add_page(page_no=page_no, size=Size(width=w, height=h))
+        by_region: dict[str, list[Line]] = {}
+        for ln in t.lines:
+            by_region.setdefault(ln.region_id, []).append(ln)
+        regions = sorted(t.regions, key=lambda r: r.reading_order if r.reading_order is not None else 1 << 30)
+        if self.text_mode == "reflow":
+            for r in regions:
+                self.lexicon.add(region_text(by_region.get(r.id, [])))
         for r in regions:
-            flow.lexicon.add(region_text(by_region.get(r.id, [])))
-    for r in regions:
+            before = (len(self.doc.texts), len(self.doc.pictures), len(self.doc.tables))
+            self._add_region(page_no, r, by_region.get(r.id, []))
+            key = f"{page_no}:{r.id}"
+            for items, n in zip((self.doc.texts, self.doc.pictures, self.doc.tables), before):
+                for it in items[n:]:
+                    self.region_of[it.self_ref] = key
+        return page_no
+
+    def build(self):
+        return self.doc
+
+    # ---------------------------------------------------------------- regions
+    def _add_region(self, page_no: int, r: Region, lines: list[Line]) -> None:
+        from docling_core.types.doc import DocItemLabel
+
         b = bbox_of(r.polygon)
-        lines = by_region.get(r.id, [])
+        self._level = r.heading_level or 1
         formula, table = r.extra.get("formula"), r.extra.get("table")
-        if flow is not None and formula is None and table is None and r.label in TEXT_LABELS:
-            flow.add(r, region_rows(lines))
-            continue
-        if flow is not None:
-            flow.open = None
+        if self.text_mode == "reflow" and formula is None and table is None and r.label in TEXT_LABELS:
+            self._add_reflowed(page_no, r, region_rows(lines))
+            return
+        self._open = None
         content = region_text(lines)
         if formula is not None:
             if formula.strip():
-                doc.add_text(label=DocItemLabel.FORMULA, text=formula, prov=_prov(b, formula))
+                self.doc.add_text(label=DocItemLabel.FORMULA, text=formula, prov=_prov(b, formula, page_no),
+                                  parent=self._section)
         elif table is not None:
-            doc.add_table(data=_table_data(table), prov=_prov(b))
+            self.doc.add_table(data=_table_data(table), prov=_prov(b, "", page_no), parent=self._section)
         elif r.label in TEXT_LABELS:
-            if not content.strip():
-                continue
-            _add_text(doc, r, DocItemLabel(TEXT_LABELS[r.label]), content, _prov(b, content))
-        else:
-            pic = doc.add_picture(prov=_prov(b))
             if content.strip():
-                doc.add_text(label=DocItemLabel.TEXT, text=content, prov=_prov(b, content), parent=pic)
-    return doc
+                self._add_text(DocItemLabel(TEXT_LABELS[r.label]), content, _prov(b, content, page_no))
+        else:
+            pic = self.doc.add_picture(prov=_prov(b, "", page_no), parent=self._section)
+            if content.strip():
+                self.doc.add_text(label=DocItemLabel.TEXT, text=content, prov=_prov(b, content, page_no), parent=pic)
 
+    def _open_section(self, text: str) -> None:
+        from docling_core.types.doc import GroupLabel
 
-def _layer(label):
-    from docling_core.types.doc import ContentLayer, DocItemLabel
+        if self.sections:
+            self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(text.split())[:80])
 
-    return ContentLayer.FURNITURE if label in (DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER) else None
+    def _add_text(self, label, text: str, prov):
+        from docling_core.types.doc import DocItemLabel
 
+        if label in (DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER):
+            self._open_section(text)
+        if label == DocItemLabel.TITLE:
+            return self.doc.add_title(text=text, prov=prov, parent=self._section)
+        if label == DocItemLabel.SECTION_HEADER:
+            return self.doc.add_heading(text=text, prov=prov, parent=self._section, level=self._level)
+        return self.doc.add_text(label=label, text=text, prov=prov, parent=self._section, content_layer=_layer(label))
 
-def _add_text(doc, r: Region, label, text: str, prov):
-    from docling_core.types.doc import DocItemLabel
-
-    if label == DocItemLabel.TITLE:
-        return doc.add_title(text=text, prov=prov)
-    if label == DocItemLabel.SECTION_HEADER:
-        return doc.add_heading(text=text, prov=prov, level=r.heading_level or 1)
-    return doc.add_text(label=label, text=text, prov=prov, content_layer=_layer(label))
-
-
-def _row_provs(rows, para, offset: int = 0):
-    from docling_core.types.doc import ProvenanceItem
-
-    by_index = {row.index: row for row in rows}
-    return [ProvenanceItem(page_no=1, bbox=_box(by_index[s.row].bbox), charspan=(s.start + offset, s.end + offset))
-            for s in para.spans if s.row in by_index]
-
-
-class _Reflow:
-    """squiddleocr's ``DocumentBuilder._add_reflowed`` (without sections), for one page."""
-
-    def __init__(self, doc, rtl: bool, stats):
-        from .reflow import Lexicon, Stats
-
-        self.doc, self.rtl = doc, rtl
-        self.lexicon, self.stats = Lexicon(), stats if stats is not None else Stats()
-        self.open = None       # (TextItem, Paragraph, Margins) of a paragraph that may continue
-
-    def add(self, r: Region, rows) -> None:
+    def _add_reflowed(self, page_no: int, r: Region, rows) -> None:
         from docling_core.types.doc import DocItemLabel
 
         from .reflow import Margins, continues, join_paragraphs, reflow_rows
@@ -191,34 +217,59 @@ class _Reflow:
             return
         m = Margins.of([row for row in rows if row.text.strip()], self.rtl)
         if len(paragraphs) == 1 and not any(ch.isalpha() for ch in paragraphs[0].text):
-            # furniture (a page number, whatever the layout called it): added; an open paragraph stays open
-            provs = _row_provs(rows, paragraphs[0])
-            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], content_layer=_layer(label))
+            # furniture (a page number, whatever the layout called it): added; an open paragraph stays open,
+            # so a sentence continues over the page break
+            provs = _row_provs(rows, paragraphs[0], page_no=page_no)
+            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section,
+                                     content_layer=_layer(label))
             item.prov.extend(provs[1:])
             return
-        if self.open is not None and label == DocItemLabel.TEXT and continues(self.open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
-            item, prev = self.open[0], self.open[1]
+        if self._open is not None and label == DocItemLabel.TEXT and continues(self._open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
+            item, prev = self._open[0], self._open[1]
             first = paragraphs.pop(0)
             joined = join_paragraphs(prev, first, self.lexicon, self.stats)
             offset = len(joined) - len(first.text)
             item.text = item.orig = joined
-            item.prov.extend(_row_provs(rows, first, offset))
+            item.prov.extend(_row_provs(rows, first, offset, page_no))
             prev.text, prev.open_end = joined, first.open_end
             self.stats.continuations += 1
             self.stats.paragraphs -= 1
             if not paragraphs and first.open_end:
-                self.open = (item, prev, m)
+                self._open = (item, prev, m)
                 return
-        self.open = None
+        self._open = None
         for para in paragraphs:
-            provs = _row_provs(rows, para)
+            provs = _row_provs(rows, para, page_no=page_no)
             if single:
-                item = _add_text(self.doc, r, label, para.text, provs[0])
+                item = self._add_text(label, para.text, provs[0])
             else:
-                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], content_layer=_layer(label))
+                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], parent=self._section,
+                                         content_layer=_layer(label))
             item.prov.extend(provs[1:])
             if para.open_end and label == DocItemLabel.TEXT:
-                self.open = (item, para, m)
+                self._open = (item, para, m)
+
+
+def build_docling(t: Transcription, name: str = "page", width: int | None = None, height: int | None = None,
+                  text: str = "lines", rtl: bool = False, stats=None, sections: bool = False):
+    """The ``DoclingDocument`` of one page (``DocumentBuilder`` with one page)."""
+    b = DocumentBuilder(name, text=text, sections=sections, rtl=rtl, stats=stats)
+    b.add_page(t, width, height)
+    return b.build()
+
+
+def _layer(label):
+    from docling_core.types.doc import ContentLayer, DocItemLabel
+
+    return ContentLayer.FURNITURE if label in (DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER) else None
+
+
+def _row_provs(rows, para, offset: int = 0, page_no: int = 1):
+    from docling_core.types.doc import ProvenanceItem
+
+    by_index = {row.index: row for row in rows}
+    return [ProvenanceItem(page_no=page_no, bbox=_box(by_index[s.row].bbox), charspan=(s.start + offset, s.end + offset))
+            for s in para.spans if s.row in by_index]
 
 
 def docling_dict(doc) -> dict[str, Any]:
@@ -259,14 +310,33 @@ def _span_aware_table_serializer():
     return SpanAwareTableSerializer()
 
 
-def to_markdown(doc_or_t, furniture: bool = False) -> str:
+def to_markdown(doc_or_t, furniture: bool = False, region_of: dict[str, str] | None = None) -> str:
     """Markdown with Docling's defaults, tables with spanning cells as HTML; page headers and footers
-    only with ``furniture``."""
+    only with ``furniture``. With ``region_of`` (``DocumentBuilder.region_of``) a ``---`` rule separates
+    the items of one layout region from the next (squiddleocr's ``--dividers``)."""
     from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
+    from docling_core.types.doc import GroupItem
 
     doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
-    return MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer(),
-                                 params=MarkdownParams(layers=_layers(furniture))).serialize().text
+    layers = _layers(furniture)
+    ser = MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer(),
+                                params=MarkdownParams(layers=layers))
+    if not region_of:
+        return ser.serialize().text
+    blocks: list[str] = []
+    last = None
+    for item, _level in doc.iterate_items(included_content_layers=layers):
+        if isinstance(item, GroupItem):
+            continue
+        text = ser.serialize(item=item).text
+        if not text.strip():
+            continue
+        key = region_of.get(item.self_ref)
+        if blocks and key != last:
+            blocks.append("---")
+        blocks.append(text)
+        last = key
+    return "\n\n".join(blocks)
 
 
 def to_text(doc_or_t, furniture: bool = False) -> str:
