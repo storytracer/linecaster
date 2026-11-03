@@ -1,13 +1,15 @@
-"""Region post-processing shared by layout analysers: overlap suppression, XY-cut reading order and
-slotting unordered regions into an order a model gave."""
+"""Region post-processing shared by layout steps: overlap suppression, XY-cut reading order and
+slotting unordered regions into an order a model gave.
+
+The functions take any objects with a ``bbox`` (a ``BBox``) and a mutable ``order`` (int or None)."""
 from __future__ import annotations
 
 from typing import Sequence
 
-from ..types import BBox, Region
+from .types import BBox
 
 
-def suppress_contained(regions: Sequence[Region], max_containment: float = 0.8) -> list[Region]:
+def suppress_contained(regions: Sequence, max_containment: float = 0.8) -> list:
     """Drop a region when most of its area lies inside a larger region (the text would be read twice).
 
     The larger region survives regardless of score; ``max_containment`` is the fraction of the
@@ -60,7 +62,7 @@ def _split(idx: list[int], boxes: Sequence[BBox], axis: str, min_gap: float) -> 
     return groups
 
 
-def place_unordered(regions: Sequence[Region]) -> None:
+def place_unordered(regions: Sequence) -> None:
     """Give regions without an ``order`` a place among those that have one, in place.
 
     An unordered region goes after the last ordered region that ends above its centre and overlaps

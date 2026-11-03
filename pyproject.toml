@@ -8,7 +8,21 @@ authors = [
     { name = "Sebastian Majstorovic", email = "storytracer@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.10",
+    "docling-core>=2.95",
+    "lxml>=5",
+    "numpy>=2",
+    "Pillow>=11",
+    "datatrove>=0.10.1,<0.11",
+    "saturate==0.3.0",
+]
+
+[project.scripts]
+linecaster = "linecaster.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
@@ -17,3 +31,6 @@ build-backend = "uv_build"
 [tool.uv]
 # spark and forge share one uv.lock; an older uv may not read a lockfile written by a newer one
 required-version = ">=0.13.6"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

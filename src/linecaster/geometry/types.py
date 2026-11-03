@@ -1,8 +1,10 @@
-"""Plain data types shared by all components. Coordinates are pixels in the page image, origin top-left."""
+"""Axis-aligned boxes in page pixels (origin top-left) for the geometry the blocks compute.
+
+The data model stores ``[x, y, width, height]``; algorithms work on ``BBox`` (corners) derived from a
+shape's polygon, so the arithmetic is the same as in the producing engine (``BBox.of(polygon)``)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -40,86 +42,11 @@ class BBox:
         return BBox(max(self.x0, 0.0), max(self.y0, 0.0), min(self.x1, width), min(self.y1, height))
 
 
-@dataclass
-class Page:
-    """A page image as an RGB uint8 array."""
-
-    image: np.ndarray
-    path: Path | None = None
-    number: int = 1
-
-    @classmethod
-    def load(cls, path: str | Path, number: int = 1) -> "Page":
-        from PIL import Image
-
-        p = Path(path)
-        with Image.open(p) as im:
-            return cls(np.asarray(im.convert("RGB")), p, number)
-
-    @property
-    def width(self) -> int:
-        return int(self.image.shape[1])
-
-    @property
-    def height(self) -> int:
-        return int(self.image.shape[0])
+def xywh(b: BBox) -> list[float]:
+    """``[x, y, width, height]`` of a box, as the data model stores it."""
+    return [b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0]
 
 
-@dataclass
-class Region:
-    """A layout region: a label from the analyser's own vocabulary, a polygon and a reading-order rank."""
-
-    label: str
-    polygon: np.ndarray                 # (N, 2)
-    score: float = 1.0
-    order: int | None = None            # reading order rank within the page, 0-based; None = unknown
-    id: str = ""
-    raw_label: str = ""                 # the analyser's own label before translation
-    heading_level: int | None = None    # 1..3 for headings, from the type-size ladder (retyper); None = unknown
-
-    @property
-    def bbox(self) -> BBox:
-        return BBox.of(self.polygon)
-
-
-@dataclass
-class TextLine:
-    """A text line found by a detector or segmenter, in page coordinates."""
-
-    polygon: np.ndarray                 # (N, 2); 4 points for box detectors, more for polygon segmenters
-    score: float = 1.0
-    baseline: np.ndarray | None = None  # (M, 2) for baseline segmenters
-    region_id: str = ""
-    row: int = 0                        # visual row within the region, assigned by the pipeline
-
-    @property
-    def bbox(self) -> BBox:
-        return BBox.of(self.polygon)
-
-
-@dataclass
-class Recognition:
-    text: str
-    score: float
-
-
-@dataclass
-class TableCellResult:
-    text: str
-    row: int
-    col: int
-    row_span: int = 1
-    col_span: int = 1
-    bbox: BBox | None = None
-    header: bool = False
-
-
-@dataclass
-class TableResult:
-    """A table's cell structure (boxes in page coordinates); the pipeline fills ``text`` per cell."""
-
-    region_id: str
-    cells: list[TableCellResult] = field(default_factory=list)
-    num_rows: int = 0
-    num_cols: int = 0
-    html: str | None = None
+def bbox_of(points) -> BBox:
+    """The bounding box of a polygon (any sequence of ``[x, y]``)."""
+    return BBox.of(np.asarray(points, dtype=float))
