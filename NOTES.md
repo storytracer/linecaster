@@ -147,6 +147,22 @@ Client RSS was about 1.0 GB for the pipeline and 0.7 GB for `pump()`.
 **ServeChatModel** was checked on spark with `examples/chat_page.py --serve --port 8133 --gpu-memory-utilization 0.15 --limit 6`.
 vLLM booted in-task in 143 s, 6 pages ran, and the server was stopped at the end.
 
+## HF Jobs recipe for MiniCPM-OCR 1.0 regions (not yet run on Jobs)
+
+`recipes/hf-jobs/minicpm_regions.py`: PP-DocLayoutV3 (`ServeModels`, `linecaster serve`) → `ChatRegionStep(MiniCPMOCR)`
+(`ServeChatModel`, vLLM) → page rows, both servers in each Job on one GPU.
+- Image: the BHL board's MiniCPM-OCR image (vLLM nightly 5d35ce3 on `vllm/vllm-openai`, transformers at OpenBMB's pin;
+  uv and Python 3.12 from the vLLM base). Its SDK venv and Paddle layout model are not used.
+- vLLM runs in the image's Python; `ServeChatModel(outside_venv=True)` starts it with `VIRTUAL_ENV` unset and the uv
+  environment's `bin` off `PATH`, as the board recipe does. Draft model pinned through the speculative config's
+  `revision` (vLLM passes it to the draft's `ModelConfig`).
+- The pipeline and the layout server run in the uv environment from `dependencies(commit, kraken=False)`: linecaster +
+  linecaster-paddlex + the OpenCV stub, no kraken (the image has no git) and no lightning.
+- Memory: the last block boots first, so vLLM (`--gpu-memory-utilization 0.8` by default) profiles before the layout
+  server loads into the rest of the L4.
+- Checked locally: `--dry-run` (plan and dill pickle of the pipeline). Not checked: the Job itself, ONNX Runtime's CUDA 13
+  wheels next to the image's CUDA, DSpark draft pulled by revision rather than from a local directory.
+
 ## HF Jobs image for ChatPageStep (not yet run on Jobs)
 
 `vllm/vllm-openai:v0.26.0` (amd64) qualifies for `JobsPipelineExecutor`. From the image config:

@@ -102,11 +102,14 @@ class MiniCPMOCR(ChatModel):
         super().__init__(served_name or "minicpm-ocr")
 
     @staticmethod
-    def speculative_args(draft_dir: str) -> list[str]:
+    def speculative_args(draft: str, revision: str | None = None) -> list[str]:
+        """DSpark speculative decoding with ``draft`` (a local directory, or a Hub id pinned by ``revision``)."""
         import json
 
-        return ["--speculative-config", json.dumps({"method": "dspark", "model": draft_dir, "num_speculative_tokens": 15,
-                                                    "enable_adaptive_verification": False})]
+        config = {"method": "dspark", "model": draft, "num_speculative_tokens": 15, "enable_adaptive_verification": False}
+        if revision:
+            config["revision"] = revision
+        return ["--speculative-config", json.dumps(config)]
 
     # ---------------------------------------------------------------- regions
     def reads_region(self, region, labels=None) -> bool:

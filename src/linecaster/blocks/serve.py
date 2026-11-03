@@ -40,28 +40,48 @@ class ServeChatModel(PipelineStep):
     ``vllm`` is the server command (default ``vllm`` on PATH, e.g. from the job image or a
     ``uv run --with vllm==...`` environment); ``gpu_memory_utilization`` and ``extra_args`` are the
     deployment's choices on top of the spec's flags. The server is ready when it answers a trial
-    chat request (saturate's alive-only gate)."""
+    chat request (saturate's alive-only gate).
+
+    ``outside_venv``: start ``vllm`` without this interpreter's virtual environment (``VIRTUAL_ENV``
+    unset, its ``bin`` taken off ``PATH``), for a job image whose own Python has vLLM while the pipeline
+    runs in a uv environment on top (HF Jobs); vLLM's helpers (``ninja``, ``python``) then come from the
+    image."""
 
     type = "🔠 - LINECASTER"
     name = "🖥️ serve chat model"
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
-                 extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800):
+                 extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,
+                 outside_venv: bool = False):
         super().__init__()
         self.spec, self.port, self.host = spec, port, host
         self.gpu_memory_utilization, self.extra_args = gpu_memory_utilization, list(extra_args or [])
-        self.vllm, self.boot_timeout = vllm, boot_timeout
+        self.vllm, self.boot_timeout, self.outside_venv = vllm, boot_timeout, outside_venv
 
     def command(self) -> list[str]:
         return [self.vllm, "serve", self.spec.model, "--host", self.host, "--port", str(self.port),
                 *self.spec.vllm_args(self.gpu_memory_utilization, self.extra_args)]
+
+    def launch_command(self) -> list[str]:
+        """``command()``, behind ``env -u VIRTUAL_ENV PATH=...`` with ``outside_venv``."""
+        cmd = self.command()
+        if not self.outside_venv:
+            return cmd
+        import os
+        import sys
+
+        own = {os.path.realpath(os.path.join(sys.prefix, "bin"))}
+        if os.environ.get("VIRTUAL_ENV"):
+            own.add(os.path.realpath(os.path.join(os.environ["VIRTUAL_ENV"], "bin")))
+        path = os.pathsep.join(p for p in os.environ.get("PATH", "").split(os.pathsep) if os.path.realpath(p) not in own)
+        return ["env", "-u", "VIRTUAL_ENV", f"PATH={path}", *cmd]
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from saturate import Engine
 
         with self.track_time("boot"):
             server = Engine(self.spec.model, engine="vllm", port=self.port, boot_timeout=self.boot_timeout,
-                            cmd=self.command())
+                            cmd=self.launch_command())
             server.__enter__()
         try:
             yield from data
