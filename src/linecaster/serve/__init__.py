@@ -10,13 +10,10 @@ __all__ = ["Hosted", "build_app", "serve", "engine", "serve_command"]
 
 
 def serve_command(models: list[dict], port: int = 8100, python: str | None = None, max_queue: int = 16) -> list[str]:
-    """The command line that starts ``linecaster serve`` for ``models`` (dicts with name, spec, kwargs and
-    optionally replicas)."""
+    """The command line that starts ``linecaster serve`` for ``models`` (dicts with name, spec, kwargs)."""
     cmd = [python or sys.executable, "-m", "linecaster.cli", "serve", "--port", str(port), "--max-queue", str(max_queue)]
     for m in models:
         cmd += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
-        if m.get("replicas", 1) != 1:
-            cmd += ["--replicas", f"{m['name']}={m['replicas']}"]
     return cmd
 
 
