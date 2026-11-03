@@ -12,16 +12,25 @@ IMAGE_GLOB = "**/*.{webp,jpg,jpeg,png,tif,tiff,jp2}"
 class ImageFolderReader(PipelineStep):
     """One page per image file under ``data_folder`` (local, ``s3://``, ``hf://buckets/...``: any fsspec
     path). ``page_id`` is the file name without extension; with ``item_from_parent`` the parent folder's
-    name is the ``item_id``. Files are sharded over datatrove tasks by their sorted position."""
+    name is the ``item_id``, with ``item_id`` every page belongs to that one item. ``sequence`` sets
+    ``Page.sequence`` to the file's 1-based position among its item's files in sorted order (the page
+    order of item-level steps). Files are sharded over datatrove tasks by their sorted position."""
 
     type = "📖 - READER"
     name = "🖼️ image folder"
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = IMAGE_GLOB, item_from_parent: bool = False,
-                 limit: int = -1):
+                 limit: int = -1, item_id: str | None = None, sequence: bool = False):
         super().__init__()
+        if item_id is not None and item_from_parent:
+            raise ValueError("item_id and item_from_parent exclude each other")
         self.data_folder, self.glob_pattern = get_datafolder(data_folder), glob_pattern
-        self.item_from_parent, self.limit = item_from_parent, limit
+        self.item_from_parent, self.limit, self.item_id, self.sequence = item_from_parent, limit, item_id, sequence
+
+    def _item(self, path: str) -> str | None:
+        if self.item_id is not None:
+            return self.item_id
+        return path.rsplit("/", 2)[-2] if self.item_from_parent and "/" in path else None
 
     def _files(self) -> list[str]:
         if "{" in self.glob_pattern:
@@ -39,13 +48,20 @@ class ImageFolderReader(PipelineStep):
         files = self._files()
         if self.limit >= 0:
             files = files[: self.limit]
+        positions: dict[str, int] = {}
+        if self.sequence:
+            counts: dict[str | None, int] = {}
+            for path in files:
+                item = self._item(path)
+                counts[item] = counts.get(item, 0) + 1
+                positions[path] = counts[item]
         for path in files[rank::world_size]:
             with self.track_time():
                 with self.data_folder.open(path, "rb") as f:
                     raw = f.read()
                 stem = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-                item = path.rsplit("/", 2)[-2] if self.item_from_parent and "/" in path else None
-                doc = new_page_document(stem, raw, uri=self.data_folder.resolve_paths(path), item_id=item)
+                doc = new_page_document(stem, raw, uri=self.data_folder.resolve_paths(path), item_id=self._item(path),
+                                        sequence=positions.get(path))
             self.stat_update("pages")
             self.update_media_stats(doc.media[0])
             yield doc
