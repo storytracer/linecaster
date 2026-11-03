@@ -8,24 +8,27 @@
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science
 Museum Group Collection, CC BY-NC-SA 4.0. <a href="#-licence">Credit</a></sub></p>
 
-Build an OCR pipeline from interchangeable parts. Run the same pipeline on a laptop, a GPU server, a
-cluster or [Hugging Face Jobs][HF Jobs].
+Build an OCR pipeline from interchangeable parts: a model that reads the text, either a vision-language
+model or a line recogniser, combined with layout, table and formula models and post-processing. Run
+the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF Jobs].
 
 **Jump to:** [Why](#-why-linecaster) · [Quick start](#-quick-start) · [How it works](#-how-it-works) ·
-[Run anywhere](#-run-it-anywhere) · [Outputs](#-what-you-get) · [Models](#-supported-models) ·
-[Reference](#-reference)
+[Run anywhere](#-run-it-anywhere) · [Outputs](#-what-you-get) ·
+[Models and blocks](#-supported-models-and-blocks) · [Reference](#-reference)
 
 ## 🤔 Why Linecaster
 
-Reading a scanned page takes several models: one for the layout, one for the lines, one to read them,
-others for tables and formulas. Each comes with its own software. Each machine you might run them on
-has its own way of starting and scaling work. Swapping a model or moving to bigger hardware usually
-means starting over.
+Turning a scan into usable text takes more than one model. The text has to be read, by a
+vision-language model or by a line recogniser. Around that, the layout has to be found, tables and
+formulas rebuilt, and the text cleaned, reflowed and written in the formats people use. Every model
+comes with its own software, and every machine has its own way of starting and scaling work. Swapping
+a model or moving to bigger hardware usually means starting over.
 
-Linecaster keeps the two apart:
+Linecaster keeps the parts and the machines apart:
 
-- 🧩 **Any component.** Layout, lines, recognition, tables and formulas are separate steps. Mix models
-  from [kraken] and [PaddleX] with [twenty vision-language models](#-vision-language-models).
+- 🧩 **Any component.** Reading, layout, lines, tables, formulas and post-processing are separate
+  steps. Use a [vision-language model](#-vision-language-models) on whole pages or on layout regions,
+  or a [line recogniser](#%EF%B8%8F-line-recognisers) with a line detector, and add any of the other steps.
 - 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
 - 🖥️ **No serving stack to build.** Models load inside the pipeline, or each task starts its own model
   server on its GPU.
@@ -41,21 +44,59 @@ You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
 git clone https://github.com/storytracer/linecaster
 cd linecaster
 uv sync
-# the kraken + PaddleX engines:
+```
+
+A pipeline is a list of blocks. Two examples follow; `examples/` has more.
+
+### 🤖 A vision-language model reads each page
+
+Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH. Save this as `vlm.py`:
+
+```python
+from datatrove.executor import LocalPipelineExecutor
+from linecaster.backends import Served
+from linecaster.blocks.chat import ChatPageStep
+from linecaster.blocks.readers import ImageFolderReader
+from linecaster.blocks.serve import ServeChatModel
+from linecaster.blocks.writers import PageFilesWriter
+from linecaster.models import chat_model
+
+spec = chat_model("lightonai/LightOnOCR-2-1B")
+S = "http://127.0.0.1:8000/v1"
+pipeline = [
+    ImageFolderReader("scans/"),
+    ChatPageStep(spec, Served(S, spec.model)),
+    PageFilesWriter("out/", formats=("md",)),
+    ServeChatModel(spec),  # starts vLLM; goes last
+]
+LocalPipelineExecutor(
+    pipeline, logging_dir="out/logs").run()
+```
+
+Run it with `.venv/bin/python vlm.py`. Swap the model id for any of the
+[vision-language models](#-vision-language-models).
+
+### 🧱 A chain of smaller models
+
+Layout, line detection and a line recogniser, then post-processing into a document. Install the
+engines first:
+
+```bash
 (cd envs/kraken-paddlex && uv sync)
 ```
 
-A pipeline is a list of blocks. Save this as `ocr.py`. It reads a folder of scans and writes Markdown
-and ALTO:
+Save this as `chain.py`:
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
-from linecaster.blocks.document import AssembleDocument
+from linecaster.blocks.document import (
+    AssembleDocument, Typography)
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import (
     LayoutStep, LinesStep, RecognitionStep)
 from linecaster.blocks.readers import ImageFolderReader
+from linecaster.blocks.unicode import NormalizeUnicode
 from linecaster.blocks.writers import PageFilesWriter
 
 pipeline = [
@@ -65,6 +106,8 @@ pipeline = [
     AssignLinesToRegions(),
     RecognitionStep(
         P("linecaster_kraken:KrakenRecognitionModel")),
+    NormalizeUnicode(),
+    Typography(),
     AssembleDocument(),
     PageFilesWriter("out/", formats=("md", "alto")),
 ]
@@ -75,11 +118,12 @@ LocalPipelineExecutor(
 Run it with the engine environment's Python. The models download on first use.
 
 ```bash
-PY=envs/kraken-paddlex/.venv/bin/python
-$PY ocr.py
+envs/kraken-paddlex/.venv/bin/python chain.py
 ```
 
-`examples/` has fuller pipelines.
+> [!TIP]
+> The two can be mixed: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
+> each layout region.
 
 ## 🧩 How it works
 
@@ -88,18 +132,20 @@ $PY ocr.py
   <img src="docs/architecture-light.svg" width="760" alt="One page through a linecaster pipeline: page images are read, then layout, line detection, line assignment, recognition, tables, Unicode and typography and document assembly each add a part to the page's Transcription. The four model steps send the page through saturate to linecaster serve on a GPU and get it back with their part added. Pages with errors go to rejects; the rest are written as page rows, ALTO, PAGE, hOCR, text and Markdown. The executor runs many copies of this task.">
 </picture>
 
-*The path of one page. Shaded steps run a model.*
+*The path of one page through a chain of smaller models. Shaded steps run a model. A vision-language
+page model takes the place of layout, lines and recognition; a region model takes the place of lines
+and recognition.*
 
 Three ideas carry the design:
 
 1. 📋 **One record per page.** Every step reads the page's `Transcription` and adds its part: regions,
    lines, text, tables, a document. Steps never talk to each other, so any step can be replaced.
 2. 🔌 **Each model step has a backend.** `InProcess` loads the model inside the pipeline. `Served` sends
-   pages to a model server through [saturate], which keeps
-   enough pages in flight that the GPU never waits.
-3. 🏗️ **The executor decides where it runs.** Pipelines are
-   [datatrove] pipelines. Executors split the pages into
-   tasks, run them locally, on a [Ray] cluster or on [Hugging Face Jobs][HF Jobs], and resume where a run stopped.
+   pages to a model server through [saturate], which keeps enough pages in flight that the GPU never
+   waits.
+3. 🏗️ **The executor decides where it runs.** Pipelines are [datatrove] pipelines. Executors split the
+   pages into tasks, run them locally, on a [Ray] cluster or on [Hugging Face Jobs][HF Jobs], and resume
+   where a run stopped.
 
 ## 🌍 Run it anywhere
 
@@ -109,10 +155,14 @@ The steps stay the same. Only the backends and the executor change.
 |---|---|
 | 💻 Laptop | `InProcess`<br>`LocalPipelineExecutor` |
 | 🖥️ GPU server | `Served`<br>`LocalPipelineExecutor` |
-| 🧮 Ray cluster | `Served` + `ServeModels`<br>`RayGPUExecutor` |
-| ☁️ HF Jobs | `Served` + `ServeModels`<br>`JobsPipelineExecutor` |
+| 🧮 Ray cluster | `Served` + a server block<br>`RayGPUExecutor` |
+| ☁️ HF Jobs | `Served` + a server block<br>`JobsPipelineExecutor` |
 
-A model server hosts models by name. `examples/squiddle_models.json` is a complete list; in Python:
+Two server blocks start a model server inside each task and go last in the pipeline, so the server
+lives until every page is written:
+
+- `ServeChatModel(spec)` starts [vLLM] or [SGLang] for a vision-language model.
+- `ServeModels(MODELS)` starts `linecaster serve` for the other models, listed by name:
 
 ```python
 MODELS = [
@@ -129,15 +179,15 @@ MODELS = [
 <details>
 <summary><b>🖥️ On a GPU server</b></summary>
 
-Start `linecaster serve` with the models:
+Start the server once and point the steps at it. For a vision-language model, start vLLM with the
+spec's flags (`ServeChatModel(spec).command()` gives the full command line). For the other models,
+start `linecaster serve`:
 
 ```bash
 PY=envs/kraken-paddlex/.venv/bin/python
 $PY -m linecaster.cli serve --port 8100 \
   --config examples/squiddle_models.json
 ```
-
-Then give each model step a `Served` backend:
 
 ```python
 from linecaster.backends import Served
@@ -155,8 +205,7 @@ The server keeps the models loaded and listens on loopback only.
 <details>
 <summary><b>🧮 On every GPU, with Ray</b></summary>
 
-Each task gets one GPU and starts its own server on it. `ServeModels` goes last, so the server lives
-until every page is written.
+Each task gets one GPU and starts its own server on it.
 
 ```bash
 uv sync --extra ray
@@ -199,27 +248,8 @@ JobsPipelineExecutor(
 ```
 
 On multi-GPU flavors such as `l4x4`, `GPUJobsExecutor` runs one task per GPU. Complete versions are in
-`recipes/hf-jobs/`.
-
-</details>
-
-<details>
-<summary><b>🤖 With a vision-language model</b></summary>
-
-`ChatPageStep` sends whole pages to an OpenAI-compatible server; `ChatRegionStep` sends one crop per
-layout region. A model spec holds the prompt, sampling, server flags and how to read the answer.
-
-```python
-from linecaster.blocks.chat import ChatPageStep
-from linecaster.models import chat_model
-
-spec = chat_model("rednote-hilab/dots.ocr")
-S = "http://127.0.0.1:8000/v1"
-ChatPageStep(spec, Served(S, spec.model))
-```
-
-`ServeChatModel` starts [vLLM] or [SGLang] inside a task, the way `ServeModels` starts `linecaster serve`.
-`recipes/hf-jobs/chat_page.py` runs any spec on Hugging Face Jobs.
+`recipes/hf-jobs/`: `chat_page.py` for any vision-language model, `squiddle_chain.py` for a chain of
+smaller models.
 
 </details>
 
@@ -233,72 +263,21 @@ ChatPageStep(spec, Served(S, spec.model))
 | 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
 | 🗂️ Page rows ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 
-Files come per page or, for a book, one per version.
+Files come per page or, for a book, one per version. Word positions need a model that gives them,
+such as a line recogniser.
 
-## 🤖 Supported models
+## 🧰 Supported models and blocks
 
-Every model belongs to one step. Engine models run inside the pipeline or behind `linecaster serve`.
-[kraken] models come with the `linecaster-kraken` package, [PaddleX] models with `linecaster-paddlex`.
-Vision-language models run behind [vLLM] or [SGLang].
-
-### 🗺️ Layout
-
-`LayoutStep` finds the regions of a page (text blocks, headings, tables, pictures, page numbers) and
-their reading order.
-
-| Model | What it gives |
-|---|---|
-| [PP-DocLayoutV3] | regions as polygons, learned reading order (default) |
-| [PP-DocLayout_plus-L] | regions as boxes, reading order from their positions |
-| none: `SingleRegionLayout` | the whole page as one text region |
-
-### 📏 Lines
-
-`LinesStep` finds the text lines and assigns each to its region.
-
-| Model | Default |
-|---|---|
-| [PP-OCRv6 tiny][PP-OCRv6_tiny_det] | |
-| [PP-OCRv6 small][PP-OCRv6_small_det] | |
-| [PP-OCRv6 medium][PP-OCRv6_medium_det] | ✅ |
-
-### 👁️ Recognition
-
-`RecognitionStep` reads each line and places every word on the page.
-
-| Model | Default |
-|---|---|
-| [kraken PP-OCRv6 tiny][kraken-tiny] | |
-| [kraken PP-OCRv6 small][kraken-small] | |
-| [kraken PP-OCRv6 medium][kraken-medium] | ✅ |
-| any kraken model file | |
-
-### 📊 Tables
-
-`TablesStep` finds the rows and columns of each table region and fills the cells with the recognised
-lines.
-
-| Model | What it does |
-|---|---|
-| [SLANet_plus] | rows, columns and cell boxes (default) |
-| [PP-LCNet table classifier][PP-LCNet_x1_0_table_cls] | tells ruled from unruled tables |
-| [RT-DETR-L wired cells][RT-DETR-L_wired_table_cell_det] | cell boxes in ruled tables (`e2e=False`) |
-| [RT-DETR-L wireless cells][RT-DETR-L_wireless_table_cell_det] | cell boxes in unruled tables (`e2e=False`) |
-
-### ➗ Formulas
-
-`FormulasStep` reads each formula region as LaTeX.
-
-| Model | Default |
-|---|---|
-| [PP-FormulaNet_plus-L] | ✅ |
-| [PP-FormulaNet-L] | |
+Every model belongs to one step. Vision-language models run behind [vLLM] or [SGLang]. The other models
+run inside the pipeline or behind `linecaster serve`: [kraken] models come with the
+`linecaster-kraken` package, [PaddleX] models with `linecaster-paddlex`.
 
 ### 🤖 Vision-language models
 
 `ChatPageStep` sends the whole page; `ChatRegionStep` sends one crop per layout region. Each spec pins
 the model revision. Its settings come from the drivers of the open [bhl-ocr-eval] benchmark, which
-follow the models' own instructions.
+follow the models' own instructions. `chat_model()` takes the full Hugging Face id, for example
+`chat_model("rednote-hilab/dots.ocr")`.
 
 <details>
 <summary><b>Page models</b>: nineteen specs</summary>
@@ -337,7 +316,108 @@ follow the models' own instructions.
 
 </details>
 
-`chat_model()` takes the full Hugging Face id, for example `chat_model("rednote-hilab/dots.ocr")`.
+### 🗺️ Layout
+
+`LayoutStep` finds the regions of a page (text blocks, headings, tables, pictures, page numbers) and
+their reading order.
+
+| Model | What it gives |
+|---|---|
+| [PP-DocLayoutV3] | regions as polygons, learned reading order (default) |
+| [PP-DocLayout_plus-L] | regions as boxes, reading order from their positions |
+| none: `SingleRegionLayout` | the whole page as one text region |
+
+### 📏 Lines
+
+`LinesStep` finds the text lines on the page; `AssignLinesToRegions` puts each into its region, in
+reading order.
+
+| Model | Default |
+|---|---|
+| [PP-OCRv6 tiny][PP-OCRv6_tiny_det] | |
+| [PP-OCRv6 small][PP-OCRv6_small_det] | |
+| [PP-OCRv6 medium][PP-OCRv6_medium_det] | ✅ |
+
+### 👁️ Line recognisers
+
+`RecognitionStep` reads each line and places every word on the page.
+
+| Model | Default |
+|---|---|
+| [kraken PP-OCRv6 tiny][kraken-tiny] | |
+| [kraken PP-OCRv6 small][kraken-small] | |
+| [kraken PP-OCRv6 medium][kraken-medium] | ✅ |
+| any kraken model file | |
+
+### 📊 Tables
+
+`TablesStep` finds the rows and columns of each table region and fills the cells with the recognised
+lines.
+
+| Model | What it does |
+|---|---|
+| [SLANet_plus] | rows, columns and cell boxes (default) |
+| [PP-LCNet table classifier][PP-LCNet_x1_0_table_cls] | tells ruled from unruled tables |
+| [RT-DETR-L wired cells][RT-DETR-L_wired_table_cell_det] | cell boxes in ruled tables (`e2e=False`) |
+| [RT-DETR-L wireless cells][RT-DETR-L_wireless_table_cell_det] | cell boxes in unruled tables (`e2e=False`) |
+
+### ➗ Formulas
+
+`FormulasStep` reads each formula region as LaTeX.
+
+| Model | Default |
+|---|---|
+| [PP-FormulaNet_plus-L] | ✅ |
+| [PP-FormulaNet-L] | |
+
+### ✨ Post-processing
+
+These blocks need no model.
+
+| Block | What it does |
+|---|---|
+| `NormalizeUnicode` | the text in one Unicode form, [NFC] by default |
+| `Typography` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
+| `AssembleDocument` | a [DoclingDocument] per page: lines joined into paragraphs, line-end hyphens removed |
+| `AssembleItemDocument` | one DoclingDocument per book, paragraphs continued across pages |
+| `ItemTexts` | one text per book in each [text version](#-reference) |
+
+### 📥 Input, output and servers
+
+**Readers**
+
+| Block | What it does |
+|---|---|
+| `ImageFolderReader` | page images from a folder or bucket |
+| `HFImageDatasetReader` | page images from a Hugging Face dataset |
+| `PageRowReader` | page rows written by an earlier run |
+
+**Images and checks**
+
+| Block | What it does |
+|---|---|
+| `AttachImage` | loads a page's image again by its address |
+| `WorkingImages` | the image as lossless WebP, size checked |
+| `ValidatePages` | sets aside invalid pages, with the reason |
+
+**Writers**
+
+| Block | What it does |
+|---|---|
+| `PageFilesWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text and more |
+| `PageJsonlWriter` | page rows as JSON Lines |
+| `PageParquetWriter` | page rows as Parquet |
+| `PageExportsWriter` | page documents as Markdown, text, HTML, DocLang, JSON |
+| `ItemExportsWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
+| `ItemTextJsonlWriter` | book texts as JSON Lines |
+| `ItemTextFilesWriter` | book texts as files |
+
+**Servers**
+
+| Block | What it does |
+|---|---|
+| `ServeChatModel` | starts vLLM or SGLang inside a task |
+| `ServeModels` | starts `linecaster serve` inside a task |
 
 ## 📚 Reference
 
@@ -423,11 +503,11 @@ Spelling is never modernised.
 
 | To add | Write |
 |---|---|
-| an engine model | a class with `step`, `name`, `load()` and `__call__(image, transcription)`, packaged under `backends/` |
 | a vision-language model | a `ChatModel` subclass (model id, revision, sampling, server flags, request, parsing), registered in `linecaster.models` |
+| another model | a class with `step`, `name`, `load()` and `__call__(image, transcription)`, packaged under `backends/` |
 | a processing step | a `PageStep` with `process_page(doc, page)` |
 
-An engine model runs both inside the pipeline and behind `linecaster serve` without further work.
+Such a model runs both inside the pipeline and behind `linecaster serve` without further work.
 
 </details>
 
