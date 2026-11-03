@@ -31,7 +31,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from .transcription.model import Transcription
+from .transcription.model import Transcription, render_table
 
 NORMALISE_MAP = str.maketrans({
     "ſ": "s",                                   # ſ long s
@@ -81,18 +81,38 @@ def join_lines(a: str, b: str) -> str:
 
 @dataclass
 class Block:
-    """A flowed region: ``kind`` is title, heading, list_item or paragraph."""
+    """A flowed region: ``kind`` is title, heading, list_item, paragraph or table (``table`` holds the
+    region's table structure from a tables step; it is rendered, never flowed)."""
 
     kind: str
     label: str
     text: str
     level: int | None = None
+    table: dict | None = None
+
+
+def table_plain(table: dict) -> str:
+    """A table structure as plain text: one line per row, cells separated by a tab (spans ignored:
+    a cell stands at its first row and column)."""
+    cells = table.get("cells") or []
+    n_rows = max((c["row"] + 1 for c in cells), default=0)
+    n_cols = max((c["col"] + 1 for c in cells), default=0)
+    grid = [[""] * n_cols for _ in range(n_rows)]
+    for c in cells:
+        grid[c["row"]][c["col"]] = " ".join(c["text"].split())
+    return "\n".join("\t".join(row).rstrip("\t") for row in grid)
+
+
+def _map_table(table: dict, f) -> dict:
+    return {**table, "cells": [{**c, "text": f(c["text"])} for c in table.get("cells") or []]}
 
 
 def page_blocks(t: Transcription, skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
     """The page's regions in reading order (regions without an order last), each region's recognised
-    lines flowed into one block; regions labelled in ``skip_labels`` are left out (body only).
-    Lines without a known region form one paragraph at the end."""
+    lines flowed into one block (NFC first, whatever the producer delivered); a region with a table
+    structure (``region.extra["table"]``) becomes a ``table`` block; regions labelled in
+    ``skip_labels`` are left out (body only). Lines without a known region form one paragraph at the
+    end."""
     order = {r.id: (r.reading_order is None, r.reading_order or 0, i) for i, r in enumerate(t.regions)}
     regions = {r.id: r for r in t.regions}
     by_region: dict[str | None, list] = {}
@@ -109,9 +129,13 @@ def page_blocks(t: Transcription, skip_labels: frozenset[str] = FURNITURE | NO_T
         label = r.label if r is not None else "text"
         if label in skip_labels:
             continue
+        table = (r.extra.get("table") or {}) if r is not None else {}
+        if table.get("cells"):
+            blocks.append(Block("table", label, "", table=_map_table(table, nfc)))
+            continue
         text = ""
         for ln in by_region[k]:
-            text = join_lines(text, ln.text.strip())
+            text = join_lines(text, nfc(ln.text.strip()))
         kind = {"title": "title", "section_header": "heading", "list_item": "list_item"}.get(label, "paragraph")
         blocks.append(Block(kind, label, text, r.heading_level if r is not None else None))
     return blocks
@@ -146,10 +170,15 @@ _MD_START = re.compile(r"^([#>*+\-]|\d+[.)])(\s|$)")
 
 def render(blocks: list[Block], markdown: bool = False, normalised: bool = True) -> str:
     """Blocks -> text, paragraphs separated by a blank line. Markdown: ``#`` title, ``##`` section header
-    (``#`` x (heading_level + 1) when the layout gives a level), ``- `` list item; a paragraph that would
-    read as Markdown syntax is escaped."""
+    (``#`` x (heading_level + 1) when the layout gives a level), ``- `` list item, tables as Markdown
+    pipe tables (HTML when a cell spans); a paragraph that would read as Markdown syntax is escaped.
+    Plain text: tables one row per line, cells separated by tabs."""
     parts = []
     for b in blocks:
+        if b.kind == "table":
+            table = _map_table(b.table, normalise if normalised else nfc)
+            parts.append(render_table(table) if markdown else table_plain(table))
+            continue
         text = normalise(b.text) if normalised else nfc(b.text)
         if not markdown:
             parts.append(text)
@@ -165,9 +194,10 @@ def render(blocks: list[Block], markdown: bool = False, normalised: bool = True)
 
 
 def verbatim(pages: list[Transcription]) -> str:
-    """As written, as laid out, full page: each page's lines in reading order, pages joined with a form
-    feed (split on ``\\f`` to get the pages back; an empty page stays an empty string)."""
-    return nfc("\f".join(t.text for t in pages))
+    """As written, as laid out, full page: each page's text (``Transcription.text``: lines in reading
+    order, tables as Markdown/HTML tables), pages joined with a form feed (split on ``\\f`` to get the
+    pages back; an empty page stays an empty string); NFC."""
+    return "\f".join(nfc(t.text) for t in pages)
 
 
 def variants(pages: list[Transcription]) -> dict[str, str]:
