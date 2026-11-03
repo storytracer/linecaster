@@ -26,10 +26,12 @@ class ModelStep(PageStep):
     """Run one model step on every page, adding its part to the page's ``transcription``."""
 
     step = "model"
+    route: str | None = None       # the served route; None = linecaster serve's ``/linecaster/{step}``
+    prepare_workers: int = 2       # threads building requests ahead of admission (image encoding)
 
     def __init__(self, backend: InProcess | Served, transcription: str = "ocr", params: dict | None = None,
-                 primary: str | None = None, skip_on_error: bool = True):
-        self.name = f"{self.step} ({backend.describe()})"   # before the base __init__, which names the stats
+                 primary: str | None = None, skip_on_error: bool = True, name: str | None = None):
+        self.name = name or f"{self.step} ({backend.describe()})"   # before the base __init__, which names the stats
         super().__init__()
         self.backend, self.transcription, self.params = backend, transcription, params or {}
         self.primary, self.skip_on_error = primary or transcription, skip_on_error
@@ -87,8 +89,9 @@ class ModelStep(PageStep):
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
                                       read_timeout=b.read_timeout) as client:
-                async with through(client, rows, self._request, self._parse, route=f"/linecaster/{self.step}",
-                                   prepare_workers=2) as stream:
+                async with through(client, rows, self._request, self._parse,
+                                   route=self.route or f"/linecaster/{self.step}",
+                                   prepare_workers=self.prepare_workers) as stream:
                     async for done in stream:
                         await asyncio.to_thread(results.put, done)
 
@@ -99,6 +102,7 @@ class ModelStep(PageStep):
                 results.put(e)
             results.put(_END)
 
+        started = time.perf_counter()
         threading.Thread(target=worker, name=f"linecaster-{self.step}", daemon=True).start()
         while (item := results.get()) is not _END:
             if isinstance(item, BaseException):
@@ -114,9 +118,17 @@ class ModelStep(PageStep):
             out = Transcription.model_validate(item.out["transcription"])
             page.transcriptions[self.transcription] = out
             set_page(doc, page, self.primary)
-            if out.model and "seconds" in out.model[-1].measurements:
-                self.stat_update("model_seconds", value=out.model[-1].measurements["seconds"], unit="doc")
+            measured = out.model[-1].measurements if out.model else {}
+            if "seconds" in measured:
+                self.stat_update("model_seconds", value=measured["seconds"], unit="doc")
+            for key in ("prompt_tokens", "completion_tokens"):
+                if isinstance(measured.get(key), int):
+                    self.stat_update(key, value=measured[key], unit="doc")
+            if measured.get("finish_reason") not in (None, "stop"):
+                self.stat_update(f"finish_{measured['finish_reason']}")
             yield doc
+        # wall time of the served run, first request to last result (downstream blocks included)
+        self.stat_update("served_wall_seconds", value=round(time.perf_counter() - started, 2))
 
 
 class LayoutStep(ModelStep):
