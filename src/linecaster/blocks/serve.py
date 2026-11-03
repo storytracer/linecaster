@@ -75,9 +75,17 @@ class ServeChatModel(PipelineStep):
         return getattr(self.spec, "server", "vllm")
 
     def command(self, python: str | None = None) -> list[str]:
+        """The server command. For vLLM behind ``bash -c '<setup>; exec vllm serve ...'`` when the spec has a
+        ``serve_setup`` script (run with ``VLLM`` set to the server command, ``set -euo pipefail``)."""
         if self.server == "vllm":
-            return [self.vllm, "serve", self.spec.model, "--host", self.host, "--port", str(self.port),
-                    *self.spec.vllm_args(self.gpu_memory_utilization, self.extra_args)]
+            cmd = [self.vllm, "serve", self.spec.model, "--host", self.host, "--port", str(self.port),
+                   *self.spec.vllm_args(self.gpu_memory_utilization, self.extra_args)]
+            setup = getattr(self.spec, "serve_setup", lambda: None)()
+            if not setup:
+                return cmd
+            import shlex
+
+            return ["bash", "-c", f"set -euo pipefail\nVLLM={shlex.quote(self.vllm)}\n{setup}\nexec {shlex.join(cmd)}"]
         if self.server == "sglang":
             return [python or self.python, "-m", "sglang.launch_server", "--model-path", self.spec.model,
                     "--host", self.host, "--port", str(self.port), "--enable-metrics",
