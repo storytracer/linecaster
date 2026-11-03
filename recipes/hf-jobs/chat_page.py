@@ -29,13 +29,10 @@ from linecaster.blocks.chat import ChatPageStep
 from linecaster.blocks.readers import HFImageDatasetReader, ImageFolderReader
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.blocks.writers import PageJsonlWriter
+from linecaster.jobs import dependencies
 from linecaster.models import chat_model
 
 VLLM_IMAGE = "vllm/vllm-openai:v0.26.0"
-
-
-def dependencies(commit: str) -> list[str]:
-    return [f"linecaster @ git+https://github.com/storytracer/linecaster@{commit}"]
 
 
 def main() -> None:
@@ -72,7 +69,7 @@ def main() -> None:
         ServeChatModel(spec, port=port, gpu_memory_utilization=a.gpu_memory_utilization),   # last
     ]
     JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/{name}",
-                         flavor=a.flavor, namespace=a.namespace, image=a.image, dependencies=dependencies(a.commit),
+                         flavor=a.flavor, namespace=a.namespace, image=a.image, dependencies=dependencies(a.commit, engines=False),
                          timeout=a.timeout, python="3.12", job_name=f"linecaster-{a.run_id}",
                          labels={"project": "linecaster"}, env={"LINECASTER_RUN": a.run_id}).run()
     print(json.dumps({"run": run, "commit": a.commit, "image": a.image}))
