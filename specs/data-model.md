@@ -31,6 +31,16 @@ Decisions taken while building the first version, with the reason for each. Open
    without geometry (`bbox`, `polygon` None), one per text line, `source.kind = "converted"`,
    `source.format = "text"`. They cannot be written as ALTO/PAGE/hOCR.
 
+9. **The retyper edits regions and lines in place** (`linecaster.retyper`, squiddleocr's rules, arithmetic
+   unchanged). A split-off headline is region `<region id>_head` (raw label `<raw>/split`); its lines keep
+   their ids and get the new `region_id`. Removed regions (drop capitals, uncertain page numbers) leave
+   `regions` with their lines and are recorded in `Transcription.extra["retyper_dropped"]` (id, labels,
+   text, line ids, reason, confidence). A drop capital's letter is prepended to the target line's text
+   (`line.extra["drop_capital"]`); words are not touched. Regions are re-ranked, lines re-ordered.
+10. **`docling` is assembled from regions + lines + tables** (`linecaster.document`), one document per
+    page, page headers/footers always in Docling's furniture layer; exports choose whether to include
+    them (`furniture=True` = squiddleocr's `--furniture`).
+
 ## Environment lesson (2026-11-03)
 
 `[tool.uv.sources]` applies only to a project's own dependencies. The engine environment listed the
