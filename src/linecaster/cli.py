@@ -14,13 +14,14 @@ def _serve(a) -> None:
         with open(a.config) as f:
             for m in json.load(f)["models"]:
                 hosted.append(Hosted(m["name"], m["spec"], m.get("kwargs", {}), m.get("max_queue", a.max_queue)))
+    kwargs = dict(kv.split("=", 1) for kv in a.kwargs)
     for kv in a.preset:
         from .catalog.registry import engine_spec
 
         name, ref = kv.split("=", 1)
         spec, kw, r = engine_spec(ref)
+        kw.update(json.loads(kwargs.pop(name, "{}")))          # overrides, merged over the preset's options
         hosted.append(Hosted(name, spec, kw, a.max_queue, preset=r.ref, preset_sha256=r.sha256))
-    kwargs = dict(kv.split("=", 1) for kv in a.kwargs)
     for m in a.model:
         name, spec = m.split("=", 1)
         hosted.append(Hosted(name, spec, json.loads(kwargs.get(name, "{}")), a.max_queue))

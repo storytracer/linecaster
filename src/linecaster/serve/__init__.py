@@ -19,10 +19,22 @@ def serve_command(models: list[dict], port: int = 8100, python: str | None = Non
         cmd = ["uv", "run", "--quiet", "--script", str(script), "serve"]
     else:
         cmd = [python or sys.executable, "-m", "linecaster.cli", "serve"]
-    cmd += ["--port", str(port), "--max-queue", str(max_queue)]
+    return cmd + ["--port", str(port), "--max-queue", str(max_queue)] + model_args(models)
+
+
+def model_args(models: list[dict]) -> list[str]:
+    """``linecaster serve`` arguments for ``models``: ``--preset NAME=REF`` for a catalogue preset (the server
+    resolves it and stamps its edition on every page; ``overrides`` go along as ``--kwargs`` and are merged
+    over the preset's options), otherwise ``--model NAME=module:Class --kwargs NAME=JSON``."""
+    out = []
     for m in models:
-        cmd += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
-    return cmd
+        if m.get("preset"):
+            out += ["--preset", f"{m['name']}={m['preset']}"]
+            if m.get("overrides"):
+                out += ["--kwargs", f"{m['name']}={json.dumps(m['overrides'])}"]
+        else:
+            out += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
+    return out
 
 
 def engine(models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,

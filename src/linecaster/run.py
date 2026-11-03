@@ -129,7 +129,8 @@ def preset_models(models: list[dict]) -> list[dict]:
             from .catalog.registry import engine_spec
 
             spec, kwargs, r = engine_spec(m["preset"])
-            m = {**m, "spec": spec, "kwargs": kwargs, "preset": r.ref, "preset_sha256": r.sha256}
+            m = {**m, "spec": spec, "kwargs": {**kwargs, **m.get("overrides", {})}, "preset": r.ref,
+                 "preset_sha256": r.sha256}
         out.append(m)
     return out
 
@@ -140,15 +141,7 @@ def rows(a: argparse.Namespace):
     return PageJsonlWriter(f"{a.out.rstrip('/')}/rows", output_filename="${rank}.jsonl.gz")
 
 
-def model_args(models: list[dict]) -> list[str]:
-    """``linecaster serve`` arguments for ``models``."""
-    out = []
-    for m in models:
-        if m.get("preset"):       # linecaster serve resolves it again and stamps the edition on every page
-            out += ["--preset", f"{m['name']}={m['preset']}"]
-        else:
-            out += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
-    return out
+from .serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
 
 
 def serve(argv: list[str], options: Callable, models: Callable) -> None:

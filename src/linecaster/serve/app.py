@@ -23,6 +23,7 @@ import base64
 import json
 import logging
 import queue
+from datetime import datetime, timezone
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -69,7 +70,10 @@ class Hosted:
             self.running += 1
             start = time.perf_counter()
             try:
+                began = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 out = self.model(image, t, **params)
+                if out.model:
+                    out.model[-1].measurements.setdefault("datetime", began)
                 if self.preset and out.model:
                     out.model[-1].preset, out.model[-1].preset_sha256 = self.preset, self.preset_sha256
                 if out.model:

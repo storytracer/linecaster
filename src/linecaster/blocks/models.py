@@ -12,6 +12,7 @@ import base64
 import queue
 import threading
 import time
+from datetime import datetime, timezone
 
 from ..backends import InProcess, Served
 from ..page import Page
@@ -40,10 +41,11 @@ class ModelStep(PageStep):
     # ------------------------------------------------------------- in-process
     def process_page(self, doc, page: Page) -> Page:
         t = page.transcription(self.transcription)
-        start = time.perf_counter()
+        start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         out = self.backend.model()(decode_rgb(image_bytes(doc)), t, **self.params)
         if out.model:
             out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+            out.model[-1].measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
             if getattr(self.backend, "preset", None):        # built from a catalogue preset
                 out.model[-1].preset, out.model[-1].preset_sha256 = self.backend.preset, self.backend.preset_sha256
         page.transcriptions[self.transcription] = out
