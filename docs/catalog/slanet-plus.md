@@ -1,0 +1,36 @@
+# slanet-plus
+
+*Edition 2 · tables · core*
+
+PaddleX's `table_recognition_v2` pipeline on every `table` region, fed with the page's own lines and their
+recognised text instead of its own OCR (`use_ocr_model=False` with an external OCR result); the cells come back
+with our text in PaddleX's HTML. The squiddle combination's table step.
+
+- SLANet_plus end to end for both table classes (`e2e`: structure and cell boxes from SLANet_plus's own
+  prediction, the RT-DETR cell detectors unused). Chosen 2026-09-07 from four variants on five BHL tables:
+  PP-StructureV3's own choice (SLANeXt_wired + cell detector for what the classifier calls wired) merged body rows
+  on old ruled tables; SLANet_plus end to end kept every body row apart and filled the most cells.
+- `crop_pad` 8: with the layout box exactly, the models can flip to a worse cell set (25 cells and 44 words on one
+  table against 17 cells and 121 words padded); from 8 px the result is stable.
+- The pipeline's other models are its `submodels`, by PaddleX name: the wired/wireless classifier
+  (`PP-LCNet_x1_0_table_cls`, which picks the branch) and the two cell detectors (loaded by the pipeline, unused
+  with `e2e`), each a pin of its model document, so their files are part of the edition's hash.
+
+Edition 2 (2026-11-03): the same models at the same revisions, moved from the option `submodel_revisions` (in
+edition 1, which stays resolvable) to `submodels`, so their file hashes count too.
+- Unruled rows come back as one cell per column with every PaddleX table model.
+
+| | |
+|---|---|
+| Step | tables (reads regions) |
+| Engine | `paddlex.tables/1` |
+| Model | [SLANet_plus](https://huggingface.co/PaddlePaddle/SLANet_plus_onnx/tree/7dbe640e127602bf506815e822c09758de73c482) |
+| Revision | `7dbe640e127602bf506815e822c09758de73c482` |
+| Upstream card | [upstream/7dbe640e127602bf506815e822c09758de73c482/README.md](../../engines/paddlex/src/linecaster_paddlex/catalog/models/slanet-plus-onnx/upstream/7dbe640e127602bf506815e822c09758de73c482/README.md) (verbatim, at that revision) |
+| Licence | Apache-2.0 |
+| Derived from | converted of PaddlePaddle/SLANet_plus |
+| Produces | tables, html |
+
+## Provenance
+
+- storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)

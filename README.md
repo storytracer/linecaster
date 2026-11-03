@@ -59,11 +59,11 @@ Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH.
 
 ```bash
 uv run recipes/vlm.py scans/ out/ \
-  --vlm lightonai/LightOnOCR-2-1B
+  --vlm lightonocr-2-1b
 ```
 
-Any of the [vision-language models](#-vision-language-models) works; `--regions` has it read each
-layout region instead of the whole page.
+Any [preset for whole pages](#-models-and-blocks) works; `--regions` has a region model read each
+layout region instead.
 
 ### 🧱 A chain of smaller models
 
@@ -74,8 +74,9 @@ uv run recipes/chain.py scans/ out/ \
   --files out/files --formats md,alto
 ```
 
-The defaults are PP-DocLayoutV3, PP-OCRv6 lines and kraken; `--recognizer paddlex` or
-`--recognizer tesseract` swaps the [line recogniser](#%EF%B8%8F-line-recognisers).
+Each step is a preset: the defaults are `pp-doclayoutv3`, `pp-ocrv6-medium-det` and
+`kraken-ppocrv6-medium`. `--recognizer tesseract-best-latin` swaps the recogniser, and
+`--set recognition.batch_size=4` changes one option. `linecaster models` lists the presets.
 
 ### ✍️ Your own pipeline
 
@@ -246,131 +247,89 @@ MODELS = [
 Files come per page or, for a book, one per version. Word positions need a model that gives them,
 such as a line recogniser.
 
-## 🧰 Supported models and blocks
+## 🧰 Models and blocks
 
-Every model belongs to one step. Vision-language models run behind [vLLM] or [SGLang]. The other models
-run inside the pipeline or behind `linecaster serve`. They come in one package per engine:
-`linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract`
-([Tesseract]).
+Every model is a **preset** in Linecaster's catalogue: one engine, one model at a pinned revision, and its
+settings. The original model card is copied next to it, unchanged, at exactly that revision.
+`linecaster models` lists the presets; [docs/catalog](docs/catalog/README.md) has a page for each, with
+its results and where every number comes from.
 
-### 🤖 Vision-language models
+Vision-language models run behind [vLLM] or [SGLang]. The other models run inside the pipeline or behind
+`linecaster serve`, one package per engine: `linecaster-kraken` ([kraken]), `linecaster-paddlex`
+([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
 
-`ChatPageStep` sends the whole page; `ChatRegionStep` sends one crop per layout region. Each spec pins
-the model revision. Its settings come from the drivers of the open [bhl-ocr-eval] benchmark, which
-follow the models' own instructions. `chat_model()` takes the full Hugging Face id, for example
-`chat_model("rednote-hilab/dots.ocr")`.
-
-<details>
-<summary><b>Page models</b>: nineteen specs</summary>
-
-| Model | Server |
-|---|---|
-| [chandra-ocr-2] | vLLM |
-| [DeepSeek-OCR] | vLLM |
-| [DeepSeek-OCR-2] | vLLM |
-| [dots.mocr] | vLLM |
-| [dots.ocr] | vLLM |
-| [GLM-OCR] | vLLM |
-| [LightOnOCR-2-1B] | vLLM |
-| [LightOnOCR-3-0.8B] | vLLM |
-| [LightOnOCR-3-4B] | vLLM |
-| [Nemotron-3.5-Parse] | vLLM |
-| [olmOCR-2-7B-1025-FP8] | vLLM |
-| [OvisOCR2] | vLLM |
-| [OvisOCR3] | vLLM |
-| [PaddleOCR-VL-1.6] | vLLM |
-| [Qianfan-OCR] | vLLM |
-| [Qwen3.5-9B] | vLLM |
-| [SmolDocling-256M-preview] | vLLM |
-| [Unlimited-OCR] | vLLM |
-| [Unlimited-OCR-2] | SGLang |
-
-</details>
-
-<details>
-<summary><b>Region models</b>: two specs</summary>
-
-| Model | Server |
-|---|---|
-| [LightOnOCR-2-1B] | vLLM |
-| [MiniCPM-OCR-1.0] | vLLM |
-
-</details>
-
+<!-- catalog:start -->
 ### 🗺️ Layout
 
-`LayoutStep` finds the regions of a page (text blocks, headings, tables, pictures, page numbers) and
-their reading order.
-
-| Model | What it gives |
+| Preset | Model |
 |---|---|
-| [PP-DocLayoutV3] | regions as polygons, learned reading order (default) |
-| [PP-DocLayout_plus-L] | regions as boxes, reading order from their positions |
-| none: `SingleRegionLayout` | the whole page as one text region |
+| [`pp-doclayout-plus-l`](docs/catalog/pp-doclayout-plus-l.md) | [PP-DocLayout_plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L_onnx/tree/feb74619326f634e0e883218598096a3733ad9f7) |
+| [`pp-doclayoutv3`](docs/catalog/pp-doclayoutv3.md) ✅ | [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx/tree/46bbdf188bb0a772c08aed74882ce7e51a8f1ea6) |
 
 ### 📏 Lines
 
-`LinesStep` finds the text lines on the page; `AssignLinesToRegions` puts each into its region, in
-reading order.
-
-| Model | Default |
+| Preset | Model |
 |---|---|
-| [PP-OCRv6 tiny][PP-OCRv6_tiny_det] | |
-| [PP-OCRv6 small][PP-OCRv6_small_det] | |
-| [PP-OCRv6 medium][PP-OCRv6_medium_det] | ✅ |
+| [`pp-ocrv6-medium-det`](docs/catalog/pp-ocrv6-medium-det.md) ✅ | [PP-OCRv6_medium_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/tree/61323801669c338b7891481ec7bac61ce31b576a) |
+| [`pp-ocrv6-small-det`](docs/catalog/pp-ocrv6-small-det.md) | [PP-OCRv6_small_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/tree/28fe5895c24fd108c19eb3e8479f4ab385fbfc62) |
+| [`pp-ocrv6-tiny-det`](docs/catalog/pp-ocrv6-tiny-det.md) | [PP-OCRv6_tiny_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/tree/2ba1506c0380b8f0b03dd142459aac66d4421f6c) |
 
-### 👁️ Line recognisers
+### 👁️ Recognition
 
-`RecognitionStep` reads each line a line detector found and places every word on the page. Three
-engines can do it.
-
-**[kraken]**, on torch, from `linecaster-kraken`:
-
-| Model | Default |
+| Preset | Model |
 |---|---|
-| [kraken PP-OCRv6 tiny][kraken-tiny] | |
-| [kraken PP-OCRv6 small][kraken-small] | |
-| [kraken PP-OCRv6 medium][kraken-medium] | ✅ |
-| any kraken model file | |
-
-**[PaddleX]**, on ONNX Runtime, from `linecaster-paddlex`: PaddleOCR's own recognisers.
-
-| Model | Default |
-|---|---|
-| [PP-OCRv6 tiny][PP-OCRv6_tiny_rec] | |
-| [PP-OCRv6 small][PP-OCRv6_small_rec] | |
-| [PP-OCRv6 medium][PP-OCRv6_medium_rec] | ✅ |
-
-**[Tesseract]** 5.5, on the CPU, through [tesserocr], from `linecaster-tesseract`: any of Tesseract's
-languages and scripts, such as `eng`, `deu+lat` or `script/Latin`.
-
-| Model | Default |
-|---|---|
-| [tessdata_best] | ✅ |
-| [tessdata_fast] | |
-
-`recipes/chain.py` brings all three engines.
+| [`kraken-ppocrv6-medium`](docs/catalog/kraken-ppocrv6-medium.md) ✅ | [PP-OCRv6 (medium)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium/tree/f7fd70f3fd22b615f41bada4674ac2462f938339) |
+| [`kraken-ppocrv6-small`](docs/catalog/kraken-ppocrv6-small.md) | [PP-OCRv6 (small)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small/tree/49c249bf81d95ab2c5f699638d066f7935da6f16) |
+| [`kraken-ppocrv6-tiny`](docs/catalog/kraken-ppocrv6-tiny.md) | [PP-OCRv6 (tiny)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny/tree/045d350d5a7664054370539b87bab0e790724ee2) |
+| [`lightonocr-2-1b-regions`](docs/catalog/lightonocr-2-1b-regions.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
+| [`minicpm-ocr-1.0`](docs/catalog/minicpm-ocr-1.0.md) | [MiniCPM-OCR 1.0](https://huggingface.co/openbmb/MiniCPM-OCR-1.0/tree/a59a4acf215e34c6d73149e9eafdb88ed2086e39) |
+| [`paddlex-ppocrv6-medium`](docs/catalog/paddlex-ppocrv6-medium.md) | [PP-OCRv6_medium_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/tree/50c7eacafc52fa7bcf4194e8cd08e46f8558504b) |
+| [`paddlex-ppocrv6-small`](docs/catalog/paddlex-ppocrv6-small.md) | [PP-OCRv6_small_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/tree/b8f84f0b80c529de40b4fbb3544b84fa7233a513) |
+| [`paddlex-ppocrv6-tiny`](docs/catalog/paddlex-ppocrv6-tiny.md) | [PP-OCRv6_tiny_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/tree/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30) |
+| [`tesseract-best-eng`](docs/catalog/tesseract-best-eng.md) | [tessdata_best](https://github.com/tesseract-ocr/tessdata_best/tree/e12c65a915945e4c28e237a9b52bc4a8f39a0cec) |
+| [`tesseract-best-latin`](docs/catalog/tesseract-best-latin.md) | [tessdata_best](https://github.com/tesseract-ocr/tessdata_best/tree/e12c65a915945e4c28e237a9b52bc4a8f39a0cec) |
+| [`tesseract-fast-eng`](docs/catalog/tesseract-fast-eng.md) | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd) |
+| [`tesseract-fast-latin`](docs/catalog/tesseract-fast-latin.md) | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd) |
 
 ### 📊 Tables
 
-`TablesStep` finds the rows and columns of each table region and fills the cells with the recognised
-lines.
-
-| Model | What it does |
+| Preset | Model |
 |---|---|
-| [SLANet_plus] | rows, columns and cell boxes (default) |
-| [PP-LCNet table classifier][PP-LCNet_x1_0_table_cls] | tells ruled from unruled tables |
-| [RT-DETR-L wired cells][RT-DETR-L_wired_table_cell_det] | cell boxes in ruled tables (`e2e=False`) |
-| [RT-DETR-L wireless cells][RT-DETR-L_wireless_table_cell_det] | cell boxes in unruled tables (`e2e=False`) |
+| [`slanet-plus`](docs/catalog/slanet-plus.md) ✅ | [SLANet_plus](https://huggingface.co/PaddlePaddle/SLANet_plus_onnx/tree/7dbe640e127602bf506815e822c09758de73c482) |
 
 ### ➗ Formulas
 
-`FormulasStep` reads each formula region as LaTeX.
-
-| Model | Default |
+| Preset | Model |
 |---|---|
-| [PP-FormulaNet_plus-L] | ✅ |
-| [PP-FormulaNet-L] | |
+| [`pp-formulanet-l`](docs/catalog/pp-formulanet-l.md) | [PP-FormulaNet-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors/tree/69869f2891cc61347d230ef234bcc8b8d297c43a) |
+| [`pp-formulanet-plus-l`](docs/catalog/pp-formulanet-plus-l.md) ✅ | [PP-FormulaNet_plus-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L_safetensors/tree/6cc004a8e91ea3f3819b05317f40b290cbe99c2b) |
+
+### 🤖 Vision-language models, whole pages
+
+| Preset | Model |
+|---|---|
+| [`chandra-ocr-2`](docs/catalog/chandra-ocr-2.md) ✅ | [Chandra 2](https://huggingface.co/datalab-to/chandra-ocr-2/tree/af93b47dba1b47b6640c86ccf487ed2260ab9a09) |
+| [`deepseek-ocr`](docs/catalog/deepseek-ocr.md) ✅ | [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/9f30c71f441d010e5429c532364a86705536c53a) |
+| [`deepseek-ocr-2`](docs/catalog/deepseek-ocr-2.md) ✅ | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
+| [`dots-mocr`](docs/catalog/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
+| [`dots-ocr`](docs/catalog/dots-ocr.md) ✅ | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
+| [`glm-ocr`](docs/catalog/glm-ocr.md) ✅ | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
+| [`lightonocr-2-1b`](docs/catalog/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
+| [`lightonocr-3-0.8b`](docs/catalog/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
+| [`lightonocr-3-4b`](docs/catalog/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
+| [`nemotron-3.5-parse`](docs/catalog/nemotron-3.5-parse.md) ✅ | [Nemotron 3.5 Parse](https://huggingface.co/nvidia/Nemotron-3.5-Parse/tree/62cb1e4ba153d113ff64aaf2be6e068c377cf53c) |
+| [`olmocr-2-7b-1025-fp8`](docs/catalog/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
+| [`ovisocr2`](docs/catalog/ovisocr2.md) ✅ | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
+| [`ovisocr3`](docs/catalog/ovisocr3.md) ✅ | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
+| [`paddleocr-vl-1.6`](docs/catalog/paddleocr-vl-1.6.md) ✅ | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
+| [`qianfan-ocr`](docs/catalog/qianfan-ocr.md) ✅ | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
+| [`qwen3.5-9b`](docs/catalog/qwen3.5-9b.md) ✅ | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
+| [`smoldocling-256m-preview`](docs/catalog/smoldocling-256m-preview.md) ✅ | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
+| [`unlimited-ocr`](docs/catalog/unlimited-ocr.md) ✅ | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
+| [`unlimited-ocr-2`](docs/catalog/unlimited-ocr-2.md) ✅ | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
+
+✅ core: maintained and validated. The others are experimental.
+<!-- catalog:end -->
 
 ### ✨ Post-processing
 
@@ -501,15 +460,35 @@ Spelling is never modernised.
 </details>
 
 <details>
+<summary><b>📚 The catalogue</b></summary>
+
+- **Documents:** a model (`model.md`, with the upstream card in `upstream/<revision>/`), a preset
+  (`presets/<id>.md`) and evidence records (`evidence/*.yaml`). Model and preset documents are Markdown
+  with YAML front matter: data on top, the reasons below.
+- **Versions:** `version` and `revision` are upstream's, verbatim and exact. A preset has its own
+  integer `edition`, referred to as `id@edition`.
+- **Released editions don't change.** `catalog.lock` keeps each released edition's functional content
+  and its hash, and `linecaster catalog verify` fails when a released edition changes. Old editions stay
+  resolvable.
+- **Provenance:** each page file names the presets and revisions that made it (ALTO `Processing`,
+  PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every preset, edition, hash
+  and override.
+- **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim.
+- [specs/catalog.md](specs/catalog.md) has the full design.
+
+</details>
+
+<details>
 <summary><b>🛠️ Extending Linecaster</b></summary>
 
 | To add | Write |
 |---|---|
-| a vision-language model | a `ChatModel` subclass (model id, revision, sampling, server flags, request, parsing), registered in `linecaster.models` |
-| another model | a class with `step`, `name`, `load()` and `__call__(image, transcription)`, packaged under `engines/` |
+| a model | `linecaster catalog pin <id> --hf <repo>` for its model document and card, then a preset (`presets/<id>.md`) and `linecaster catalog release <id>` |
+| a vision-language model | the same, with `engine.kind: chat/1` and an adapter in `linecaster.models.ADAPTERS` if no existing one fits |
+| an engine | a class with `kind`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point |
 | a processing step | a `PageStep` with `process_page(doc, page)` |
 
-Such a model runs both inside the pipeline and behind `linecaster serve` without further work.
+An engine runs both inside the pipeline and behind `linecaster serve` without further work.
 
 </details>
 
@@ -518,11 +497,12 @@ Such a model runs both inside the pipeline and behind `linecaster serve` without
 
 | Folder | Contents |
 |---|---|
-| `src/linecaster/` | data model, blocks, server, model specs, executors |
-| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] |
+| `src/linecaster/` | data model, blocks, server, catalogue, chat adapters, executors |
+| `src/linecaster/catalog/data/` | the catalogue: models with their cards, presets, evidence, `catalog.lock` |
+| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract], each with its own catalogue |
 | `recipes/` | self-contained pipelines that run anywhere and serve their models |
-| `specs/` | design of the data model |
-| `docs/` | images for this README |
+| `specs/` | design of the data model and the catalogue |
+| `docs/` | the generated catalogue pages, images for this README |
 
 </details>
 

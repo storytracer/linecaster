@@ -13,7 +13,14 @@ def _serve(a) -> None:
     if a.config:
         with open(a.config) as f:
             for m in json.load(f)["models"]:
-                hosted.append(Hosted(m["name"], m["spec"], m.get("kwargs", {}), m.get("max_queue", a.max_queue)))
+                if m.get("preset"):        # a catalogue preset, with options over the preset's
+                    from .catalog.registry import engine_spec
+
+                    spec, kw, r = engine_spec(m["preset"])
+                    hosted.append(Hosted(m["name"], spec, {**kw, **m.get("overrides", {})},
+                                         m.get("max_queue", a.max_queue), preset=r.ref, preset_sha256=r.sha256))
+                else:
+                    hosted.append(Hosted(m["name"], m["spec"], m.get("kwargs", {}), m.get("max_queue", a.max_queue)))
     kwargs = dict(kv.split("=", 1) for kv in a.kwargs)
     for kv in a.preset:
         from .catalog.registry import engine_spec
@@ -96,7 +103,8 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="linecaster")
     sub = ap.add_subparsers(dest="command", required=True)
     s = sub.add_parser("serve", help="host engine models over HTTP (for blocks with a Served backend)")
-    s.add_argument("--config", help="JSON file: {\"models\": [{\"name\", \"spec\", \"kwargs\", \"max_queue\"}]}")
+    s.add_argument("--config", help="JSON file: {\"models\": [{\"name\", \"preset\", \"overrides\"} or "
+                                    "{\"name\", \"spec\", \"kwargs\"}, optional \"max_queue\"]}")
     s.add_argument("--preset", action="append", default=[], metavar="NAME=ID[@EDITION]",
                    help="host a catalogue preset under NAME")
     s.add_argument("--model", action="append", default=[], metavar="NAME=module:Class")

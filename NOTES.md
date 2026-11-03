@@ -2,6 +2,36 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The catalogue: models, presets, evidence (2026-11-03, spark)
+
+`specs/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the
+foundation (`linecaster.catalog`). In the checkout: 39 models with their upstream cards copied verbatim, 39 presets
+released as edition 1 (`slanet-plus` also edition 2), 39 evidence records.
+
+- **PaddleX downloads** `PaddlePaddle/<name>_onnx` (ONNX Runtime) or `_safetensors` (transformers) from Hugging Face
+  at `main`, without a revision (PaddleX 3.7.2, `official_models.py`), into `~/.paddlex/official_models/`. Those
+  repositories are what is pinned now; the engines load the pinned snapshot with `create_predictor(model_dir=...)`.
+  Identical outputs to PaddleX's own download on 3 pages (layout V3 and plus-L, lines, PaddleX small rec, SLANet_plus
+  table HTML, PP-FormulaNet_plus-L LaTeX); tiny/small det, tiny/medium rec and PP-FormulaNet-L not compared.
+- **kraken's PP-OCRv6 models** are trained from scratch on an architecture adapted from PP-OCRv6 (their card), not
+  converted from PaddleOCR's weights: `derived_from` is only the Zenodo mirror relation.
+- **Tables** need four models; `submodels` (by PaddleX name) pins the classifier and the two cell detectors next to
+  SLANet_plus, so their file hashes are part of the edition (`slanet-plus@2`; `@1` held them as an option).
+- **Hashes cover only what a document states** (`exclude_unset`): adding the server fields `revision_flag`,
+  `pin_ignore`, `server_packages` and `draft` to `Serve` had changed every chat preset's hash through the defaults.
+  The current editions were released again under that rule before the first push.
+- **Chat presets**: requests, server commands and Jobs plans byte-identical to the former spec classes for all 20
+  models, with two deliberate changes: LightOnOCR-3 (0.8B, 4B) now names `vllm/vllm-openai:v0.30.0`, the version the
+  board validated them with (the old recipe used 0.26.0, with which LightOn says they loop); Unlimited-OCR-2's
+  recorded `sglang_version` is now the wheel that runs (`0.5.20.dev10+g8d62f5fb9c`).
+- **Licences to check by hand** (as the cards state them): chandra "AI Pubs Open RAIL-M License (Modified)",
+  Nemotron `OpenMDW-1.1`; SmolDocling's front matter says CDLA-Permissive-2.0, its text Apache-2.0.
+
+Parity of `recipes/chain.py` through presets (pinned PaddleX snapshots, kraken from its pin) with squiddleocr's
+goldens (7c8a052, spark): sample-60 1,560/1,560 lines and 60/60 pages exact in-process (80 s), served with the
+server in the task (71 s) and against `uv run recipes/chain.py serve` (47 s); tables-7 651/651 in-process and
+served. Served pages carry preset, edition, hash and the step's start time in every `ModelInfo`.
+
 ## One recipe per pipeline (2026-11-03, spark)
 
 The scripts had made the environments self-contained, but the pipelines were still copied once per machine: the

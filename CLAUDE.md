@@ -50,8 +50,15 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   queue (`--max-queue`, 429 with `Retry-After` when full), routes `POST /v1/linecaster/{step}`
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
-- **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep`
-  (`blocks/chat.py`) with a model spec (`linecaster.models`) on `/v1/chat/completions`; served only.
+- **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep` /
+  `ChatRegionStep` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat/1`,
+  data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.models.ADAPTERS` (code:
+  request, parsing); on `/v1/chat/completions`; served only.
+- **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): every model is a model document with its
+  upstream card copied verbatim at the pinned revision (always, whatever the licence), every configuration
+  a preset (`id@edition`; `version`/`revision` are upstream's, `edition` ours), released editions frozen in
+  `catalog.lock`, measurements as evidence records with their source. Engines with weights load exactly the
+  pin (`weights`, `catalog.fetch`). Page files and `OUT/run.yaml` record preset, edition and hash.
 - **One page per request; batching only within a page** (kraken batches a page's lines). A page's
   result depends only on the page, never on what else is in flight, so runs are deterministic.
 - **Servers inside a task** (one GPU per HF Job): `ServeModels` (`linecaster serve`) and
@@ -136,9 +143,12 @@ and recorded in NOTES.md.
 ## Models
 
 kraken's models always come from their pinned Hugging Face mirrors, never from Zenodo (it
-throttles): `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}` and
-`small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026); revisions and
-hashes pinned in `linecaster_kraken.models`. The Zenodo DOIs are provenance only.
+throttles): `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}`, revisions and hashes in their
+model documents (`engines/kraken/src/linecaster_kraken/catalog/models/`; the Zenodo DOIs are provenance,
+in each pin's `doi`); `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026)
+is still pinned in `linecaster_kraken.models` (no engine uses it). PaddleX's official models are its
+`PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the paddlex catalogue and loaded from
+the pinned snapshot (`create_predictor(model_dir=...)`); new models: `linecaster catalog pin`.
 
 ## Environment and machines
 
