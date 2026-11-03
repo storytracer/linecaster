@@ -277,9 +277,8 @@ On flavors with several GPUs (`l4x4`, `l40sx8`), `linecaster.jobs.GPUJobsExecuto
 
 `ChatPageStep` sends whole pages to an OpenAI-compatible server; `ChatRegionStep` sends one crop per
 layout region. A short model spec in `linecaster.models` holds the model's prompt, sampling, server flags
-and how to read its answer. Specs exist for twenty open OCR models, among them dots.ocr, chandra-ocr-2,
-olmOCR-2, LightOnOCR, OvisOCR, PaddleOCR-VL, GLM-OCR, MiniCPM-OCR, Qwen3.5, DeepSeek-OCR and
-Unlimited-OCR. They fit into the same pipelines and executors:
+and how to read its answer; [Supported models](#supported-models) lists the specs that exist. They fit
+into the same pipelines and executors:
 
 ```python
 from linecaster.blocks.chat import ChatPageStep
@@ -298,6 +297,53 @@ A large job is easier to run, check and repeat in stages. Each stage reads the p
 one wrote (`PageRowReader`), adds one part and writes complete rows again. The original files are never
 changed. A check step (`ValidatePages`, `RejectSink`) puts pages that failed into `rejects/` with the
 reason, and datatrove keeps its logs and completion markers in `logs/`.
+
+## Supported models
+
+### Engine models
+
+They run inside the pipeline or behind `linecaster serve`.
+
+| Task | Model | Engine |
+|---|---|---|
+| Layout | PP-DocLayoutV3 (default), PP-DocLayout_plus-L | `linecaster-paddlex` |
+| Layout | none: the whole page as one text region | `SingleRegionLayout` |
+| Text lines | PP-OCRv6 text detection: tiny, small, medium | `linecaster-paddlex` |
+| Recognition | kraken's PP-OCRv6 recognisers: tiny, small, medium | `linecaster-kraken` |
+| Tables | PaddleX table recognition (SLANet_plus by default) | `linecaster-paddlex` |
+| Formulas | PP-FormulaNet_plus-L (default), PP-FormulaNet-L | `linecaster-paddlex` |
+
+### Vision-language models
+
+They run behind an OpenAI-compatible server. *Page* models read the whole page (`ChatPageStep`); *region*
+models read one crop per layout region (`ChatRegionStep`).
+
+| Model | Reads | Server |
+|---|---|---|
+| `allenai/olmOCR-2-7B-1025-FP8` | page | vLLM |
+| `ATH-MaaS/OvisOCR2` | page | vLLM |
+| `ATH-MaaS/OvisOCR3` | page | vLLM |
+| `baidu/Qianfan-OCR` | page | vLLM |
+| `baidu/Unlimited-OCR` | page | vLLM |
+| `baidu/Unlimited-OCR-2` | page | SGLang |
+| `datalab-to/chandra-ocr-2` | page | vLLM |
+| `deepseek-ai/DeepSeek-OCR` | page | vLLM |
+| `deepseek-ai/DeepSeek-OCR-2` | page | vLLM |
+| `ds4sd/SmolDocling-256M-preview` | page | vLLM |
+| `lightonai/LightOnOCR-2-1B` | page or region | vLLM |
+| `lightonai/LightOnOCR-3-0.8B` | page | vLLM |
+| `lightonai/LightOnOCR-3-4B` | page | vLLM |
+| `nvidia/Nemotron-3.5-Parse` | page | vLLM |
+| `openbmb/MiniCPM-OCR-1.0` | region | vLLM |
+| `PaddlePaddle/PaddleOCR-VL-1.6` | page | vLLM |
+| `Qwen/Qwen3.5-9B` | page | vLLM |
+| `rednote-hilab/dots.mocr` | page | vLLM |
+| `rednote-hilab/dots.ocr` | page | vLLM |
+| `zai-org/GLM-OCR` | page | vLLM |
+
+Each spec pins the model revision and takes its prompt, sampling and server settings from the drivers of
+the open [bhl-ocr-eval](https://github.com/finebooks/bhl-ocr-eval) benchmark, which follow the models' own
+instructions. `chat_model("<model id>")` returns the spec.
 
 ## Extending Linecaster
 
