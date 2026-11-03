@@ -59,8 +59,16 @@ class ServeChatModel(PipelineStep):
         self.vllm, self.boot_timeout, self.outside_venv = vllm, boot_timeout, outside_venv
 
     def command(self) -> list[str]:
-        return [self.vllm, "serve", self.spec.model, "--host", self.host, "--port", str(self.port),
-                *self.spec.vllm_args(self.gpu_memory_utilization, self.extra_args)]
+        """``vllm serve ...``; behind ``bash -c '<setup>; exec vllm serve ...'`` when the spec has a
+        ``serve_setup`` script (run with ``VLLM`` set to the server command, ``set -euo pipefail``)."""
+        cmd = [self.vllm, "serve", self.spec.model, "--host", self.host, "--port", str(self.port),
+               *self.spec.vllm_args(self.gpu_memory_utilization, self.extra_args)]
+        setup = getattr(self.spec, "serve_setup", lambda: None)()
+        if not setup:
+            return cmd
+        import shlex
+
+        return ["bash", "-c", f"set -euo pipefail\nVLLM={shlex.quote(self.vllm)}\n{setup}\nexec {shlex.join(cmd)}"]
 
     def launch_command(self) -> list[str]:
         """``command()``, behind ``env -u VIRTUAL_ENV PATH=...`` with ``outside_venv``."""

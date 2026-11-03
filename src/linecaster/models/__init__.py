@@ -66,6 +66,11 @@ class ChatModel:
         """Everything that decides the output, recorded in ``ModelInfo.settings``."""
         return {"sampling": dict(self.sampling), "serve_args": list(self.serve_args)}
 
+    def serve_setup(self) -> str | None:
+        """A bash script ``ServeChatModel`` runs in the server's environment before ``vllm serve`` (e.g. a
+        vLLM plugin a model needs that the image lacks); ``$VLLM`` is the server command. Default: none."""
+        return None
+
     def vllm_args(self, gpu_memory_utilization: float | None = None, extra: list[str] | None = None) -> list[str]:
         """``vllm serve`` arguments after the model id: the revision, the spec's flags, and overrides."""
         args = ["--revision", self.revision] if self.revision else []
@@ -125,9 +130,12 @@ def _registry() -> dict[str, type[ChatModel]]:
     from .lighton_ocr2 import LightOnOCR2
     from .lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
     from .minicpm_ocr import MiniCPMOCR
+    from .nemotron_parse35 import NemotronParse35
     from .olmocr2 import OlmOCR2
+    from .smoldocling import SmolDocling
 
-    return {cls.model: cls for cls in (DotsMOCR, LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR, OlmOCR2)}
+    return {cls.model: cls for cls in (DotsMOCR, LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR,
+                                       NemotronParse35, OlmOCR2, SmolDocling)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:

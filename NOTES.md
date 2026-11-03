@@ -85,6 +85,35 @@ parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in 
 Not exercised here: a right-to-left page, `--device tensorrt` / `coreml`, `-m` with a model file path,
 PP-FormulaNet-L, forge.
 
+## SmolDocling and Nemotron 3.5 Parse specs; three board rows that are not chat models (2026-11-03, not yet run)
+
+`SmolDocling` (`ds4sd/SmolDocling-256M-preview`) and `NemotronParse35` (`nvidia/Nemotron-3.5-Parse`) follow the BHL
+board's drivers (module docstrings). Not checked on a GPU yet.
+- SmolDocling answers in DocTags. The completion is kept verbatim; `parse` also stores the board's conversion
+  (docling-core, body + furniture, no image placeholder) in `extra["markdown"]`. The board converted with docling-core
+  2.89; the lock has a newer one, so a scorer that wants the board's exact text should compare both.
+- Nemotron 3.5 Parse needs NVIDIA's vLLM plugin from the model repo. `ChatModel.serve_setup()` is a bash script that
+  `ServeChatModel` runs before `vllm serve`. For this model it installs the plugin into the Python that runs `vllm`,
+  the way the board's install script does. The card's flags include FlashAttention 3, a Hopper kernel: the board ran
+  on an H200, and the flags as they are will not run on an L4. The board's Markdown rendering imports code from the
+  model repo, so `parse` does not call it; `to_markdown` reproduces it.
+- Not chat models, so no spec. They do not fit `ChatPageStep`:
+  - `datalab-to/indra-ocr`: the board ran it in-process on CPU (the `indra-ocr` package: ONNX Runtime detector,
+    orientation, script classifier, line recognisers, layout and reading order). It would need an engine package
+    `backends/indra/` (`linecaster-indra`, pinning `indra-ocr==1.1.2` and the model tag `v1.1.0`). Its engine model
+    would call `indra_ocr.load(mode="auto", furniture=False, math=False, dpi=200, threads=1)` and `Converter.convert(path)`
+    on the page file, and return `page.markdown` (and the package's lines, if it exposes geometry). A page the package
+    marks `source == "error"` would be an error.
+  - `SoMarkAI/OXR-1.0` and `tiiuae/Falcon-OCR`: vendor page pipelines inside their own images: a layout model, a VLM
+    behind the image's internal vLLM reading the regions, and the vendor's own Markdown assembly. The board posts the
+    whole page to the vendor API: OXR `POST /v1/parse/sync` (multipart, `output_formats` markdown + json), Falcon
+    `POST /falconocr/parse` (`{"images": [data URI], "skip_layout": false}`). Neither answers chat completions with
+    a page transcription. They would need a served step with a per-model route and request (JSON or multipart) and a
+    serve block that starts the image's entrypoint and waits for its health URLs (OXR: weights downloaded to
+    `/models/oxr-model` first, then `/docs`; Falcon: vLLM `/health` and pipeline `/health`). Falcon's image is not known
+    to have uv or Python 3.12, which `JobsPipelineExecutor` needs. The other way is to run the VLM through
+    `ChatRegionStep` behind linecaster's own layout step, as for MiniCPM-OCR, but that is not the board's run.
+
 ## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
 
 - `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
