@@ -96,6 +96,20 @@ PP-FormulaNet-L, forge.
   Dropping it from the scored text is the board's post-processing (`drop_front_matter`), left to the
   harness; `olmocr2.body()` does the same split.
 
+## chandra-ocr-2, dots.ocr, OvisOCR2, OvisOCR3 specs for ChatPageStep (2026-11-03, not yet run)
+
+- `models/chandra_ocr2.py`, `models/dots_ocr.py`, `models/ovis_ocr.py` reproduce the board drivers; request
+  bodies (image bytes included) were checked equal to the drivers' `to_request` on JPEG/PNG/WebP, RGB and grey
+  pages, and the serve flags equal the drivers' `SERVING` flags. Checkpoints pinned; vLLM 0.26.0 for all four.
+- Completions verbatim. The board converts chandra's HTML layout blocks to Markdown
+  (`chandra_html_to_markdown`) and drops Ovis's `<img src="images/bbox_…">` blocks (`drop_bbox_blocks`) in the
+  harness's `normalize_outputs`, not in the drivers, so both stay in the harness.
+- chandra: one attempt per page (the vendor client's loop retries at raised temperature are not run, as on the board).
+- dots.ocr: the scored row ran with `--gpu-memory-utilization 0.6`, at most 4 pages in flight and
+  `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (`chat_page.py --env`); 0.8 / 12 ran out of memory.
+- OvisOCR3 ran on an A100 on the board; on an L4 vLLM may pick another default GDN prefill backend
+  (Qwen3.5 base), which can move numerics: compare at CER level.
+
 ## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, forge)
 
 Setup: `ImageFolderReader` → `LayoutStep` (`linecaster serve`, PP-DocLayoutV3 ONNX) → `ChatRegionStep(MiniCPMOCR)` →

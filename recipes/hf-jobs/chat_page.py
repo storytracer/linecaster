@@ -51,9 +51,18 @@ def main() -> None:
     ap.add_argument("--timeout", default="2h"); ap.add_argument("--limit", type=int, default=-1)
     ap.add_argument("--window", type=int, default=48, help="max pages in flight (Auto max_limit)")
     ap.add_argument("--initial-window", type=int, default=8)
+    ap.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
+                    help="extra environment variable for the Job (vLLM inherits it), e.g. "
+                         "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True; repeatable")
     a = ap.parse_args()
     if a.dataset and not a.revision:
         ap.error("--dataset needs a pinned --revision")
+    env = {"LINECASTER_RUN": a.run_id}
+    for kv in a.env:
+        key, sep, value = kv.partition("=")
+        if not sep or not key:
+            ap.error(f"--env needs KEY=VALUE, got {kv!r}")
+        env[key] = value
 
     spec = chat_model(a.model)
     name = a.model.rsplit("/", 1)[-1].lower()
@@ -71,7 +80,7 @@ def main() -> None:
     JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/{name}",
                          flavor=a.flavor, namespace=a.namespace, image=a.image, dependencies=dependencies(a.commit, engines=False),
                          timeout=a.timeout, python="3.12", job_name=f"linecaster-{a.run_id}",
-                         labels={"project": "linecaster"}, env={"LINECASTER_RUN": a.run_id}).run()
+                         labels={"project": "linecaster"}, env=env).run()
     print(json.dumps({"run": run, "commit": a.commit, "image": a.image}))
 
 
