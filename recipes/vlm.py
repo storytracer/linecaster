@@ -38,18 +38,20 @@ PP-DocLayoutV3 finds (``ChatRegionStep``). Each task starts vLLM or SGLang for t
 it also serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in
 OUT/rows; the model's raw answer is in each page's transcription.
 
-    uv run recipes/vlm.py IMAGES OUT --vlm rednote-hilab/dots.ocr              # needs `vllm` on PATH
+    uv run recipes/vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
     uv run recipes/vlm.py IMAGES OUT --vlm-endpoint http://127.0.0.1:8000/v1   # a running server
-    uv run recipes/vlm.py IMAGES OUT --vlm openbmb/MiniCPM-OCR-1.0 --regions
-    uv run recipes/vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm baidu/Unlimited-OCR-2
+    uv run recipes/vlm.py IMAGES OUT --vlm minicpm-ocr-1.0 --regions
+    uv run recipes/vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm unlimited-ocr-2
 
-On HF Jobs the server runs in the Job's image: ``vllm/vllm-openai:v0.26.0`` (the BHL board's vLLM) unless
-IMAGES names another for the model or --image is given. It has ``uv``, Python 3.12 and ``vllm`` on PATH,
+--vlm takes a chat preset of the catalogue (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
+id (that model's page preset, with --regions its region preset where it has one). On HF Jobs the server runs
+in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
+has ``uv``, Python 3.12 and ``vllm`` on PATH,
 so the pipeline runs in the uv environment the executor builds (linecaster alone for page models;
 with --regions also linecaster-paddlex for the layout model), and ``ServeChatModel`` starts the image's
-own server. SGLang specs and --regions start it outside that environment (``outside_venv``), so neither
+own server. SGLang presets and --regions start it outside that environment (``outside_venv``), so neither
 the image's Python nor its CUDA libraries see the pipeline's packages. vLLM takes
---gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the spec's own share); with
+--gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own share); with
 --regions the layout server loads into the rest after vLLM's memory profiling.
 """
 from linecaster import run
@@ -59,18 +61,12 @@ from linecaster.blocks.models import LayoutStep
 from linecaster.blocks.serve import ServeChatModel
 from linecaster.models import chat_model
 
-#: the Jobs image a model was validated with, where it is not vllm/vllm-openai:v0.26.0
-IMAGES = {
-    "openbmb/MiniCPM-OCR-1.0": "cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3",
-    "baidu/Unlimited-OCR-2": "lmsysorg/sglang:v0.5.20-cu130",
-    "nvidia/Nemotron-3.5-Parse": "vllm/vllm-openai:v0.26.0@sha256:770fe65b2c73ee74a5c42165cf3433de4048cc2cd9c57a937ca4e35aba5aa87b",
-}
-VLLM_IMAGE = "vllm/vllm-openai:v0.26.0"
 VLM_PORT = 8000
 
 
 def options(ap):
-    ap.add_argument("--vlm", default="lightonai/LightOnOCR-2-1B", help="the model's Hugging Face id")
+    ap.add_argument("--vlm", default=None, help="a chat preset (id[@edition]) or a model's Hugging Face id "
+                    "(default: lightonocr-2-1b, with --regions lightonocr-2-1b-regions)")
     ap.add_argument("--regions", action="store_true", help="layout first, then the model on each region")
     ap.add_argument("--layout-model", default="PP-DocLayoutV3")
     ap.add_argument("--vlm-endpoint", help="a running OpenAI-compatible server for the model")
@@ -88,7 +84,8 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str):
-    spec = chat_model(a.vlm)
+    ref = a.vlm or ("lightonocr-2-1b-regions" if a.regions else "lightonocr-2-1b")
+    spec = chat_model(ref, prefer="recognition" if a.regions else "page")
     sglang = spec.server == "sglang"
     vlm = Served(a.vlm_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
                  initial_window=a.initial_window, read_timeout=a.read_timeout)
@@ -106,7 +103,7 @@ def pipeline(a, script: str):
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
         servers.append(ServeChatModel(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
                                       outside_venv=sglang or a.regions))
-    return steps + [run.rows(a)] + servers, {"image": IMAGES.get(a.vlm, VLLM_IMAGE), "engines": a.regions}
+    return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": a.regions}
 
 
 if __name__ == "__main__":
