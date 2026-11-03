@@ -51,7 +51,8 @@ For every page:
   breaks. This is the version to check against a hand-made transcription.
 - **A readable version**, where old letterforms such as the long s (ſ) become their modern forms, words
   split by a hyphen at the end of a line are joined again, and lines are joined into paragraphs.
-- **Markdown** with headings, tables and formulas.
+- **Markdown** with headings, tables and formulas, and the same document as HTML, DocLang or
+  DoclingDocument JSON.
 - **Library formats** (ALTO, PAGE-XML, hOCR) that record where each word sits on the page, so viewers
   can highlight search hits on the scan.
 - **One record per page** that keeps every intermediate result, so later work can start where earlier
@@ -67,7 +68,7 @@ For every book, the same text is also joined into one file per version.
 - **The core stays light.** Engines are separate packages with their own environments.
 - **Connectors stay generic.** Folders, buckets and Hugging Face datasets are built in. Adapters for a
   particular collection or institution belong in the projects that use Linecaster.
-- **Open formats out.** ALTO, PAGE-XML, hOCR, plain text, Markdown and DoclingDocument.
+- **Open formats out.** ALTO, PAGE-XML, hOCR, plain text, Markdown, HTML, DocLang and DoclingDocument.
 
 ## Under the hood
 

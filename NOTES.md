@@ -2,6 +2,89 @@
 
 Measurements, decisions and open questions, newest first.
 
+## squiddleocr 0.3's features in linecaster (2026-11-03, spark)
+
+Every feature and option of squiddleocr 0.3's paddle pipeline (`squiddle legacy ocr --pipeline paddle`), where it
+lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `squiddle legacy`).
+
+| 0.3 feature or option | status | where |
+|---|---|---|
+| PP-DocLayoutV3 layout, learned reading order | already in linecaster | `LayoutStep` + `PaddleLayoutModel` |
+| `--layout-model PP-DocLayout_plus-L` (XY-cut order) | already in linecaster | `PaddleLayoutModel(model_name=...)` |
+| `--layout none` (the page is one text region) | missing, built | `SingleRegionLayout` (`blocks/layout.py`) |
+| PP-OCRv6 detection, `--det-model`, `--unclip-ratio` | already in linecaster | `LinesStep` + `PaddleLineModel(model_name, unclip_ratio)` |
+| lines into regions, orphan rows, pictures skipped | already in linecaster | `AssignLinesToRegions` (`formulas_separately=False` without formulas) |
+| kraken recognition, `-m tiny/small/medium/path`, `--batch-size`, `--precision` | already in linecaster | `RecognitionStep` + `KrakenRecognitionModel` |
+| `--device` | already in linecaster | `device` of every engine model (in-process; the server's otherwise) |
+| `--rtl` | already in linecaster | `KrakenRecognitionModel(text_direction=...)`, `AssembleDocument(rtl=)`, `AssembleItemDocument(rtl=)` |
+| `--tables` | already in linecaster | `TablesStep` + `PaddleTableModel` |
+| `--formulas`, `--formula-model` | already in linecaster | `FormulasStep` + `PaddleFormulaModel` (29/29 formulas identical, 82e2e7b) |
+| `--typography` (heading levels, demotion, headline split, drop capitals, uncertain page numbers) | already in linecaster | `Typography` |
+| NFC of the as-written text | linecaster's choice (0.3 kept kraken's decomposed text) | `NormalizeUnicode` |
+| `--text reflow/lines` | already in linecaster | `AssembleDocument(text=)`, `AssembleItemDocument(text=)` |
+| `--sections` | per item already; per page missing, built | `AssembleItemDocument(sections=)`; `AssembleDocument(sections=)` |
+| `--dividers` | per item already; per page missing, built | `AssembleDocument` keeps the item → region map (`extra["docling_region_of"]`); `dividers` on `PageFilesWriter` / `PageExportsWriter` |
+| `--furniture` | already in linecaster | `furniture` on the export writers (the items always sit in Docling's furniture layer) |
+| `--per-document` | already in linecaster | `AssembleItemDocument` + `ItemExportsWriter`; `ImageFolderReader(item_id=, sequence=)` (built) puts a run's pages into one item in name order |
+| `-f md, txt, json` | already in linecaster | `PageFilesWriter`, `PageExportsWriter`, `ItemExportsWriter`; JSON now formatted as docling's `save_as_json` |
+| `-f html, doclang` | missing, built | `linecaster.document.export` / `to_html` / `to_doclang` in all three writers |
+| `-f hocr, alto, page` | already in linecaster | linecaster's lxml serialisers (not kraken's, by design) |
+| `--detail word` | already in linecaster | the serialisers' default (words are the finest level) |
+| `--detail line` | missing, built | `PageFilesWriter(detail="line")` (a word-less copy to the serialisers) |
+| `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; squiddle's default becomes `word` |
+| `--plots` | missing, built | `linecaster.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
+| processing settings in ALTO | already in linecaster | `ModelInfo` per step → ALTO `Processing` |
+| output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | squiddleocr `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
+| status lines (typography and reflow counts), failed pages listed at the end | squiddle-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
+
+**Parity.** `squiddle ocr` (squiddleocr 0.4, now composed of these blocks) against `squiddle legacy ocr` on the same
+machine and environment: sample-60 + tables-7 (67 BHL pages), `squiddletest/scans` (17), `squiddletest/formulas`
+(12), each in 7 configurations (defaults with every format and plots; `--text lines --furniture --sections
+--dividers --detail line`; `--no-typography --no-tables --no-formulas`; `--layout none`;
+`--layout-model PP-DocLayout_plus-L`; reflow with `--dividers --furniture`; `-m small --det-model
+PP-OCRv6_small_det --unclip-ratio 2.0 --batch-size 4` on scans and formulas), and the 6 books × 10 pages per
+document in 4 combinations. Each run twice: as shipped, and with NFC switched off (`--no-nfc`, hidden, for
+parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in `~/data/squiddle-parity/`.
+
+- **Without NFC every document format and the plots are byte-exact** in every configuration on every page:
+  md, txt, html, doclang, json, layout.jpg (96 pages × 7 configurations, c7 on 29 pages), with `--furniture` aside
+  (below).
+- **As shipped (NFC):** md, txt, html and doclang are byte-exact or exact after NFC of 0.3's text on every page,
+  except where NFC changes reflow decisions: 10 division marks on 9 sample-60 pages (`mâ-`/`choire`,
+  `géné-`/`ral`, `exté¬`/`rieur`, ...), removed now because the character before the mark is a letter after
+  NFC and a combining accent (Mn) in 0.3's decomposed text. The same cause as on the books (above). JSON:
+  the same plus charspans (lengths of NFC strings).
+- **`--furniture` in json and doclang:** 0.3 moved page headers and footers into the body layer; linecaster keeps
+  them in Docling's furniture layer and the export chooses. JSON differs in `content_layer` of those items,
+  DocLang by the `<layer value="furniture"/>` marker; md, txt and html are exact. Kept by decision.
+- **JSON provenance clamping:** docling-core clamps provenance boxes to the page whenever it validates a
+  document; 0.3's JSON had them clamped only when Markdown or text was exported before JSON in the same run
+  (`-f json` alone kept a picture box at y = −3). `DocumentBuilder.build` now validates (clamped always); 4
+  sample-60 pages with picture boxes past the edge are exact since.
+- **JSON charspans and DocLang:** docling-core's DocLang export rewrites the provenance charspans of the document
+  it serialises; 0.3 saved its JSON from that same document, so with `doclang` before `json` in `-f` 0.3's
+  charspans changed (reflow paragraphs: every row's span restarted at 0). linecaster writes JSON from the
+  stored document and `to_doclang` works on a copy, so the order of formats does not matter; the parity runs
+  list json before doclang.
+- **hocr, alto, page** are linecaster's serialisers, so the files differ by design; read back with linecaster's
+  readers, every line on every page has the same text, line box and word boxes (words: NFC text and box),
+  with three conventions of kraken's serialiser set aside: kraken writes whitespace runs as words of their
+  own (hOCR, PAGE), collapses double spaces between ALTO Strings, and clips line boxes to width − 1 / height − 1
+  (one `--layout none` page whose line reaches the right edge). At `--detail line` kraken's ALTO has one
+  box-less String per line, linecaster's one String with the line's box: same text and line boxes.
+- **Served** (`linecaster serve` with `squiddle models-config`, defaults, 96 pages and the 6 books): identical to
+  in-process.
+- **Per document** (6 books, reflow / lines + sections + dividers / reflow + dividers + furniture / lines +
+  furniture): without NFC md, txt, html, doclang and json identical for all 24 (furniture layer aside); with NFC
+  the lines combinations exact after NFC, reflow 4/6 books (histoirenaturell10cuvi, trudyrusskagoent: the NFC
+  division marks, as above).
+
+- `--rtl` and `--device cpu` on one page (iiif_page_8, left to right): exact without NFC (kraken on the CPU at
+  32-true, the PaddleX models on ONNX Runtime's CPU provider).
+
+Not exercised here: a right-to-left page, `--device tensorrt` / `coreml`, `-m` with a model file path,
+PP-FormulaNet-L, forge.
+
 ## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
 
 - `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
