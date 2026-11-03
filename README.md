@@ -9,7 +9,7 @@
 Museum Group Collection, CC BY-NC-SA 4.0. <a href="#-licence">Credit</a></sub></p>
 
 Build an OCR pipeline from interchangeable parts. Run the same pipeline on a laptop, a GPU server, a
-cluster or Hugging Face Jobs.
+cluster or [Hugging Face Jobs][HF Jobs].
 
 > [!NOTE]
 > Linecaster is in early development. The ideas are settled; names and options may still change.
@@ -28,7 +28,7 @@ means starting over.
 Linecaster keeps the two apart:
 
 - 🧩 **Any component.** Layout, lines, recognition, tables and formulas are separate steps. Mix models
-  from kraken, PaddleX and twenty vision-language models.
+  from [kraken] and [PaddleX] with [twenty vision-language models](#-vision-language-models).
 - 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
 - 🖥️ **No serving stack to build.** Models load inside the pipeline, or each task starts its own model
   server on its GPU.
@@ -98,11 +98,11 @@ Three ideas carry the design:
 1. 📋 **One record per page.** Every step reads the page's `Transcription` and adds its part: regions,
    lines, text, tables, a document. Steps never talk to each other, so any step can be replaced.
 2. 🔌 **Each model step has a backend.** `InProcess` loads the model inside the pipeline. `Served` sends
-   pages to a model server through [saturate](https://github.com/davanstrien/saturate), which keeps
+   pages to a model server through [saturate], which keeps
    enough pages in flight that the GPU never waits.
 3. 🏗️ **The executor decides where it runs.** Pipelines are
-   [datatrove](https://github.com/huggingface/datatrove) pipelines. Executors split the pages into
-   tasks, run them locally, on a Ray cluster or on Hugging Face Jobs, and resume where a run stopped.
+   [datatrove] pipelines. Executors split the pages into
+   tasks, run them locally, on a [Ray] cluster or on [Hugging Face Jobs][HF Jobs], and resume where a run stopped.
 
 ## 🌍 Run it anywhere
 
@@ -221,7 +221,7 @@ S = "http://127.0.0.1:8000/v1"
 ChatPageStep(spec, Served(S, spec.model))
 ```
 
-`ServeChatModel` starts vLLM or SGLang inside a task, the way `ServeModels` starts `linecaster serve`.
+`ServeChatModel` starts [vLLM] or [SGLang] inside a task, the way `ServeModels` starts `linecaster serve`.
 `recipes/hf-jobs/chat_page.py` runs any spec on Hugging Face Jobs.
 
 </details>
@@ -232,67 +232,115 @@ ChatPageStep(spec, Served(S, spec.model))
 |---|---|
 | 📜 Text as printed | checking against a hand-made transcription |
 | 📖 Readable text | reading and training: old letterforms folded, hyphens joined, paragraphs flowed |
-| 📝 Markdown, HTML, DocLang, Docling JSON | documents with headings, tables and formulas |
-| 🏛️ ALTO, PAGE-XML, hOCR | libraries and viewers: every word with its position |
-| 🗂️ Page rows (JSON Lines, Parquet) | later pipelines: every intermediate result |
+| 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
+| 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
+| 🗂️ Page rows ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 
 Files come per page or, for a book, one per version.
 
 ## 🤖 Supported models
 
-<details>
-<summary><b>Engine models</b>: layout, lines, recognition, tables, formulas</summary>
+Every model belongs to one step. Engine models run inside the pipeline or behind `linecaster serve`.
+[kraken] models come with the `linecaster-kraken` package, [PaddleX] models with `linecaster-paddlex`.
+Vision-language models run behind [vLLM] or [SGLang].
 
-They run inside the pipeline or behind `linecaster serve`.
+### 🗺️ Layout
 
-| Task | Models |
+`LayoutStep` finds the regions of a page (text blocks, headings, tables, pictures, page numbers) and
+their reading order.
+
+| Model | What it gives |
 |---|---|
-| Layout | PP-DocLayoutV3, PP-DocLayout_plus-L |
-| Layout | none: the page is one region |
-| Lines | PP-OCRv6 detection: tiny, small, medium |
-| Recognition | kraken PP-OCRv6: tiny, small, medium |
-| Tables | PaddleX table recognition |
-| Formulas | PP-FormulaNet_plus-L, PP-FormulaNet-L |
+| [PP-DocLayoutV3] | regions as polygons, learned reading order (default) |
+| [PP-DocLayout_plus-L] | regions as boxes, reading order from their positions |
+| none: `SingleRegionLayout` | the whole page as one text region |
 
-Recognition comes from the `linecaster-kraken` package; all others from `linecaster-paddlex`, except
-*none*, which is in the core.
+### 📏 Lines
+
+`LinesStep` finds the text lines and assigns each to its region.
+
+| Model | Default |
+|---|---|
+| [PP-OCRv6 tiny][PP-OCRv6_tiny_det] | |
+| [PP-OCRv6 small][PP-OCRv6_small_det] | |
+| [PP-OCRv6 medium][PP-OCRv6_medium_det] | ✅ |
+
+### 👁️ Recognition
+
+`RecognitionStep` reads each line and places every word on the page.
+
+| Model | Default |
+|---|---|
+| [kraken PP-OCRv6 tiny][kraken-tiny] | |
+| [kraken PP-OCRv6 small][kraken-small] | |
+| [kraken PP-OCRv6 medium][kraken-medium] | ✅ |
+| any kraken model file | |
+
+### 📊 Tables
+
+`TablesStep` finds the rows and columns of each table region and fills the cells with the recognised
+lines.
+
+| Model | What it does |
+|---|---|
+| [SLANet_plus] | rows, columns and cell boxes (default) |
+| [PP-LCNet table classifier][PP-LCNet_x1_0_table_cls] | tells ruled from unruled tables |
+| [RT-DETR-L wired cells][RT-DETR-L_wired_table_cell_det] | cell boxes in ruled tables (`e2e=False`) |
+| [RT-DETR-L wireless cells][RT-DETR-L_wireless_table_cell_det] | cell boxes in unruled tables (`e2e=False`) |
+
+### ➗ Formulas
+
+`FormulasStep` reads each formula region as LaTeX.
+
+| Model | Default |
+|---|---|
+| [PP-FormulaNet_plus-L] | ✅ |
+| [PP-FormulaNet-L] | |
+
+### 🤖 Vision-language models
+
+`ChatPageStep` sends the whole page; `ChatRegionStep` sends one crop per layout region. Each spec pins
+the model revision. Its settings come from the drivers of the open [bhl-ocr-eval] benchmark, which
+follow the models' own instructions.
+
+<details>
+<summary><b>Page models</b>: nineteen specs</summary>
+
+| Model | Server |
+|---|---|
+| [chandra-ocr-2] | vLLM |
+| [DeepSeek-OCR] | vLLM |
+| [DeepSeek-OCR-2] | vLLM |
+| [dots.mocr] | vLLM |
+| [dots.ocr] | vLLM |
+| [GLM-OCR] | vLLM |
+| [LightOnOCR-2-1B] | vLLM |
+| [LightOnOCR-3-0.8B] | vLLM |
+| [LightOnOCR-3-4B] | vLLM |
+| [Nemotron-3.5-Parse] | vLLM |
+| [olmOCR-2-7B-1025-FP8] | vLLM |
+| [OvisOCR2] | vLLM |
+| [OvisOCR3] | vLLM |
+| [PaddleOCR-VL-1.6] | vLLM |
+| [Qianfan-OCR] | vLLM |
+| [Qwen3.5-9B] | vLLM |
+| [SmolDocling-256M-preview] | vLLM |
+| [Unlimited-OCR] | vLLM |
+| [Unlimited-OCR-2] | SGLang |
 
 </details>
 
 <details>
-<summary><b>Vision-language models</b>: twenty specs</summary>
+<summary><b>Region models</b>: two specs</summary>
 
-*Page* models read the whole page; *region* models read one crop per layout region. All run on vLLM
-unless marked SGLang.
-
-| Model | Reads |
+| Model | Server |
 |---|---|
-| allenai/olmOCR-2-7B-1025-FP8 | page |
-| ATH-MaaS/OvisOCR2 | page |
-| ATH-MaaS/OvisOCR3 | page |
-| baidu/Qianfan-OCR | page |
-| baidu/Unlimited-OCR | page |
-| baidu/Unlimited-OCR-2 (SGLang) | page |
-| datalab-to/chandra-ocr-2 | page |
-| deepseek-ai/DeepSeek-OCR | page |
-| deepseek-ai/DeepSeek-OCR-2 | page |
-| ds4sd/SmolDocling-256M-preview | page |
-| lightonai/LightOnOCR-2-1B | page, region |
-| lightonai/LightOnOCR-3-0.8B | page |
-| lightonai/LightOnOCR-3-4B | page |
-| nvidia/Nemotron-3.5-Parse | page |
-| openbmb/MiniCPM-OCR-1.0 | region |
-| PaddlePaddle/PaddleOCR-VL-1.6 | page |
-| Qwen/Qwen3.5-9B | page |
-| rednote-hilab/dots.mocr | page |
-| rednote-hilab/dots.ocr | page |
-| zai-org/GLM-OCR | page |
-
-Each spec pins the model revision. Its settings come from the drivers of the open
-[bhl-ocr-eval](https://github.com/finebooks/bhl-ocr-eval) benchmark, which follow the models' own
-instructions.
+| [LightOnOCR-2-1B] | vLLM |
+| [MiniCPM-OCR-1.0] | vLLM |
 
 </details>
+
+`chat_model()` takes the full Hugging Face id, for example `chat_model("rednote-hilab/dots.ocr")`.
 
 ## 📚 Reference
 
@@ -303,7 +351,7 @@ instructions.
 |---|---|
 | `Item` | a book, issue, manuscript or file |
 | `Page` | one page: its image and named transcriptions |
-| `Transcription` | regions, lines and words with positions, reading order and confidences, plus a DoclingDocument |
+| `Transcription` | regions, lines and words with positions, reading order and confidences, plus a [DoclingDocument] |
 | `Text` | a whole item's text in one version |
 
 - A page can hold several transcriptions side by side, for example the delivered OCR, a new one and the
@@ -331,7 +379,7 @@ Named versions:
 - `verbatim_txt`: as written, as laid out, full page.
 - `readable_txt`, `readable_md`: normalised characters, flowed paragraphs, hyphens joined, body text.
 
-All text is Unicode NFC. Normalisation folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
+All text is Unicode [NFC]. Normalisation folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
 Spelling is never modernised.
 
 </details>
@@ -392,10 +440,10 @@ An engine model runs both inside the pipeline and behind `linecaster serve` with
 | Folder | Contents |
 |---|---|
 | `src/linecaster/` | data model, blocks, server, model specs, executors |
-| `backends/` | engine packages: kraken, PaddleX |
+| `backends/` | engine packages: [kraken], [PaddleX] |
 | `envs/` | environments with several engines |
 | `examples/` | local pipelines |
-| `recipes/` | Ray and Hugging Face Jobs |
+| `recipes/` | [Ray] and [Hugging Face Jobs][HF Jobs] |
 | `specs/` | design of the data model |
 | `docs/` | images for this README |
 
@@ -422,3 +470,56 @@ commercial purposes. The Apache-2.0 licence of the code does not apply to it. Th
 [docs/LICENSE-linecaster-image.md](docs/LICENSE-linecaster-image.md).
 
 </details>
+
+<!-- links -->
+[kraken]: https://github.com/mittagessen/kraken
+[PaddleX]: https://github.com/PaddlePaddle/PaddleX
+[datatrove]: https://github.com/huggingface/datatrove
+[saturate]: https://github.com/davanstrien/saturate
+[Ray]: https://www.ray.io/
+[HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
+[vLLM]: https://github.com/vllm-project/vllm
+[SGLang]: https://github.com/sgl-project/sglang
+[Docling]: https://github.com/docling-project/docling
+[DoclingDocument]: https://docling-project.github.io/docling/concepts/docling_document/
+[ALTO]: https://www.loc.gov/standards/alto/
+[PAGE-XML]: https://github.com/PRImA-Research-Lab/PAGE-XML
+[hOCR]: https://kba.github.io/hocr-spec/1.2/
+[JSON Lines]: https://jsonlines.org/
+[Parquet]: https://parquet.apache.org/
+[NFC]: https://unicode.org/reports/tr15/
+[bhl-ocr-eval]: https://github.com/finebooks/bhl-ocr-eval
+[PP-DocLayoutV3]: https://huggingface.co/PaddlePaddle/PP-DocLayoutV3
+[PP-DocLayout_plus-L]: https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L
+[PP-OCRv6_tiny_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det
+[PP-OCRv6_small_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det
+[PP-OCRv6_medium_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det
+[kraken-tiny]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny
+[kraken-small]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small
+[kraken-medium]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium
+[SLANet_plus]: https://huggingface.co/PaddlePaddle/SLANet_plus
+[PP-LCNet_x1_0_table_cls]: https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_table_cls
+[RT-DETR-L_wired_table_cell_det]: https://huggingface.co/PaddlePaddle/RT-DETR-L_wired_table_cell_det
+[RT-DETR-L_wireless_table_cell_det]: https://huggingface.co/PaddlePaddle/RT-DETR-L_wireless_table_cell_det
+[PP-FormulaNet_plus-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L
+[PP-FormulaNet-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet-L
+[olmOCR-2-7B-1025-FP8]: https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8
+[OvisOCR2]: https://huggingface.co/ATH-MaaS/OvisOCR2
+[OvisOCR3]: https://huggingface.co/ATH-MaaS/OvisOCR3
+[Qianfan-OCR]: https://huggingface.co/baidu/Qianfan-OCR
+[Unlimited-OCR]: https://huggingface.co/baidu/Unlimited-OCR
+[Unlimited-OCR-2]: https://huggingface.co/baidu/Unlimited-OCR-2
+[chandra-ocr-2]: https://huggingface.co/datalab-to/chandra-ocr-2
+[DeepSeek-OCR]: https://huggingface.co/deepseek-ai/DeepSeek-OCR
+[DeepSeek-OCR-2]: https://huggingface.co/deepseek-ai/DeepSeek-OCR-2
+[SmolDocling-256M-preview]: https://huggingface.co/docling-project/SmolDocling-256M-preview
+[LightOnOCR-2-1B]: https://huggingface.co/lightonai/LightOnOCR-2-1B
+[LightOnOCR-3-0.8B]: https://huggingface.co/lightonai/LightOnOCR-3-0.8B
+[LightOnOCR-3-4B]: https://huggingface.co/lightonai/LightOnOCR-3-4B
+[Nemotron-3.5-Parse]: https://huggingface.co/nvidia/Nemotron-3.5-Parse
+[MiniCPM-OCR-1.0]: https://huggingface.co/openbmb/MiniCPM-OCR-1.0
+[PaddleOCR-VL-1.6]: https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6
+[Qwen3.5-9B]: https://huggingface.co/Qwen/Qwen3.5-9B
+[dots.mocr]: https://huggingface.co/dots-studio/dots.mocr
+[dots.ocr]: https://huggingface.co/dots-studio/dots.ocr
+[GLM-OCR]: https://huggingface.co/zai-org/GLM-OCR
