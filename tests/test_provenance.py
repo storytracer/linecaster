@@ -1,0 +1,383 @@
+"""Provenance: the steps in ALTO, PAGE and hOCR (written and read back), METS agents, the run record."""
+from __future__ import annotations
+
+import io
+import json
+from pathlib import Path
+
+import pytest
+from lxml import etree
+from PIL import Image
+
+from linecaster import provenance, run
+from linecaster.backends import InProcess, Served
+from linecaster.catalog import yamlio
+from linecaster.transcription import ModelInfo, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
+from linecaster.transcription import _provenance as P
+
+from conftest import make_transcription
+
+SCHEMAS = Path(__file__).parent / "schemas"
+SHA = "sha256:" + "ab" * 32
+STEPS = [
+    ModelInfo(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
+    ModelInfo(step="recognition", name="kraken-ppocrv6-medium", revision="0123abcd", preset="kraken-ppocrv6-medium@1",
+              preset_sha256=SHA, backend="in-process", settings={"batch_size": 8, "model": "medium", "n": "16"},
+              measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
+    ModelInfo(step="unicode", name="unicodedata", settings={"form": "NFC"}),
+]
+
+
+def _schema(name):
+    return etree.XMLSchema(etree.parse(str(SCHEMAS / name)))
+
+
+def _t():
+    t = make_transcription()
+    t.model = [m.model_copy(deep=True) for m in STEPS]
+    return t
+
+
+def _same_steps(got, want=STEPS):
+    assert [m.model_dump(exclude={"measurements"}) for m in got] == [m.model_dump(exclude={"measurements"})
+                                                                     for m in want]
+
+
+# ------------------------------------------------------------------------------------------------ ALTO
+
+def test_alto_processing_per_step():
+    data = to_alto(_t())
+    assert _schema("alto-4-4.xsd").validate(etree.fromstring(data))
+    ns = {"a": "http://www.loc.gov/standards/alto/ns-v4#"}
+    root = etree.fromstring(data)
+    procs = root.findall("a:Description/a:Processing", ns)
+    assert [p.findtext("a:processingStepDescription", namespaces=ns) for p in procs] == ["layout", "recognition",
+                                                                                          "unicode"]
+    rec = procs[1]
+    assert [etree.QName(c).localname for c in rec] == ["processingCategory", "processingDateTime",
+                                                       "processingStepDescription", "processingStepSettings",
+                                                       "processingSoftware"]
+    assert rec.findtext("a:processingCategory", namespaces=ns) == "contentGeneration"
+    assert procs[2].findtext("a:processingCategory", namespaces=ns) == "contentModification"
+    assert rec.findtext("a:processingDateTime", namespaces=ns) == "2026-11-03T21:00:00Z"
+    settings = json.loads(rec.findtext("a:processingStepSettings", namespaces=ns))
+    assert settings == {"revision": "0123abcd", "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA,
+                        "backend": "in-process", "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
+    sw = rec.find("a:processingSoftware", ns)
+    assert [(etree.QName(c).localname, c.text) for c in sw] == [
+        ("softwareCreator", "linecaster"), ("softwareName", "kraken-ppocrv6-medium"), ("softwareVersion", "0123abcd"),
+        ("applicationDescription", f"{P.software()}; preset kraken-ppocrv6-medium@1; backend in-process")]
+    page = root.find("a:Layout/a:Page", ns)
+    assert page.get("PROCESSINGREFS") == " ".join(p.get("ID") for p in procs)
+    got = from_alto(data)
+    _same_steps(got.model)
+    assert got.model[1].measurements == {"datetime": "2026-11-03T21:00:00Z"}
+
+
+def test_alto_without_steps_has_no_processing():
+    t = make_transcription()
+    data = to_alto(t)
+    assert b"Processing" not in data and b"PROCESSINGREFS" not in data
+    assert from_alto(data).model == []
+
+
+ALTO_V2_OCR_PROCESSING = b"""<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns="http://www.loc.gov/standards/alto/ns-v2#">
+  <Description><MeasurementUnit>pixel</MeasurementUnit>
+    <OCRProcessing ID="OCR_0">
+      <preProcessingStep><processingStepDescription>deskew</processingStepDescription></preProcessingStep>
+      <ocrProcessingStep>
+        <processingDateTime>2012-05-01</processingDateTime>
+        <processingStepSettings>mode: fast</processingStepSettings>
+        <processingSoftware><softwareCreator>ABBYY</softwareCreator><softwareName>FineReader</softwareName>
+          <softwareVersion>10.0</softwareVersion></processingSoftware>
+      </ocrProcessingStep>
+    </OCRProcessing>
+  </Description>
+  <Layout><Page ID="p1" WIDTH="100" HEIGHT="100"><PrintSpace/></Page></Layout>
+</alto>"""
+
+
+def test_alto_foreign_ocr_processing():
+    m = from_alto(ALTO_V2_OCR_PROCESSING).model
+    assert [(x.step, x.name, x.revision, x.settings) for x in m] == [
+        ("deskew", "unknown", None, {}), ("unknown", "FineReader", "10.0", {"raw": "mode: fast"})]
+    assert m[1].measurements == {"datetime": "2012-05-01"}
+
+
+# ------------------------------------------------------------------------------------------------ PAGE
+
+def test_page_metadata_items():
+    data = to_page(_t())
+    assert _schema("pagecontent-2019-07-15.xsd").validate(etree.fromstring(data))
+    ns = {"p": "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"}
+    md = etree.fromstring(data).find("p:Metadata", ns)
+    assert md.findtext("p:Creator", namespaces=ns) == P.software()
+    assert md.findtext("p:Comments", namespaces=ns) == (
+        "layout: PP-DocLayoutV3; recognition: kraken-ppocrv6-medium@0123abcd (preset kraken-ppocrv6-medium@1); "
+        "unicode: unicodedata")
+    items = md.findall("p:MetadataItem", ns)
+    assert [(i.get("type"), i.get("name"), i.get("value")) for i in items] == [
+        ("processingStep", "layout", "PP-DocLayoutV3"), ("processingStep", "recognition", "kraken-ppocrv6-medium@1"),
+        ("processingStep", "unicode", "unicodedata")]
+    assert items[1].get("date") == "2026-11-03T21:00:00Z"
+    model, settings = items[1].findall("p:Labels", ns)
+    assert (model.get("externalModel"), model.get("externalId")) == ("linecaster", "model")
+    assert [(lb.get("type"), lb.get("value")) for lb in model] == [
+        ("name", "kraken-ppocrv6-medium"), ("revision", "0123abcd"), ("preset", "kraken-ppocrv6-medium@1"),
+        ("preset_sha256", SHA), ("backend", "in-process"), ("software", P.software())]
+    assert [(lb.get("type"), lb.get("value")) for lb in settings] == [
+        ("batch_size", "8"), ("model", "medium"), ("n", '"16"')]
+    _same_steps(from_page(data).model)
+
+
+PAGE_OCRD = b"""<?xml version="1.0" encoding="UTF-8"?>
+<pc:PcGts xmlns:pc="http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15">
+  <pc:Metadata>
+    <pc:Creator>OCR-D/core 2.67.2</pc:Creator><pc:Created>2024-01-01T00:00:00</pc:Created>
+    <pc:LastChange>2024-01-01T00:00:00</pc:LastChange>
+    <pc:MetadataItem type="processingStep" name="recognition/text-recognition" value="ocrd-tesserocr-recognize">
+      <pc:Labels externalModel="ocrd-tool" externalId="parameters">
+        <pc:Label value="deu" type="model"/>
+        <pc:Label value="word" type="textequiv_level"/>
+      </pc:Labels>
+      <pc:Labels externalModel="ocrd-tool" externalId="version">
+        <pc:Label value="0.17.0" type="ocrd-tesserocr-recognize"/>
+      </pc:Labels>
+    </pc:MetadataItem>
+    <pc:MetadataItem type="other" name="x" value="y"/>
+  </pc:Metadata>
+  <pc:Page imageFilename="p.png" imageWidth="10" imageHeight="10"/>
+</pc:PcGts>"""
+
+
+def test_page_foreign_ocrd_processing_step():
+    m = from_page(PAGE_OCRD).model
+    assert len(m) == 1
+    assert (m[0].step, m[0].name) == ("recognition/text-recognition", "ocrd-tesserocr-recognize")
+    assert m[0].settings == {"model": "deu", "textequiv_level": "word", "ocrd-tesserocr-recognize": "0.17.0"}
+
+
+# ------------------------------------------------------------------------------------------------ hOCR
+
+def _metas(data: bytes) -> dict:
+    root = etree.fromstring(data)
+    return {m.get("name"): m.get("content") for m in root.iter("{http://www.w3.org/1999/xhtml}meta")}
+
+
+def test_hocr_metadata_and_steps():
+    t = _t()
+    t.language = "de"
+    metas = _metas(to_hocr(t))
+    assert metas["ocr-system"] == P.software()
+    assert metas["ocr-number-of-pages"] == "1" and metas["ocr-langs"] == "de"
+    assert metas["ocr-capabilities"] == ("ocr_page ocr_carea ocr_header ocr_photo ocr_par ocr_line ocrx_word "
+                                         "ocrp_lang ocrp_poly ocrp_wconf")
+    assert json.loads(metas["linecaster-step-1"]) == {
+        "step": "recognition", "name": "kraken-ppocrv6-medium", "revision": "0123abcd",
+        "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA, "backend": "in-process",
+        "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
+    _same_steps(from_hocr(to_hocr(t)).model)
+
+
+def test_hocr_capabilities_follow_the_content():
+    t = make_transcription()
+    t.regions = []
+    for ln in t.lines:
+        ln.region_id, ln.words, ln.polygon, ln.confidence = None, [], None, None
+    t.language = "deu"                  # not ISO 639-1: no ocr-langs, but lang attributes
+    metas = _metas(to_hocr(t))
+    assert metas["ocr-capabilities"] == "ocr_page ocr_line ocrp_lang"
+    assert "ocr-langs" not in metas and not any(k.startswith("linecaster-step-") for k in metas)
+    assert from_hocr(to_hocr(t)).model == []
+
+
+def test_hocr_foreign_ocr_system():
+    html = (b"<html xmlns='http://www.w3.org/1999/xhtml'><head><meta name='ocr-system' content='tesseract 5.3.0'/>"
+            b"</head><body><div class='ocr_page' title='bbox 0 0 10 10'></div></body></html>")
+    assert [(m.step, m.name) for m in from_hocr(html).model] == [("page", "tesseract 5.3.0")]
+
+
+# ------------------------------------------------------------------------------------------------ values
+
+@pytest.mark.parametrize("v", [None, True, 0, 16, 0.1, "", "16", "true", "null", "medium", ' "x" ', "a\nb",
+                               [1, "2"], {"k": {"n": None}}])
+def test_setting_values_round_trip(v):
+    assert P.decode_value(P.encode_value(v)) == v
+
+
+# ------------------------------------------------------------------------------------------------ METS
+
+def test_mets_agent():
+    agent = provenance.mets_agent(STEPS[1])
+    M, LC, OCRD = provenance.METS, provenance.LC, provenance.OCRD
+    assert agent.tag == f"{{{M}}}agent"
+    assert dict(agent.attrib) == {"TYPE": "OTHER", "OTHERTYPE": "SOFTWARE", "ROLE": "OTHER",
+                                  "OTHERROLE": "recognition/text-recognition"}
+    assert agent.findtext(f"{{{M}}}name") == f"{P.software()} kraken-ppocrv6-medium@0123abcd"
+    notes = [(n.get(f"{{{OCRD}}}option") or n.get(f"{{{LC}}}option"), n.text) for n in agent.iter(f"{{{M}}}note")]
+    assert notes == [("parameter", '{"batch_size":8,"model":"medium","n":"16"}'), ("step", "recognition"),
+                     ("name", "kraken-ppocrv6-medium"), ("revision", "0123abcd"),
+                     ("preset", "kraken-ppocrv6-medium@1"), ("preset_sha256", SHA), ("backend", "in-process")]
+    _same_steps([provenance.from_mets_agent(a) for a in provenance.mets_agents(STEPS)])
+    assert provenance.mets_agent(STEPS[2]).get("OTHERROLE") == provenance.OCRD_FALLBACK_STEP
+
+
+def test_mets_agents_validate():
+    M = provenance.METS
+    mets = etree.Element(f"{{{M}}}mets", nsmap={"mets": M})
+    hdr = etree.SubElement(mets, f"{{{M}}}metsHdr")
+    for a in provenance.mets_agents(STEPS):
+        hdr.append(a)
+    smap = etree.SubElement(mets, f"{{{M}}}structMap")
+    etree.SubElement(smap, f"{{{M}}}div")
+    schema = _schema("mets-1-12-1.xsd")
+    assert schema.validate(etree.fromstring(etree.tostring(mets))), schema.error_log
+
+
+# ------------------------------------------------------------------------------------------------ run record
+
+class StampModel:
+    """A test engine: records a step and changes nothing else."""
+
+    step, name = "recognition", "stamp"
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def load(self):
+        pass
+
+    def __call__(self, image, t, **params):
+        t.model.append(ModelInfo(step=self.step, name=self.name, revision="r1", backend="in-process",
+                                 settings=dict(self.kwargs)))
+        return t
+
+
+def _images(folder: Path) -> str:
+    folder.mkdir(parents=True)
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 30), "white").save(buf, format="PNG")
+    (folder / "p1.png").write_bytes(buf.getvalue())
+    return str(folder)
+
+
+def _args(*argv):
+    ap = run.parser(None)
+    return run.check(ap, ap.parse_args(list(argv)))
+
+
+def _pipeline(a, files: str):
+    from linecaster.blocks.models import RecognitionStep
+    from linecaster.blocks.writers import PageFilesWriter
+
+    backend = InProcess("test_provenance:StampModel", size=3)
+    backend.preset, backend.preset_sha256 = "stamp@2", SHA
+    return [run.reader(a), RecognitionStep(backend), PageFilesWriter(files, formats=("alto", "page", "hocr")),
+            run.rows(a)]
+
+
+def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
+    images, out, files = _images(tmp_path / "images"), str(tmp_path / "out"), str(tmp_path / "files")
+    argv = [images, out, "--env", "HF_TOKEN=secret"]
+    a = _args(*argv)
+    run.run(a, _pipeline(a, files), __file__, argv=argv)
+    text = (tmp_path / "out" / "run.yaml").read_text()
+    assert "secret" not in text
+    rec = yamlio.load(text)
+    assert rec["schema"] == "linecaster.run/1" and rec["created"].endswith("Z")
+    assert rec["recipe"]["script"].endswith("tests/test_provenance.py")
+    assert rec["recipe"]["sha256"].startswith("sha256:")
+    assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
+    assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
+    assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
+    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "RecognitionStep", "PageFilesWriter",
+                                                     "PageJsonlWriter"]
+    assert rec["pipeline"][1] == {"block": "RecognitionStep", "step": "recognition", "backend": "in-process",
+                                  "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}
+    sw = rec["software"]
+    assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
+    assert set(sw["packages"]) >= {"datatrove", "saturate", "docling-core"}
+    # every page file carries the step with its preset
+    for name, reader in (("p1.alto.xml", from_alto), ("p1.page.xml", from_page), ("p1.hocr", from_hocr)):
+        m = reader((tmp_path / "files" / name).read_bytes()).model
+        assert [(x.step, x.name, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
+            ("recognition", "stamp", "r1", "stamp@2", SHA, {"size": 3})]
+    # a second launch into the same OUT keeps run.yaml and writes its own record next to it
+    run.run(a, _pipeline(a, files), __file__, argv=argv)
+    assert (tmp_path / "out" / "run.yaml").read_text() == text
+    assert len(list((tmp_path / "out").glob("run-*.yaml"))) == 1
+
+
+def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
+    images, out = _images(tmp_path / "images"), str(tmp_path / "out")
+    a = _args(images, out, "--dry-run")
+    run.run(a, _pipeline(a, str(tmp_path / "files")), __file__, argv=[images, out, "--dry-run"])
+    plan = json.loads(capsys.readouterr().out)
+    assert plan["record"]["schema"] == "linecaster.run/1"
+    assert plan["record"]["pipeline"][1]["preset"] == "stamp@2"
+    assert not (tmp_path / "out").exists()
+
+
+def test_record_on_any_fsspec_folder():
+    rec = provenance.run_record({"on": "local", "tasks": 2}, [], created=__import__("datetime").datetime(
+        2026, 11, 3, 12, 0, tzinfo=__import__("datetime").timezone.utc))
+    assert rec["created"] == "2026-11-03T12:00:00Z" and rec["pipeline"] == []
+    out = "memory://linecaster-tests/run-record"
+    assert run.write_record(out, rec) == "run.yaml"
+    assert run.write_record(out, rec) == "run-20261103T120000Z.yaml"
+    from datatrove.io import get_datafolder
+
+    with get_datafolder(out).open("run.yaml", "r") as f:
+        assert yamlio.load(f.read()) == rec
+
+
+def test_served_blocks_take_engine_and_preset_from_the_server_models():
+    from linecaster.blocks.models import RecognitionStep
+    from linecaster.blocks.serve import ServeModels
+
+    models = [{"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {}}, "preset": "rec@3",
+               "preset_sha256": SHA},
+              {"name": "layout", "spec": "pkg:Layout", "kwargs": {"model_name": "L"}}]
+    pipeline = [RecognitionStep(Served("http://127.0.0.1:8100/v1", model="recognition")), ServeModels(models)]
+    entries = provenance.pipeline_entries(pipeline)
+    assert entries[0] == {"block": "RecognitionStep", "step": "recognition", "backend": "served",
+                          "endpoint": "http://127.0.0.1:8100/v1", "served_model": "recognition", "engine": "pkg:Rec",
+                          "preset": "rec@3", "preset_sha256": SHA}
+    assert entries[1] == {"block": "ServeModels", "port": 8100, "models": [
+        {"name": "recognition", "engine": "pkg:Rec", "preset": "rec@3", "preset_sha256": SHA},
+        {"name": "layout", "engine": "pkg:Layout", "options": {"model_name": "L"}}]}
+
+
+def test_chat_blocks_record_the_model_and_revision():
+    class Spec:
+        model, revision = "org/vlm", "abc123"
+
+    class Chat:
+        step, spec, backend = "page", Spec(), Served("http://127.0.0.1:8000/v1", model="org/vlm")
+
+    assert provenance.block_entry(Chat()) == {"block": "Chat", "step": "page", "model": "org/vlm",
+                                              "revision": "abc123", "backend": "served",
+                                              "endpoint": "http://127.0.0.1:8000/v1", "served_model": "org/vlm"}
+
+
+def test_engines_carry_presets(monkeypatch):
+    import linecaster.catalog.registry as registry
+
+    class R:
+        ref, sha256 = "rec@4", SHA
+
+    monkeypatch.setattr(registry, "engine_spec", lambda ref: ("pkg:Rec", {"weights": {"model": "m"}}, R()))
+    models = [{"name": "recognition", "preset": "rec"}, {"name": "layout", "spec": "pkg:Layout"}]
+    a = _args("images", "out")
+    backends, servers = run.engines(a, models, "recipe.py")
+    rec = backends["recognition"]
+    assert (rec.spec, rec.kwargs) == ("pkg:Rec", {"weights": {"model": "m"}})
+    assert (rec.preset, rec.preset_sha256) == ("rec@4", SHA)
+    assert backends["layout"].preset is None and servers == []
+    assert run.model_args(run.preset_models(models))[:2] == ["--preset", "recognition=rec@4"]
+
+
+def test_redact_argv():
+    assert provenance.redact_argv(["x", "--env", "A=1", "--env=B=2", "--on", "local"]) == [
+        "x", "--env", "A=<redacted>", "--env=B=<redacted>", "--on", "local"]

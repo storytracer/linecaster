@@ -17,6 +17,13 @@ that returns its engine models from the options (for ``serve``) and a function t
 (``reader``, ``engines`` and ``rows`` help with the usual parts). The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
 the recipe's engine packages or linecaster alone.
+
+Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.provenance.run_record``:
+recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
+later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml`` next to it.
+``--dry-run`` writes nothing and prints the record with the plan. A model dict may name a catalogue
+``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
+page files carry the edition and its hash.
 """
 from __future__ import annotations
 
@@ -28,6 +35,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 ON = ("local", "ray", "hf-jobs")
+RUN_RECORD = "run.yaml"
 ENGINE_PORT = 8100
 #: Ray's own `uv run` support does not handle scripts (workers come up without the script's packages)
 RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
@@ -96,14 +104,34 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     from .backends import InProcess, Served
     from .blocks.serve import ServeModels
 
+    models = preset_models(models)
     if a.backend == "in-process":
-        return {m["name"]: InProcess(m["spec"], **m.get("kwargs", {})) for m in models}, []
+        backends = {}
+        for m in models:
+            b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
+            b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
+        return backends, []
     endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
     backends = {m["name"]: Served(endpoint, model=m["name"], max_window=window) for m in models}
     if a.endpoint:
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
     return backends, [ServeModels(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
+
+
+def preset_models(models: list[dict]) -> list[dict]:
+    """Model dicts with a catalogue ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
+    engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
+    are."""
+    out = []
+    for m in models:
+        if m.get("preset") and not m.get("spec"):
+            from .catalog.registry import engine_spec
+
+            spec, kwargs, r = engine_spec(m["preset"])
+            m = {**m, "spec": spec, "kwargs": kwargs, "preset": r.ref, "preset_sha256": r.sha256}
+        out.append(m)
+    return out
 
 
 def rows(a: argparse.Namespace):
@@ -116,7 +144,10 @@ def model_args(models: list[dict]) -> list[str]:
     """``linecaster serve`` arguments for ``models``."""
     out = []
     for m in models:
-        out += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
+        if m.get("preset"):       # linecaster serve resolves it again and stamps the edition on every page
+            out += ["--preset", f"{m['name']}={m['preset']}"]
+        else:
+            out += ["--model", f"{m['name']}={m['spec']}", "--kwargs", f"{m['name']}={json.dumps(m.get('kwargs', {}))}"]
     return out
 
 
@@ -133,6 +164,37 @@ def serve(argv: list[str], options: Callable, models: Callable) -> None:
     cli(["serve", *rest])
 
 
+def executor_name(a: argparse.Namespace) -> str:
+    return {"local": "LocalPipelineExecutor", "ray": "RayGPUExecutor"}.get(
+        a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsPipelineExecutor")
+
+
+def record(a: argparse.Namespace, pipeline: list, script: str | None, argv: list[str] | None = None,
+           deps: list | None = None, image: str | None = None) -> dict:
+    """The run record of this launch (``linecaster.provenance.run_record``)."""
+    from .provenance import run_record
+
+    extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else None
+    return run_record(vars(a), pipeline, script=script, argv=sys.argv[1:] if argv is None else argv,
+                      executor=executor_name(a), extra=extra)
+
+
+def write_record(out: str, rec: dict) -> str:
+    """Write ``rec`` as ``OUT/run.yaml`` (any fsspec folder, through datatrove's ``DataFolder``); when one is
+    there already (a resumed run), as ``OUT/run-<created>.yaml``. Returns the file name."""
+    from datatrove.io import get_datafolder
+
+    from .catalog import yamlio
+
+    folder = get_datafolder(out)
+    name = RUN_RECORD
+    if folder.exists(name):
+        name = f"run-{rec['created'].replace(':', '').replace('-', '')}.yaml"
+    with folder.open(name, "w") as f:
+        f.write(yamlio.dump(rec))
+    return name
+
+
 def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | None) -> dict:
     import dill
 
@@ -146,16 +208,19 @@ def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | 
             "pickled_bytes": len(dill.dumps(pipeline))}
 
 
-def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True) -> None:
+def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True,
+        argv: list[str] | None = None) -> None:
     out = a.out.rstrip("/")
     deps = None
     if a.on == "hf-jobs":
         from .jobs import dependencies
 
         deps = dependencies(a.commit, script, engines)
+    rec = record(a, pipeline, script, argv, deps, image or a.image)
     if a.dry_run:
-        print(json.dumps(plan(a, pipeline, deps, image or a.image), indent=1))
+        print(json.dumps({**plan(a, pipeline, deps, image or a.image), "record": rec}, indent=1))
         return
+    write_record(out, rec)
     if a.on == "local":
         from datatrove.executor import LocalPipelineExecutor
 
@@ -201,4 +266,4 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     a = check(ap, ap.parse_args(argv))
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
-    run(a, pipeline, str(Path(script).resolve()), **extra)
+    run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)
