@@ -38,7 +38,10 @@ PINS = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
 def dependencies(commit: str) -> list[str]:
     repo = f"git+https://github.com/storytracer/linecaster@{commit}"
     return [f"linecaster @ {repo}", f"linecaster-kraken @ {repo}#subdirectory=backends/kraken",
-            f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex", KRAKEN_FORK, *PINS]
+            f"linecaster-paddlex @ {repo}#subdirectory=backends/paddlex", KRAKEN_FORK,
+            # PaddleX pins OpenCV's GUI build (needs libGL, absent in the Jobs image): the stub swaps in the
+            # headless build of the same version (stubs/README.md)
+            f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python", *PINS]
 
 
 def main() -> None:

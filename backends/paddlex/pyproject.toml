@@ -16,7 +16,6 @@ dependencies = [
     "nvidia-cudnn-cu13>=9",
     "paddlepaddle>=3.2.2,<3.3",
     "paddlex[ocr-core,ocr]>=3.7",
-    "opencv-python-headless>=4.8",
     "numpy",
 ]
 

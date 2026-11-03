@@ -10,6 +10,8 @@ dependencies = [
     # direct, so [tool.uv.sources] applies (sources only apply to a project's own dependencies; through
     # linecaster-kraken alone uv resolved upstream kraken 7.1.1, whose --precision is inert)
     "kraken",
+    # PaddleX pins the GUI build of OpenCV; this stub swaps in the headless build of the same version
+    "opencv-contrib-python",
 ]
 
 [tool.uv]
@@ -28,3 +30,4 @@ linecaster-kraken = { path = "../../backends/kraken", editable = true }
 linecaster-paddlex = { path = "../../backends/paddlex", editable = true }
 # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix
 kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
+opencv-contrib-python = { path = "../../stubs/opencv-contrib-python" }
