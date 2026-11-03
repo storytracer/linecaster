@@ -144,19 +144,26 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
 
 def _registry() -> dict[str, type[ChatModel]]:
     from .chandra_ocr2 import ChandraOCR2
+    from .deepseek_ocr import DeepSeekOCR, DeepSeekOCR2
     from .dots_mocr import DotsMOCR
     from .dots_ocr import DotsOCR
     from .glm_ocr import GLMOCR
     from .lighton_ocr2 import LightOnOCR2
     from .lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
     from .minicpm_ocr import MiniCPMOCR
+    from .nemotron_parse35 import NemotronParse35
     from .olmocr2 import OlmOCR2
     from .ovis_ocr import OvisOCR2, OvisOCR3
     from .paddleocr_vl import PaddleOCRVL16
+    from .qianfan_ocr import QianfanOCR
+    from .qwen35 import Qwen35
+    from .smoldocling import SmolDocling
     from .unlimited_ocr import UnlimitedOCR, UnlimitedOCR2
 
-    return {cls.model: cls for cls in (ChandraOCR2, DotsMOCR, DotsOCR, GLMOCR, LightOnOCR2, LightOnOCR3, LightOnOCR3Small,
-                                       MiniCPMOCR, OlmOCR2, OvisOCR2, OvisOCR3, PaddleOCRVL16, UnlimitedOCR, UnlimitedOCR2)}
+    return {cls.model: cls for cls in (ChandraOCR2, DeepSeekOCR, DeepSeekOCR2, DotsMOCR, DotsOCR, GLMOCR, LightOnOCR2,
+                                       LightOnOCR3, LightOnOCR3Small, MiniCPMOCR, NemotronParse35, OlmOCR2, OvisOCR2,
+                                       OvisOCR3, PaddleOCRVL16, QianfanOCR, Qwen35, SmolDocling, UnlimitedOCR,
+                                       UnlimitedOCR2)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:

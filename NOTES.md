@@ -109,6 +109,26 @@ PP-FormulaNet-L, forge.
   6000 with the card's flags for an 80 GB A800 (`--mem-fraction-static 0.7`, CUDA graphs up to 16384
   prefill tokens).
 
+## Qwen3.5-9B, Qianfan-OCR, DeepSeek-OCR and DeepSeek-OCR-2 specs for ChatPageStep (2026-11-03, not yet run)
+
+- `models/qwen35.py`, `models/qianfan_ocr.py`, `models/deepseek_ocr.py` reproduce the board drivers; each
+  module's docstring lists request, image handling, sampling and serve flags. Checkpoints pinned; vLLM 0.26.0.
+- Qwen3.5-9B is the board's "greedy + card penalties" row: `neutral` prompt, temperature 0.0 with
+  presence_penalty 1.5 and repetition_penalty 1.0, JPEG q95 capped at 2048 x 1024 px of area.
+- Qianfan-OCR and DeepSeek-OCR send the page at full resolution. Qianfan gets the image bytes as received
+  (the sample-60 lossless WebP decodes to the same pixels the board's dataset bytes did); DeepSeek gets
+  RGB PNG/JPEG as is and anything else as RGB PNG.
+- DeepSeek: vLLM's default resolution (Gundam), grounding prompt, `skip_special_tokens` false; the card's
+  n-gram guard is registered at boot (`--logits_processors`, kept last on the command line) and set per
+  request (`vllm_xargs`). v2 uses v1's processor and `<td>`/`</td>` whitelist, as the v2 vLLM recipe does;
+  that the ids are the same tokens in v2's tokenizer is not verified.
+- Completions are kept verbatim. The board's post-processing stays in the harness: `unwrap_fence` (Qwen),
+  the `</think>` strip (Qianfan), `deepseek_strip_grounding` (both DeepSeeks, postproc 3).
+  `qwen35.unwrap_fence` and `deepseek_ocr.strip_grounding` apply the same rules for other consumers.
+- Memory: Qwen3.5-9B has 18.0 GiB of bf16 weights. The board ran it on an L40S at 0.9. On a 24 GB card
+  (L4, A10G) about 2 GiB would be left at 0.9 for activations, the vision encoder and the KV cache. That
+  fit has not been tested. The other three need 6 to 9 GiB of weights and ran on an A10G.
+
 ## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
 
 - `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
