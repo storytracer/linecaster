@@ -323,3 +323,15 @@ def test_hocr_tag_soup_html():
     assert t.lines[0].text == "loose line"
     assert t.lines[0].words[0].id == "line_0_w0"
     assert t.lines[0].words[1].confidence is None
+
+
+def test_page_region_without_coords_keeps_its_lines():
+    data = b"""<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15">
+      <Metadata/><Page imageFilename="a.png" imageWidth="100" imageHeight="100">
+        <TextRegion id="r">
+          <TextLine id="l"><Coords points="10,10 50,10 50,20 10,20"/><TextEquiv><Unicode>hi</Unicode></TextEquiv></TextLine>
+        </TextRegion>
+      </Page></PcGts>"""
+    t = from_page(data)
+    assert t.regions[0].bbox == [10.0, 10.0, 40.0, 10.0]
+    assert t.lines[0].region_id == "r" and t.text == "hi"

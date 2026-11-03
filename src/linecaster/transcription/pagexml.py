@@ -340,7 +340,7 @@ def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
     line_no = 0
     gen = 0
     for el in page.iter():
-        if not isinstance(el.tag, str) or not el.tag.endswith("Region") or X.child(el, "Coords") is None:
+        if not isinstance(el.tag, str) or not el.tag.endswith("Region"):
             continue
         ext = _ext(el)
         rid = el.get("id")
@@ -348,11 +348,15 @@ def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
             gen += 1
             rid = f"region_{gen}"
         synthetic = bool(ext.get("synthetic"))
-        polygon = _points(el) or [[0.0, 0.0]]
+        polygon = _points(el)
         lines = X.children(el, "TextLine") if el.tag == "TextRegion" else []
+        parsed = []
         for row, tl in enumerate(lines):
-            t.lines.append(_line(tl, row, line_no, None if synthetic else rid))
+            parsed.append(_line(tl, row, line_no, None if synthetic else rid))
             line_no += 1
+        t.lines.extend(parsed)
+        if not polygon:     # a region without Coords: the box around its lines
+            polygon = X.rect(X.unit_bbox(parsed) if parsed else [0.0, 0.0, 0.0, 0.0])
         if synthetic:
             continue
         type_attr = el.get("type")
