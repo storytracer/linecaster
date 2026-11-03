@@ -11,6 +11,9 @@ requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.10",
     "docling-core>=2.95",
+    # tabulate (docling's text export of tables) measures cell widths with wcwidth when it is installed and
+    # with len() otherwise: combining marks (kraken writes a + U+0308) then pad tables differently
+    "wcwidth>=0.2",
     "lxml>=5",
     "numpy>=2",
     "Pillow>=11",
