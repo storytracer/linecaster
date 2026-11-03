@@ -287,7 +287,8 @@ spec = chat_model("lightonai/LightOnOCR-2-1B")
 ChatPageStep(spec, Served("http://127.0.0.1:8000/v1", model=spec.model))
 ```
 
-`ServeChatModel` starts vLLM inside a task, the way `ServeModels` starts `linecaster serve`.
+`ServeChatModel` starts vLLM (or SGLang, for a spec that needs it) inside a task, the way `ServeModels`
+starts `linecaster serve`.
 
 ### Split long runs into stages
 

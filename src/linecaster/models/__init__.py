@@ -2,7 +2,8 @@
 
 A spec is everything model-specific about running a page-recognition VLM through ``ChatPageStep``
 (``linecaster.blocks.chat``): how to turn a page image into a ``/chat/completions`` request, how to
-turn the response into a text-only ``Transcription``, and the server flags the model wants. The
+turn the response into a text-only ``Transcription``, and the server (vLLM by default, or SGLang) and
+the flags the model wants. The
 block itself is generic. Specs are plain picklable objects (datatrove dill-pickles the pipeline)
 and import neither vLLM nor torch: only Pillow, to re-encode the image.
 
@@ -27,8 +28,16 @@ class ChatModel:
     model: ClassVar[str]
     revision: ClassVar[str | None] = None
     sampling: ClassVar[dict[str, Any]] = {}
-    serve_args: ClassVar[list[str]] = []          # flags after ``vllm serve <model>`` (not port/host)
+    serve_args: ClassVar[list[str]] = []          # server flags after the model (not port/host)
     vllm_version: ClassVar[str | None] = None     # the vLLM release the spec was validated with
+    #: the OpenAI-compatible server ``ServeChatModel`` starts for this model: ``"vllm"`` (``vllm serve``) or
+    #: ``"sglang"`` (``python -m sglang.launch_server``); ``serve_args`` are that server's flags
+    server: ClassVar[str] = "vllm"
+    server_env: ClassVar[dict[str, str]] = {}     # environment variables for the server process
+    #: pass ``--revision`` to the server. ``False`` for a server that must load the default branch: the serve
+    #: block then checks that the default branch's files equal the pinned revision's (``pin_ignore`` aside)
+    revision_flag: ClassVar[bool] = True
+    pin_ignore: ClassVar[tuple[str, ...]] = ("README.md", ".gitattributes")
     step: ClassVar[str] = "page"
     page_longest: ClassVar[int | None] = None     # the page size the model expects (longest side, px), if any
 
@@ -68,13 +77,26 @@ class ChatModel:
 
     def vllm_args(self, gpu_memory_utilization: float | None = None, extra: list[str] | None = None) -> list[str]:
         """``vllm serve`` arguments after the model id: the revision, the spec's flags, and overrides."""
-        args = ["--revision", self.revision] if self.revision else []
+        return self._server_args("--gpu-memory-utilization", gpu_memory_utilization, extra)
+
+    def sglang_args(self, mem_fraction_static: float | None = None, extra: list[str] | None = None) -> list[str]:
+        """``sglang.launch_server`` arguments after ``--model-path <model>``: the revision, the spec's flags,
+        and overrides (``--mem-fraction-static`` is SGLang's share of GPU memory)."""
+        return self._server_args("--mem-fraction-static", mem_fraction_static, extra)
+
+    def _server_args(self, memory_flag: str, memory: float | None, extra: list[str] | None) -> list[str]:
+        args = ["--revision", self.revision] if self.revision and self.revision_flag else []
         if self.served_name != self.model:
             args += ["--served-model-name", self.served_name]
         args += list(self.serve_args)
-        if gpu_memory_utilization is not None:
-            args += ["--gpu-memory-utilization", str(gpu_memory_utilization)]
+        if memory is not None:
+            args += [memory_flag, str(memory)]
         return args + list(extra or [])
+
+    def server_packages(self) -> list[list[str]]:
+        """Packages the serve block installs into the server's Python before it starts, one
+        ``uv pip install`` argument list each (e.g. a patched server wheel). Default: none."""
+        return []
 
     # --------------------------------------------------------------- parse
     def content(self, body: dict) -> tuple[str, str | None]:
@@ -122,12 +144,16 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
 
 def _registry() -> dict[str, type[ChatModel]]:
     from .dots_mocr import DotsMOCR
+    from .glm_ocr import GLMOCR
     from .lighton_ocr2 import LightOnOCR2
     from .lighton_ocr3 import LightOnOCR3, LightOnOCR3Small
     from .minicpm_ocr import MiniCPMOCR
     from .olmocr2 import OlmOCR2
+    from .paddleocr_vl import PaddleOCRVL16
+    from .unlimited_ocr import UnlimitedOCR, UnlimitedOCR2
 
-    return {cls.model: cls for cls in (DotsMOCR, LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR, OlmOCR2)}
+    return {cls.model: cls for cls in (DotsMOCR, GLMOCR, LightOnOCR2, LightOnOCR3, LightOnOCR3Small, MiniCPMOCR, OlmOCR2,
+                                       PaddleOCRVL16, UnlimitedOCR, UnlimitedOCR2)}
 
 
 def chat_model(model: str, **kwargs) -> ChatModel:
