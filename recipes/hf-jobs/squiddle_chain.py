@@ -24,7 +24,7 @@ from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, Recogn
 from linecaster.blocks.readers import HFImageDatasetReader, ImageFolderReader
 from linecaster.blocks.serve import ServeModels
 from linecaster.blocks.writers import PageJsonlWriter
-from linecaster.jobs import dependencies
+from linecaster.jobs import GPUJobsExecutor, dependencies
 
 MODELS = [
     {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
@@ -47,6 +47,8 @@ def main() -> None:
     ap.add_argument("--namespace", default="finebooks"); ap.add_argument("--flavor", default="l4x1")
     ap.add_argument("--timeout", default="3h"); ap.add_argument("--limit", type=int, default=-1)
     ap.add_argument("--window", type=int, default=32, help="max pages in flight per model block")
+    ap.add_argument("--gpus", type=int, default=1,
+                    help="GPUs per Job for multi-GPU flavors (l4x4: 4, l40sx8: 8); --tasks is then a multiple of it")
     ap.add_argument("--batch-size", type=int, default=8,
                     help="lines per kraken forward pass (8 = squiddleocr's setting, which the goldens use)")
     a = ap.parse_args()
@@ -69,10 +71,11 @@ def main() -> None:
         PageJsonlWriter(f"{run}/processed/squiddle", output_filename="${rank}.jsonl.gz"),
         ServeModels(models, port=8100),   # last: lives until every page is written (see the block's docstring)
     ]
-    JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/squiddle",
-                         flavor=a.flavor, namespace=a.namespace, dependencies=dependencies(a.commit), timeout=a.timeout,
-                         python="3.12", job_name=f"linecaster-{a.run_id}", labels={"project": "linecaster"},
-                         env={"LINECASTER_RUN": a.run_id}).run()
+    kw = dict(tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/squiddle", flavor=a.flavor,
+              namespace=a.namespace, dependencies=dependencies(a.commit), timeout=a.timeout, python="3.12",
+              job_name=f"linecaster-{a.run_id}", labels={"project": "linecaster"}, env={"LINECASTER_RUN": a.run_id})
+    executor = GPUJobsExecutor(pipeline, gpus=a.gpus, **kw) if a.gpus > 1 else JobsPipelineExecutor(pipeline, **kw)
+    executor.run()
     print(json.dumps({"run": run, "commit": a.commit}))
 
 

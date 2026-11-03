@@ -9,10 +9,18 @@
   derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
   mounts that folder read-only (authorised by the Job's own HF token; no credential is persisted)
   and ``uv run --with <mount>/<wheel>`` installs it. ``wheel_volume`` builds the mount.
+* ``GPUJobsExecutor``: one Job per ``gpus`` datatrove tasks on a multi-GPU flavor (``l4x4``,
+  ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*
+  (``CUDA_VISIBLE_DEVICES``) and its own loopback port for the servers its pipeline starts.
 
 ``uv run --with`` ignores ``[tool.uv.sources]``, so everything here is spelled out as URLs.
 """
 from __future__ import annotations
+
+import json
+import os
+from copy import deepcopy
+from urllib.parse import urlsplit, urlunsplit
 
 import subprocess
 from pathlib import Path
@@ -106,3 +114,57 @@ class WheelJobsExecutor(JobsPipelineExecutor):
             return super()._submit_array_index(array_index, pik_path, token)
         finally:
             huggingface_hub.run_uv_job = original
+
+
+def point_to_gpu(pipeline: list, local: int, base_port: int = 8100) -> list:
+    """The pipeline for task ``local`` of a multi-GPU Job: every block that starts a server
+    (``ServeModels``, ``ServeChatModel``: attribute ``port``) and every served backend on loopback
+    moves to port ``base_port + local``, so each GPU has its own server and clients."""
+    from .backends import Served
+    from .blocks.serve import ServeChatModel, ServeModels
+
+    port = base_port + local
+    pipeline = deepcopy(pipeline)
+    for step in pipeline:
+        if isinstance(step, (ServeModels, ServeChatModel)):
+            step.port = port
+        backend = getattr(step, "backend", None)
+        if isinstance(backend, Served):
+            u = urlsplit(backend.endpoint)
+            if u.hostname in ("127.0.0.1", "localhost"):
+                backend.endpoint = urlunsplit(u._replace(netloc=f"{u.hostname}:{port}"))
+    return pipeline
+
+
+class GPUJobsExecutor(JobsPipelineExecutor):
+    """``JobsPipelineExecutor`` for multi-GPU flavors: each Job takes ``gpus`` datatrove tasks and runs
+    them at the same time, one forked process per task, task *i* on GPU *i* with its servers on port
+    ``base_port + i`` (``point_to_gpu``). ``tasks`` should be a multiple of ``gpus``. The Job fails if
+    any of its tasks fails; datatrove's completion markers make a rerun skip the finished ones."""
+
+    def __init__(self, *args, gpus: int, base_port: int = 8100, **kwargs):
+        super().__init__(*args, tasks_per_job=gpus, **kwargs)
+        self.gpus, self.base_port = gpus, base_port
+
+    def _run_array_index(self, array_index: int):
+        import multiprocessing
+
+        with self.logging_dir.open("ranks_to_run.json", "r") as f:
+            all_ranks = json.load(f)
+        start = array_index * self.tasks_per_job
+        ranks = all_ranks[start:start + self.tasks_per_job]
+        ctx = multiprocessing.get_context("fork")   # the Job's parent process never touches CUDA
+        procs = [ctx.Process(target=self._run_on_gpu, args=(rank, local), name=f"gpu{local}")
+                 for local, rank in enumerate(ranks)]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        failed = [rank for p, rank in zip(procs, ranks) if p.exitcode != 0]
+        if failed:
+            raise RuntimeError(f"tasks {failed} failed in Job {array_index}")
+
+    def _run_on_gpu(self, rank: int, local: int) -> None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(local)
+        self.pipeline = point_to_gpu(self.pipeline, local, self.base_port)
+        self._run_for_rank(rank, local_rank=local)
