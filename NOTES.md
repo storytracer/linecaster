@@ -195,6 +195,29 @@ squiddleocr's PaddleX table step writes them row by row, matching the ground tru
 while linecaster has no table step yet and writes each cell as its own line. The table step is the
 next block to port.
 
+### GPUs compared (full ground truth, complete chain incl. tables, 4 tasks on HF Jobs)
+
+Model seconds per page (datatrove stats); recognition sets the pace because the models work on
+different pages at the same time. Scores are identical on all three (CER reading 0.0419–0.0420).
+
+| GPU | layout | lines | recognition | tables |
+|---|---|---|---|---|
+| L4 | 0.21 | 0.18 | 0.76 | – |
+| A10G | 0.21 | 0.20 | 0.72 | 0.03 |
+| L40S | 0.13 | 0.12 | 0.44 | 0.02 |
+| RTX 4000 SFF Ada (forge) | 0.17 | 0.12 | 0.69 | – |
+
+With one worker per model the L40S finishes about twice as fast as an L4; a second recognition
+worker on large GPUs is not measured yet.
+
+### Region recognition with a page model
+
+`ChatRegionStep` with PP-DocLayoutV3 regions and LightOnOCR-2-1B (a page-trained VLM): the model loops
+to its token limit on 68 of 418 region crops of the 60-page sample (page headers 30, footers 15,
+footnotes 15); with those regions left empty the reading CER is 0.0402 against 0.0285 for the same
+model on whole pages. The block works; region reading wants a region-trained model or tighter
+per-region limits.
+
 ### Lessons
 
 - `[tool.uv.sources]` applies only to a project's own dependencies: the kraken fork came in
