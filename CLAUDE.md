@@ -89,7 +89,10 @@ hashes as pinned in squiddleocr's `models.KRAKEN_MODELS`. The Zenodo DOIs are pr
   golden outputs (GPU numerics differ between machines; compare across machines at CER level).
 - No macOS in this phase.
 - torch: the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which the GB10
-  needs; 2.14 is kraken's upper bound. Never let a resolver swap in another torch build.
+  needs; 2.14 is kraken's upper bound. torch never changes as a side effect of a resolve
+  (a new dependency with its own torch bound, another package index, `uv run --with` on Jobs):
+  a change of build is deliberate, applies to one named environment and is recorded in NOTES.md,
+  and parity is then compared at CER level, not against the goldens.
 
 ## Hugging Face Jobs
 
