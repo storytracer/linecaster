@@ -2,6 +2,62 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, spark)
+
+Setup:
+- Pipeline: `ImageFolderReader` → `ChatPageStep(LightOnOCR2, Served(..., max_window=48, initial_window=8), prepare_workers=4)` → `PageJsonlWriter`, run with `examples/chat_page.py`.
+- Server: vLLM 0.21.0 (the ocrscout environment, torch 2.11 cu130) at 127.0.0.1:8132.
+  - Flags: the spec's serve flags plus `--gpu-memory-utilization 0.22`, because the GPU was shared with `linecaster serve` and kraken-paddlex jobs.
+  - The board pins vLLM 0.26.0. That version was not tested here.
+
+Scoring: the rows were converted to a saturate-shaped part file holding id, raw and finish_reason, then scored with bhl-ocr-eval @76bc19d along the board's path:
+`consolidate_run` → `normalize_outputs` (postproc 3) → `score_dataset` (norm 2026-10-30a, scorer 3.0).
+
+| run | CERdip | CERread | recall µ | loops |
+|---|---:|---:|---:|---:|
+| sample-60, ChatPageStep | 0.0614 | 0.0285 | 0.9717 | 5/60 |
+| sample-60, bare saturate `pump()` (same request/parse) | 0.0661 | 0.0292 | 0.9669 | 4/60 |
+| sample-60, board's own outputs (vLLM 0.26.0, A10G), same pages | 0.0656 | 0.0321 | 0.9666 | 4/60 |
+| tables-7, ChatPageStep | 0.9453 | 0.5539 | 0.9884 | 0/7 |
+| tables-7, bare `pump()` | 0.9532 | 0.5662 | 0.9904 | 0/7 |
+| tables-7, board outputs | 0.9701 | 0.5792 | 0.9877 | 0/7 |
+
+- Prompt tokens are identical to the board's on every page, so the image geometry is identical.
+- 29 of the 60 completions are byte-identical to the `pump()` run, and 24 to the board's. Sampling is at temperature 0.2.
+- Run-to-run variance of `pump()` on sample-60 was CERread 0.026–0.030 on the common pages. The ChatPageStep result falls inside that range.
+- All the looped pages (`finish_reason=length`, 4,096 tokens) are in pisciumquerelaee00sche, on every stack.
+
+Throughput, on the same 310 pages (every 7th of the 2,165 IMPACT-BHL images), run back to back against the same server while kraken-paddlex jobs shared the GPU:
+
+| client | wall | pages/s |
+|---|---:|---:|
+| ChatPageStep pipeline | 1066 s | 0.29 |
+| bare `pump()`, `Auto(8,48)`, 4 prep threads | 1251 s | 0.25 |
+| (earlier, less contended: bare `pump()`, same settings) | 630 s | 0.49 |
+
+The pipeline adds no measurable overhead. Contention from other GPU jobs dominates these numbers.
+Client RSS was about 1.0 GB for the pipeline and 0.7 GB for `pump()`.
+
+**vLLM on spark (unified memory).**
+- `--gpu-memory-utilization` is taken against the free memory at start. The same 0.22 gave a 12.3 GiB KV cache in one start and 22.7 GiB in another; EngineCore used 16 GB and 27 GB respectively.
+- One start failed with vLLM's profiling assertion ("Initial free memory ... current free memory ..."): another process released memory while vLLM was profiling. Restarting fixed it.
+
+**ServeChatModel** was checked on spark with `examples/chat_page.py --serve --port 8133 --gpu-memory-utilization 0.15 --limit 6`.
+vLLM booted in-task in 143 s, 6 pages ran, and the server was stopped at the end.
+
+## HF Jobs image for ChatPageStep (not yet run on Jobs)
+
+`vllm/vllm-openai:v0.26.0` (amd64) qualifies for `JobsPipelineExecutor`. From the image config:
+- Python 3.12 (`PYTHON_VERSION=3.12`).
+- uv, from `python3 -m pip install uv`, with `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` set.
+- The entrypoint is `vllm serve`, so `vllm` is on PATH.
+
+How the Job is arranged:
+- The executor builds the pipeline's uv environment, `--with linecaster @ git+...@<sha>` on Python 3.12.
+- `ServeChatModel` starts the image's own `vllm` as a subprocess.
+- vLLM never enters linecaster's environment.
+- The image sets `UV_INDEX_STRATEGY=unsafe-best-match`, which also applies to that resolve.
+
 ## First build (2026-11-03)
 
 ### What exists
