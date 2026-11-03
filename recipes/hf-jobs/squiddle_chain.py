@@ -7,6 +7,8 @@ the chain through saturate against it. Inputs: an image dataset on the Hub or an
         --dataset <namespace>/<image dataset> --revision <sha> --tasks 1
     .venv/bin/python recipes/hf-jobs/squiddle_chain.py --run-id gt2165 --commit <sha> \
         --images hf://datasets/finebooks/bhl-impact-gt@<rev>/images --tasks 4
+    # two recognition copies on one GPU (recognition sets the pace):
+    ... --flavor l40sx1 --replicas recognition=2
 
 Run it from linecaster's core environment (Python 3.12: datatrove pickles the pipeline with dill, so
 launcher and Jobs need the same minor version).
@@ -47,7 +49,11 @@ def main() -> None:
     ap.add_argument("--namespace", default="finebooks"); ap.add_argument("--flavor", default="l4x1")
     ap.add_argument("--timeout", default="3h"); ap.add_argument("--limit", type=int, default=-1)
     ap.add_argument("--window", type=int, default=32, help="max pages in flight per model block")
+    ap.add_argument("--replicas", action="append", default=[], metavar="MODEL=N",
+                    help="copies of a model on the Job's GPU, e.g. recognition=2 (default 1 each)")
     a = ap.parse_args()
+    replicas = {k: int(v) for k, v in (r.split("=", 1) for r in a.replicas)}
+    models = [{**m, "replicas": replicas.get(m["name"], 1)} for m in MODELS]
 
     run = f"{a.bucket}/{a.run_id}"
     reader = (HFImageDatasetReader(a.dataset, a.revision, id_column=a.id_column, limit=a.limit) if a.dataset
@@ -63,7 +69,7 @@ def main() -> None:
         TablesStep(served["tables"]),
         FormulasStep(served["formulas"]),
         PageJsonlWriter(f"{run}/processed/squiddle", output_filename="${rank}.jsonl.gz"),
-        ServeModels(MODELS, port=8100),   # last: lives until every page is written (see the block's docstring)
+        ServeModels(models, port=8100),   # last: lives until every page is written (see the block's docstring)
     ]
     JobsPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers, logging_dir=f"{run}/logs/squiddle",
                          flavor=a.flavor, namespace=a.namespace, dependencies=dependencies(a.commit), timeout=a.timeout,

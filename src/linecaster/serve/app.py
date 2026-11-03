@@ -11,9 +11,10 @@ server keeps nothing between requests. Routes:
   ``vllm:num_requests_running``), which saturate's window controller reads.
 * ``GET /v1/models`` — the hosted models.
 
-Each model has one worker thread that runs its requests one at a time in arrival order: a page's
-result depends only on the page, and different models (layout, lines, recognition) work on
-different pages at the same time. Image decoding happens in a small thread pool before a request
+Each model has one worker thread per replica (default one), all taking requests from the model's
+queue in arrival order; a replica is its own copy of the model and runs one request at a time. A
+page goes to exactly one replica, so its result depends only on the page, however many replicas
+there are; different models (layout, lines, recognition) work on different pages at the same time. Image decoding happens in a small thread pool before a request
 joins its model's queue.
 """
 from __future__ import annotations
@@ -43,13 +44,16 @@ class Hosted:
     spec: str
     kwargs: dict
     max_queue: int = 16
-    model: object = None
+    replicas: int = 1          # copies of the model on the device, each with its own worker thread
+    model: object = None       # the first copy (its step, name)
+    copies: list = field(default_factory=list)
     jobs: queue.Queue = field(default_factory=queue.Queue)
     admitted: int = 0          # accepted and not yet answered (decoding, waiting or running)
     running: int = 0
     served: int = 0
     failed: int = 0
     busy_seconds: float = 0.0
+    lock: threading.Lock = field(default_factory=threading.Lock)   # the counters, updated by every replica
 
     @property
     def step(self) -> str:
@@ -57,29 +61,37 @@ class Hosted:
 
     def load(self) -> None:
         t = time.perf_counter()
-        self.model = resolve(self.spec)(**self.kwargs)
-        self.model.load()
-        log.info("loaded %s (%s, step %s) in %.1fs", self.name, self.spec, self.step, time.perf_counter() - t)
+        for _ in range(max(int(self.replicas), 1)):
+            model = resolve(self.spec)(**self.kwargs)
+            model.load()
+            self.copies.append(model)
+        self.model = self.copies[0]
+        log.info("loaded %s (%s, step %s, %d replica(s)) in %.1fs", self.name, self.spec, self.step,
+                 len(self.copies), time.perf_counter() - t)
 
-    def work(self, loop: asyncio.AbstractEventLoop) -> None:
+    def work(self, loop: asyncio.AbstractEventLoop, model) -> None:
         while True:
             image, t, params, fut = self.jobs.get()
-            self.running += 1
+            with self.lock:
+                self.running += 1
             start = time.perf_counter()
             try:
-                out = self.model(image, t, **params)
+                out = model(image, t, **params)
                 if out.model:
                     out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
                 result = (200, {"transcription": out.model_dump(mode="json"),
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},
                                 "timing": {"model_seconds": round(time.perf_counter() - start, 4)}})
-                self.served += 1
+                ok = True
             except Exception as e:  # a page the model cannot read: an error for this request only
                 log.exception("model %s failed", self.name)
                 result = (422, {"error": f"{type(e).__name__}: {e}"})
-                self.failed += 1
-            self.busy_seconds += time.perf_counter() - start
-            self.running -= 1
+                ok = False
+            with self.lock:
+                self.served += ok
+                self.failed += not ok
+                self.busy_seconds += time.perf_counter() - start
+                self.running -= 1
             loop.call_soon_threadsafe(_resolve, fut, result)
 
 
@@ -98,7 +110,8 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
         loop = asyncio.get_running_loop()
         for h in hosted:   # load one after another (the GPU is shared), then serve
             await loop.run_in_executor(None, h.load)
-            threading.Thread(target=h.work, args=(loop,), name=f"model-{h.name}", daemon=True).start()
+            for i, model in enumerate(h.copies):
+                threading.Thread(target=h.work, args=(loop, model), name=f"model-{h.name}-{i}", daemon=True).start()
         ready["ok"] = True
 
     async def health(request):
@@ -107,7 +120,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
     async def models(request):
         return web.json_response({"object": "list", "data": [
             {"id": h.name, "object": "model", "owned_by": "linecaster", "step": h.step if h.model else None,
-             "spec": h.spec} for h in hosted]})
+             "spec": h.spec, "replicas": h.replicas} for h in hosted]})
 
     async def metrics(request):
         lines = ["# TYPE vllm:num_requests_waiting gauge", "# TYPE vllm:num_requests_running gauge"]
