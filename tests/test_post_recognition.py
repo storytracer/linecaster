@@ -185,3 +185,26 @@ def test_blocks_run_and_write_files(tmp_path):
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()
     assert Page.model_validate_json(Page.model_dump_json(page_of(out[0]))) == page_of(out[0])
+
+
+# --------------------------------------------------------------- reflow
+def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
+    from linecaster.reflow import Stats
+
+    rid, rid2 = "text_0", "text_1"
+    t = page_with([region(rid, "text", 100, 100, 800, 200, 0), region(rid2, "text", 100, 400, 800, 100, 1),
+                   region("number_2", "page_footer", 450, 900, 40, 20, 2, raw="number")], [
+        line(rid, 0, 100, 100, 800, 20, "The nest is built of dead gras-"),
+        line(rid, 1, 100, 130, 800, 20, "ses and bents, and the lining"),
+        line(rid, 2, 140, 160, 760, 20, "A new paragraph starts indented and"),
+        line(rid, 3, 100, 190, 800, 20, "runs to the end of the column with"),
+        line(rid2, 0, 100, 400, 800, 20, "its last words here."),
+        line("number_2", 0, 450, 900, 40, 20, "12")])
+    stats = Stats()
+    doc = build_docling(t, "p", 1000, 1000, text="reflow", stats=stats)
+    texts = [x.text for x in doc.texts]
+    assert texts[0] == "The nest is built of dead grasses and bents, and the lining"
+    assert texts[1] == "A new paragraph starts indented and runs to the end of the column with its last words here."
+    assert texts[2] == "12" and len(texts) == 3
+    assert (stats.marks_removed, stats.continuations) == (1, 1)
+    assert [p.charspan for p in doc.texts[1].prov] == [(0, 35), (36, 70), (71, 91)]   # one entry per row, across regions

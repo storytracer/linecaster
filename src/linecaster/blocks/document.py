@@ -42,13 +42,18 @@ class Typography(PageStep):
 
 class AssembleDocument(PageStep):
     """Build the named transcription's ``docling`` part from its regions, lines and tables
-    (``linecaster.document.build_docling``; one document per page, named after the page id)."""
+    (``linecaster.document.build_docling``; one document per page, named after the page id).
+    ``text``: ``lines`` (one row per line) or ``reflow`` (paragraphs; squiddleocr's default)."""
 
     name = "assemble document"
 
-    def __init__(self, transcription: str = "ocr"):
+    def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False):
         super().__init__()
-        self.transcription = transcription
+        from ..document import TEXT_MODES
+
+        if text not in TEXT_MODES:
+            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
+        self.transcription, self.text, self.rtl = transcription, text, rtl
 
     def process_page(self, doc, page: Page) -> Page:
         t = page.transcriptions.get(self.transcription)
@@ -56,8 +61,16 @@ class AssembleDocument(PageStep):
             return page
         w = page.image.width if page.image else None
         h = page.image.height if page.image else None
-        t.docling = docling_dict(build_docling(t, name=page.page_id, width=w, height=h))
+        from ..reflow import Stats
+
+        stats = Stats()
+        t.docling = docling_dict(build_docling(t, name=page.page_id, width=w, height=h, text=self.text, rtl=self.rtl,
+                                               stats=stats))
         self.stat_update("documents")
+        if self.text == "reflow":
+            for key in ("paragraphs", "continuations", "marks_removed", "marks_kept"):
+                if getattr(stats, key):
+                    self.stat_update(key, value=getattr(stats, key))
         return page
 
 

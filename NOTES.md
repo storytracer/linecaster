@@ -23,9 +23,15 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
   text is not NFC yet; normalising it is a separate, recorded transform, not done here.)
+- Reflow (`AssembleDocument(text="reflow")`, squiddleocr's default document mode; `linecaster.reflow` is
+  squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
+  checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
+  and lines: md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks
+  removed, 1 kept, 4 continuations across regions), and on the 1,000 reflow pages of the random check.
 - Not ported: formula recognition (squiddleocr reads formula regions as LaTeX by default; no formula
   regions on these 67 pages; `AssembleDocument` takes `region.extra["formula"]` when a formula step
-  provides it), reflow (`--text reflow`, squiddleocr's default), sections, Markdown dividers.
+  provides it), paragraphs continued across pages (needs a book-level document), sections, Markdown
+  dividers.
 
 ## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, spark)
 

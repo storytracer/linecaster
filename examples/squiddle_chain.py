@@ -36,7 +36,8 @@ def backends(kind: str, endpoint: str | None, endpoints: dict | None = None):
 
 
 def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | None = None, transcription: str = "ocr",
-             tables: bool = True, endpoints: dict | None = None, exports: str | None = None):
+             tables: bool = True, endpoints: dict | None = None, exports: str | None = None,
+             text: str = "lines"):
     b = backends(kind, endpoint, endpoints)
     return [
         ImageFolderReader(images),
@@ -46,7 +47,7 @@ def pipeline(images: str, out: str, kind: str = "in-process", endpoint: str | No
         RecognitionStep(b["recognition"], transcription),
         *([TablesStep(b["tables"], transcription)] if tables else []),
         Typography(transcription),
-        AssembleDocument(transcription),
+        AssembleDocument(transcription, text=text),
         *([PageExportsWriter(exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
                              transcription=transcription)] if exports else []),
         PageJsonlWriter(out, output_filename="${rank}.jsonl", compression=None),
@@ -62,10 +63,11 @@ if __name__ == "__main__":
     ap.add_argument("--no-tables", action="store_true", help="skip the tables step")
     ap.add_argument("--exports", default=None, metavar="DIR",
                     help="also write <page>.paddle.md/.txt/.json (squiddleocr's --text lines --furniture) here")
+    ap.add_argument("--text", choices=["lines", "reflow"], default="lines", help="document text mode")
     ap.add_argument("--endpoint-for", action="append", default=[], metavar="STEP=URL", help="a different server for one step")
     a = ap.parse_args()
     eps = dict(e.split("=", 1) for e in a.endpoint_for)
     LocalPipelineExecutor(pipeline(a.images, a.out, a.backend, a.endpoint, tables=not a.no_tables, endpoints=eps,
-                                   exports=a.exports),
+                                   exports=a.exports, text=a.text),
                           tasks=a.tasks, workers=a.tasks,
                           logging_dir=a.logs or f"{a.out}/logs").run()
