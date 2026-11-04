@@ -2,7 +2,9 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     # Ray for --on ray (HF Jobs leave it out)
-#     "linecaster[ray]",
+#     "linecaster[ray,pybookget]",
+#     # IIIF manifests and http(s) images (--manifests); direct, so its source applies
+#     "pybookget",
 #     "linecaster-paddlex",
 #     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)
 #     "s3fs",
@@ -31,6 +33,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///

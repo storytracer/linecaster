@@ -863,6 +863,4 @@ CER reading, linecaster vs board:
   `license`, so `rights` is empty.
 
 Open: the per-task rate limit is the only limit (datatrove keeps no state between tasks); a run against one
-server sets `--workers` × `--rate-limit` to what that server accepts. Inline `--manifests` in
-`pipelines/chain.py` and `pipelines/vlm.py` needs `pybookget` in their metadata and relocked scripts, which
-needs the pybookget commit on GitHub.
+server sets `--workers` × `--rate-limit` to what that server accepts.

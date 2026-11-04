@@ -695,6 +695,7 @@ requires-dist = [
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
@@ -702,7 +703,7 @@ requires-dist = [
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]

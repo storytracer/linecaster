@@ -53,35 +53,45 @@ def _name(requirement: str) -> str:
 def dependencies(commit: str, script: str | Path | None = None, engines: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
     metadata of ``script`` (a pipeline): its dependencies with the script's sources spelled out as URLs at
-    ``commit`` and its version pins, for the packages its lock resolves. ``script=None`` or
-    ``engines=False``: linecaster alone (a VLM pipeline whose image brings vLLM, or a CPU pipeline).
+    ``commit`` (``url`` sources as they are) and its version pins, for the packages its lock resolves.
+    ``script=None``: linecaster alone. ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU
+    pipeline): linecaster with the script's extras and its ``url``-source dependencies (pybookget), no
+    engines and no pins.
 
     linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
-    some images (``vllm/vllm-openai``) have uv but no git executable. The kraken fork still needs git (its
-    version comes from git history); the default Jobs image, which engine Jobs use, has it."""
+    some images (``vllm/vllm-openai``) have uv but no git executable; pybookget the same way (a ``url``
+    source). The kraken fork still needs git (its version comes from git history); the default Jobs image,
+    which engine Jobs use, has it."""
     import tomllib
 
     repo = f"{REPO}/archive/{commit}.tar.gz"
-    if script is None or not engines:
+    if script is None:
         return [f"linecaster @ {repo}"]
     script = Path(script).resolve()
     meta = script_metadata(script)
     uv = meta.get("tool", {}).get("uv", {})
     sources = {_name(k): v for k, v in uv.get("sources", {}).items()}
-    deps = []
+    deps, light = [], []
     for req in meta.get("dependencies", []):
         src = sources.get(_name(req))
-        if src and "path" in src:
+        if src and "url" in src:
+            deps.append(f"{_name(req)} @ {src['url']}")
+            light.append(deps[-1])
+        elif src and "path" in src:
             sub = (script.parent / src["path"]).resolve().relative_to(ROOT).as_posix()
             extras = req[len(_name(req)):].split(";")[0].strip() if "[" in req else ""
             if _name(req) == "linecaster":   # a Job does not use Ray
                 kept = [e for e in extras.strip("[]").split(",") if e.strip() and e.strip() != "ray"]
                 extras = f"[{','.join(kept)}]" if kept else ""
             deps.append(f"{_name(req)}{extras} @ {repo}" + (f"#subdirectory={sub}" if sub != "." else ""))
+            if _name(req) == "linecaster":
+                light.append(deps[-1])
         elif src and "git" in src:
             deps.append(f"{_name(req)} @ git+{src['git']}@{src['rev']}")
         else:
             deps.append(req)
+    if not engines:
+        return light or [f"linecaster @ {repo}"]
     # --with installs what it is given: pin only what the script's environment really contains
     lock = script.with_name(script.name + ".lock")
     resolved = {p["name"] for p in tomllib.loads(lock.read_text())["package"]}

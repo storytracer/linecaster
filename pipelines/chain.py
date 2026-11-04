@@ -2,7 +2,9 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     # Ray for --on ray (HF Jobs leave it out)
-#     "linecaster[ray]",
+#     "linecaster[ray,pybookget]",
+#     # IIIF manifests and http(s) images (--manifests); direct, so its source applies
+#     "pybookget",
 #     "linecaster-kraken",
 #     "linecaster-paddlex",
 #     "linecaster-tesseract",
@@ -35,6 +37,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" }
 # linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
