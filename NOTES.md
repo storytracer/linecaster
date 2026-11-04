@@ -2,6 +2,46 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Daniel's four kraken changes measured one by one (#1, 2026-11-04, HF Jobs L4)
+
+Each change alone against the same baseline, full ground truth (bhl-impact-gt, 2,165 pages), one `l4x1` Job
+per variant (one server reads every page), `--recipe squiddle`. Branches: kraken fork `perf/line-prefetch`
+(b4f651aa), `perf/early-seq-lens` (cf21c0cd), stock 3d235ee8; linecaster `perf/kraken-sort-by-width`,
+`perf/kraken-compile`; each variant a `measure/...` branch whose only commit is the kraken pin.
+
+| change | recognition, steady state | vs baseline | text changed | shortest body lines (width/height < 2) | CERdip | CERread | recall | furniture |
+|---|---|---|---|---|---|---|---|---|
+| baseline (stock 3d235ee8) | 0.802 s/page | | | | 0.0576 | 0.0419 | 0.9754 | 0.8491 |
+| 1 line prefetch | 0.733 s/page | −8.5 % | none | none | = baseline | | | |
+| 2 seq_lens before the forward pass | 0.786 s/page | −1.9 % | none | none | = baseline | | | |
+| 3 batching by line width | 0.728 s/page | −9.2 % | 0.220 % | 8.25 % of their characters | 0.0577 | 0.0416 | 0.9752 | 0.8441 |
+| 4 torch.compile of the backbone | 0.719 s/page | −10.3 % | 0.021 % | 0.05 % | 0.0576 | 0.0419 | 0.9754 | 0.8485 |
+
+- Changes 1 and 2 are in main (fork 48eecb78, both together; −12 % measured earlier on 300 pages).
+- Change 3 reads the shortest lines (single characters, page numbers, the last word of a paragraph) worse:
+  in a batch of only narrow lines they get little padding. Not adopted; batching stays as kraken composes it.
+- Change 4 keeps the CER and the short lines; its 163 s warm-up per server pays off from about 2,000 pages
+  per server (0.083 s saved per page). Candidate for long runs, ideally with the compile cache kept between
+  Jobs (`torch.compiler.save_cache_artifacts` / `load_cache_artifacts`).
+- Earlier round of the same day with 4 Jobs per variant: queueing for free L4s made launch-to-finish times
+  misleading; the Jobs' own runtime is what counts.
+
+## Later: hardware acceleration across platforms (parked 2026-11-04)
+
+Ideas, none measured:
+
+- kraken stays on PyTorch: CUDA (with torch.compile and its cache), MPS on Macs, CPU elsewhere; one model
+  file, kraken's own code. AOTInductor `.pt2` packages per GPU type would remove the warm-up.
+- PaddleX models: every one in the chain has a `PaddlePaddle/<name>_safetensors` variant whose architecture
+  transformers 5.12 implements (pp_doclayout_v3, pp_ocrv6_*_det, slanet, pp_lcnet, pp_formulanet); PaddleX's
+  transformers engine would put the whole chain on torch and drop onnxruntime-gpu. Changes numerics (goldens
+  were recorded on ONNX Runtime) and speed is unknown.
+- ONNX Runtime execution providers (TensorRT, CoreML, OpenVINO, DirectML) for platforms without a usable
+  PyTorch; costs an export path of our own for kraken.
+- VLMs off NVIDIA: llama.cpp (`llama-server`, GGUF) or MLX-VLM behind the same OpenAI interface as `chat.v1`;
+  GGUF files as `converted` / `quantised` model documents, each with its own evidence. GGUF does not suit
+  kraken (no graph importer in ggml; a reimplementation).
+
 ## kraken line prefetch (#1, 2026-11-04: spark, forge, HF Jobs L4)
 
 Daniel van Strien's issue #1: kraken's recognition loop makes the CPU wait for the GPU on every line (the
