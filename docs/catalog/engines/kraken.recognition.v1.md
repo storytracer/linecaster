@@ -25,6 +25,7 @@ name, resolved to its model document's newest pin, or a kraken model file.
 | `batch_size` | `int` | `8` | lines per forward pass; kraken pads a batch to its widest line, so the batch size can move numerics |
 | `precision` | `str` | `'auto'` | Lightning precision at inference; auto: bf16-mixed on CUDA (the training precision), 32-true on the CPU |
 | `text_direction` | `Literal['horizontal-lr', 'horizontal-rl', 'vertical-lr', 'vertical-rl']` | `'horizontal-lr'` | kraken's text direction of the lines (horizontal-rl: right to left) |
+| `compile_backbone` | `bool` | `False` | torch.compile the backbone (dynamic shapes): fewer kernel launches, minutes of compiling when the model loads; moves a few characters |
 
 ## Presets
 
