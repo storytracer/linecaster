@@ -18,6 +18,10 @@ where the two differ, the driver wins).
   `extra["front_matter"]`; dropping it from the scored text is the board's post-processing, left to the
   harness (`linecaster.models.olmocr2.body` gives the same split). Not yet run by linecaster: experimental.
 
+```bash
+uv run launch.py olmocr-2-7b-1025-fp8 IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

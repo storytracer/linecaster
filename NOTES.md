@@ -2,6 +2,19 @@
 
 Measurements, decisions and open questions, newest first.
 
+## launch.py: recipes and models by name (2026-11-04, spark)
+
+`uv run launch.py squiddle IMAGES OUT` and `uv run launch.py chandra-ocr-2 IMAGES OUT`: a recipe names its
+pipeline (`chain.v1`), a whole-page preset runs in `vlm.v1`; `launch.py` finds the script declaring that
+`PIPELINE` (`catalog.code.pipelines`, ast) and execs `uv run --script pipelines/<script>.py ... --recipe NAME`
+(or `--vlm NAME`), so the pipeline keeps its own environment and launch.py needs only linecaster's core.
+Discussed and dropped: a component type as first argument (`model`/`recipe`/`pipeline`), `server` and `cluster`
+words, and names such as run.py (`uv run run.py`), recipe.py, transcribe.py, read.py, lc.py. Own combinations
+use the pipeline scripts directly. Names stay unambiguous: the catalogue already refuses an id used by a preset
+and a recipe. A preset that is one step (a line recogniser, a region reader) gets a hint instead: which pipeline
+and flag, and the recipes that use it. Checked: `--dry-run` builds the squiddle chain with its recipe record and
+chandra-ocr-2's vLLM command at the pinned revision.
+
 ## One catalogue (2026-11-04, spark)
 
 The catalogue is one folder, `src/linecaster/catalog/data/`: the engine packages' catalogues (kraken, PaddleX,

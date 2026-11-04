@@ -25,6 +25,10 @@ Strien's `deepseek-ocr-vllm.py`; the DeepSeek-OCR and DeepSeek-OCR-2 drivers are
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0551 for linecaster's run on an L4 against 0.0543 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py deepseek-ocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

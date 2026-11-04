@@ -19,6 +19,10 @@ dots.mocr in plain OCR mode, as the BHL OCR board's driver ran it (a port of Dan
   board ran vLLM 0.26.0 (Daniel's recipe has moved to 0.29.0); `--gpu-memory-utilization` is the
   deployment's choice (board 0.6 on an L40S, 4 pages in flight). Not yet run by linecaster: experimental.
 
+```bash
+uv run launch.py dots-mocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

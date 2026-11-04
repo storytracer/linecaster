@@ -16,6 +16,10 @@ OvisOCR3, as the BHL OCR board's driver ran it (the OvisOCR2 driver with the mod
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0299 for linecaster's run on an L4 against 0.0325 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py ovisocr3 IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

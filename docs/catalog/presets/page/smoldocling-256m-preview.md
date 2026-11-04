@@ -22,6 +22,10 @@ SmolDocling-256M-preview, as the BHL OCR board's driver ran it (a port of Daniel
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0643 for linecaster's run on an L4 against 0.0556 for the board's own outputs on the same pages. The largest gap of the table (3 against 5
 truncated pages); the board copy compared against may not be the scored run. Worth a second look.
 
+```bash
+uv run launch.py smoldocling-256m-preview IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

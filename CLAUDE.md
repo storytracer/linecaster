@@ -80,7 +80,9 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalogue
   document naming a pipeline id (`chain.v1`, the script's `PIPELINE`), a preset edition per slot and options,
   edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
-  catalogue). Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
+  catalogue). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
+  script whose `PIPELINE` the recipe names (whole-page presets: `vlm.v1`) and runs it (`uv run --script`) with
+  `--recipe` / `--vlm`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
   component (engines, models, presets, pipelines, recipes). `ServeModels(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
   `linecaster.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.

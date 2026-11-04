@@ -20,6 +20,10 @@ inherited from Daniel van Strien's `qianfan-ocr.py`).
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0482 for linecaster's run on an L4 against 0.0491 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py qianfan-ocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

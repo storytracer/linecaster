@@ -19,6 +19,10 @@ Unlimited-OCR on vLLM, as the BHL OCR board's driver ran it.
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0429 for linecaster's run on an L4 against 0.0449 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py unlimited-ocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

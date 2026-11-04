@@ -1,4 +1,4 @@
-"""The self-contained uv scripts (PEP 723) under pipelines/, tools/ and tests/ agree with each other:
+"""The self-contained uv scripts (PEP 723: launch.py and those under pipelines/, tools/ and tests/) agree with each other:
 the same version pins and kraken source everywhere, a lock next to every script, and wheels for both Linux
 machines (aarch64 and x86_64) for every package with compiled wheels. uv's ``required-environments`` does not
 work in script metadata, so this test stands in for it."""
@@ -10,7 +10,7 @@ import pytest
 from linecaster.jobs import _name, dependencies, script_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = sorted(p for d in ("pipelines", "tools", "tests") for p in (ROOT / d).rglob("*.py")
+SCRIPTS = sorted(p for p in [*ROOT.glob("*.py"), *(q for d in ("pipelines", "tools", "tests") for q in (ROOT / d).rglob("*.py"))]
                  if p.read_text().startswith("# /// script"))
 IDS = [p.relative_to(ROOT).as_posix() for p in SCRIPTS]
 
@@ -20,7 +20,28 @@ def lock_of(script: Path) -> dict:
 
 
 def test_there_are_scripts():
-    assert {"pipelines/chain.py", "pipelines/vlm.py"} <= set(IDS)
+    assert {"launch.py", "pipelines/chain.py", "pipelines/vlm.py"} <= set(IDS)
+
+
+def test_launch_finds_the_pipeline():
+    """``uv run launch.py NAME ...`` runs the script of the pipeline a recipe or a whole-page model runs in."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("launch", ROOT / "launch.py")
+    launch = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launch)
+    chain, vlm = str(ROOT / "pipelines" / "chain.py"), str(ROOT / "pipelines" / "vlm.py")
+    assert launch.command("squiddle", ["IN", "OUT", "--text", "lines"]) == [
+        "uv", "run", "--script", chain, "IN", "OUT", "--text", "lines", "--recipe", "squiddle"]
+    assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
+        "uv", "run", "--script", vlm, "IN", "OUT", "--vlm", "chandra-ocr-2@1"]
+    assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
+        "uv", "run", "--script", chain, "serve", "--recipe", "squiddle@1", "--port", "8101"]
+    assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]
+    for name, why in (("nope", "no recipe or model"), ("kraken-ppocrv6-medium", "--recognizer kraken-ppocrv6-medium"),
+                      ("minicpm-ocr-1.0", "reads layout regions")):
+        with pytest.raises(SystemExit, match=why):
+            launch.command(name, ["IN", "OUT"])
 
 
 @pytest.mark.parametrize("script", SCRIPTS, ids=IDS)

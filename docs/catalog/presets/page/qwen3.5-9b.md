@@ -24,6 +24,10 @@ recipe for this model).
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0358 for linecaster's run on an L40S against 0.0356 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py qwen3.5-9b IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

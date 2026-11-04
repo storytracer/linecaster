@@ -45,26 +45,46 @@ git clone https://github.com/storytracer/linecaster
 cd linecaster
 ```
 
-Two pipelines cover the two ways to read a page. A pipeline is a shape with slots; you fill each slot
-with a preset, or take a **recipe** that fills them for you. Both write a row per page to `out/rows`, and
+The quickest start is `launch.py` with a name: a **recipe** (a tested combination of models) or a
+**model** that reads whole pages. It knows which pipeline that needs. For your own combination, fill a
+pipeline's slots yourself, one preset per step. Either way you get a row per page in `out/rows`, and
 `--files` adds ALTO, PAGE-XML, hOCR, text and Markdown.
+
+```bash
+uv run launch.py squiddle scans/ out/          # a recipe
+uv run launch.py lightonocr-2-1b scans/ out/   # a model
+uv run launch.py                               # lists the recipes and models
+```
+
+Every pipeline option works after the name, e.g. `--on hf-jobs` or `--text lines`.
 
 > [!NOTE]
 > Each pipeline is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
 > what it needs, with pinned versions, and a `.lock` file sits next to it. `uv run` installs it on the
 > first run; the models download on first use.
 
+### 🍳 A recipe
+
+A recipe is a named combination: a pipeline, a preset edition for each step, and its options, with its own
+edition, provenance and evidence. SquiddleOCR's is `squiddle`:
+
+```bash
+uv run launch.py squiddle scans/ out/
+```
+
+Options after the name change single steps or settings; the run record lists them as overrides.
+
 ### 🤖 A vision-language model reads each page
 
 Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH.
 
 ```bash
-uv run pipelines/vlm.py scans/ out/ \
-  --vlm lightonocr-2-1b
+uv run launch.py lightonocr-2-1b scans/ out/
 ```
 
-Any [preset for whole pages](#-models-and-blocks) works. With a layout preset, a region model reads
-each region instead: `--layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
+Any [model for whole pages](#-models-and-blocks) works. A region model reads each layout region instead,
+in the `vlm` pipeline with a layout preset:
+`uv run pipelines/vlm.py scans/ out/ --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
 
 ### 🧱 A chain of smaller models
 
@@ -81,18 +101,6 @@ uv run pipelines/chain.py scans/ out/ \
 
 Without `--layout` the page is one region; `--tables` and `--formulas` add those steps.
 `--set recognition.batch_size=4` changes one option of a preset.
-
-### 🍳 A recipe
-
-A recipe is a named combination: one pipeline, a preset edition for each slot, and its options, with
-its own edition, provenance and evidence. SquiddleOCR's is `squiddle`:
-
-```bash
-uv run pipelines/chain.py scans/ out/ --recipe squiddle
-```
-
-Recipes live in the catalogue next to the presets ([docs/catalog/recipes](docs/catalog/README.md#-recipes)).
-Flags on top change single slots or options; the run record lists them as overrides.
 
 ### ✍️ Your own pipeline
 
@@ -521,6 +529,7 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `src/linecaster/` | data model, blocks, server, catalogue, chat adapters, executors |
 | `src/linecaster/catalog/data/` | the catalogue: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
 | `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalogue) |
+| `launch.py` | launches a recipe or a whole-page model by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
 | `specs/` | design of the data model and the catalogue |

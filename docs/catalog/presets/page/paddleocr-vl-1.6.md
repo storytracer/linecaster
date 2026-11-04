@@ -17,6 +17,10 @@ of Daniel van Strien's `paddleocr-vl-1.6.py`), not PaddleOCR-VL's PP-DocLayout +
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0309 for linecaster's run on an L4 against 0.0309 for the board's own outputs on the same pages. Greedy decoding with identical requests
 reproduces the board exactly.
 
+```bash
+uv run launch.py paddleocr-vl-1.6 IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

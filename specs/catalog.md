@@ -43,7 +43,10 @@ named by a versioned id (`kraken.recognition.v1`, `chain.v1`); models, presets a
 Pipelines are code: a shape with slots plus the run-anywhere command line (`pipelines/chain.py`, id
 `chain.v1`; `pipelines/vlm.py`, `vlm.v1`; each script's `PIPELINE` and `SLOTS`). They have no default presets:
 the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
-overrides.
+overrides. `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name (`id[@edition]`)
+without naming its pipeline: it finds the script whose `PIPELINE` the recipe names (`vlm.v1` for whole-page
+presets) and runs it in that script's environment with `--recipe` or `--vlm` (`serve` and `ray` pass through
+for recipes). Preset and recipe ids are unique across both, so a name means one thing.
 
 Engines are code (`engines/<engine>/`, one package each), not documents.
 

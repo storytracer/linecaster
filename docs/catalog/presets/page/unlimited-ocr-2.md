@@ -26,6 +26,10 @@ Unlimited-OCR-2 on Baidu's patched SGLang, as the BHL OCR board's driver ran it.
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0251 for linecaster's run on an L4 against 0.0262 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py unlimited-ocr-2 IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

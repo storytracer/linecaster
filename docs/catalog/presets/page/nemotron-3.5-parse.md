@@ -28,6 +28,10 @@ model card (`docs/serving.md`, "Generation contract" and the H100 `vllm serve` b
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0403 for linecaster's run on an H200 against 0.0454 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py nemotron-3.5-parse IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

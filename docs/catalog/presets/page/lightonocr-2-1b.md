@@ -20,6 +20,10 @@ sample against 0.0321 for the board's outputs, on vLLM 0.21.0 rather than the bo
 temperature 0.2 makes runs differ (0.026-0.030 between runs). Experimental: not part of the board validation
 table on 0.26.0.
 
+```bash
+uv run launch.py lightonocr-2-1b IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

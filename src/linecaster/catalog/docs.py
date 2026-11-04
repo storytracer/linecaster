@@ -75,6 +75,8 @@ def preset_page(c: Catalog, pid: str, evs: list) -> str:
     lines = [f"# {pid}", "", f"*Preset · edition {p.edition} · {p.step} · {p.support}*", ""]
     if body:
         lines += [body, ""]
+    if p.step == "page":
+        lines += ["```bash", f"uv run launch.py {pid} IMAGES OUT", "```", ""]
     rows = [("Step", p.step + (f" (reads {p.capabilities.unit}s)" if p.capabilities.unit else "")),
             ("Engine", f"[`{p.engine}`](../../engines/{p.engine}.md)")]
     if p.model is not None:
@@ -182,6 +184,7 @@ def recipe_page(c: Catalog, rid: str, evs: list) -> str:
                              f"{rc.pipeline}.md) · {rc.support}*", ""]
     if body:
         lines += [body, ""]
+    lines += ["```bash", f"uv run launch.py {rid} IMAGES OUT", "```", ""]
     lines += _table(("Slot", "Preset"), [(slot, f"[`{ref}`](../{preset_path(c, ref.rsplit('@', 1)[0])})")
                                          for slot, ref in rc.presets.items()])
     if rc.options:

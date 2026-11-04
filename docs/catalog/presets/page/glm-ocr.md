@@ -16,6 +16,10 @@ GLM-OCR, as the BHL OCR board's driver ran it (a port of Daniel van Strien's `gl
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0368 for linecaster's run on an L4 against 0.0360 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py glm-ocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

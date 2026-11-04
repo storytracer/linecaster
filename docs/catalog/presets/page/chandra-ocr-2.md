@@ -24,6 +24,10 @@ vendor differ, the driver wins.
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0190 for linecaster's run on an L4 against 0.0197 for the board's own outputs on the same pages.
 
+```bash
+uv run launch.py chandra-ocr-2 IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

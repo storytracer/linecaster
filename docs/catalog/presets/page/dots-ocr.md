@@ -20,6 +20,10 @@ where the two differ, the driver wins).
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0170 for linecaster's run on an L4 against 0.0170 for the board's own outputs on the same pages. Greedy decoding with identical requests
 reproduces the board exactly.
 
+```bash
+uv run launch.py dots-ocr IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

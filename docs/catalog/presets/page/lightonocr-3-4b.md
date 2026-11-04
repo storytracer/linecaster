@@ -17,6 +17,10 @@ following the model card; the two presets differ only in the checkpoint).
 - The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice (board 0.8 on an
   A10G). Not yet run by linecaster: experimental.
 
+```bash
+uv run launch.py lightonocr-3-4b IMAGES OUT
+```
+
 |  |  |
 |---|---|
 | Step | page (reads pages) |

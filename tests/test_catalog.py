@@ -149,6 +149,17 @@ def make_recipe(root, preset="p@1", text="reflow", edition=1):
         "presets": {"recognition": preset}, "options": {"text": text}, "support": "core"}, "Why this combination.")
 
 
+def test_a_recipe_cannot_share_a_presets_name(tmp_path):
+    """launch.py runs recipes and whole-page presets by name, so a name means one thing."""
+    make(tmp_path)
+    make_recipe(tmp_path)
+    (tmp_path / "recipes" / "r.md").rename(tmp_path / "recipes" / "p.md")
+    meta, body = yamlio.read_front_matter(tmp_path / "recipes" / "p.md")
+    yamlio.write_front_matter(tmp_path / "recipes" / "p.md", {**meta, "id": "p"}, body)
+    with pytest.raises(ValueError, match="ids used for a preset and a recipe"):
+        Catalog([tmp_path])
+
+
 def test_recipes_pin_released_preset_editions(tmp_path):
     make(tmp_path)
     make_recipe(tmp_path)

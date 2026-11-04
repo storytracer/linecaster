@@ -13,6 +13,10 @@ formulas as LaTeX; the text is reflowed into paragraphs.
 - `squiddle ocr` runs this recipe when its model options are left at their defaults; with other models it is a
   variation, not the recipe.
 
+```bash
+uv run launch.py squiddle IMAGES OUT
+```
+
 | Slot | Preset |
 |---|---|
 | layout | [`pp-doclayoutv3@1`](../presets/layout/pp-doclayoutv3.md) |
