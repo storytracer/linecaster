@@ -2,8 +2,8 @@
 
 Guidance for working on linecaster. Status: first version built (November 2026): data model and
 serialisers, blocks, `linecaster serve`, kraken and PaddleX engines, HF Jobs pipelines; the squiddle
-combination reproduces squiddleocr's goldens line for line. Decisions and measurements in NOTES.md
-and `specs/`.
+combination reproduces squiddleocr's goldens line for line. Measurements and decisions in NOTES.md;
+the reference in `specs/`.
 
 ## What this is
 

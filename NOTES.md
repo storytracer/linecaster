@@ -2,6 +2,20 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Specs are reference documents (2026-11-04)
+
+`specs/` describes what is, without history. Moved here from them:
+
+- The catalogue's role models: HTRMoPo v1 and Hugging Face model cards (Markdown with YAML front matter),
+  OCR-D (functional steps, declared resources, provenance per processing step), Docling (typed options per
+  engine, one factory per stage), spaCy (versioned registry names that stay resolvable), Datalab's marker,
+  surya and chandra (configuration declared once, evidence with its source), Daniel van Strien's
+  `uv-scripts/ocr/models.json` (one catalogue, support levels), ocrscout's profiles (label mappings as data).
+- WebP encoding effort, one measurement on spark, a 3996 × 5964 newspaper JPEG: decode 0.09 s; encode effort
+  0: 1.67 s / 17.2 MB, 25: 1.99 s / 17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4× faster
+  for 4 % more bytes; left at Pillow's default (80) until measured on a broader sample.
+- The kraken source lesson (a source applies only to direct dependencies) is under "Lessons" below.
+
 ## launch.py: recipes and models by name (2026-11-04, spark)
 
 `uv run launch.py squiddle IMAGES OUT` and `uv run launch.py chandra-ocr-2 IMAGES OUT`: a recipe names its

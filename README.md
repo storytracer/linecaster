@@ -419,7 +419,7 @@ These blocks need no model.
 - Positions are pixels of the page image; boxes are `[x, y, width, height]`.
 - A `Transcription` survives a round trip through JSON exactly, and through ALTO, PAGE-XML and hOCR
   without losing structure, text, positions or confidences.
-- `specs/` has the full design.
+- `specs/` is the reference.
 
 </details>
 
@@ -502,7 +502,7 @@ Spelling is never modernised.
   its presets' hashes, so one recipe edition pins everything down to the weights.
 - **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
   pipeline's results belong to a recipe; a preset's to the preset, with the rest of the pipeline as context.
-- [specs/catalog.md](specs/catalog.md) has the full design.
+- [specs/catalog.md](specs/catalog.md) is the full reference.
 
 </details>
 
@@ -532,7 +532,7 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `launch.py` | launches a recipe or a whole-page model by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `specs/` | design of the data model and the catalogue |
+| `specs/` | reference: the data model, serialisation, the catalogue |
 | `docs/` | the generated catalogue pages (`docs/catalog/`, one folder per component), images for this README |
 
 </details>

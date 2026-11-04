@@ -1,4 +1,4 @@
-# Serialisation and working images (decisions of 2026-11-03, for review)
+# Serialisation and working images
 
 `linecaster.transcription.{alto,pagexml,hocr}` write and read the three XML formats on lxml;
 `linecaster.images` turns any page image into the working image. Neither imports datatrove,
@@ -65,7 +65,7 @@ saturate or an engine.
 10. **Known limits.** Characters XML cannot carry (C0 controls other than tab/newline) make the
     writers raise lxml's `ValueError`; text is not silently altered. Language is written to hOCR
     `lang` only.
-11. **Tests**: the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
+11. **Tests** cover the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
     empty and unrecognised lines, a region-less line, hyphenation, alternatives), irregular orders,
     300 seeded random transcriptions per format (every tenth also validated against the XSD),
     and foreign files (ALTO v2 mm10, v3 without namespace, eScriptorium v4; PAGE 2010 and
@@ -149,10 +149,7 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
   without a profile: Pillow's conversion. EXIF orientation is not applied (coordinates refer to
   the stored pixels) but reported as `exif_orientation`.
 - **Encoding**: always lossless WebP (`VP8L`), full resolution, `method=0`, `exact=True`;
-  `effort` (Pillow's `quality` for lossless) defaults to Pillow's 80. One measurement on spark, a
-  3996 × 5964 newspaper JPEG: decode 0.09 s; encode effort 0: 1.67 s / 17.2 MB, 25: 1.99 s /
-  17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4× faster for 4 % more bytes;
-  left at the default until measured on a broader sample.
+  `effort` (Pillow's `quality` for lossless) defaults to Pillow's 80.
 - **info**: `format`, `width`, `height`, `source_format`, `source_mode`, `pixels_sha256` (sha256 of
   the decoded 8-bit RGB bytes, row-major, what the WebP decodes to), `sha256` (of the WebP),
   `decoder` (`Pillow x / <source library> y / libwebp z`), `webp_settings`, `icc_applied`,
