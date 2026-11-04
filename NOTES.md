@@ -42,6 +42,52 @@ Ideas, none measured:
   GGUF files as `converted` / `quantised` model documents, each with its own evidence. GGUF does not suit
   kraken (no graph importer in ggml; a reimplementation).
 
+## kraken: batching by line width and torch.compile (#1, 2026-11-04: spark, HF Jobs L4)
+
+Daniel van Strien's changes 3 and 4 as options of `kraken.recognition.v1`, off by default: `sort_by_width` (a
+page's lines go to kraken widest first, by box width / height, and come back in line order) and
+`compile_backbone` (`torch.compile(dynamic=True)` of the PP-OCRv6 backbone). Measured with `--recipe squiddle
+--set recognition....`, against the same commit without them (93bac25, kraken fork 48eecb78).
+
+Full ground truth (bhl-impact-gt, 2,165 pages), HF Jobs `l4x1`, 4 tasks of 541 pages each, served:
+
+| | recognition, steady state | compile warm-up | characters changed | CERdip | CERread | recall | furniture |
+|---|---|---|---|---|---|---|---|
+| kraken-ppocrv6-medium@1 | 0.724 s/page | | | 0.0576 | 0.0419 | 0.9754 | 0.8491 |
+| + sort_by_width | 0.650 s/page (−10 %) | | 0.220 % | 0.0577 | 0.0416 | 0.9752 | 0.8441 |
+| + sort_by_width + compile_backbone | 0.529 s/page (−27 %) | about 167 s per server | 0.223 % | 0.0578 | 0.0416 | 0.9752 | 0.8437 |
+
+- Scored with the frozen bhl-ocr-eval harness (board lane). sample-60 and tables-7 move the same way (sample-60
+  CERread 0.0268 → 0.0265). On sample-60 locally (spark, in-process): 0.716 → 0.631 → 0.530 s/page, compile
+  warm-up about 52 s.
+- Characters change much more than on Daniel's single book (0.03 %): other batches pad differently, which
+  flips CTC near-ties; word boxes move more often than text.
+- The furniture drop is the typography step: it removes 70–72 page numbers as uncertain instead of 61, because
+  short page-number lines come out with other text or confidence in other batches. Its rule was tuned on the
+  old batching.
+- Compiling pays off only for long-lived servers: about 167 s of warm-up against 0.12 s saved per page, so
+  from about 1,400 pages per server. With 541 pages per task the compiled run used more GPU time in total
+  than sorting alone.
+- Neither option was adopted from this round: `sort_by_width` was dropped (it is not in linecaster), and
+  `compile_backbone` is an option off by default (see the entry above for both measured on their own).
+
+Where the characters change with `sort_by_width` (full ground truth, against kraken's own batching):
+
+| region | line width / height | lines | lines changed | characters changed | mean confidence |
+|---|---|---|---|---|---|
+| body | < 2 (one or two characters) | 3,430 | 569 | 8.25 % | −0.119 |
+| body | 2–5 | 2,961 | 242 | 1.76 % | −0.012 |
+| body | 5–10 | 7,093 | 762 | 0.94 % | −0.001 |
+| body | 10–20 | 26,590 | 1,831 | 0.21 % | ±0 |
+| body | ≥ 20 | 27,229 | 1,087 | 0.07 % | ±0 |
+
+Sorted widest first, a page's narrowest lines end up together in the last batch, only a few dozen pixels wide;
+in kraken's order they share batches with full-width lines and are padded to them. Page numbers dropped only with
+sorting (17; 6 the other way): `viii` (0.97) → `rii` (0.60), `vii` (0.99) → `ru` (0.69), `ii` (0.95) → empty,
+`xj` (0.97) → empty, `IX` (0.99) → `IX` (0.74), `G3` (0.91) → `G3` (0.67). The typography rule (mean character
+confidence below 0.75) only reveals it; lowering it would keep the wrong readings.
+
+
 ## kraken line prefetch (#1, 2026-11-04: spark, forge, HF Jobs L4)
 
 Daniel van Strien's issue #1: kraken's recognition loop makes the CPU wait for the GPU on every line (the
