@@ -27,8 +27,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   after the one dependency it brings; no umbrella or alias extras.
 - **I/O through datatrove.** One datatrove `Document` per page; datatrove's readers, writers,
   `DataFolder` (fsspec) and executors for everything. linecaster only adds what datatrove lacks.
-- **Generic connectors only.** Folders, buckets, HF datasets. Corpus or institution adapters
-  (BHL, GRIN, Europeana, IIIF, METS) belong in derivatives.
+- **Generic connectors only.** Folders, buckets, HF datasets, and IIIF (a standard:
+  `blocks/iiif.py`, through storytracer/pybookget, extra `[pybookget]`, also for `http(s)://`
+  image URLs). Corpus or institution adapters (BHL, GRIN, Europeana, e-rara, METS) belong in
+  derivatives (pybookget's own handlers stay in pybookget).
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
@@ -133,7 +135,9 @@ with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are
 batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
 conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or
 Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files), `ImageParquetReader` (an image
-column: bytes, HF image struct or path). An item's pages can land in different tasks; item-level steps are a
+column: bytes, HF image struct or path), `IIIFManifestReader` (a manifest is an entry like a file, so an item stays
+in one task; images fetched ahead with pybookget, rate limits per task; `pipelines/harvest.py` downloads them once
+into item folders plus page rows, `--rows` reads those). An item's pages can land in different tasks; item-level steps are a
 second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/items.py` reads
 whole shards), as datatrove's own multi-stage pipelines read per-bucket folders. Each task starts its own
 servers.

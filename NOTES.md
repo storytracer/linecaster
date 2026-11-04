@@ -850,3 +850,19 @@ CER reading, linecaster vs board:
   scored run (see the SmolDocling section above). Worth a second look.
 - Not ported: indra-ocr (in-process ONNX package, not a server), OXR-1.0 and Falcon-OCR (vendor parse
   APIs, not chat completions).
+
+## IIIF through pybookget (2026-11-04, spark)
+
+`IIIFManifestReader` and `pipelines/harvest.py` checked against public servers with linecaster's user agent,
+2 requests per second:
+
+- Wellcome Collection (`presentation/v3/b18035723`): a Presentation 3 manifest whose image service is Image
+  API 2, so the request is `full/full` (not `max`); 36 canvases; harvest of 3 pages, then the squiddle recipe
+  on `--rows` (rows keep `metadata.iiif`, `image.extra.source_uri`).
+- Bodleian (a Presentation 2 manifest, 84 canvases): first image fetched at full size; the manifest has no
+  `license`, so `rights` is empty.
+
+Open: the per-task rate limit is the only limit (datatrove keeps no state between tasks); a run against one
+server sets `--workers` × `--rate-limit` to what that server accepts. Inline `--manifests` in
+`pipelines/chain.py` and `pipelines/vlm.py` needs `pybookget` in their metadata and relocked scripts, which
+needs the pybookget commit on GitHub.
