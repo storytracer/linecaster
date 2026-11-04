@@ -5,6 +5,7 @@
 * per-page files (hOCR, ALTO, PAGE, txt, md, HTML, DocLang, DoclingDocument JSON, Transcription JSON,
   layout plots):
   ``PageFilesWriter``, ``<item_id>/<page_id>.<ext>``;
+* page images as files (e.g. harvested from IIIF): ``ImageFilesWriter``, ``<item_id>/<page_id>.<ext>``;
 * per-item texts from ``ItemTexts``: ``ItemTextJsonlWriter`` (one folder per variant) and
   ``ItemTextFilesWriter`` (``<variant>/<item_id>.txt|.md``).
 """
@@ -187,6 +188,50 @@ class PageFilesWriter(PipelineStep):
                 with out.open(f"{stem}.{PAGE_FILE_EXTENSIONS[fmt]}", "wb") as f:
                     f.write(data_bytes)
                 self.stat_update(fmt)
+            yield doc
+
+
+# ------------------------------------------------------------------ page images
+
+#: file extension per image format (Pillow's names, as ``PageImage.format`` holds them)
+IMAGE_FILE_EXTENSIONS = {"jpeg": "jpg", "png": "png", "webp": "webp", "tiff": "tif", "jpeg2000": "jp2",
+                         "gif": "gif", "bmp": "bmp"}
+
+
+class ImageFilesWriter(PipelineStep):
+    """Each page's image bytes as they came, one file per page: ``<output_folder>/<item_id>/<page_id>.<ext>``
+    (any fsspec folder; ``<page_id>.<ext>`` for pages without an item), the extension from the image's format.
+    The page's ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from,
+    so page rows written after this block point at the copy (``PageRowReader`` fetches it from there), and
+    ``ImageFolderReader(output_folder, item_from_parent=True)`` reads the folder as it is. Pages pass through."""
+
+    type = "💽 - WRITER"
+    name = "🖼️ image files"
+
+    def __init__(self, output_folder: DataFolderLike):
+        super().__init__()
+        self.output_folder = output_folder
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        from datatrove.io import get_datafolder
+
+        from .base import image_bytes, page_of, set_page
+
+        out = get_datafolder(self.output_folder)
+        for doc in data:
+            page = page_of(doc)
+            fmt = (page.image.format if page.image else None) or ""
+            ext = IMAGE_FILE_EXTENSIONS.get(fmt, fmt or "bin")
+            path = f"{page.item_id}/{page.page_id}.{ext}" if page.item_id else f"{page.page_id}.{ext}"
+            with self.track_time():
+                with out.open(path, "wb") as f:
+                    f.write(image_bytes(doc))
+            source = page.image.uri
+            extra = {**page.image.extra, "source_uri": source} if source else page.image.extra
+            page = page.model_copy(update={"image": page.image.model_copy(
+                update={"uri": out.resolve_paths(path), "extra": extra})})
+            set_page(doc, page)
+            self.stat_update("images")
             yield doc
 
 

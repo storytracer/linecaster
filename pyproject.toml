@@ -30,6 +30,9 @@ dependencies = [
 minicpm-ocr = ["minicpm-ocr==1.0.1"]
 # Ray clusters: datatrove's RayPipelineExecutor (linecaster.ray_executor.RayGPUExecutor)
 ray = ["ray[default]>=2.40"]
+# IIIF manifests and http(s):// images (linecaster.blocks.iiif): pybookget's IIIF parser and HTTP layer
+# (rate limits, retries that honour Retry-After); its core install, without its CLI
+pybookget = ["pybookget>=1.1"]
 
 [project.scripts]
 linecaster = "linecaster.cli:main"
@@ -44,6 +47,10 @@ build-backend = "uv_build"
 [tool.uv]
 # spark and forge share one uv.lock; an older uv may not read a lockfile written by a newer one
 required-version = ">=0.13.6"
+
+[tool.uv.sources]
+# not on PyPI yet
+pybookget = { git = "https://github.com/storytracer/pybookget", rev = "dd0ce49bd835be78fbbca4dd0ba470033454efad" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

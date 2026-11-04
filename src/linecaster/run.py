@@ -44,13 +44,15 @@ RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
 def parser(description: str | None) -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path: local, s3://, hf://), or "
-                                              "--parquet")
+                                              "--parquet, --manifests or --rows")
     ap.add_argument("out", help="output folder (any fsspec path): page rows in OUT/rows, logs in OUT/logs")
     g = ap.add_argument_group("input (datatrove's reader options)")
     g.add_argument("--paths-file", help="IMAGES: a file with one image per line, relative to IMAGES, instead of "
-                                        "finding the images (datatrove's paths_file)")
+                                        "finding the images (datatrove's paths_file); --manifests FOLDER: one "
+                                        "manifest per line")
     g.add_argument("--glob-pattern", default=None, help="IMAGES: the image files to read (default every image "
-                                                        "file); --parquet: the Parquet files (default **/*.parquet)")
+                                                        "file); --parquet: the Parquet files (default **/*.parquet); "
+                                                        "--manifests: the manifest files (default **/*.json)")
     g.add_argument("--item-from-parent", action="store_true",
                    help="IMAGES: the parent folder is the item (item id)")
     g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES, e.g. a Hub dataset: "
@@ -61,6 +63,19 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--item-key", default=None, help="--parquet: the item id column")
     g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its item")
     g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
+    g.add_argument("--manifests", help="IIIF manifests instead of IMAGES (linecaster[pybookget]): a folder of "
+                                       "manifest files (--glob-pattern, default **/*.json), or a .txt file listing "
+                                       "manifests, one per line: URLs, or paths relative to the file's folder")
+    g.add_argument("--item-id-pattern", default=None,
+                   help="--manifests: a regular expression whose first group is the item id in each manifest "
+                        "entry (default: its last path segment that is not 'manifest')")
+    g.add_argument("--prefetch", type=int, default=8, help="--manifests: images requested ahead")
+    g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
+                                                        "services (jpg, png, tif, webp; what the server offers)")
+    g.add_argument("--rows", help="page rows of an earlier pipeline instead of IMAGES (e.g. "
+                                  "pipelines/harvest.py's OUT/rows), images fetched from their URIs")
+    g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
+                   help="http(s) requests (IIIF, image URLs) per task, e.g. 5/1; repeatable, all windows apply")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("output")
@@ -94,11 +109,35 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     return ap
 
 
+def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
+    """``["5/1", "200/60"]`` -> ``[(5, 1.0), (200, 60.0)]`` (pybookget's ``Config.rate_limits``)."""
+    out = []
+    for v in values:
+        n, sep, secs = v.partition("/")
+        try:
+            out.append((int(n), float(secs)))
+        except ValueError:
+            raise ValueError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}") from None
+        if not sep or out[-1][0] < 1 or out[-1][1] <= 0:
+            raise ValueError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}")
+    return out or None
+
+
 def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
-    if bool(a.images) == bool(a.parquet):
-        ap.error("give IMAGES or --parquet")
-    if a.parquet and (a.paths_file or a.item_from_parent):
-        ap.error("--paths-file and --item-from-parent are for IMAGES; --parquet names items with --item-key")
+    inputs = [x for x in ("images", "parquet", "manifests", "rows") if getattr(a, x, None)]
+    if len(inputs) != 1:
+        ap.error("give one of IMAGES, --parquet, --manifests and --rows")
+    if (a.parquet or a.rows) and (a.paths_file or a.item_from_parent):
+        ap.error("--paths-file and --item-from-parent are for IMAGES and --manifests; --parquet names items "
+                 "with --item-key")
+    if a.manifests and a.item_from_parent:
+        ap.error("--manifests: each manifest is an item (--item-id-pattern names it)")
+    if a.rows and (a.limit != -1 or a.skip or a.glob_pattern):
+        ap.error("--rows reads whole row files; --limit, --skip and --glob-pattern are for the other inputs")
+    try:
+        a.rate_limits = rate_limits(a.rate_limit)
+    except ValueError as e:
+        ap.error(str(e))
     if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
         ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
     if a.on == "hf-jobs" and not a.commit:
@@ -111,13 +150,32 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     return a
 
 
-def reader(a: argparse.Namespace):
-    from .blocks.readers import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
+def http(a: argparse.Namespace) -> dict:
+    """pybookget ``Config`` fields from the options (``linecaster.blocks.iiif.HTTPFetcher``)."""
+    out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
+    if getattr(a, "rate_limits", None):
+        out["rate_limits"] = a.rate_limits
+    return out
 
+
+def reader(a: argparse.Namespace):
+    from .blocks.readers import IMAGE_GLOB, ImageFolderReader, ImageParquetReader, PageRowReader
+
+    if getattr(a, "manifests", None):
+        from .blocks.iiif import IIIFManifestReader
+
+        folder, paths_file = a.manifests, a.paths_file
+        if a.manifests.endswith(".txt"):
+            folder, paths_file = (a.manifests.rsplit("/", 1)[0] if "/" in a.manifests else "."), a.manifests
+        return IIIFManifestReader(folder, paths_file=paths_file, glob_pattern=a.glob_pattern or "**/*.json",
+                                  limit=a.limit, skip=a.skip, item_id_pattern=a.item_id_pattern,
+                                  prefetch=a.prefetch, http=http(a))
+    if getattr(a, "rows", None):
+        return PageRowReader(a.rows, http=http(a))
     if a.parquet:
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
-                                  sequence_key=a.sequence_key, image_folder=a.image_folder)
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a))
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip,
                              sequence=a.item_from_parent and not a.paths_file)

@@ -10,7 +10,9 @@ item-level steps run in a later stage over item shards (``linecaster.blocks.shar
 * ``PageRowReader``: page rows written by a previous linecaster pipeline.
 
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
-fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket).
+fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
+(in a Parquet image column or a page row) are fetched with pybookget (``linecaster[pybookget]``), politely:
+rate limits per task, retries that honour ``Retry-After``. IIIF manifests: ``linecaster.blocks.iiif``.
 """
 from __future__ import annotations
 
@@ -32,12 +34,24 @@ def _stem(path: str) -> str:
 
 
 class _Opener:
-    """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local)."""
+    """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
+    ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honour
+    ``Retry-After``; ``http`` sets its ``Config`` fields, ``linecaster.blocks.iiif.HTTPFetcher``)."""
 
-    def __init__(self):
+    def __init__(self, http: dict | None = None):
         self._folders: dict = {}
+        self.http, self._fetcher = dict(http or {}), None
+
+    def __getstate__(self):                      # pipelines are pickled for their executors; the fetcher's
+        return {**self.__dict__, "_fetcher": None}   # thread and event loop are made again where it runs
 
     def read(self, uri: str) -> bytes:
+        if uri.startswith(("http://", "https://")):
+            if self._fetcher is None:
+                from .iiif import HTTPFetcher
+
+                self._fetcher = HTTPFetcher(**self.http)
+            return self._fetcher.get(uri).content
         folder, name = uri.rsplit("/", 1) if "/" in uri else (".", uri)
         df = self._folders.get(folder)
         if df is None:
@@ -132,7 +146,7 @@ class ImageParquetReader(ParquetReader):
     bytes, or as a path: absolute (any fsspec URI) or relative to ``image_folder`` (default ``data_folder``).
     ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the item and the page's position in it. With
     ``read_metadata`` the other columns go into the page's metadata (datatrove's default adapter keeps them too);
-    without it only the named columns are read."""
+    without it only the named columns are read. ``http``: pybookget ``Config`` fields for ``http(s)://`` paths."""
 
     name = "🖼️ image parquet"
 
@@ -141,12 +155,12 @@ class ImageParquetReader(ParquetReader):
                  batch_size: int = 64, id_key: str = "id", image_key: str = "image", item_key: str | None = None,
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
-        self._opener = _Opener()
+        self._opener = _Opener(http)
 
     def _image(self, value, filepath: str, page_id: str) -> tuple[bytes, str]:
         data, path = value, None
@@ -198,12 +212,13 @@ class PageRowReader(PipelineStep):
     name = "📄 page rows"
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
-                 uri_map: dict[str, str] | None = None, item_shards: bool = False):
-        """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files)."""
+                 uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None):
+        """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files); ``http``
+        sets pybookget ``Config`` fields for ``http(s)://`` image URIs."""
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
         self.uri_map, self.item_shards = uri_map or {}, item_shards
-        self._opener = _Opener()
+        self._opener = _Opener(http)
 
     def _rows(self, path: str):
         import gzip
