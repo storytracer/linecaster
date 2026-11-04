@@ -130,7 +130,12 @@ with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are
 (a whole item in one file; no joins); `originals/` is never modified; `processed/…/<pipeline>/`,
 `rejects/<output>/` (`RejectSink`: key, field, error, raw value; `ValidatePages`) and
 `logs/<pipeline>/…` (datatrove's completion markers, logs, stats). One job = one pipeline for one
-batch on one executor; resume is datatrove's, per task, so tasks stay small.
+batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
+conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task):
+`ImageFolderReader` distributes **books** (a `paths_file` of book folders, or parent folders), so a book stays
+in one task; `ImageParquetReader` (image column: bytes, HF image struct or path) distributes files. Many small
+tasks, several per HF Job (`--tasks-per-job`), servers started once per Job (`keep_running`), `--workers` Jobs
+at once.
 
 ## Images
 

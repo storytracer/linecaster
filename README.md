@@ -169,6 +169,28 @@ A pipeline runs on every machine with the same steps. Only its flags change:
 On Ray and HF Jobs every task gets one GPU and starts its own model server on it.
 
 <details>
+<summary><b>📥 Where the pages come from</b></summary>
+
+The readers follow [datatrove]'s conventions: a folder or a list of entries, distributed over the tasks in
+turn, `--limit` and `--skip` per task. Any fsspec path works: local, `s3://`, `hf://`.
+
+| Input | Flags | Distributed over tasks by |
+|---|---|---|
+| a folder of images | `IMAGES` (`--glob-pattern` to choose files) | page |
+| a folder with one subfolder per book | `IMAGES --item-from-parent` | book |
+| a list of book folders | `IMAGES --paths-file books.txt` (one folder per line, relative to `IMAGES`) | book |
+| Parquet with an image column | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) | file |
+
+- The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
+  or relative to `--image-folder`.
+- A Hub image dataset is just Parquet: `--parquet hf://datasets/<repo>@<revision>/data`.
+- A public bucket needs no credentials with `FSSPEC_S3_ANON=true`.
+- Book-level outputs (`--texts`) need each book in one task: use a book input, or a Parquet file per set of
+  whole books.
+
+</details>
+
+<details>
 <summary><b>🖥️ A model server that stays up</b></summary>
 
 `serve` starts `linecaster serve` with the presets you name and keeps them loaded; `--endpoint` points
@@ -209,17 +231,24 @@ Images and output must be on storage every machine can reach.
 <details>
 <summary><b>☁️ On Hugging Face Jobs</b></summary>
 
-One Job per task, one GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines,
-sources and pins of the pipeline's `# /// script` block:
+One GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines, sources and pins of
+the pipeline's `# /// script` block:
 
 ```bash
 uv run pipelines/chain.py \
-  hf://datasets/<ns>/<images> \
+  s3://bhl-open-data/images \
   hf://buckets/<ns>/<bucket>/<run> $P \
-  --on hf-jobs --commit <sha> --tasks 64
+  --paths-file hf://buckets/<ns>/<bucket>/books.txt \
+  --on hf-jobs --commit <sha> \
+  --tasks 4000 --tasks-per-job 12 --workers 64 --timeout 12h \
+  --env FSSPEC_S3_ANON=true
 ```
 
-`--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/vlm.py` picks the server image
+- **The book is the unit:** a task gets every n-th book of the list, always whole.
+- **A Job runs `--tasks-per-job` tasks one after the other,** with its models loaded once.
+- **`--workers` Jobs run at the same time,** and the next starts when one finishes.
+- **A rerun into the same output** runs only the tasks that didn't finish.
+- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks at a time per Job, one per GPU. `pipelines/vlm.py` picks the server image
 its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
 
 </details>
@@ -371,8 +400,8 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `ImageFolderReader` | page images from a folder or bucket |
-| `HFImageDatasetReader` | page images from a Hugging Face dataset |
+| `ImageFolderReader` | page images from a folder or bucket, book by book |
+| `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
 | `PageRowReader` | page rows written by an earlier run |
 
 **Images and checks**

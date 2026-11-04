@@ -202,15 +202,11 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     assert huggingface_hub.run_uv_job.__name__ == "<lambda>"     # the wrapper is removed again
 
 
-def test_hf_dataset_reader_without_parquet_files_is_an_error(monkeypatch):
-    """An image folder on the Hub has no Parquet files: the reader says so instead of reading nothing."""
-    import huggingface_hub
+def test_parquet_reader_without_parquet_files_is_an_error(tmp_path):
+    """An image folder has no Parquet files: the reader says so instead of reading nothing."""
+    from linecaster.blocks.readers import ImageParquetReader
 
-    from linecaster.blocks.readers import HFImageDatasetReader
-
-    class Info:
-        siblings = [type("S", (), {"rfilename": "images/book/book_0001.webp"})()]
-
-    monkeypatch.setattr(huggingface_hub.HfApi, "dataset_info", lambda self, repo, revision=None: Info())
-    with pytest.raises(ValueError, match="no Parquet files"):
-        list(HFImageDatasetReader("org/images", "abc").run())
+    (tmp_path / "book").mkdir()
+    (tmp_path / "book" / "book_0001.webp").write_bytes(b"not parquet")
+    with pytest.raises(RuntimeError, match="No files found"):
+        list(ImageParquetReader(str(tmp_path)).run())

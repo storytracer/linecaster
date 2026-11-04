@@ -4,6 +4,8 @@
 #     # Ray for --on ray (HF Jobs leave it out)
 #     "linecaster[ray]",
 #     "linecaster-paddlex",
+#     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)
+#     "s3fs",
 #     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
 #     "opencv-contrib-python",
 # ]

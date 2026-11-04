@@ -8,6 +8,8 @@
 #     "linecaster-tesseract",
 #     # direct, so the fork in [tool.uv.sources] applies (sources only apply to a script's own dependencies)
 #     "kraken",
+#     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)
+#     "s3fs",
 #     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
 #     "opencv-contrib-python",
 # ]

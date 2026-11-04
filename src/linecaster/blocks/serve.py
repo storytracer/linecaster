@@ -5,10 +5,52 @@ its own GPU, e.g. one HF Job per datatrove task.
 
 Put it **last** in the pipeline (after the writer): datatrove chains generators, so the last block's
 generator is the one that lives until every page has passed every block. Placed before the served
-blocks, it would stop the server as soon as the reader ran dry, with requests still in flight."""
+blocks, it would stop the server as soon as the reader ran dry, with requests still in flight.
+
+With ``keep_running`` (on HF Jobs, where the process ends with the Job) a server outlives its task: the next
+task in the same process (``tasks_per_job``) reuses it when it was started the same way and is still running,
+so models load, and compile, once per Job. It stops when the process exits. Without it (the default: local
+runs, Ray) each task starts and stops its own server."""
 from __future__ import annotations
 
+import atexit
+import json
+
 from datatrove.pipeline.base import PipelineStep
+
+#: servers started in this process, by how they were started; stopped when the process exits
+_SERVERS: dict[str, object] = {}
+
+
+def _stop_servers() -> None:
+    while _SERVERS:
+        _, server = _SERVERS.popitem()
+        server.__exit__(None, None, None)
+
+
+atexit.register(_stop_servers)
+try:   # forked task processes (GPUJobsExecutor) end through multiprocessing, which skips atexit
+    from multiprocessing.util import Finalize
+
+    Finalize(None, _stop_servers, exitpriority=100)
+except ImportError:  # pragma: no cover
+    pass
+
+
+def shared_server(key, start):
+    """The running server started as ``key`` in this process, or a new one from ``start()`` (a saturate
+    ``Engine``, entered here). A server whose process has ended is replaced."""
+    key = json.dumps(key, sort_keys=True, default=str)
+    server = _SERVERS.get(key)
+    proc = getattr(server, "proc", None)
+    if server is not None and proc is not None and proc.poll() is None:
+        return server, False
+    if server is not None:
+        server.__exit__(None, None, None)
+    server = start()
+    server.__enter__()
+    _SERVERS[key] = server
+    return server, True
 
 
 class ServeModels(PipelineStep):
@@ -16,21 +58,19 @@ class ServeModels(PipelineStep):
     name = "🖥️ serve models"
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
-                 max_queue: int = 16, script: str | None = None):
+                 max_queue: int = 16, script: str | None = None, keep_running: bool = False):
         super().__init__()
         self.models, self.port, self.python, self.boot_timeout, self.max_queue = models, port, python, boot_timeout, max_queue
-        self.script = script
+        self.script, self.keep_running = script, keep_running
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from ..serve import engine
 
-        with self.track_time("boot"):
-            server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
-            server.__enter__()
-        try:
-            yield from data
-        finally:
-            server.__exit__(None, None, None)
+        def start():
+            return engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
+
+        yield from _serve(self, ["linecaster", self.models, self.port, self.python, self.max_queue, self.script],
+                          start, data)
 
 
 class ServeChatModel(PipelineStep):
@@ -66,8 +106,9 @@ class ServeChatModel(PipelineStep):
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,
-                 outside_venv: bool = False, python: str = "python3"):
+                 outside_venv: bool = False, python: str = "python3", keep_running: bool = False):
         super().__init__()
+        self.keep_running = keep_running
         if isinstance(spec, str):
             from ..models import chat_model
 
@@ -171,14 +212,31 @@ class ServeChatModel(PipelineStep):
     def run(self, data, rank: int = 0, world_size: int = 1):
         from saturate import Engine
 
-        with self.track_time("boot"):
+        def start():
             python = self.prepare()
-            server = Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
-                            cmd=self.launch_command(python))
+            return Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
+                          cmd=self.launch_command(python))
+
+        key = ["chat", self.spec.model, getattr(self.spec, "revision", None), self.server, self.port,
+               self.gpu_memory_utilization, self.extra_args, self.outside_venv]
+        yield from _serve(self, key, start, data)
+
+
+def _serve(block, key, start, data):
+    """A serve block's run: its server, kept running for the next task with ``keep_running``, else stopped
+    when the task's pages are through."""
+    with block.track_time("boot"):
+        if getattr(block, "keep_running", False):
+            _, started = shared_server(key, start)
+            server = None
+        else:
+            server, started = start(), True
             server.__enter__()
-        try:
-            yield from data
-        finally:
+    block.stat_update("server_started" if started else "server_reused")
+    try:
+        yield from data
+    finally:
+        if server is not None:
             server.__exit__(None, None, None)
 
 

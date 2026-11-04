@@ -43,14 +43,26 @@ RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
 
 def parser(description: str | None) -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path), or --dataset")
+    ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path: local, s3://, hf://), or "
+                                              "--parquet")
     ap.add_argument("out", help="output folder (any fsspec path): page rows in OUT/rows, logs in OUT/logs")
-    g = ap.add_argument_group("input")
-    g.add_argument("--dataset", help="an image dataset on the Hugging Face Hub instead of IMAGES")
-    g.add_argument("--revision", help="the dataset's pinned revision")
-    g.add_argument("--id-column", default="PageID", help="the dataset's page id column")
-    g.add_argument("--item-from-parent", action="store_true", help="item id = the image's parent folder")
-    g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task")
+    g = ap.add_argument_group("input (datatrove's reader options)")
+    g.add_argument("--paths-file", help="IMAGES: a file with one book folder (or image) per line, relative to "
+                                        "IMAGES, instead of finding the images (each book stays in one task)")
+    g.add_argument("--glob-pattern", default=None, help="IMAGES: the image files to read (default every image "
+                                                        "file); --parquet: the Parquet files (default **/*.parquet)")
+    g.add_argument("--item-from-parent", action="store_true",
+                   help="IMAGES: the parent folder is the book (item id); its pages stay in one task")
+    g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES, e.g. a Hub dataset: "
+                                     "hf://datasets/<repo>@<revision>/data")
+    g.add_argument("--id-key", default="id", help="--parquet: the page id column")
+    g.add_argument("--image-key", default="image", help="--parquet: the image column (bytes, an HF image struct, "
+                                                        "or a path)")
+    g.add_argument("--item-key", default=None, help="--parquet: the book (item id) column")
+    g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its book")
+    g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
+    g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
+    g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("where it runs")
     g.add_argument("--on", choices=ON, default="local")
     g.add_argument("--tasks", type=int, default=1, help="datatrove tasks (one GPU each on Ray and HF Jobs)")
@@ -67,7 +79,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed)")
     g.add_argument("--namespace", default="finebooks")
     g.add_argument("--flavor", default="l4x1")
-    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
+    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4)")
+    g.add_argument("--tasks-per-job", type=int, default=None,
+                   help="tasks each Job runs, one after the other on each GPU with its servers started once "
+                        "(default: one per GPU); a multiple of --gpus")
     g.add_argument("--image", default=None, help="the Jobs' container image")
     g.add_argument("--timeout", default="3h")
     g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
@@ -76,10 +91,12 @@ def parser(description: str | None) -> argparse.ArgumentParser:
 
 
 def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
-    if bool(a.images) == bool(a.dataset):
-        ap.error("give IMAGES or --dataset")
-    if a.dataset and not a.revision:
-        ap.error("--dataset needs a pinned --revision")
+    if bool(a.images) == bool(a.parquet):
+        ap.error("give IMAGES or --parquet")
+    if a.parquet and (a.paths_file or a.item_from_parent):
+        ap.error("--paths-file and --item-from-parent are for IMAGES; --parquet names books with --item-key")
+    if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.tasks_per_job % a.gpus):
+        ap.error("--tasks-per-job must be a positive multiple of --gpus")
     if a.on == "hf-jobs" and not a.commit:
         ap.error("--on hf-jobs needs --commit (pushed)")
     if a.backend is None:
@@ -91,11 +108,15 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
 
 
 def reader(a: argparse.Namespace):
-    from .blocks.readers import HFImageDatasetReader, ImageFolderReader
+    from .blocks.readers import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
 
-    if a.dataset:
-        return HFImageDatasetReader(a.dataset, a.revision, id_column=a.id_column, limit=a.limit)
-    return ImageFolderReader(a.images, item_from_parent=a.item_from_parent, limit=a.limit)
+    if a.parquet:
+        return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
+                                  skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder)
+    books = bool(a.paths_file or a.item_from_parent)
+    return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
+                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, sequence=books)
 
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
@@ -220,7 +241,8 @@ def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | 
 
     servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ServeModels)
                else s.launch_command(s.python) for s in pipeline if isinstance(s, (ServeModels, ServeChatModel))]
-    return {"on": a.on, "tasks": a.tasks, "backend": a.backend, "out": a.out, "image": image,
+    return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
+            "image": image,
             "dependencies": deps, "pipeline": [type(s).__name__ for s in pipeline], "servers": servers,
             "pickled_bytes": len(dill.dumps(pipeline))}
 
@@ -263,7 +285,10 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
                   job_name=f"linecaster-{run_id}", labels={"project": "linecaster"}, env=env)
         if image or a.image:
             kw["image"] = a.image or image
-        (GPUJobsExecutor(pipeline, gpus=a.gpus, **kw) if a.gpus > 1 else JobsPipelineExecutor(pipeline, **kw)).run()
+        if a.gpus > 1:
+            GPUJobsExecutor(pipeline, gpus=a.gpus, tasks_per_job=a.tasks_per_job, **kw).run()
+        else:
+            JobsPipelineExecutor(pipeline, tasks_per_job=a.tasks_per_job or 1, **kw).run()
         print(json.dumps({"out": out, "commit": a.commit, "image": kw.get("image")}))
 
 
@@ -337,6 +362,12 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     a = check(ap, a)
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
+    if a.on == "hf-jobs":   # the process ends with the Job: a Job's later tasks reuse its servers
+        from .blocks.serve import ServeChatModel, ServeModels
+
+        for step in pipeline:
+            if isinstance(step, ServeModels | ServeChatModel):
+                step.keep_running = True
     if getattr(a, "recipe_record", None):
         from .blocks.recipe import RecipeStamp
 

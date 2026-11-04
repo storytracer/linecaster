@@ -170,13 +170,17 @@ def point_to_gpu(pipeline: list, local: int) -> list:
 
 
 class GPUJobsExecutor(JobsPipelineExecutor):
-    """``JobsPipelineExecutor`` for multi-GPU flavors: each Job takes ``gpus`` datatrove tasks and runs
-    them at the same time, one forked process per task, task *i* on GPU *i* with its servers *i* ports
-    up (``point_to_gpu``). ``tasks`` should be a multiple of ``gpus``. The Job fails if
-    any of its tasks fails; datatrove's completion markers make a rerun skip the finished ones."""
+    """``JobsPipelineExecutor`` for multi-GPU flavors: each Job takes ``tasks_per_job`` datatrove tasks (default
+    ``gpus``, else a multiple of it) and runs them on its GPUs at the same time, one forked process per GPU, GPU
+    *i* with its servers *i* ports up (``point_to_gpu``); each process runs its tasks one after the other, so its
+    servers start once (``ServeModels``). The Job fails if any of its tasks fails; datatrove's completion markers
+    make a rerun skip the finished ones."""
 
-    def __init__(self, *args, gpus: int, **kwargs):
-        super().__init__(*args, tasks_per_job=gpus, **kwargs)
+    def __init__(self, *args, gpus: int, tasks_per_job: int | None = None, **kwargs):
+        tasks_per_job = tasks_per_job or gpus
+        if tasks_per_job % gpus:
+            raise ValueError(f"tasks_per_job ({tasks_per_job}) must be a multiple of gpus ({gpus})")
+        super().__init__(*args, tasks_per_job=tasks_per_job, **kwargs)
         self.gpus = gpus
 
     def _run_array_index(self, array_index: int):
@@ -187,17 +191,21 @@ class GPUJobsExecutor(JobsPipelineExecutor):
         start = array_index * self.tasks_per_job
         ranks = all_ranks[start:start + self.tasks_per_job]
         ctx = multiprocessing.get_context("fork")   # the Job's parent process never touches CUDA
-        procs = [ctx.Process(target=self._run_on_gpu, args=(rank, local), name=f"gpu{local}")
-                 for local, rank in enumerate(ranks)]
+        procs = [ctx.Process(target=self._run_on_gpu, args=(ranks[local::self.gpus], local), name=f"gpu{local}")
+                 for local in range(min(self.gpus, len(ranks)))]
         for p in procs:
             p.start()
         for p in procs:
             p.join()
-        failed = [rank for p, rank in zip(procs, ranks) if p.exitcode != 0]
+        failed = [ranks[local::self.gpus] for local, p in enumerate(procs) if p.exitcode != 0]
         if failed:
             raise RuntimeError(f"tasks {failed} failed in Job {array_index}")
 
-    def _run_on_gpu(self, rank: int, local: int) -> None:
+    def _run_on_gpu(self, ranks: list[int], local: int) -> None:
+        from copy import deepcopy
+
         os.environ["CUDA_VISIBLE_DEVICES"] = str(local)
-        self.pipeline = point_to_gpu(self.pipeline, local)
-        self._run_for_rank(rank, local_rank=local)
+        base = point_to_gpu(self.pipeline, local)
+        for rank in ranks:   # a fresh copy per task, as datatrove does, so stats don't add up across tasks
+            self.pipeline = deepcopy(base)
+            self._run_for_rank(rank, local_rank=local)
