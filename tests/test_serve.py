@@ -6,7 +6,6 @@ import io
 import socket
 import threading
 
-import pytest
 from PIL import Image
 
 from linecaster.backends import Served
@@ -101,47 +100,3 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
-
-
-def test_serve_blocks_keep_their_server_for_the_next_task(monkeypatch):
-    """With keep_running a Job's later tasks reuse the server (started once, replaced if it died); without it
-    each task starts and stops its own."""
-    import linecaster.serve as serve_pkg
-    from linecaster.blocks import serve
-    from linecaster.blocks.serve import ServeModels
-
-    events = []
-
-    class FakeEngine:
-        def __init__(self):
-            self.proc = type("P", (), {"alive": True, "poll": lambda s: None if s.alive else 1})()
-
-        def __enter__(self):
-            events.append("up")
-            return self
-
-        def __exit__(self, *exc):
-            events.append("down")
-
-    monkeypatch.setattr(serve_pkg, "engine", lambda *a, **k: FakeEngine())
-    monkeypatch.setattr(serve, "_SERVERS", {})
-    kept = ServeModels([{"name": "x", "spec": "pkg:X"}], keep_running=True)
-    for _ in range(3):
-        assert list(kept.run(iter([1, 2]))) == [1, 2]
-    assert events == ["up"]                                   # one server for three tasks
-    next(iter(serve._SERVERS.values())).proc.alive = False    # it died between tasks: replaced
-    list(kept.run(iter([])))
-    assert events == ["up", "down", "up"]
-    serve._stop_servers()
-    assert events[-1] == "down" and serve._SERVERS == {}
-    events.clear()
-    for _ in range(2):
-        list(ServeModels([{"name": "x", "spec": "pkg:X"}]).run(iter([1])))
-    assert events == ["up", "down", "up", "down"]             # default: per task
-
-
-def test_gpu_jobs_take_a_multiple_of_their_gpus():
-    from linecaster.jobs import GPUJobsExecutor
-
-    with pytest.raises(ValueError, match="multiple of gpus"):
-        GPUJobsExecutor([], tasks=8, gpus=4, tasks_per_job=6, logging_dir="hf://buckets/x/y/logs")

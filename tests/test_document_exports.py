@@ -129,12 +129,8 @@ def test_image_folder_reader_item_and_sequence(tmp_path: Path):
     pages = [page_of(d) for d in ImageFolderReader(str(tmp_path), item_from_parent=True, sequence=True).run()]
     assert [(p.item_id, p.page_id, p.sequence) for p in pages] == [("a", "01x", 1), ("a", "03", 2), ("b", "01", 1),
                                                                   ("b", "02", 2)]
-    # one book: it stays whole in one task
-    reader = ImageFolderReader(str(tmp_path), item_id="book", sequence=True)
-    pages = [page_of(d) for d in reader.run(rank=0, world_size=2)]
-    assert [(p.item_id, p.page_id, p.sequence) for p in pages] == [("book", "01x", 1), ("book", "03", 2),
-                                                                  ("book", "01", 3), ("book", "02", 4)]
-    assert list(ImageFolderReader(str(tmp_path), item_id="book").run(rank=1, world_size=2)) == []
+    pages = [page_of(d) for d in ImageFolderReader(str(tmp_path), item_id="book", sequence=True).run(rank=1, world_size=2)]
+    assert [(p.item_id, p.page_id, p.sequence) for p in pages] == [("book", "03", 2), ("book", "02", 4)]
     assert all(p.sequence is None for p in map(page_of, ImageFolderReader(str(tmp_path)).run()))
     with pytest.raises(ValueError):
         ImageFolderReader(str(tmp_path), item_id="x", item_from_parent=True)

@@ -131,11 +131,12 @@ with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are
 `rejects/<output>/` (`RejectSink`: key, field, error, raw value; `ValidatePages`) and
 `logs/<pipeline>/…` (datatrove's completion markers, logs, stats). One job = one pipeline for one
 batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
-conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task):
-`ImageFolderReader` distributes **books** (a `paths_file` of book folders, or parent folders), so a book stays
-in one task; `ImageParquetReader` (image column: bytes, HF image struct or path) distributes files. Many small
-tasks, several per HF Job (`--tasks-per-job`), servers started once per Job (`keep_running`), `--workers` Jobs
-at once.
+conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or
+Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files), `ImageParquetReader` (an image
+column: bytes, HF image struct or path). An item's pages can land in different tasks; item-level steps are a
+second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/items.py` reads
+whole shards), as datatrove's own multi-stage pipelines read per-bucket folders. Each task starts its own
+servers.
 
 ## Images
 

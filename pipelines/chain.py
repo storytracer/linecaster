@@ -112,6 +112,9 @@ def pipeline(a, script: str) -> list:
         raise SystemExit(f"chain: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
     if not a.layout and (a.tables or a.formulas):
         raise SystemExit("chain: --tables and --formulas work on layout regions; pick --layout too")
+    if a.texts and a.tasks > 1:
+        raise SystemExit("chain: --texts needs every page of an item in one task; with several tasks write "
+                         "--item-shards N and run pipelines/items.py on OUT/rows afterwards")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)

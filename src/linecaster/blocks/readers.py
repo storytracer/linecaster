@@ -1,11 +1,12 @@
 """Readers for page images, on datatrove's reader conventions (``BaseDiskReader``: ``data_folder``, ``paths_file``,
 ``glob_pattern``, ``recursive``, ``limit`` and ``skip`` per task, entries distributed over tasks in turn):
 
-* ``ImageFolderReader``: image files in folders. Its entries are **books** (one folder of page images each),
-  listed in a ``paths_file`` or found by ``glob_pattern``, so a book always stays in one task.
+* ``ImageFolderReader``: image files (found by ``glob_pattern`` or listed in a ``paths_file``), one page each.
 * ``ImageParquetReader``: Parquet files with an image column (the bytes, or a path to the image), e.g. an image
-  dataset on the Hub (``hf://datasets/<repo>@<revision>/data``). Its entries are the files, as in datatrove's
-  ``ParquetReader``, so a file should hold whole books.
+  dataset on the Hub (``hf://datasets/<repo>@<revision>/data``), one page per row.
+
+Entries are distributed as datatrove distributes files, so an item's pages can land in different tasks;
+item-level steps run in a later stage over item shards (``linecaster.blocks.shards``).
 * ``PageRowReader``: page rows written by a previous linecaster pipeline.
 
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
@@ -24,10 +25,6 @@ from .base import new_page_document
 
 IMAGE_EXTENSIONS = ("webp", "jpg", "jpeg", "png", "tif", "tiff", "jp2")
 IMAGE_GLOB = "**/*.{" + ",".join(IMAGE_EXTENSIONS) + "}"
-
-
-def is_image(path: str) -> bool:
-    return path.rsplit(".", 1)[-1].lower() in IMAGE_EXTENSIONS
 
 
 def _stem(path: str) -> str:
@@ -50,17 +47,16 @@ class _Opener:
 
 
 class ImageFolderReader(BaseDiskReader):
-    """One page per image file. The entries distributed over tasks are books:
+    """One page per image file, read the way datatrove reads files: the image files under ``data_folder`` matching
+    ``glob_pattern``, or the files listed in ``paths_file`` (one per line, relative to ``data_folder``), distributed
+    over tasks in turn (``[rank::world_size]``, as ``DataFolder.get_shard``).
 
-    * with ``paths_file``: one entry per line, relative to ``data_folder``; a folder is a book (its image files,
-      in sorted order, are its pages and its name is the ``item_id``), an image file is a page of its own;
-    * otherwise the image files under ``data_folder`` matching ``glob_pattern``: with ``item_from_parent`` grouped
-      into books by their parent folder (its name is the ``item_id``), with ``item_id`` all one book, else each file
-      on its own.
-
-    ``page_id`` is the file name without extension. ``sequence`` sets ``Page.sequence`` to the page's 1-based
-    position in its book (the page order of book-level steps). ``limit`` and ``skip`` count pages per task, as in
-    datatrove; ``default_metadata`` goes into every page's metadata."""
+    ``page_id`` is the file name without extension; with ``item_from_parent`` the parent folder's name is the
+    ``item_id``, with ``item_id`` every page belongs to that one item. ``sequence`` (with ``glob_pattern``) sets
+    ``Page.sequence`` to the file's 1-based position among its item's files in sorted order. ``limit`` and ``skip``
+    count pages per task, as in datatrove; ``default_metadata`` goes into every page's metadata. An item's pages
+    can land in different tasks: item-level steps run in a later stage over item shards
+    (``linecaster.blocks.shards``)."""
 
     name = "🖼️ image folder"
 
@@ -73,10 +69,18 @@ class ImageFolderReader(BaseDiskReader):
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         if item_id is not None and item_from_parent:
             raise ValueError("item_id and item_from_parent exclude each other")
+        if sequence and paths_file:
+            raise ValueError("sequence needs every file of an item, so it works with glob_pattern, not paths_file")
         self.item_from_parent, self.item_id, self.sequence = item_from_parent, item_id, sequence
-        self._books: dict[str, tuple[str | None, list[str]]] = {}
+        self._positions: dict[str, int] = {}
+
+    def _item(self, path: str) -> str | None:
+        if self.item_id is not None:
+            return self.item_id
+        return path.rsplit("/", 2)[-2] if self.item_from_parent and "/" in path else None
 
     def _glob(self) -> list[str]:
+        """The matching files, sorted (``{a,b}`` alternatives expanded, which fsspec's glob does not do)."""
         pattern = self.glob_pattern
         if "{" in pattern:
             head, _, rest = pattern.partition("{")
@@ -84,70 +88,49 @@ class ImageFolderReader(BaseDiskReader):
             return sorted({p for ext in exts.split(",") for p in self.data_folder.glob(f"{head}{ext}{tail}")})
         return sorted(self.data_folder.glob(pattern))
 
-    def _globbed_books(self) -> dict[str, tuple[str | None, list[str]]]:
-        """Entry -> (item_id, its image files in order), for the files under ``data_folder``."""
-        books: dict[str, tuple[str | None, list[str]]] = {}
-        for path in self._glob():
-            if self.item_id is not None:
-                key, item = "", self.item_id
-            elif self.item_from_parent and "/" in path:
-                key = path.rsplit("/", 1)[0]
-                item = posixpath.basename(key)
-            else:
-                key, item = path, None
-            books.setdefault(key, (item, []))[1].append(path)
-        return books
-
-    def _listed_book(self, entry: str) -> tuple[str | None, list[str]]:
-        if is_image(entry):
-            parent = posixpath.dirname(entry)
-            return (posixpath.basename(parent) if self.item_from_parent and parent else self.item_id), [entry]
-        folder = entry.rstrip("/")
-        pages = sorted(p for p in self.data_folder.glob(f"{folder}/*") if is_image(p))
-        return posixpath.basename(folder), pages
-
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
             yield from data
         if self.paths_file:
-            entries = list(get_shard_from_paths_file(self.paths_file, rank, world_size))
-            self._books = {}
+            files = list(get_shard_from_paths_file(self.paths_file, rank, world_size))
         else:
-            self._books = self._globbed_books()
-            if not self._books:
+            all_files = self._glob()
+            if not all_files:
                 raise RuntimeError(f"No images found on {self.data_folder.path} matching {self.glob_pattern!r}")
-            entries = sorted(self._books)[rank::world_size]
+            if self.sequence:
+                counts: dict[str | None, int] = {}
+                for path in all_files:
+                    item = self._item(path)
+                    counts[item] = counts.get(item, 0) + 1
+                    self._positions[path] = counts[item]
+            files = all_files[rank::world_size]
         self._log_limit_scope(rank, world_size)
         if self.shuffle_files:
             import random
 
-            random.shuffle(entries)
-        for doc in self.read_files_shard(entries):
+            random.shuffle(files)
+        for doc in self.read_files_shard(files):
             self.update_doc_stats(doc)
             yield doc
 
     def read_file(self, filepath: str):
-        item, pages = self._books.get(filepath) or self._listed_book(filepath)
-        if not pages:
-            self.stat_update("empty_books")
-        for i, path in enumerate(pages, 1):
-            with self.track_time():
-                with self.data_folder.open(path, "rb") as f:
-                    raw = f.read()
-                doc = new_page_document(_stem(path), raw, uri=self.data_folder.resolve_paths(path), item_id=item,
-                                        sequence=i if self.sequence else None,
-                                        metadata=dict(self.default_metadata or {}))
-            self.stat_update("pages")
-            self.update_media_stats(doc.media[0])
-            yield doc
+        with self.track_time():
+            with self.data_folder.open(filepath, "rb") as f:
+                raw = f.read()
+            doc = new_page_document(_stem(filepath), raw, uri=self.data_folder.resolve_paths(filepath),
+                                    item_id=self._item(filepath), sequence=self._positions.get(filepath),
+                                    metadata=dict(self.default_metadata or {}))
+        self.stat_update("pages")
+        self.update_media_stats(doc.media[0])
+        yield doc
 
 
 class ImageParquetReader(ParquetReader):
     """One page per row of Parquet files with an image column, read through datatrove's ``ParquetReader`` (files
-    distributed over tasks in turn, so a file should hold whole books). ``image_key`` holds the image as Hugging
+    distributed over tasks in turn, so a file should hold whole items). ``image_key`` holds the image as Hugging
     Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as plain
     bytes, or as a path: absolute (any fsspec URI) or relative to ``image_folder`` (default ``data_folder``).
-    ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the book and the page's position in it. With
+    ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the item and the page's position in it. With
     ``read_metadata`` the other columns go into the page's metadata (datatrove's default adapter keeps them too);
     without it only the named columns are read."""
 
@@ -205,17 +188,21 @@ class PageRowReader(PipelineStep):
     """Page rows written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
     enrichment chain: each pipeline reads the previous one's folder and adds one part. With
     ``fetch_images`` the image bytes are read again from ``page.image.uri`` (rows never carry them), through
-    datatrove ``DataFolder``s."""
+    datatrove ``DataFolder``s.
+
+    Files are distributed over tasks in turn. With ``item_shards`` the rows were written into item shards
+    (``PageJsonlWriter(item_shards=N)``): the shard folders are distributed instead, each read whole, so a task
+    sees every page of its items."""
 
     type = "📖 - READER"
     name = "📄 page rows"
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
-                 uri_map: dict[str, str] | None = None):
+                 uri_map: dict[str, str] | None = None, item_shards: bool = False):
         """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files)."""
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
-        self.uri_map = uri_map or {}
+        self.uri_map, self.item_shards = uri_map or {}, item_shards
         self._opener = _Opener()
 
     def _rows(self, path: str):
@@ -243,7 +230,16 @@ class PageRowReader(PipelineStep):
 
         if data:
             yield from data
-        for path in sorted(self.data_folder.glob(self.glob_pattern))[rank::world_size]:
+        files = sorted(self.data_folder.glob(self.glob_pattern))
+        if self.item_shards:
+            shards = sorted({f.split("/", 1)[0] for f in files if "/" in f})
+            if not shards:
+                raise RuntimeError(f"No item shards (<shard>/...) under {self.data_folder.path}")
+            mine = set(shards[rank::world_size])
+            files = [f for f in files if f.split("/", 1)[0] in mine]
+        else:
+            files = files[rank::world_size]
+        for path in files:
             for row in self._rows(path):
                 page = row["page"]
                 media = []

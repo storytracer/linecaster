@@ -47,22 +47,26 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                               "--parquet")
     ap.add_argument("out", help="output folder (any fsspec path): page rows in OUT/rows, logs in OUT/logs")
     g = ap.add_argument_group("input (datatrove's reader options)")
-    g.add_argument("--paths-file", help="IMAGES: a file with one book folder (or image) per line, relative to "
-                                        "IMAGES, instead of finding the images (each book stays in one task)")
+    g.add_argument("--paths-file", help="IMAGES: a file with one image per line, relative to IMAGES, instead of "
+                                        "finding the images (datatrove's paths_file)")
     g.add_argument("--glob-pattern", default=None, help="IMAGES: the image files to read (default every image "
                                                         "file); --parquet: the Parquet files (default **/*.parquet)")
     g.add_argument("--item-from-parent", action="store_true",
-                   help="IMAGES: the parent folder is the book (item id); its pages stay in one task")
+                   help="IMAGES: the parent folder is the item (item id)")
     g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES, e.g. a Hub dataset: "
                                      "hf://datasets/<repo>@<revision>/data")
     g.add_argument("--id-key", default="id", help="--parquet: the page id column")
     g.add_argument("--image-key", default="image", help="--parquet: the image column (bytes, an HF image struct, "
                                                         "or a path)")
-    g.add_argument("--item-key", default=None, help="--parquet: the book (item id) column")
-    g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its book")
+    g.add_argument("--item-key", default=None, help="--parquet: the item id column")
+    g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its item")
     g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
+    g = ap.add_argument_group("output")
+    g.add_argument("--item-shards", type=int, default=None, metavar="N",
+                   help="write the page rows into N item shards (OUT/rows/<shard>/<rank>.jsonl.gz), so a later "
+                        "stage (pipelines/items.py) reads whole items")
     g = ap.add_argument_group("where it runs")
     g.add_argument("--on", choices=ON, default="local")
     g.add_argument("--tasks", type=int, default=1, help="datatrove tasks (one GPU each on Ray and HF Jobs)")
@@ -79,10 +83,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed)")
     g.add_argument("--namespace", default="finebooks")
     g.add_argument("--flavor", default="l4x1")
-    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4)")
+    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
     g.add_argument("--tasks-per-job", type=int, default=None,
-                   help="tasks each Job runs, one after the other on each GPU with its servers started once "
-                        "(default: one per GPU); a multiple of --gpus")
+                   help="tasks a single-GPU Job runs one after the other (datatrove's tasks_per_job; each task "
+                        "starts its own servers)")
     g.add_argument("--image", default=None, help="the Jobs' container image")
     g.add_argument("--timeout", default="3h")
     g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
@@ -94,9 +98,9 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     if bool(a.images) == bool(a.parquet):
         ap.error("give IMAGES or --parquet")
     if a.parquet and (a.paths_file or a.item_from_parent):
-        ap.error("--paths-file and --item-from-parent are for IMAGES; --parquet names books with --item-key")
-    if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.tasks_per_job % a.gpus):
-        ap.error("--tasks-per-job must be a positive multiple of --gpus")
+        ap.error("--paths-file and --item-from-parent are for IMAGES; --parquet names items with --item-key")
+    if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
+        ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
     if a.on == "hf-jobs" and not a.commit:
         ap.error("--on hf-jobs needs --commit (pushed)")
     if a.backend is None:
@@ -114,9 +118,9 @@ def reader(a: argparse.Namespace):
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
                                   sequence_key=a.sequence_key, image_folder=a.image_folder)
-    books = bool(a.paths_file or a.item_from_parent)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
-                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, sequence=books)
+                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip,
+                             sequence=a.item_from_parent and not a.paths_file)
 
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
@@ -177,7 +181,8 @@ def preset_models(models: list[dict]) -> list[dict]:
 def rows(a: argparse.Namespace):
     from .blocks.writers import PageJsonlWriter
 
-    return PageJsonlWriter(f"{a.out.rstrip('/')}/rows", output_filename="${rank}.jsonl.gz")
+    return PageJsonlWriter(f"{a.out.rstrip('/')}/rows", output_filename="${rank}.jsonl.gz",
+                           item_shards=getattr(a, "item_shards", None))
 
 
 from .serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
@@ -286,7 +291,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         if image or a.image:
             kw["image"] = a.image or image
         if a.gpus > 1:
-            GPUJobsExecutor(pipeline, gpus=a.gpus, tasks_per_job=a.tasks_per_job, **kw).run()
+            GPUJobsExecutor(pipeline, gpus=a.gpus, **kw).run()
         else:
             JobsPipelineExecutor(pipeline, tasks_per_job=a.tasks_per_job or 1, **kw).run()
         print(json.dumps({"out": out, "commit": a.commit, "image": kw.get("image")}))
@@ -362,12 +367,6 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     a = check(ap, a)
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
-    if a.on == "hf-jobs":   # the process ends with the Job: a Job's later tasks reuse its servers
-        from .blocks.serve import ServeChatModel, ServeModels
-
-        for step in pipeline:
-            if isinstance(step, ServeModels | ServeChatModel):
-                step.keep_running = True
     if getattr(a, "recipe_record", None):
         from .blocks.recipe import RecipeStamp
 

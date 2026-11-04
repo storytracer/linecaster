@@ -171,22 +171,25 @@ On Ray and HF Jobs every task gets one GPU and starts its own model server on it
 <details>
 <summary><b>📥 Where the pages come from</b></summary>
 
-The readers follow [datatrove]'s conventions: a folder or a list of entries, distributed over the tasks in
-turn, `--limit` and `--skip` per task. Any fsspec path works: local, `s3://`, `hf://`.
+The readers follow [datatrove]'s conventions: files found by a glob or listed in a `paths_file`, distributed
+over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path works: local, `s3://`, `hf://`.
 
-| Input | Flags | Distributed over tasks by |
-|---|---|---|
-| a folder of images | `IMAGES` (`--glob-pattern` to choose files) | page |
-| a folder with one subfolder per book | `IMAGES --item-from-parent` | book |
-| a list of book folders | `IMAGES --paths-file books.txt` (one folder per line, relative to `IMAGES`) | book |
-| Parquet with an image column | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) | file |
+| Input | Flags |
+|---|---|
+| a folder of images | `IMAGES` (`--glob-pattern` to choose files; `--item-from-parent`: the subfolder is the book) |
+| a list of images | `IMAGES --paths-file pages.txt` (one image per line, relative to `IMAGES`) |
+| Parquet with an image column | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
 
 - The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
   or relative to `--image-folder`.
 - A Hub image dataset is just Parquet: `--parquet hf://datasets/<repo>@<revision>/data`.
 - A public bucket needs no credentials with `FSSPEC_S3_ANON=true`.
-- Book-level outputs (`--texts`) need each book in one task: use a book input, or a Parquet file per set of
-  whole books.
+- **Item-level outputs** (texts per book, issue or manuscript): with several tasks, an item's pages can land in
+  different tasks. Item texts are then a second stage:
+  - the first run writes its page rows into item shards (`--item-shards 64`: `OUT/rows/<shard>/<rank>.jsonl.gz`,
+    every item in one shard);
+  - `uv run pipelines/items.py OUT/rows OUT2` reads whole shards, one or more per task, and writes the texts.
+  - `--texts` in the same run needs a single task.
 
 </details>
 
@@ -238,17 +241,18 @@ the pipeline's `# /// script` block:
 uv run pipelines/chain.py \
   s3://bhl-open-data/images \
   hf://buckets/<ns>/<bucket>/<run> $P \
-  --paths-file hf://buckets/<ns>/<bucket>/books.txt \
+  --paths-file hf://buckets/<ns>/<bucket>/pages.txt \
   --on hf-jobs --commit <sha> \
-  --tasks 4000 --tasks-per-job 12 --workers 64 --timeout 12h \
+  --tasks 4000 --workers 64 --item-shards 64 \
   --env FSSPEC_S3_ANON=true
 ```
 
-- **The book is the unit:** a task gets every n-th book of the list, always whole.
-- **A Job runs `--tasks-per-job` tasks one after the other,** with its models loaded once.
-- **`--workers` Jobs run at the same time,** and the next starts when one finishes.
+- **Tasks and workers:** datatrove hands out the pages over the tasks in turn, and `--workers` Jobs run at the same
+  time; the next starts when one finishes.
 - **A rerun into the same output** runs only the tasks that didn't finish.
-- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks at a time per Job, one per GPU. `pipelines/vlm.py` picks the server image
+- **`--tasks-per-job`** (datatrove's) lets a single-GPU Job run several tasks one after the other; each task
+  starts its own model server.
+- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/vlm.py` picks the server image
 its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
 
 </details>
@@ -400,7 +404,7 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `ImageFolderReader` | page images from a folder or bucket, book by book |
+| `ImageFolderReader` | page images from a folder or bucket |
 | `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
 | `PageRowReader` | page rows written by an earlier run |
 

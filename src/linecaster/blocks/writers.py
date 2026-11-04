@@ -37,10 +37,28 @@ def page_row_json(self, doc) -> dict:
 
 
 class PageJsonlWriter(JsonlWriter):
+    """Page rows as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
+    (``<shard>/${rank}.jsonl.gz``, ``linecaster.blocks.shards``), for a later stage that reads whole items."""
+
     name = "🐿 page rows (jsonl)"
 
-    def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz", **kwargs):
+    def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
+                 item_shards: int | None = None, **kwargs):
+        if item_shards:
+            from .shards import SHARD_KEY
+
+            output_filename = f"${{{SHARD_KEY}}}/{output_filename}"
         super().__init__(output_folder, output_filename, adapter=page_row, **kwargs)
+        self.item_shards = item_shards
+
+    def write(self, document, rank: int = 0, **kwargs):
+        if self.item_shards:
+            from .base import page_of
+            from .shards import SHARD_KEY, item_shard
+
+            page = page_of(document)
+            document.metadata[SHARD_KEY] = item_shard(page.item_id or document.id, self.item_shards)
+        return super().write(document, rank, **kwargs)
 
 
 class PageParquetWriter(ParquetWriter):
