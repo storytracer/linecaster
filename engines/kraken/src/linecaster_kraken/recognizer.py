@@ -7,6 +7,7 @@ their Hugging Face mirrors (pinned in the catalogue: ``models``), running on tor
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import ClassVar, Literal
 
@@ -54,7 +55,8 @@ class KrakenRecognizer:
     """``kraken.tasks.recognition.RecognitionTaskModel`` with a ``RecognitionInferenceConfig``."""
 
     def __init__(self, model_path: str | Path, device: str = "auto", batch_size: int = 8,
-                 num_line_workers: int = 0, text_direction: str = "horizontal-lr", precision: str = "auto"):
+                 num_line_workers: int = 0, text_direction: str = "horizontal-lr", precision: str = "auto",
+                 compile_backbone: bool = False):
         import logging
 
         import torch
@@ -81,6 +83,14 @@ class KrakenRecognizer:
         # RecognitionTaskModel.predict prepares the model on every call (a new Fabric, module moved again);
         # prepare once here and call the model's predict directly
         self.task.net.prepare_for_inference(self.config)
+        if compile_backbone:
+            import torch._dynamo
+
+            # fewer, larger kernels; a compile error falls back to eager (and says so in the log)
+            torch._dynamo.config.suppress_errors = True
+            self.task.net.nn.backbone = torch.compile(self.task.net.nn.backbone, dynamic=True)
+            logging.getLogger(__name__).info("kraken backbone wrapped in torch.compile(dynamic=True), torch %s",
+                                             torch.__version__)
 
     @property
     def device(self) -> str:
@@ -121,14 +131,17 @@ class KrakenRecognitionModel:
                                                    "(the training precision), 32-true on the CPU")
         text_direction: Literal["horizontal-lr", "horizontal-rl", "vertical-lr", "vertical-rl"] = Field(
             "horizontal-lr", description="kraken's text direction of the lines (horizontal-rl: right to left)")
+        compile_backbone: bool = Field(False, description="torch.compile the backbone (dynamic shapes): fewer "
+                                                          "kernel launches, minutes of compiling when the model "
+                                                          "loads; moves a few characters")
 
     def __init__(self, model: str = "medium", device: str = "auto", batch_size: int = 8, precision: str = "auto",
-                 text_direction: str = "horizontal-lr", weights: dict | None = None):
+                 text_direction: str = "horizontal-lr", compile_backbone: bool = False, weights: dict | None = None):
         o = self.Options(model=str(model), device=device, batch_size=batch_size, precision=precision,
-                         text_direction=text_direction)
+                         text_direction=text_direction, compile_backbone=compile_backbone)
         self.options, self.weights = o, weights
         self.model, self.device, self.batch_size, self.precision_setting = o.model, o.device, o.batch_size, o.precision
-        self.text_direction = o.text_direction
+        self.text_direction, self.compile_backbone = o.text_direction, o.compile_backbone
         size = o.model.lower()
         if weights is not None and MODEL_IDS.get(size) != weights["model"]:
             raise ValueError(f"model={o.model!r} does not name the pinned weights {weights['model']!r}")
@@ -145,8 +158,8 @@ class KrakenRecognitionModel:
             weights = size_weights(self.model.lower())
         path = fetch_weights(weights) if weights is not None else resolve_kraken_model(self.model)
         self.revision = weights["revision"] if weights is not None else None
-        self.recognizer = KrakenRecognizer(path, self.device, self.batch_size,
-                                           text_direction=self.text_direction, precision=self.precision_setting)
+        self.recognizer = KrakenRecognizer(path, self.device, self.batch_size, text_direction=self.text_direction,
+                                           precision=self.precision_setting, compile_backbone=self.compile_backbone)
 
     def __call__(self, image, transcription: Transcription, **params) -> Transcription:
         lines = transcription.lines
@@ -160,5 +173,6 @@ class KrakenRecognitionModel:
         transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
                                              backend=f"kraken/torch ({self.recognizer.device})",
                                              settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
-                                                       "text_direction": self.text_direction}))
+                                                       "text_direction": self.text_direction,
+                                                       **({"compile_backbone": True} if self.compile_backbone else {})}))
         return transcription

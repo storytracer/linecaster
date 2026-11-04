@@ -66,6 +66,8 @@ ENGINES = {
     "paddlex.formulas.v1": "linecaster_paddlex:PaddleFormulaModel",
     "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionModel",
 }
+#: options added to an engine after some of its presets were released: (options, the last edition without them)
+ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1)}
 ENGINE_PRESETS = sorted(pid for pid, (_, p) in catalog().presets.items() if p.engine in ENGINES)
 
 
@@ -115,9 +117,12 @@ def test_preset_constructs_its_engine(pid):
     model = cls(**b.kwargs)                         # constructed, not loaded
     assert model.weights == b.kwargs["weights"]
     # the preset states every option but the device (and what its submodels replace), so an edition does not
-    # depend on code defaults
+    # depend on code defaults; editions released before an option was added leave it out (its default keeps
+    # the old behaviour)
     replaced = {"submodel_revisions"} if p.submodels else set()
-    assert set(p.options) == set(cls.Options.model_fields) - {"device"} - replaced
+    later, upto = ADDED_LATER.get(p.engine, (set(), 0))
+    unstated = later if p.edition <= upto else set()
+    assert set(p.options) == set(cls.Options.model_fields) - {"device"} - replaced - unstated
     assert model.options.model_dump(exclude={"device"}) == cls.Options(**p.options).model_dump(exclude={"device"})
     assert Capabilities.model_validate(cls.capabilities).produces == p.capabilities.produces
 

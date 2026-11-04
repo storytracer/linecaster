@@ -44,7 +44,8 @@ resolved).
   (`deepseek-ocr-2`), never our versions. Ids are unique across presets and recipes, so a name means one
   thing.
 - Code ids (`CODE_ID`): lowercase dotted names ending in `.v<n>`. An incompatible change is a new id
-  (`.v2`); the old one stays registered.
+  (`.v2`); the old one stays registered. Adding an option is compatible when its default keeps the old
+  behaviour; changing a default, removing or renaming an option is not.
 - A reference is `id@edition`; `id` alone means the current edition. Run records always store the explicit
   edition and its hash.
 - A tag or branch is resolved to a commit when a model is pinned; the tag is kept as `tag:` for information.
