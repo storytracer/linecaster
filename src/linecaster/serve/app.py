@@ -3,7 +3,8 @@
 Stateless: every request carries the page image, the transcription so far and the parameters; the
 server keeps nothing between requests. Routes:
 
-* ``POST /v1/linecaster/{step}`` — ``{"model", "image" (base64), "transcription", "params", "page_id"}``
+* ``POST /v1/linecaster/{step}`` — ``{"model", "image" (base64; null for a page the step reads no region of),
+  "transcription", "params", "page_id"}``
   -> ``{"transcription", "usage", "timing"}``; 429 when the model's queue is full, 404 for an unknown
   model, 422 for a request the model cannot use.
 * ``GET /health`` — 200 once every model is loaded (saturate's ``Engine`` waits for it).
@@ -147,8 +148,8 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
         try:
             loop = asyncio.get_running_loop()
             try:
-                data = base64.b64decode(body["image"])
-                image = await loop.run_in_executor(pool, decode_rgb, data)
+                data = body["image"]
+                image = None if data is None else await loop.run_in_executor(pool, decode_rgb, base64.b64decode(data))
                 t = Transcription.model_validate(body.get("transcription") or {})
             except Exception as e:
                 return web.json_response({"error": f"bad request: {type(e).__name__}: {e}"}, status=422)

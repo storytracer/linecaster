@@ -66,7 +66,7 @@ class ChatPageStep(ModelStep):
 
     def _parse(self, body: dict) -> dict:
         t = self.spec.parse(body, backend=self.backend.describe())
-        return {"transcription": t.model_dump(mode="json"), "usage": body.get("usage") or {}}
+        return {"transcription": t, "usage": body.get("usage") or {}}
 
 
 #: Region labels a region-recognition step reads by default (pictures and formulas excluded: a picture has

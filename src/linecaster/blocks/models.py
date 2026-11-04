@@ -28,6 +28,8 @@ class ModelStep(PageStep):
 
     step = "model"
     route: str | None = None       # the served route; None = linecaster serve's ``/linecaster/{step}``
+    #: a step that reads only regions with this label gets no image for a page without one (``None``)
+    region_label: str | None = None
     prepare_workers: int = 2       # threads building requests ahead of admission (image encoding)
 
     def __init__(self, backend: InProcess | Served, transcription: str = "ocr", params: dict | None = None,
@@ -38,11 +40,15 @@ class ModelStep(PageStep):
         self.primary, self.skip_on_error = primary or transcription, skip_on_error
         self._skipped: list = []
 
+    def needs_image(self, t: Transcription) -> bool:
+        return self.region_label is None or any(r.label == self.region_label for r in t.regions)
+
     # ------------------------------------------------------------- in-process
     def process_page(self, doc, page: Page) -> Page:
         t = page.transcription(self.transcription)
         start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        out = self.backend.model()(decode_rgb(image_bytes(doc)), t, **self.params)
+        image = decode_rgb(image_bytes(doc)) if self.needs_image(t) else None
+        out = self.backend.model()(image, t, **self.params)
         if out.model:
             out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
             out.model[-1].measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
@@ -73,15 +79,15 @@ class ModelStep(PageStep):
     # ----------------------------------------------------------------- served
     def _request(self, row: dict) -> dict:
         doc = row["doc"]
-        page = page_of(doc)
+        t = page_of(doc).transcription(self.transcription)
         return {"model": self.backend.model, "page_id": doc.id,
-                "image": base64.b64encode(image_bytes(doc)).decode("ascii"),
-                "transcription": page.transcription(self.transcription).model_dump(mode="json"),
-                "params": self.params}
+                "image": base64.b64encode(image_bytes(doc)).decode("ascii") if self.needs_image(t) else None,
+                "transcription": t.model_dump(mode="json"), "params": self.params}
 
     @staticmethod
     def _parse(body: dict) -> dict:
-        return {"transcription": body["transcription"], "usage": body.get("usage") or {}}
+        """Validated here, so a malformed response is that page's error (saturate), not the task's."""
+        return {"transcription": Transcription.model_validate(body["transcription"]), "usage": body.get("usage") or {}}
 
     def _run_served(self, data):
         from saturate import AdaptiveClient, Auto, through
@@ -119,7 +125,7 @@ class ModelStep(PageStep):
                 yield doc
                 continue
             page = page_of(doc)
-            out = Transcription.model_validate(item.out["transcription"])
+            out = item.out["transcription"]
             page.transcriptions[self.transcription] = out
             set_page(doc, page, self.primary)
             measured = out.model[-1].measurements if out.model else {}
@@ -149,7 +155,9 @@ class RecognitionStep(ModelStep):
 
 class TablesStep(ModelStep):
     step = "tables"
+    region_label = "table"
 
 
 class FormulasStep(ModelStep):
     step = "formulas"
+    region_label = "formula"

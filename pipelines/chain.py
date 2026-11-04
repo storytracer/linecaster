@@ -36,8 +36,9 @@
 # linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
-# # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix
-# kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
+# # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
+# # line prefetch (storytracer/linecaster#1)
+# kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 r"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text

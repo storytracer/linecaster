@@ -44,5 +44,8 @@ def engine(models: list[dict], port: int = 8100, python: str | None = None, boot
     yielding the endpoint ``http://127.0.0.1:PORT/v1``."""
     from saturate import Engine
 
+    # the trial request goes to the step route itself: 503 until every model is loaded, then 404 from
+    # linecaster's handler, since no model serves the step "ready"
     return Engine("linecaster", port=port, boot_timeout=boot_timeout,
-                  cmd=serve_command(models, port, python, max_queue, script), ready_route="/models", ready_payload={})
+                  cmd=serve_command(models, port, python, max_queue, script), ready_route="/linecaster/ready",
+                  ready_payload={}, ready_accept=lambda r: r.status_code == 404)

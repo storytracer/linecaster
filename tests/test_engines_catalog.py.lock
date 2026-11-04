@@ -11,7 +11,7 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "kraken", git = "https://github.com/storytracer/kraken?rev=3d235ee8" },
+    { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
     { name = "linecaster", editable = "../" },
     { name = "linecaster-kraken", editable = "../engines/kraken" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
@@ -982,8 +982,8 @@ wheels = [
 
 [[package]]
 name = "kraken"
-version = "7.1.post17+g3d235ee"
-source = { git = "https://github.com/storytracer/kraken?rev=3d235ee8#3d235ee85067dae84ceb906e7ce96c0956fb26bd" }
+version = "7.1.post18+g48eecb7"
+source = { git = "https://github.com/storytracer/kraken?rev=48eecb78#48eecb78a8e043b1c658042fcb7c357f68aa786c" }
 dependencies = [
     { name = "click" },
     { name = "coremltools" },
