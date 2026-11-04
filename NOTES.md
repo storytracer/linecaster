@@ -2,6 +2,31 @@
 
 Measurements, decisions and open questions, newest first.
 
+## kraken line prefetch (#1, 2026-11-04: spark, forge, HF Jobs L4)
+
+Daniel van Strien's issue #1: kraken's recognition loop makes the CPU wait for the GPU on every line (the
+empty-line check on a tensor built on the device) and once per batch (`seq_lens` copied after the backbone is
+queued). Fork commit `48eecb78` (storytracer/kraken, `perf/recognition-prefetch`): lines are extracted,
+transformed and checked on the CPU in a producer thread, `seq_lens` goes to the device before the forward pass,
+and the last partial batch is recognised also when a page ends in empty lines (stock kraken flushed it only on an
+append, so such lines were never recognised and the page failed `zip(strict=True)`). Batches are composed as
+before, so the output is unchanged.
+
+| machine | recognition, pinned `3d235ee8` | patched `48eecb78` | output |
+|---|---|---|---|
+| spark GB10, sample-60 in-process | 0.73 s/page | 0.77 s/page (noise) | goldens 1,560/1,560 lines |
+| forge RTX 4000 Ada, sample-60 in-process | 0.647 s/page (warm) | 0.61 s/page (−6 %) | goldens 1,560/1,560 lines |
+| HF Jobs `l4x1`, bhl-impact-gt first 300 pages, served | 0.903 s/page | 0.793 s/page (−12 %) | 300/300 pages, 7,276/7,276 lines identical |
+
+The GB10 gains nothing: its CPU does not stall the GPU the way an L4 host does. On the L4 recognition sets the
+pace (served wall 274 s → 242 s). Not done yet (they change 0.02–0.03 % of characters): batching by line width
+and `torch.compile` of the backbone, Daniel's changes 3 and 4.
+
+Same change set: TablesStep and FormulasStep send no image for a page without their regions (the engines still
+record the step), a malformed served answer is that page's error, the readiness probe uses the step route, and
+`HFImageDatasetReader` raises when a repository has no Parquet files (an image folder such as
+`finebooks/bhl-impact-gt` silently read 0 pages with `--dataset`; it is read as `hf://datasets/...` IMAGES).
+
 ## Specs are reference documents (2026-11-04)
 
 `specs/` describes what is, without history. Moved here from them:
