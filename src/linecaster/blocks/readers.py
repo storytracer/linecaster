@@ -92,6 +92,9 @@ class HFImageDatasetReader(PipelineStep):
         files = sorted(s.rfilename for s in HfApi().dataset_info(self.repo_id, revision=self.revision).siblings
                        if s.rfilename.endswith(".parquet") and (f"/{self.split}-" in s.rfilename or f"{self.split}/" in s.rfilename
                                                                 or s.rfilename.startswith("data/")))
+        if not files:   # an image folder on the Hub is read with ImageFolderReader (hf://datasets/...), not here
+            raise ValueError(f"{self.repo_id}@{self.revision}: no Parquet files for the split {self.split!r}; for "
+                             "images in folders pass hf://datasets/<repo>@<revision>/<folder> as IMAGES instead")
         cols = [self.id_column, self.image_column, *self.metadata_columns] + ([self.item_column] if self.item_column else [])
         i = 0
         for name in files:
