@@ -15,7 +15,7 @@ import regex
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data import StepInfo, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, SIZES, fetch_weights, resolve_kraken_model, size_weights
@@ -170,9 +170,9 @@ class KrakenRecognitionEngine:
                 ln.text = rec.prediction
                 ln.confidence = mean_confidence(rec)
                 ln.words = record_words(rec, ln.id)
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend=f"kraken/torch ({self.recognizer.device})",
-                                             settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
-                                                       "text_direction": self.text_direction,
-                                                       **({"compile_backbone": True} if self.compile_backbone else {})}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend=f"kraken/torch ({self.recognizer.device})",
+                                            settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
+                                                      "text_direction": self.text_direction,
+                                                      **({"compile_backbone": True} if self.compile_backbone else {})}))
         return transcription

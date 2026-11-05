@@ -9,9 +9,9 @@ Mapping (see ``docs/reference/serialization.md``):
 * word -> ``String`` (``WC`` 0..1, ``ALTERNATIVE``), ``SP`` between words, a line-end hyphen as
   ``HYP``; a line without words is written as one ``String`` carrying the line's text;
 * lines without a region go into a synthetic ``TextBlock`` the reader drops again;
-* each step of ``model`` -> ``Description/Processing`` (category, date if recorded, the step, the step
+* each step of ``steps`` -> ``Description/Processing`` (category, date if recorded, the step, the step
   record as JSON in ``processingStepSettings``, linecaster as ``softwareCreator`` with the model and its
-  revision), all referenced from ``Page/@PROCESSINGREFS``; read back into ``model`` (foreign files: their
+  revision), all referenced from ``Page/@PROCESSINGREFS``; read back into ``steps`` (foreign files: their
   ``Processing`` or ``OCRProcessing`` steps).
 
 What ALTO has no place for (line confidence, detection scores, heading level, ...) goes into a
@@ -24,7 +24,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, ModelInfo, Region, Source, Transcription, Word
+from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
 from . import _provenance as P, _xml as X
 
 NS = "http://www.loc.gov/standards/alto/ns-v4#"
@@ -168,9 +168,9 @@ class _Writer:
             a.text = alt
 
     # ------------------------------------------------------------ provenance
-    def processing(self, desc, i: int, m: ModelInfo) -> str:
+    def processing(self, desc, i: int, m: StepInfo) -> str:
         """One ``Processing`` per step (ALTO 4.4 order: category, date, description, settings, software).
-        ``processingStepSettings`` is the step record as JSON (revision, preset, preset hash, backend,
+        ``processingStepSettings`` is the step record as JSON (engine, revision, preset, preset hash, backend,
         settings); ``processingSoftware`` names linecaster as creator and the model with its revision."""
         pid = self.new_id(f"lc_processing_{i}")
         p = _e(desc, "Processing", ID=pid)
@@ -215,7 +215,7 @@ class _Writer:
         if uri:
             sii = _e(desc, "sourceImageInformation")
             _e(sii, "fileName").text = uri
-        processing_ids = [self.processing(desc, i, m) for i, m in enumerate(t.model)]
+        processing_ids = [self.processing(desc, i, m) for i, m in enumerate(t.steps)]
 
         layout = etree.Element(f"{{{NS}}}Layout")
         page = _e(layout, "Page", ID=self.new_id("page_1"), PHYSICAL_IMG_NR="1",
@@ -344,7 +344,7 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     ro_el = X.child(root, "ReadingOrder")
     ro_refs = _reading_order_refs(ro_el) if ro_el is not None else None
 
-    t = Transcription(model=_processing(desc) if desc is not None else [])
+    t = Transcription(steps=_processing(desc) if desc is not None else [])
     region_ro_ext: dict[str, Any] = {}
     real_ids_in_doc: list[str] = []
     line_no = 0
@@ -431,8 +431,8 @@ def _text(el, name: str, strip: bool = True) -> str | None:
     return c.text.strip() if strip else c.text
 
 
-def _step(p) -> ModelInfo:
-    """A ``ModelInfo`` from a ``Processing`` (or an ``OCRProcessing`` step) element: linecaster's own carry
+def _step(p) -> StepInfo:
+    """A ``StepInfo`` from a ``Processing`` (or an ``OCRProcessing`` step) element: linecaster's own carry
     the step record as JSON in ``processingStepSettings``; for foreign ones the description is the step, the
     software name and version are the model and its revision, other settings are kept as ``raw`` text."""
     sw = X.child(p, "processingSoftware")
@@ -458,7 +458,7 @@ def _step(p) -> ModelInfo:
     return m
 
 
-def _processing(desc) -> list[ModelInfo]:
+def _processing(desc) -> list[StepInfo]:
     """The steps recorded in ``Description``: ``Processing`` (ALTO 4), else the deprecated ``OCRProcessing``
     with its pre-, OCR and post-processing steps (ALTO 1-3)."""
     steps = [_step(p) for p in X.children(desc, "Processing")]

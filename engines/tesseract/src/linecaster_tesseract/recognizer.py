@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data import StepInfo, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
@@ -113,8 +113,8 @@ class TesseractRecognitionEngine:
             ln.words = words
             ln.text = " ".join(w.text for w in words)
             ln.confidence = float(np.mean([w.confidence for w in words])) if words else 0.0
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend=f"tesseract {self.version} (tesserocr)",
-                                             settings={"lang": self.lang, "data": self.data, "psm": 7,
-                                                       "pad": self.pad, "dpi": self.dpi}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend=f"tesseract {self.version} (tesserocr)",
+                                            settings={"lang": self.lang, "data": self.data, "psm": 7,
+                                                      "pad": self.pad, "dpi": self.dpi}))
         return transcription

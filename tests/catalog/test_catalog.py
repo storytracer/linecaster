@@ -290,13 +290,13 @@ def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
     from linecaster.blocks.validation.recipe import RecipeStamper
-    from linecaster.data import ModelInfo, Transcription
+    from linecaster.data import StepInfo, Transcription
     from linecaster.data.page import Page
 
-    page = Page(page_id="p", item_id="i", transcriptions={"ocr_new": Transcription(model=[
-        ModelInfo(step="layout", name="a"), ModelInfo(step="recognition", name="b")])})
+    page = Page(page_id="p", item_id="i", transcriptions={"ocr_new": Transcription(steps=[
+        StepInfo(step="layout", name="a"), StepInfo(step="recognition", name="b")])})
     out = RecipeStamper("r@1", "sha256:" + "1" * 64).process_page(None, page)
-    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr_new"].model} == {("r@1", "sha256:1")}
+    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr_new"].steps} == {("r@1", "sha256:1")}
 
 
 def test_committed_schemas_are_the_models():

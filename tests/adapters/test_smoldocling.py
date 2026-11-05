@@ -61,7 +61,7 @@ def test_parse_keeps_doctags_verbatim_and_converts_as_the_harness():
     # furniture (running head, page number) kept, picture placeholder empty
     assert t.extra["markdown"] == "APPENDIX\n\n205\n\nA female Orphean Warbler was shot."
     assert to_markdown("  \n") == ""
-    m = t.model[0]
+    m = t.steps[0]
     assert (m.name, m.revision, m.measurements["finish_reason"]) == (MODEL, chat_model("smoldocling-256m-preview").revision, "stop")
 
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from linecaster.data import Line, ModelInfo, Region, Transcription, Word
+from linecaster.data import Line, Region, StepInfo, Transcription, Word
 from linecaster.formats import _xml as X, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.formats.hocr import quantize_confidence
 
@@ -74,10 +74,10 @@ def assert_same(got: Transcription, want: Transcription) -> None:
     for w in want.lines:
         assert got_l[w.id] == w, f"line {w.id}"
     assert got.text == want.text
-    assert [steps(m) for m in got.model] == [steps(m) for m in want.model]
+    assert [steps(m) for m in got.steps] == [steps(m) for m in want.steps]
 
 
-def steps(m: ModelInfo) -> dict:
+def steps(m: StepInfo) -> dict:
     """What a page file keeps of a step: everything but the measurements."""
     return m.model_dump(exclude={"measurements"})
 
@@ -324,11 +324,12 @@ def _random_transcription(seed: int) -> Transcription:
                           alternatives=rnd.choice([[], ["other"]])))
     values = [None, True, False, 0, 16, 0.1, -2.5, "", "16", "true", "null", "medium", "a;b {c}", ' "x" ',
               "line\nbreak", "Déjà vu", [1, "2"], {"nested": {"k": [None]}}]
-    model = []
+    steps = []
     for i in range(rnd.choice([0, 1, 3])):
-        model.append(ModelInfo(
+        steps.append(StepInfo(
             step=rnd.choice(["layout", "lines", "recognition", "unicode", "typography", "page"]),
             name=rnd.choice(["kraken-ppocrv6-medium", "PP-DocLayoutV3", "Qwen/Qwen3-VL 8B", "naïve name"]),
+            engine=rnd.choice([None, "kraken.recognition.v1", "typography.ratios.v1"]),
             revision=rnd.choice([None, "0123abcd", "10.5281/zenodo.1"]),
             preset=rnd.choice([None, f"preset-{i}@{rnd.randint(1, 9)}"]),
             preset_sha256=rnd.choice([None, "sha256:" + "0f" * 32]),
@@ -336,7 +337,7 @@ def _random_transcription(seed: int) -> Transcription:
             settings={f"k{j}": rnd.choice(values) for j in range(rnd.choice([0, 1, 4]))},
             measurements=rnd.choice([{}, {"seconds": 0.5}, {"seconds": 1, "datetime": "2026-11-03T12:00:00Z"}]),
         ))
-    return Transcription(regions=regions, lines=lines, model=model, source=Transcription().source.model_copy(
+    return Transcription(regions=regions, lines=lines, steps=steps, source=Transcription().source.model_copy(
         update={"image_width": 3000, "image_height": 3000}))
 
 

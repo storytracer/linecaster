@@ -14,7 +14,7 @@ import numpy as np
 import regex
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data import StepInfo, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .compat import create_predictor, paddle_image
@@ -135,7 +135,7 @@ class PaddleRecognitionEngine:
             text, info = (rec[0], rec[1]) if isinstance(rec, tuple) else (rec, None)
             ln.text, ln.confidence = text, float(res["rec_score"])
             ln.words = line_words(text, info, boxes[i], ln.id) if info is not None else []
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend="paddlex/onnxruntime",
-                                             settings={"batch_size": self.batch_size, "words": self.words}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend="paddlex/onnxruntime",
+                                            settings={"batch_size": self.batch_size, "words": self.words}))
         return transcription

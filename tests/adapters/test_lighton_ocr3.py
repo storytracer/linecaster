@@ -95,7 +95,7 @@ def test_parse_keeps_the_completion_verbatim():
             "usage": {"prompt_tokens": 3100, "completion_tokens": 9}}
     t = chat_model("lightonocr-3-0.8b").parse(body, backend="served x")
     assert t.extra["raw"] == raw and t.text == raw                       # not even a strip
-    m = t.model[0]
+    m = t.steps[0]
     assert (m.name, m.revision) == ("lightonai/LightOnOCR-3-0.8B", REVISIONS["lightonai/LightOnOCR-3-0.8B"])
     assert m.measurements == {"prompt_tokens": 3100, "completion_tokens": 9, "finish_reason": "stop"}
     assert m.settings["image"]["longest_side_px"] == 2048 and m.settings["prompt"] is None

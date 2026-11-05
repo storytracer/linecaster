@@ -124,12 +124,14 @@ class ModelBlock(PageBlock):
         t = page.transcription(self.transcription)
         start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         image = decode_rgb(image_bytes(doc)) if self.needs_image(t) else None
-        out = self.backend.model()(image, t, **self.params)
-        if out.model:
-            out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
-            out.model[-1].measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
+        engine = self.backend.model()
+        out = engine(image, t, **self.params)
+        if out.steps:
+            out.steps[-1].engine = out.steps[-1].engine or getattr(engine, "engine_id", None)
+            out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+            out.steps[-1].measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
             if getattr(self.backend, "preset", None):        # built from a catalog preset
-                out.model[-1].preset, out.model[-1].preset_sha256 = self.backend.preset, self.backend.preset_sha256
+                out.steps[-1].preset, out.steps[-1].preset_sha256 = self.backend.preset, self.backend.preset_sha256
         page.transcriptions[self.transcription] = out
         return page
 
@@ -226,7 +228,7 @@ class ModelBlock(PageBlock):
             out = item.out["transcription"]
             page.transcriptions[self.transcription] = out
             set_page(doc, page, self.primary)
-            measured = out.model[-1].measurements if out.model else {}
+            measured = out.steps[-1].measurements if out.steps else {}
             if "seconds" in measured:
                 self.stat_update("model_seconds", value=measured["seconds"], unit="doc")
             for key in ("prompt_tokens", "completion_tokens"):

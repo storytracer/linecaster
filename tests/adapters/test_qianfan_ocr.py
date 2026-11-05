@@ -57,4 +57,4 @@ def test_parse_keeps_raw_verbatim():
     t = chat_model("qianfan-ocr").parse({"choices": [{"message": {"content": raw}, "finish_reason": "length"}],
                             "usage": {"prompt_tokens": 3400, "completion_tokens": 8192}})
     assert t.extra["raw"] == raw and t.text == raw and t.extra["finish_reason"] == "length"
-    assert t.model[0].revision == chat_model("qianfan-ocr").revision and t.model[0].measurements["completion_tokens"] == 8192
+    assert t.steps[0].revision == chat_model("qianfan-ocr").revision and t.steps[0].measurements["completion_tokens"] == 8192

@@ -11,7 +11,7 @@ from PIL import Image
 
 from linecaster.backends import InProcess, Served
 from linecaster.catalog import yamlio
-from linecaster.data import ModelInfo
+from linecaster.data import StepInfo
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import _provenance as P, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.runtime import provenance, run
@@ -22,11 +22,11 @@ from conftest import make_transcription
 SCHEMAS = Path(__file__).parents[1] / "schemas"
 SHA = "sha256:" + "ab" * 32
 STEPS = [
-    ModelInfo(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
-    ModelInfo(step="recognition", name="kraken-ppocrv6-medium", revision="0123abcd", preset="kraken-ppocrv6-medium@1",
-              preset_sha256=SHA, backend="in-process", settings={"batch_size": 8, "model": "medium", "n": "16"},
-              measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
-    ModelInfo(step="unicode", name="unicodedata", settings={"form": "NFC"}),
+    StepInfo(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
+    StepInfo(step="recognition", name="kraken-ppocrv6-medium", engine="kraken.recognition.v1", revision="0123abcd",
+             preset="kraken-ppocrv6-medium@1", preset_sha256=SHA, backend="in-process", settings={"batch_size": 8, "model": "medium", "n": "16"},
+             measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
+    StepInfo(step="unicode", name="unicodedata", settings={"form": "NFC"}),
 ]
 
 
@@ -36,7 +36,7 @@ def _schema(name):
 
 def _t():
     t = make_transcription()
-    t.model = [m.model_copy(deep=True) for m in STEPS]
+    t.steps = [m.model_copy(deep=True) for m in STEPS]
     return t
 
 
@@ -63,7 +63,7 @@ def test_alto_processing_per_step():
     assert procs[2].findtext("a:processingCategory", namespaces=ns) == "contentModification"
     assert rec.findtext("a:processingDateTime", namespaces=ns) == "2026-11-03T21:00:00Z"
     settings = json.loads(rec.findtext("a:processingStepSettings", namespaces=ns))
-    assert settings == {"revision": "0123abcd", "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA,
+    assert settings == {"engine": "kraken.recognition.v1", "revision": "0123abcd", "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA,
                         "backend": "in-process", "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
     sw = rec.find("a:processingSoftware", ns)
     assert [(etree.QName(c).localname, c.text) for c in sw] == [
@@ -72,15 +72,15 @@ def test_alto_processing_per_step():
     page = root.find("a:Layout/a:Page", ns)
     assert page.get("PROCESSINGREFS") == " ".join(p.get("ID") for p in procs)
     got = from_alto(data)
-    _same_steps(got.model)
-    assert got.model[1].measurements == {"datetime": "2026-11-03T21:00:00Z"}
+    _same_steps(got.steps)
+    assert got.steps[1].measurements == {"datetime": "2026-11-03T21:00:00Z"}
 
 
 def test_alto_without_steps_has_no_processing():
     t = make_transcription()
     data = to_alto(t)
     assert b"Processing" not in data and b"PROCESSINGREFS" not in data
-    assert from_alto(data).model == []
+    assert from_alto(data).steps == []
 
 
 ALTO_V2_OCR_PROCESSING = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -101,7 +101,7 @@ ALTO_V2_OCR_PROCESSING = b"""<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_alto_foreign_ocr_processing():
-    m = from_alto(ALTO_V2_OCR_PROCESSING).model
+    m = from_alto(ALTO_V2_OCR_PROCESSING).steps
     assert [(x.step, x.name, x.revision, x.settings) for x in m] == [
         ("deskew", "unknown", None, {}), ("unknown", "FineReader", "10.0", {"raw": "mode: fast"})]
     assert m[1].measurements == {"datetime": "2012-05-01"}
@@ -126,11 +126,12 @@ def test_page_metadata_items():
     model, settings = items[1].findall("p:Labels", ns)
     assert (model.get("externalModel"), model.get("externalId")) == ("linecaster", "model")
     assert [(lb.get("type"), lb.get("value")) for lb in model] == [
-        ("name", "kraken-ppocrv6-medium"), ("revision", "0123abcd"), ("preset", "kraken-ppocrv6-medium@1"),
-        ("preset_sha256", SHA), ("backend", "in-process"), ("software", P.software())]
+        ("name", "kraken-ppocrv6-medium"), ("engine", "kraken.recognition.v1"), ("revision", "0123abcd"),
+        ("preset", "kraken-ppocrv6-medium@1"), ("preset_sha256", SHA), ("backend", "in-process"),
+        ("software", P.software())]
     assert [(lb.get("type"), lb.get("value")) for lb in settings] == [
         ("batch_size", "8"), ("model", "medium"), ("n", '"16"')]
-    _same_steps(from_page(data).model)
+    _same_steps(from_page(data).steps)
 
 
 PAGE_OCRD = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -154,7 +155,7 @@ PAGE_OCRD = b"""<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_page_foreign_ocrd_processing_step():
-    m = from_page(PAGE_OCRD).model
+    m = from_page(PAGE_OCRD).steps
     assert len(m) == 1
     assert (m[0].step, m[0].name) == ("recognition/text-recognition", "ocrd-tesserocr-recognize")
     assert m[0].settings == {"model": "deu", "textequiv_level": "word", "ocrd-tesserocr-recognize": "0.17.0"}
@@ -176,10 +177,10 @@ def test_hocr_metadata_and_steps():
     assert metas["ocr-capabilities"] == ("ocr_page ocr_carea ocr_header ocr_photo ocr_par ocr_line ocrx_word "
                                          "ocrp_lang ocrp_poly ocrp_wconf")
     assert json.loads(metas["linecaster-step-1"]) == {
-        "step": "recognition", "name": "kraken-ppocrv6-medium", "revision": "0123abcd",
+        "step": "recognition", "name": "kraken-ppocrv6-medium", "engine": "kraken.recognition.v1", "revision": "0123abcd",
         "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA, "backend": "in-process",
         "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
-    _same_steps(from_hocr(to_hocr(t)).model)
+    _same_steps(from_hocr(to_hocr(t)).steps)
 
 
 def test_hocr_capabilities_follow_the_content():
@@ -191,13 +192,13 @@ def test_hocr_capabilities_follow_the_content():
     metas = _metas(to_hocr(t))
     assert metas["ocr-capabilities"] == "ocr_page ocr_line ocrp_lang"
     assert "ocr-langs" not in metas and not any(k.startswith("linecaster-step-") for k in metas)
-    assert from_hocr(to_hocr(t)).model == []
+    assert from_hocr(to_hocr(t)).steps == []
 
 
 def test_hocr_foreign_ocr_system():
     html = (b"<html xmlns='http://www.w3.org/1999/xhtml'><head><meta name='ocr-system' content='tesseract 5.3.0'/>"
             b"</head><body><div class='ocr_page' title='bbox 0 0 10 10'></div></body></html>")
-    assert [(m.step, m.name) for m in from_hocr(html).model] == [("recognition", "tesseract 5.3.0")]
+    assert [(m.step, m.name) for m in from_hocr(html).steps] == [("recognition", "tesseract 5.3.0")]
 
 
 # ------------------------------------------------------------------------------------------------ values
@@ -219,7 +220,7 @@ def test_mets_agent():
     assert agent.findtext(f"{{{M}}}name") == f"{P.software()} kraken-ppocrv6-medium@0123abcd"
     notes = [(n.get(f"{{{OCRD}}}option") or n.get(f"{{{LC}}}option"), n.text) for n in agent.iter(f"{{{M}}}note")]
     assert notes == [("parameter", '{"batch_size":8,"model":"medium","n":"16"}'), ("step", "recognition"),
-                     ("name", "kraken-ppocrv6-medium"), ("revision", "0123abcd"),
+                     ("name", "kraken-ppocrv6-medium"), ("engine", "kraken.recognition.v1"), ("revision", "0123abcd"),
                      ("preset", "kraken-ppocrv6-medium@1"), ("preset_sha256", SHA), ("backend", "in-process")]
     _same_steps([provenance.from_mets_agent(a) for a in provenance.mets_agents(STEPS)])
     assert provenance.mets_agent(STEPS[2]).get("OTHERROLE") == provenance.OCRD_FALLBACK_STEP
@@ -242,7 +243,7 @@ def test_mets_agents_validate():
 class StampModel:
     """A test engine: records a step and changes nothing else."""
 
-    step, name = "recognition", "stamp"
+    engine_id, step, name = "stamp.recognition.v1", "recognition", "stamp"
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -251,8 +252,8 @@ class StampModel:
         pass
 
     def __call__(self, image, t, **params):
-        t.model.append(ModelInfo(step=self.step, name=self.name, revision="r1", backend="in-process",
-                                 settings=dict(self.kwargs)))
+        t.steps.append(StepInfo(step=self.step, name=self.name, revision="r1", backend="in-process",
+                                settings=dict(self.kwargs)))
         return t
 
 
@@ -329,9 +330,9 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert set(sw["packages"]) >= {"datatrove", "saturate", "docling-core"}
     # every page file carries the step with its preset
     for name, reader in (("p1.alto.xml", from_alto), ("p1.page.xml", from_page), ("p1.hocr", from_hocr)):
-        m = reader((tmp_path / "files" / name).read_bytes()).model
-        assert [(x.step, x.name, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
-            ("recognition", "stamp", "r1", "stamp@2", SHA, {"size": 3})]
+        m = reader((tmp_path / "files" / name).read_bytes()).steps
+        assert [(x.step, x.name, x.engine, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
+            ("recognition", "stamp", "stamp.recognition.v1", "r1", "stamp@2", SHA, {"size": 3})]
     # a second launch of the same pipeline into the same OUT (a resume) keeps run.yaml and writes its own record next
     # to it
     run.run(a, _pipeline(a, files), __file__, argv=argv)

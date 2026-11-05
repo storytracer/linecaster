@@ -105,7 +105,7 @@ def test_parse_keeps_bbox_placeholders_verbatim():
             "usage": {"prompt_tokens": 8200, "completion_tokens": 40}}
     t = chat_model("ovisocr3").parse(body, backend="served x")
     assert t.text == raw and t.extra["raw"] == raw                     # drop_bbox_blocks stays in the harness
-    m = t.model[0]
+    m = t.steps[0]
     assert (m.name, m.revision) == ("ATH-MaaS/OvisOCR3", REVISIONS["ATH-MaaS/OvisOCR3"])
     assert m.measurements == {"prompt_tokens": 8200, "completion_tokens": 40, "finish_reason": "stop"}
     assert m.settings["chat_template_kwargs"] == {"enable_thinking": False}

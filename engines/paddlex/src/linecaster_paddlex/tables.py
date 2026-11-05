@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dataclasses import dataclass, field
 
-from linecaster.data import ModelInfo, Transcription
+from linecaster.data import StepInfo, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_pipeline, paddle_image
@@ -201,7 +201,7 @@ class PaddleTableEngine:
                                              "box the models can flip to a worse cell set; stable from 8 px)")
         e2e: bool = Field(True, description="structure and cell boxes from SLANet_plus's own prediction for both "
                                             "table classes (False: the cell detectors, PP-StructureV3's route)")
-        name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded in ModelInfo")
+        name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded in StepInfo")
         submodel_revisions: dict[str, str] | None = Field(
             None, description="PaddleX model name -> Hugging Face commit of its ONNX package, for the table "
                               "classifier and the cell detectors; each must be a pin in the catalog (None: the "
@@ -242,7 +242,7 @@ class PaddleTableEngine:
                 "cells": [{"text": c.text, "row": c.row, "col": c.col, "row_span": c.row_span, "col_span": c.col_span,
                            "bbox": xywh(c.bbox) if c.bbox is not None else None, "header": c.header} for c in res.cells]}
             n += 1
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend="paddlex/onnxruntime",
-                                             settings={"crop_pad": self.crop_pad, "e2e": self.e2e}, measurements={"tables": n}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend="paddlex/onnxruntime",
+                                            settings={"crop_pad": self.crop_pad, "e2e": self.e2e}, measurements={"tables": n}))
         return transcription

@@ -35,7 +35,7 @@ def executors(images: str, out: pathlib.Path, ep: str):
 
 
 def content(text: str) -> list:
-    """Page records without timings (``ModelInfo.measurements`` differ from run to run)."""
+    """Page records without timings (``StepInfo.measurements`` differ from run to run)."""
     rows = []
     for line in text.splitlines():
         row = json.loads(line)

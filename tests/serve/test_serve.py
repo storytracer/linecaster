@@ -11,7 +11,7 @@ from PIL import Image
 from linecaster.backends import Served
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.recognition.recognizers import TableRecognizer
-from linecaster.data import ModelInfo, Region, Transcription
+from linecaster.data import Region, StepInfo, Transcription
 from linecaster.data.page import Page
 
 SEEN: dict = {}
@@ -21,7 +21,7 @@ class FakeTables:
     """A tables engine that notes whether it got an image; for a page whose region is labeled ``bad``
     it answers something that is not a transcription."""
 
-    step, name = "tables", "fake-tables"
+    engine_id, step, name = "fake.tables.v1", "tables", "fake-tables"
 
     def load(self):
         pass
@@ -30,12 +30,12 @@ class FakeTables:
         SEEN[transcription.regions[0].id] = image is not None
         if transcription.regions[0].label == "bad":
             class Bad:
-                model = []
+                steps = []
 
                 def model_dump(self, mode="json"):
                     return {"lines": "not a list"}
             return Bad()
-        transcription.model.append(ModelInfo(step=self.step, name=self.name))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name))
         return transcription
 
 
@@ -95,7 +95,7 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
         assert SEEN == {"with-r": True, "without-r": False, "x-r": False}
         for pid in ("with", "without"):            # both pages carry the step's record, image or not
             t: Transcription = Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"]
-            assert [m.name for m in t.model] == ["fake-tables"] and not out[pid].metadata.get("errors")
+            assert [(m.name, m.engine) for m in t.steps] == [("fake-tables", "fake.tables.v1")] and not out[pid].metadata.get("errors")
         assert out["x"].metadata["errors"][0]["step"] == "tables"     # the malformed answer: this page only
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
@@ -128,7 +128,7 @@ def test_a_served_block_passes_a_failed_page_on_at_once():
             seen.append(d.id)
             out_first.set()
         assert seen == ["failed", "next"] and step.stats["skipped_after_error"].total == 1
-        assert not page_of(failed).transcriptions["ocr_new"].model    # the step never read it
+        assert not page_of(failed).transcriptions["ocr_new"].steps    # the step never read it
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)

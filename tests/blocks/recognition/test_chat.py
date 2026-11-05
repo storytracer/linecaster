@@ -88,7 +88,7 @@ def test_parse_keeps_the_completion_verbatim():
     assert all(ln.bbox is None and ln.polygon is None for ln in t.lines)
     assert [ln.reading_order for ln in t.lines] == list(range(len(t.lines)))
     assert t.source.kind == "produced" and t.source.format == "text"
-    m = t.model[0]
+    m = t.steps[0]
     assert (m.step, m.name, m.revision, m.backend) == ("recognition", "lightonai/LightOnOCR-2-1B",
                                                        "c97bd377f04481830395218fa8951df9deaba756", "served x")
     assert m.measurements == {"prompt_tokens": 2322, "completion_tokens": 7, "finish_reason": "stop"}
@@ -98,10 +98,10 @@ def test_parse_keeps_the_completion_verbatim():
 
 def test_parse_truncated_and_empty():
     t = chat_model("lightonocr-2-1b").parse(completion("a\na\na", finish="length"))
-    assert t.extra["finish_reason"] == "length" and t.model[0].measurements["finish_reason"] == "length"
+    assert t.extra["finish_reason"] == "length" and t.steps[0].measurements["finish_reason"] == "length"
     empty = chat_model("lightonocr-2-1b").parse(completion(None, usage={}))
     assert empty.text == "" and empty.extra["raw"] == "" and len(empty.lines) == 1
-    assert empty.model[0].measurements["prompt_tokens"] is None
+    assert empty.steps[0].measurements["prompt_tokens"] is None
 
 
 def test_parse_without_choices_raises():
@@ -164,7 +164,7 @@ def test_chat_page_step_end_to_end(fake_server):
         t = page_of(d).transcriptions["ocr_new"]
         w = round((1000 + 100 * i) * 1540 / 2000)
         assert t.extra["raw"] == f"\npage {w}x1540\n" and d.text == t.extra["raw"]
-        assert t.model[0].measurements["completion_tokens"] == 3
+        assert t.steps[0].measurements["completion_tokens"] == 3
         assert "errors" not in d.metadata
     assert "ocr_new" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
 

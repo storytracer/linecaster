@@ -10,16 +10,21 @@ A page is transcribed in steps, each adding one part:
 * a layout step fills ``regions`` (label, polygon, reading order);
 * a line step fills ``lines`` with geometry only (``text`` is ``None``);
 * a recognition step fills each line's ``text``, ``confidence`` and ``words``;
-* page composition (``Composer``) builds ``docling`` (the document structure) from regions and lines.
+* recomposition (``Recomposer``) fills ``paragraphs`` (running text from the rows, with its decisions);
+* character normalization (``CharacterNormalizer``) fills ``Line.normalized`` and ``Paragraph.normalized``;
+* page composition (``Composer``) builds ``docling`` (the document structure) from regions and lines, or
+  paragraphs.
+
+Every step that worked on the transcription adds one ``StepInfo`` to ``steps``.
 
 ``regions`` is the layout contract between steps; ``docling`` is the document a reader exports.
 Words are the finest level: a recognizer that has character cuts turns them into words itself.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Point = list[float]
 BBox = list[float]          # [x, y, width, height]
@@ -53,6 +58,7 @@ class Line(_Model):
     baseline: list[Point] | None = None
     score: float | None = None               # the line step's detection score
     text: str | None = None                  # None until a recognition step ran
+    normalized: str | None = None            # the text normalized (CharacterNormalizer); None until that ran
     confidence: float | None = None
     alternatives: list[str] = Field(default_factory=list)
     words: list[Word] = Field(default_factory=list)
@@ -74,11 +80,14 @@ class Region(_Model):
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
-class ModelInfo(_Model):
-    """One model that contributed to the transcription, in the order the steps ran."""
+class StepInfo(_Model):
+    """One step that worked on the transcription, in the order the steps ran: a model step (layout, lines,
+    recognition, tables, formulas) or a rule-based one (unicode, typography, recomposition, normalization,
+    composition). ``measurements`` keys come from the fixed vocabulary ``linecaster.data.MEASUREMENTS``."""
 
-    step: str                                # layout, lines, recognition, tables, formulas, page, ...
-    name: str                                # e.g. kraken-ppocrv6-medium, PP-DocLayoutV3
+    step: str                                # layout, lines, recognition, ..., unicode, typography, recomposition
+    name: str                                # the model (kraken-ppocrv6-medium); without one, what ran (unicodedata)
+    engine: str | None = None                # the engine's code id, e.g. kraken.recognition.v1 (None: no engine ran it)
     revision: str | None = None
     preset: str | None = None                # the catalog preset edition it ran as: id@edition
     preset_sha256: str | None = None         # the hash of that edition's functional content (catalog.lock)
@@ -86,7 +95,86 @@ class ModelInfo(_Model):
     recipe_sha256: str | None = None
     backend: str | None = None               # in-process or served (with the server's address)
     settings: dict[str, Any] = Field(default_factory=dict)
-    measurements: dict[str, Any] = Field(default_factory=dict)   # seconds, tokens, device, ...
+    measurements: dict[str, Any] = Field(default_factory=dict)   # MEASUREMENTS: seconds, tokens, counts, ...
+
+
+#: what a recomposition decided at a row end, and why: kind -> its reasons (``Decision``)
+DECISIONS: dict[str, tuple[str, ...]] = {
+    # a division mark the typesetter added, removed: the next row starts with a lowercase or caseless letter
+    "mark_removed": ("letter_follows",),
+    # a hyphen at a row end kept: the next row starts with a capital (a compound divided at its own hyphen), a
+    # digit, or no letter; the next row is in another script (a Hebrew letter before the mark); or the document
+    # attests the hyphenated form and not the joined one
+    "hyphen_kept": ("capital_follows", "digit_follows", "no_letter_follows", "script_change", "attested"),
+    # a new paragraph starts at this row: it is indented, a gap of about a blank line is above it, or (justified
+    # text) the row before stopped short of the end margin
+    "paragraph_break": ("indent", "gap", "short_row"),
+    # the paragraph runs on into the next one (the next region, or the next page): it ends with a division
+    # mark, or its last row reaches the end margin, without sentence-final punctuation
+    "continuation": ("division_mark", "end_margin"),
+}
+
+
+class Decision(_Model):
+    """One decision of a recomposition, at one row of a paragraph (``row``: the index into
+    ``Paragraph.rows``): a mark removed or a hyphen kept at that row's end, a paragraph break before it (row
+    0), a continuation after the paragraph's last row. ``kind`` and ``reason`` are ``DECISIONS``'.
+    ``separator`` is, for a continuation, what joins this paragraph's text to the text of the paragraph it
+    runs on into (``""`` or a space; a removed mark is already gone from ``Paragraph.text``)."""
+
+    kind: Literal["mark_removed", "hyphen_kept", "paragraph_break", "continuation"]
+    reason: str
+    row: int = 0
+    separator: str | None = None
+
+    @model_validator(mode="after")
+    def _reason(self):
+        if self.reason not in DECISIONS[self.kind]:
+            raise ValueError(f"{self.kind}: reason {self.reason!r} is none of {DECISIONS[self.kind]}")
+        return self
+
+
+class ParagraphRow(_Model):
+    """One visual row of a paragraph: every line on the row (``Line.row``; empty ones too), and where the row's
+    text is in the paragraph's text."""
+
+    lines: list[str]                         # line ids, in the transcription's line order
+    start: int                               # Paragraph.text[start:end] is this row's part
+    end: int
+
+
+class ParagraphRef(_Model):
+    """A paragraph elsewhere: its id, on this page (``page_id`` None) or on another page of the item."""
+
+    id: str
+    page_id: str | None = None
+
+
+class Paragraph(_Model):
+    """Running text recomposed from the rows of one region, with the decisions that made it.
+
+    The rows say exactly where each part of the text was printed, which is what a document's provenance needs:
+    a ``ParagraphRow`` names the lines on the row (all of them, as ``Line.row`` groups a region's lines), and its
+    box is the union of their boxes as algorithms derive them (``geometry.bbox_of`` of each polygon, else the
+    bbox); ``start``/``end`` are the row's character range in ``text``, so a document item made from the paragraph
+    has one provenance entry per row with that box and that ``charspan`` (shifted by the length of the text
+    before it when the item continues a paragraph of an earlier region or page). Rows without text belong to no
+    paragraph. A text-only transcription (lines without geometry) has rows too, without boxes.
+
+    ``text`` is as written, flowed: the rows joined, the division marks the recomposition removed are gone
+    (``decisions``). ``normalized`` is the same text normalized (``CharacterNormalizer``). ``continues`` names
+    the paragraph this one runs on into, ``continues_from`` the one it continues (in the next or previous text
+    region, or, from an item-level recomposition, on the next or previous page)."""
+
+    id: str                                  # <region id>_p<n>
+    region_id: str | None = None
+    rows: list[ParagraphRow] = Field(default_factory=list)
+    text: str = ""
+    normalized: str | None = None
+    continues_from: ParagraphRef | None = None
+    continues: ParagraphRef | None = None
+    decisions: list[Decision] = Field(default_factory=list)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class Source(_Model):
@@ -106,9 +194,10 @@ class Transcription(_Model):
 
     regions: list[Region] = Field(default_factory=list)
     lines: list[Line] = Field(default_factory=list)
+    paragraphs: list[Paragraph] = Field(default_factory=list)   # in reading order (Recomposer)
     docling: dict[str, Any] | None = None    # a DoclingDocument, serialized as docling-core dumps it
     language: str | None = None
-    model: list[ModelInfo] = Field(default_factory=list)
+    steps: list[StepInfo] = Field(default_factory=list)          # one per step that worked on it, in order
     source: Source = Field(default_factory=Source)
     extra: dict[str, Any] = Field(default_factory=dict)
 

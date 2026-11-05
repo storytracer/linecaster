@@ -68,7 +68,7 @@ def test_parse_keeps_the_completion_verbatim():
             "usage": {"prompt_tokens": 9000, "completion_tokens": 30}}
     t = chat_model("dots-ocr").parse(body, backend="served vllm")
     assert t.text == raw and t.extra["raw"] == raw                    # the strip stays in the harness
-    m = t.model[0]
+    m = t.steps[0]
     assert (m.step, m.name, m.revision) == ("recognition", "rednote-hilab/dots.ocr", REVISION)
     assert m.measurements == {"prompt_tokens": 9000, "completion_tokens": 30, "finish_reason": "stop"}
     assert m.settings["prompt"] == "Extract the text content from this image."

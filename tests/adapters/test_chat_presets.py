@@ -1,5 +1,5 @@
 """Chat presets (catalog, engine chat.v1): every preset resolves and builds its adapter, Hugging Face ids still
-work, the edition and its hash reach ModelInfo, and the blocks take preset refs."""
+work, the edition and its hash reach StepInfo, and the blocks take preset refs."""
 from __future__ import annotations
 
 import pickle
@@ -65,12 +65,12 @@ def test_an_explicit_edition_resolves_from_the_lock():
         chat_model("dots-ocr@99")
 
 
-def test_model_info_records_the_preset_edition():
+def test_step_info_records_the_preset_edition():
     spec = chat_model("glm-ocr")
     body = {"choices": [{"message": {"content": "x"}, "finish_reason": "stop"}], "usage": {}}
-    m = spec.parse(body, backend="served x").model[0]
+    m = spec.parse(body, backend="served x").steps[0]
     assert (m.preset, m.preset_sha256) == ("glm-ocr@1", spec.preset_sha256)
-    assert m.name == "zai-org/GLM-OCR" and m.settings == spec.settings()
+    assert (m.name, m.engine) == ("zai-org/GLM-OCR", "chat.v1") and m.settings == spec.settings()
 
 
 def test_blocks_take_preset_refs():

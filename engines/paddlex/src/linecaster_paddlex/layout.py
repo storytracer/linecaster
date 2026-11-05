@@ -12,7 +12,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import ModelInfo, Region as LCRegion, Transcription
+from linecaster.data import Region as LCRegion, StepInfo, Transcription
 from linecaster.data.geometry import BBox, xywh
 from linecaster.data.geometry.order import suppress_contained, xy_cut_order
 
@@ -186,8 +186,8 @@ class PaddleLayoutEngine:
         transcription.regions = [
             LCRegion(id=r.id, label=r.label, raw_label=r.raw_label, polygon=np.asarray(r.polygon, dtype=float).tolist(),
                      bbox=xywh(r.bbox), score=r.score, reading_order=r.order) for r in regions]
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend="paddlex/onnxruntime",
-                                             settings={"threshold": str(self.layout.threshold) if isinstance(self.layout.threshold, float) else "model default",
-                                                       "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend="paddlex/onnxruntime",
+                                            settings={"threshold": str(self.layout.threshold) if isinstance(self.layout.threshold, float) else "model default",
+                                                      "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
         return transcription

@@ -4,7 +4,7 @@ linecaster's text is NFC (CLAUDE.md). Recognizers do not all deliver it: kraken'
 ``ä`` as ``a`` + U+0308 (decomposed). The ``UnicodeNormalizer`` block (``linecaster.blocks.text.unicode``) runs
 this right after recognition. It is a separate step, not part of a backend, so that an engine's raw
 output stays what the engine produced (and testable against the engine itself), and the step is
-recorded: ``ModelInfo(step="unicode", name="unicodedata", settings={"form", "unicode_version"})``.
+recorded: ``StepInfo(step="unicode", name="unicodedata", settings={"form", "unicode_version"})``.
 Parity with a reference that did not normalize is then "byte-exact after NFC on both sides".
 
 Normalized: ``Line.text``, ``Line.alternatives``, ``Word.text``, ``Word.alternatives``. Boxes,
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import unicodedata
 
-from ..data.transcription import ModelInfo, Transcription
+from ..data.transcription import StepInfo, Transcription
 
 FORMS = ("NFC", "NFD")
 
@@ -42,7 +42,7 @@ def normalize_transcription(t: Transcription, form: str = "NFC") -> int:
         for w in ln.words:
             w.text = norm(w.text)
             w.alternatives = [norm(a) for a in w.alternatives]
-    t.model.append(ModelInfo(step="unicode", name="unicodedata",
-                             settings={"form": form, "unicode_version": unicodedata.unidata_version},
-                             measurements={"changed": changed}))
+    t.steps.append(StepInfo(step="unicode", name="unicodedata",
+                            settings={"form": form, "unicode_version": unicodedata.unidata_version},
+                            measurements={"changed": changed}))
     return changed

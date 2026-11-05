@@ -20,8 +20,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from .transcription import Transcription
 
 PAGE_KEY = "page"
-#: the format of a stored page record (its row's ``schema``); rows without one were written before phase 1
-PAGE_SCHEMA = "linecaster.page/1"
+#: the format of a stored page record (its row's ``schema``); ``PageRecordReader`` reads earlier ones as this one
+PAGE_SCHEMA = "linecaster.page/2"
 
 
 class PageImage(BaseModel):

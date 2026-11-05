@@ -27,7 +27,7 @@ def test_normalize_unicode_nfc():
     ln = t.lines[0]
     assert ln.text == "Extremität" == unicodedata.normalize("NFC", dec) and ln.alternatives == ["Extremität"]
     assert ln.words[0].text == "Extremität" and ln.words[0].alternatives == ["ä"] and ln.words[0].bbox == [1, 2, 3, 4]
-    m = t.model[-1]
+    m = t.steps[-1]
     assert (m.step, m.settings["form"], m.measurements["changed"]) == ("unicode", "NFC", 4)
     assert normalize_transcription(t) == 0                    # idempotent
     with pytest.raises(ValueError):

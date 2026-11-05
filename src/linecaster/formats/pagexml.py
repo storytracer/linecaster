@@ -11,9 +11,9 @@ Mapping (see ``docs/reference/serialization.md``):
   ``TextEquiv`` with ``@conf``; alternatives as further ``TextEquiv`` with ``@index``);
 * word -> ``Word`` (``Coords`` = box, ``TextEquiv``);
 * lines without a region go into a synthetic ``TextRegion`` the reader drops again;
-* each step of ``model`` -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step, ``value``
+* each step of ``steps`` -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step, ``value``
   the preset edition or model, ``Labels`` of the ``linecaster`` model for the rest), read back into
-  ``model`` (foreign files: OCR-D's processing steps with their parameters).
+  ``steps`` (foreign files: OCR-D's processing steps with their parameters).
 
 PAGE coordinates are non-negative integers: geometry is rounded half up (boxes by their corners)
 and clamped at 0. What PAGE has no place for goes into ``UserDefined/UserAttribute[@name=
@@ -26,7 +26,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, ModelInfo, Region, Source, Transcription, Word
+from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
 from . import _provenance as P, _xml as X
 
 NS = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"
@@ -193,10 +193,10 @@ class _Writer:
         self.text_equivs(el, w.text, w.confidence, w.alternatives)
         self.ext(el, ext)
 
-    def processing_step(self, md, m: ModelInfo) -> None:
+    def processing_step(self, md, m: StepInfo) -> None:
         """``MetadataItem type="processingStep"`` (as OCR-D records its processors): ``name`` = the step,
         ``value`` = the preset edition or the model; ``Labels`` of the ``linecaster`` model with the model
-        (``externalId="model"``: name, revision, preset, preset hash, backend, software) and the settings
+        (``externalId="model"``: name, engine, revision, preset, preset hash, backend, software) and the settings
         (``externalId="settings"``: one label per setting, values as ``encode_value`` writes them)."""
         when = P.processed_at(m)
         item = _e(md, "MetadataItem", type="processingStep", name=m.step, value=P.label(m),
@@ -225,9 +225,9 @@ class _Writer:
         _e(md, "Creator").text = P.software()
         _e(md, "Created").text = created
         _e(md, "LastChange").text = created
-        if t.model:
-            _e(md, "Comments").text = "; ".join(P.summary(m) for m in t.model)
-        for m in t.model:
+        if t.steps:
+            _e(md, "Comments").text = "; ".join(P.summary(m) for m in t.steps)
+        for m in t.steps:
             self.processing_step(md, m)
         page = _e(root, "Page", imageFilename=uri or "", imageWidth=str(width), imageHeight=str(height))
         if in_group:
@@ -347,8 +347,8 @@ def _ro_refs(ro) -> list[str]:
     return refs
 
 
-def _metadata_steps(md) -> list[ModelInfo]:
-    """``MetadataItem type="processingStep"`` -> ``ModelInfo``: linecaster's from their ``Labels``; foreign
+def _metadata_steps(md) -> list[StepInfo]:
+    """``MetadataItem type="processingStep"`` -> ``StepInfo``: linecaster's from their ``Labels``; foreign
     ones (OCR-D) with ``name`` as the step, ``value`` as the model, ``Label``s of other ``Labels`` (OCR-D's
     ``parameters``) as settings."""
     steps = []
@@ -384,7 +384,7 @@ def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
     root, ns = X.parse_xml(data)
     page = X.child(root, "Page")
     md = X.child(root, "Metadata")
-    t = Transcription(model=_metadata_steps(md) if md is not None else [])
+    t = Transcription(steps=_metadata_steps(md) if md is not None else [])
     if page is None:
         t.source = Source(kind="converted", format="page", uri=uri, extra={"namespace": ns} if ns else {})
         return t

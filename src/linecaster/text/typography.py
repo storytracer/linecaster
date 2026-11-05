@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..data.geometry import BBox, bbox_of, xywh
-from ..data.transcription import Line, ModelInfo, Region, Transcription
+from ..data.transcription import Line, Region, StepInfo, Transcription
 
 PAGE_NUMBER_MIN_CONF = 0.75
 DEMOTE = 1.2
@@ -284,5 +284,5 @@ def retype(t: Transcription, stats: RetypeStats | None = None) -> RetypeStats:
         ln.reading_order = k
     if dropped:
         t.extra.setdefault("retyper_dropped", []).extend(dropped)
-    t.model.append(ModelInfo(step="typography", name="retyper", settings=dict(SETTINGS), measurements=stats.counts()))
+    t.steps.append(StepInfo(step="typography", name="retyper", settings=dict(SETTINGS), measurements=stats.counts()))
     return stats

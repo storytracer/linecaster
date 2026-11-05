@@ -40,11 +40,11 @@ class SlowLines:
         time.sleep(self.LOAD_SECONDS)
 
     def __call__(self, image, t, **params):
-        from linecaster.data.transcription import ModelInfo
+        from linecaster.data.transcription import StepInfo
 
         h, w = image.shape[:2]
         t.lines = [Line(id=f"l{i}", bbox=[0, y, w, h // 2]) for i, y in enumerate((0, h // 2))]
-        t.model.append(ModelInfo(step="lines", name=self.name))
+        t.steps.append(StepInfo(step="lines", name=self.name))
         return t
 
 
@@ -108,7 +108,7 @@ def test_warm_up_loads_before_the_first_page_and_is_its_own_stat():
     assert lines.stats["warm_up_seconds"].total >= SlowLines.LOAD_SECONDS
     # a page's measured seconds never include the loading
     for doc in out:
-        assert page_of(doc).transcriptions["ocr_new"].model[0].measurements["seconds"] < SlowLines.LOAD_SECONDS
+        assert page_of(doc).transcriptions["ocr_new"].steps[0].measurements["seconds"] < SlowLines.LOAD_SECONDS
     # blocks without anything to load have no warm-up stat
     assert "warm_up_seconds" not in blocks[2].stats.stats
 

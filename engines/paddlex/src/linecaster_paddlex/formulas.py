@@ -12,7 +12,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import ModelInfo, Transcription
+from linecaster.data import StepInfo, Transcription
 from linecaster.data.geometry import bbox_of
 
 from .compat import create_transformers_predictor, paddle_image
@@ -65,7 +65,7 @@ class PaddleFormulaEngine:
                 latex[i] = str(res["rec_formula"]).strip()
         for region, text in zip(targets, latex):
             region.extra["formula"] = text
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend="paddlex/transformers",
-                                             settings={"batch_size": self.batch_size}, measurements={"formulas": len(targets)}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend="paddlex/transformers",
+                                            settings={"batch_size": self.batch_size}, measurements={"formulas": len(targets)}))
         return transcription

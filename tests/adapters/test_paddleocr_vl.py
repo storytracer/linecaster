@@ -62,4 +62,4 @@ def test_serve_args_match_the_driver():
 def test_parse_keeps_the_completion_verbatim():
     raw = "  12. Helix (Patula) rotundata, Müll.\nHab. Near Bristol.\n"
     t = chat_model("paddleocr-vl-1.6").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}]})
-    assert t.text == raw and t.model[0].settings["prompt"] == "OCR:"
+    assert t.text == raw and t.steps[0].settings["prompt"] == "OCR:"

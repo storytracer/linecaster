@@ -68,7 +68,7 @@ def test_v1_parse_is_verbatim_and_null_content_is_an_error():
     raw = "<｜begin▁of▁sentence｜><|det|>text [12, 30, 980, 64]<|/det|>PROCEEDINGS\n<|det|>image [0, 70, 990, 900]<|/det|>"
     t = chat_model("unlimited-ocr").parse(completion(raw, "length"))
     assert t.text == raw and t.extra["raw"] == raw and t.extra["finish_reason"] == "length"
-    assert t.model[0].revision == chat_model("unlimited-ocr").revision
+    assert t.steps[0].revision == chat_model("unlimited-ocr").revision
     with pytest.raises(ServerError, match="no content"):
         chat_model("unlimited-ocr").parse(completion(None))
     assert chat_model("unlimited-ocr").parse(completion("")).text == ""
@@ -189,7 +189,7 @@ def test_serve_block_vllm_spec_needs_no_preparation(monkeypatch):
 
 
 def test_v2_settings_record_the_server():
-    s = chat_model("unlimited-ocr-2").parse(completion("<BLOCK>text[10, 20, 990, 60]<FORK>Shell 6 mm.")).model[0].settings
+    s = chat_model("unlimited-ocr-2").parse(completion("<BLOCK>text[10, 20, 990, 60]<FORK>Shell 6 mm.")).steps[0].settings
     assert s["server"] == "sglang" and s["server_env"]["SGLANG_UOCR_MAX_PAGE_TOKENS"] == "20000"
     assert s["custom_params"]["window_size"] == 128 and s["sampling"]["max_tokens"] == 8000
 

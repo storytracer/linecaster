@@ -6,7 +6,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import Line, ModelInfo, Transcription
+from linecaster.data import Line, StepInfo, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_predictor, paddle_image
@@ -104,8 +104,8 @@ class PaddleLineEngine:
         transcription.lines = [Line(id=f"det_{i}", region_id=rid or None, reading_order=i, bbox=xywh(BBox.of(pts)),
                                     polygon=pts.tolist(), score=score) for i, (pts, score, rid) in enumerate(found)]
         d = self.detector
-        transcription.model.append(ModelInfo(step=self.step, name=self.name, revision=self.revision,
-                                             backend="paddlex/onnxruntime",
-                                             settings={"unclip_ratio": d.unclip_ratio, "box_thresh": d.box_thresh,
-                                                       "thresh": d.thresh, "per_region": self.per_region}))
+        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
+                                            backend="paddlex/onnxruntime",
+                                            settings={"unclip_ratio": d.unclip_ratio, "box_thresh": d.box_thresh,
+                                                      "thresh": d.thresh, "per_region": self.per_region}))
         return transcription

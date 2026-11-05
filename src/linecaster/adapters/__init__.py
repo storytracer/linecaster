@@ -23,7 +23,7 @@ import io
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ..data.transcription import Line, ModelInfo, Source, Transcription
+from ..data.transcription import Line, Source, StepInfo, Transcription
 from ..errors import CatalogError, PipelineConfigError, ServerError
 
 #: the engine of chat presets
@@ -134,7 +134,7 @@ class ChatAdapter:
                 "served_name": self.served_name}
 
     def settings(self) -> dict[str, Any]:
-        """Everything that decides the output, recorded in ``ModelInfo.settings`` (next to the preset edition
+        """Everything that decides the output, recorded in ``StepInfo.settings`` (next to the preset edition
         and its hash)."""
         return {"sampling": dict(self.sampling), "serve_args": list(self.serve_args)}
 
@@ -174,12 +174,12 @@ class ChatAdapter:
             raise ServerError(f"no choices in response: {body!r}"[:500])
         return choices[0]["message"].get("content") or "", choices[0].get("finish_reason")
 
-    def model_info(self, backend: str | None = None, settings: dict | None = None,
-                   measurements: dict | None = None) -> ModelInfo:
-        """The ``ModelInfo`` of one result: model, revision, preset edition and its hash, settings."""
-        return ModelInfo(step=self.step, name=self.model, revision=self.revision, preset=self.preset,
-                         preset_sha256=self.preset_sha256, backend=backend,
-                         settings=self.settings() if settings is None else settings, measurements=measurements or {})
+    def step_info(self, backend: str | None = None, settings: dict | None = None,
+                   measurements: dict | None = None) -> StepInfo:
+        """The ``StepInfo`` of one result: model, engine, revision, preset edition and its hash, settings."""
+        return StepInfo(step=self.step, name=self.model, engine=ENGINE, revision=self.revision, preset=self.preset,
+                        preset_sha256=self.preset_sha256, backend=backend,
+                        settings=self.settings() if settings is None else settings, measurements=measurements or {})
 
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
         """A text-only transcription: one line per text line of the completion, no geometry. The raw
@@ -187,7 +187,7 @@ class ChatAdapter:
         are split on ``\\n`` and joined back), so post-processing can be decided later."""
         raw, finish = self.content(body)
         usage = body.get("usage") or {}
-        return text_transcription(raw, self.model_info(backend, measurements={
+        return text_transcription(raw, self.step_info(backend, measurements={
             "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
             "finish_reason": finish}), finish_reason=finish)
 
@@ -195,9 +195,9 @@ class ChatAdapter:
         return f"<{type(self).__name__} {self.preset} ({self.model}@{(self.revision or '')[:8]})>"
 
 
-def text_transcription(raw: str, model: ModelInfo | None = None, finish_reason: str | None = None) -> Transcription:
+def text_transcription(raw: str, model: StepInfo | None = None, finish_reason: str | None = None) -> Transcription:
     lines = [Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(raw.split("\n"))]
-    return Transcription(lines=lines, model=[model] if model else [],
+    return Transcription(lines=lines, steps=[model] if model else [],
                          source=Source(kind="produced", format="text"),
                          extra={"raw": raw, "finish_reason": finish_reason})
 

@@ -1,6 +1,6 @@
 """Provenance: what produced a transcription, for METS, and what a run resolved, for ``OUT/run.yaml``.
 
-* ``mets_agent(m)`` turns one step (``ModelInfo``) into an OCR-D-style METS ``agent`` (an lxml element, for a
+* ``mets_agent(m)`` turns one step (``StepInfo``) into an OCR-D-style METS ``agent`` (an lxml element, for a
   derivative's METS output): ``TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER"``, ``OTHERROLE`` the OCR-D
   functional step (``linecaster.catalog.schema.OCRD_STEPS``), ``name`` linecaster with its release and the
   model, a ``note`` with OCR-D's ``ocrd:option="parameter"`` for the settings (JSON) and one ``note`` per
@@ -26,7 +26,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import ModelInfo
+from ..data.transcription import StepInfo
 from ..formats import _provenance as P
 
 RUN_SCHEMA = "linecaster.run-record/1"
@@ -114,12 +114,12 @@ def software(extra_packages=()) -> dict[str, Any]:
 
 # ------------------------------------------------------------------------------------------------ steps
 
-def step_entry(m: ModelInfo) -> dict[str, Any]:
+def step_entry(m: StepInfo) -> dict[str, Any]:
     """One step as the page files record it: step, name, revision, preset, preset hash, backend, settings."""
     return P.record(m)
 
 
-def step_entries(models: list[ModelInfo]) -> list[dict[str, Any]]:
+def step_entries(models: list[StepInfo]) -> list[dict[str, Any]]:
     return [step_entry(m) for m in models]
 
 
@@ -130,7 +130,7 @@ def ocrd_step(step: str) -> str:
     return OCRD_STEPS.get(step, OCRD_FALLBACK_STEP)
 
 
-def mets_agent(m: ModelInfo) -> etree._Element:
+def mets_agent(m: StepInfo) -> etree._Element:
     """An OCR-D-style METS ``agent`` for one step (namespaces ``mets``, ``ocrd`` and ``lc`` declared on it)::
 
         <mets:agent TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER" OTHERROLE="recognition/text-recognition">
@@ -159,11 +159,11 @@ def mets_agent(m: ModelInfo) -> etree._Element:
     return agent
 
 
-def mets_agents(models: list[ModelInfo]) -> list[etree._Element]:
+def mets_agents(models: list[StepInfo]) -> list[etree._Element]:
     return [mets_agent(m) for m in models]
 
 
-def from_mets_agent(agent: etree._Element) -> ModelInfo:
+def from_mets_agent(agent: etree._Element) -> StepInfo:
     """The step a ``mets_agent`` describes."""
     rec: dict[str, Any] = {}
     for note in agent.iter(f"{{{METS}}}note"):

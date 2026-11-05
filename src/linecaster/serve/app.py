@@ -98,12 +98,13 @@ class Hosted:
             try:
                 began = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 out = self.model(image, t, **params)
-                if out.model:
-                    out.model[-1].measurements.setdefault("datetime", began)
-                if self.preset and out.model:
-                    out.model[-1].preset, out.model[-1].preset_sha256 = self.preset, self.preset_sha256
-                if out.model:
-                    out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+                if out.steps:
+                    out.steps[-1].engine = out.steps[-1].engine or getattr(self.model, "engine_id", None)
+                    out.steps[-1].measurements.setdefault("datetime", began)
+                if self.preset and out.steps:
+                    out.steps[-1].preset, out.steps[-1].preset_sha256 = self.preset, self.preset_sha256
+                if out.steps:
+                    out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
                 dumped = out.model_dump(mode="json")
                 result = (200, {"transcription": dumped,
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},

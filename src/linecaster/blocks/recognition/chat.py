@@ -13,10 +13,10 @@ request from the page image and parsing the completion into a text-only ``Transc
     PageRecognizer(spec, Served("http://127.0.0.1:8000/v1", model=spec.served_name, max_window=48, initial_window=8))
 
 ``spec`` may also be the preset ref itself (``PageRecognizer("lightonocr-2-1b", ...)``). Every result's
-``ModelInfo`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the settings.
+``StepInfo`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the settings.
 
 The completion is kept verbatim (``Transcription.extra["raw"]``, and ``text`` equals it); its
-``finish_reason`` and token counts go to ``extra`` and ``ModelInfo.measurements``. A completion cut
+``finish_reason`` and token counts go to ``extra`` and ``StepInfo.measurements``. A completion cut
 off at ``max_tokens`` (``finish_reason == "length"``, on page OCR nearly always a repetition loop) is
 stored like any other and counted in the block's stats (``finish_length``); deciding what it means is
 for whoever scores or post-processes the text. A request that fails is recorded on the page as an
@@ -30,9 +30,9 @@ import asyncio
 import queue
 import threading
 
-from ...adapters import ChatAdapter, chat_model
+from ...adapters import ENGINE, ChatAdapter, chat_model
 from ...backends import Served
-from ...data.transcription import ModelInfo
+from ...data.transcription import StepInfo
 from ...errors import PipelineConfigError
 from ..base.contract import Contract, parts
 from ..base.model import _END, ModelBlock, Passed, produces
@@ -176,13 +176,13 @@ class RegionRecognizer(PageRecognizer):
             if res["finish_reason"] not in (None, "stop"):
                 self.stat_update(f"finish_{res['finish_reason']}")
         t.lines = lines
-        t.model.append(ModelInfo(step=self.step, name=self.spec.model, revision=self.spec.revision,
-                                 preset=getattr(self.spec, "preset", None),
-                                 preset_sha256=getattr(self.spec, "preset_sha256", None),
-                                 backend=self.backend.describe(), settings={**self.spec.settings(), "pad": self.pad,
-                                                                            "page_scale": round(state["scale"], 6),
-                                                                            "labels": sorted(self.labels)},
-                                 measurements={**tokens, "regions": len(regions), "failed": len(failed)}))
+        t.steps.append(StepInfo(step=self.step, name=self.spec.model, engine=ENGINE, revision=self.spec.revision,
+                                preset=getattr(self.spec, "preset", None),
+                                preset_sha256=getattr(self.spec, "preset_sha256", None),
+                                backend=self.backend.describe(), settings={**self.spec.settings(), "pad": self.pad,
+                                                                           "page_scale": round(state["scale"], 6),
+                                                                           "labels": sorted(self.labels)},
+                                measurements={**tokens, "regions": len(regions), "failed": len(failed)}))
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
         entry = None

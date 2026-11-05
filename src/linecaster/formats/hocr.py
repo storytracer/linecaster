@@ -10,7 +10,7 @@ Mapping (see ``docs/reference/serialization.md``):
 * word -> ``span.ocrx_word`` (``bbox``, ``x_wconf``), separated by spaces;
 * reading order is document order;
 * ``ocr-system`` is linecaster with its release, ``ocr-capabilities`` what the file contains, each step of
-  ``model`` a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back into ``model``.
+  ``steps`` a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back into ``steps``.
 
 hOCR coordinates are integers (rounded half up, boxes by their corners) and ``x_wconf`` is an
 integer percentage, so confidences round-trip to 0.01. hOCR's ``baseline`` is a straight line
@@ -25,7 +25,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, ModelInfo, Region, Source, Transcription, Word
+from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
 from . import _provenance as P, _xml as X
 
 XHTML = "http://www.w3.org/1999/xhtml"
@@ -233,7 +233,7 @@ class _Writer:
         meta("ocr-number-of-pages", "1")
         if language and re.fullmatch(r"[a-z]{2}", language):     # hOCR names ISO 639-1 codes
             meta("ocr-langs", language)
-        for i, m in enumerate(t.model):
+        for i, m in enumerate(t.steps):
             meta(f"{STEP_META}{i}", P.dumps(P.record(m)))
         if language:
             self.capabilities.add("ocrp_lang")
@@ -334,14 +334,14 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0) -> Tr
     pbox = _bbox(pprops)
     image = pprops.get("image", "").strip().strip('"') or None
     t.language = root.get("lang") or None
-    t.model = _steps(root)
+    t.steps = _steps(root)
     t.source = Source(kind="converted", format="hocr", uri=uri or image,
                       image_width=int(pbox[2]) if pbox else None,
                       image_height=int(pbox[3]) if pbox else None)
     return t
 
 
-def _steps(root) -> list[ModelInfo]:
+def _steps(root) -> list[StepInfo]:
     """linecaster's step records from the ``linecaster-step-<n>`` metas, in ``n`` order; for a foreign file,
     the software named by ``ocr-system`` as one ``page`` step."""
     metas = {}
@@ -355,7 +355,7 @@ def _steps(root) -> list[ModelInfo]:
         return [P.from_record(X.ext_loads(v)) for _, v in steps]
     system = (metas.get("ocr-system") or "").strip()
     if system and not system.startswith(P.SOFTWARE):
-        return [ModelInfo(step="recognition", name=system)]
+        return [StepInfo(step="recognition", name=system)]
     return []
 
 

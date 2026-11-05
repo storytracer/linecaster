@@ -74,7 +74,7 @@ def test_parse_keeps_the_block_stream_verbatim():
     body = {"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}}
     t = chat_model("nemotron-3.5-parse").parse(body)
     assert t.extra["raw"] == raw and t.text == raw
-    assert t.model[0].settings["sampling"]["repetition_penalty"] == 1.1
+    assert t.steps[0].settings["sampling"]["repetition_penalty"] == 1.1
 
 
 def test_strip_underscore_emphasis_is_the_harness_rule():

@@ -24,9 +24,18 @@ def _from_before_phase_1(row: dict) -> dict:
     return row
 
 
+def _from_page_1(row: dict) -> dict:
+    """A ``linecaster.page/1`` row: a transcription's steps were ``model`` (one ``ModelInfo`` each), today
+    ``steps`` (``StepInfo``, the same fields plus ``engine``)."""
+    for t in ((row.get(PAGE_KEY) or {}).get("transcriptions") or {}).values():
+        if "model" in t and "steps" not in t:
+            t["steps"] = t.pop("model")
+    return row
+
+
 #: a stored row's ``schema`` (``None``: none, the rows before phase 1) -> the function that brings it to the next
 #: version, and that version
-UPGRADES = {None: (_from_before_phase_1, PAGE_SCHEMA)}
+UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, PAGE_SCHEMA)}
 
 
 def upgrade(row: dict) -> dict:
@@ -50,7 +59,8 @@ class PageRecordReader(Contracted, PipelineStep):
     datatrove ``DataFolder``s.
 
     Rows of an earlier format are read as today's (``upgrade``): records written before phase 1 (no ``schema``)
-    name linecaster's transcription ``ocr`` (now ``ocr_new``); a folder ``.../pages`` that holds no records but has
+    name linecaster's transcription ``ocr`` (now ``ocr_new``), ``linecaster.page/1`` records a transcription's steps
+    ``model`` (now ``steps``); a folder ``.../pages`` that holds no records but has
     a sibling ``rows`` (the folder's name before phase 1) is read from there.
 
     Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards

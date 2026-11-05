@@ -1,0 +1,53 @@
+"""The measurements vocabulary: every key a step may write into ``StepInfo.measurements``, with its meaning.
+
+Measurements are numbers (and a few short values) a step records for one page: how long it took, what it cost in
+tokens, what its rules changed. The vocabulary is fixed, so that the page records of different runs, engines and
+releases can be compared key by key; a new key is added here before linecaster code writes it (a test fails on an
+unknown one). Values vary from run to run and stay in the page records: the page files' provenance (ALTO, PAGE,
+hOCR) carries the step records without them, apart from ``datetime``.
+"""
+from __future__ import annotations
+
+#: the values of ``finish_reason``, as OpenAI-compatible servers report them (``None``: the server said nothing)
+FINISH_REASONS = ("stop", "length", "content_filter", "tool_calls", "function_call", "abort")
+
+#: key -> meaning
+MEASUREMENTS: dict[str, str] = {
+    # any step
+    "seconds": "wall time of the step on the page, in seconds (the engine's call, in-process or in the server)",
+    "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date)",
+    "device": "the device the step ran on, e.g. cuda:0 or cpu",
+    # vision-language models
+    "prompt_tokens": "tokens of the prompt (image and text), summed over the page's requests",
+    "completion_tokens": "tokens generated, summed over the page's requests",
+    "finish_reason": f"why generation stopped: one of {', '.join(FINISH_REASONS)}, or None",
+    "regions": "regions sent to the model (one request each)",
+    "failed": "regions whose request failed",
+    # tables and formulas
+    "tables": "table regions given a structure",
+    "formulas": "formula regions read",
+    # unicode and character normalization
+    "changed": "strings the step changed (line, word and alternative texts)",
+    # typography
+    "body_size": "the page's body type size: the median row height of its text regions, in pixels",
+    "leveled": "headings given a level",
+    "demoted": "section headers set in body type, made text",
+    "split": "headlines split off the text region they were merged into",
+    "drop_capitals": "drop capitals joined to the line they begin",
+    "numbers_dropped": "page-number regions removed as uncertain (empty or below the confidence threshold)",
+    # recomposition
+    "paragraphs": "paragraphs made (a continued paragraph counts once)",
+    "continuations": "paragraphs continued into the next region or page",
+    "marks_removed": "division marks removed",
+    "marks_kept": "hyphens at a row end kept",
+}
+
+
+def unknown_measurements(measurements: dict) -> list[str]:
+    """The keys of ``measurements`` that are not in the vocabulary, and a ``finish_reason`` that is none of
+    ``FINISH_REASONS``."""
+    out = [k for k in measurements if k not in MEASUREMENTS]
+    reason = measurements.get("finish_reason")
+    if reason is not None and reason not in FINISH_REASONS:
+        out.append(f"finish_reason={reason!r}")
+    return out

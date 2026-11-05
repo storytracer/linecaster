@@ -29,7 +29,7 @@ def test_heading_levels_and_demotion():
     assert sub.label == "text" and sub.heading_level is None    # 1.1x: demoted
     assert mid.label == "section_header" and mid.heading_level == 2   # 1.8x
     assert (stats.leveled, stats.demoted) == (2, 1)
-    assert t.model[-1].step == "typography" and t.model[-1].measurements["demoted"] == 1
+    assert t.steps[-1].step == "typography" and t.steps[-1].measurements["demoted"] == 1
 
 
 def test_headline_split_off_a_body_region():
@@ -142,7 +142,7 @@ def test_blocks_run_and_write_files(tmp_path):
                               bucket_by_item=False).run(
         Composer().run(Typographer().run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr_new"]
-    assert t.docling["name"] == "p1" and t.model[-1].step == "typography"
+    assert t.docling["name"] == "p1" and t.steps[-1].step == "typography"
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()
     assert Page.model_validate_json(Page.model_dump_json(page_of(out[0]))) == page_of(out[0])
