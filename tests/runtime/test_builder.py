@@ -561,3 +561,22 @@ def test_the_cut_keeps_the_pipelines_item_shards_and_its_file_system():
     first, second = build(blocks, tasks=3, run_folder="memory://lc/out2").stages
     assert "memory" in first.blocks[-1].output_folder.fs.protocol and first.blocks[-1].item_shards == 3
     assert "memory" in second.blocks[0].data_folder.fs.protocol
+
+
+@pytest.mark.parametrize("on", ["local", "ray", "hf-jobs"])
+def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
+    pytest.importorskip("ray") if on == "ray" else None
+    out = f"memory://lc/stages-{on}"
+    a = _args("images", out, "--tasks", "2", "--on", on, *(["--commit", "abc"] if on == "hf-jobs" else []))
+    blocks = [run.reader(a), ModularTranscriber(_lines(), _text()), run.pages(a), ItemTexts(),
+              ItemTextWriter("memory://lc/texts"), ModelServer([])]
+    p = run.build_plan(a, blocks)
+    last = run._executors(a, p, out, None, ["linecaster"])
+    first = last.depends
+    assert first is not None and first.depends is None
+    assert (first.logging_dir.path.endswith("/logs/pages"), last.logging_dir.path.endswith("/logs/items")) == (True, True)
+    assert first.pipeline is p.stages[0].pipeline and last.pipeline is p.stages[1].pipeline
+    if on == "ray":
+        assert (type(first).__name__, type(last).__name__) == ("RayGPUExecutor", "RayPipelineExecutor")
+    if on == "hf-jobs":
+        assert (first.job_name, last.job_name) == ("linecaster-stages-hf-jobs-pages", "linecaster-stages-hf-jobs-items")
