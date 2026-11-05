@@ -43,7 +43,9 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
   tools and editors alike.
 - YAML is YAML 1.2, read with `ruamel.yaml`: `true`/`false` are the only booleans (`NO` stays a string), duplicate
   keys are errors, and tools that write files back keep their comments.
-- An edition's hash covers its YAML only. Prose can be corrected without a new edition; git keeps its history.
+- An edition's hash covers its functional content (what changes behavior: step, engine, options, pins, settings,
+  labels, serving), read from the YAML. The Markdown prose and descriptive fields (support, provenance) are not
+  part of it, so they can be corrected without a new edition; git keeps their history.
 
 Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `pipeline`, `lock`.
 
