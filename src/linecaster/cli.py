@@ -39,6 +39,16 @@ def _serve(a) -> None:
     serve(hosted, a.host, a.port, a.decode_workers, a.traces)
 
 
+def _traces(a) -> None:
+    from .tracing.report import read_spans, render, summarize
+
+    spans = read_spans(a.out)
+    if not spans:
+        sys.exit(f"linecaster traces: no traces in {a.out.rstrip('/')}/traces")
+    report = summarize(spans, by=a.by, slowest=a.slowest)
+    print(json.dumps(report, indent=1) if a.json else render(report), end="" if not a.json else "\n")
+
+
 def _models(a) -> None:
     from .catalog.registry import catalog
 
@@ -175,6 +185,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("image", help="the page image")
     p.add_argument("out", help="output folder: the page record in OUT/pages, files where the options say")
     p.add_argument("--pipeline", help=f"the pipeline id (default: the recipe's, else {PAGE_PIPELINE})")
+    t = sub.add_parser("traces", help="what a run's traces say: per block the time per page (p50/p90/p99), the split "
+                                      "of served requests, gaps, the slowest pages, per task the warm-up")
+    t.add_argument("out", help="the run folder (its traces/)")
+    t.add_argument("--by", choices=["block", "preset", "task"], default="block",
+                   help="group the time per page by block, preset edition or task")
+    t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
+    t.add_argument("--json", action="store_true", help="the report as JSON")
     a, rest = ap.parse_known_args(argv)
     if rest and a.command != "page":
         ap.error(f"unrecognized arguments: {' '.join(rest)}")
@@ -187,6 +204,8 @@ def main(argv: list[str] | None = None) -> None:
             _models(a)
         elif a.command == "catalog":
             _catalog(a)
+        elif a.command == "traces":
+            _traces(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))
