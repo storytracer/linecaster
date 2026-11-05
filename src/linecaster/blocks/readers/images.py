@@ -23,8 +23,8 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
+from ..base.block import reported_file
 from ..base.contract import Contracted
-
 from ..base.page import new_page_document
 
 IMAGE_EXTENSIONS = ("webp", "jpg", "jpeg", "png", "tif", "tiff", "jp2")
@@ -47,13 +47,18 @@ class _Opener:
     def __getstate__(self):                      # pipelines are pickled for their executors; the fetcher's
         return {**self.__dict__, "_fetcher": None}   # thread and event loop are made again where it runs
 
-    def read(self, uri: str) -> bytes:
+    def read(self, uri: str, fetches: list | None = None) -> bytes:
+        """The bytes at ``uri``; an http(s) fetch's record (``linecaster.net.http.fetch_record``) is appended to
+        ``fetches``."""
         if uri.startswith(("http://", "https://")):
-            if self._fetcher is None:
-                from ...net.http import HTTPFetcher
+            from ...net.http import HTTPFetcher, fetch_record
 
+            if self._fetcher is None:
                 self._fetcher = HTTPFetcher(**self.http)
-            return self._fetcher.get(uri).content
+            response = self._fetcher.get(uri)
+            if fetches is not None and (record := fetch_record(response)) is not None:
+                fetches.append({**record, "what": "image"})
+            return response.content
         folder, name = uri.rsplit("/", 1) if "/" in uri else (".", uri)
         df = self._folders.get(folder)
         if df is None:
@@ -169,7 +174,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
         self._opener = _Opener(http)
 
-    def _image(self, value, filepath: str, page_id: str) -> tuple[bytes, str]:
+    def _image(self, value, filepath: str, page_id: str, fetches: list | None = None) -> tuple[bytes, str]:
         data, path = value, None
         if isinstance(value, dict):
             data, path = value.get("bytes"), value.get("path")
@@ -180,11 +185,14 @@ class ImageParquetReader(Contracted, ParquetReader):
         if not path:
             raise PageError(page_id, "ImageParquetReader", f"{filepath}: neither image bytes nor an image path")
         if "://" in path or path.startswith("/"):
-            return self._opener.read(path), path
+            return self._opener.read(path, fetches), path
         with self.image_folder.open(path, "rb") as f:
             return f.read(), self.image_folder.resolve_paths(path)
 
     def read_file(self, filepath: str):
+        yield from reported_file(self, filepath, self._read_file(filepath))
+
+    def _read_file(self, filepath: str):
         import pyarrow.parquet as pq
 
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
@@ -200,11 +208,14 @@ class ImageParquetReader(Contracted, ParquetReader):
                         item = row.pop(self.item_key) if self.item_key else None
                         sequence = row.pop(self.sequence_key) if self.sequence_key else None
                         page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
-                        data, uri = self._image(row.pop(self.image_key), filepath, page_id)
+                        fetches: list = []
+                        data, uri = self._image(row.pop(self.image_key), filepath, page_id, fetches)
                         metadata = {**(self.default_metadata or {}),
                                     **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
                         doc = new_page_document(page_id, data, uri=uri, item_id=None if item is None else str(item),
                                                 sequence=None if sequence is None else int(sequence), metadata=metadata)
+                        if fetches:
+                            doc.metadata["trace"] = {"fetch": fetches}
                     self.stat_update("pages")
                     self.update_media_stats(doc.media[0])
                     yield doc

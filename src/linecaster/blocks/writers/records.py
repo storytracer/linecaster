@@ -29,7 +29,21 @@ def page_record_json(self, doc) -> dict:
     return row
 
 
-class PageJsonlWriter(Contracted, JsonlWriter):
+class _Flushed:
+    """A datatrove writer whose ``close()`` (its files flushed and closed: a remote file is uploaded then) is reported
+    to the observers (``flush``, with the files it wrote)."""
+
+    def close(self):
+        import time
+
+        start, files = time.time_ns(), len(getattr(self.output_mg, "_output_files", None) or {})
+        try:
+            return super().close()
+        finally:
+            self.report("flush", start, files=files)
+
+
+class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     """Page records as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
     (``<shard>/${rank}.jsonl.gz``, ``linecaster.blocks.writers.shards``), for a later stage that reads whole items."""
 
@@ -55,7 +69,7 @@ class PageJsonlWriter(Contracted, JsonlWriter):
         return super().write(document, rank, **kwargs)
 
 
-class PageParquetWriter(Contracted, ParquetWriter):
+class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
     name = "📒 page records (parquet)"
     role = "writer"
 

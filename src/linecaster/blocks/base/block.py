@@ -120,6 +120,13 @@ class Block:
     def warm_up(self) -> None:
         """Load what the block needs before its first unit. Idempotent: a second call does nothing."""
 
+    def report(self, event: str, start_ns: int, end_ns: int | None = None, **attributes) -> None:
+        """Tell the observers about work of the task that is no page's (``on_task_event``): ``file`` (a reader is
+        through a file), ``flush`` (a writer closed its files). Times in nanoseconds since the epoch; a no-op
+        without observers."""
+        if self._observers is not None:
+            self._observers.on_task_event(self, event, start_ns, end_ns or time.time_ns(), **attributes)
+
     def __call__(self, data=None, rank: int = 0, world_size: int = 1):
         return _warmed(self, data, rank, world_size)
 
@@ -163,6 +170,26 @@ def warm(block) -> float | None:
     if block._observers is not None:
         block._observers.on_warm_up(block, seconds)
     return seconds
+
+
+def reported_file(block, path: str, docs):
+    """``docs`` (what a reader makes of the file ``path``), passed on; when the file is through, ``block.report(
+    "file", ...)`` with its pages and ``seconds_own``, the time spent reading it (the time its pages spent in later
+    blocks, which run while the reader waits, left out)."""
+    if block._observers is None:
+        yield from docs
+        return
+    start, own, pages = time.time_ns(), 0.0, 0
+    t = time.perf_counter()
+    try:
+        for doc in docs:
+            own += time.perf_counter() - t
+            pages += 1
+            yield doc
+            t = time.perf_counter()
+        own += time.perf_counter() - t
+    finally:
+        block.report("file", start, file=str(path), pages=pages, seconds_own=round(own, 4))
 
 
 def _warmed(block, data, rank: int, world_size: int):

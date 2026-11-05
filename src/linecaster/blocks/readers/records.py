@@ -8,6 +8,7 @@ from loguru import logger
 
 from ...data.page import PAGE_KEY, PAGE_SCHEMA
 from ...errors import PipelineConfigError
+from ..base.block import reported_file
 from ..base.contract import Contract, Contracted, Part
 from .images import _Opener
 
@@ -124,8 +125,6 @@ class PageRecordReader(Contracted, PipelineStep):
         return files
 
     def run(self, data=None, rank: int = 0, world_size: int = 1):
-        from datatrove.data import Document, Media, MediaType
-
         if data:
             yield from data
         files = sorted(self.data_folder.glob(self.glob_pattern))
@@ -140,19 +139,27 @@ class PageRecordReader(Contracted, PipelineStep):
         else:
             files = files[rank::world_size]
         for path in files:
-            for row in self._records(path):
-                row = upgrade(row)
-                page = row["page"]
-                media = []
-                uri = (page.get("image") or {}).get("uri")
-                if self.fetch_images and uri:
-                    src = uri.split("#", 1)[0]
-                    for prefix, repl in self.uri_map.items():
-                        if src.startswith(prefix):
-                            src = repl + src[len(prefix):]
-                    media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri, media_bytes=self._opener.read(src))]
-                doc = Document(text=row.get("text") or "", id=row["id"], media=media, metadata={"page": page})
-                if row.get("errors"):
-                    doc.metadata["errors"] = row["errors"]
-                self.stat_update("pages")
-                yield doc
+            yield from reported_file(self, path, self._documents(path))
+
+    def _documents(self, path: str):
+        from datatrove.data import Document, Media, MediaType
+
+        for row in self._records(path):
+            row = upgrade(row)
+            page = row["page"]
+            media, fetches = [], []
+            uri = (page.get("image") or {}).get("uri")
+            if self.fetch_images and uri:
+                src = uri.split("#", 1)[0]
+                for prefix, repl in self.uri_map.items():
+                    if src.startswith(prefix):
+                        src = repl + src[len(prefix):]
+                media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri,
+                               media_bytes=self._opener.read(src, fetches))]
+            doc = Document(text=row.get("text") or "", id=row["id"], media=media, metadata={"page": page})
+            if row.get("errors"):
+                doc.metadata["errors"] = row["errors"]
+            if fetches:
+                doc.metadata["trace"] = {"fetch": fetches}
+            self.stat_update("pages")
+            yield doc

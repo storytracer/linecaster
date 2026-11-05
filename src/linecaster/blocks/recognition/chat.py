@@ -74,8 +74,7 @@ class PageRecognizer(ModelBlock):
     def process_page(self, doc, page):  # pragma: no cover - only reached with an in-process backend
         raise PipelineConfigError("PageRecognizer runs served only")
 
-    def _request(self, row: dict) -> dict:
-        self.notify(row["doc"], "prepare")
+    def _request(self, row: dict) -> dict:       # ModelBlock's request() notifies prepare and request around it
         return self.spec.request(image_bytes(row["doc"]))
 
     def _parse(self, body: dict) -> dict:
@@ -125,7 +124,11 @@ class RegionRecognizer(PageRecognizer):
         crop = self.spec.crop_region(state["image"], region, state["scale"], self.pad)
         buf = io.BytesIO()
         crop.save(buf, format="PNG")
-        return self.spec.request_region(buf.getvalue(), region)
+        body = self.spec.request_region(buf.getvalue(), region)
+        # the trace context cannot go along: saturate sends the same headers with every request, and a chat
+        # server reads it from the headers only
+        self.notify(state["doc"], "request", region=region.id, carrier={})
+        return body
 
     def _parse(self, body: dict) -> dict:
         raw, finish = self.spec.content(body)
@@ -226,6 +229,10 @@ class RegionRecognizer(PageRecognizer):
                 continue
             state, region = item.row["state"], item.row["region"]
             state["out"][region.id] = {"error": item.error} if item.error is not None else item.out
+            usage = (item.out or {}).get("usage") or {}
+            self.notify(state["doc"], "done", region=region.id, error=item.error,
+                        prompt_tokens=usage.get("prompt_tokens"), completion_tokens=usage.get("completion_tokens"),
+                        finish_reason=(item.out or {}).get("finish_reason"))
             state["remaining"] -= 1
             if state["remaining"] == 0:
                 self.stat_update("pages")

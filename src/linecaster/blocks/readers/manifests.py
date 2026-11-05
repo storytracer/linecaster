@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import posixpath
 import re
+import time
 from collections import deque
 
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
@@ -19,7 +20,7 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
 from ...errors import PipelineConfigError
-from ...net.http import HTTPFetcher, _pybookget, is_url
+from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
 
@@ -205,6 +206,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
         saved = get_datafolder(self.manifest_folder) if self.manifest_folder is not None else None
         for item_id, ref, extra in self._items(entries):
+            start, t = time.time_ns(), time.perf_counter()
             try:
                 item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
                 data, uri = self._read(fetcher, ref)
@@ -213,7 +215,11 @@ class ManifestReader(Contracted, BaseDiskReader):
                 logger.warning("manifest {ref}: {error_type}: {error}", ref=ref, error_type=type(e).__name__,
                                error=str(e))
                 self.stat_update("manifests_failed")
+                self.report("file", start, file=ref, pages=0, seconds_own=round(time.perf_counter() - t, 4),
+                            error_type=type(e).__name__)
                 continue
+            self.report("file", start, file=ref, pages=len(manifest.pages),
+                        seconds_own=round(time.perf_counter() - t, 4))
             self.stat_update(f"manifests_{manifest.format}")
             if saved is not None:
                 with saved.open(f"{item_id}.{MANIFEST_EXTENSIONS.get(manifest.format, 'bin')}", "wb") as f:
@@ -282,9 +288,15 @@ class ManifestReader(Contracted, BaseDiskReader):
             if ocr is not None:
                 ocr.cancel()
             return None
+        fetches = [{**r, "what": "image"}] if (r := fetch_record(response)) is not None else []
+        if fetches:
+            doc.metadata["trace"] = {"fetch": fetches}
         if ocr is not None:
             try:
                 raw = ocr.result()
+                if (r := fetch_record(raw)) is not None:
+                    fetches.append({**r, "what": "ocr"})
+                    doc.metadata["trace"] = {"fetch": fetches}
                 p = page_of(doc)
                 p.transcriptions[OCR_ORIGINAL] = self._transcription(raw.content, str(raw.url), page.ocr_format, p)
                 set_page(doc, p)

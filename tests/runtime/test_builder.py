@@ -472,7 +472,7 @@ class Log(Observer):
     def on_exit(self, block, doc, error=None):
         self.events.append(("exit", type(block).__name__, doc.id, error))
 
-    def on_task_end(self):
+    def on_task_end(self, error=None):
         self.events.append(("end",))
 
 

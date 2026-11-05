@@ -178,8 +178,16 @@ class ModelBlock(PageBlock):
         headers = b.request_headers()            # secrets read here, in the task
 
         def request(row: dict) -> dict:       # in saturate's prepare threads
-            self.notify(row["doc"], "prepare")
-            return self._request(row)
+            doc = row["doc"]
+            self.notify(doc, "prepare")
+            body = self._request(row)
+            carrier: dict = {}
+            self.notify(doc, "request", carrier=carrier)
+            # saturate sends the same headers with every request: linecaster serve reads the trace context from the
+            # body (an OpenAI-compatible server would not)
+            if self.route is None and carrier.get("traceparent"):
+                body["traceparent"] = carrier["traceparent"]
+            return body
 
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
@@ -209,8 +217,8 @@ class ModelBlock(PageBlock):
             doc = item.row["doc"]
             self.stat_update("pages")
             budget.page()
-            self.notify(doc, "done", error=item.error)
             if item.error is not None:
+                self.notify(doc, "done", error=item.error)
                 self._served_failure(doc, item.error, budget)
                 yield doc
                 continue
@@ -226,6 +234,8 @@ class ModelBlock(PageBlock):
                     self.stat_update(key, value=measured[key], unit="doc")
             if measured.get("finish_reason") not in (None, "stop"):
                 self.stat_update(f"finish_{measured['finish_reason']}")
+            self.notify(doc, "done", **{k: measured[k] for k in ("prompt_tokens", "completion_tokens", "finish_reason")
+                                        if measured.get(k) is not None})
             yield doc
         # wall time of the served run, first request to last result (downstream blocks included)
         self.stat_update("served_wall_seconds", value=round(time.perf_counter() - started, 2))
