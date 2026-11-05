@@ -35,11 +35,12 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
   `<id>.md` next to it; tools never read the Markdown. Reason: Markdown renders cleanly, data validates, and diffs
   of the two do not mix.
 - Every YAML file names its format twice: a first line `# yaml-language-server: $schema=<relative path to
-  schemas/<kind>-<n>.json>` (editors validate and complete) and a field `schema: linecaster.<kind>/<n>` (tools
-  check it). Reason: mistakes show while editing, not at run time.
-- The schemas are generated from the pydantic models (`model_json_schema()`) into `schemas/`, and a test fails when
-  a committed schema differs from a fresh one. The pydantic models are the only source of truth. Reason: one
-  definition, used by tools and editors alike.
+  src/linecaster/catalog/schemas/<kind>-<n>.json>` (editors validate and complete) and a field
+  `schema: linecaster.<kind>/<n>` (tools check it). Reason: mistakes show while editing, not at run time.
+- The schemas are generated from the pydantic models (`model_json_schema()`) into `src/linecaster/catalog/schemas/`
+  (shipped with the package; `linecaster catalog schemas` rewrites them), and a test fails when a committed schema
+  differs from a fresh one. The pydantic models are the only source of truth. Reason: one definition, used by
+  tools and editors alike.
 - YAML is YAML 1.2, read with `ruamel.yaml`: `true`/`false` are the only booleans (`NO` stays a string), duplicate
   keys are errors, and tools that write files back keep their comments.
 - An edition's hash covers its YAML only. Prose can be corrected without a new edition; git keeps its history.

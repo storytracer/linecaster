@@ -59,12 +59,17 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
 - **The catalogue** (`docs/reference/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
-  (engine packages and derivatives ship none): every model is a model document with its
+  (engine packages and derivatives ship none): every entry is a YAML file (its JSON Schema, generated from the
+  Pydantic models into `catalog/schemas/`, named in its first line; read with `ruamel.yaml` through
+  `catalog.yamlio`) with its prose in a Markdown file next to it; every model is a model entry
+  (`models/<id>/model.yaml`) with its
   upstream card copied verbatim at the pinned revision (always, whatever the licence), every configuration
-  a preset (`presets/<step>/<id>.md`, `id@edition`; it names its engine by versioned id, `engine:
+  a preset (`presets/<step>/<id>.yaml`, `id@edition`; steps `layout`, `lines`, `recognition`, `tables`,
+  `formulas`, a VLM reading whole pages is `recognition` with `unit: page`; it names its engine by versioned id, `engine:
   kraken.recognition.v1`, with `options` beside it, no "kind"; `version`/`revision` are upstream's, `edition`
   ours), released editions frozen in
-  `catalog.lock`, measurements as evidence records with their source. Engines with weights load exactly the
+  `catalog.lock` (`linecaster.lock/2`: an edition's hash covers its YAML; a catalog migration that keeps
+  behavior recomputes it and keeps the old one as `previous_sha256`), measurements as evidence records with their source. Engines with weights load exactly the
   pin (`weights`, `catalog.fetch`). Page files and `OUT/run.yaml` record preset, edition and hash.
 - **One page per request; batching only within a page** (kraken batches a page's lines). A page's
   result depends only on the page, never on what else is in flight, so runs are deterministic.
@@ -81,14 +86,14 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `uv run <script>`) that builds one pipeline shape with slots, and **one pipeline script per shape,
   never one per machine**: `linecaster.runtime.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
   `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
-  for Ray's CLI from its environment). `pipelines/transcribe_chain.py` (lines and a recogniser, optionally layout,
+  for Ray's CLI from its environment). `pipelines/transcribe_modular.py` (lines and a recogniser, optionally layout,
   tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/transcribe_vlm.py` (a VLM per page or per
   region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalogue
-  document naming a pipeline id (`chain.v1`, the script's `PIPELINE`), a preset edition per slot and options,
+  entry naming a pipeline id (`transcribe_modular.v1`, the script's `PIPELINE`), a preset edition per slot and options,
   edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
   catalogue). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
-  script whose `PIPELINE` the recipe names (whole-page presets: `vlm.v1`) and runs it (`uv run --script`) with
-  `--recipe` / `--vlm`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
+  script whose `PIPELINE` the recipe names (whole-page presets: `transcribe_vlm.v1`) and runs it (`uv run --script`) with
+  `--recipe` / `--recognition`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
   component (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
   `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.

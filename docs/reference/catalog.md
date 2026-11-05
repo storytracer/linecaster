@@ -6,11 +6,12 @@ linecaster; `linecaster.catalog` reads, validates and resolves them.
 
 ```
 src/linecaster/catalog/data/
-  models/<id>/model.md                    # + upstream/<revision>/ (the upstream card, verbatim)
-  presets/<step>/<id>.md                  # layout, lines, recognition, tables, formulas, page
-  recipes/<id>.md
+  models/<id>/model.yaml, model.md        # + upstream/<revision>/ (the upstream card, verbatim)
+  presets/<step>/<id>.yaml, <id>.md       # layout, lines, recognition, tables, formulas
+  recipes/<id>.yaml, <id>.md
   evidence/<date>-<subject>-<dataset>.yaml
   catalog.lock
+src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic models
 ```
 
 ## Components
@@ -20,10 +21,10 @@ src/linecaster/catalog/data/
 | Component | Is | Named | Lives in |
 |---|---|---|---|
 | engine | code that runs a model for one step | versioned id: `kraken.recognition.v1` | `engines/<engine>/` (a package each); `chat.v1` in linecaster |
-| model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.md` |
-| preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium@1` | `presets/<step>/<id>.md` |
-| pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `chain.v1` | `pipelines/<name>.py` |
-| recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.md` |
+| model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
+| preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium@1` | `presets/<step>/<id>.yaml` |
+| pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
+| recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
 
 Besides the documents above: **evidence** (one measurement of a preset or recipe edition), the **lock**
 (released editions) and the **run record** (`OUT/run.yaml`, and per page in each `ModelInfo`: what a run
@@ -36,8 +37,8 @@ resolved).
 | `version` | upstream | what upstream calls it, verbatim, never parsed | `PP-OCRv6 medium`, `Chandra 2` |
 | `revision` | upstream | the exact identity of the files | HF commit, version DOI, git commit, sha256 |
 | `edition` | linecaster | integer per preset or recipe, raised when outputs can change | `edition: 3` |
-| `.v<n>` | linecaster | the contract of an engine's options or a pipeline's slots and options | `chain.v1` |
-| `schema` | linecaster | the format of a document | `linecaster.preset/1` |
+| `.v<n>` | linecaster | the contract of an engine's options or a pipeline's slots and options | `transcribe_modular.v1` |
+| `schema` | linecaster | the format of a YAML file | `linecaster.preset/1` |
 | release | linecaster | the package version (run records only) | `0.4.0` |
 
 - Slugs (models, presets, recipes): lowercase `[a-z0-9.-]`. They may contain upstream names
@@ -52,18 +53,32 @@ resolved).
   Zenodo: the version DOI identifies the files, the concept DOI is information. Downloads without a commit:
   the file's sha256 is the revision.
 
-## Documents
+## Files
 
-Model, preset and recipe documents are Markdown with YAML front matter: the front matter is data, validated
-strictly by `linecaster.catalog.schema` (unknown keys are errors); the body is prose for people (why these
-settings, limitations, changes). Evidence, the lock and run records are plain YAML. Every document starts with
-`schema: linecaster.<type>/<n>`. Bulk data (page records, exports) is JSON Lines or Parquet, not catalogue data.
+A model, preset or recipe is a YAML file, the data, validated strictly by `linecaster.catalog.schema` (unknown
+keys are errors), and a Markdown file of the same name next to it, the prose for people (why these settings,
+limitations, changes), without front matter. Tools read only the YAML; the docs generator also includes the
+prose. The prose is optional, except for presets and recipes with `support: core`. Evidence and the lock are
+YAML only. Bulk data (page records, exports) is JSON Lines or Parquet, not catalog data.
 
-YAML has 1.2 semantics: only `true` / `false` are booleans (`NO` stays Norwegian), read and written with
-`linecaster.catalog.yamlio`. Values that look like numbers or versions are quoted (`"1.0"`). JSON Schemas for
-editors: `linecaster catalog schema`.
+| Format | Schema id | JSON Schema |
+|---|---|---|
+| model | `linecaster.model/1` | `schemas/model-1.json` |
+| preset | `linecaster.preset/1` | `schemas/preset-1.json` |
+| recipe | `linecaster.recipe/1` | `schemas/recipe-1.json` |
+| evidence | `linecaster.evidence/1` | `schemas/evidence-1.json` |
+| lock | `linecaster.lock/2` | `schemas/lock-2.json` |
 
-### Model (`models/<id>/model.md`)
+Every YAML file names its format twice: its first line is `# yaml-language-server: $schema=<relative path to
+src/linecaster/catalog/schemas/<kind>-<n>.json>` (for editors), and its field `schema` holds the schema id (for
+tools). The JSON Schemas are generated from the Pydantic models (`linecaster catalog schemas`); the test suite
+fails when a committed one differs from a fresh one.
+
+YAML has 1.2 semantics, read with `ruamel.yaml` through `linecaster.catalog.yamlio`: only `true` / `false` are
+booleans (`NO` stays Norwegian), and a duplicate key is an error. Values that look like numbers or versions are
+quoted (`"1.0"`). Commands that write a file back (`release`, `pin`) keep its comments.
+
+### Model (`models/<id>/model.yaml`)
 
 | Field | Meaning |
 |---|---|
@@ -77,11 +92,11 @@ editors: `linecaster catalog schema`.
 
 The upstream card is always copied, verbatim, at the pinned revision, whatever its licence: Hugging Face
 `README.md`, the HTRMoPo record, a repository README; a separate licence file next to it. Its sha256 is in the
-pin. Cards are never edited; licence, languages and scripts in `model.md` are taken from them where they say.
-A new upstream revision is a new entry in `pins`, with its own `upstream/<revision>/` folder. Model documents
+pin. Cards are never edited; license, languages and scripts in `model.yaml` are taken from them where they say.
+A new upstream revision is a new entry in `pins`, with its own `upstream/<revision>/` folder. Model entries
 are written by `linecaster catalog pin`.
 
-### Preset (`presets/<step>/<id>.md`)
+### Preset (`presets/<step>/<id>.yaml`)
 
 | Field | Meaning |
 |---|---|
@@ -97,12 +112,12 @@ are written by `linecaster catalog pin`.
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |
 
-### Recipe (`recipes/<id>.md`)
+### Recipe (`recipes/<id>.yaml`)
 
 | Field | Meaning |
 |---|---|
 | `id`, `edition` | |
-| `pipeline` | the pipeline it fills: `pipeline: chain.v1` |
+| `pipeline` | the pipeline it fills: `pipeline: transcribe_modular.v1` |
 | `presets` | slot → preset `id@edition` (always an explicit edition) |
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
@@ -121,12 +136,13 @@ every number.
 ## Released editions are immutable
 
 `linecaster catalog release <id>` writes the current edition's resolved functional content and its sha256 into
-`catalog.lock` (per entry: `sha256`, `released`, `linecaster` commit, `resolved`).
+`catalog.lock` (per entry: `sha256`, `previous_sha256` where a catalog migration changed it, `released`,
+`linecaster` commit, `resolved`).
 
 - **A preset's functional content** is what can change outputs: `step`, the model pin and every submodel pin
-  (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels` and `serve`. Only what the document
-  states counts, so a new optional schema field changes no hash. Prose, provenance, support level and
-  capabilities are not part of it.
+  (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels` and `serve`. Only what the YAML file
+  states counts, so a new optional schema field changes no hash. The Markdown prose, provenance, support level
+  and capabilities are not part of it.
 - **A recipe's functional content** is its pipeline, each slot's preset edition with that edition's hash and
   the options it states. A recipe is released only on released preset editions, so one recipe edition pins a
   whole run down to the weights' files.
@@ -135,11 +151,21 @@ every number.
 such a change is a new edition. Old editions stay resolvable from the lock after the file moves on.
 Unreleased editions are drafts.
 
+### Catalog migrations
+
+A change of the catalog's own vocabulary or format that keeps every output as it was (a renamed step, a renamed
+pipeline id, a new file format) is a **catalog migration**: every released edition keeps its number, its
+`resolved` content is rewritten in the new terms and its hash recomputed, and the hash it had before stays in
+the lock as `previous_sha256`. A run record names `id@edition` and that edition's hash at the time; it resolves
+by either hash (`Catalog.resolve(ref, sha256=...)`, `resolve_recipe`, `by_sha256`, `linecaster catalog show
+sha256:<hex>`). A change that can change outputs is never a migration: it is a new edition.
+
 ## Steps, capabilities, labels
 
-Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, `page` (end to end: a whole page in,
-text out). Recognition reads a `unit`: `line` (kraken, PaddleX, Tesseract) or `region` (a VLM per layout
-region). `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents.
+Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`. Recognition reads a `unit`
+(`capabilities.unit`): `line` (kraken, PaddleX, Tesseract), `region` (a VLM per layout region) or `page` (a VLM
+reads the whole page: a **page preset**, which `launch.py` runs by name). `OCRD_STEPS` maps the steps to OCR-D's
+functional steps for METS agents.
 
 What depends on the code belongs to the engine (`capabilities` on the class), e.g. kraken's word boxes with
 confidences. What depends on the weights belongs to the model or preset: languages, scripts, output format.
@@ -155,13 +181,15 @@ presets and models are in this catalogue.
 
 ## Pipelines, recipes and `launch.py`
 
-A pipeline script declares `PIPELINE` (its id) and `SLOTS` (slot → option). It has no default presets: the
-user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
-overrides in the run record.
+Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
+`transcribe_modular.v1`, `transcribe_vlm.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
+option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...). It has no default presets:
+the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
+overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
-`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a whole-page preset by name: it finds the
-script whose `PIPELINE` the recipe names (`vlm.v1` for whole-page presets) and runs it in that script's own
-environment with `--recipe` or `--vlm`. `serve` and `ray` pass through for recipes. A preset that is one step
+`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
+script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for page presets) and runs it in that script's own
+environment with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.
 
 ## Support
@@ -177,9 +205,9 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model document, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
 | `linecaster catalog release ID [--commit SHA]` | freezes the current edition of a preset or recipe in the lock |
-| `linecaster catalog verify` | checks cards, pins, released editions, recipes and evidence |
-| `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition, with its hash |
-| `linecaster catalog schema [--out DIR]` | JSON Schemas of the documents |
+| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and evidence |
+| `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
+| `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
 | `linecaster catalog docs [--out docs/catalog] [--readme README.md]` | the generated docs and the README's tables |
 
 The generated docs are grouped by component: `docs/catalog/{engines, models, presets/<step>, pipelines,
