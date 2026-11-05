@@ -175,9 +175,12 @@ def test_failed_pages_leave_at_once():
     assert seen == ["failed", "p2"]
 
 
-def test_the_error_budget_fails_the_task():
-    # 2 errors in 3 pages: more than 1 % of (at least) 100 pages
-    with pytest.raises(PageError, match="2 of 3 pages failed") as e:
+def test_the_error_budget_fails_the_task(monkeypatch):
+    from linecaster.blocks.base import page as base_page
+
+    # judged from the ERROR_GRACE-th page on: when the 3rd page comes, 1 error is more than 1 % of 3 pages
+    monkeypatch.setattr(base_page, "ERROR_GRACE", 3)
+    with pytest.raises(PageError, match="1 of 3 pages failed") as e:
         run_pages(_modular(fail_widths=(50, 60)), [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])
     assert e.value.block == "LineRecognizer" and isinstance(e.value.__cause__, RuntimeError)
     # a budget given to the builder
@@ -186,6 +189,9 @@ def test_the_error_budget_fails_the_task():
     assert blocks[3].max_page_errors == 0.5 and plan.problems == []
     blocks[3].max_page_errors = None                    # no limit
     assert len(run_pages(blocks, [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])) == 3
+    # fewer pages than ERROR_GRACE: too few to judge
+    monkeypatch.setattr(base_page, "ERROR_GRACE", 100)
+    assert len(run_pages(_modular(fail_widths=(50, 60)), [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])) == 3
 
 
 def _rows(folder: Path) -> dict:

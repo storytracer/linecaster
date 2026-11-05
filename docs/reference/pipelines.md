@@ -170,9 +170,9 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
   per error (`key`, `field`, `error`, `raw_value`, and the entry's `block`, `step`, `preset`, `type`), and passes
   it on: the page records keep failed pages with their errors, so a later pipeline reading them passes them by too.
 - **The error budget.** A block may fail on `max_page_errors` of a task's pages (`--max-page-errors`, default
-  0.01), counted against at least 100 pages: more errors than `share × max(pages, 100)` fail the task with a
-  `PageError` (with the default, a second failure in the first 100 pages; the third in 300). datatrove reruns a
-  failed task whole.
+  0.01), judged from the 100th page on: from then, more errors than `share × pages` fail the task with a
+  `PageError` (with the default: two failures in the first 100 pages, three in 300). Fewer pages are too few to
+  judge. datatrove reruns a failed task whole.
 - **Errors** (`linecaster.errors`): library code raises `PipelineConfigError` (a pipeline, option or input that
   cannot work; `problems` lists them), `CatalogError`, `PageError(page_id, block)` and `ServerError`, all
   `LinecasterError`s, never `SystemExit`; the `linecaster` command and a pipeline script's `main` turn them into

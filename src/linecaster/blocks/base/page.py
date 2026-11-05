@@ -78,15 +78,17 @@ def record_error(doc: Document, entry: dict) -> dict:
 
 
 class ErrorBudget:
-    """The share of a task's pages a block may fail on (``share``, e.g. 0.01) before the task fails: more errors
-    than ``share`` of the pages seen, counting at least ``ERROR_GRACE`` pages (with 1 %: a second error in the first
-    100 pages fails the task, the third in 300). ``None``: no limit."""
+    """The share of a task's pages a block may fail on (``share``, e.g. 0.01) before the task fails, judged from the
+    ``ERROR_GRACE``-th page on: from then, more errors than ``share`` of the pages seen fail the task (with 1 %: two
+    errors in the first 100 pages, three in 300). Fewer pages than that are too few to judge. ``None``: no limit."""
 
     def __init__(self, block, share: float | None):
         self.block, self.share, self.pages, self.errors = block, share, 0, 0
+        self._last: tuple = ("", None, None)        # page id, block, cause of the latest failure
 
     def page(self) -> None:
         self.pages += 1
+        self._check()
 
     def failed(self, doc: Document, entry: dict, cause: BaseException | None = None) -> None:
         """One more page failed: logged; a ``PageError`` (it fails the task) once the budget is spent."""
@@ -94,10 +96,15 @@ class ErrorBudget:
         self.block.stat_update("errors")
         logger.warning("page {page_id} failed in {block}: {error_type}: {error}", page_id=doc.id,
                        block=entry["block"], error_type=entry["type"], error=entry["error"])
-        if self.share is not None and self.errors > self.share * max(self.pages, ERROR_GRACE):
-            raise PageError(doc.id, entry["block"], f"{self.errors} of {self.pages} pages failed, more than the error "
-                                                    f"budget (max_page_errors={self.share:g} of at least {ERROR_GRACE} "
-                                                    f"pages)") from cause
+        self._last = (doc.id, entry["block"], cause)
+        self._check()
+
+    def _check(self) -> None:
+        if self.share is None or self.pages < ERROR_GRACE or self.errors <= self.share * self.pages:
+            return
+        page_id, block, cause = self._last
+        raise PageError(page_id, block, f"{self.errors} of {self.pages} pages failed, more than the error budget "
+                                        f"(max_page_errors={self.share:g}, judged from page {ERROR_GRACE} on)") from cause
 
 
 def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id: str | None = None,
