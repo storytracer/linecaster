@@ -521,7 +521,7 @@ requires-dist = [
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },

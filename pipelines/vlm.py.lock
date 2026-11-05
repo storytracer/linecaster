@@ -14,7 +14,7 @@ requirements = [
     { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
     { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" },
+    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" },
     { name = "s3fs" },
 ]
 constraints = [
@@ -1023,7 +1023,7 @@ requires-dist = [
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
@@ -1863,7 +1863,7 @@ wheels = [
 [[package]]
 name = "pybookget"
 version = "1.1.0"
-source = { url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" }
+source = { url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" }
 dependencies = [
     { name = "fake-useragent" },
     { name = "h2" },
@@ -1872,7 +1872,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "tqdm" },
 ]
-sdist = { hash = "sha256:822bc66935d946103fdfd64fcc6db853748b3754dcb597a82f23be60da6b4a64" }
+sdist = { hash = "sha256:f6e5f5f38068b7f9b69f533f61922764afab5bf403196c6b3d9a9993142764e5" }
 
 [package.metadata]
 requires-dist = [

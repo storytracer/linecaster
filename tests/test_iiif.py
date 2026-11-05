@@ -18,7 +18,7 @@ from linecaster.blocks.iiif import IIIFManifestReader, manifest_item_id  # noqa:
 from linecaster.blocks.readers import ImageFolderReader, ImageParquetReader, PageRowReader  # noqa: E402
 from linecaster.blocks.writers import ImageFilesWriter, PageJsonlWriter  # noqa: E402
 
-FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "proxy": None}
+FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False}  # no proxy from the environment
 
 
 def png(color) -> bytes:
@@ -155,7 +155,7 @@ def test_limit_and_skip_count_pages_before_downloading(server, tmp_path, png_for
     (tmp_path / "m.txt").write_text("\n".join(urls))
     got = pages(IIIFManifestReader(paths_file=str(tmp_path / "m.txt"), skip=1, limit=2, http=png_format))
     assert [p.page_id for p in got] == ["a_0002", "a_0003"]
-    images = [r for r in server["requests"] if r.startswith("/iiif/")]
+    images = sorted(r for r in server["requests"] if r.startswith("/iiif/"))   # fetched at once: any order
     assert images == ["/iiif/a2/full/max/0/default.png", "/iiif/a3/full/max/0/default.png"]
 
 

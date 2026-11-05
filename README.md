@@ -196,6 +196,8 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   - Each page row keeps the manifest, its label and rights, and the canvas in `metadata.iiif`.
 - **http(s):// image URLs** (IIIF, or paths in a Parquet column) go through pybookget:
   - retries that honour `Retry-After`, and an honest user agent;
+  - the environment's proxy settings (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `NO_PROXY`), as everywhere
+    else in Linecaster;
   - `--rate-limit 5/1` (repeatable) per task, so the server sees up to `--workers` times that.
 - **Harvest first** for large collections or slow servers. Then no GPU waits on the network, and a failed
   recognition task doesn't download again:

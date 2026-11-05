@@ -11,7 +11,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/dd0ce49bd835be78fbbca4dd0ba470033454efad.tar.gz" }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" }
 # ///
 r"""The harvest stage: page images from IIIF manifests (or from http(s) image URLs in Parquet), downloaded once
 into item folders, with page rows that keep where each image came from. No engine or GPU is needed; the
