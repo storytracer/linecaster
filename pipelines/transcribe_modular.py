@@ -129,7 +129,8 @@ def pipeline(a, script: str) -> list:
     formats = tuple(a.formats.split(","))
     unknown = sorted(set(formats) - set(PAGE_FILE_EXTENSIONS))
     if unknown:
-        raise PipelineConfigError(f"modular: unknown --formats {unknown}; choose from {', '.join(PAGE_FILE_EXTENSIONS)}")
+        raise PipelineConfigError(f"modular: unknown --formats {unknown}; choose from "
+                                  f"{', '.join(PAGE_FILE_EXTENSIONS)}")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)

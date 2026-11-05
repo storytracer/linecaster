@@ -91,8 +91,9 @@ def pipeline(a, script: str):
     regions = bool(a.layout)
     spec = chat_model(a.recognition, prefer="region" if regions else "page")
     if regions != (spec.unit == "region"):
-        raise PipelineConfigError(f"vlm: {a.recognition} reads {'regions' if spec.unit == 'region' else 'whole pages'}"
-                         + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
+        reads = "regions" if spec.unit == "region" else "whole pages"
+        raise PipelineConfigError(f"vlm: {a.recognition} reads {reads}"
+                                  + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
     sglang = spec.server == "sglang"
     vlm = Served(a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
                  initial_window=a.initial_window, read_timeout=a.read_timeout)
