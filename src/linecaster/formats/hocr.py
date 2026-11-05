@@ -355,7 +355,7 @@ def _steps(root) -> list[ModelInfo]:
         return [P.from_record(X.ext_loads(v)) for _, v in steps]
     system = (metas.get("ocr-system") or "").strip()
     if system and not system.startswith(P.SOFTWARE):
-        return [ModelInfo(step="page", name=system)]
+        return [ModelInfo(step="recognition", name=system)]
     return []
 
 

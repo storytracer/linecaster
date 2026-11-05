@@ -195,7 +195,7 @@ def test_hocr_capabilities_follow_the_content():
 def test_hocr_foreign_ocr_system():
     html = (b"<html xmlns='http://www.w3.org/1999/xhtml'><head><meta name='ocr-system' content='tesseract 5.3.0'/>"
             b"</head><body><div class='ocr_page' title='bbox 0 0 10 10'></div></body></html>")
-    assert [(m.step, m.name) for m in from_hocr(html).model] == [("page", "tesseract 5.3.0")]
+    assert [(m.step, m.name) for m in from_hocr(html).model] == [("recognition", "tesseract 5.3.0")]
 
 
 # ------------------------------------------------------------------------------------------------ values

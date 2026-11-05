@@ -72,7 +72,7 @@ def test_parse_keeps_the_completion_verbatim():
     assert t.text == raw and t.extra["raw"] == raw                    # strip/empty check stay in the harness
     assert [ln.text for ln in t.lines][1] == "PROCEEDINGS OF THE ZOOLOGICAL SOCIETY"
     m = t.model[0]
-    assert (m.step, m.name, m.revision) == ("page", "rednote-hilab/dots.mocr", "e539fbb52280393adc081b289ec597430a0f9031")
+    assert (m.step, m.name, m.revision) == ("recognition", "rednote-hilab/dots.mocr", "e539fbb52280393adc081b289ec597430a0f9031")
     assert m.measurements == {"prompt_tokens": 7012, "completion_tokens": 431, "finish_reason": "stop"}
     assert m.settings["prompt"] == "Extract the text content from this image."
     assert chat_model("dots-mocr").parse(completion(None, usage={})).text == ""

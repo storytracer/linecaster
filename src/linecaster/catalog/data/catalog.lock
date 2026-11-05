@@ -3,11 +3,12 @@
 schema: linecaster.lock/2
 presets:
   chandra-ocr-2@1:
-    sha256: sha256:99fe13e9b2ab72b92bfb512e977f721f4cbdfbbe8cf88196b72bdbb2e5b58ea5
+    sha256: sha256:1adb79d5bd39613f4756ac7a33038a7176695904d400e9fe5407597f357d8b24
+    previous_sha256: sha256:99fe13e9b2ab72b92bfb512e977f721f4cbdfbbe8cf88196b72bdbb2e5b58ea5
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: chandra-ocr-2
         revision: af93b47dba1b47b6640c86ccf487ed2260ab9a09
@@ -86,11 +87,12 @@ presets:
         - --dtype
         - bfloat16
   deepseek-ocr-2@1:
-    sha256: sha256:fdb0afaf97a344f34bcb20df882bd6b37cf58792c96272cc8c8edceffd3e9925
+    sha256: sha256:108c862c8ce0f9e86504204a2635fba2b8b3eca55ed011fb8e61479d6c987746
+    previous_sha256: sha256:fdb0afaf97a344f34bcb20df882bd6b37cf58792c96272cc8c8edceffd3e9925
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: deepseek-ocr-2
         revision: aaa02f3811945a91062062994c5c4a3f4c0af2b0
@@ -127,11 +129,12 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   deepseek-ocr@1:
-    sha256: sha256:1fdc24c95e532492a07abe8c7e5ffdc42b86a0ede45768823aa4ba426bc5b8a8
+    sha256: sha256:5e93ffee7ae9145bab392938359a28ad5b9f5fbb456d9722fe5837faaa65da03
+    previous_sha256: sha256:1fdc24c95e532492a07abe8c7e5ffdc42b86a0ede45768823aa4ba426bc5b8a8
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: deepseek-ocr
         revision: 9f30c71f441d010e5429c532364a86705536c53a
@@ -172,11 +175,12 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   dots-mocr@1:
-    sha256: sha256:782102a1f0543279fbcf13de3e83c8295fed174b8f6a27ef42136da6efe7d4a7
+    sha256: sha256:4d546d415897490a316903dcb73bbfb93483e52299c442ee551931feab24f0f4
+    previous_sha256: sha256:782102a1f0543279fbcf13de3e83c8295fed174b8f6a27ef42136da6efe7d4a7
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: dots-mocr
         revision: e539fbb52280393adc081b289ec597430a0f9031
@@ -209,11 +213,12 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   dots-ocr@1:
-    sha256: sha256:10f5d0947fb87d56b995805bd287ec75abd0b874a7a085aa95b7a95e377fe884
+    sha256: sha256:55dc545de933cfd6a5397ef0d86921faa2221e849ab7361dbad211a79c27753e
+    previous_sha256: sha256:10f5d0947fb87d56b995805bd287ec75abd0b874a7a085aa95b7a95e377fe884
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: dots-ocr
         revision: c0111ce6bc07803dbc267932ffef0ae3a51dc951
@@ -242,11 +247,12 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   glm-ocr@1:
-    sha256: sha256:471ffdb456eff1a357db305a1b0e0deb1f1dae0c7c0872423236ef0cb4334d2b
+    sha256: sha256:0cb566fbc9ebe3f508412654c086e755052e5e09a81e0488e526d41351605419
+    previous_sha256: sha256:471ffdb456eff1a357db305a1b0e0deb1f1dae0c7c0872423236ef0cb4334d2b
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: glm-ocr
         revision: ca5d8b3e287e52589e37c28385d9655ee4372f9d
@@ -258,7 +264,7 @@ presets:
       settings:
         sampling:
           temperature: 0.01
-          top_p: 1.0e-05
+          top_p: 1e-05
           repetition_penalty: 1.1
           max_tokens: 8192
         prompt: 'Text Recognition:'
@@ -366,11 +372,12 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-2-1b@1:
-    sha256: sha256:4020d2f983cb2a2c46a8903d8928630c1deef2840d55b026134703410b5a8942
+    sha256: sha256:5b1e5699d11a8d63b78b8406489a9f115b47be73475d8ef6d2939b03cf6e7f77
+    previous_sha256: sha256:4020d2f983cb2a2c46a8903d8928630c1deef2840d55b026134703410b5a8942
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: lightonocr-2-1b
         revision: c97bd377f04481830395218fa8951df9deaba756
@@ -403,11 +410,12 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-3-0.8b@1:
-    sha256: sha256:88f074fbdfe0c5ae366d58ddd7bb94fa856b2a393fa0592993800686ca24c3a8
+    sha256: sha256:029611886515c722f6d14b0a5bbf2ae1876af2a4c6a399246fbf0bb6c4fc5457
+    previous_sha256: sha256:88f074fbdfe0c5ae366d58ddd7bb94fa856b2a393fa0592993800686ca24c3a8
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: lightonocr-3-0.8b
         revision: 36d8636925327c671bd8e479c517a004f7566bd9
@@ -443,11 +451,12 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-3-4b@1:
-    sha256: sha256:c7f0c443789ff7716a510d13ec23c73f3c3c860e29dbc258e7dc2f3daf4b6576
+    sha256: sha256:359816f3d863b0c0fd1fb0a964026c8b1a26607e50579412b2c97bb94b52b519
+    previous_sha256: sha256:c7f0c443789ff7716a510d13ec23c73f3c3c860e29dbc258e7dc2f3daf4b6576
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: lightonocr-3-4b
         revision: b71010f095dc3735de7ee6b9969bff8f8f50b39a
@@ -637,11 +646,12 @@ presets:
             num_speculative_tokens: 15
             enable_adaptive_verification: false
   nemotron-3.5-parse@1:
-    sha256: sha256:6d4398678205ab556a9c459d75e2142342a2f204f7795c7842d47033e4322bf5
+    sha256: sha256:b7c43cc24f64e1da6b15af04632ff2f63a7cb1d7e41e0faf2b12243c2011ed0b
+    previous_sha256: sha256:6d4398678205ab556a9c459d75e2142342a2f204f7795c7842d47033e4322bf5
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: nemotron-3.5-parse
         revision: 62cb1e4ba153d113ff64aaf2be6e068c377cf53c
@@ -694,11 +704,12 @@ presets:
         - --attention-config
         - '{"flash_attn_version": 3}'
   olmocr-2-7b-1025-fp8@1:
-    sha256: sha256:a9c7d9defe995ea5d7dcf91dffaa43be5ebaa9b367ff2848e5565f0b25038109
+    sha256: sha256:2a7c3bfe518e78a2689aa32f227a9f937dea8a571f9d75a01b5f6c9885bf71f3
+    previous_sha256: sha256:a9c7d9defe995ea5d7dcf91dffaa43be5ebaa9b367ff2848e5565f0b25038109
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: olmocr-2-7b-1025-fp8
         revision: 40bd7202494b8264ee17ada08b401b5aab7a9ce1
@@ -739,11 +750,12 @@ presets:
         - --limit-mm-per-prompt
         - '{"image": 1}'
   ovisocr2@1:
-    sha256: sha256:4d3969d8aa7581c8428a19551e7177257a60e623cac63cea8d58c9370bac4212
+    sha256: sha256:32618880396359bc4433aa4b067a40728133b09b5c85f13a386dd51948e32291
+    previous_sha256: sha256:4d3969d8aa7581c8428a19551e7177257a60e623cac63cea8d58c9370bac4212
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: ovisocr2
         revision: 65c619d374b55d4152e85150fc1b003700bc1f0c
@@ -783,11 +795,12 @@ presets:
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
   ovisocr3@1:
-    sha256: sha256:56a4c405d6f43150a72306b030ff1ca580b5b7bcdb2fc9eae09f995c45bbd64c
+    sha256: sha256:b0caadf8436dea8c31b33fee382ded1ae82a03e9b279eec5bcf2e1e59eb522a8
+    previous_sha256: sha256:56a4c405d6f43150a72306b030ff1ca580b5b7bcdb2fc9eae09f995c45bbd64c
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: ovisocr3
         revision: 5f6ce6932efee9ec10c30746db55bd780214b7fd
@@ -803,12 +816,7 @@ presets:
         sampling:
           temperature: 0.0
           max_tokens: 16384
-        prompt: 'Extract all readable content from the image in natural human reading order and output
-          the result as a single Markdown document. For charts or images, represent them using an HTML
-          image tag: <img src="images/bbox_{left}_{top}_{right}_{bottom}.jpg" />, where left, top, right,
-          bottom are bounding box coordinates scaled to [0, 1000). Format formulas as LaTeX. Format tables
-          as HTML: <table>...</table>. Transcribe all other text as standard Markdown. Preserve the original
-          text without translation or paraphrasing.'
+        prompt: 'Extract all readable content from the image in natural human reading order and output the result as a single Markdown document. For charts or images, represent them using an HTML image tag: <img src="images/bbox_{left}_{top}_{right}_{bottom}.jpg" />, where left, top, right, bottom are bounding box coordinates scaled to [0, 1000). Format formulas as LaTeX. Format tables as HTML: <table>...</table>. Transcribe all other text as standard Markdown. Preserve the original text without translation or paraphrasing.'
         chat_template_kwargs:
           enable_thinking: false
         image:
@@ -829,11 +837,12 @@ presets:
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
   paddleocr-vl-1.6@1:
-    sha256: sha256:8914e1d024aff906f4acf11fdff1529f6eb913268437a1177e5187a90d25e4bf
+    sha256: sha256:324a17e2640fd5d1fa8cb082527926a036e876938284dc7daa14b70e4cdd9e52
+    previous_sha256: sha256:8914e1d024aff906f4acf11fdff1529f6eb913268437a1177e5187a90d25e4bf
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: paddleocr-vl-1.6
         revision: 66317acc4c9fc17bd154591ce650735cd2855f3e
@@ -1136,11 +1145,12 @@ presets:
         pad: 0
         mask: false
   qianfan-ocr@1:
-    sha256: sha256:6f3094f0747ac30f8a92a57bfb5e6ce800f3fadee65a68166fd7eb977ec8acb0
+    sha256: sha256:39093910f215e6937e787029e2d5f449b771169e2431d6a3ca615d83f2e1d991
+    previous_sha256: sha256:6f3094f0747ac30f8a92a57bfb5e6ce800f3fadee65a68166fd7eb977ec8acb0
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: qianfan-ocr
         revision: 623bf5d20d446abdb36606aa4547cd0c18886fe5
@@ -1175,11 +1185,12 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   qwen3.5-9b@1:
-    sha256: sha256:d246964baa6d533a8b7a4cd5f9d9d75cd93d538f17ae6b3b2bbbf7545d5b67ca
+    sha256: sha256:9bbdc8f79e8bc17b4d30e4ae4fa588406122ecebd52a0d709f0b303049f869f6
+    previous_sha256: sha256:d246964baa6d533a8b7a4cd5f9d9d75cd93d538f17ae6b3b2bbbf7545d5b67ca
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: qwen3.5-9b
         revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a
@@ -1252,11 +1263,12 @@ presets:
         e2e: true
         name: table_recognition_v2/SLANet_plus
   smoldocling-256m-preview@1:
-    sha256: sha256:6f35b2e9a893ce82b76bfda06367e7f62286e078009d3099accd02f79446231d
+    sha256: sha256:249fb533aee74698137b778211c57fd1de4693f4fda2fd9474508b35c8d1ce8b
+    previous_sha256: sha256:6f35b2e9a893ce82b76bfda06367e7f62286e078009d3099accd02f79446231d
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: smoldocling-256m-preview
         revision: ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8
@@ -1385,11 +1397,12 @@ presets:
         pad: 4
         dpi: 300
   unlimited-ocr-2@1:
-    sha256: sha256:f02362df29626c66202bb336f75a603e53f5ffb4f6e28955aad1ba1dd9077faf
+    sha256: sha256:41a97a318601c18afb211385b727c8f123cf9cd2c506c15a64b71aa46613f1e5
+    previous_sha256: sha256:f02362df29626c66202bb336f75a603e53f5ffb4f6e28955aad1ba1dd9077faf
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: unlimited-ocr-2
         revision: 9cf077c4b206e0e2a31879df937b0b0bcba3661c
@@ -1478,11 +1491,12 @@ presets:
           - https://huggingface.co/{repo}/resolve/{revision}/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl
         - - fastokens==0.3.2
   unlimited-ocr@1:
-    sha256: sha256:88bd6b81609688d787c74b8c901196f194193142881c5686bc84e6ab95251fb0
+    sha256: sha256:e565907aa09f572ec570c4a4672af3ec2ad2e7b1c62c986cfb283283dc3f9038
+    previous_sha256: sha256:88bd6b81609688d787c74b8c901196f194193142881c5686bc84e6ab95251fb0
     released: '2026-11-04'
     linecaster: null
     resolved:
-      step: page
+      step: recognition
       model:
         id: unlimited-ocr
         revision: 07dea832e22aefee32ad281d4b80551282e1c168
@@ -1520,11 +1534,12 @@ presets:
         - '{"image": 1}'
 recipes:
   squiddle@1:
-    sha256: sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
+    sha256: sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
+    previous_sha256: sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
     released: '2026-11-04'
     linecaster: null
     resolved:
-      pipeline: chain.v1
+      pipeline: transcribe_modular.v1
       options:
         text: reflow
       presets:

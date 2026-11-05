@@ -104,7 +104,7 @@ def engines(repo: Path = REPO) -> dict[str, Engine]:
     if core.exists():
         classes = _classes(core)
         f, cls = classes["ChatAdapter"]
-        e = Engine("chat.v1", "linecaster.adapters:ChatAdapter", "linecaster", f, _doc(cls), "page")
+        e = Engine("chat.v1", "linecaster.adapters:ChatAdapter", "linecaster", f, _doc(cls), "recognition")
         for name, (src, c) in sorted(classes.items()):
             adapter = _class_value(c, "adapter")
             if isinstance(adapter, str):

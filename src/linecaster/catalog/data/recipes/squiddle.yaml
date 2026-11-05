@@ -2,7 +2,7 @@
 schema: linecaster.recipe/1
 id: squiddle
 edition: 1
-pipeline: chain.v1
+pipeline: transcribe_modular.v1
 presets:
   layout: pp-doclayoutv3@1
   lines: pp-ocrv6-medium-det@1

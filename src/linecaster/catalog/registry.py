@@ -200,20 +200,25 @@ class Catalog:
                            for slot, ref in sorted(rc.presets.items())}
         return data
 
-    def resolve_recipe(self, ref: str) -> "Resolved":
-        """A recipe edition: the current file when its edition matches, else the lock."""
+    def resolve_recipe(self, ref: str, sha256: str | None = None) -> "Resolved":
+        """A recipe edition: the current file when its edition matches, else the lock. With ``sha256``, the hash
+        a run record names must be the edition's hash or its hash before a catalog migration."""
         rid, edition = split_ref(ref)
         if rid not in self.recipes:
             raise KeyError(f"unknown recipe {rid!r}; known: {sorted(self.recipes)}")
         d, rc = self.recipes[rid]
         if edition is None or edition == rc.edition:
             content = self.recipe_functional(rc)
-            return Resolved(rid, rc.edition, content, canonical_sha256(content),
-                            released=rc.ref in d.lock.recipes)
-        entry = d.lock.recipes.get(f"{rid}@{edition}")
-        if entry is None:
-            raise KeyError(f"{rid}@{edition} is neither the current edition ({rc.edition}) nor released")
-        return Resolved(rid, edition, entry.resolved, entry.sha256, released=True)
+            entry = d.lock.recipes.get(rc.ref)
+            r = Resolved(rid, rc.edition, content, canonical_sha256(content), released=entry is not None,
+                         previous_sha256=entry.previous_sha256 if entry else None)
+        else:
+            entry = d.lock.recipes.get(f"{rid}@{edition}")
+            if entry is None:
+                raise KeyError(f"{rid}@{edition} is neither the current edition ({rc.edition}) nor released")
+            r = Resolved(rid, edition, entry.resolved, entry.sha256, released=True,
+                         previous_sha256=entry.previous_sha256)
+        return r.checked(sha256)
 
     def body(self, pid: str) -> str:
         """The Markdown body of preset ``pid`` (the reasons, limitations, changes)."""
@@ -233,19 +238,36 @@ class Catalog:
         pin = self.model(ref.id).pin(ref.revision)
         return {"id": ref.id, "revision": pin.revision, "files": dict(sorted(pin.files.items()))}
 
-    def resolve(self, ref: str) -> "Resolved":
-        """A preset edition: the current file when its edition matches (released or draft), else the lock."""
+    def resolve(self, ref: str, sha256: str | None = None) -> "Resolved":
+        """A preset edition: the current file when its edition matches (released or draft), else the lock. With
+        ``sha256``, the hash a run record names must be the edition's hash or its hash before a catalog
+        migration."""
         pid, edition = split_ref(ref)
         d, p = self.presets[pid] if pid in self.presets else (None, None)
         if p is None:
             raise KeyError(f"unknown preset {pid!r}; known: {sorted(self.presets)}")
         if edition is None or edition == p.edition:
             content = self.functional(p)
-            return Resolved(pid, p.edition, content, canonical_sha256(content), released=f"{pid}@{p.edition}" in d.lock.presets)
-        entry = d.lock.presets.get(f"{pid}@{edition}")
-        if entry is None:
-            raise KeyError(f"{pid}@{edition} is neither the current edition ({p.edition}) nor released")
-        return Resolved(pid, edition, entry.resolved, entry.sha256, released=True)
+            entry = d.lock.presets.get(p.ref)
+            r = Resolved(pid, p.edition, content, canonical_sha256(content), released=entry is not None,
+                         previous_sha256=entry.previous_sha256 if entry else None)
+        else:
+            entry = d.lock.presets.get(f"{pid}@{edition}")
+            if entry is None:
+                raise KeyError(f"{pid}@{edition} is neither the current edition ({p.edition}) nor released")
+            r = Resolved(pid, edition, entry.resolved, entry.sha256, released=True,
+                         previous_sha256=entry.previous_sha256)
+        return r.checked(sha256)
+
+    def by_sha256(self, sha256: str) -> "Resolved":
+        """The released preset or recipe edition with this hash, today's or the one it had before a catalog
+        migration (what an older run record names)."""
+        for d in self.dirs:
+            for table, resolve in ((d.lock.presets, self.resolve), (d.lock.recipes, self.resolve_recipe)):
+                for key, entry in table.items():
+                    if sha256 in (entry.sha256, entry.previous_sha256):
+                        return resolve(key)
+        raise KeyError(f"no released edition has the hash {sha256}")
 
     # --------------------------------------------------------------------------------------- release, verify
 
@@ -383,17 +405,25 @@ def file_problems(d: Directory) -> list[str]:
 
 @dataclass(frozen=True)
 class Resolved:
-    """A preset edition as it runs: id, edition, functional content and its hash."""
+    """A preset or recipe edition as it runs: id, edition, functional content and its hash."""
 
     id: str
     edition: int
     content: dict
     sha256: str
     released: bool
+    #: its hash before a catalog migration, if that changed it
+    previous_sha256: str | None = None
 
     @property
     def ref(self) -> str:
         return f"{self.id}@{self.edition}"
+
+    def checked(self, sha256: str | None) -> "Resolved":
+        """Itself, if ``sha256`` is ``None``, its hash or its previous hash; else a ``ValueError``."""
+        if sha256 is not None and sha256 not in (self.sha256, self.previous_sha256):
+            raise ValueError(f"{self.ref} has the hash {self.sha256}, not {sha256}")
+        return self
 
     @property
     def engine(self) -> str:

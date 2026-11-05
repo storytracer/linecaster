@@ -31,8 +31,7 @@ def test_every_preset_builds_its_adapter(pid):
     m.pin(spec.revision)                                       # pinned in the model document
     r = c.resolve(pid)
     assert (spec.preset, spec.preset_sha256) == (r.ref, r.sha256) and r.released
-    assert spec.step == ("regions" if p.step == "recognition" else "page")
-    assert (p.capabilities.unit == "region") == (p.step == "recognition")
+    assert p.step == spec.step == "recognition" and spec.unit == p.capabilities.unit in ("page", "region")
     assert spec.server == p.serve.server and spec.serve_args == p.serve.flags and spec.job_image
     assert spec.sampling and isinstance(spec.settings(), dict)
     assert pickle.loads(pickle.dumps(spec)).settings() == spec.settings()        # datatrove pickles the pipeline
@@ -50,7 +49,7 @@ def test_every_adapter_is_used():
     ("openbmb/MiniCPM-OCR-1.0", "minicpm-ocr-1.0", "minicpm-ocr-1.0"),        # read only by region
 ])
 def test_hugging_face_ids_name_a_preset(hub_id, page, regions):
-    assert preset_ref(hub_id) == page and preset_ref(hub_id, prefer="recognition") == regions
+    assert preset_ref(hub_id) == page and preset_ref(hub_id, prefer="region") == regions
     assert chat_model(hub_id).preset == f"{page}@1"
     assert preset_ref("dots-ocr@1") == "dots-ocr@1"
     with pytest.raises(KeyError, match="no chat preset"):

@@ -55,7 +55,7 @@
       "type": "integer"
     },
     "pipeline": {
-      "description": "the pipeline it fills, by its versioned id, e.g. chain.v1 (pipelines/transcribe_chain.py)",
+      "description": "the pipeline it fills, by its versioned id, e.g. transcribe_modular.v1 (pipelines/transcribe_modular.py)",
       "title": "Pipeline",
       "type": "string"
     },

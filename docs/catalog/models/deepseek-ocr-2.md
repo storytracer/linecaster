@@ -26,4 +26,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`deepseek-ocr-2`](../presets/page/deepseek-ocr-2.md)
+- [`deepseek-ocr-2`](../presets/recognition/deepseek-ocr-2.md)

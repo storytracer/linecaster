@@ -26,4 +26,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`unlimited-ocr`](../presets/page/unlimited-ocr.md)
+- [`unlimited-ocr`](../presets/recognition/unlimited-ocr.md)

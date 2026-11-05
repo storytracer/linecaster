@@ -80,7 +80,7 @@ def test_parse_keeps_raw_verbatim_and_reads_front_matter():
     assert t.extra["front_matter"] == {"primary_language": "en", "is_rotation_valid": True,
                                        "rotation_correction": 0, "is_table": False, "is_diagram": False}
     m = t.model[0]
-    assert (m.step, m.name, m.revision, m.backend) == ("page", MODEL, "40bd7202494b8264ee17ada08b401b5aab7a9ce1",
+    assert (m.step, m.name, m.revision, m.backend) == ("recognition", MODEL, "40bd7202494b8264ee17ada08b401b5aab7a9ce1",
                                                        "served x")
     assert m.measurements["completion_tokens"] == 40
 

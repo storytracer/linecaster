@@ -20,8 +20,8 @@ engine or GPU is needed; the transcribe stage then reads the page records withou
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --tasks 16 --workers 4 --rate-limit 5/1 --existing-ocr
-    uv run pipelines/transcribe_chain.py --pages OUT/pages OUT2 --recipe ...                 # keeps the metadata
-    uv run pipelines/transcribe_chain.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
+    uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe ...                 # keeps the metadata
+    uv run pipelines/transcribe_modular.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
 
 OUT/images/<item>/<page>.<ext> as the server sent them; with --existing-ocr OUT/ocr/<item>/<page>.xml|.html; the
 manifests as fetched in OUT/manifests/<item>.json|.xml; page records in OUT/pages/<rank>.jsonl.gz (``image.uri`` the
@@ -52,6 +52,9 @@ def pipeline(a, script: str) -> list:
         run.pages(a),
     ]
 
+
+#: the pipeline's id (its docs page; ``launch.py`` finds scripts by it); no slots, so no recipes
+PIPELINE = "harvest.v1"
 
 if __name__ == "__main__":
     run.main(__file__, __doc__, options, models, pipeline)

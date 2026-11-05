@@ -11,8 +11,8 @@ r"""Launch a recipe or a model that reads whole pages, by its name: this finds t
 starts that pipeline's script, in the script's own environment.
 
     uv run launch.py                                   # the recipes and models
-    uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_chain.py IMAGES OUT --recipe squiddle
-    uv run launch.py chandra-ocr-2 IMAGES OUT          # a model:  = pipelines/transcribe_vlm.py IMAGES OUT --vlm chandra-ocr-2
+    uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle
+    uv run launch.py chandra-ocr-2 IMAGES OUT          # a model:  = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
     uv run launch.py squiddle@1 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
     uv run launch.py squiddle IMAGES OUT --text lines  # a flag on top: recorded as an override
     uv run launch.py squiddle --help                   # the pipeline's options
@@ -29,7 +29,9 @@ from linecaster.catalog.registry import catalog, split_ref
 
 ROOT = Path(__file__).resolve().parent
 #: the pipeline a whole-page model runs in, and its slot
-MODEL_PIPELINE, MODEL_SLOT = "vlm.v1", "vlm"
+MODEL_PIPELINE, MODEL_SLOT = "transcribe_vlm.v1", "recognition"
+#: the pipeline whose slots the other presets fill
+MODULAR_PIPELINE = "transcribe_modular.v1"
 
 
 def listing() -> None:
@@ -39,7 +41,7 @@ def listing() -> None:
         print(f"  {r.ref:<28} {', '.join(f'{k} {v}' for k, v in r.presets.items())}")
     print("models that read whole pages")
     for pid, (_, p) in sorted(c.presets.items()):
-        if p.step == "page":
+        if p.page_preset:
             print(f"  {p.ref:<28} {c.model(p.model.id).version or p.model.id} ({c.model(p.model.id).license})")
     print("\nuv run launch.py NAME IMAGES OUT [pipeline options]")
 
@@ -52,10 +54,13 @@ def not_runnable(name: str) -> str:
     p = c.preset(name)
     uses = sorted(rid for rid, (_, r) in c.recipes.items() if any(split_ref(x)[0] == name for x in r.presets.values()))
     if p.step == "recognition" and p.capabilities.unit == "region":
-        what = f"reads layout regions: uv run pipelines/transcribe_vlm.py IMAGES OUT --layout <layout preset> --vlm {name}"
+        what = (f"reads layout regions: uv run pipelines/transcribe_vlm.py IMAGES OUT --layout <layout preset> "
+                f"--recognition {name}")
     else:
-        opt = code.pipelines(ROOT)["chain.v1"].slots.get(p.step, p.step)
-        what = f"is one step ({p.step}) of a pipeline: uv run pipelines/transcribe_chain.py IMAGES OUT --{opt} {name} ..."
+        pipeline = code.pipelines(ROOT)[MODULAR_PIPELINE]
+        opt = pipeline.slots.get(p.step, p.step)
+        what = (f"is one step ({p.step}) of a pipeline: uv run pipelines/{pipeline.source.name} IMAGES OUT --{opt} "
+                f"{name} ...")
     return f"{name} {what}" + (f"; recipes with it: {', '.join(uses)}" if uses else "")
 
 
@@ -65,7 +70,7 @@ def command(name: str, args: list[str]) -> list[str]:
     rid, _ = split_ref(name)
     if rid in c.recipes:
         pipeline, flag = c.resolve_recipe(name).content["pipeline"], "--recipe"
-    elif rid in c.presets and c.preset(rid).step == "page":
+    elif rid in c.presets and c.preset(rid).page_preset:
         pipeline = MODEL_PIPELINE
         flag = f"--{code.pipelines(ROOT)[MODEL_PIPELINE].slots[MODEL_SLOT]}"
         if args[:1] == ["serve"]:

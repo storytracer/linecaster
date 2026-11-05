@@ -26,4 +26,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`lightonocr-3-4b`](../presets/page/lightonocr-3-4b.md)
+- [`lightonocr-3-4b`](../presets/recognition/lightonocr-3-4b.md)

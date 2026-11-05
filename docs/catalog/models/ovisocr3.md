@@ -27,4 +27,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`ovisocr3`](../presets/page/ovisocr3.md)
+- [`ovisocr3`](../presets/recognition/ovisocr3.md)

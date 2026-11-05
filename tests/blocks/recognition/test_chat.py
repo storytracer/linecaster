@@ -88,7 +88,7 @@ def test_parse_keeps_the_completion_verbatim():
     assert [ln.reading_order for ln in t.lines] == list(range(len(t.lines)))
     assert t.source.kind == "produced" and t.source.format == "text"
     m = t.model[0]
-    assert (m.step, m.name, m.revision, m.backend) == ("page", "lightonai/LightOnOCR-2-1B",
+    assert (m.step, m.name, m.revision, m.backend) == ("recognition", "lightonai/LightOnOCR-2-1B",
                                                        "c97bd377f04481830395218fa8951df9deaba756", "served x")
     assert m.measurements == {"prompt_tokens": 2322, "completion_tokens": 7, "finish_reason": "stop"}
     assert m.settings["sampling"]["temperature"] == 0.2 and m.settings["image"]["longest_side_px"] == 1540
@@ -172,7 +172,7 @@ def test_chat_page_step_records_server_errors(fake_server):
     # a route the server does not have: the page comes out with the error recorded, no transcription
     step = PageRecognizer(chat_model("lightonocr-2-1b"), Served(fake_server.replace("/v1", "/nope"), model="m", max_window=2))
     out = list(step.run(iter([new_page_document("p", image(100, 200))])))
-    assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "page"
+    assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "recognition"
     assert "404" in out[0].metadata["errors"][0]["error"]
     assert "ocr_new" not in page_of(out[0]).transcriptions
 
@@ -207,4 +207,4 @@ def test_job_dependencies_without_kraken():
     deps = dependencies("abc123", ROOT / "pipelines/transcribe_vlm.py")
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
-    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "pipelines/transcribe_chain.py"))
+    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "pipelines/transcribe_modular.py"))

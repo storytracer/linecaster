@@ -28,4 +28,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`nemotron-3.5-parse`](../presets/page/nemotron-3.5-parse.md)
+- [`nemotron-3.5-parse`](../presets/recognition/nemotron-3.5-parse.md)

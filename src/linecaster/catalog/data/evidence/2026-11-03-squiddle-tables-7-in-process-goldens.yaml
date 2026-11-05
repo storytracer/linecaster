@@ -12,4 +12,4 @@ hardware: NVIDIA GB10 (spark)
 software:
   linecaster: 62e2be7
   backend: in-process
-notes: linecaster's chain pipeline with this recipe's presets (in-process), compared line by line with squiddleocr's goldens (7c8a052, spark) by tests/parity/compare_goldens.py; line boxes, text and every word box identical.
+notes: linecaster's modular pipeline with this recipe's presets (in-process), compared line by line with squiddleocr's goldens (7c8a052, spark) by tests/parity/compare_goldens.py; line boxes, text and every word box identical.

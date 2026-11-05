@@ -28,4 +28,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`dots-mocr`](../presets/page/dots-mocr.md)
+- [`dots-mocr`](../presets/recognition/dots-mocr.md)

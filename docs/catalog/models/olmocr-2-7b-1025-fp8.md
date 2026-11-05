@@ -29,4 +29,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`olmocr-2-7b-1025-fp8`](../presets/page/olmocr-2-7b-1025-fp8.md)
+- [`olmocr-2-7b-1025-fp8`](../presets/recognition/olmocr-2-7b-1025-fp8.md)

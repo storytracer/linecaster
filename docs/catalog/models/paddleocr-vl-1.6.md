@@ -29,4 +29,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`paddleocr-vl-1.6`](../presets/page/paddleocr-vl-1.6.md)
+- [`paddleocr-vl-1.6`](../presets/recognition/paddleocr-vl-1.6.md)

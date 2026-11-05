@@ -1,6 +1,6 @@
 # chat.v1
 
-*Engine · page · package `linecaster`*
+*Engine · recognition · package `linecaster`*
 
 Base class of a chat-VLM adapter. A subclass sets `adapter` (its registry name) and implements
 `request`; `parse` has a text-only default. Every value comes from the preset:
@@ -46,24 +46,24 @@ Each preset names one in `options.adapter`: the request and the parsing of the a
 
 ## Presets
 
-- [`chandra-ocr-2`](../presets/page/chandra-ocr-2.md)
-- [`deepseek-ocr`](../presets/page/deepseek-ocr.md)
-- [`deepseek-ocr-2`](../presets/page/deepseek-ocr-2.md)
-- [`dots-mocr`](../presets/page/dots-mocr.md)
-- [`dots-ocr`](../presets/page/dots-ocr.md)
-- [`glm-ocr`](../presets/page/glm-ocr.md)
-- [`lightonocr-2-1b`](../presets/page/lightonocr-2-1b.md)
+- [`chandra-ocr-2`](../presets/recognition/chandra-ocr-2.md)
+- [`deepseek-ocr`](../presets/recognition/deepseek-ocr.md)
+- [`deepseek-ocr-2`](../presets/recognition/deepseek-ocr-2.md)
+- [`dots-mocr`](../presets/recognition/dots-mocr.md)
+- [`dots-ocr`](../presets/recognition/dots-ocr.md)
+- [`glm-ocr`](../presets/recognition/glm-ocr.md)
+- [`lightonocr-2-1b`](../presets/recognition/lightonocr-2-1b.md)
 - [`lightonocr-2-1b-regions`](../presets/recognition/lightonocr-2-1b-regions.md)
-- [`lightonocr-3-0.8b`](../presets/page/lightonocr-3-0.8b.md)
-- [`lightonocr-3-4b`](../presets/page/lightonocr-3-4b.md)
+- [`lightonocr-3-0.8b`](../presets/recognition/lightonocr-3-0.8b.md)
+- [`lightonocr-3-4b`](../presets/recognition/lightonocr-3-4b.md)
 - [`minicpm-ocr-1.0`](../presets/recognition/minicpm-ocr-1.0.md)
-- [`nemotron-3.5-parse`](../presets/page/nemotron-3.5-parse.md)
-- [`olmocr-2-7b-1025-fp8`](../presets/page/olmocr-2-7b-1025-fp8.md)
-- [`ovisocr2`](../presets/page/ovisocr2.md)
-- [`ovisocr3`](../presets/page/ovisocr3.md)
-- [`paddleocr-vl-1.6`](../presets/page/paddleocr-vl-1.6.md)
-- [`qianfan-ocr`](../presets/page/qianfan-ocr.md)
-- [`qwen3.5-9b`](../presets/page/qwen3.5-9b.md)
-- [`smoldocling-256m-preview`](../presets/page/smoldocling-256m-preview.md)
-- [`unlimited-ocr`](../presets/page/unlimited-ocr.md)
-- [`unlimited-ocr-2`](../presets/page/unlimited-ocr-2.md)
+- [`nemotron-3.5-parse`](../presets/recognition/nemotron-3.5-parse.md)
+- [`olmocr-2-7b-1025-fp8`](../presets/recognition/olmocr-2-7b-1025-fp8.md)
+- [`ovisocr2`](../presets/recognition/ovisocr2.md)
+- [`ovisocr3`](../presets/recognition/ovisocr3.md)
+- [`paddleocr-vl-1.6`](../presets/recognition/paddleocr-vl-1.6.md)
+- [`qianfan-ocr`](../presets/recognition/qianfan-ocr.md)
+- [`qwen3.5-9b`](../presets/recognition/qwen3.5-9b.md)
+- [`smoldocling-256m-preview`](../presets/recognition/smoldocling-256m-preview.md)
+- [`unlimited-ocr`](../presets/recognition/unlimited-ocr.md)
+- [`unlimited-ocr-2`](../presets/recognition/unlimited-ocr-2.md)

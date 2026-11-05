@@ -12,7 +12,7 @@ r"""The item stage (binding): one text per item (book, issue, manuscript) and te
 stage written in item shards (`--item-shards N`). Each task reads whole shard folders, so it sees every page of
 its items; no engine or GPU is needed.
 
-    uv run pipelines/transcribe_chain.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
+    uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
     uv run pipelines/bind.py OUT1/pages OUT2 --tasks 64
     ... --on hf-jobs --commit <sha> --flavor cpu-upgrade --tasks 64
 
@@ -42,6 +42,9 @@ def pipeline(a, script: str) -> list:
         ItemTextWriter(f"{out}/texts"),
     ], {"engines": False}
 
+
+#: the pipeline's id (its docs page; ``launch.py`` finds scripts by it); no slots, so no recipes
+PIPELINE = "bind.v1"
 
 if __name__ == "__main__":
     run.main(__file__, __doc__, options, models, pipeline)

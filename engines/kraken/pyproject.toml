@@ -6,7 +6,7 @@ license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "linecaster",
-    # kraken with the PP-OCRv6 code; the script that installs it pins the source (see pipelines/transcribe_chain.py)
+    # kraken with the PP-OCRv6 code; the script that installs it pins the source (see pipelines/transcribe_modular.py)
     "kraken>=7.1.0",
     # the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64); 2.14 is kraken's upper bound
     "torch==2.14.0",

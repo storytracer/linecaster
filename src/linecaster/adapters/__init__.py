@@ -39,7 +39,7 @@ class ChatPreset:
     sha256: str | None                           # its functional content's hash (catalog.lock)
     repo: str                                    # the model's Hugging Face id (also the default served name)
     revision: str | None
-    step: str = "page"                           # the preset's step: page, or recognition (region by region)
+    unit: str = "page"                           # what the preset reads: page, or region (region by region)
     options: dict = field(default_factory=dict)  # the preset's options
     settings: dict = field(default_factory=dict)
     serve: dict = field(default_factory=dict)    # the serve block
@@ -67,7 +67,7 @@ class ChatAdapter:
         p = preset
         self.preset, self.preset_sha256 = p.ref, p.sha256
         self.model, self.revision = p.repo, p.revision
-        self.step = "regions" if p.step == "recognition" else "page"
+        self.step, self.unit = "recognition", p.unit
         self.options, self.config, serve = dict(p.options), dict(p.settings), dict(p.serve or {})
         self.sampling: dict[str, Any] = dict(self.config.get("sampling") or {})
         self.prompt: str | None = self.config.get("prompt")
@@ -267,7 +267,7 @@ def chat_presets(catalog=None) -> dict[str, str]:
 
 def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     """``ref`` as a preset ref: a preset id[@edition] as it is; a Hugging Face id becomes one of that model's
-    presets, the first in id order with step ``prefer`` (``page``, or ``recognition`` for region reading), else
+    presets, the first in id order with unit ``prefer`` (``page``, or ``region`` for region reading), else
     the first in id order."""
     from ..catalog.registry import catalog as installed
 
@@ -277,13 +277,13 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     ids = [pid for pid, repo in chat_presets(c).items() if repo == ref]
     if not ids:
         raise KeyError(f"no chat preset for {ref!r}; chat presets: {sorted(chat_presets(c))}")
-    return sorted(ids, key=lambda pid: (c.preset(pid).step != prefer, pid))[0]
+    return sorted(ids, key=lambda pid: (c.preset(pid).capabilities.unit != prefer, pid))[0]
 
 
 def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page") -> ChatAdapter:
     """The configured adapter for a chat preset: ``chat_model("lightonocr-2-1b")``, ``chat_model("dots-ocr@1")``,
-    or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="recognition"``:
-    its region preset)."""
+    or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="region"``:
+    its region preset). What it reads (``unit``) is the preset's capability."""
     from ..catalog.registry import catalog as installed
 
     c = catalog or installed()
@@ -302,7 +302,7 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
         dm.pin(d["revision"])                   # the draft's revision must be pinned in its model document
         draft = {"repo": dm.source.ref, "revision": d["revision"], "speculative": d.get("speculative") or {}}
     preset = ChatPreset(ref=r.ref, sha256=r.sha256, repo=m.source.ref, revision=content["model"]["revision"],
-                        step=content["step"], options=options, settings=dict(content.get("settings") or {}),
+                        unit=c.preset(r.id).capabilities.unit or "page", options=options, settings=dict(content.get("settings") or {}),
                         serve=dict(content.get("serve") or {}), draft=draft)
     return adapter(options["adapter"])(preset, served_name=served_name)
 

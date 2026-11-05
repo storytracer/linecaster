@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: lightonocr-3-0.8b
+edition: 1
+step: recognition
+model:
+  id: lightonocr-3-0.8b
+  revision: 36d8636925327c671bd8e479c517a004f7566bd9
+engine: chat.v1
+options:
+  adapter: lighton-ocr-3
+settings:
+  sampling:
+    max_tokens: 4096
+    temperature: 0.2
+    top_p: 0.9
+  chat_template_kwargs:
+    enable_thinking: false
+  image:
+    longest_side_px: 2048
+  page_longest: 2048
+serve:
+  server: vllm
+  version: 0.30.0
+  image: vllm/vllm-openai:v0.30.0
+  flags:
+  - --max-model-len
+  - '16384'
+  - --default-chat-template-kwargs
+  - '{"enable_thinking": false}'
+  - --limit-mm-per-prompt
+  - '{"image": 1, "video": 0}'
+  - --mm-processor-cache-gb
+  - '0'
+  - --no-enable-prefix-caching
+capabilities:
+  unit: page
+  produces:
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/lighton-ocr3-port.py
+  - lightonai/LightOnOCR-3-0.8B@36d8636925327c671bd8e479c517a004f7566bd9:README.md
+  created: 2026-11-03
+support: experimental

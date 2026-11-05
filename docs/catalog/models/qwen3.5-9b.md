@@ -26,4 +26,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`qwen3.5-9b`](../presets/page/qwen3.5-9b.md)
+- [`qwen3.5-9b`](../presets/recognition/qwen3.5-9b.md)

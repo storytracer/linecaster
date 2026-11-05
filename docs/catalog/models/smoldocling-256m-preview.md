@@ -30,4 +30,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`smoldocling-256m-preview`](../presets/page/smoldocling-256m-preview.md)
+- [`smoldocling-256m-preview`](../presets/recognition/smoldocling-256m-preview.md)

@@ -39,16 +39,16 @@
 # ///
 """A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
 region it finds (``RegionRecognizer``, a region preset). Each task starts vLLM or SGLang for the model itself
-(``ChatModelServer``, last in the pipeline) unless --vlm-endpoint names a running server; with --layout it also
+(``ChatModelServer``, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
 
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --vlm dots-ocr --vlm-endpoint http://127.0.0.1:8000/v1
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --commit <sha> --vlm unlimited-ocr-2
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # needs `vllm` on PATH
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --commit <sha> --recognition unlimited-ocr-2
 
---vlm takes a chat preset of the catalogue (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
+--recognition takes a chat preset of the catalogue (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
 has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
@@ -69,9 +69,9 @@ VLM_PORT = 8000
 
 
 def options(ap):
-    ap.add_argument("--vlm", help="a chat preset (id[@edition]) or a model's Hugging Face id (needed)")
+    ap.add_argument("--recognition", help="a chat preset (id[@edition]) or a model's Hugging Face id (needed)")
     ap.add_argument("--layout", help="a layout preset: the model then reads each region (a region preset)")
-    ap.add_argument("--vlm-endpoint", help="a running OpenAI-compatible server for the model")
+    ap.add_argument("--recognition-endpoint", help="a running OpenAI-compatible server for the model")
     ap.add_argument("--gpu-memory-utilization", type=float, default=None)
     ap.add_argument("--no-speculative", action="store_true", help="plain decoding where the spec has a draft")
     ap.add_argument("--window", type=int, default=48, help="requests in flight at the model's server")
@@ -85,15 +85,15 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str):
-    if not a.vlm:
-        raise SystemExit("vlm: pick --vlm (`linecaster models` lists the presets)")
+    if not a.recognition:
+        raise SystemExit("vlm: pick --recognition (`linecaster models` lists the presets)")
     regions = bool(a.layout)
-    spec = chat_model(a.vlm, prefer="recognition" if regions else "page")
-    if regions != (spec.step == "regions"):
-        raise SystemExit(f"vlm: {a.vlm} reads {'regions' if spec.step == 'regions' else 'whole pages'}"
+    spec = chat_model(a.recognition, prefer="region" if regions else "page")
+    if regions != (spec.unit == "region"):
+        raise SystemExit(f"vlm: {a.recognition} reads {'regions' if spec.unit == 'region' else 'whole pages'}"
                          + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
     sglang = spec.server == "sglang"
-    vlm = Served(a.vlm_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
+    vlm = Served(a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
                  initial_window=a.initial_window, read_timeout=a.read_timeout)
     steps = [run.reader(a)]
     servers = []
@@ -102,7 +102,7 @@ def pipeline(a, script: str):
         steps += [LayoutDetector(b["layout"]), RegionRecognizer(spec, vlm)]
     else:
         steps += [PageRecognizer(spec, vlm)]
-    if not a.vlm_endpoint:
+    if not a.recognition_endpoint:
         draft = getattr(spec, "draft_model", None)
         extra = [] if a.no_speculative or not draft else spec.speculative_args(draft, spec.draft_revision)
         gmu = a.gpu_memory_utilization if a.gpu_memory_utilization is not None or sglang else 0.8
@@ -113,8 +113,8 @@ def pipeline(a, script: str):
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
-PIPELINE = "vlm.v1"
-SLOTS = {"vlm": "vlm", "layout": "layout"}
+PIPELINE = "transcribe_vlm.v1"
+SLOTS = {"recognition": "recognition", "layout": "layout"}
 
 if __name__ == "__main__":
     run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)

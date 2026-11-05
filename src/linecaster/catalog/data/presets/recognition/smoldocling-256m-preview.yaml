@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: smoldocling-256m-preview
+edition: 1
+step: recognition
+model:
+  id: smoldocling-256m-preview
+  revision: ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8
+engine: chat.v1
+options:
+  adapter: smoldocling
+settings:
+  sampling:
+    temperature: 0.0
+    max_tokens: 6144
+    skip_special_tokens: false
+  prompt: Convert this page to docling.
+  image:
+    longest_side_max: 2048
+    jpeg_quality: 95
+serve:
+  server: vllm
+  version: 0.26.0
+  image: vllm/vllm-openai:v0.26.0
+  flags:
+  - --max-model-len
+  - '8192'
+  - --no-enable-prefix-caching
+  - --mm-processor-cache-gb
+  - '0'
+  - --limit-mm-per-prompt
+  - '{"image": 1}'
+capabilities:
+  unit: page
+  produces:
+  - doctags
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/smoldocling-port.py
+  - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:smoldocling-ocr.py
+  - ds4sd/SmolDocling-256M-preview@ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8:README.md
+  created: 2026-11-03
+support: core

@@ -83,28 +83,29 @@ uv run launch.py lightonocr-2-1b scans/ out/
 ```
 
 Any [model for whole pages](#-models-and-blocks) works. A region model reads each layout region instead,
-in the `vlm` pipeline with a layout preset:
-`uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
+in the VLM pipeline with a layout preset:
+`uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0`.
 
-### 🧱 A chain of smaller models
+### 🧱 The modular pipeline: smaller models, step by step
 
 Layout, line detection and a line recogniser, then post-processing into a document. You pick each
 step's preset; `linecaster models` lists them.
 
 ```bash
-uv run pipelines/transcribe_chain.py scans/ out/ \
+uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
-  --recognizer kraken-ppocrv6-medium \
+  --recognition kraken-ppocrv6-medium \
   --files out/files --formats md,alto
 ```
 
 Without `--layout` the page is one region; `--tables` and `--formulas` add those steps.
-`--set recognition.batch_size=4` changes one option of a preset.
+`--set recognition.batch_size=4` changes one option of a preset. `--files` writes any per-page format of
+`PageFileWriter` (`--formats`); `--naming squiddleocr --furniture` writes them as squiddleocr does.
 
 ### ✍️ Your own pipeline
 
-A pipeline is a list of blocks. This is the chain above, cut down:
+A pipeline is a list of blocks. This is the modular pipeline above, cut down:
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
@@ -135,7 +136,7 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_chain.py` at the top, which brings the
+Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_modular.py` at the top, which brings the
 engines, and `uv run` it. Built with `linecaster.runtime.run.main`, as the pipelines are, it gets their command
 line for every machine.
 
@@ -214,7 +215,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   - `uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url OUT --tasks 16 --workers 4
     --rate-limit 5/1 --existing-ocr` writes `OUT/images/<item>/<page>.<ext>`, `OUT/ocr/…`, the manifests as
     fetched in `OUT/manifests/`, and page records;
-  - `uv run pipelines/transcribe_chain.py --pages OUT/pages OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
+  - `uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
     adds the new transcription; `OUT/images --item-from-parent` reads the plain folder instead;
   - `uv run pipelines/bind.py` makes the item texts (below).
   - For small runs, `--manifests` also works directly in the transcribe pipelines.
@@ -223,7 +224,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   - the first run writes its page records into item shards (`--item-shards 64`: `OUT/pages/<shard>/<rank>.jsonl.gz`,
     every item in one shard);
   - `uv run pipelines/bind.py OUT/pages OUT2` reads whole shards, one or more per task, and writes the texts.
-  - `--texts` in the same run needs a single task.
+  - `--item-texts` in the same run needs a single task.
 
 </details>
 
@@ -236,13 +237,13 @@ runs at it:
 ```bash
 P="--layout pp-doclayoutv3
    --lines pp-ocrv6-medium-det
-   --recognizer kraken-ppocrv6-medium"
-uv run pipelines/transcribe_chain.py serve $P
-uv run pipelines/transcribe_chain.py scans/ out/ $P \
+   --recognition kraken-ppocrv6-medium"
+uv run pipelines/transcribe_modular.py serve $P
+uv run pipelines/transcribe_modular.py scans/ out/ $P \
   --endpoint http://127.0.0.1:8100/v1
 ```
 
-For a vision-language model, `--vlm-endpoint` points `pipelines/transcribe_vlm.py` at a running vLLM or SGLang. The
+For a vision-language model, `--recognition-endpoint` points `pipelines/transcribe_vlm.py` at a running vLLM or SGLang. The
 servers listen on loopback only.
 
 </details>
@@ -254,7 +255,7 @@ servers listen on loopback only.
 Linecaster (`$P`: the presets, as above):
 
 ```bash
-R=pipelines/transcribe_chain.py
+R=pipelines/transcribe_modular.py
 uv run $R ray start --head --num-gpus 8
 # on each other machine:
 # uv run $R ray start --address=<head>:6379
@@ -272,7 +273,7 @@ One GPU per Job. Each Job installs Linecaster at a pushed commit, with the engin
 the pipeline's `# /// script` block:
 
 ```bash
-uv run pipelines/transcribe_chain.py \
+uv run pipelines/transcribe_modular.py \
   s3://bhl-open-data/images \
   hf://buckets/<ns>/<bucket>/<run> $P \
   --paths-file hf://buckets/<ns>/<bucket>/pages.txt \
@@ -393,31 +394,31 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 
 | Preset | Model |
 |---|---|
-| [`chandra-ocr-2`](docs/catalog/presets/page/chandra-ocr-2.md) | [Chandra 2](https://huggingface.co/datalab-to/chandra-ocr-2/tree/af93b47dba1b47b6640c86ccf487ed2260ab9a09) |
-| [`deepseek-ocr`](docs/catalog/presets/page/deepseek-ocr.md) | [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/9f30c71f441d010e5429c532364a86705536c53a) |
-| [`deepseek-ocr-2`](docs/catalog/presets/page/deepseek-ocr-2.md) | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
-| [`dots-mocr`](docs/catalog/presets/page/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
-| [`dots-ocr`](docs/catalog/presets/page/dots-ocr.md) | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
-| [`glm-ocr`](docs/catalog/presets/page/glm-ocr.md) | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
-| [`lightonocr-2-1b`](docs/catalog/presets/page/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
-| [`lightonocr-3-0.8b`](docs/catalog/presets/page/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
-| [`lightonocr-3-4b`](docs/catalog/presets/page/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
-| [`nemotron-3.5-parse`](docs/catalog/presets/page/nemotron-3.5-parse.md) | [Nemotron 3.5 Parse](https://huggingface.co/nvidia/Nemotron-3.5-Parse/tree/62cb1e4ba153d113ff64aaf2be6e068c377cf53c) |
-| [`olmocr-2-7b-1025-fp8`](docs/catalog/presets/page/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
-| [`ovisocr2`](docs/catalog/presets/page/ovisocr2.md) | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
-| [`ovisocr3`](docs/catalog/presets/page/ovisocr3.md) | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
-| [`paddleocr-vl-1.6`](docs/catalog/presets/page/paddleocr-vl-1.6.md) | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
-| [`qianfan-ocr`](docs/catalog/presets/page/qianfan-ocr.md) | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
-| [`qwen3.5-9b`](docs/catalog/presets/page/qwen3.5-9b.md) | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
-| [`smoldocling-256m-preview`](docs/catalog/presets/page/smoldocling-256m-preview.md) | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
-| [`unlimited-ocr`](docs/catalog/presets/page/unlimited-ocr.md) | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
-| [`unlimited-ocr-2`](docs/catalog/presets/page/unlimited-ocr-2.md) | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
+| [`chandra-ocr-2`](docs/catalog/presets/recognition/chandra-ocr-2.md) | [Chandra 2](https://huggingface.co/datalab-to/chandra-ocr-2/tree/af93b47dba1b47b6640c86ccf487ed2260ab9a09) |
+| [`deepseek-ocr`](docs/catalog/presets/recognition/deepseek-ocr.md) | [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/9f30c71f441d010e5429c532364a86705536c53a) |
+| [`deepseek-ocr-2`](docs/catalog/presets/recognition/deepseek-ocr-2.md) | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
+| [`dots-mocr`](docs/catalog/presets/recognition/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
+| [`dots-ocr`](docs/catalog/presets/recognition/dots-ocr.md) | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
+| [`glm-ocr`](docs/catalog/presets/recognition/glm-ocr.md) | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
+| [`lightonocr-2-1b`](docs/catalog/presets/recognition/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
+| [`lightonocr-3-0.8b`](docs/catalog/presets/recognition/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
+| [`lightonocr-3-4b`](docs/catalog/presets/recognition/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
+| [`nemotron-3.5-parse`](docs/catalog/presets/recognition/nemotron-3.5-parse.md) | [Nemotron 3.5 Parse](https://huggingface.co/nvidia/Nemotron-3.5-Parse/tree/62cb1e4ba153d113ff64aaf2be6e068c377cf53c) |
+| [`olmocr-2-7b-1025-fp8`](docs/catalog/presets/recognition/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
+| [`ovisocr2`](docs/catalog/presets/recognition/ovisocr2.md) | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
+| [`ovisocr3`](docs/catalog/presets/recognition/ovisocr3.md) | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
+| [`paddleocr-vl-1.6`](docs/catalog/presets/recognition/paddleocr-vl-1.6.md) | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
+| [`qianfan-ocr`](docs/catalog/presets/recognition/qianfan-ocr.md) | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
+| [`qwen3.5-9b`](docs/catalog/presets/recognition/qwen3.5-9b.md) | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
+| [`smoldocling-256m-preview`](docs/catalog/presets/recognition/smoldocling-256m-preview.md) | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
+| [`unlimited-ocr`](docs/catalog/presets/recognition/unlimited-ocr.md) | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
+| [`unlimited-ocr-2`](docs/catalog/presets/recognition/unlimited-ocr-2.md) | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
 
 ### 🍳 Recipes
 
 | Recipe | Pipeline | Presets |
 |---|---|---|
-| [`squiddle`](docs/catalog/recipes/squiddle.md) | `chain.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1` |
+| [`squiddle`](docs/catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1` |
 <!-- catalog:end -->
 
 ### ✨ Post-processing
@@ -550,12 +551,13 @@ Spelling is never modernised.
 <details>
 <summary><b>📚 The catalogue</b></summary>
 
-- **One catalogue**, in `src/linecaster/catalog/data/`: models (`models/<id>/model.md`, with the upstream
-  card in `upstream/<revision>/`), presets by step (`presets/<step>/<id>.md`), recipes (`recipes/<id>.md`)
-  and evidence records (`evidence/*.yaml`). Model, preset and recipe documents are Markdown with YAML front
-  matter: data on top, the reasons below.
+- **One catalogue**, in `src/linecaster/catalog/data/`: models (`models/<id>/model.yaml`, with the upstream
+  card in `upstream/<revision>/`), presets by step (`presets/<step>/<id>.yaml`), recipes (`recipes/<id>.yaml`)
+  and evidence records (`evidence/*.yaml`). The data is YAML, checked against JSON Schemas generated from the
+  code (`src/linecaster/catalog/schemas/`); the reasons are in a Markdown file next to it (`<id>.md`,
+  `model.md`).
 - **Code has versioned ids.** A preset names its engine (`engine: kraken.recognition.v1`), a recipe its
-  pipeline (`pipeline: chain.v1`). An incompatible change of options is a new id (`.v2`).
+  pipeline (`pipeline: transcribe_modular.v1`). An incompatible change of options is a new id (`.v2`).
 - **Versions:** `version` and `revision` are upstream's, verbatim and exact. A preset or recipe has its
   own integer `edition`, referred to as `id@edition`.
 - **Released editions don't change.** `catalog.lock` keeps each released edition's functional content
@@ -564,7 +566,7 @@ Spelling is never modernised.
 - **Provenance:** each page file names the presets and revisions that made it (ALTO `Processing`,
   PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every preset, edition, hash
   and override.
-- **Recipes** (`recipes/<id>.md`): a pipeline, a preset edition per slot, options. A recipe's hash covers
+- **Recipes** (`recipes/<id>.yaml`): a pipeline, a preset edition per slot, options. A recipe's hash covers
   its presets' hashes, so one recipe edition pins everything down to the weights.
 - **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
   pipeline's results belong to a recipe; a preset's to the preset, with the rest of the pipeline as context.
@@ -577,10 +579,10 @@ Spelling is never modernised.
 
 | To add | Write |
 |---|---|
-| a model | `linecaster catalog pin <id> --hf <repo>` for its model document and card, then a preset (`presets/<step>/<id>.md`) and `linecaster catalog release <id>` |
+| a model | `linecaster catalog pin <id> --hf <repo>` for its model document and card, then a preset (`presets/<step>/<id>.yaml`, its reasons in `<id>.md`) and `linecaster catalog release <id>` |
 | a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
 | an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`) |
-| a recipe | `recipes/<id>.md`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
+| a recipe | `recipes/<id>.yaml`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
 | a processing step | a `PageBlock` with `process_page(doc, page)` |
 
 An engine runs both inside the pipeline and behind `linecaster serve` without further work.

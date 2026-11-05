@@ -27,4 +27,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`dots-ocr`](../presets/page/dots-ocr.md)
+- [`dots-ocr`](../presets/recognition/dots-ocr.md)

@@ -1,11 +1,11 @@
 """One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
 that builds one pipeline shape with slots for presets; ``main`` gives it:
 
-    uv run pipelines/transcribe_chain.py IMAGES OUT                              # this machine
-    uv run pipelines/transcribe_chain.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
-    uv run pipelines/transcribe_chain.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
-    uv run pipelines/transcribe_chain.py serve                                   # linecaster serve with its models
-    uv run pipelines/transcribe_chain.py ray start --head                        # Ray's command line, same environment
+    uv run pipelines/transcribe_modular.py IMAGES OUT                              # this machine
+    uv run pipelines/transcribe_modular.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
+    uv run pipelines/transcribe_modular.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
+    uv run pipelines/transcribe_modular.py serve                                   # linecaster serve with its models
+    uv run pipelines/transcribe_modular.py ray start --head                        # Ray's command line, same environment
 
 Engine models run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
 server that each task starts for itself (``--backend served``, the default on Ray and HF Jobs): the
@@ -272,7 +272,7 @@ from ..serve import model_args  # noqa: E402 - one place builds linecaster serve
 def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
           slots: dict[str, str] | None = None) -> None:
     """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
-    names others. The pipeline's slots (``--layout``, ``--recognizer``, ...) pick them."""
+    names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them."""
     from ..cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
@@ -419,14 +419,14 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
             setattr(a, name, value)
         elif getattr(a, name) != value:
             overrides[name] = getattr(a, name)
-    a.recipe_record = {"ref": r.ref, "sha256": r.sha256, "released": r.released,
+    a.recipe_record = {"ref": r.ref, "pipeline": pipeline_id, "sha256": r.sha256, "released": r.released,
                        **({"overrides": overrides} if overrides else {})}
 
 
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
          pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
     """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``pipeline_id``
-    (e.g. ``chain.v1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
+    (e.g. ``transcribe_modular.v1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
     argv = sys.argv[1:]
     if argv[:1] == ["ray"]:
         os.environ.setdefault(RAY_UV, "0")

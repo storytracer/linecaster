@@ -70,9 +70,12 @@ def _catalog(a) -> None:
         from .catalog import yamlio
 
         c = registry.Catalog()
-        kind = "recipe" if a.ref.split("@", 1)[0] in c.recipes else "preset"
-        r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
-        print(yamlio.dump({kind: r.ref, "sha256": r.sha256, "released": r.released, **r.content}))
+        r = c.by_sha256(a.ref) if a.ref.startswith("sha256:") else None
+        kind = "recipe" if (r.id if r else a.ref.split("@", 1)[0]) in c.recipes else "preset"
+        if r is None:
+            r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
+        previous = {"previous_sha256": r.previous_sha256} if r.previous_sha256 else {}
+        print(yamlio.dump({kind: r.ref, "sha256": r.sha256, **previous, "released": r.released, **r.content}))
     elif a.action == "docs":
         from .catalog import docs
 
@@ -114,7 +117,8 @@ def main(argv: list[str] | None = None) -> None:
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas", "docs"])
-    c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release) or model id (pin)")
+    c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release; show also takes an "
+                                          "edition's sha256, today's or from before a migration) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")
     c.add_argument("--revision", help="pin: commit, tag or branch (Hugging Face) / full commit (GitHub)")

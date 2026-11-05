@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: deepseek-ocr
+edition: 1
+step: recognition
+model:
+  id: deepseek-ocr
+  revision: 9f30c71f441d010e5429c532364a86705536c53a
+engine: chat.v1
+options:
+  adapter: deepseek-ocr
+settings:
+  sampling:
+    temperature: 0.0
+    max_tokens: 4096
+    skip_special_tokens: false
+  prompt: <|grounding|>Convert the document to markdown.
+  vllm_xargs:
+    ngram_size: 30
+    window_size: 90
+    whitelist_token_ids:
+    - 128821
+    - 128822
+  logits_processor: vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor
+serve:
+  server: vllm
+  version: 0.26.0
+  image: vllm/vllm-openai:v0.26.0
+  flags:
+  - --max-model-len
+  - '8192'
+  - --trust-remote-code
+  - --no-enable-prefix-caching
+  - --mm-processor-cache-gb
+  - '0'
+  - --limit-mm-per-prompt
+  - '{"image": 1}'
+capabilities:
+  unit: page
+  produces:
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/deepseek-ocr-port.py
+  - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:deepseek-ocr-vllm.py
+  - deepseek-ai/DeepSeek-OCR@9f30c71f441d010e5429c532364a86705536c53a:README.md
+  created: 2026-11-03
+support: core

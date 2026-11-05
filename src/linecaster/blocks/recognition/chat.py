@@ -44,7 +44,7 @@ class PageRecognizer(ModelBlock):
     ``--served-model-name``: the Hub id, ``spec.model``). ``prepare_workers`` threads build requests
     ahead of admission (decode, resize and PNG-encode the image; Pillow releases the GIL)."""
 
-    step = "page"
+    step = "recognition"
     route = "/chat/completions"
 
     def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr_new", primary: str | None = None,
@@ -85,8 +85,6 @@ class RegionRecognizer(PageRecognizer):
     the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps ``raw`` and
     ``finish_reason``); the transcription's earlier lines are replaced. A page whose regions all
     failed is recorded as an error; a page without readable regions passes through unchanged."""
-
-    step = "regions"
 
     def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr_new", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):

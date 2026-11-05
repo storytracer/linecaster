@@ -27,5 +27,5 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`lightonocr-2-1b`](../presets/page/lightonocr-2-1b.md)
+- [`lightonocr-2-1b`](../presets/recognition/lightonocr-2-1b.md)
 - [`lightonocr-2-1b-regions`](../presets/recognition/lightonocr-2-1b-regions.md)

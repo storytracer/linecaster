@@ -27,4 +27,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`chandra-ocr-2`](../presets/page/chandra-ocr-2.md)
+- [`chandra-ocr-2`](../presets/recognition/chandra-ocr-2.md)

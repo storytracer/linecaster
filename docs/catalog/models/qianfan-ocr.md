@@ -28,4 +28,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`qianfan-ocr`](../presets/page/qianfan-ocr.md)
+- [`qianfan-ocr`](../presets/recognition/qianfan-ocr.md)

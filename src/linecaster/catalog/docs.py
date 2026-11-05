@@ -16,8 +16,10 @@ from . import code
 from .registry import Catalog
 from .schema import STEPS
 
-STEP_TITLES = {"page": "🤖 Vision-language models, whole pages", "layout": "🗺️ Layout", "lines": "📏 Lines",
-               "recognition": "👁️ Recognition", "tables": "📊 Tables", "formulas": "➗ Formulas"}
+STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
+               "formulas": "➗ Formulas"}
+#: the preset sections of the index and the README: one per step, page presets (VLMs reading whole pages) last
+SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language models, whole pages", "recognition", True))
 SOURCE_NAMES = {"own-run": "Linecaster run", "board": "BHL board", "card-claim": "model card claim",
                 "vendor-benchmark": "vendor benchmark"}
 MARK_START, MARK_END = "<!-- catalog:start -->", "<!-- catalog:end -->"
@@ -75,7 +77,7 @@ def preset_page(c: Catalog, pid: str, evs: list) -> str:
     lines = [f"# {pid}", "", f"*Preset · edition {p.edition} · {p.step} · {p.support}*", ""]
     if body:
         lines += [body, ""]
-    if p.step == "page":
+    if p.page_preset:
         lines += ["```bash", f"uv run launch.py {pid} IMAGES OUT", "```", ""]
     rows = [("Step", p.step + (f" (reads {p.capabilities.unit}s)" if p.capabilities.unit else "")),
             ("Engine", f"[`{p.engine}`](../../engines/{p.engine}.md)")]
@@ -209,8 +211,8 @@ def index_page(c: Catalog, evs: dict, engines: dict, pipelines: dict) -> str:
         lines += ["## ⚙️ Engines", "", *_table(("Engine", "Step", "Package"), [
             (f"[`{eid}`](engines/{eid}.md)", e.step or "-", f"`{e.package}`") for eid, e in sorted(engines.items())])]
     lines += ["## 🎛️ Presets", ""]
-    for step in STEPS:
-        ps = sorted(pid for pid, (_, p) in c.presets.items() if p.step == step)
+    for title, step, page in SECTIONS:
+        ps = sorted(pid for pid, (_, p) in c.presets.items() if p.step == step and p.page_preset == page)
         if not ps:
             continue
         rows = []
@@ -219,7 +221,7 @@ def index_page(c: Catalog, evs: dict, engines: dict, pipelines: dict) -> str:
             cer = _metric(evs.get(pid, []))
             rows.append((f"[`{pid}`]({preset_path(c, pid)})", f"`{p.engine}`",
                          c.model(p.model.id).license if p.model else "-", "" if cer is None else f"{cer:.4f}"))
-        lines += [f"### {STEP_TITLES[step]}", "", *_table(("Preset", "Engine", "Licence", "CER"), rows)]
+        lines += [f"### {title}", "", *_table(("Preset", "Engine", "Licence", "CER"), rows)]
     lines += ["## 📦 Models", "", *_table(("Model", "Upstream", "Licence"), [
         (f"[`{mid}`](models/{mid}.md)", m.version or "", m.license) for mid, (_, m) in sorted(c.models.items())])]
     return "\n".join(lines)
@@ -228,8 +230,9 @@ def index_page(c: Catalog, evs: dict, engines: dict, pipelines: dict) -> str:
 def readme_tables(c: Catalog, docs_rel: str) -> str:
     """The README's tables: one section per step, one preset per row, then the recipes."""
     lines = []
-    for step in STEPS:
-        ps = sorted(pid for pid, (_, p) in c.presets.items() if p.step == step and p.support != "legacy")
+    for title, step, page in SECTIONS:
+        ps = sorted(pid for pid, (_, p) in c.presets.items()
+                    if p.step == step and p.page_preset == page and p.support != "legacy")
         if not ps:
             continue
         rows = []
@@ -240,7 +243,7 @@ def readme_tables(c: Catalog, docs_rel: str) -> str:
                 m = c.model(p.model.id)
                 model = f"[{m.version or m.id}]({_model_url(c, p)})"
             rows.append((f"[`{pid}`]({docs_rel}/{preset_path(c, pid)})", model))
-        lines += [f"### {STEP_TITLES[step]}", "", *_table(("Preset", "Model"), rows)]
+        lines += [f"### {title}", "", *_table(("Preset", "Model"), rows)]
     if c.recipes:
         lines += ["### 🍳 Recipes", "", *_table(("Recipe", "Pipeline", "Presets"), [
             (f"[`{rid}`]({docs_rel}/recipes/{rid}.md)", f"`{r.pipeline}`", ", ".join(f"`{x}`" for x in r.presets.values()))

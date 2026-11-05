@@ -38,10 +38,10 @@ def make(root, temperature=0.0, edition=1, prose="Why these settings."):
         "pins": [{"revision": "abc", "pinned": dt.date(2026, 11, 3), "files": {"w.safetensors": "sha256:" + "0" * 64},
                   "card": "upstream/abc/README.md", "card_sha256": sha256_file(up / "README.md")}],
         "license": "MIT"}, "Ours.\n")
-    write_entry(root / "presets" / "page" / "p.yaml", {
-        "schema": "linecaster.preset/1", "id": "p", "edition": edition, "step": "page",
+    write_entry(root / "presets" / "recognition" / "p.yaml", {
+        "schema": "linecaster.preset/1", "id": "p", "edition": edition, "step": "recognition",
         "model": {"id": "m", "revision": "abc"}, "engine": "chat.v1", "options": {"adapter": "x"},
-        "settings": {"sampling": {"temperature": temperature}}, "support": "core"}, prose)
+        "settings": {"sampling": {"temperature": temperature}}, "capabilities": {"unit": "page"}, "support": "core"}, prose)
 
 
 def test_release_freezes_an_edition(tmp_path):
@@ -90,9 +90,9 @@ def test_verify_catches_edited_cards_and_dangling_references(tmp_path):
 
 def test_documents_are_strict(tmp_path):
     make(tmp_path)
-    meta = yamlio.read(tmp_path / "presets" / "page" / "p.yaml")
+    meta = yamlio.read(tmp_path / "presets" / "recognition" / "p.yaml")
     meta["temprature"] = 0.1
-    write_entry(tmp_path / "presets" / "page" / "p.yaml", meta)
+    write_entry(tmp_path / "presets" / "recognition" / "p.yaml", meta)
     with pytest.raises(ValueError, match="temprature"):
         Catalog([tmp_path])
 
@@ -100,16 +100,16 @@ def test_documents_are_strict(tmp_path):
 def test_presets_live_in_their_step_folder(tmp_path):
     make(tmp_path)
     (tmp_path / "presets" / "layout").mkdir()
-    (tmp_path / "presets" / "page" / "p.yaml").rename(tmp_path / "presets" / "layout" / "p.yaml")
+    (tmp_path / "presets" / "recognition" / "p.yaml").rename(tmp_path / "presets" / "layout" / "p.yaml")
     with pytest.raises(ValueError, match="differs from its folder 'layout'"):
         Catalog([tmp_path])
 
 
 def test_engine_and_pipeline_ids_are_versioned(tmp_path):
     make(tmp_path)
-    meta = yamlio.read(tmp_path / "presets" / "page" / "p.yaml")
+    meta = yamlio.read(tmp_path / "presets" / "recognition" / "p.yaml")
     meta["engine"] = "chat/1"
-    write_entry(tmp_path / "presets" / "page" / "p.yaml", meta)
+    write_entry(tmp_path / "presets" / "recognition" / "p.yaml", meta)
     with pytest.raises(ValueError, match="versioned"):
         Catalog([tmp_path])
 
@@ -137,31 +137,31 @@ def test_docs_from_the_catalogue(tmp_path):
     (tmp_path / "docs" / "presets" / "stale.md").write_text("from an earlier run")
     docs.write(Catalog([root]), tmp_path / "docs", readme=readme)
     out = tmp_path / "docs"
-    page = (out / "presets" / "page" / "p.md").read_text()
+    page = (out / "presets" / "recognition" / "p.md").read_text()
     assert "Why these settings." in page and "| 2026-11-03 | Linecaster run | d@r | cer_reading 0.0312 |" in page
     assert "[`chat.v1`](../../engines/chat.v1.md)" in page and "(../../models/m.md)" in page
     model = (out / "models" / "m.md").read_text()
-    assert "Ours." in model and "(../../cat/models/m/upstream/abc/README.md)" in model and "../presets/page/p.md" in model
-    assert "[`p@1`](../presets/page/p.md)" in (out / "recipes" / "r.md").read_text()
-    assert (out / "engines" / "kraken.recognition.v1.md").exists() and "## Slots" in (out / "pipelines" / "chain.v1.md").read_text()
+    assert "Ours." in model and "(../../cat/models/m/upstream/abc/README.md)" in model and "../presets/recognition/p.md" in model
+    assert "[`p@1`](../presets/recognition/p.md)" in (out / "recipes" / "r.md").read_text()
+    assert (out / "engines" / "kraken.recognition.v1.md").exists() and "## Slots" in (out / "pipelines" / "transcribe_modular.v1.md").read_text()
     assert not (out / "presets" / "stale.md").exists()
     index = (out / "README.md").read_text()
-    assert "| [`p`](presets/page/p.md) | `chat.v1` | MIT | 0.0312 |" in index and "(recipes/r.md)" in index
+    assert "| [`p`](presets/recognition/p.md) | `chat.v1` | MIT | 0.0312 |" in index and "(recipes/r.md)" in index
     text = readme.read_text()
-    assert "old" not in text and "[`p`](docs/presets/page/p.md) |" in text and "✅" not in text and text.endswith("outro\n")
+    assert "old" not in text and "[`p`](docs/presets/recognition/p.md) |" in text and "✅" not in text and text.endswith("outro\n")
 
 
 def test_unknown_engines_are_reported(tmp_path):
     make(tmp_path)
-    meta = yamlio.read(tmp_path / "presets" / "page" / "p.yaml")
+    meta = yamlio.read(tmp_path / "presets" / "recognition" / "p.yaml")
     meta["engine"] = "chat.v9"
-    write_entry(tmp_path / "presets" / "page" / "p.yaml", meta)
+    write_entry(tmp_path / "presets" / "recognition" / "p.yaml", meta)
     assert any("'chat.v9' is not registered" in p for p in Catalog([tmp_path]).verify())
 
 
 def make_recipe(root, preset="p@1", text="reflow", edition=1):
     write_entry(root / "recipes" / "r.yaml", {
-        "schema": "linecaster.recipe/1", "id": "r", "edition": edition, "pipeline": "chain.v1",
+        "schema": "linecaster.recipe/1", "id": "r", "edition": edition, "pipeline": "transcribe_modular.v1",
         "presets": {"recognition": preset}, "options": {"text": text}, "support": "core"}, "Why this combination.")
 
 
@@ -223,20 +223,20 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
     Catalog([tmp_path]).release("r")
     ap = argparse.ArgumentParser()
     ap.add_argument("--recipe")
-    ap.add_argument("--recognizer")
+    ap.add_argument("--recognition")
     ap.add_argument("--text", default="lines")
     c = Catalog([tmp_path])
     argv = ["--recipe", "r"]
     a = ap.parse_args(argv)
-    run.apply_recipe(ap, a, "chain.v1", {"recognition": "recognizer"}, argv, c)
-    assert (a.recognizer, a.text) == ("p@1", "reflow")
+    run.apply_recipe(ap, a, "transcribe_modular.v1", {"recognition": "recognition"}, argv, c)
+    assert (a.recognition, a.text) == ("p@1", "reflow")
     assert a.recipe_record["ref"] == "r@1" and "overrides" not in a.recipe_record
-    argv += ["--text", "lines", "--recognizer", "other@1"]
+    argv += ["--text", "lines", "--recognition", "other@1"]
     a = ap.parse_args(argv)
-    run.apply_recipe(ap, a, "chain.v1", {"recognition": "recognizer"}, argv, c)
+    run.apply_recipe(ap, a, "transcribe_modular.v1", {"recognition": "recognition"}, argv, c)
     assert a.recipe_record["overrides"] == {"recognition": "other@1", "text": "lines"}
-    with pytest.raises(SystemExit, match="not vlm.v1"):
-        run.apply_recipe(ap, ap.parse_args(argv[:2]), "vlm.v1", {}, argv[:2], c)
+    with pytest.raises(SystemExit, match="not transcribe_vlm.v1"):
+        run.apply_recipe(ap, ap.parse_args(argv[:2]), "transcribe_vlm.v1", {}, argv[:2], c)
 
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
@@ -262,15 +262,44 @@ def test_committed_schemas_are_the_models():
 def test_verify_checks_the_files(tmp_path):
     make(tmp_path)
     assert Catalog([tmp_path]).verify() == []
-    p = tmp_path / "presets" / "page" / "p.yaml"
+    p = tmp_path / "presets" / "recognition" / "p.yaml"
     p.write_text(p.read_text().split("\n", 1)[1])                                  # no schema line
-    (tmp_path / "presets" / "page" / "p.md").unlink()                              # a core preset without prose
-    (tmp_path / "presets" / "page" / "gone.md").write_text("Prose of a deleted preset.\n")
+    (tmp_path / "presets" / "recognition" / "p.md").unlink()                              # a core preset without prose
+    (tmp_path / "presets" / "recognition" / "gone.md").write_text("Prose of a deleted preset.\n")
     (tmp_path / "models" / "m" / "model.md").write_text("---\nlicense: MIT\n---\nOurs.\n")
-    (tmp_path / "presets" / "page" / "p.json").write_text("{}")
+    (tmp_path / "presets" / "recognition" / "p.json").write_text("{}")
     problems = Catalog([tmp_path]).verify()
     assert any("p.yaml: the first line does not name its schema" in x for x in problems)
     assert any("preset p (core): its prose is missing" in x for x in problems)
     assert any("gone.md: Markdown without its YAML file" in x for x in problems)
     assert any("model.md: front matter in the prose" in x for x in problems)
     assert any("p.json: neither YAML nor Markdown" in x for x in problems)
+
+
+def test_old_hashes_still_resolve():
+    """A catalog migration (changes that keep behavior) recomputes an edition's hash and keeps the old one in the
+    lock: run records written before it still resolve."""
+    c = Catalog()
+    lock = c.dirs[0].lock
+    squiddle = lock.recipes["squiddle@1"]
+    assert squiddle.previous_sha256 and squiddle.resolved["pipeline"] == "transcribe_modular.v1"
+    for ref, entry in [*lock.presets.items(), *lock.recipes.items()]:
+        resolve = c.resolve_recipe if ref in lock.recipes else c.resolve
+        for sha in filter(None, (entry.sha256, entry.previous_sha256)):
+            assert resolve(ref, sha256=sha).sha256 == entry.sha256
+            assert c.by_sha256(sha).ref == ref
+    with pytest.raises(ValueError, match="not sha256:0"):
+        c.resolve_recipe("squiddle@1", sha256="sha256:" + "0" * 64)
+    with pytest.raises(KeyError, match="no released edition"):
+        c.by_sha256("sha256:" + "0" * 64)
+
+
+def test_whole_page_vlms_are_recognition_presets():
+    """There is no step ``page``: a VLM reading whole pages is ``recognition`` with ``unit: page`` (a page preset)."""
+    from linecaster.catalog import STEPS
+
+    c = Catalog()
+    assert "page" not in STEPS
+    pages = [pid for pid, (_, p) in c.presets.items() if p.page_preset]
+    assert len(pages) >= 19 and all(c.preset(pid).engine == "chat.v1" for pid in pages)
+    assert all(c.resolve(pid).content["step"] == "recognition" for pid in pages)

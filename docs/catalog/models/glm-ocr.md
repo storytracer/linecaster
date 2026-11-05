@@ -27,4 +27,4 @@ Each with the upstream card as published at that revision, verbatim.
 
 ## Presets
 
-- [`glm-ocr`](../presets/page/glm-ocr.md)
+- [`glm-ocr`](../presets/recognition/glm-ocr.md)

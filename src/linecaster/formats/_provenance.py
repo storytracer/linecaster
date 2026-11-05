@@ -19,7 +19,7 @@ SOFTWARE = "linecaster"
 #: the ``ModelInfo`` fields a page file carries, in this order
 RECORD_KEYS = ("step", "name", "revision", "preset", "preset_sha256", "recipe", "recipe_sha256", "backend", "settings")
 #: steps that put content into a transcription (the rest modify what is there: unicode, typography, ...)
-GENERATING_STEPS = ("layout", "lines", "recognition", "tables", "formulas", "page")
+GENERATING_STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DATETIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$")

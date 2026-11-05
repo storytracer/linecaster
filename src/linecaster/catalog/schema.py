@@ -16,8 +16,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-#: what a step does; ``page`` is end to end (a whole page in, text out)
-STEPS = ("layout", "lines", "recognition", "tables", "formulas", "page")
+#: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``
+STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``)
 OCRD_STEPS = {
     "layout": "layout/segmentation/region",
@@ -25,7 +25,6 @@ OCRD_STEPS = {
     "recognition": "recognition/text-recognition",
     "tables": "layout/segmentation/region",
     "formulas": "recognition/text-recognition",
-    "page": "recognition/text-recognition",
 }
 #: what a preset can put into a transcription
 PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "word_confidences",
@@ -35,7 +34,7 @@ EVIDENCE_SOURCES = ("own-run", "board", "card-claim", "vendor-benchmark")
 RELATIONS = ("mirror", "converted", "quantised", "finetuned")
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
-#: engines and pipelines are named by a versioned id: kraken.recognition.v1, chat.v1, chain.v1
+#: engines and pipelines are named by a versioned id: kraken.recognition.v1, chat.v1, transcribe_modular.v1
 CODE_ID = re.compile(r"^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)*\.v[0-9]+$")
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -164,7 +163,7 @@ class PresetDoc(_Doc):
     schema_: Literal["linecaster.preset/1"] = Field(alias="schema")
     id: str
     edition: int = Field(ge=1)
-    step: Literal["layout", "lines", "recognition", "tables", "formulas", "page"]
+    step: Literal["layout", "lines", "recognition", "tables", "formulas"]
     model: ModelRef | None = Field(None, description="None for engines without weights (rules)")
     submodels: dict[str, ModelRef] = Field(default_factory=dict,
                                            description="further models of a multi-model engine, by role")
@@ -198,8 +197,11 @@ class PresetDoc(_Doc):
     def ref(self) -> str:
         return f"{self.id}@{self.edition}"
 
+    @property
+    def page_preset(self) -> bool:
+        """Whether one model reads the whole page (``recognition`` with ``unit: page``; ``launch.py`` runs it)."""
+        return self.step == "recognition" and self.capabilities.unit == "page"
 
-# ----------------------------------------------------------------------------------------------- evidence
 
 # ------------------------------------------------------------------------------------------------ recipes
 
@@ -209,7 +211,8 @@ class RecipeDoc(_Doc):
     schema_: Literal["linecaster.recipe/1"] = Field(alias="schema")
     id: str
     edition: int = Field(ge=1)
-    pipeline: str = Field(description="the pipeline it fills, by its versioned id, e.g. chain.v1 (pipelines/transcribe_chain.py)")
+    pipeline: str = Field(description="the pipeline it fills, by its versioned id, e.g. transcribe_modular.v1 "
+                                      "(pipelines/transcribe_modular.py)")
     presets: dict[str, str] = Field(description="slot -> preset id@edition (always an explicit edition)")
     options: dict[str, Any] = Field(default_factory=dict, description="the pipeline's options, by name")
     provenance: Provenance = Field(default_factory=Provenance)
@@ -229,7 +232,7 @@ class RecipeDoc(_Doc):
     @classmethod
     def _pipeline(cls, v):
         if not CODE_ID.match(v):
-            raise ValueError(f"pipeline ids are versioned, e.g. chain.v1: {v!r}")
+            raise ValueError(f"pipeline ids are versioned, e.g. transcribe_modular.v1: {v!r}")
         return v
 
     @field_validator("presets")

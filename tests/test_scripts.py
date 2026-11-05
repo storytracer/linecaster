@@ -20,7 +20,18 @@ def lock_of(script: Path) -> dict:
 
 
 def test_there_are_scripts():
-    assert {"launch.py", "pipelines/transcribe_chain.py", "pipelines/transcribe_vlm.py"} <= set(IDS)
+    assert {"launch.py", "pipelines/transcribe_modular.py", "pipelines/transcribe_vlm.py"} <= set(IDS)
+
+
+def test_every_pipeline_script_has_its_id():
+    """A pipeline's id is its script's name plus ``.v<n>`` (``PIPELINE``); the docs have a page for each."""
+    import re
+
+    from linecaster.catalog import code
+
+    found = {pl.source.name: pid for pid, pl in code.pipelines(ROOT).items()}
+    assert set(found) == {p.name for p in (ROOT / "pipelines").glob("*.py")}
+    assert all(re.fullmatch(rf"{name[:-3]}\.v\d+", pid) for name, pid in found.items())
 
 
 def test_launch_finds_the_pipeline():
@@ -30,15 +41,15 @@ def test_launch_finds_the_pipeline():
     spec = importlib.util.spec_from_file_location("launch", ROOT / "launch.py")
     launch = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(launch)
-    chain, vlm = str(ROOT / "pipelines" / "transcribe_chain.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
+    modular, vlm = str(ROOT / "pipelines" / "transcribe_modular.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
     assert launch.command("squiddle", ["IN", "OUT", "--text", "lines"]) == [
-        "uv", "run", "--script", chain, "IN", "OUT", "--text", "lines", "--recipe", "squiddle"]
+        "uv", "run", "--script", modular, "IN", "OUT", "--text", "lines", "--recipe", "squiddle"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
-        "uv", "run", "--script", vlm, "IN", "OUT", "--vlm", "chandra-ocr-2@1"]
+        "uv", "run", "--script", vlm, "IN", "OUT", "--recognition", "chandra-ocr-2@1"]
     assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
-        "uv", "run", "--script", chain, "serve", "--recipe", "squiddle@1", "--port", "8101"]
+        "uv", "run", "--script", modular, "serve", "--recipe", "squiddle@1", "--port", "8101"]
     assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]
-    for name, why in (("nope", "no recipe or model"), ("kraken-ppocrv6-medium", "--recognizer kraken-ppocrv6-medium"),
+    for name, why in (("nope", "no recipe or model"), ("kraken-ppocrv6-medium", "--recognition kraken-ppocrv6-medium"),
                       ("minicpm-ocr-1.0", "reads layout regions")):
         with pytest.raises(SystemExit, match=why):
             launch.command(name, ["IN", "OUT"])
@@ -102,13 +113,13 @@ def test_wheels_for_both_machines(script):
 
 
 def test_pipelines_feed_the_jobs_helper():
-    chain, vlm = ROOT / "pipelines/transcribe_chain.py", ROOT / "pipelines/transcribe_vlm.py"
-    for script in (chain, vlm):
+    modular, vlm = ROOT / "pipelines/transcribe_modular.py", ROOT / "pipelines/transcribe_vlm.py"
+    for script in (modular, vlm):
         deps = dependencies("abc123", script)
         assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
         assert "pybookget @ https://github.com/storytracer/pybookget/archive/449bcc50b25aaa8d4ad4ea00bc78c9554e136af7.tar.gz" in deps                       # an archive, no git (the vLLM image has none)
         assert not any(" @ ." in d or "path" in d for d in deps)
-    assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in dependencies("abc123", chain)
+    assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in dependencies("abc123", modular)
     assert not any(_name(d) in ("lightning", "torch", "kraken") for d in dependencies("abc123", vlm))
     # without engines: linecaster with its extras and the archive-source packages, no engines, no pins
     assert dependencies("abc123", vlm, engines=False) == [
@@ -119,6 +130,6 @@ def test_pipelines_feed_the_jobs_helper():
 def test_serve_command_for_a_pipeline():
     from linecaster.serve import serve_command
 
-    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="pipelines/transcribe_chain.py")
-    assert cmd[:6] == ["uv", "run", "--quiet", "--script", "pipelines/transcribe_chain.py", "serve"]
+    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="pipelines/transcribe_modular.py")
+    assert cmd[:6] == ["uv", "run", "--quiet", "--script", "pipelines/transcribe_modular.py", "serve"]
     assert cmd[6:10] == ["--port", "8101", "--max-queue", "16"]
