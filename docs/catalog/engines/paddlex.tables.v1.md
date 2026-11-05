@@ -15,7 +15,7 @@ pins.
 
 |  |  |
 |---|---|
-| Class | `linecaster_paddlex:PaddleTableModel` |
+| Class | `linecaster_paddlex:PaddleTableEngine` |
 | Source | [tables.py](../../../engines/paddlex/src/linecaster_paddlex/tables.py) |
 | Reads | regions |
 | Produces | tables, html |

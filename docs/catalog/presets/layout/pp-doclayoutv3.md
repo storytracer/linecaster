@@ -10,7 +10,7 @@ reading order (furniture included) and no XY-cut is needed.
 Post-processing as PaddleOCR-VL-1.5's pipeline configures it, written out here so the edition does not depend on
 code defaults: score threshold 0.3 for every class, PaddleX's layout NMS, and per-class box merging (`large` for
 chart, display and inline formula, doc and paragraph title: classes 3, 5, 6, 15 and 17 of the model's 25;
-`union` elsewhere). These are what `PaddleLayoutModel(model_name="PP-DocLayoutV3")` uses by default.
+`union` elsewhere). These are what `PaddleLayoutEngine(model_name="PP-DocLayoutV3")` uses by default.
 
 Labels: PaddleX's labels are mapped to DoclingDocument labels as `linecaster_paddlex.layout.LABEL_MAP` does;
 `number` (a page number) is not in `labels:` because the engine places it by position: `page_header` when its

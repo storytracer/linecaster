@@ -16,7 +16,7 @@ where the two differ, the driver wins).
 - The model answers with YAML front matter (primary_language, is_rotation_valid, rotation_correction, is_table,
   is_diagram) above the page text. The completion is stored verbatim and the front matter also parsed into
   `extra["front_matter"]`; dropping it from the scored text is the board's post-processing, left to the
-  harness (`linecaster.models.olmocr2.body` gives the same split). Not yet run by linecaster: experimental.
+  harness (`linecaster.adapters.olmocr2.body` gives the same split). Not yet run by linecaster: experimental.
 
 ```bash
 uv run launch.py olmocr-2-7b-1025-fp8 IMAGES OUT

@@ -14,7 +14,7 @@ the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF
 
 **Jump to:** [Why](#-why-linecaster) · [Quick start](#-quick-start) · [How it works](#-how-it-works) ·
 [Run anywhere](#-run-it-anywhere) · [Outputs](#-what-you-get) ·
-[Models and blocks](#-supported-models-and-blocks) · [Reference](#-reference)
+[Models and blocks](#-models-and-blocks) · [Reference](#-reference)
 
 ## 🤔 Why Linecaster
 
@@ -27,8 +27,8 @@ a model or moving to bigger hardware usually means starting over.
 Linecaster keeps the parts and the machines apart:
 
 - 🧩 **Any component.** Reading, layout, lines, tables, formulas and post-processing are separate
-  steps. Use a [vision-language model](#-vision-language-models) on whole pages or on layout regions,
-  or a [line recogniser](#%EF%B8%8F-line-recognisers) with a line detector, and add any of the other steps.
+  steps. Use a [vision-language model](#-vision-language-models-whole-pages) on whole pages or on layout regions,
+  or a [line recogniser](#%EF%B8%8F-recognition) with a line detector, and add any of the other steps.
 - 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
 - 🖥️ **No serving stack to build.** Models load inside the pipeline, or each task starts its own model
   server on its GPU.
@@ -109,13 +109,14 @@ A pipeline is a list of blocks. This is the chain above, cut down:
 ```python
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
-from linecaster.blocks.document import (
+from linecaster.blocks.composition import (
     Composer, Typographer)
-from linecaster.blocks.lines import LineAssigner
-from linecaster.blocks.models import (
-    LayoutDetector, LineDetector, LineRecognizer)
+from linecaster.blocks.layout import LayoutDetector
+from linecaster.blocks.lines import (
+    LineAssigner, LineDetector)
 from linecaster.blocks.readers import ImageFolderReader
-from linecaster.blocks.unicode import UnicodeNormalizer
+from linecaster.blocks.recognition import LineRecognizer
+from linecaster.blocks.text import UnicodeNormalizer
 from linecaster.blocks.writers import PageFileWriter
 
 pipeline = [
@@ -453,13 +454,11 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text and more |
+| `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text, HTML, DocLang, JSON and more |
 | `PageJsonlWriter` | page records as JSON Lines |
 | `PageParquetWriter` | page records as Parquet |
-| `PageExportsWriter` | page documents as Markdown, text, HTML, DocLang, JSON |
 | `ItemDocumentWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
-| `ItemTextJsonlWriter` | book texts as JSON Lines |
-| `ItemTextFilesWriter` | book texts as files |
+| `ItemTextWriter` | book texts as JSON Lines or as files |
 
 **Servers**
 
@@ -485,7 +484,8 @@ These blocks need no model.
 - Positions are pixels of the page image; boxes are `[x, y, width, height]`.
 - A `Transcription` survives a round trip through JSON exactly, and through ALTO, PAGE-XML and hOCR
   without losing structure, text, positions or confidences.
-- `specs/` is the reference.
+- [docs/reference/data-model.md](docs/reference/data-model.md) and
+  [docs/reference/serialisation.md](docs/reference/serialisation.md) are the reference.
 
 </details>
 
@@ -568,7 +568,7 @@ Spelling is never modernised.
   its presets' hashes, so one recipe edition pins everything down to the weights.
 - **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
   pipeline's results belong to a recipe; a preset's to the preset, with the rest of the pipeline as context.
-- [specs/catalog.md](specs/catalog.md) is the full reference.
+- [docs/reference/catalog.md](docs/reference/catalog.md) is the full reference.
 
 </details>
 
@@ -592,13 +592,13 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 
 | Folder | Contents |
 |---|---|
-| `src/linecaster/` | data model, blocks, server, catalogue, chat adapters, executors |
+| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalogue, chat `adapters/`, `runtime/` (command line, executors, run record) |
 | `src/linecaster/catalog/data/` | the catalogue: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
 | `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalogue) |
 | `launch.py` | launches a recipe or a whole-page model by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `specs/` | reference: the data model, serialisation, the catalogue |
+| `docs/reference/` | reference: glossary, conventions, the data model, serialisation, the catalogue |
 | `docs/` | the generated catalogue pages (`docs/catalog/`, one folder per component), images for this README |
 
 </details>

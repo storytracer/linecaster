@@ -18,7 +18,7 @@ recipe for this model).
   processor cache, one image and no video per prompt; no `--reasoning-parser` (the driver drops the card's, so
   the completion stays in `content`), no `--trust-remote-code`.
 - The completion is stored verbatim; the board's `unwrap_fence` stays in its harness
-  (`linecaster.models.qwen35.unwrap_fence` is the same rule).
+  (`linecaster.adapters.qwen35.unwrap_fence` is the same rule).
 - Memory: 18.0 GiB of bf16 weights. The board ran it on an L40S at 0.9; whether it fits a 24 GB card (L4,
   A10G) with room for the vision encoder and the KV cache is not tested.
 

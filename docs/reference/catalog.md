@@ -131,7 +131,7 @@ every number.
   the options it states. A recipe is released only on released preset editions, so one recipe edition pins a
   whole run down to the weights' files.
 
-`linecaster catalog verify` (and `tests/test_catalog.py`) fails when a released edition's content changed;
+`linecaster catalog verify` (and `tests/catalog/test_catalog.py`) fails when a released edition's content changed;
 such a change is a new edition. Old editions stay resolvable from the lock after the file moves on.
 Unreleased editions are drafts.
 

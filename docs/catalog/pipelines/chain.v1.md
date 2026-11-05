@@ -4,7 +4,7 @@
 
 A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
 lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and page composition. Page rows in OUT/rows; with
+and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
 --texts one text per item in each text version.
 
@@ -17,7 +17,7 @@ and formula models after; then Unicode NFC, typography and page composition. Pag
     uv run pipelines/transcribe_chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --commit <sha> --tasks 64
 
-`linecaster.run` has the options every pipeline shares; `--recipe` fills the slots.
+`linecaster.runtime.run` has the options every pipeline shares; `--recipe` fills the slots.
 
 ## Slots
 
@@ -33,7 +33,7 @@ Each slot takes a preset of that step; a recipe fills them all.
 
 ## Options
 
-Besides the options every pipeline shares (`linecaster.run`).
+Besides the options every pipeline shares (`linecaster.runtime.run`).
 
 | Option | Values | Default | Description |
 |---|---|---|---|

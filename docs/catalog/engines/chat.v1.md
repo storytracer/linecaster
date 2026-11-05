@@ -8,7 +8,7 @@ Base class of a chat-VLM adapter. A subclass sets `adapter` (its registry name) 
 * `model` / `revision`: the Hugging Face id and pinned commit; `served_name`: the name the server
   hosts it under (`options.served_name`, default the Hub id);
 * `sampling`, `prompt`, `page_longest` (the page size the model expects, longest side in px; also
-  the scale `ChatRegionStep` cuts regions at), `region_pad` and the adapter's own `settings`;
+  the scale `RegionRecognizer` cuts regions at), `region_pad` and the adapter's own `settings`;
 * `server` (`vllm` or `sglang`), `server_version`, `job_image`, `serve_args` (the server's
   flags after the model, not port/host) and `server_env` from the `serve` block;
 * `revision_flag` (pass `--revision`; `False` for a server that must load the default branch, which
@@ -18,8 +18,8 @@ Base class of a chat-VLM adapter. A subclass sets `adapter` (its registry name) 
 
 |  |  |
 |---|---|
-| Class | `linecaster.models:ChatModel` |
-| Source | [__init__.py](../../../src/linecaster/models/__init__.py) |
+| Class | `linecaster.adapters:ChatAdapter` |
+| Source | [__init__.py](../../../src/linecaster/adapters/__init__.py) |
 
 ## Adapters
 
@@ -27,22 +27,22 @@ Each preset names one in `options.adapter`: the request and the parsing of the a
 
 | Adapter | Source |
 |---|---|
-| `chandra-ocr` | [chandra_ocr2.py](../../../src/linecaster/models/chandra_ocr2.py) |
-| `deepseek-ocr` | [deepseek_ocr.py](../../../src/linecaster/models/deepseek_ocr.py) |
-| `dots` | [dots.py](../../../src/linecaster/models/dots.py) |
-| `glm-ocr` | [glm_ocr.py](../../../src/linecaster/models/glm_ocr.py) |
-| `lighton-ocr-2` | [lighton_ocr2.py](../../../src/linecaster/models/lighton_ocr2.py) |
-| `lighton-ocr-3` | [lighton_ocr3.py](../../../src/linecaster/models/lighton_ocr3.py) |
-| `minicpm-ocr` | [minicpm_ocr.py](../../../src/linecaster/models/minicpm_ocr.py) |
-| `nemotron-parse` | [nemotron_parse35.py](../../../src/linecaster/models/nemotron_parse35.py) |
-| `olmocr` | [olmocr2.py](../../../src/linecaster/models/olmocr2.py) |
-| `ovis-ocr` | [ovis_ocr.py](../../../src/linecaster/models/ovis_ocr.py) |
-| `paddleocr-vl` | [paddleocr_vl.py](../../../src/linecaster/models/paddleocr_vl.py) |
-| `qianfan-ocr` | [qianfan_ocr.py](../../../src/linecaster/models/qianfan_ocr.py) |
-| `qwen3.5` | [qwen35.py](../../../src/linecaster/models/qwen35.py) |
-| `smoldocling` | [smoldocling.py](../../../src/linecaster/models/smoldocling.py) |
-| `unlimited-ocr` | [unlimited_ocr.py](../../../src/linecaster/models/unlimited_ocr.py) |
-| `unlimited-ocr-2` | [unlimited_ocr.py](../../../src/linecaster/models/unlimited_ocr.py) |
+| `chandra-ocr` | [chandra_ocr2.py](../../../src/linecaster/adapters/chandra_ocr2.py) |
+| `deepseek-ocr` | [deepseek_ocr.py](../../../src/linecaster/adapters/deepseek_ocr.py) |
+| `dots` | [dots.py](../../../src/linecaster/adapters/dots.py) |
+| `glm-ocr` | [glm_ocr.py](../../../src/linecaster/adapters/glm_ocr.py) |
+| `lighton-ocr-2` | [lighton_ocr2.py](../../../src/linecaster/adapters/lighton_ocr2.py) |
+| `lighton-ocr-3` | [lighton_ocr3.py](../../../src/linecaster/adapters/lighton_ocr3.py) |
+| `minicpm-ocr` | [minicpm_ocr.py](../../../src/linecaster/adapters/minicpm_ocr.py) |
+| `nemotron-parse` | [nemotron_parse35.py](../../../src/linecaster/adapters/nemotron_parse35.py) |
+| `olmocr` | [olmocr2.py](../../../src/linecaster/adapters/olmocr2.py) |
+| `ovis-ocr` | [ovis_ocr.py](../../../src/linecaster/adapters/ovis_ocr.py) |
+| `paddleocr-vl` | [paddleocr_vl.py](../../../src/linecaster/adapters/paddleocr_vl.py) |
+| `qianfan-ocr` | [qianfan_ocr.py](../../../src/linecaster/adapters/qianfan_ocr.py) |
+| `qwen3.5` | [qwen35.py](../../../src/linecaster/adapters/qwen35.py) |
+| `smoldocling` | [smoldocling.py](../../../src/linecaster/adapters/smoldocling.py) |
+| `unlimited-ocr` | [unlimited_ocr.py](../../../src/linecaster/adapters/unlimited_ocr.py) |
+| `unlimited-ocr-2` | [unlimited_ocr.py](../../../src/linecaster/adapters/unlimited_ocr.py) |
 
 ## Presets
 

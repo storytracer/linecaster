@@ -178,7 +178,7 @@ puts the recipe edition and hash into every `ModelInfo`, so page rows and ALTO/P
 
 ## The catalogue: models, presets, evidence (2026-11-03, spark)
 
-`specs/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the
+`docs/reference/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the
 foundation (`linecaster.catalog`). In the checkout: 39 models with their upstream cards copied verbatim, 39 presets
 released as edition 1 (`slanet-plus` also edition 2), 39 evidence records.
 
@@ -218,7 +218,7 @@ twice. Now:
   its own. The HF Jobs chain now runs NFC, typography and page composition too (it wrote raw page rows before).
 - `recipes/vlm.py`: a chat VLM per page, or per PP-DocLayoutV3 region with `--regions` (MiniCPM-OCR is one model it
   takes; its DSpark draft comes from the spec, its image from the recipe's table of validated images).
-- `linecaster.run` gives both the same command line: `--on local|ray|hf-jobs`, `--backend in-process|served`
+- `linecaster.runtime.run` gives both the same command line: `--on local|ray|hf-jobs`, `--backend in-process|served`
   (default in-process here, served on Ray and Jobs), `--endpoint`, `serve` (`linecaster serve` with the recipe's
   models, picked by its options) and `ray ...` (Ray's CLI from the recipe's environment). Page rows go to
   `OUT/rows/${rank}.jsonl.gz`, logs to `OUT/logs`, on every machine.
@@ -253,7 +253,7 @@ Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, on
 `envs/kraken-paddlex` and `envs/paddlex-tesseract` are gone. Every example, recipe and server is a uv script
 with inline metadata (PEP 723) and a `<script>.py.lock` next to it:
 - `servers/kraken-paddlex.py`, `servers/paddlex-tesseract.py`: `linecaster serve` with one engine combination.
-  `ServeModels(script=...)` starts one with `uv run --script`; `linecaster.jobs.dependencies(commit, engines)` reads
+  `ServeModels(script=...)` starts one with `uv run --script`; `linecaster.runtime.jobs.dependencies(commit, engines)` reads
   its metadata for a Job's `--with` list (sources as URLs at the commit, pins for the packages its lock resolves), so
   the pins live in one place per combination instead of in `jobs.py`.
 - `examples/squiddle_chain.py` carries the kraken-paddlex block (in-process needs the engines); the VLM examples and
@@ -325,7 +325,7 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 |---|---|---|
 | PP-DocLayoutV3 layout, learned reading order | already in linecaster | `LayoutStep` + `PaddleLayoutModel` |
 | `--layout-model PP-DocLayout_plus-L` (XY-cut order) | already in linecaster | `PaddleLayoutModel(model_name=...)` |
-| `--layout none` (the page is one text region) | missing, built | `SingleRegionLayout` (`blocks/layout.py`) |
+| `--layout none` (the page is one text region) | missing, built | `SingleRegionLayout` (`blocks/layout/single_region.py`) |
 | PP-OCRv6 detection, `--det-model`, `--unclip-ratio` | already in linecaster | `LinesStep` + `PaddleLineModel(model_name, unclip_ratio)` |
 | lines into regions, orphan rows, pictures skipped | already in linecaster | `AssignLinesToRegions` (`formulas_separately=False` without formulas) |
 | kraken recognition, `-m tiny/small/medium/path`, `--batch-size`, `--precision` | already in linecaster | `RecognitionStep` + `KrakenRecognitionModel` |
@@ -341,12 +341,12 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | `--furniture` | already in linecaster | `furniture` on the export writers (the items always sit in Docling's furniture layer) |
 | `--per-document` | already in linecaster | `BindItem` + `ItemExportsWriter`; `ImageFolderReader(item_id=, sequence=)` (built) puts a run's pages into one item in name order |
 | `-f md, txt, json` | already in linecaster | `PageFilesWriter`, `PageExportsWriter`, `ItemExportsWriter`; JSON now formatted as docling's `save_as_json` |
-| `-f html, doclang` | missing, built | `linecaster.document.export` / `to_html` / `to_doclang` in all three writers |
+| `-f html, doclang` | missing, built | `linecaster.formats.docling.export` / `to_html` / `to_doclang` in all three writers |
 | `-f hocr, alto, page` | already in linecaster | linecaster's lxml serialisers (not kraken's, by design) |
 | `--detail word` | already in linecaster | the serialisers' default (words are the finest level) |
 | `--detail line` | missing, built | `PageFilesWriter(detail="line")` (a word-less copy to the serialisers) |
 | `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; squiddle's default becomes `word` |
-| `--plots` | missing, built | `linecaster.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
+| `--plots` | missing, built | `linecaster.images.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
 | processing settings in ALTO | already in linecaster | `ModelInfo` per step → ALTO `Processing` |
 | output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | squiddleocr `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
 | status lines (typography and reflow counts), failed pages listed at the end | squiddle-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
@@ -500,7 +500,7 @@ board's drivers (module docstrings). Not checked on a GPU yet.
 ## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, forge)
 
 Setup: `ImageFolderReader` → `LayoutStep` (`linecaster serve`, PP-DocLayoutV3 ONNX) → `ChatRegionStep(MiniCPMOCR)` →
-page rows, then the SDK's own assembly (`linecaster.models.minicpm_ocr.assemble_markdown`, keep footnote and aside_text
+page rows, then the SDK's own assembly (`linecaster.adapters.minicpm_ocr.assemble_markdown`, keep footnote and aside_text
 as the BHL board row did) and the board lane (consolidate → normalize postproc 3 → score_dataset).
 - vLLM nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`, cu130 wheel from the per-commit index, torch 2.14 cu130) with
   transformers at OpenBMB's pin, in its own venv on forge (RTX 4000 SFF Ada 20 GB); `ninja` must be on PATH (the venv's
@@ -590,7 +590,7 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
   text is not NFC yet; normalising it is a separate, recorded transform, not done here.)
-- Reflow (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.reflow` is
+- Reflow (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.text.recomposition` is
   squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
   checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
   and lines: md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks
@@ -675,11 +675,11 @@ How the Job is arranged:
 
 ### What exists
 
-- Data model (`linecaster.transcription`, `linecaster.page`): `Transcription` (regions, lines,
+- Data model (`linecaster.data`, `linecaster.data.page`): `Transcription` (regions, lines,
   words, docling, model, source), `Page`, `PageImage`, `Item`, `Text`. Decisions in
-  `specs/data-model.md`.
+  `docs/reference/data-model.md`.
 - ALTO 4.4 / PAGE 2019 / hOCR 1.2 writers and readers on lxml, schema-validated
-  (`specs/serialisation.md`); image conversion functions (`linecaster.images`: lossless WebP at full
+  (`docs/reference/serialisation.md`); image conversion functions (`linecaster.images.convert`: lossless WebP at full
   resolution, combined size limit).
 - Blocks on datatrove: readers (image folder, HF image dataset, page rows), model steps (layout,
   lines, recognition) with an in-process or a served backend, line assignment, page writers,

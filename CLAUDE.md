@@ -3,7 +3,7 @@
 Guidance for working on linecaster. Status: first version built (November 2026): data model and
 serialisers, blocks, `linecaster serve`, kraken and PaddleX engines, HF Jobs pipelines; the squiddle
 combination reproduces squiddleocr's goldens line for line. Measurements and decisions in NOTES.md;
-the reference in `specs/`.
+the reference in `docs/reference/` (with the glossary and the conventions).
 
 ## What this is
 
@@ -22,15 +22,16 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   the pipeline's process, or behind a server reached through saturate).
 - **datatrove + saturate are the integration** and required dependencies. Pins:
   `datatrove[io]>=0.10.1,<0.11` (has `JobsPipelineExecutor`), `saturate==0.3.0` (0.x changes without
-  deprecation). Importing the data model, serialisers and text transforms (`linecaster.data`,
-  `linecaster.text.variants`) must not import either. Extras only for genuinely optional things, each named
+  deprecation). Importing the data model, the formats, the text transforms and the image helpers
+  (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`) must not import either, nor
+  linecaster's blocks or runtime (`tests/test_import_rule.py`). Extras only for genuinely optional things, each named
   after the one dependency it brings; no umbrella or alias extras.
 - **I/O through datatrove.** One datatrove `Document` per page; datatrove's readers, writers,
   `DataFolder` (fsspec) and executors for everything. linecaster only adds what datatrove lacks.
 - **Generic readers only.** Folders, buckets, HF datasets, and the standards for items' manifests
-  (IIIF Presentation, METS/MODS, also via OAI-PMH): `blocks/manifests.py`, parsed by
+  (IIIF Presentation, METS/MODS, also via OAI-PMH): `blocks/readers/manifests.py`, parsed by
   storytracer/pybookget (`read_manifest`), extra `[pybookget]`, which also fetches `http(s)://`
-  images (`blocks/http.py`). A manifest lists an item's pages and their files. Corpus or institution
+  images (`net/http.py`). A manifest lists an item's pages and their files. Corpus or institution
   adapters (BHL, GRIN, Europeana, e-rara) belong in derivatives (pybookget's own handlers stay there).
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. No LiteLLM anywhere.
@@ -41,8 +42,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 
 ## Architecture: servers host models, the pipeline puts the steps together
 
-- **Model blocks** (`blocks/models.py`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`)
-  each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine model in the
+- **Model blocks** (`ModelBlock` in `blocks/base/`: `LayoutDetector`, `LineDetector`, `LineRecognizer`,
+  `TableRecognizer`, `FormulaRecognizer`, in their families under `blocks/`) each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine model in the
   worker (lazily; never pickled), `Served(endpoint, model=name)` streams pages through saturate
   (`AdaptiveClient` + `through()`: a window of pages in flight adapted to the server's queue gauges
   and 429s; results passed on as they finish). In-process is always available and is the parity
@@ -54,10 +55,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` /
-  `RegionRecognizer` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
+  `RegionRecognizer` (`blocks/recognition/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
   data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
-- **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
+- **The catalogue** (`docs/reference/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
   (engine packages and derivatives ship none): every model is a model document with its
   upstream card copied verbatim at the pinned revision (always, whatever the licence), every configuration
   a preset (`presets/<step>/<id>.md`, `id@edition`; it names its engine by versioned id, `engine:
@@ -72,8 +73,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   pipeline, after the writer: datatrove chains generators, and only the last one lives until every
   page is written.
 - **Engines** live in `engines/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
-  each its own package; an engine model is a class with `step`, `name`, `load()` and
-  `__call__(image, transcription, **params) -> Transcription`. **No environment
+  each its own package; an engine is a class (`<Provider><Step>Engine`) with `engine_id` (its versioned id, the
+  entry point's name in `linecaster.engines`), `step`, `capabilities` (unit, produces), an `Options` model (its
+  keyword arguments; a preset's `weights` besides), `load()` and `__call__(image, transcription, **params) ->
+  Transcription` (the page image as an RGB array and the transcription so far, returned with its part added). **No environment
   folders: a pipeline is a self-contained uv script** (`pipelines/`) (PEP 723 block, a `<script>.py.lock` next to it,
   `uv run <script>`) that builds one pipeline shape with slots, and **one pipeline script per shape,
   never one per machine**: `linecaster.runtime.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
@@ -100,7 +103,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 ## Data model and serialisation (from the EBDC pilot architecture)
 
 Classes: `Item` (any multi-page unit: book, issue, manuscript, file; key `item_id`), `Page` (the
-page record with its image and named transcriptions; `page_id = item_id + sequence`), `PageImage`,
+page record with its image and named transcriptions: `ocr_new` from a linecaster run, every block's default,
+`ocr_original`, `ground_truth`; `page_id = item_id + sequence`), `PageImage`,
 `Transcription` (the pilot's PageOCR, renamed because it also holds HTR and ground truth; module
 `linecaster.data`), `Text` (one per item and variant). No "Class" suffixes; never
 `Document`, which clashes with datatrove.
@@ -113,7 +117,8 @@ transcriptions), `docling` (the docling-core `DoclingDocument`, nested as it is)
 is `[x, y, width, height]` in pixels of the received image; `Transcription.scaled(sx, sy)` moves it
 to another image size. Out: JSON via `model_dump_json` (exact round-trip), `to_alto` / `to_page` /
 `to_hocr` and in: `from_alto` / `from_page` / `from_hocr` (lxml, never kraken's serialiser; semantic
-round-trip: structure, text, geometry, confidences, ids, reading order; `specs/serialisation.md`).
+round-trip: structure, text, geometry, confidences, ids, reading order; `linecaster.formats`,
+`docs/reference/serialisation.md`).
 No glyph level: words are the finest level.
 
 Text (`linecaster.text.variants`, block `ItemTexts`): era-neutral vocabulary, three independent dimensions:

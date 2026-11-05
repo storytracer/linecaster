@@ -15,7 +15,7 @@ Strien's `lighton-ocr2-saturate.py`).
 - The completion is stored verbatim; the board's strip stays in its harness. `--gpu-memory-utilization` is
   the deployment's choice (board 0.8 on an A10G).
 
-Measured (NOTES.md, "Chat VLMs: LightOnOCR-2-1B through ChatPageStep"): CER reading 0.0285 on the 60-page
+Measured (NOTES.md, "Chat VLMs: LightOnOCR-2-1B through PageRecognizer"): CER reading 0.0285 on the 60-page
 sample against 0.0321 for the board's outputs, on vLLM 0.21.0 rather than the board's 0.26.0; sampling at
 temperature 0.2 makes runs differ (0.026-0.030 between runs). Experimental: not part of the board validation
 table on 0.26.0.

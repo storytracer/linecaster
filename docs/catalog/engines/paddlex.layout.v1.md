@@ -9,7 +9,7 @@ The model files: `weights` (a catalogue pin) or the catalogue's newest pin for `
 
 |  |  |
 |---|---|
-| Class | `linecaster_paddlex:PaddleLayoutModel` |
+| Class | `linecaster_paddlex:PaddleLayoutEngine` |
 | Source | [layout.py](../../../engines/paddlex/src/linecaster_paddlex/layout.py) |
 | Reads | pages |
 | Produces | regions, reading_order |

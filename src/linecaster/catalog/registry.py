@@ -1,9 +1,10 @@
 """Loading, resolving, releasing and verifying the catalogue (``docs/reference/catalog.md``).
 
-A catalogue directory holds ``models/<id>/model.md`` (+ ``upstream/<revision>/``), ``presets/<id>.md``,
-``evidence/*.yaml`` and ``catalog.lock``. linecaster's own is ``linecaster/catalog/data``; engine packages add
-theirs through the entry-point group ``linecaster.catalog`` (the entry point names a function returning the
-directory). Engines are found through the group ``linecaster.engines`` (engine id -> ``module:Class``).
+A catalogue directory holds ``models/<id>/model.md`` (+ ``upstream/<revision>/``), ``presets/<step>/<id>.md``,
+``recipes/<id>.md``, ``evidence/*.yaml`` and ``catalog.lock``. There is one catalogue, linecaster's own,
+``linecaster/catalog/data``: engine packages and derivatives ship none (other directories are for tests).
+Engines are found through the entry-point group ``linecaster.engines`` (engine id -> ``module:Class``), plus
+linecaster's own (``BUILTIN_ENGINES``).
 """
 from __future__ import annotations
 

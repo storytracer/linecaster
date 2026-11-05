@@ -9,7 +9,7 @@ The language data: `weights` (a catalogue pin; only its files) or `data`'s newes
 
 |  |  |
 |---|---|
-| Class | `linecaster_tesseract:TesseractRecognitionModel` |
+| Class | `linecaster_tesseract:TesseractRecognitionEngine` |
 | Source | [recognizer.py](../../../engines/tesseract/src/linecaster_tesseract/recognizer.py) |
 | Reads | lines |
 | Produces | text, words, word_confidences, line_confidences |

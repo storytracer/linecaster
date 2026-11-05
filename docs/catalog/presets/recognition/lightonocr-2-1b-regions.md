@@ -2,7 +2,7 @@
 
 *Preset · edition 1 · recognition · experimental*
 
-LightOnOCR-2-1B on layout regions (`ChatRegionStep` after a layout step): each region is cut from the page
+LightOnOCR-2-1B on layout regions (`RegionRecognizer` after a layout step): each region is cut from the page
 scaled to LightOnOCR's 1540-px page size, 8 px around its box at that scale, and sent as it is, with the page
 preset's request and sampling.
 

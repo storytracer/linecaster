@@ -11,7 +11,7 @@ name, resolved to its model document's newest pin, or a kraken model file.
 
 |  |  |
 |---|---|
-| Class | `linecaster_kraken:KrakenRecognitionModel` |
+| Class | `linecaster_kraken:KrakenRecognitionEngine` |
 | Source | [recognizer.py](../../../engines/kraken/src/linecaster_kraken/recognizer.py) |
 | Reads | lines |
 | Produces | text, words, word_confidences, line_confidences |

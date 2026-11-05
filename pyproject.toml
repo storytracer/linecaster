@@ -28,9 +28,10 @@ dependencies = [
 [project.optional-dependencies]
 # MiniCPM-OCR 1.0: the SDK's own post-processing and Markdown assembly (pure Python; no Paddle without its [layout] extra)
 minicpm-ocr = ["minicpm-ocr==1.0.1"]
-# Ray clusters: datatrove's RayPipelineExecutor (linecaster.ray_executor.RayGPUExecutor)
+# Ray clusters: datatrove's RayPipelineExecutor (linecaster.runtime.ray.RayGPUExecutor)
 ray = ["ray[default]>=2.40"]
-# IIIF manifests and http(s):// images (linecaster.blocks.iiif): pybookget's IIIF parser and HTTP layer
+# items' manifests (IIIF, METS) and http(s):// images (linecaster.blocks.readers.manifests, linecaster.net.http):
+# pybookget's manifest parser and HTTP layer
 # (rate limits, retries that honour Retry-After); its core install, without its CLI
 pybookget = ["pybookget>=1.1"]
 

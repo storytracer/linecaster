@@ -9,7 +9,7 @@ files: `weights` (a catalogue pin) or the catalogue's newest pin for `model_name
 
 |  |  |
 |---|---|
-| Class | `linecaster_paddlex:PaddleRecognitionModel` |
+| Class | `linecaster_paddlex:PaddleRecognitionEngine` |
 | Source | [recognizer.py](../../../engines/paddlex/src/linecaster_paddlex/recognizer.py) |
 | Reads | lines |
 | Produces | text, words, line_confidences |

@@ -9,7 +9,7 @@ catalogue pin) or the catalogue's newest pin for `model_name` (`weights.resolve`
 
 |  |  |
 |---|---|
-| Class | `linecaster_paddlex:PaddleLineModel` |
+| Class | `linecaster_paddlex:PaddleLineEngine` |
 | Source | [detector.py](../../../engines/paddlex/src/linecaster_paddlex/detector.py) |
 | Reads | pages |
 | Produces | lines |

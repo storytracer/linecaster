@@ -10,7 +10,7 @@ linecaster engine model for the formulas step: LaTeX for every `formula` region,
 
 |  |  |
 |---|---|
-| Class | `linecaster_paddlex:PaddleFormulaModel` |
+| Class | `linecaster_paddlex:PaddleFormulaEngine` |
 | Source | [formulas.py](../../../engines/paddlex/src/linecaster_paddlex/formulas.py) |
 | Reads | regions |
 | Produces | formulas, latex |

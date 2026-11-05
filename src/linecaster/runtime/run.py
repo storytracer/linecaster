@@ -272,7 +272,7 @@ from ..serve import model_args  # noqa: E402 - one place builds linecaster serve
 def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
           slots: dict[str, str] | None = None) -> None:
     """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
-    names others. The pipeline's model options (``--recognizer``, ``--layout-model``, ...) pick them."""
+    names others. The pipeline's slots (``--layout``, ``--recognizer``, ...) pick them."""
     from ..cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
