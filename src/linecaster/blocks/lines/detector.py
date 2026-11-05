@@ -1,8 +1,8 @@
-"""``LinesStep``: a line detection engine on every page (lines with their geometry), with its backend."""
+"""``LineDetector``: a line detection engine on every page (lines with their geometry), with its backend."""
 from __future__ import annotations
 
-from ..base.model import ModelStep
+from ..base.model import ModelBlock
 
 
-class LinesStep(ModelStep):
+class LineDetector(ModelBlock):
     step = "lines"

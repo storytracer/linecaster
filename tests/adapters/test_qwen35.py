@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.qwen35 import unwrap_fence
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 PROMPT = chat_model("qwen3.5-9b").prompt
 MAX_PIXELS = 2048 * 1024          # the driver's VISUAL_TOKEN_BUDGET x 1024 px
@@ -54,7 +54,7 @@ def test_image_is_area_capped_jpeg(size, expected):
 
 def test_serve_args_match_the_board_driver():
     spec = chat_model("qwen3.5-9b")
-    cmd = ServeChatModel(spec, port=8000, gpu_memory_utilization=0.9).command()
+    cmd = ChatModelServer(spec, port=8000, gpu_memory_utilization=0.9).command()
     assert cmd[:3] == ["vllm", "serve", MODEL]
     args = spec.vllm_args(0.9)
     assert args[:2] == ["--revision", "c202236235762e1c871ad0ccb60c8ee5ba337b9a"]

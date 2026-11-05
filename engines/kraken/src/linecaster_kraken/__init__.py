@@ -1,4 +1,4 @@
 """kraken engines for linecaster: the PP-OCRv6 line recogniser (kraken's own code and weights)."""
-from .recognizer import KrakenRecognitionModel
+from .recognizer import KrakenRecognitionEngine
 
-__all__ = ["KrakenRecognitionModel"]
+__all__ = ["KrakenRecognitionEngine"]

@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.binding.item import BindItem
-from linecaster.blocks.text.unicode import NormalizeUnicode
+from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.items import ItemExportsWriter
 from linecaster.data.transcription import Line, Transcription, Word
 from linecaster.formats.docling import DocumentBuilder, to_markdown, to_text
@@ -41,7 +41,7 @@ def test_normalize_unicode_block_updates_doc_text():
     page = page_of(doc)
     page.transcriptions["ocr"] = Transcription(lines=[Line(id="l0", text="schön")])
     set_page(doc, page)
-    out = list(NormalizeUnicode().run(iter([doc])))
+    out = list(UnicodeNormalizer().run(iter([doc])))
     assert out[0].text == "schön" and page_of(out[0]).transcriptions["ocr"].lines[0].text == "schön"
 
 

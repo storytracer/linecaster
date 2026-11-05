@@ -136,7 +136,7 @@ class PaddleLayout:
         return regions
 
 
-class PaddleLayoutModel:
+class PaddleLayoutEngine:
     """linecaster engine model for the layout step: fills ``Transcription.regions`` (Docling labels,
     the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
     The model files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name``

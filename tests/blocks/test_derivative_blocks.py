@@ -1,5 +1,5 @@
 """Blocks moved in from the derivatives: filters with rejects, media, text variants, item texts,
-Transcription.scaled, jobs helpers, PageRowReader with Parquet rows."""
+Transcription.scaled, jobs helpers, PageRecordReader with Parquet rows."""
 from __future__ import annotations
 
 import io
@@ -14,11 +14,11 @@ from PIL import Image
 
 from linecaster.blocks.base.page import page_of, set_page
 from linecaster.blocks.binding.texts import ItemTexts
-from linecaster.blocks.conversion.images import AttachImage, WorkingImages
-from linecaster.blocks.readers.records import PageRowReader
-from linecaster.blocks.validation.pages import ValidatePages
+from linecaster.blocks.conversion.images import ImageFetcher, ImageConverter
+from linecaster.blocks.readers.records import PageRecordReader
+from linecaster.blocks.validation.pages import PageValidator
 from linecaster.blocks.writers.records import PageParquetWriter
-from linecaster.blocks.writers.rejects import RejectSink
+from linecaster.blocks.writers.rejects import RejectWriter
 from linecaster.data import Line, Region, Source, Transcription, Word
 from linecaster.data.page import PAGE_KEY, Page, PageImage
 from linecaster.text import variants as T
@@ -58,12 +58,12 @@ def test_reject_sink_and_validate_pages(tmp_path: Path):
     no_image = Page(page_id="i_2", item_id="i")
     broken = Document(text="", id="i_3", metadata={PAGE_KEY: {"page_id": 3}})
     docs = [_doc(good), _doc(no_image), broken]
-    out = list(ValidatePages(str(tmp_path), required=("image",)).run(iter(docs)))
+    out = list(PageValidator(str(tmp_path), required=("image",)).run(iter(docs)))
     assert [d.id for d in out] == ["i_1"]
     rows = [json.loads(x) for x in (tmp_path / "validate_00000.jsonl").read_text().splitlines()]
     assert [(r["key"], r["field"]) for r in rows] == [("i_2", "image"), ("i_3", "page_id")]
     assert all({"key", "field", "error", "raw_value"} <= set(r) for r in rows)
-    with RejectSink(str(tmp_path), rank=3) as sink:
+    with RejectWriter(str(tmp_path), rank=3) as sink:
         pass
     assert not (tmp_path / "00003.jsonl").exists()                 # no rejects, no file
 
@@ -86,7 +86,7 @@ def test_working_images_and_attach(tmp_path: Path):
     pages = [Page(page_id="b_1", item_id="b", image=PageImage(uri=str(tmp_path / "a.tif"))),
              Page(page_id="b_2", item_id="b", image=PageImage(uri=str(tmp_path / "big.png"))),
              Page(page_id="b_3", item_id="b")]
-    out = list(WorkingImages(str(tmp_path / "webp"), str(tmp_path / "rejects")).run(iter(map(_doc, pages))))
+    out = list(ImageConverter(str(tmp_path / "webp"), str(tmp_path / "rejects")).run(iter(map(_doc, pages))))
     assert [d.id for d in out] == ["b_1"] and out[0].media == []
     img = page_of(out[0]).image
     assert img.format == "webp" and (img.width, img.height) == (60, 40) and img.uri.endswith("webp/b/b_1.webp")
@@ -95,7 +95,7 @@ def test_working_images_and_attach(tmp_path: Path):
     rejects = [json.loads(x) for x in (tmp_path / "rejects" / "00000.jsonl").read_text().splitlines()]
     assert [(r["key"], r["field"]) for r in rejects] == [("b_2", "image"), ("b_3", "image")]
     assert "16383" in rejects[0]["error"]
-    attached = list(AttachImage().run(iter(out)))
+    attached = list(ImageFetcher().run(iter(out)))
     assert Image.open(io.BytesIO(attached[0].media[0].media_bytes)).getpixel((3, 3)) == (10, 200, 30)
 
 
@@ -170,7 +170,7 @@ def test_page_row_reader_reads_parquet_rows_with_errors(tmp_path: Path):
     w = PageParquetWriter(str(tmp_path / "rows"))
     for _ in w.run(iter([d])):
         pass
-    docs = list(PageRowReader(str(tmp_path / "rows"), glob_pattern="*.parquet", fetch_images=False).run())
+    docs = list(PageRecordReader(str(tmp_path / "rows"), glob_pattern="*.parquet", fetch_images=False).run())
     assert docs[0].id == "x_1" and docs[0].text == "" and docs[0].metadata["errors"][0]["error"] == "boom"
     assert page_of(docs[0]).item_id == "x"
 

@@ -84,6 +84,6 @@ model card (`docs/serving.md`, "Generation contract" and the H100 `vllm serve` b
   amd64 digest.
 - The completion (coordinate tokens, `<class_*>` tokens and Markdown text) is stored verbatim; the board
   renders it with the vendor's `render_markdown` from the model repo in its harness
-  (`linecaster.models.nemotron_parse35.to_markdown` reproduces it).
+  (`linecaster.adapters.nemotron_parse35.to_markdown` reproduces it).
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0403 for linecaster's run on an H200 against 0.0454 for the board's own outputs on the same pages.

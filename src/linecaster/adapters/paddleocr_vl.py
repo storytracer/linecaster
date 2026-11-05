@@ -13,7 +13,7 @@ import io
 import math
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes
 
 
 def smart_resize(h: int, w: int, factor: int, min_pixels: int, max_pixels: int) -> tuple[int, int]:
@@ -31,7 +31,7 @@ def smart_resize(h: int, w: int, factor: int, min_pixels: int, max_pixels: int) 
     return h_bar, w_bar
 
 
-class PaddleOCRVL(ChatModel):
+class PaddleOCRVLAdapter(ChatAdapter):
     adapter: ClassVar[str] = "paddleocr-vl"
 
     def smart_resize(self, h: int, w: int) -> tuple[int, int]:

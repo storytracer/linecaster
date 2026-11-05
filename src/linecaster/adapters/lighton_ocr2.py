@@ -4,7 +4,7 @@
 * message = the page image ONLY, no text part (LightOnOCR-2's trained format, per the card);
 * the image re-encoded as PNG with the longest side forced to exactly ``settings.image.longest_side_px``
   (1540: the card's "target longest dimension", ``processor_config`` longest_edge), in both directions;
-* a region crop (``ChatRegionStep``) is already cut at that page scale (``page_longest``) and sent as it is.
+* a region crop (``RegionRecognizer``) is already cut at that page scale (``page_longest``) and sent as it is.
 
 Sampling, flags and the reasons for them are in the presets.
 """
@@ -13,10 +13,10 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_longest
+from . import ChatAdapter, data_url, png_longest
 
 
-class LightOnOCR2(ChatModel):
+class LightOnOCR2Adapter(ChatAdapter):
     adapter: ClassVar[str] = "lighton-ocr-2"
 
     @property

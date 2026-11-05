@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from .dots import PASSTHROUGH, Dots
+from .dots import PASSTHROUGH, DotsAdapter
 
 
-class UnlimitedOCR(Dots):
+class UnlimitedOCRAdapter(DotsAdapter):
     adapter: ClassVar[str] = "unlimited-ocr"
 
     def content(self, body: dict) -> tuple[str, str | None]:
@@ -35,7 +35,7 @@ class UnlimitedOCR(Dots):
                 "logits_processor": self.logits_processor}
 
 
-class UnlimitedOCR2(UnlimitedOCR):
+class UnlimitedOCR2Adapter(UnlimitedOCRAdapter):
     adapter: ClassVar[str] = "unlimited-ocr-2"
 
     @property

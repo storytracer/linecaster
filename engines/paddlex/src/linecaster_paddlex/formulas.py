@@ -22,7 +22,7 @@ from .weights import check, resolve
 DEFAULT_FORMULA_MODEL = "PP-FormulaNet_plus-L"
 
 
-class PaddleFormulaModel:
+class PaddleFormulaEngine:
     """linecaster engine model for the formulas step: LaTeX for every ``formula`` region, into
     ``region.extra["formula"]``. The page's formula crops are read together, in the regions' list order,
     ``batch_size`` crops per forward pass (a page's result depends only on the page). The model files:

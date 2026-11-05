@@ -6,10 +6,10 @@ import pickle
 
 import pytest
 
-from linecaster.adapters import ADAPTERS, ENGINE, ChatModel, adapter, chat_model, chat_presets, preset_ref
+from linecaster.adapters import ADAPTERS, ENGINE, ChatAdapter, adapter, chat_model, chat_presets, preset_ref
 from linecaster.backends import Served
-from linecaster.blocks.recognition.chat import ChatPageStep, ChatRegionStep
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
+from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.catalog.registry import catalog
 
 PRESETS = sorted(chat_presets())
@@ -25,7 +25,7 @@ def test_every_preset_builds_its_adapter(pid):
     c = catalog()
     p = c.preset(pid)
     spec = chat_model(pid)
-    assert isinstance(spec, ChatModel) and type(spec) is adapter(p.options["adapter"])
+    assert isinstance(spec, ChatAdapter) and type(spec) is adapter(p.options["adapter"])
     m = c.model(p.model.id)
     assert (spec.model, spec.revision) == (m.source.ref, p.model.revision)
     m.pin(spec.revision)                                       # pinned in the model document
@@ -74,12 +74,12 @@ def test_model_info_records_the_preset_edition():
 
 
 def test_blocks_take_preset_refs():
-    page = ChatPageStep("dots-ocr", Served("http://127.0.0.1:1/v1", model="rednote-hilab/dots.ocr"))
+    page = PageRecognizer("dots-ocr", Served("http://127.0.0.1:1/v1", model="rednote-hilab/dots.ocr"))
     assert page.spec.preset == "dots-ocr@1"
-    regions = ChatRegionStep("lightonocr-2-1b-regions", Served("http://127.0.0.1:1/v1", model="m"))
+    regions = RegionRecognizer("lightonocr-2-1b-regions", Served("http://127.0.0.1:1/v1", model="m"))
     assert regions.pad == 8 and regions.spec.page_longest == 1540 and regions.spec.served_name == "m"
-    assert ChatRegionStep("minicpm-ocr-1.0", Served("http://127.0.0.1:1/v1", model="minicpm-ocr")).pad == 0
-    serve = ServeChatModel("unlimited-ocr-2")
+    assert RegionRecognizer("minicpm-ocr-1.0", Served("http://127.0.0.1:1/v1", model="minicpm-ocr")).pad == 0
+    serve = ChatModelServer("unlimited-ocr-2")
     assert serve.server == "sglang" and serve.spec.served_name == "Unlimited-OCR-2"
 
 

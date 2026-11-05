@@ -1,4 +1,4 @@
 """Text: the as-written layer in one Unicode normalization form."""
-from .unicode import NormalizeUnicode
+from .unicode import UnicodeNormalizer
 
-__all__ = ["NormalizeUnicode"]
+__all__ = ["UnicodeNormalizer"]

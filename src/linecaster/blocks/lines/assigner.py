@@ -1,6 +1,6 @@
 """Line blocks without a model: assigning detected lines to layout regions and ordering them.
 
-``AssignLinesToRegions`` follows a page-level line detector (lines found once on the whole page):
+``LineAssigner`` follows a page-level line detector (lines found once on the whole page):
 each line goes to the region it overlaps most; lines outside every region (a page number the layout
 model missed, marginalia) become their own ``text`` regions, one per visual row, slotted into the
 reading order; duplicates are dropped and lines are ordered row by row within each region.
@@ -17,7 +17,7 @@ from ...data.geometry import BBox, bbox_of, xywh
 from ...data.geometry.order import place_unordered
 from ...data.page import Page
 from ...data.transcription import Line, Region
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 SKIP_LABELS = frozenset({"picture", "chart"})
 
@@ -81,14 +81,14 @@ def order_rows(lines: list[Line]) -> list[Line]:
     return out
 
 
-class AssignLinesToRegions(PageStep):
+class LineAssigner(PageBlock):
     """Assign page-level lines to the layout regions and order them (see the module docstring).
 
     Regions labelled in ``skip_labels`` take no lines (pictures); with ``formulas_separately`` formula
     regions take none either (a formula step reads them as LaTeX), and lines inside them are dropped.
     """
 
-    name = "assign lines to regions"
+    name = "line assigner"
 
     def __init__(self, transcription: str = "ocr", skip_labels=SKIP_LABELS, formulas_separately: bool = True):
         super().__init__()

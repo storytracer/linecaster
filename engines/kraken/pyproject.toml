@@ -18,7 +18,7 @@ dependencies = [
 
 # the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalogue
 [project.entry-points."linecaster.engines"]
-"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionModel"
+"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"
 
 
 [build-system]

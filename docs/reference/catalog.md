@@ -147,7 +147,7 @@ confidences. What depends on the weights belongs to the model or preset: languag
 ## Engines
 
 An engine is a class registered under its id in the entry-point group `linecaster.engines`
-(`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionModel"`); linecaster's own is `chat.v1` (VLM
+(`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"`); linecaster's own is `chat.v1` (VLM
 presets, served only). It declares `engine_id`, `step`, `Options` (a Pydantic model whose fields have
 descriptions; the docs come from it) and `capabilities`, and takes the pin as `weights` (and
 `submodel_weights`), fetched and checked by `linecaster.catalog.fetch`. Engine packages carry code only; their

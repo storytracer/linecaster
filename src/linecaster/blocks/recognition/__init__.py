@@ -1,5 +1,5 @@
 """Recognition: the text of lines, regions and pages, tables and formulas."""
-from .chat import ChatPageStep, ChatRegionStep
-from .recognizers import FormulasStep, RecognitionStep, TablesStep
+from .chat import PageRecognizer, RegionRecognizer
+from .recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
 
-__all__ = ["ChatPageStep", "ChatRegionStep", "FormulasStep", "RecognitionStep", "TablesStep"]
+__all__ = ["PageRecognizer", "RegionRecognizer", "FormulaRecognizer", "LineRecognizer", "TableRecognizer"]

@@ -15,20 +15,20 @@ import sys
 from datatrove.executor import LocalPipelineExecutor
 
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutStep
-from linecaster.blocks.lines.assigner import AssignLinesToRegions
-from linecaster.blocks.lines.detector import LinesStep
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.lines.assigner import LineAssigner
+from linecaster.blocks.lines.detector import LineDetector
 from linecaster.blocks.readers.images import ImageFolderReader
-from linecaster.blocks.readers.records import PageRowReader
-from linecaster.blocks.recognition.recognizers import RecognitionStep
+from linecaster.blocks.readers.records import PageRecordReader
+from linecaster.blocks.recognition.recognizers import LineRecognizer
 from linecaster.blocks.writers.records import PageJsonlWriter
 
 
 def executors(images: str, out: pathlib.Path, ep: str):
-    a = LocalPipelineExecutor([ImageFolderReader(images), LayoutStep(Served(ep, "layout")), LinesStep(Served(ep, "lines")),
-                               AssignLinesToRegions(), PageJsonlWriter(str(out / "A"), "${rank}.jsonl", compression=None)],
+    a = LocalPipelineExecutor([ImageFolderReader(images), LayoutDetector(Served(ep, "layout")), LineDetector(Served(ep, "lines")),
+                               LineAssigner(), PageJsonlWriter(str(out / "A"), "${rank}.jsonl", compression=None)],
                               tasks=3, workers=3, logging_dir=str(out / "logs/A"))
-    b = LocalPipelineExecutor([PageRowReader(str(out / "A")), RecognitionStep(Served(ep, "recognition")),
+    b = LocalPipelineExecutor([PageRecordReader(str(out / "A")), LineRecognizer(Served(ep, "recognition")),
                                PageJsonlWriter(str(out / "B"), "${rank}.jsonl", compression=None)],
                               tasks=3, workers=3, logging_dir=str(out / "logs/B"), depends=a)
     return a, b

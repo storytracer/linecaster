@@ -58,13 +58,13 @@ from linecaster.catalog.registry import Catalog, catalog, engine_class, engine_i
 from linecaster.catalog.schema import Capabilities  # noqa: E402
 
 ENGINES = {
-    "kraken.recognition.v1": "linecaster_kraken:KrakenRecognitionModel",
-    "paddlex.layout.v1": "linecaster_paddlex:PaddleLayoutModel",
-    "paddlex.lines.v1": "linecaster_paddlex:PaddleLineModel",
-    "paddlex.recognition.v1": "linecaster_paddlex:PaddleRecognitionModel",
-    "paddlex.tables.v1": "linecaster_paddlex:PaddleTableModel",
-    "paddlex.formulas.v1": "linecaster_paddlex:PaddleFormulaModel",
-    "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionModel",
+    "kraken.recognition.v1": "linecaster_kraken:KrakenRecognitionEngine",
+    "paddlex.layout.v1": "linecaster_paddlex:PaddleLayoutEngine",
+    "paddlex.lines.v1": "linecaster_paddlex:PaddleLineEngine",
+    "paddlex.recognition.v1": "linecaster_paddlex:PaddleRecognitionEngine",
+    "paddlex.tables.v1": "linecaster_paddlex:PaddleTableEngine",
+    "paddlex.formulas.v1": "linecaster_paddlex:PaddleFormulaEngine",
+    "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionEngine",
 }
 #: options added to an engine after some of its presets were released: (options, the last edition without them)
 ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1)}
@@ -128,19 +128,19 @@ def test_preset_constructs_its_engine(pid):
 
 
 def test_weights_must_name_the_model():
-    from linecaster_kraken import KrakenRecognitionModel
-    from linecaster_paddlex import PaddleLineModel
-    from linecaster_tesseract import TesseractRecognitionModel
+    from linecaster_kraken import KrakenRecognitionEngine
+    from linecaster_paddlex import PaddleLineEngine
+    from linecaster_tesseract import TesseractRecognitionEngine
 
     def w(pid):
         return InProcess.from_preset(pid).kwargs["weights"]
 
     with pytest.raises(ValueError):
-        KrakenRecognitionModel(model="tiny", weights=w("kraken-ppocrv6-medium"))
+        KrakenRecognitionEngine(model="tiny", weights=w("kraken-ppocrv6-medium"))
     with pytest.raises(ValueError):
-        PaddleLineModel(model_name="PP-OCRv6_tiny_det", weights=w("pp-ocrv6-medium-det"))
+        PaddleLineEngine(model_name="PP-OCRv6_tiny_det", weights=w("pp-ocrv6-medium-det"))
     with pytest.raises(ValueError):
-        TesseractRecognitionModel(data="fast", weights=w("tesseract-best-eng"))
+        TesseractRecognitionEngine(data="fast", weights=w("tesseract-best-eng"))
 
 
 def test_names_resolve_through_the_catalogue():
@@ -175,16 +175,16 @@ def test_layout_presets_state_the_model_defaults():
 
 
 def test_table_submodels_are_pinned_models():
-    from linecaster_paddlex import PaddleTableModel
+    from linecaster_paddlex import PaddleTableEngine
     from linecaster_paddlex.weights import model_id
 
     p = catalog().preset("slanet-plus")
-    assert set(p.submodels) == set(PaddleTableModel.SUBMODELS)
+    assert set(p.submodels) == set(PaddleTableEngine.SUBMODELS)
     for name, ref in p.submodels.items():
         assert ref.id == model_id(name)
         catalog().model(ref.id).pin(ref.revision)
     b = InProcess.from_preset("slanet-plus")
-    assert set(b.kwargs["submodel_weights"]) == set(PaddleTableModel.SUBMODELS)
+    assert set(b.kwargs["submodel_weights"]) == set(PaddleTableEngine.SUBMODELS)
 
 
 def test_the_engine_packages_ship_no_catalogue():

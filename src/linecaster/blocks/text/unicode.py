@@ -1,19 +1,19 @@
-"""``NormalizeUnicode``: the as-written layer in one Unicode normalisation form (default NFC), right after
+"""``UnicodeNormalizer``: the as-written layer in one Unicode normalisation form (default NFC), right after
 recognition (see ``linecaster.text.unicode`` for why it is a step of its own)."""
 from __future__ import annotations
 
 from ...data.page import Page
 from ...text.unicode import FORMS, normalize_transcription
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 
-class NormalizeUnicode(PageStep):
-    name = "unicode normalisation"
+class UnicodeNormalizer(PageBlock):
+    name = "unicode normalizer"
 
     def __init__(self, transcription: str = "ocr", form: str = "NFC"):
         if form not in FORMS:
             raise ValueError(f"form {form!r}; choose {', '.join(FORMS)}")
-        self.name = f"unicode {form}"
+        self.name = f"unicode normalizer ({form})"
         super().__init__()
         self.transcription, self.form = transcription, form
         self.primary = transcription

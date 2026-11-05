@@ -66,7 +66,7 @@ Strien's `deepseek-ocr-vllm.py`; the DeepSeek-OCR and DeepSeek-OCR-2 drivers are
 - Serve flags: `--max-model-len 8192` (the native context), `--trust-remote-code`, no prefix caching, no
   multimodal processor cache, one image per prompt.
 - The completion is stored verbatim, grounding markup included; the board's `deepseek_strip_grounding`
-  (postproc 3) stays in its harness, `linecaster.models.deepseek_ocr.strip_grounding` is the same rule.
+  (postproc 3) stays in its harness, `linecaster.adapters.deepseek_ocr.strip_grounding` is the same rule.
   `--gpu-memory-utilization` is the deployment's choice (board 0.8 on an A10G).
 
 Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0551 for linecaster's run on an L4 against 0.0543 for the board's own outputs on the same pages.

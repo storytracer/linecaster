@@ -1,15 +1,15 @@
-"""``RecipeStamp``: the recipe edition a run followed, on every step of every page (``ModelInfo.recipe``).
+"""``RecipeStamper``: the recipe edition a run followed, on every step of every page (``ModelInfo.recipe``).
 
 ``linecaster.runtime.run.main`` puts it before the first writer when a run follows a recipe (``--recipe``), so the
 page rows and every ALTO, PAGE-XML and hOCR file name the recipe edition and its hash next to each preset.
 """
 from __future__ import annotations
 
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 
-class RecipeStamp(PageStep):
-    name = "recipe stamp"
+class RecipeStamper(PageBlock):
+    name = "recipe stamper"
 
     def __init__(self, recipe: str, recipe_sha256: str):
         super().__init__()

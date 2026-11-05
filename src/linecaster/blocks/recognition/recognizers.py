@@ -1,19 +1,19 @@
-"""Recognition blocks with an engine and its backend: ``RecognitionStep`` (the text of every line),
-``TablesStep`` (the structure of table regions) and ``FormulasStep`` (LaTeX of formula regions)."""
+"""Recognition blocks with an engine and its backend: ``LineRecognizer`` (the text of every line),
+``TableRecognizer`` (the structure of table regions) and ``FormulaRecognizer`` (LaTeX of formula regions)."""
 from __future__ import annotations
 
-from ..base.model import ModelStep
+from ..base.model import ModelBlock
 
 
-class RecognitionStep(ModelStep):
+class LineRecognizer(ModelBlock):
     step = "recognition"
 
 
-class TablesStep(ModelStep):
+class TableRecognizer(ModelBlock):
     step = "tables"
     region_label = "table"
 
 
-class FormulasStep(ModelStep):
+class FormulaRecognizer(ModelBlock):
     step = "formulas"
     region_label = "formula"

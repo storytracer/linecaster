@@ -225,11 +225,11 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
 
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
-    from linecaster.blocks.validation.recipe import RecipeStamp
+    from linecaster.blocks.validation.recipe import RecipeStamper
     from linecaster.data import ModelInfo, Transcription
     from linecaster.data.page import Page
 
     page = Page(page_id="p", item_id="i", transcriptions={"ocr": Transcription(model=[
         ModelInfo(step="layout", name="a"), ModelInfo(step="recognition", name="b")])})
-    out = RecipeStamp("r@1", "sha256:" + "1" * 64).process_page(None, page)
+    out = RecipeStamper("r@1", "sha256:" + "1" * 64).process_page(None, page)
     assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr"].model} == {("r@1", "sha256:1")}

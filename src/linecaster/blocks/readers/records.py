@@ -1,4 +1,4 @@
-"""``PageRowReader``: page rows written by an earlier linecaster pipeline (JSONL or Parquet)."""
+"""``PageRecordReader``: page rows written by an earlier linecaster pipeline (JSONL or Parquet)."""
 from __future__ import annotations
 
 from datatrove.io import DataFolderLike, get_datafolder
@@ -7,7 +7,7 @@ from datatrove.pipeline.base import PipelineStep
 from .images import _Opener
 
 
-class PageRowReader(PipelineStep):
+class PageRecordReader(PipelineStep):
     """Page rows written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
     enrichment chain: each pipeline reads the previous one's folder and adds one part. With
     ``fetch_images`` the image bytes are read again from ``page.image.uri`` (rows never carry them), through
@@ -18,7 +18,7 @@ class PageRowReader(PipelineStep):
     sees every page of its items."""
 
     type = "📖 - READER"
-    name = "📄 page rows"
+    name = "📄 page records"
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
                  uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None):

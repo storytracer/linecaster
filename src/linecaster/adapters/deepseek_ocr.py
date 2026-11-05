@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar
 
-from .dots import Dots
+from .dots import DotsAdapter
 
 # the board harness's patterns (normalize_outputs, postproc 3)
 REF_SPAN_RE = re.compile(r"<\|ref\|>.*?<\|/ref\|>", re.DOTALL)
@@ -37,7 +37,7 @@ def strip_grounding(raw: str) -> str:
     return text
 
 
-class DeepSeekOCR(Dots):
+class DeepSeekOCRAdapter(DotsAdapter):
     adapter: ClassVar[str] = "deepseek-ocr"
 
     def settings(self) -> dict[str, Any]:

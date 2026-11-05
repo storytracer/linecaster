@@ -1,7 +1,7 @@
 """Unicode normalisation of the as-written layer: ``normalize_transcription(t, form="NFC")``.
 
 linecaster's text is NFC (CLAUDE.md). Recognisers do not all deliver it: kraken's PP-OCRv6 models write
-``ä`` as ``a`` + U+0308 (decomposed). The ``NormalizeUnicode`` block (``linecaster.blocks.text.unicode``) runs
+``ä`` as ``a`` + U+0308 (decomposed). The ``UnicodeNormalizer`` block (``linecaster.blocks.text.unicode``) runs
 this right after recognition. It is a separate step, not part of a backend, so that an engine's raw
 output stays what the engine produced (and testable against the engine itself), and the step is
 recorded: ``ModelInfo(step="unicode", name="unicodedata", settings={"form", "unicode_version"})``.

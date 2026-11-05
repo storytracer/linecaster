@@ -41,7 +41,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 
 ## Architecture: servers host models, the pipeline puts the steps together
 
-- **Model blocks** (`blocks/models.py`: `LayoutStep`, `LinesStep`, `RecognitionStep`, `TablesStep`)
+- **Model blocks** (`blocks/models.py`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`)
   each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine model in the
   worker (lazily; never pickled), `Served(endpoint, model=name)` streams pages through saturate
   (`AdaptiveClient` + `through()`: a window of pages in flight adapted to the server's queue gauges
@@ -53,8 +53,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   queue (`--max-queue`, 429 with `Retry-After` when full), routes `POST /v1/linecaster/{step}`
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
-- **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep` /
-  `ChatRegionStep` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
+- **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` /
+  `RegionRecognizer` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
   data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
 - **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
@@ -67,8 +67,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   pin (`weights`, `catalog.fetch`). Page files and `OUT/run.yaml` record preset, edition and hash.
 - **One page per request; batching only within a page** (kraken batches a page's lines). A page's
   result depends only on the page, never on what else is in flight, so runs are deterministic.
-- **Servers inside a task** (one GPU per HF Job): `ServeModels` (`linecaster serve`) and
-  `ServeChatModel` (vLLM) start the server through saturate's `Engine` and go **last** in the
+- **Servers inside a task** (one GPU per HF Job): `ModelServer` (`linecaster serve`) and
+  `ChatModelServer` (vLLM) start the server through saturate's `Engine` and go **last** in the
   pipeline, after the writer: datatrove chains generators, and only the last one lives until every
   page is written.
 - **Engines** live in `engines/<engine>/` (`linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`),
@@ -86,7 +86,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   catalogue). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
   script whose `PIPELINE` the recipe names (whole-page presets: `vlm.v1`) and runs it (`uv run --script`) with
   `--recipe` / `--vlm`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
-  component (engines, models, presets, pipelines, recipes). `ServeModels(script=...)` starts a
+  component (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
   `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
@@ -127,11 +127,11 @@ modernised.
 
 ## Run layout, enrichment chain, rejects
 
-Each page-level pipeline reads the previous folder (`PageRowReader`: page rows of linecaster's
+Each page-level pipeline reads the previous folder (`PageRecordReader`: page rows of linecaster's
 writers, images fetched again by URI, `uri_map` for local copies) and writes complete page rows
 with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are bucketed by item id
 (a whole item in one file; no joins); `originals/` is never modified; `processed/…/<pipeline>/`,
-`rejects/<output>/` (`RejectSink`: key, field, error, raw value; `ValidatePages`) and
+`rejects/<output>/` (`RejectWriter`: key, field, error, raw value; `PageValidator`) and
 `logs/<pipeline>/…` (datatrove's completion markers, logs, stats). One job = one pipeline for one
 batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
 conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or
@@ -148,7 +148,7 @@ servers.
 ## Images
 
 The working format for converted images is lossless WebP at full resolution (`linecaster.images.convert`,
-block `WorkingImages`: 8-bit sRGB, ICC applied, method 0, exact); lossy output is never produced.
+block `ImageConverter`: 8-bit sRGB, ICC applied, method 0, exact); lossy output is never produced.
 Delivered images used as they are (e.g. an access derivative) stay as delivered. Size limit,
 checked from the header before decoding: width and height ≤ 16,383 (WebP's hard limit) and
 width × height ≤ 2 × `PIL.Image.MAX_IMAGE_PIXELS` (Pillow's error threshold, read at run time and

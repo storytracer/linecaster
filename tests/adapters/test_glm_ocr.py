@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 
 def image(w: int, h: int, fmt: str = "JPEG", mode: str = "RGB") -> bytes:
@@ -38,7 +38,7 @@ def test_request_matches_the_driver(size, expected):
 
 
 def test_serve_args_match_the_driver():
-    cmd = ServeChatModel(chat_model("glm-ocr"), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = ChatModelServer(chat_model("glm-ocr"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "zai-org/GLM-OCR"]
     args = cmd[7:]
     assert args[:2] == ["--revision", "ca5d8b3e287e52589e37c28385d9655ee4372f9d"]

@@ -1,4 +1,4 @@
-"""``RejectSink``: the rejects file every block with rejects shares, ``<folder>/<prefix><rank>.jsonl``, opened
+"""``RejectWriter``: the rejects file every block with rejects shares, ``<folder>/<prefix><rank>.jsonl``, opened
 on the first reject (a task without rejects leaves no file): one JSON line per reject with ``key``,
 ``field``, ``error`` and ``raw_value``, so nothing disappears silently."""
 from __future__ import annotations
@@ -8,7 +8,7 @@ import json
 from datatrove.io import DataFolderLike, get_datafolder
 
 
-class RejectSink:
+class RejectWriter:
     """``write(key, field, error, raw_value, **extra)`` appends one JSON line to
     ``<folder>/<prefix><rank:05d>.jsonl``; ``prefix`` keeps two blocks that share a rejects folder apart."""
 

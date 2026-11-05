@@ -11,7 +11,7 @@ that share that code share an adapter (both DeepSeek-OCRs, both LightOnOCR-3s, b
 
 ``chat_model(ref)`` is the one way in: a preset ref (``dots-ocr``, ``dots-ocr@1``) or, for compatibility, the
 Hugging Face id (``rednote-hilab/dots.ocr``, the model's page preset). It returns a configured adapter, the
-object ``ChatPageStep`` / ``ChatRegionStep`` and ``ServeChatModel`` take: plain and picklable (datatrove
+object ``PageRecognizer`` / ``RegionRecognizer`` and ``ChatModelServer`` take: plain and picklable (datatrove
 dill-pickles the pipeline), importing neither vLLM nor torch (only Pillow, to re-encode the image).
 
 Adapters register by name in ``ADAPTERS`` (``adapters()``), one module per answer format or family.
@@ -46,14 +46,14 @@ class ChatPreset:
     draft: dict | None = None                    # a speculative-decoding draft: repo, revision, its config
 
 
-class ChatModel:
+class ChatAdapter:
     """Base class of a chat-VLM adapter. A subclass sets ``adapter`` (its registry name) and implements
     ``request``; ``parse`` has a text-only default. Every value comes from the preset:
 
     * ``model`` / ``revision``: the Hugging Face id and pinned commit; ``served_name``: the name the server
       hosts it under (``options.served_name``, default the Hub id);
     * ``sampling``, ``prompt``, ``page_longest`` (the page size the model expects, longest side in px; also
-      the scale ``ChatRegionStep`` cuts regions at), ``region_pad`` and the adapter's own ``settings``;
+      the scale ``RegionRecognizer`` cuts regions at), ``region_pad`` and the adapter's own ``settings``;
     * ``server`` (``vllm`` or ``sglang``), ``server_version``, ``job_image``, ``serve_args`` (the server's
       flags after the model, not port/host) and ``server_env`` from the ``serve`` block;
     * ``revision_flag`` (pass ``--revision``; ``False`` for a server that must load the default branch, which
@@ -106,13 +106,13 @@ class ChatModel:
         raise NotImplementedError
 
     def request_region(self, crop: bytes, region=None) -> dict:
-        """The body for a crop of one region (``ChatRegionStep``), already scaled by the block to the page
+        """The body for a crop of one region (``RegionRecognizer``), already scaled by the block to the page
         scale the model expects (``page_longest``): sent as it is. ``region`` is the ``Region`` it was cut
         from (an adapter may choose its prompt by the region's type). Default: ``request(crop)``."""
         return self.request(crop)
 
     def reads_region(self, region, labels) -> bool:
-        """Whether ``ChatRegionStep`` sends this region to the model. Default: its label is in ``labels``."""
+        """Whether ``RegionRecognizer`` sends this region to the model. Default: its label is in ``labels``."""
         return region.label in labels
 
     def crop_region(self, image, region, scale: float = 1.0, pad: int = 0):
@@ -223,26 +223,26 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
 
 #: adapter name -> ``module:Class`` (modules import lazily)
 ADAPTERS = {
-    "chandra-ocr": "chandra_ocr2:ChandraOCR",
-    "deepseek-ocr": "deepseek_ocr:DeepSeekOCR",
-    "dots": "dots:Dots",
-    "glm-ocr": "glm_ocr:GLMOCR",
-    "lighton-ocr-2": "lighton_ocr2:LightOnOCR2",
-    "lighton-ocr-3": "lighton_ocr3:LightOnOCR3",
-    "minicpm-ocr": "minicpm_ocr:MiniCPMOCR",
-    "nemotron-parse": "nemotron_parse35:NemotronParse",
-    "olmocr": "olmocr2:OlmOCR",
-    "ovis-ocr": "ovis_ocr:OvisOCR",
-    "paddleocr-vl": "paddleocr_vl:PaddleOCRVL",
-    "qianfan-ocr": "qianfan_ocr:QianfanOCR",
-    "qwen3.5": "qwen35:Qwen35",
-    "smoldocling": "smoldocling:SmolDocling",
-    "unlimited-ocr": "unlimited_ocr:UnlimitedOCR",
-    "unlimited-ocr-2": "unlimited_ocr:UnlimitedOCR2",
+    "chandra-ocr": "chandra_ocr2:ChandraOCRAdapter",
+    "deepseek-ocr": "deepseek_ocr:DeepSeekOCRAdapter",
+    "dots": "dots:DotsAdapter",
+    "glm-ocr": "glm_ocr:GLMOCRAdapter",
+    "lighton-ocr-2": "lighton_ocr2:LightOnOCR2Adapter",
+    "lighton-ocr-3": "lighton_ocr3:LightOnOCR3Adapter",
+    "minicpm-ocr": "minicpm_ocr:MiniCPMOCRAdapter",
+    "nemotron-parse": "nemotron_parse35:NemotronParseAdapter",
+    "olmocr": "olmocr2:OlmOCRAdapter",
+    "ovis-ocr": "ovis_ocr:OvisOCRAdapter",
+    "paddleocr-vl": "paddleocr_vl:PaddleOCRVLAdapter",
+    "qianfan-ocr": "qianfan_ocr:QianfanOCRAdapter",
+    "qwen3.5": "qwen35:Qwen35Adapter",
+    "smoldocling": "smoldocling:SmolDoclingAdapter",
+    "unlimited-ocr": "unlimited_ocr:UnlimitedOCRAdapter",
+    "unlimited-ocr-2": "unlimited_ocr:UnlimitedOCR2Adapter",
 }
 
 
-def adapter(name: str) -> type[ChatModel]:
+def adapter(name: str) -> type[ChatAdapter]:
     """The adapter class registered under ``name``."""
     from importlib import import_module
 
@@ -252,7 +252,7 @@ def adapter(name: str) -> type[ChatModel]:
     return getattr(import_module(f"{__name__}.{module}"), cls)
 
 
-def adapters() -> dict[str, type[ChatModel]]:
+def adapters() -> dict[str, type[ChatAdapter]]:
     return {name: adapter(name) for name in ADAPTERS}
 
 
@@ -280,7 +280,7 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     return sorted(ids, key=lambda pid: (c.preset(pid).step != prefer, pid))[0]
 
 
-def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page") -> ChatModel:
+def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page") -> ChatAdapter:
     """The configured adapter for a chat preset: ``chat_model("lightonocr-2-1b")``, ``chat_model("dots-ocr@1")``,
     or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="recognition"``:
     its region preset)."""
@@ -307,5 +307,5 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     return adapter(options["adapter"])(preset, served_name=served_name)
 
 
-__all__ = ["ADAPTERS", "ChatModel", "ChatPreset", "ENGINE", "adapter", "adapters", "chat_model", "chat_presets",
+__all__ = ["ADAPTERS", "ChatAdapter", "ChatPreset", "ENGINE", "adapter", "adapters", "chat_model", "chat_presets",
            "png_longest", "preset_ref", "text_transcription"]

@@ -15,7 +15,7 @@ dependencies = [
 
 # the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalogue
 [project.entry-points."linecaster.engines"]
-"tesseract.recognition.v1" = "linecaster_tesseract:TesseractRecognitionModel"
+"tesseract.recognition.v1" = "linecaster_tesseract:TesseractRecognitionEngine"
 
 
 [build-system]

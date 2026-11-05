@@ -10,8 +10,8 @@ from lxml import etree
 
 from linecaster.blocks.base.page import page_of
 from linecaster.blocks.binding.texts import ItemTexts
-from linecaster.blocks.composition.composer import ComposePage
-from linecaster.blocks.composition.typographer import Typography
+from linecaster.blocks.composition.composer import Composer
+from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageExportsWriter, PageFilesWriter
 from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
 from linecaster.data.transcription import Line, Region, Transcription
@@ -24,7 +24,7 @@ SCHEMAS = Path(__file__).parents[2] / "schemas"
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(ComposePage().run(Typography().run(iter([page_doc()]))))
+    docs = list(Composer().run(Typographer().run(iter([page_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFilesWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -46,7 +46,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 
 def test_page_files_matches_page_exports_writer(tmp_path: Path):
     """The merged writer gives PageExportsWriter's files byte for byte (flat, suffix, furniture)."""
-    docs = list(ComposePage().run(Typography().run(iter([page_doc()]))))
+    docs = list(Composer().run(Typographer().run(iter([page_doc()]))))
     list(PageExportsWriter(str(tmp_path / "a"), formats=("md", "txt", "json"), suffix=".x", furniture=True).run(iter(docs)))
     list(PageFilesWriter(str(tmp_path / "b"), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                          bucket_by_item=False).run(iter(docs)))

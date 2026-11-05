@@ -1,5 +1,5 @@
-"""``ValidatePages``: a filter with rejects. A row that fails a check is written to ``rejects/<output>/``
-with ``key``, ``field``, ``error`` and ``raw_value`` (``RejectSink``, so nothing disappears silently) and
+"""``PageValidator``: a filter with rejects. A row that fails a check is written to ``rejects/<output>/``
+with ``key``, ``field``, ``error`` and ``raw_value`` (``RejectWriter``, so nothing disappears silently) and
 dropped: it validates the page row against ``Page`` and checks that required parts are present.
 """
 from __future__ import annotations
@@ -9,7 +9,7 @@ from datatrove.pipeline.base import PipelineStep
 from pydantic import ValidationError
 
 from ...data.page import PAGE_KEY, Page
-from ..writers.rejects import RejectSink
+from ..writers.rejects import RejectWriter
 
 
 def has_part(page: Page, part: str) -> bool:
@@ -19,19 +19,19 @@ def has_part(page: Page, part: str) -> bool:
     return getattr(page, part, None) is not None
 
 
-class ValidatePages(PipelineStep):
+class PageValidator(PipelineStep):
     """Drop page rows that do not validate against ``Page`` or lack a ``required`` part, with a reject
     record each (field = the failing location, raw value = the offending input)."""
 
     type = "🔻 - FILTER"
-    name = "✅ validate pages"
+    name = "✅ page validator"
 
     def __init__(self, rejects_folder: DataFolderLike, required: tuple[str, ...] = (), prefix: str = "validate_"):
         super().__init__()
         self.rejects_folder, self.required, self.prefix = rejects_folder, tuple(required), prefix
 
     def run(self, data, rank: int = 0, world_size: int = 1):
-        with RejectSink(self.rejects_folder, rank, self.prefix) as sink:
+        with RejectWriter(self.rejects_folder, rank, self.prefix) as sink:
             for doc in data:
                 self.stat_update("pages")
                 try:

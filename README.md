@@ -110,24 +110,24 @@ A pipeline is a list of blocks. This is the chain above, cut down:
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
 from linecaster.blocks.document import (
-    ComposePage, Typography)
-from linecaster.blocks.lines import AssignLinesToRegions
+    Composer, Typographer)
+from linecaster.blocks.lines import LineAssigner
 from linecaster.blocks.models import (
-    LayoutStep, LinesStep, RecognitionStep)
+    LayoutDetector, LineDetector, LineRecognizer)
 from linecaster.blocks.readers import ImageFolderReader
-from linecaster.blocks.unicode import NormalizeUnicode
+from linecaster.blocks.unicode import UnicodeNormalizer
 from linecaster.blocks.writers import PageFilesWriter
 
 pipeline = [
     ImageFolderReader("scans/"),
-    LayoutStep(P("linecaster_paddlex:PaddleLayoutModel")),
-    LinesStep(P("linecaster_paddlex:PaddleLineModel")),
-    AssignLinesToRegions(),
-    RecognitionStep(
-        P("linecaster_kraken:KrakenRecognitionModel")),
-    NormalizeUnicode(),
-    Typography(),
-    ComposePage(),
+    LayoutDetector(P("linecaster_paddlex:PaddleLayoutEngine")),
+    LineDetector(P("linecaster_paddlex:PaddleLineEngine")),
+    LineAssigner(),
+    LineRecognizer(
+        P("linecaster_kraken:KrakenRecognitionEngine")),
+    UnicodeNormalizer(),
+    Typographer(),
+    Composer(),
     PageFilesWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(
@@ -139,7 +139,7 @@ engines, and `uv run` it. Built with `linecaster.runtime.run.main`, as the pipel
 line for every machine.
 
 > [!TIP]
-> The two kinds mix: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
+> The two kinds mix: a `LayoutDetector` followed by `RegionRecognizer` has a vision-language model read
 > each layout region, which is what `pipelines/transcribe_vlm.py --layout …` does.
 
 ## 🧩 How it works
@@ -296,8 +296,8 @@ its model was checked with; `--image` names another. `--dry-run` prints the plan
 - **Backends:** `InProcess("module:Class", **kwargs)` loads a model inside the pipeline;
   `Served(endpoint, name)` sends pages to a server through [saturate].
 - **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
-  until every page is written: `ServeChatModel(spec)` starts [vLLM] or [SGLang],
-  `ServeModels(MODELS, script=...)` a pipeline's `serve`.
+  until every page is written: `ChatModelServer(spec)` starts [vLLM] or [SGLang],
+  `ModelServer(MODELS, script=...)` a pipeline's `serve`.
 - **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsPipelineExecutor` or
   `GPUJobsExecutor` with `dependencies(commit, script)`, which turns a script's `# /// script` block
   into what each Job installs.
@@ -307,9 +307,9 @@ its model was checked with; `--image` names another. `--dry-run` prints the plan
 ```python
 MODELS = [
     {"name": "layout",
-     "spec": "linecaster_paddlex:PaddleLayoutModel"},
+     "spec": "linecaster_paddlex:PaddleLayoutEngine"},
     {"name": "recognition",
-     "spec": "linecaster_kraken:KrakenRecognitionModel",
+     "spec": "linecaster_kraken:KrakenRecognitionEngine",
      "kwargs": {"model": "medium"}},
 ]
 ```
@@ -425,9 +425,9 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `NormalizeUnicode` | the text in one Unicode form, [NFC] by default |
-| `Typography` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
-| `ComposePage` | composes a page: a [DoclingDocument] per page, lines joined into paragraphs, line-end hyphens removed |
+| `UnicodeNormalizer` | the text in one Unicode form, [NFC] by default |
+| `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
+| `Composer` | composes a page: a [DoclingDocument] per page, lines joined into paragraphs, line-end hyphens removed |
 | `BindItem` | binds a book's pages into one DoclingDocument, paragraphs continued across pages |
 | `ItemTexts` | one text per book in each [text version](#-reference) |
 
@@ -439,15 +439,15 @@ These blocks need no model.
 |---|---|
 | `ImageFolderReader` | page images from a folder or bucket |
 | `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
-| `PageRowReader` | page rows written by an earlier run |
+| `PageRecordReader` | page rows written by an earlier run |
 
 **Images and checks**
 
 | Block | What it does |
 |---|---|
-| `AttachImage` | loads a page's image again by its address |
-| `WorkingImages` | the image as lossless WebP, size checked |
-| `ValidatePages` | sets aside invalid pages, with the reason |
+| `ImageFetcher` | loads a page's image again by its address |
+| `ImageConverter` | the image as lossless WebP, size checked |
+| `PageValidator` | sets aside invalid pages, with the reason |
 
 **Writers**
 
@@ -465,8 +465,8 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `ServeChatModel` | starts vLLM or SGLang inside a task |
-| `ServeModels` | starts `linecaster serve` inside a task |
+| `ChatModelServer` | starts vLLM or SGLang inside a task |
+| `ModelServer` | starts `linecaster serve` inside a task |
 
 ## 📚 Reference
 
@@ -525,10 +525,10 @@ Spelling is never modernised.
 <details>
 <summary><b>🔁 Long runs in stages</b></summary>
 
-- Each stage reads the page rows the last one wrote (`PageRowReader`), adds one part and writes
+- Each stage reads the page rows the last one wrote (`PageRecordReader`), adds one part and writes
   complete rows again.
 - Originals are never changed.
-- A check step (`ValidatePages`, `RejectSink`) sends failed pages to `rejects/` with the reason.
+- A check step (`PageValidator`, `RejectWriter`) sends failed pages to `rejects/` with the reason.
 - datatrove keeps logs and completion markers in `logs/`, so finished tasks are skipped on a rerun.
 
 </details>
@@ -581,7 +581,7 @@ Spelling is never modernised.
 | a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
 | an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`) |
 | a recipe | `recipes/<id>.md`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
-| a processing step | a `PageStep` with `process_page(doc, page)` |
+| a processing step | a `PageBlock` with `process_page(doc, page)` |
 
 An engine runs both inside the pipeline and behind `linecaster serve` without further work.
 

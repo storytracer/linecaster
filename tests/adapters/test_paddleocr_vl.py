@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 MIN_PIXELS, MAX_PIXELS = 28 * 28 * 130, 28 * 28 * 1280        # the recipe's smart_resize bounds
 smart_resize = chat_model("paddleocr-vl-1.6").smart_resize
@@ -48,7 +48,7 @@ def test_request_matches_the_driver(size, expected):
 
 
 def test_serve_args_match_the_driver():
-    cmd = ServeChatModel(chat_model("paddleocr-vl-1.6"), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = ChatModelServer(chat_model("paddleocr-vl-1.6"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "PaddlePaddle/PaddleOCR-VL-1.6"]
     args = cmd[7:]
     assert args[:2] == ["--revision", "66317acc4c9fc17bd154591ce650735cd2855f3e"]

@@ -3,9 +3,9 @@ from .files import PageExportsWriter, PageFilesWriter
 from .images import ImageFilesWriter
 from .items import ItemExportsWriter, ItemTextFilesWriter, ItemTextJsonlWriter
 from .records import PageJsonlWriter, PageParquetWriter
-from .rejects import RejectSink
+from .rejects import RejectWriter
 
 __all__ = [
     "ImageFilesWriter", "ItemExportsWriter", "ItemTextFilesWriter", "ItemTextJsonlWriter", "PageExportsWriter",
-    "PageFilesWriter", "PageJsonlWriter", "PageParquetWriter", "RejectSink"
+    "PageFilesWriter", "PageJsonlWriter", "PageParquetWriter", "RejectWriter"
 ]

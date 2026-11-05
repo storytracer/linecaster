@@ -13,7 +13,7 @@ import base64
 import io
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url
+from . import ChatAdapter, data_url
 
 #: formats sent byte-for-byte when the image is already RGB (the drivers' ``PASSTHROUGH_FORMATS``)
 PASSTHROUGH_FORMATS = {"PNG": "image/png", "JPEG": "image/jpeg"}
@@ -33,7 +33,7 @@ def encode_image(data: bytes) -> tuple[str, str]:
     return "image/png", base64.b64encode(buf.getvalue()).decode()
 
 
-class Dots(ChatModel):
+class DotsAdapter(ChatAdapter):
     """Image (full resolution, passthrough), then placeholder + prompt; ``**sampling``; then the fields of
     ``request_extra``. With ``settings.vllm_xargs`` (a per-request n-gram guard) those go with every request,
     and ``settings.logits_processor`` is registered at boot (``--logits_processors``, last on the command

@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatModel
+from . import ChatAdapter
 
 #: the driver's ``MAGIC``: magic bytes -> media type (WebP checked separately)
 MAGIC = (
@@ -32,7 +32,7 @@ def sniff_mime(raw: bytes) -> str:
     raise ValueError(f"unrecognised image magic bytes: {raw[:8]!r}")
 
 
-class QianfanOCR(ChatModel):
+class QianfanOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "qianfan-ocr"
 
     @property

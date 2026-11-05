@@ -1,6 +1,6 @@
 """Page recognition by a VLM behind an OpenAI-compatible chat server (vLLM, SGLang, a hosted endpoint).
 
-``ChatPageStep`` is a served ``ModelStep`` whose route is ``/chat/completions`` instead of
+``PageRecognizer`` is a served ``ModelBlock`` whose route is ``/chat/completions`` instead of
 ``linecaster serve``'s ``/linecaster/{step}``: the same saturate machinery (``AdaptiveClient`` +
 ``through()``: a window of pages in flight, adapted to the engine's queue gauges, 429s and delivered
 tokens; results passed on as they finish), with a model spec (``linecaster.adapters``) building the
@@ -10,9 +10,9 @@ request from the page image and parsing the completion into a text-only ``Transc
     from linecaster.backends import Served
 
     spec = chat_model("lightonocr-2-1b")          # a catalogue preset (or its Hugging Face id)
-    ChatPageStep(spec, Served("http://127.0.0.1:8000/v1", model=spec.served_name, max_window=48, initial_window=8))
+    PageRecognizer(spec, Served("http://127.0.0.1:8000/v1", model=spec.served_name, max_window=48, initial_window=8))
 
-``spec`` may also be the preset ref itself (``ChatPageStep("lightonocr-2-1b", ...)``). Every result's
+``spec`` may also be the preset ref itself (``PageRecognizer("lightonocr-2-1b", ...)``). Every result's
 ``ModelInfo`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the settings.
 
 The completion is kept verbatim (``Transcription.extra["raw"]``, and ``text`` equals it); its
@@ -30,14 +30,14 @@ import asyncio
 import queue
 import threading
 
-from ...adapters import ChatModel, chat_model
+from ...adapters import ChatAdapter, chat_model
 from ...backends import Served
 from ...data.transcription import ModelInfo
-from ..base.model import _END, ModelStep
+from ..base.model import _END, ModelBlock
 from ..base.page import image_bytes, page_of, set_page
 
 
-class ChatPageStep(ModelStep):
+class PageRecognizer(ModelBlock):
     """Recognise every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr``).
 
     ``backend.model`` is the name the server hosts the model under (for vLLM without
@@ -47,19 +47,19 @@ class ChatPageStep(ModelStep):
     step = "page"
     route = "/chat/completions"
 
-    def __init__(self, spec: ChatModel | str, backend: Served, transcription: str = "ocr", primary: str | None = None,
+    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr", primary: str | None = None,
                  skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
         if isinstance(spec, str):
             spec = chat_model(spec)
         if not getattr(backend, "served", False):
-            raise TypeError("ChatPageStep needs a Served backend (an OpenAI-compatible chat endpoint)")
+            raise TypeError("PageRecognizer needs a Served backend (an OpenAI-compatible chat endpoint)")
         super().__init__(backend, transcription, None, primary, skip_on_error,
                          name=name or f"page ({spec.model}, served {backend.endpoint})")
         spec.served_name = backend.model
         self.spec, self.prepare_workers = spec, prepare_workers
 
     def process_page(self, doc, page):  # pragma: no cover - only reached with an in-process backend
-        raise TypeError("ChatPageStep runs served only")
+        raise TypeError("PageRecognizer runs served only")
 
     def _request(self, row: dict) -> dict:
         return self.spec.request(image_bytes(row["doc"]))
@@ -75,9 +75,9 @@ REGION_LABELS = frozenset({"text", "title", "section_header", "page_header", "pa
                            "list_item", "reference", "code", "table"})
 
 
-class ChatRegionStep(ChatPageStep):
+class RegionRecognizer(PageRecognizer):
     """Recognise each layout region with a chat VLM: one request per region crop, through the same saturate
-    machinery as ``ChatPageStep``, results collected per page. Any layout step can come before it.
+    machinery as ``PageRecognizer``, results collected per page. Any layout step can come before it.
 
     Crops are cut at the scale the model expects for a whole page (``spec.page_longest``: the page is
     scaled so its longest side has that length, and the region is cut from it, ``pad`` px around the
@@ -88,7 +88,7 @@ class ChatRegionStep(ChatPageStep):
 
     step = "regions"
 
-    def __init__(self, spec: ChatModel | str, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
+    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
         if isinstance(spec, str):
             spec = chat_model(spec)

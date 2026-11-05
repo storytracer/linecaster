@@ -3,7 +3,7 @@
     python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr] [--no-nfc]
 
 The goldens' word texts are NFC-normalised first (squiddleocr wrote kraken's decomposed text; linecaster
-normalises with NormalizeUnicode), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
+normalises with UnicodeNormalizer), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
 
 Per page and in total: lines present in both (by id), line boxes equal (kraken's integer clip of the
 polygon), word sequences equal (text and box), and the ids only one side has.
@@ -54,7 +54,7 @@ def main() -> int:
     ap.add_argument("run"); ap.add_argument("goldens"); ap.add_argument("--transcription", default="ocr")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--no-nfc", action="store_true",
-                    help="compare the goldens' raw text (default: NFC, as linecaster's NormalizeUnicode writes it)")
+                    help="compare the goldens' raw text (default: NFC, as linecaster's UnicodeNormalizer writes it)")
     a = ap.parse_args()
     files = sorted(glob.glob(f"{a.run}/*.jsonl") + glob.glob(f"{a.run}/*.jsonl.gz"))
     rows = [json.loads(l) for f in files for l in (gzip.open(f, "rt") if f.endswith(".gz") else open(f))]

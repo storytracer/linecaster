@@ -319,7 +319,7 @@ def catalog() -> Catalog:
 # ----------------------------------------------------------------------------------------------- engines
 
 #: engines linecaster itself provides; chat presets run behind an OpenAI-compatible server only
-BUILTIN_ENGINES = {"chat.v1": "linecaster.adapters:ChatModel"}
+BUILTIN_ENGINES = {"chat.v1": "linecaster.adapters:ChatAdapter"}
 SERVED_ONLY = {"chat.v1"}
 
 

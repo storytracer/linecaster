@@ -1,5 +1,5 @@
 """Composition: the typographic hierarchy and the page's document."""
-from .composer import ComposePage
-from .typographer import Typography
+from .composer import Composer
+from .typographer import Typographer
 
-__all__ = ["ComposePage", "Typography"]
+__all__ = ["Composer", "Typographer"]

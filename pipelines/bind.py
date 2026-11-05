@@ -20,7 +20,7 @@ Texts in OUT2/texts/<version>/<rank>.jsonl.gz; with --files also OUT2/files/<ver
 ``linecaster.runtime.run`` has the options every pipeline shares (IMAGES is the first stage's rows folder here).
 """
 from linecaster.blocks.binding.texts import ItemTexts
-from linecaster.blocks.readers.records import PageRowReader
+from linecaster.blocks.readers.records import PageRecordReader
 from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
 from linecaster.runtime import run
 
@@ -36,7 +36,7 @@ def models(a) -> list[dict]:
 def pipeline(a, script: str) -> list:
     out = a.out.rstrip("/")
     return [
-        PageRowReader(a.images, fetch_images=False, item_shards=True),
+        PageRecordReader(a.images, fetch_images=False, item_shards=True),
         ItemTexts(),
         *([ItemTextFilesWriter(f"{out}/files")] if a.files else []),
         ItemTextJsonlWriter(f"{out}/texts", output_filename="${variant}/${rank}.jsonl.gz"),

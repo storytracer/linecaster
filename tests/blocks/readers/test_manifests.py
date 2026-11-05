@@ -17,7 +17,7 @@ pytest.importorskip("pybookget")
 from linecaster.blocks.base.page import image_bytes, page_of  # noqa: E402
 from linecaster.blocks.readers.images import ImageFolderReader, ImageParquetReader
 from linecaster.blocks.readers.manifests import OCR_ORIGINAL, ManifestReader, manifest_item_id  # noqa: E402
-from linecaster.blocks.readers.records import PageRowReader  # noqa: E402
+from linecaster.blocks.readers.records import PageRecordReader  # noqa: E402
 from linecaster.blocks.writers.images import ImageFilesWriter
 from linecaster.blocks.writers.records import PageJsonlWriter  # noqa: E402
 
@@ -233,7 +233,7 @@ def test_harvest_writes_item_folders_and_rows_that_point_at_the_copies(server, t
         for doc in ImageFilesWriter(str(tmp_path / "images")).run(docs):
             w.write(doc, 0)
     assert sorted(p.name for p in (tmp_path / "images" / "a").iterdir()) == ["a_0001.png", "a_0002.png"]
-    rows = [page_of(d) for d in PageRowReader(str(tmp_path / "rows")).run()]
+    rows = [page_of(d) for d in PageRecordReader(str(tmp_path / "rows")).run()]
     assert rows[0].image.uri == str(tmp_path / "images" / "a" / "a_0001.png")
     assert rows[0].image.extra["source_uri"].endswith("/iiif/a1/full/max/0/default.png")
     assert rows[0].metadata["manifest"]["url"] == url
@@ -269,7 +269,7 @@ def test_run_options(tmp_path):
     assert (t.glob_pattern, t.manifest_key, t.item_key, t.existing_ocr) == ("items.parquet", "url", "id", True)
     assert run.reader(run.check(ap, ap.parse_args(["--manifests", "m.txt.gz", "OUT"]))).paths_file == "m.txt.gz"
     assert r.http == {"iiif_format": "png", "rate_limits": [(5, 1.0), (200, 60.0)]}
-    assert isinstance(run.reader(run.check(ap, ap.parse_args(["--rows", str(tmp_path), "OUT"]))), PageRowReader)
+    assert isinstance(run.reader(run.check(ap, ap.parse_args(["--rows", str(tmp_path), "OUT"]))), PageRecordReader)
     for argv in (["IMAGES", "--manifests", "m.txt", "OUT"], ["--manifests", "m.txt", "OUT", "--item-from-parent"],
                  ["--rows", "R", "OUT", "--limit", "3"], ["--manifests", "m.txt", "OUT", "--rate-limit", "5"],
                  ["IMAGES", "OUT", "--existing-ocr"], ["--manifests", "m.txt", "OUT", "--item-key", "id"]):

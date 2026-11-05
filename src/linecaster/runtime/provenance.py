@@ -176,10 +176,10 @@ def from_mets_agent(agent: etree._Element) -> ModelInfo:
 # ------------------------------------------------------------------------------------------------ run record
 
 def _served_models(pipeline: list) -> dict[str, dict]:
-    """Model name -> the model dict of the pipeline's ``ServeModels`` blocks (name, spec, kwargs, preset)."""
+    """Model name -> the model dict of the pipeline's ``ModelServer`` blocks (name, spec, kwargs, preset)."""
     out = {}
     for s in pipeline:
-        if type(s).__name__ == "ServeModels":
+        if type(s).__name__ == "ModelServer":
             for m in getattr(s, "models", []):
                 out[m["name"]] = m
     return out
@@ -218,7 +218,7 @@ def block_entry(block, served: dict[str, dict] | None = None) -> dict[str, Any]:
     backend = getattr(block, "backend", None)
     if backend is not None and hasattr(backend, "served"):
         entry["step"] = getattr(block, "step", None)
-        if getattr(block, "spec", None) is not None:        # a chat VLM (ChatPageStep and friends)
+        if getattr(block, "spec", None) is not None:        # a chat VLM (PageRecognizer and friends)
             entry.update(_chat_spec(block.spec))
         if not backend.served:
             entry["backend"] = "in-process"
@@ -233,12 +233,12 @@ def block_entry(block, served: dict[str, dict] | None = None) -> dict[str, Any]:
             if m is not None and getattr(block, "spec", None) is None:
                 entry.update(_engine(m.get("spec"), m.get("kwargs"), m.get("preset"), m.get("preset_sha256"),
                                      m.get("overrides")))
-    elif type(block).__name__ == "ServeModels":
+    elif type(block).__name__ == "ModelServer":
         entry["port"] = block.port
         entry["models"] = [{"name": m["name"], **_engine(m.get("spec"), m.get("kwargs"), m.get("preset"),
                                                          m.get("preset_sha256"), m.get("overrides"))}
                            for m in block.models]
-    elif type(block).__name__ == "ServeChatModel":
+    elif type(block).__name__ == "ChatModelServer":
         entry["server"] = getattr(block, "server", None)
         entry["port"] = block.port
         entry.update(_chat_spec(block.spec))

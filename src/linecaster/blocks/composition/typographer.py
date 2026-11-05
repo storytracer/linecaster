@@ -1,16 +1,16 @@
-"""``Typography``: squiddleocr's retyper (``linecaster.text.typography``) on a page's transcription."""
+"""``Typographer``: squiddleocr's retyper (``linecaster.text.typography``) on a page's transcription."""
 from __future__ import annotations
 
 from ...data.page import Page
 from ...text.typography import retype
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 
-class Typography(PageStep):
+class Typographer(PageBlock):
     """squiddleocr's retyper on the named transcription: heading levels from type size, headline
     splits, drop capitals, uncertain page numbers removed (see ``linecaster.text.typography``)."""
 
-    name = "typography (retyper)"
+    name = "typographer"
 
     def __init__(self, transcription: str = "ocr"):
         super().__init__()

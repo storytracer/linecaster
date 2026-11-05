@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 
 def image(w: int, h: int, fmt: str, mode: str = "RGB") -> bytes:
@@ -49,7 +49,7 @@ def test_other_images_become_full_size_rgb_png(fmt, mode):
 
 
 def test_serve_args_match_the_board_driver():
-    cmd = ServeChatModel(chat_model("dots-mocr"), port=8000, gpu_memory_utilization=0.6).command()
+    cmd = ChatModelServer(chat_model("dots-mocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.mocr"]
     args = cmd[7:]
     pairs = {args[i]: args[i + 1] for i in range(len(args) - 1) if args[i].startswith("--") and not args[i + 1].startswith("--")}

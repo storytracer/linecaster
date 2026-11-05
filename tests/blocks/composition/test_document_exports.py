@@ -10,10 +10,10 @@ from PIL import Image
 
 from linecaster.blocks.base.page import page_of
 from linecaster.blocks.binding.item import BindItem
-from linecaster.blocks.composition.composer import ComposePage
-from linecaster.blocks.composition.typographer import Typography
+from linecaster.blocks.composition.composer import Composer
+from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.layout.single_region import SingleRegionLayout
-from linecaster.blocks.lines.assigner import AssignLinesToRegions
+from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.readers.images import ImageFolderReader
 from linecaster.blocks.writers.files import PageExportsWriter, PageFilesWriter
 from linecaster.blocks.writers.items import ItemExportsWriter
@@ -26,7 +26,7 @@ from conftest import line, page_doc, page_t, page_to_compose, region
 
 
 def _composed_doc(**kw):
-    return list(ComposePage(**kw).run(Typography().run(iter([page_doc()]))))
+    return list(Composer(**kw).run(Typographer().run(iter([page_doc()]))))
 
 
 def test_html_and_doclang_follow_docling_and_the_furniture_layer():
@@ -112,7 +112,7 @@ def test_layout_plot(tmp_path: Path):
 def test_single_region_layout_takes_every_line():
     t = Transcription(lines=[Line(id="d0", polygon=[[10, 10], [200, 10], [200, 30], [10, 30]], bbox=[10, 10, 190, 20]),
                              Line(id="d1", polygon=[[10, 50], [200, 50], [200, 70], [10, 70]], bbox=[10, 50, 190, 20])])
-    out = list(AssignLinesToRegions().run(SingleRegionLayout().run(iter([page_doc(t=t, item=None)]))))
+    out = list(LineAssigner().run(SingleRegionLayout().run(iter([page_doc(t=t, item=None)]))))
     t = page_of(out[0]).transcriptions["ocr"]
     assert [(r.id, r.label, r.bbox, r.reading_order) for r in t.regions] == [("page", "text", [0, 0, 1000, 1000], 0)]
     assert [(ln.id, ln.region_id, ln.row) for ln in t.lines] == [("page_l0", "page", 0), ("page_l1", "page", 1)]

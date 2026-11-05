@@ -1,4 +1,4 @@
-"""Chat-VLM page recognition: the LightOnOCR-2 spec's request and parse, and ChatPageStep end to end
+"""Chat-VLM page recognition: the LightOnOCR-2 spec's request and parse, and PageRecognizer end to end
 against a fake OpenAI-compatible server (through saturate, as in production)."""
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from PIL import Image
 from linecaster.adapters import chat_model, text_transcription
 from linecaster.backends import InProcess, Served
 from linecaster.blocks.base.page import new_page_document, page_of
-from linecaster.blocks.recognition.chat import ChatPageStep
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.recognition.chat import PageRecognizer
+from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
 
 
@@ -68,7 +68,7 @@ def test_lighton_serve_args_match_the_board_driver():
 
 
 def test_serve_block_command():
-    cmd = ServeChatModel(chat_model("lightonocr-2-1b"), port=8123, gpu_memory_utilization=0.3).command()
+    cmd = ChatModelServer(chat_model("lightonocr-2-1b"), port=8123, gpu_memory_utilization=0.3).command()
     assert cmd[:7] == ["vllm", "serve", "lightonai/LightOnOCR-2-1B", "--host", "127.0.0.1", "--port", "8123"]
     assert cmd[-2:] == ["--gpu-memory-utilization", "0.3"]
 
@@ -115,7 +115,7 @@ def test_text_transcription_round_trips_text():
 
 def test_chat_step_needs_a_served_backend():
     with pytest.raises(TypeError):
-        ChatPageStep(chat_model("lightonocr-2-1b"), InProcess("x:y"))
+        PageRecognizer(chat_model("lightonocr-2-1b"), InProcess("x:y"))
 
 
 # ---------------------------------------------------- end to end, fake server
@@ -154,7 +154,7 @@ def test_chat_page_step_end_to_end(fake_server):
     docs = [new_page_document(str(i), image(1000 + 100 * i, 2000)) for i in range(5)]
     errored = new_page_document("bad", image(10, 10))
     errored.metadata["errors"] = [{"step": "earlier", "error": "x"}]
-    step = ChatPageStep(chat_model("lightonocr-2-1b"), Served(fake_server, model="lightonai/LightOnOCR-2-1B", max_window=4))
+    step = PageRecognizer(chat_model("lightonocr-2-1b"), Served(fake_server, model="lightonai/LightOnOCR-2-1B", max_window=4))
     out = {d.id: d for d in step.run(iter([*docs, errored]))}
     assert set(out) == {"0", "1", "2", "3", "4", "bad"}
     assert len(FakeChat.seen) == 5 and {m for m, _ in FakeChat.seen} == {"lightonai/LightOnOCR-2-1B"}
@@ -170,7 +170,7 @@ def test_chat_page_step_end_to_end(fake_server):
 
 def test_chat_page_step_records_server_errors(fake_server):
     # a route the server does not have: the page comes out with the error recorded, no transcription
-    step = ChatPageStep(chat_model("lightonocr-2-1b"), Served(fake_server.replace("/v1", "/nope"), model="m", max_window=2))
+    step = PageRecognizer(chat_model("lightonocr-2-1b"), Served(fake_server.replace("/v1", "/nope"), model="m", max_window=2))
     out = list(step.run(iter([new_page_document("p", image(100, 200))])))
     assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "page"
     assert "404" in out[0].metadata["errors"][0]["error"]
@@ -184,11 +184,11 @@ def test_serve_block_outside_venv(monkeypatch):
     own = os.path.join(sys.prefix, "bin")
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/usr/local/bin", "/usr/bin"]))
     monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
-    block = ServeChatModel(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
+    block = ChatModelServer(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
     cmd = block.launch_command()
     assert cmd[:4] == ["env", "-u", "VIRTUAL_ENV", "PATH=/usr/local/bin:/usr/bin"]
     assert cmd[4:] == block.command()
-    assert ServeChatModel(chat_model("lightonocr-2-1b")).launch_command() == ServeChatModel(chat_model("lightonocr-2-1b")).command()
+    assert ChatModelServer(chat_model("lightonocr-2-1b")).launch_command() == ChatModelServer(chat_model("lightonocr-2-1b")).command()
 
 
 def test_minicpm_speculative_args_pin_the_draft():

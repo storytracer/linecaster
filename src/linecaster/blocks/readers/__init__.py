@@ -2,6 +2,6 @@
 earlier run."""
 from .images import ImageFolderReader, ImageParquetReader
 from .manifests import ManifestReader
-from .records import PageRowReader
+from .records import PageRecordReader
 
-__all__ = ["ImageFolderReader", "ImageParquetReader", "ManifestReader", "PageRowReader"]
+__all__ = ["ImageFolderReader", "ImageParquetReader", "ManifestReader", "PageRecordReader"]

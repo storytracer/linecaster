@@ -1,4 +1,4 @@
 """Conversion: page images fetched again by their address, and the working image."""
-from .images import AttachImage, WorkingImages
+from .images import ImageFetcher, ImageConverter
 
-__all__ = ["AttachImage", "WorkingImages"]
+__all__ = ["ImageFetcher", "ImageConverter"]

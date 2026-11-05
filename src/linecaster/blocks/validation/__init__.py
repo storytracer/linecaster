@@ -1,5 +1,5 @@
 """Validation: pages checked against the data model, and the recipe stamped on every step."""
-from .pages import ValidatePages
-from .recipe import RecipeStamp
+from .pages import PageValidator
+from .recipe import RecipeStamper
 
-__all__ = ["RecipeStamp", "ValidatePages"]
+__all__ = ["RecipeStamper", "PageValidator"]

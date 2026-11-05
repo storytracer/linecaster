@@ -177,7 +177,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``)."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
-    from ..blocks.readers.records import PageRowReader
+    from ..blocks.readers.records import PageRecordReader
 
     if getattr(a, "manifests", None):
         from ..blocks.readers.manifests import ManifestReader
@@ -194,7 +194,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, prefetch=a.prefetch,
                               http=http(a))
     if getattr(a, "rows", None):
-        return PageRowReader(a.rows, http=http(a))
+        return PageRecordReader(a.rows, http=http(a))
     if a.parquet:
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
@@ -208,7 +208,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     """Backends for the engine ``models`` by name, and the server block that goes last (none in-process or
     with ``--endpoint``)."""
     from ..backends import InProcess, Served
-    from ..blocks.servers.serve import ServeModels
+    from ..blocks.servers.serve import ModelServer
 
     models = preset_models(models)
     if a.backend == "in-process":
@@ -223,7 +223,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     if a.endpoint:
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
-    return backends, [ServeModels(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
+    return backends, [ModelServer(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
 
 
 def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
@@ -322,11 +322,11 @@ def write_record(out: str, rec: dict) -> str:
 def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | None) -> dict:
     import dill
 
-    from ..blocks.servers.serve import ServeChatModel, ServeModels
+    from ..blocks.servers.serve import ChatModelServer, ModelServer
     from ..serve import serve_command
 
-    servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ServeModels)
-               else s.launch_command(s.python) for s in pipeline if isinstance(s, (ServeModels, ServeChatModel))]
+    servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
+               else s.launch_command(s.python) for s in pipeline if isinstance(s, (ModelServer, ChatModelServer))]
     return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
             "image": image,
             "dependencies": deps, "pipeline": [type(s).__name__ for s in pipeline], "servers": servers,
@@ -449,8 +449,8 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
     if getattr(a, "recipe_record", None):
-        from ..blocks.validation.recipe import RecipeStamp
+        from ..blocks.validation.recipe import RecipeStamper
 
         first_writer = next((i for i, b in enumerate(pipeline) if type(b).__name__.endswith("Writer")), len(pipeline))
-        pipeline.insert(first_writer, RecipeStamp(a.recipe_record["ref"], a.recipe_record["sha256"]))
+        pipeline.insert(first_writer, RecipeStamper(a.recipe_record["ref"], a.recipe_record["sha256"]))
     run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)

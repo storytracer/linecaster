@@ -3,7 +3,7 @@
 
 The SDK finds PP-DocLayoutV3 regions, crops each one from the full-resolution page and sends the crop with the
 prompt for its region type; it assembles the page as Markdown (tables HTML, formulas LaTeX). Here the layout
-comes from linecaster's layout step and ``ChatRegionStep`` sends the crops. The preset holds the SDK's data
+comes from linecaster's layout step and ``RegionRecognizer`` sends the crops. The preset holds the SDK's data
 (``configs/minicpmvocr.yaml``, ``prompts.DEFAULT_PROMPT_MAP``, ``backends/dialects.build_vllm_payload``): the
 prompt and token cap per region type (``settings.elements``, looked up by the layout model's own label,
 ``Region.raw_label`` = PP-DocLayoutV3's class name, the SDK's vocabulary; ``settings.default_element`` for
@@ -33,7 +33,7 @@ import io
 import json
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url
+from . import ChatAdapter, data_url
 
 #: Docling labels -> the SDK's region type, for regions whose producer gave no PP-DocLayoutV3 label
 FROM_DOCLING = {"title": "doc_title", "section_header": "paragraph_title", "caption": "figure_title",
@@ -42,7 +42,7 @@ FROM_DOCLING = {"title": "doc_title", "section_header": "paragraph_title", "capt
 PRESET = "minicpm-ocr-1.0"
 
 
-class MiniCPMOCR(ChatModel):
+class MiniCPMOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "minicpm-ocr"
 
     @property
@@ -117,7 +117,7 @@ class MiniCPMOCR(ChatModel):
         }
 
     def request(self, image: bytes) -> dict:
-        """A whole page as one ``text`` region (not how the SDK uses the model; for ``ChatPageStep``)."""
+        """A whole page as one ``text`` region (not how the SDK uses the model; for ``PageRecognizer``)."""
         buf = io.BytesIO()
         from PIL import Image
 
@@ -132,7 +132,7 @@ class MiniCPMOCR(ChatModel):
 
     # ---------------------------------------------------------------- assembly
     def region_blocks(self, t) -> list[dict]:
-        """The SDK's result blocks from a transcription made by ``ChatRegionStep`` with this adapter: one per
+        """The SDK's result blocks from a transcription made by ``RegionRecognizer`` with this adapter: one per
         region (read or image), in reading order, ``content`` = the raw completion."""
         text_of = {ln.region_id: ln.text or "" for ln in t.lines}
         regions = sorted(t.regions, key=lambda r: (r.reading_order is None, r.reading_order or 0))
@@ -177,14 +177,14 @@ def _spec(spec):
     return spec
 
 
-def sdk_label(region, spec: MiniCPMOCR | None = None) -> str:
+def sdk_label(region, spec: MiniCPMOCRAdapter | None = None) -> str:
     """The SDK's region type of ``region`` (``spec`` default: the ``minicpm-ocr-1.0`` preset)."""
     return _spec(spec).sdk_label(region)
 
 
-def region_blocks(t, spec: MiniCPMOCR | None = None) -> list[dict]:
+def region_blocks(t, spec: MiniCPMOCRAdapter | None = None) -> list[dict]:
     return _spec(spec).region_blocks(t)
 
 
-def assemble_markdown(t, keep_labels=(), spec: MiniCPMOCR | None = None) -> str:
+def assemble_markdown(t, keep_labels=(), spec: MiniCPMOCRAdapter | None = None) -> str:
     return _spec(spec).assemble_markdown(t, keep_labels)

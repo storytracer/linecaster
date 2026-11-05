@@ -1,9 +1,9 @@
 """Media blocks: loading page images by URI, and the working image (lossless WebP).
 
-* ``AttachImage`` reads ``page.image.uri`` (any fsspec path) into ``doc.media`` for blocks that need
-  pixels (``PageRowReader(fetch_images=False)`` plus ``AttachImage`` after filtering avoids fetching
+* ``ImageFetcher`` reads ``page.image.uri`` (any fsspec path) into ``doc.media`` for blocks that need
+  pixels (``PageRecordReader(fetch_images=False)`` plus ``ImageFetcher`` after filtering avoids fetching
   images of pages that are dropped anyway).
-* ``WorkingImages`` converts the delivered image with ``linecaster.images.convert.to_working_webp`` (8-bit
+* ``ImageConverter`` converts the delivered image with ``linecaster.images.convert.to_working_webp`` (8-bit
   sRGB, lossless WebP at full resolution, method 0, exact), writes it to
   ``<output_folder>/<item_id>/<page_id>.webp`` and replaces ``page.image`` with the working image's
   ``PageImage`` (size, hashes, decoder); the delivered file is only read, its location, format,
@@ -22,7 +22,7 @@ from datatrove.pipeline.base import PipelineStep
 from ...data.page import PageImage
 from ...images.convert import ImageTooLarge, to_working_webp
 from ..base.page import page_of, set_page
-from ..writers.rejects import RejectSink
+from ..writers.rejects import RejectWriter
 
 
 def read_uri(uri: str) -> bytes:
@@ -32,9 +32,9 @@ def read_uri(uri: str) -> bytes:
         return f.read()
 
 
-class AttachImage(PipelineStep):
+class ImageFetcher(PipelineStep):
     type = "🔠 - LINECASTER"
-    name = "🖼️ attach image"
+    name = "🖼️ image fetcher"
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         for doc in data:
@@ -50,9 +50,9 @@ class AttachImage(PipelineStep):
             yield doc
 
 
-class WorkingImages(PipelineStep):
+class ImageConverter(PipelineStep):
     type = "🔠 - LINECASTER"
-    name = "🖼️ working images (lossless WebP)"
+    name = "🖼️ image converter (lossless WebP)"
 
     def __init__(self, output_folder: DataFolderLike, rejects_folder: DataFolderLike, effort: int = 80,
                  keep_bytes: bool = False):
@@ -62,7 +62,7 @@ class WorkingImages(PipelineStep):
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         out = get_datafolder(self.output_folder)
-        with RejectSink(self.rejects_folder, rank) as sink:
+        with RejectWriter(self.rejects_folder, rank) as sink:
             for doc in data:
                 page = page_of(doc)
                 self.stat_update("pages")

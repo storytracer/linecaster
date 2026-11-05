@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 REVISION = "c0111ce6bc07803dbc267932ffef0ae3a51dc951"
 
@@ -51,7 +51,7 @@ def test_other_images_become_full_size_rgb_png(fmt, mode):
 
 
 def test_serve_args_match_the_board_driver():
-    cmd = ServeChatModel(chat_model("dots-ocr"), port=8000, gpu_memory_utilization=0.6).command()
+    cmd = ChatModelServer(chat_model("dots-ocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.ocr"]
     args = cmd[7:]
     for flag in (["--revision", REVISION], ["--max-model-len", "32768"], ["--mm-processor-cache-gb", "0"],

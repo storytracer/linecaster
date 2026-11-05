@@ -55,7 +55,7 @@ def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id
     return doc
 
 
-class PageStep(PipelineStep):
+class PageBlock(PipelineStep):
     """A block that works on pages. Subclasses implement ``process_page`` (or override ``run``)."""
 
     type = "🔠 - LINECASTER"

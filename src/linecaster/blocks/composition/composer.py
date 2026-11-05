@@ -1,18 +1,18 @@
-"""``ComposePage``: page composition, the transcription's ``docling`` part from its regions, lines and tables
+"""``Composer``: page composition, the transcription's ``docling`` part from its regions, lines and tables
 (``linecaster.formats.docling``).
 
-In squiddleocr's order: ... recognition -> ``NormalizeUnicode`` -> tables -> ``Typography`` ->
-``ComposePage`` -> writers; ``BindItem`` after them, on whole items. ``Typography`` changes regions and lines
-(``linecaster.text.typography``); ``ComposePage`` fills the ``docling`` part from them.
+In squiddleocr's order: ... recognition -> ``UnicodeNormalizer`` -> tables -> ``Typographer`` ->
+``Composer`` -> writers; ``BindItem`` after them, on whole items. ``Typographer`` changes regions and lines
+(``linecaster.text.typography``); ``Composer`` fills the ``docling`` part from them.
 """
 from __future__ import annotations
 
 from ...data.page import Page
 from ...formats.docling import REGION_MAP_KEY, DocumentBuilder, docling_dict
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 
-class ComposePage(PageStep):
+class Composer(PageBlock):
     """Build the named transcription's ``docling`` part from its regions, lines and tables
     (``linecaster.formats.docling.DocumentBuilder``; one document per page, named after the page id).
     ``text``: ``lines`` (one row per line) or ``reflow`` (paragraphs; squiddleocr's default).
@@ -21,7 +21,7 @@ class ComposePage(PageStep):
     The map from each Docling item to its layout region (``"<page_no>:<region id>"``) is kept in
     ``transcription.extra["docling_region_of"]``, for the Markdown dividers of the export writers."""
 
-    name = "compose page"
+    name = "composer"
     REGION_MAP = REGION_MAP_KEY
 
     def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False, sections: bool = False):

@@ -1,4 +1,4 @@
 """Servers: blocks that start a task's model servers; they go last in a pipeline."""
-from .serve import ServeChatModel, ServeModels
+from .serve import ChatModelServer, ModelServer
 
-__all__ = ["ServeChatModel", "ServeModels"]
+__all__ = ["ChatModelServer", "ModelServer"]

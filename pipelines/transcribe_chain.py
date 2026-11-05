@@ -64,14 +64,14 @@ and formula models after; then Unicode NFC, typography and page composition. Pag
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
 from linecaster.blocks.binding.texts import ItemTexts
-from linecaster.blocks.composition.composer import ComposePage
-from linecaster.blocks.composition.typographer import Typography
-from linecaster.blocks.layout.detector import LayoutStep
+from linecaster.blocks.composition.composer import Composer
+from linecaster.blocks.composition.typographer import Typographer
+from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.layout.single_region import SingleRegionLayout
-from linecaster.blocks.lines.assigner import AssignLinesToRegions
-from linecaster.blocks.lines.detector import LinesStep
-from linecaster.blocks.recognition.recognizers import FormulasStep, RecognitionStep, TablesStep
-from linecaster.blocks.text.unicode import NormalizeUnicode
+from linecaster.blocks.lines.assigner import LineAssigner
+from linecaster.blocks.lines.detector import LineDetector
+from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
+from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.files import PageFilesWriter
 from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
 from linecaster.runtime import run
@@ -128,15 +128,15 @@ def pipeline(a, script: str) -> list:
         b[step] = Served(url, model=step, max_window=a.window)
     return [
         run.reader(a),
-        LayoutStep(b["layout"]) if "layout" in b else SingleRegionLayout(),
-        LinesStep(b["lines"]),
-        AssignLinesToRegions(formulas_separately="formulas" in b),
-        RecognitionStep(b["recognition"]),
-        NormalizeUnicode(),                       # kraken writes decomposed text; the as-written layer is NFC
-        *([TablesStep(b["tables"])] if "tables" in b else []),
-        *([FormulasStep(b["formulas"])] if "formulas" in b else []),
-        Typography(),
-        ComposePage(text=a.text),
+        LayoutDetector(b["layout"]) if "layout" in b else SingleRegionLayout(),
+        LineDetector(b["lines"]),
+        LineAssigner(formulas_separately="formulas" in b),
+        LineRecognizer(b["recognition"]),
+        UnicodeNormalizer(),                       # kraken writes decomposed text; the as-written layer is NFC
+        *([TableRecognizer(b["tables"])] if "tables" in b else []),
+        *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
+        Typographer(),
+        Composer(text=a.text),
         *([PageFilesWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
         *([PageFilesWriter(a.exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
                            bucket_by_item=False)] if a.exports else []),

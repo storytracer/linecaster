@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
 
 REVISIONS = {"lightonai/LightOnOCR-3-4B": "b71010f095dc3735de7ee6b9969bff8f8f50b39a",
@@ -85,7 +85,7 @@ def test_serve_args_match_the_board_driver(model):
         assert args[i:i + 2] == flag
     assert "--no-enable-prefix-caching" in args and "--trust-remote-code" not in args
     assert "--served-model-name" not in args
-    cmd = ServeChatModel(chat_model(model), port=8123).command()
+    cmd = ChatModelServer(chat_model(model), port=8123).command()
     assert cmd[:3] == ["vllm", "serve", model]
 
 

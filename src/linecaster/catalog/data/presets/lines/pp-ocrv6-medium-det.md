@@ -34,4 +34,4 @@ default rested on two Fraktur pages and one CER lane, and wider boxes shrink the
 input (Fraktur n and u merged on a display line), while tighter ones clip descenders. The rule since: no change
 of this parameter without a run over a few hundred BHL pages with the frozen scorer, both CER lanes. `box_thresh`
 0.6 and `thresh` 0.3 are PaddleOCR's defaults; detection runs on the whole page (`per_region` off), and the
-lines are assigned to the layout regions afterwards (`AssignLinesToRegions`).
+lines are assigned to the layout regions afterwards (`LineAssigner`).

@@ -1,5 +1,5 @@
-"""Blocks that host models for a task's served blocks: ``ServeModels`` starts ``linecaster serve``,
-``ServeChatModel`` starts vLLM or SGLang for a ``ChatPageStep`` (both through saturate's ``Engine``) when the
+"""Blocks that host models for a task's served blocks: ``ModelServer`` starts ``linecaster serve``,
+``ChatModelServer`` starts vLLM or SGLang for a ``PageRecognizer`` (both through saturate's ``Engine``) when the
 task starts, and stops it when all its pages are through. For a pipeline that brings
 its own GPU, e.g. one HF Job per datatrove task.
 
@@ -11,9 +11,9 @@ from __future__ import annotations
 from datatrove.pipeline.base import PipelineStep
 
 
-class ServeModels(PipelineStep):
+class ModelServer(PipelineStep):
     type = "🔠 - LINECASTER"
-    name = "🖥️ serve models"
+    name = "🖥️ model server"
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
                  max_queue: int = 16, script: str | None = None):
@@ -33,8 +33,8 @@ class ServeModels(PipelineStep):
             server.__exit__(None, None, None)
 
 
-class ServeChatModel(PipelineStep):
-    """Start a chat VLM server for a task's ``ChatPageStep``, through saturate's ``Engine``. ``spec`` is a chat
+class ChatModelServer(PipelineStep):
+    """Start a chat VLM server for a task's ``PageRecognizer``, through saturate's ``Engine``. ``spec`` is a chat
     preset's adapter (``linecaster.adapters.chat_model``) or the preset ref; the command comes from the preset's
     ``serve`` block (server, flags, environment, packages), and its ``server`` picks it:
 
@@ -42,7 +42,7 @@ class ServeChatModel(PipelineStep):
     * ``"sglang"``: ``PYTHON -m sglang.launch_server --model-path <spec.model> --host HOST --port PORT
       --enable-metrics <spec.sglang_args(...)>`` (metrics on: saturate reads SGLang's queue gauges).
 
-    Like ``ServeModels``, put it **last** in the pipeline (after the writer).
+    Like ``ModelServer``, put it **last** in the pipeline (after the writer).
 
     ``vllm`` is the vLLM command (default ``vllm`` on PATH, e.g. from the job image or a
     ``uv run --with vllm==...`` environment); ``python`` the Python that has SGLang (default ``python3``
@@ -62,7 +62,7 @@ class ServeChatModel(PipelineStep):
     come from the image, and ``python`` is looked up on that ``PATH``."""
 
     type = "🔠 - LINECASTER"
-    name = "🖥️ serve chat model"
+    name = "🖥️ chat model server"
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,

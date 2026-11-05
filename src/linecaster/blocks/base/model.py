@@ -1,4 +1,4 @@
-"""``ModelStep``: the base of the model blocks, one block per step (layout, lines, recognition, ...), each with
+"""``ModelBlock``: the base of the model blocks, one block per step (layout, lines, recognition, ...), each with
 its backend.
 
 In-process, a block calls its model page by page. Served, it streams its pages through saturate:
@@ -18,13 +18,13 @@ from datetime import datetime, timezone
 from ...backends import InProcess, Served
 from ...data.page import Page
 from ...data.transcription import Transcription
-from .page import PageStep, decode_rgb, image_bytes, page_of, set_page
+from .page import PageBlock, decode_rgb, image_bytes, page_of, set_page
 
 _END = object()
 
 
 
-class ModelStep(PageStep):
+class ModelBlock(PageBlock):
     """Run one model step on every page, adding its part to the page's ``transcription``."""
 
     step = "model"

@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.nemotron_parse35 import strip_underscore_emphasis
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.servers.serve import ChatModelServer
 
 PROMPT = chat_model("nemotron-3.5-parse").prompt
 
@@ -51,7 +51,7 @@ def test_serve_args_match_the_board_driver():
 
 
 def test_serve_command_installs_the_plugin_before_vllm(tmp_path):
-    cmd = ServeChatModel(chat_model("nemotron-3.5-parse"), port=8123, gpu_memory_utilization=0.8).command()
+    cmd = ChatModelServer(chat_model("nemotron-3.5-parse"), port=8123, gpu_memory_utilization=0.8).command()
     assert cmd[:2] == ["bash", "-c"]
     script = cmd[2]
     assert f"revision='{REV}'" in script and "inference.constraints.txt" in script

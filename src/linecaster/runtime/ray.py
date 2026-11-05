@@ -2,7 +2,7 @@
 
 ``RayGPUExecutor`` is datatrove's ``RayPipelineExecutor`` with one GPU per task. Ray restricts each task
 to its GPU through ``CUDA_VISIBLE_DEVICES``. Several tasks share a machine, so each task moves the servers
-its pipeline starts (``ServeModels``, ``ServeChatModel``) and their loopback clients up by its GPU
+its pipeline starts (``ModelServer``, ``ChatModelServer``) and their loopback clients up by its GPU
 index (``linecaster.runtime.jobs.point_to_gpu``). Ray itself is the ``ray`` extra.
 """
 from __future__ import annotations

@@ -19,7 +19,7 @@ import hashlib
 import io
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes
 
 
 def scale_to_fit(img, max_size=(3072, 2048), min_size=(1792, 28), grid_size: int = 28):
@@ -65,7 +65,7 @@ def scale_to_fit(img, max_size=(3072, 2048), min_size=(1792, 28), grid_size: int
     return img.resize((new_width, new_height), resample=Image.Resampling.LANCZOS)
 
 
-class ChandraOCR(ChatModel):
+class ChandraOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "chandra-ocr"
 
     def __init__(self, preset, served_name=None):

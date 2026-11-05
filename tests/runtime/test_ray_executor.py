@@ -2,8 +2,8 @@
 import pytest
 
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutStep
-from linecaster.blocks.servers.serve import ServeModels
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.servers.serve import ModelServer
 from linecaster.runtime.ray import RayGPUExecutor, assigned_gpu
 
 
@@ -16,8 +16,8 @@ def test_assigned_gpu(monkeypatch):
 
 
 def test_task_moves_to_its_gpu_port(monkeypatch, tmp_path):
-    pipeline = [LayoutStep(Served("http://127.0.0.1:8100/v1", model="layout")),
-                ServeModels([{"name": "layout", "spec": "x:Y"}], port=8100)]
+    pipeline = [LayoutDetector(Served("http://127.0.0.1:8100/v1", model="layout")),
+                ModelServer([{"name": "layout", "spec": "x:Y"}], port=8100)]
     ex = RayGPUExecutor(pipeline, tasks=2, logging_dir=str(tmp_path / "logs"))
     seen = {}
     monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor._run_for_rank",

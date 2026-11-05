@@ -18,7 +18,7 @@ import io
 import math
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url
+from . import ChatAdapter, data_url
 
 
 def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple[int, int]]:
@@ -37,7 +37,7 @@ def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple
     return base64.b64encode(buf.getvalue()).decode(), img.size
 
 
-class OvisOCR(ChatModel):
+class OvisOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "ovis-ocr"
 
     @property

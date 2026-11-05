@@ -59,7 +59,7 @@ coordinate to another image size.
 
 ## Unicode
 
-The as-written layer is NFC, made by a step of its own: `NormalizeUnicode` (`linecaster.text.unicode`) right after
+The as-written layer is NFC, made by a step of its own: `UnicodeNormalizer` (`linecaster.text.unicode`) right after
 recognition, recorded as `ModelInfo(step="unicode", settings={"form": "NFC", "unicode_version": ...})`. Each
 engine's raw output stays exactly what the engine produced. Only canonical forms (NFC, NFD) are allowed; never
 NFKC, whose folding is the readable variants' job (`linecaster.text.variants`).
@@ -78,7 +78,7 @@ The retyper edits regions and lines in place:
 
 ## Documents (`linecaster.formats.docling`)
 
-- **Page composition** (`ComposePage`): `docling` from regions, lines and tables; page headers and footers always
+- **Page composition** (`Composer`): `docling` from regions, lines and tables; page headers and footers always
   in Docling's furniture layer. Exports choose whether to include them (`furniture=True`).
 - **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
   `n`-th page (by sequence, then page id). In reflow mode paragraphs continue across page breaks; sections are

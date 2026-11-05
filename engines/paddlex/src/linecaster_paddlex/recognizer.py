@@ -76,7 +76,7 @@ def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word
     return words
 
 
-class PaddleRecognitionModel:
+class PaddleRecognitionEngine:
     """linecaster engine model for the recognition step: a PaddleOCR text recogniser on every line of the
     transcription (``RECOGNIZERS``). Fills text, confidence (the recogniser's mean character probability) and words
     (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model

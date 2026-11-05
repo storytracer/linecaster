@@ -19,7 +19,7 @@ import io
 from typing import Any, ClassVar
 
 from ..data.transcription import Transcription
-from . import ChatModel, data_url
+from . import ChatAdapter, data_url
 
 
 def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple[str, tuple[int, int]]:
@@ -52,7 +52,7 @@ def to_markdown(doctags: str) -> str:
                                   image_placeholder="").strip()
 
 
-class SmolDocling(ChatModel):
+class SmolDoclingAdapter(ChatAdapter):
     adapter: ClassVar[str] = "smoldocling"
 
     @property

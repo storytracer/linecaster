@@ -10,7 +10,7 @@ from __future__ import annotations
 import io
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes
 
 
 def encode_png(image: bytes, max_pixels: int) -> str:
@@ -26,7 +26,7 @@ def encode_png(image: bytes, max_pixels: int) -> str:
     return png_bytes(img)
 
 
-class GLMOCR(ChatModel):
+class GLMOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "glm-ocr"
 
     @property

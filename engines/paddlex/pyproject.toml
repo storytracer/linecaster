@@ -24,11 +24,11 @@ dependencies = [
 
 # the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalogue
 [project.entry-points."linecaster.engines"]
-"paddlex.layout.v1" = "linecaster_paddlex:PaddleLayoutModel"
-"paddlex.lines.v1" = "linecaster_paddlex:PaddleLineModel"
-"paddlex.recognition.v1" = "linecaster_paddlex:PaddleRecognitionModel"
-"paddlex.tables.v1" = "linecaster_paddlex:PaddleTableModel"
-"paddlex.formulas.v1" = "linecaster_paddlex:PaddleFormulaModel"
+"paddlex.layout.v1" = "linecaster_paddlex:PaddleLayoutEngine"
+"paddlex.lines.v1" = "linecaster_paddlex:PaddleLineEngine"
+"paddlex.recognition.v1" = "linecaster_paddlex:PaddleRecognitionEngine"
+"paddlex.tables.v1" = "linecaster_paddlex:PaddleTableEngine"
+"paddlex.formulas.v1" = "linecaster_paddlex:PaddleFormulaEngine"
 
 
 [build-system]

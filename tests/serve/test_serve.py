@@ -10,7 +10,7 @@ from PIL import Image
 
 from linecaster.backends import Served
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.blocks.recognition.recognizers import TablesStep
+from linecaster.blocks.recognition.recognizers import TableRecognizer
 from linecaster.data import ModelInfo, Region, Transcription
 from linecaster.data.page import Page
 
@@ -90,7 +90,7 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
         # as linecaster.serve.engine checks readiness
         wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
                         poll_interval=0.1)
-        step = TablesStep(Served(endpoint, model="tables"))
+        step = TableRecognizer(Served(endpoint, model="tables"))
         out = {d.id: d for d in step.run(iter([page("with", "table"), page("without", "text"), page("x", "bad")]))}
         assert SEEN == {"with-r": True, "without-r": False, "x-r": False}
         for pid in ("with", "without"):            # both pages carry the step's record, image or not

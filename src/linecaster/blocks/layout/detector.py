@@ -1,8 +1,8 @@
-"""``LayoutStep``: a layout engine on every page (regions with labels and reading order), with its backend."""
+"""``LayoutDetector``: a layout engine on every page (regions with labels and reading order), with its backend."""
 from __future__ import annotations
 
-from ..base.model import ModelStep
+from ..base.model import ModelBlock
 
 
-class LayoutStep(ModelStep):
+class LayoutDetector(ModelBlock):
     step = "layout"

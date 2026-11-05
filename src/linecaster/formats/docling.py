@@ -1,5 +1,5 @@
 """Page composition and binding: a ``Transcription``'s regions, lines and tables -> its ``docling`` part (a
-``DoclingDocument``; ``ComposePage``), an item's pages bound into one (``BindItem``), and the Markdown and
+``DoclingDocument``; ``Composer``), an item's pages bound into one (``BindItem``), and the Markdown and
 text exports of them.
 
 Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). ``text="lines"``
@@ -98,7 +98,7 @@ def region_rows(lines: list[Line]):
 
 
 TEXT_MODES = ("lines", "reflow")
-#: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``ComposePage``)
+#: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``Composer``)
 REGION_MAP_KEY = "docling_region_of"
 
 
@@ -292,7 +292,7 @@ def load_docling(t: Transcription):
     from docling_core.types.doc import DoclingDocument
 
     if t.docling is None:
-        raise ValueError("the transcription has no docling part (compose the page first: ComposePage)")
+        raise ValueError("the transcription has no docling part (compose the page first: Composer)")
     return DoclingDocument.model_validate(t.docling)
 
 

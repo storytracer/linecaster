@@ -21,7 +21,7 @@ import io
 import re
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes
 
 
 def png_full(image: bytes) -> str:
@@ -67,7 +67,7 @@ def to_markdown(raw: str, revision: str | None = None, preset: str = "nemotron-3
     return strip_underscore_emphasis(_render(raw.strip()).strip())
 
 
-class NemotronParse(ChatModel):
+class NemotronParseAdapter(ChatAdapter):
     adapter: ClassVar[str] = "nemotron-parse"
 
     def request(self, image: bytes) -> dict:

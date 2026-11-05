@@ -268,12 +268,12 @@ def _args(*argv):
 
 
 def _pipeline(a, files: str):
-    from linecaster.blocks.recognition.recognizers import RecognitionStep
+    from linecaster.blocks.recognition.recognizers import LineRecognizer
     from linecaster.blocks.writers.files import PageFilesWriter
 
     backend = InProcess("test_provenance:StampModel", size=3)
     backend.preset, backend.preset_sha256 = "stamp@2", SHA
-    return [run.reader(a), RecognitionStep(backend), PageFilesWriter(files, formats=("alto", "page", "hocr")),
+    return [run.reader(a), LineRecognizer(backend), PageFilesWriter(files, formats=("alto", "page", "hocr")),
             run.rows(a)]
 
 
@@ -291,9 +291,9 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
-    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "RecognitionStep", "PageFilesWriter",
+    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineRecognizer", "PageFilesWriter",
                                                      "PageJsonlWriter"]
-    assert rec["pipeline"][1] == {"block": "RecognitionStep", "step": "recognition", "backend": "in-process",
+    assert rec["pipeline"][1] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
                                   "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
@@ -333,18 +333,18 @@ def test_record_on_any_fsspec_folder():
 
 
 def test_served_blocks_take_engine_and_preset_from_the_server_models():
-    from linecaster.blocks.recognition.recognizers import RecognitionStep
-    from linecaster.blocks.servers.serve import ServeModels
+    from linecaster.blocks.recognition.recognizers import LineRecognizer
+    from linecaster.blocks.servers.serve import ModelServer
 
     models = [{"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {}}, "preset": "rec@3",
                "preset_sha256": SHA},
               {"name": "layout", "spec": "pkg:Layout", "kwargs": {"model_name": "L"}}]
-    pipeline = [RecognitionStep(Served("http://127.0.0.1:8100/v1", model="recognition")), ServeModels(models)]
+    pipeline = [LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition")), ModelServer(models)]
     entries = provenance.pipeline_entries(pipeline)
-    assert entries[0] == {"block": "RecognitionStep", "step": "recognition", "backend": "served",
+    assert entries[0] == {"block": "LineRecognizer", "step": "recognition", "backend": "served",
                           "endpoint": "http://127.0.0.1:8100/v1", "served_model": "recognition", "engine": "pkg:Rec",
                           "preset": "rec@3", "preset_sha256": SHA}
-    assert entries[1] == {"block": "ServeModels", "port": 8100, "models": [
+    assert entries[1] == {"block": "ModelServer", "port": 8100, "models": [
         {"name": "recognition", "engine": "pkg:Rec", "preset": "rec@3", "preset_sha256": SHA},
         {"name": "layout", "engine": "pkg:Layout", "options": {"model_name": "L"}}]}
 

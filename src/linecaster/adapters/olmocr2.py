@@ -18,7 +18,7 @@ import re
 from typing import Any, ClassVar
 
 from ..data.transcription import Transcription
-from . import ChatModel, data_url, png_longest
+from . import ChatAdapter, data_url, png_longest
 
 #: the board harness's pattern (the body is optional: a blank page is answered with front matter alone)
 FRONT_MATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n(.*))?$", re.DOTALL)
@@ -63,7 +63,7 @@ def body(raw: str) -> str:
     return split_front_matter(raw)[1]
 
 
-class OlmOCR(ChatModel):
+class OlmOCRAdapter(ChatAdapter):
     adapter: ClassVar[str] = "olmocr"
 
     @property

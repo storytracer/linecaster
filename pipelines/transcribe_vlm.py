@@ -37,9 +37,9 @@
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""A vision-language model reads the page: the whole page (``ChatPageStep``) or, with a --layout preset, each
-region it finds (``ChatRegionStep``, a region preset). Each task starts vLLM or SGLang for the model itself
-(``ServeChatModel``, last in the pipeline) unless --vlm-endpoint names a running server; with --layout it also
+"""A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
+region it finds (``RegionRecognizer``, a region preset). Each task starts vLLM or SGLang for the model itself
+(``ChatModelServer``, last in the pipeline) unless --vlm-endpoint names a running server; with --layout it also
 serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in OUT/rows; the
 model's raw answer is in each page's transcription.
 
@@ -53,16 +53,16 @@ id (that model's page preset, with --layout its region preset where it has one).
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
 has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
 (linecaster alone for page models; with --layout also linecaster-paddlex for the layout model), and
-``ServeChatModel`` starts the image's own server. SGLang presets and region reading start it outside that
+``ChatModelServer`` starts the image's own server. SGLang presets and region reading start it outside that
 environment (``outside_venv``), so neither the image's Python nor its CUDA libraries see the pipeline's
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling.
 """
 from linecaster.adapters import chat_model
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutStep
-from linecaster.blocks.recognition.chat import ChatPageStep, ChatRegionStep
-from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
+from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.runtime import run
 
 VLM_PORT = 8000
@@ -99,15 +99,15 @@ def pipeline(a, script: str):
     servers = []
     if regions:
         b, servers = run.engines(a, models(a), script, a.layout_window)
-        steps += [LayoutStep(b["layout"]), ChatRegionStep(spec, vlm)]
+        steps += [LayoutDetector(b["layout"]), RegionRecognizer(spec, vlm)]
     else:
-        steps += [ChatPageStep(spec, vlm)]
+        steps += [PageRecognizer(spec, vlm)]
     if not a.vlm_endpoint:
         draft = getattr(spec, "draft_model", None)
         extra = [] if a.no_speculative or not draft else spec.speculative_args(draft, spec.draft_revision)
         gmu = a.gpu_memory_utilization if a.gpu_memory_utilization is not None or sglang else 0.8
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
-        servers.append(ServeChatModel(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
+        servers.append(ChatModelServer(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
                                       outside_venv=sglang or regions))
     return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": regions}
 

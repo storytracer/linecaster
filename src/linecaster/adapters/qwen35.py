@@ -1,5 +1,5 @@
 """Adapter ``qwen3.5``: Qwen3.5 as a page reader (preset ``qwen3.5-9b``, the board's "greedy + card penalties"
-row). The request is Ovis-OCR's (``ovis_ocr.OvisOCR``: image as JPEG, area-capped, then the prompt;
+row). The request is Ovis-OCR's (``ovis_ocr.OvisOCRAdapter``: image as JPEG, area-capped, then the prompt;
 ``chat_template_kwargs`` with thinking off: the shipped template opens a ``<think>`` block unless
 ``enable_thinking`` is false); the record names the prompt variant (``settings.prompt_variant``) and its
 hash, by which the board names the row.
@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, ClassVar
 
-from .ovis_ocr import OvisOCR
+from .ovis_ocr import OvisOCRAdapter
 
 
 def unwrap_fence(text: str) -> str:
@@ -24,7 +24,7 @@ def unwrap_fence(text: str) -> str:
     return (rest if head.strip().isalpha() or not head.strip() else body).strip()
 
 
-class Qwen35(OvisOCR):
+class Qwen35Adapter(OvisOCRAdapter):
     adapter: ClassVar[str] = "qwen3.5"
 
     def settings(self) -> dict[str, Any]:

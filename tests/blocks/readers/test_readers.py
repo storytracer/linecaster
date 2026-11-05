@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.blocks.base.page import image_bytes, new_page_document, page_of
 from linecaster.blocks.readers.images import ImageFolderReader, ImageParquetReader
-from linecaster.blocks.readers.records import PageRowReader
+from linecaster.blocks.readers.records import PageRecordReader
 
 
 def png(color="white") -> bytes:
@@ -95,10 +95,10 @@ def test_item_shards_bring_a_books_pages_together(tmp_path):
     assert {p.name for p in (tmp_path / "rows").iterdir()} == shards
     seen = {}
     for rank in range(2):
-        for doc in PageRowReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run(rank=rank,
+        for doc in PageRecordReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run(rank=rank,
                                                                                                      world_size=2):
             seen.setdefault(page_of(doc).item_id, set()).add(rank)
     assert set(seen) == {"a", "b", "c"} and all(len(ranks) == 1 for ranks in seen.values())
     texts = list(ItemTexts(variants=("verbatim_txt",)).run(
-        PageRowReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run()))
+        PageRecordReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run()))
     assert sorted((d.id, d.metadata["pages"]) for d in texts) == [("a", 4), ("b", 4), ("c", 4)]

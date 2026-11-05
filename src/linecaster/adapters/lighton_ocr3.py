@@ -13,7 +13,7 @@ import base64
 import io
 from typing import Any, ClassVar
 
-from . import ChatModel, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes
 
 
 def png_thumbnail(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
@@ -26,7 +26,7 @@ def png_thumbnail(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     return png_bytes(img), img.size
 
 
-class LightOnOCR3(ChatModel):
+class LightOnOCR3Adapter(ChatAdapter):
     adapter: ClassVar[str] = "lighton-ocr-3"
 
     @property

@@ -14,7 +14,7 @@ class ImageFilesWriter(PipelineStep):
     """Each page's image bytes as they came, one file per page: ``<output_folder>/<item_id>/<page_id>.<ext>``
     (any fsspec folder; ``<page_id>.<ext>`` for pages without an item), the extension from the image's format.
     The page's ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from,
-    so page rows written after this block point at the copy (``PageRowReader`` fetches it from there), and
+    so page rows written after this block point at the copy (``PageRecordReader`` fetches it from there), and
     ``ImageFolderReader(output_folder, item_from_parent=True)`` reads the folder as it is.
 
     With ``ocr_folder``, a library's own OCR that came with the page (a document media, as ``ManifestReader``'s

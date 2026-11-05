@@ -1,7 +1,7 @@
 """Layout blocks without a model.
 
 ``SingleRegionLayout``: no layout analysis, the whole page is one ``text`` region (plain OCR; what
-squiddleocr's ``--layout none`` does). A line step on the whole page and ``AssignLinesToRegions``
+squiddleocr's ``--layout none`` does). A line step on the whole page and ``LineAssigner``
 then put every line into it; no table or formula regions exist.
 """
 from __future__ import annotations
@@ -9,10 +9,10 @@ from __future__ import annotations
 from ...data.geometry import BBox
 from ...data.page import Page
 from ...data.transcription import Region
-from ..base.page import PageStep
+from ..base.page import PageBlock
 
 
-class SingleRegionLayout(PageStep):
+class SingleRegionLayout(PageBlock):
     """Replace the transcription's regions with one region covering the page image (id ``page``,
     label ``text``, reading order 0)."""
 
