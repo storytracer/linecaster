@@ -21,7 +21,12 @@ the pipeline's engine packages or linecaster alone.
 Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.runtime.provenance.run_record``:
 the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
 later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml`` next to it.
-``--dry-run`` writes nothing and prints the record with the plan. A model dict may name a catalog
+Before that the builder (``linecaster.runtime.builder``) turns the blocks the script returns into a plan: it checks
+their contracts (every problem listed, nothing launched), stamps the recipe before the first writer, applies
+``--until``, ``--after`` and ``--tap-after``, and cuts the pipeline into stages where the stream changes from pages to
+items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the one before). ``--page IMAGE`` runs one
+image through the pipeline in this process (``linecaster page``).
+``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
 """
@@ -85,10 +90,19 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                                         "services (jpg, png, tif, webp; what the server offers)")
     g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
                                    "pipelines/harvest.py's OUT/pages), images fetched from their URIs")
+    g.add_argument("--page", metavar="IMAGE", help="one page image instead of IMAGES, run in this process without "
+                                                   "an executor (`linecaster page`)")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
                    help="http(s) requests (manifests, images, OCR) per task, e.g. 5/1; repeatable, all windows apply")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
+    g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
+    g.add_argument("--until", metavar="BLOCK", help="run the blocks up to BLOCK, then write the page records "
+                                                    "(OUT/pages)")
+    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the blocks after "
+                                                    "BLOCK")
+    g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
+                   help="also write the page records as they leave BLOCK into DIR; repeatable")
     g = ap.add_argument_group("output")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
                    help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
@@ -116,7 +130,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--image", default=None, help="the Jobs' container image")
     g.add_argument("--timeout", default="3h")
     g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
-    g.add_argument("--dry-run", action="store_true", help="print the plan and pickle the pipeline; launch nothing")
+    g.add_argument("--dry-run", action="store_true", help="print the plan (stages, contracts, problems) and its "
+                                                          "Mermaid graph, pickle the pipeline; launch nothing")
     return ap
 
 
@@ -135,9 +150,13 @@ def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
 
 
 def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
-    inputs = [x for x in ("images", "parquet", "manifests", "pages") if getattr(a, x, None)]
+    inputs = [x for x in ("images", "parquet", "manifests", "pages", "page") if getattr(a, x, None)]
     if len(inputs) != 1:
-        ap.error("give one of IMAGES, --parquet, --manifests and --pages")
+        ap.error("give one of IMAGES, --parquet, --manifests, --pages and --page")
+    if getattr(a, "after", None) and not a.pages:
+        ap.error("--after starts from page records: give --pages DIR")
+    if getattr(a, "page", None) and (a.on != "local" or a.tasks != 1):
+        ap.error("--page runs one image in this process: no --on, no --tasks")
     if (a.parquet or a.pages) and (a.paths_file or a.item_from_parent):
         ap.error("--paths-file and --item-from-parent are for IMAGES and --manifests; --parquet names items "
                  "with --item-key")
@@ -195,6 +214,9 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
                               http=http(a))
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a))
+    if getattr(a, "page", None):
+        folder, _, name = a.page.rstrip("/").rpartition("/")
+        return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
     if a.parquet:
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
@@ -219,7 +241,8 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
             b.overrides = m.get("overrides")
         return backends, []
     endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
-    backends = {m["name"]: Served(endpoint, model=m["name"], max_window=window) for m in models}
+    backends = {m["name"]: Served(endpoint, model=m["name"], max_window=window, preset=m.get("preset"),
+                                  engine=m.get("spec")) for m in models}
     if a.endpoint:
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
@@ -288,19 +311,25 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
 
 
 def executor_name(a: argparse.Namespace) -> str:
+    if getattr(a, "page", None):
+        return "run_pages"
     return {"local": "LocalPipelineExecutor", "ray": "RayGPUExecutor"}.get(
         a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsPipelineExecutor")
 
 
 def record(a: argparse.Namespace, pipeline: list, script: str | None, argv: list[str] | None = None,
-           deps: list | None = None, image: str | None = None) -> dict:
-    """The run record of this launch (``linecaster.runtime.provenance.run_record``)."""
+           deps: list | None = None, image: str | None = None, stages: list | None = None) -> dict:
+    """The run record of this launch (``linecaster.runtime.provenance.run_record``); ``stages`` (the plan's, when it
+    has more than one) are recorded with their blocks and tasks."""
     from .provenance import run_record
 
-    extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else None
+    extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
+    if stages and len(stages) > 1:
+        extra["stages"] = [{"name": s.name, "tasks": s.tasks, "blocks": [type(b).__name__ for b in s.blocks]}
+                           for s in stages]
     opts = {k: v for k, v in vars(a).items() if k != "recipe_record"}
     return run_record(opts, pipeline, script=script, argv=sys.argv[1:] if argv is None else argv,
-                      executor=executor_name(a), extra=extra, recipe=getattr(a, "recipe_record", None))
+                      executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
 
 
 def write_record(out: str, rec: dict) -> str:
@@ -319,7 +348,8 @@ def write_record(out: str, rec: dict) -> str:
     return name
 
 
-def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | None) -> dict:
+def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | None, stages: list | None = None) -> dict:
+    """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
     import dill
 
     from ..blocks.servers.serve import ChatModelServer, ModelServer
@@ -327,55 +357,99 @@ def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | 
 
     servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
                else s.launch_command(s.python) for s in pipeline if isinstance(s, (ModelServer, ChatModelServer))]
+    pickled = [s.pipeline for s in stages] if stages else pipeline
     return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
             "image": image,
             "dependencies": deps, "pipeline": [type(s).__name__ for s in pipeline], "servers": servers,
-            "pickled_bytes": len(dill.dumps(pipeline))}
+            "pickled_bytes": len(dill.dumps(pickled))}
+
+
+def build_plan(a: argparse.Namespace, pipeline: list):
+    """The builder's plan for the pipeline a script built, with the command line's partial run, taps and recipe."""
+    from . import builder
+
+    recipe = getattr(a, "recipe_record", None)
+    return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else a.tasks,
+                         until=getattr(a, "until", None), after=getattr(a, "after", None),
+                         taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
+                         recipe=(recipe["ref"], recipe["sha256"]) if recipe else None)
+
+
+def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None):
+    """One executor per stage, each depending on the one before (datatrove's ``depends=``); the last one runs
+    them all. One stage logs to ``OUT/logs``, several to ``OUT/logs/<stage>``."""
+    previous = None
+    many = len(p.stages) > 1
+    for stage in p.stages:
+        logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
+        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer") for b in stage.blocks)
+        if a.on == "local":
+            from datatrove.executor import LocalPipelineExecutor
+
+            workers = a.workers or stage.tasks
+            previous = LocalPipelineExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
+                                             logging_dir=logs, depends=previous)
+        elif a.on == "ray":
+            if servers or not many:
+                from .ray import RayGPUExecutor as Ray
+            else:                                    # an item stage without models needs no GPU
+                from datatrove.executor.ray import RayPipelineExecutor as Ray
+
+            previous = Ray(stage.pipeline, tasks=stage.tasks, cpus_per_task=a.cpus_per_task,
+                           mem_per_cpu_gb=a.mem_per_cpu_gb, logging_dir=logs, depends=previous)
+        else:
+            from datatrove.executor import JobsPipelineExecutor
+
+            from .jobs import GPUJobsExecutor
+
+            run_id = out.rsplit("/", 1)[-1]
+            env = {"LINECASTER_RUN": run_id, **dict(kv.split("=", 1) for kv in a.env)}
+            kw = dict(tasks=stage.tasks, workers=a.workers or -1, logging_dir=logs, flavor=a.flavor,
+                      namespace=a.namespace, dependencies=deps, timeout=a.timeout, python="3.12",
+                      job_name=f"linecaster-{run_id}" + (f"-{stage.name}" if many else ""),
+                      labels={"project": "linecaster"}, env=env, depends=previous)
+            if image or a.image:
+                kw["image"] = a.image or image
+            if a.gpus > 1 and servers:
+                previous = GPUJobsExecutor(stage.pipeline, gpus=a.gpus, **kw)
+            else:
+                previous = JobsPipelineExecutor(stage.pipeline, tasks_per_job=a.tasks_per_job or 1, **kw)
+    return previous
 
 
 def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True,
         argv: list[str] | None = None) -> None:
+    """Build the plan of ``pipeline`` (``linecaster.runtime.builder``), check it, write the run record and run its
+    stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
+    page in this process."""
     out = a.out.rstrip("/")
+    p = build_plan(a, pipeline)
+    blocks = p.blocks
     deps = None
     if a.on == "hf-jobs":
         from .jobs import dependencies
 
         deps = dependencies(a.commit, script, engines)
-    rec = record(a, pipeline, script, argv, deps, image or a.image)
     if a.dry_run:
-        print(json.dumps({**plan(a, pipeline, deps, image or a.image), "record": rec}, indent=1))
+        rec = record(a, blocks, script, argv, deps, image or a.image, p.stages)
+        print(json.dumps({**plan(a, blocks, deps, image or a.image, p.stages), "plan": p.describe(), "record": rec},
+                         indent=1))
+        print()
+        print(p.mermaid())
+        p.check()
         return
+    p.check()
+    rec = record(a, blocks, script, argv, deps, image or a.image, p.stages)
     write_record(out, rec)
-    if a.on == "local":
-        from datatrove.executor import LocalPipelineExecutor
+    if getattr(a, "page", None):
+        from .builder import run_plan
 
-        LocalPipelineExecutor(pipeline, tasks=a.tasks, workers=a.workers or a.tasks, logging_dir=f"{out}/logs").run()
-    elif a.on == "ray":
-        os.environ.setdefault(RAY_UV, "0")
-        import ray
-
-        from .ray import RayGPUExecutor
-
-        ray.init(address=a.address)
-        RayGPUExecutor(pipeline, tasks=a.tasks, cpus_per_task=a.cpus_per_task, mem_per_cpu_gb=a.mem_per_cpu_gb,
-                       logging_dir=f"{out}/logs").run()
-    else:
-        from datatrove.executor import JobsPipelineExecutor
-
-        from .jobs import GPUJobsExecutor
-
-        run_id = out.rsplit("/", 1)[-1]
-        env = {"LINECASTER_RUN": run_id, **dict(kv.split("=", 1) for kv in a.env)}
-        kw = dict(tasks=a.tasks, workers=a.workers or -1, logging_dir=f"{out}/logs", flavor=a.flavor,
-                  namespace=a.namespace, dependencies=deps, timeout=a.timeout, python="3.12",
-                  job_name=f"linecaster-{run_id}", labels={"project": "linecaster"}, env=env)
-        if image or a.image:
-            kw["image"] = a.image or image
-        if a.gpus > 1:
-            GPUJobsExecutor(pipeline, gpus=a.gpus, **kw).run()
-        else:
-            JobsPipelineExecutor(pipeline, tasks_per_job=a.tasks_per_job or 1, **kw).run()
-        print(json.dumps({"out": out, "commit": a.commit, "image": kw.get("image")}))
+        docs = run_plan(p)
+        print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
+        return
+    _executors(a, p, out, image, deps).run()
+    if a.on == "hf-jobs":
+        print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
 
 
 def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
@@ -448,9 +522,10 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     a = check(ap, a)
     built = build(a, str(Path(script).resolve()))
     pipeline, extra = built if isinstance(built, tuple) else (built, {})
-    if getattr(a, "recipe_record", None):
-        from ..blocks.validation.recipe import RecipeStamper
+    from ..errors import PipelineConfigError
 
-        first_writer = next((i for i, b in enumerate(pipeline) if type(b).__name__.endswith("Writer")), len(pipeline))
-        pipeline.insert(first_writer, RecipeStamper(a.recipe_record["ref"], a.recipe_record["sha256"]))
-    run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)
+    try:
+        run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)
+    except PipelineConfigError as e:        # the command line's exit code; every problem listed
+        print(e, file=sys.stderr)
+        sys.exit(2)

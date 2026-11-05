@@ -254,6 +254,25 @@ class StampModel:
         return t
 
 
+class OneLineModel:
+    """A test line engine: one line over the page, no step recorded."""
+
+    step, name = "lines", "one-line"
+
+    def __init__(self, **kwargs):
+        pass
+
+    def load(self):
+        pass
+
+    def __call__(self, image, t, **params):
+        from linecaster.data import Line
+
+        h, w = image.shape[:2]
+        t.lines = [Line(id="l0", bbox=[0, 0, w, h], polygon=[[0, 0], [w, 0], [w, h], [0, h]])]
+        return t
+
+
 def _images(folder: Path) -> str:
     folder.mkdir(parents=True)
     buf = io.BytesIO()
@@ -268,13 +287,14 @@ def _args(*argv):
 
 
 def _pipeline(a, files: str):
+    from linecaster.blocks.lines.detector import LineDetector
     from linecaster.blocks.recognition.recognizers import LineRecognizer
     from linecaster.blocks.writers.files import PageFileWriter
 
     backend = InProcess("test_provenance:StampModel", size=3)
     backend.preset, backend.preset_sha256 = "stamp@2", SHA
-    return [run.reader(a), LineRecognizer(backend), PageFileWriter(files, formats=("alto", "page", "hocr")),
-            run.pages(a)]
+    return [run.reader(a), LineDetector(InProcess("test_provenance:OneLineModel")), LineRecognizer(backend),
+            PageFileWriter(files, formats=("alto", "page", "hocr")), run.pages(a)]
 
 
 def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
@@ -291,9 +311,9 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
-    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineRecognizer", "PageFileWriter",
-                                                     "PageJsonlWriter"]
-    assert rec["pipeline"][1] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
+    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
+                                                     "PageFileWriter", "PageJsonlWriter"]
+    assert rec["pipeline"][2] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
                                   "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
@@ -313,9 +333,14 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
     images, out = _images(tmp_path / "images"), str(tmp_path / "out")
     a = _args(images, out, "--dry-run")
     run.run(a, _pipeline(a, str(tmp_path / "files")), __file__, argv=[images, out, "--dry-run"])
-    plan = json.loads(capsys.readouterr().out)
+    printed = capsys.readouterr().out
+    plan, end = json.JSONDecoder().raw_decode(printed)
     assert plan["record"]["schema"] == "linecaster.run/1"
-    assert plan["record"]["pipeline"][1]["preset"] == "stamp@2"
+    assert plan["record"]["pipeline"][2]["preset"] == "stamp@2"
+    assert [b["block"] for b in plan["plan"]["stages"][0]["blocks"]][:3] == ["ImageFolderReader", "LineDetector",
+                                                                            "LineRecognizer"]
+    assert plan["plan"]["problems"] == []
+    assert printed[end:].strip().startswith("flowchart TD")
     assert not (tmp_path / "out").exists()
 
 

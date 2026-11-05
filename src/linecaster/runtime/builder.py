@@ -411,8 +411,8 @@ def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: li
     folder = posixpath.join(run_folder.rstrip("/"), "pages")
     target = get_datafolder(folder).path
     shards = next((i for i, e in enumerate(pre) if _is(e.block, "PageJsonlWriter") and e.block.item_shards), None)
-    if shards is not None:
-        n, folder = pre[shards].block.item_shards, _folder(pre[shards].block)
+    if shards is not None:           # its own item shards: read them where it writes them (its DataFolder)
+        n, folder = pre[shards].block.item_shards, pre[shards].block.output_folder
     else:
         n = tasks
         same = next((i for i, e in enumerate(pre) if _is(e.block, "PageJsonlWriter") and _folder(e.block) == target),
@@ -591,7 +591,7 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
     cut = _cut(entries, tasks, run_folder, problems)
     graph, counter = Graph(), [0]
     analysis = _Analysis(graph, problems, counter)
-    stages, described, previous_nodes = [], [], None
+    stages, described, previous_nodes, carried = [], [], None, frozenset()
     for index, (name, stage_entries, stage_tasks) in enumerate(cut):
         where = f"stage {index + 1} ({name})" if len(cut) > 1 else "the pipeline"
         if index > 0:          # the reader of a later stage brings what the earlier one wrote

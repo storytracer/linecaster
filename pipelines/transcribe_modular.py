@@ -66,10 +66,9 @@ squiddleocr names them), with --item-texts one text per item in each text varian
 """
 from linecaster.blocks.binding.texts import ItemTexts
 from linecaster.blocks.composition.composer import Composer
+from linecaster.blocks.composites.modular import ModularTranscriber
 from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.layout.single_region import SingleRegionLayout
-from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.lines.detector import LineDetector
 from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
 from linecaster.blocks.text.unicode import UnicodeNormalizer
@@ -126,9 +125,6 @@ def pipeline(a, script: str) -> list:
         raise SystemExit(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
     if not a.layout and (a.tables or a.formulas):
         raise SystemExit("modular: --tables and --formulas work on layout regions; pick --layout too")
-    if a.item_texts and a.tasks > 1:
-        raise SystemExit("modular: --item-texts needs every page of an item in one task; with several tasks write "
-                         "--item-shards N and run pipelines/bind.py on OUT/pages afterwards")
     formats = tuple(a.formats.split(","))
     unknown = sorted(set(formats) - set(PAGE_FILE_EXTENSIONS))
     if unknown:
@@ -139,10 +135,10 @@ def pipeline(a, script: str) -> list:
         b[step] = Served(url, model=step, max_window=a.window)
     return [
         run.reader(a),
-        LayoutDetector(b["layout"]) if "layout" in b else SingleRegionLayout(),
-        LineDetector(b["lines"]),
-        LineAssigner(formulas_separately="formulas" in b),
-        LineRecognizer(b["recognition"]),
+        # layout (or the page as one region) -> lines -> line assignment -> line recognition
+        ModularTranscriber(lines=LineDetector(b["lines"]), recognition=LineRecognizer(b["recognition"]),
+                           layout=LayoutDetector(b["layout"]) if "layout" in b else None,
+                           formulas_separately="formulas" in b),
         UnicodeNormalizer(),                       # kraken writes decomposed text; the as-written layer is NFC
         *([TableRecognizer(b["tables"])] if "tables" in b else []),
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
@@ -150,7 +146,8 @@ def pipeline(a, script: str) -> list:
         Composer(text=a.text),
         *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, **NAMING[a.naming])] if a.files else []),
         run.pages(a),
-        # after the page writers: ItemTexts consumes the pages and emits one document per item and version
+        # after the page writers: ItemTexts consumes the pages and emits one document per item and version; with
+        # several tasks the builder cuts here (the pages in item shards, then a stage over whole items)
         *([ItemTexts(), ItemTextWriter(a.item_texts, format="files"), ItemTextWriter(a.item_texts)]
           if a.item_texts else []),
         *servers,                                 # last: lives until every page is written

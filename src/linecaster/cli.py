@@ -99,6 +99,40 @@ def _catalog(a) -> None:
         print(path)
 
 
+#: the pipeline ``linecaster page`` runs without --recipe or --pipeline
+PAGE_PIPELINE = "transcribe_modular.v1"
+
+
+def page_command(image: str, out: str, rest: list[str], pipeline: str | None = None) -> list[str]:
+    """The pipeline script's command line for ``linecaster page``: the script of ``pipeline`` (a pipeline id), else
+    of the recipe ``--recipe`` in ``rest`` names, else of ``PAGE_PIPELINE``, with ``--page IMAGE OUT``."""
+    from .catalog import code
+
+    if pipeline is None:
+        ap = argparse.ArgumentParser(add_help=False)
+        ap.add_argument("--recipe")
+        known, _ = ap.parse_known_args(rest)
+        if known.recipe:
+            from .catalog.registry import catalog
+
+            pipeline = catalog().resolve_recipe(known.recipe).content["pipeline"]
+    pipeline = pipeline or PAGE_PIPELINE
+    if code.REPO is None or not (code.REPO / "pipelines").is_dir():
+        raise SystemExit("linecaster page runs a pipeline script (pipelines/*.py): it needs the repository checkout")
+    scripts = code.pipelines()
+    if pipeline not in scripts:
+        raise SystemExit(f"no pipeline script for {pipeline} (pipelines/*.py: {', '.join(sorted(scripts))})")
+    return ["uv", "run", "--script", str(scripts[pipeline].source), "--page", image, out, *rest]
+
+
+def _page(a, rest: list[str]) -> None:
+    import os
+
+    cmd = page_command(a.image, a.out, rest, a.pipeline)
+    env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}       # the script's own environment
+    os.execvpe(cmd[0], cmd, env)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="linecaster")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -127,8 +161,17 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--commit", help="release: the linecaster commit")
     c.add_argument("--out", help="schemas, docs: output folder (default: the package's schemas/, docs/catalog)")
     c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
-    a = ap.parse_args(argv)
-    if a.command == "serve":
+    p = sub.add_parser("page", help="run a pipeline script's blocks on one page image in this process, without an "
+                                    "executor; the pipeline's options follow (--recipe R, --lines ..., --files DIR)")
+    p.add_argument("image", help="the page image")
+    p.add_argument("out", help="output folder: the page record in OUT/pages, files where the options say")
+    p.add_argument("--pipeline", help=f"the pipeline id (default: the recipe's, else {PAGE_PIPELINE})")
+    a, rest = ap.parse_known_args(argv)
+    if rest and a.command != "page":
+        ap.error(f"unrecognized arguments: {' '.join(rest)}")
+    if a.command == "page":
+        _page(a, rest)
+    elif a.command == "serve":
         _serve(a)
     elif a.command == "models":
         _models(a)
