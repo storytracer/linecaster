@@ -11,7 +11,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/7e8dd301bf793f90cbbe9664e003ea8b0a1b356d.tar.gz" }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/449bcc50b25aaa8d4ad4ea00bc78c9554e136af7.tar.gz" }
 # ///
 r"""The harvest stage: items' page images (and, with --existing-ocr, the library's own OCR) from their manifests
 (IIIF or METS; a folder, a list of links, or item tables with --manifest-key), or from http(s) image URLs in a page
