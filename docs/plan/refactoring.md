@@ -12,7 +12,7 @@ table then lives in `CHANGELOG.md`'s upgrade notes. Terms are the [glossary](../
 | D2 | The catalog step `page` (a VLM reads the whole page) | merged into **`recognition` with unit `page`**: there is no step `page`; `presets/page/` moves to `presets/recognition/`; in `transcribe_vlm.py` the slot `vlm` and flag `--vlm` become `recognition` / `--recognition` |
 | D3 | Released editions when the catalog changes format (YAML + Markdown, the hash over YAML only, renamed fields and steps, new pipeline ids) | one **catalog migration** in phase 1: a lock format `linecaster.lock/2`; every edition keeps its number, its hash is recomputed under the new format, and the old hash stays in the lock so existing run records still resolve. Allowed only for changes that keep behavior; anything else is a new edition. This also moves `squiddle@1` to `transcribe_modular.v1` without a `squiddle@2` |
 | D4 | Writers that overlap | `PageFilesWriter` + `PageExportsWriter` → **`PageFileWriter`** (one writer for every per-page format, with a naming option for squiddleocr's names); `ItemExportsWriter` → **`ItemDocumentWriter`**; `ItemTextJsonlWriter` + `ItemTextFilesWriter` → **`ItemTextWriter`** (`format="jsonl" \| "files"`) |
-| D5 | `--text lines\|reflow` and `--texts DIR` (one letter apart, unrelated) | `--text` becomes the slot **`--recomposition PRESET`** (none: the page stays as laid out); `--texts DIR` becomes **`--item-texts DIR`** |
+| D5 | `--text lines\|reflow` and `--texts DIR` (one letter apart, unrelated) | `--texts DIR` becomes **`--item-texts DIR`** in phase 1; `--text` becomes the slot **`--recomposition PRESET`** in phase 3, when the recomposition presets exist (none: the page stays as laid out) |
 | D6 | "page row" and "record" (the stored and the in-memory page) next to `Line.row` (the lines side by side at one height) | **page record** for the page, in memory and on disk: `OUT/rows/` → `OUT/pages/`, `PageRowReader` → `PageRecordReader`, `--rows` → `--pages`; **row** only means the visual row, and `Line.row` keeps its name |
 | D7 | Where built-in engines live | **`linecaster.engines`** (normalization, typography, recomposition, composition, image, chat); the repository folder `engines/` keeps the engine packages |
 | D8 | "Connector" | dropped; inputs are **readers** |
@@ -144,7 +144,7 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | `pipelines/bind.py`, no id | id `bind.v1` |
 | `--recognizer` | `--recognition` |
 | `--vlm`, `--vlm-endpoint` | `--recognition`, `--recognition-endpoint` (D2) |
-| `--text lines\|reflow` | `--recomposition PRESET` (D5) |
+| `--text lines\|reflow` | `--recomposition PRESET` (D5, phase 3) |
 | `--texts DIR` | `--item-texts DIR` (D5) |
 | `--files`, `--exports` | `--files` with every per-page format (D4) |
 | `--rows DIR`, `OUT/rows/` | `--pages DIR`, `OUT/pages/` (D6) |
