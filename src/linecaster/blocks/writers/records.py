@@ -21,12 +21,21 @@ def page_record(self, doc) -> dict:
 
 
 def page_record_json(self, doc) -> dict:
-    """Parquet-friendly: the page record as a JSON string (its nested structure varies between steps)."""
+    """Parquet-friendly: the page record as a JSON string (its nested structure varies between steps), and the
+    errors as a JSON string or null, so every row has the same columns (``PARQUET_SCHEMA``)."""
     row = page_record(self, doc)
     row[PAGE_KEY] = json.dumps(row[PAGE_KEY], ensure_ascii=False)
-    if "errors" in row:
-        row["errors"] = json.dumps(row["errors"], ensure_ascii=False)
+    row["errors"] = json.dumps(row["errors"], ensure_ascii=False) if "errors" in row else None
     return row
+
+
+def parquet_schema():
+    """The page records' Parquet columns. Given explicitly: datatrove otherwise takes a file's schema from its first
+    row, and a column that row lacks (``errors``) would be dropped from every later row."""
+    import pyarrow as pa
+
+    return pa.schema([("schema", pa.string()), ("id", pa.string()), ("text", pa.string()), (PAGE_KEY, pa.string()),
+                      ("errors", pa.string())])
 
 
 class _Flushed:
@@ -74,4 +83,5 @@ class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
     role = "writer"
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.parquet", **kwargs):
+        kwargs.setdefault("schema", parquet_schema())
         super().__init__(output_folder, output_filename, adapter=page_record_json, **kwargs)

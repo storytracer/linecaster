@@ -43,11 +43,34 @@ WHEEL_MOUNT = "/wheels"
 _SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
 
 
-def script_metadata(path: str | Path) -> dict:
-    """The inline metadata (PEP 723) of the script at ``path``."""
+def at_commit(path: str | Path, commit: str | None) -> str:
+    """The text of ``path`` as it is at linecaster ``commit``, so a Job's dependencies come from the commit it
+    installs and not from whatever the checkout holds now. A file outside the checkout (a derivative's own), or a
+    commit the checkout does not know (not fetched, or not a git checkout), is read as it is on disk, with a
+    warning for the latter."""
+    import subprocess
+
+    path = Path(path).resolve()
+    try:
+        rel = path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return path.read_text()
+    if commit:
+        r = subprocess.run(["git", "-C", str(ROOT), "show", f"{commit}:{rel}"], capture_output=True, text=True)
+        if r.returncode == 0:
+            return r.stdout
+        from loguru import logger
+
+        logger.warning("linecaster commit {commit} is not in the checkout {root}: {rel} is read as it is on disk, "
+                       "which may not match the commit the Jobs install", commit=commit, root=ROOT, rel=rel)
+    return path.read_text()
+
+
+def script_metadata(path: str | Path, commit: str | None = None) -> dict:
+    """The inline metadata (PEP 723) of the script at ``path`` (at linecaster ``commit``: ``at_commit``)."""
     import tomllib
 
-    m = _SCRIPT.search(Path(path).read_text())
+    m = _SCRIPT.search(at_commit(path, commit))
     if not m:
         raise PipelineConfigError(f"{path}: no '# /// script' block")
     return tomllib.loads("".join(line[2:] if line.startswith("# ") else line[1:]
@@ -61,7 +84,8 @@ def _name(requirement: str) -> str:
 def dependencies(commit: str, script: str | Path | None = None, engines: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
     metadata of ``script`` (a pipeline): its dependencies with the script's sources spelled out as URLs at
-    ``commit`` (``url`` sources as they are) and its version pins, for the packages its lock resolves.
+    ``commit`` (``url`` sources as they are) and its version pins, for the packages its lock resolves, all read
+    from the script and lock as they are at ``commit`` (``at_commit``).
     ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU pipeline): linecaster with the script's
     extras and its ``url``-source dependencies (pybookget), no engines and no pins; without a script, linecaster
     alone. Engines without a script are a ``PipelineConfigError``: give ``ENGINE_SCRIPT`` (the modular pipeline's
@@ -81,7 +105,7 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
                                       "for linecaster alone")
         return [f"linecaster @ {repo}"]
     script = Path(script).resolve()
-    meta = script_metadata(script)
+    meta = script_metadata(script, commit)
     uv = meta.get("tool", {}).get("uv", {})
     sources = {_name(k): v for k, v in uv.get("sources", {}).items()}
     deps, light = [], []
@@ -107,7 +131,7 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
         return light or [f"linecaster @ {repo}"]
     # --with installs what it is given: pin only what the script's environment really contains
     lock = script.with_name(script.name + ".lock")
-    resolved = {p["name"] for p in tomllib.loads(lock.read_text())["package"]}
+    resolved = {p["name"] for p in tomllib.loads(at_commit(lock, commit))["package"]}
     deps += [c for c in uv.get("constraint-dependencies", []) if _name(c) in resolved]
     return deps
 

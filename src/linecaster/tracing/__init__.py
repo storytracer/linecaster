@@ -34,6 +34,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 from opentelemetry.sdk.trace.sampling import Decision, Sampler, SamplingResult
 from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -164,8 +165,29 @@ def resource(process: str = "pipeline", run: str | None = None, task: int | None
     return Resource.create(attrs)
 
 
+class UnitIds(RandomIdGenerator):
+    """Trace ids of units derived from the run and the unit's id (``for_unit``), so a rerun of a run gives its
+    sampled pages the same ``trace_id`` in their page records; span ids and other traces' ids stay random."""
+
+    def __init__(self, run: str | None):
+        self.run = run or ""
+        self._next = threading.local()
+
+    def for_unit(self, unit_id: str) -> None:
+        """The next trace id this thread asks for is ``unit_id``'s."""
+        digest = hashlib.blake2b(f"{self.run}/{unit_id}".encode(), digest_size=16).digest()
+        self._next.trace_id = int.from_bytes(digest, "big") or 1
+
+    def generate_trace_id(self) -> int:
+        trace_id = getattr(self._next, "trace_id", None)
+        if trace_id is None:
+            return super().generate_trace_id()
+        self._next.trace_id = None
+        return trace_id
+
+
 def task_provider(res: Resource, sampler: Sampler | None = None, path: str | None = None,
-                  otlp: bool | None = None) -> tuple[TracerProvider, PageBuffer]:
+                  otlp: bool | None = None, ids: UnitIds | None = None) -> tuple[TracerProvider, PageBuffer]:
     """A provider whose spans go through a ``PageBuffer`` to the file ``path`` (OTLP JSON lines; none without a
     path) and, with ``otlp`` (default: ``otlp_configured()``), to the OTLP/HTTP endpoint of the ``OTEL_*``
     variables. Shut it down (``provider.shutdown()``) to flush and close the file."""
@@ -180,7 +202,8 @@ def task_provider(res: Resource, sampler: Sampler | None = None, path: str | Non
 
         inner.append(BatchSpanProcessor(OTLPSpanExporter(), max_queue_size=2**16))
     buffer = PageBuffer(inner)
-    provider = TracerProvider(sampler=sampler or UnitSampler(1.0), resource=res, shutdown_on_exit=False)
+    provider = TracerProvider(sampler=sampler or UnitSampler(1.0), resource=res, shutdown_on_exit=False,
+                              **({"id_generator": ids} if ids is not None else {}))
     provider.add_span_processor(buffer)
     return provider, buffer
 
@@ -286,12 +309,13 @@ def counts(doc, transcription: str | None) -> dict:
 
 
 class _Unit:
-    """A unit in flight: its root span and context, whether it failed in this stage, its open spans."""
+    """A unit in flight: its id (never the document itself: a page a block drops must not stay in memory with its
+    image), root span and context, whether it failed in this stage, its open spans."""
 
-    __slots__ = ("doc", "root", "context", "failed", "blocks", "requests")
+    __slots__ = ("id", "root", "context", "failed", "blocks", "requests")
 
     def __init__(self, doc, root, context):
-        self.doc, self.root, self.context, self.failed = doc, root, context, False
+        self.id, self.root, self.context, self.failed = str(doc.id), root, context, False
         self.blocks: dict[int, object] = {}             # id(block) -> its open linecaster.block span
         self.requests: dict[tuple, object] = {}         # (id(block), region) -> the open prepare or request span
 
@@ -313,9 +337,10 @@ class Tracing(Observer):
         self._reset()
 
     def _reset(self) -> None:
-        self.provider = self.buffer = self.tracer = None
+        self.provider = self.buffer = self.tracer = self.ids = None
         self.task_span, self.task_context, self.rank, self.path = None, None, 0, None
         self._units: dict[int, _Unit] = {}
+        self._inside: dict[int, int] = {}               # id(per-unit block) -> id() of the unit it works on
         self._attrs: dict[int, dict] = {}
         self._lock = threading.RLock()
         self._local = threading.local()
@@ -333,7 +358,8 @@ class Tracing(Observer):
         self.rank = rank
         self.path = trace_file(self.run_folder, rank, self.stage) if self.run_folder else None
         res = resource("pipeline", self.run, rank, world_size, self.stage)
-        self.provider, self.buffer = task_provider(res, UnitSampler(self.sample), self.path)
+        self.ids = UnitIds(self.run)
+        self.provider, self.buffer = task_provider(res, UnitSampler(self.sample), self.path, ids=self.ids)
         self.tracer = self.provider.get_tracer(SCOPE)
         self.task_span = self.tracer.start_span("linecaster.task", context=Context(), attributes={
             "linecaster.task": rank, "linecaster.tasks": world_size, "linecaster.sample": self.sample,
@@ -411,7 +437,7 @@ class Tracing(Observer):
         """The unit ``doc`` is, started now if it is new to this task: its root span (``linecaster.page`` or
         ``linecaster.item``), the fetch spans its reader recorded, its context on the document."""
         u = self._units.get(id(doc))
-        if u is not None and u.doc is doc:
+        if u is not None and u.id == str(doc.id):
             return u
         is_page = isinstance(doc.metadata.get("page"), dict)
         key = PAGE_ID if is_page else ITEM_ID
@@ -422,6 +448,7 @@ class Tracing(Observer):
         attrs = {key: str(doc.id), "linecaster.unit": "page" if is_page else "item"}
         if is_page and doc.metadata["page"].get("item_id"):
             attrs[ITEM_ID] = str(doc.metadata["page"]["item_id"])
+        self.ids.for_unit(str(doc.id))
         root = self.tracer.start_span("linecaster.page" if is_page else "linecaster.item", context=Context(),
                                       start_time=start, attributes=attrs)
         ctx = root.get_span_context()
@@ -433,6 +460,19 @@ class Tracing(Observer):
             doc.metadata["page"].setdefault("metadata", {})["trace_id"] = f"{ctx.trace_id:032x}"
         self._units[id(doc)] = u
         return u
+
+    def _dropped_before(self, block, doc) -> None:
+        """A per-unit block works on one unit at a time: if the unit it had before ``doc`` never came out of it, the
+        block dropped it (or passed on another object in its place), and its trace ends here, as unfinished (called
+        with the lock held)."""
+        if getattr(block, "shape", None) != "unit":
+            return
+        before = self._inside.get(id(block))
+        self._inside[id(block)] = id(doc)
+        u = self._units.get(before) if before is not None and before != id(doc) else None
+        if u is not None and id(block) in u.blocks:
+            del self._units[before]
+            self._end_unit(u, unfinished=True)
 
     def _fetch_span(self, u: _Unit, f: dict) -> None:
         attrs = {f"linecaster.http.{k}": f[k] for k in ("host", "status", "attempts", "wait_seconds")
@@ -463,6 +503,7 @@ class Tracing(Observer):
         if self.tracer is None:
             return
         with self._lock:
+            self._dropped_before(block, doc)
             u = self._unit(doc)
             attrs, changes_unit = self._info(block)
             if changes_unit:
@@ -497,7 +538,7 @@ class Tracing(Observer):
             return
         with self._lock:
             u = self._units.pop(id(doc), None)
-        if u is not None and u.doc is doc:
+        if u is not None and u.id == str(doc.id):
             self._end_unit(u)
 
     def on_unit(self, block, doc, event: str, **attributes) -> None:
@@ -507,7 +548,7 @@ class Tracing(Observer):
         key = (id(block), region)
         with self._lock:
             u = self._units.get(id(doc))
-            if u is None or u.doc is not doc:
+            if u is None or u.id != str(doc.id):
                 return
             parent = u.blocks.get(id(block))
             parent_ctx = trace_api.set_span_in_context(parent) if parent is not None else u.context
@@ -545,7 +586,7 @@ class Tracing(Observer):
         if page_id is not None:
             with self._lock:
                 for u in self._units.values():
-                    if u.doc.id == page_id:
+                    if u.id == page_id:
                         c = u.root.get_span_context()
                         return c.trace_id, c.span_id
         span = getattr(self._local, "span", None) or self.task_span

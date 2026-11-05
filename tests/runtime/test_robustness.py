@@ -291,3 +291,19 @@ def test_task_logs_are_json_lines_on_jobs(tmp_path: Path, monkeypatch):
     assert "| INFO" in (tmp_path / "logs" / "task_00004.log").read_text()
     logger.remove()
     logger.add(__import__("sys").stderr)
+
+
+def test_job_dependencies_come_from_the_commit_they_install():
+    """A Job's dependencies are read from the pipeline script as it is at the pinned commit, not from the checkout."""
+    import subprocess
+
+    from linecaster.runtime.jobs import ENGINE_SCRIPT, ROOT, at_commit
+
+    first = subprocess.run(["git", "-C", str(ROOT), "rev-list", "--max-parents=0", "HEAD"], capture_output=True,
+                           text=True).stdout.split()[0]
+    head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert at_commit(ENGINE_SCRIPT, head) == subprocess.run(
+        ["git", "-C", str(ROOT), "show", f"HEAD:{ENGINE_SCRIPT.relative_to(ROOT).as_posix()}"],
+        capture_output=True, text=True).stdout
+    with pytest.raises(FileNotFoundError):        # the modular script did not exist in the first commit
+        at_commit(ROOT / "pipelines" / "no-such-script.py", first)

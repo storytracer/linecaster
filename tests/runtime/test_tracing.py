@@ -473,3 +473,43 @@ def test_a_second_stop_signal_does_not_cut_the_servers_end_short():
         assert app._raise_graceful_exit() is None          # the second one (from uv run, passing it on) is ignored
     finally:
         app._STOPPING.clear()
+
+
+def test_trace_ids_follow_the_run_and_the_page(tmp_path):
+    """A sampled page gets the same trace id in a rerun of the same run (its page record stays the same), another
+    run gives it another."""
+    def trace_id(run_folder: Path) -> str:
+        t = Tracing(str(run_folder), sample=1.0, run="r1" if run_folder.name != "other" else "r2")
+        t.on_task_start(0, 1)
+        doc = new_page_document("b_0001", png(40), uri="b_0001.png", item_id="b")
+        t.on_enter(_Noop(), doc)
+        t.on_leave(doc)
+        t.on_task_end()
+        return doc.metadata["page"]["metadata"]["trace_id"]
+
+    first, again, other = trace_id(tmp_path / "a"), trace_id(tmp_path / "b"), trace_id(tmp_path / "other")
+    assert first == again != other
+
+
+def test_a_dropped_page_is_not_held_in_memory(tmp_path):
+    """A page a per-unit block drops never comes out of it: when the next page goes in, the dropped one's trace ends
+    (unfinished) and nothing of it stays with the observer; documents are never held."""
+    t = Tracing(str(tmp_path), sample=1.0, run="r")
+    t.on_task_start(0, 1)
+    block = _Noop()
+    dropped = new_page_document("b_0001", png(40), uri="b_0001.png", item_id="b")
+    t.on_enter(block, dropped)                      # the block drops it: no on_exit
+    kept = new_page_document("b_0002", png(40), uri="b_0002.png", item_id="b")
+    t.on_enter(block, kept)
+    assert [u.id for u in t._units.values()] == ["b_0002"]
+    assert not any(getattr(v, "doc", None) for v in t._units.values())   # no document is held
+    t.on_exit(block, kept)
+    t.on_leave(kept)
+    t.on_task_end()
+
+
+class _Noop(PageBlock):
+    name = "noop"
+
+    def process_page(self, doc, page):
+        return page

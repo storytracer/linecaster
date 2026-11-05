@@ -114,3 +114,15 @@ compatibility aliases: old imports, flags and ids fail.
   `ChatModelServer` starts vLLM with `--otlp-traces-endpoint` when OTLP is configured; fetch spans from
   `net.http.HTTPFetcher` (`fetch_record`); `trace_id` and `span_id` on log records; `linecaster traces OUT [--by
   block|preset|task] [--slowest N] [--json]`.
+
+### Fixed
+
+- `PageParquetWriter` writes a fixed schema: datatrove took a file's columns from its first row, so a page's
+  `errors` were dropped when the first page of a file had none. Page records in Parquet now always have an `errors`
+  column (null without errors).
+- Tracing holds no page documents: a page a block drops no longer stays in memory, with its image, until the task
+  ends; its trace ends when the next page enters that block.
+- A sampled page's `metadata.trace_id` is derived from the run and the page id, so a rerun of a run writes the same
+  page records.
+- `runtime.jobs.dependencies()` reads the pipeline script and its lock as they are at the commit the Jobs install,
+  not as the checkout holds them (with a warning when the commit is not in the checkout).

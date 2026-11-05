@@ -128,6 +128,23 @@ def test_page_records_carry_their_format(tmp_path):
         assert page_of(back).page_id == "b_0001"
 
 
+def test_parquet_page_records_keep_errors_after_a_page_without(tmp_path):
+    """datatrove takes a Parquet file's schema from its first row unless one is given: a page's errors must survive
+    a first page that had none."""
+    from linecaster.blocks.writers.records import PageParquetWriter
+
+    ok = new_page_document("b_0001", png(), uri="b_0001.png", item_id="b")
+    bad = new_page_document("b_0002", png(), uri="b_0002.png", item_id="b")
+    bad.metadata["errors"] = [{"block": "LineRecognizer", "type": "RuntimeError", "error": "no lines"}]
+    with PageParquetWriter(str(tmp_path / "parquet")) as w:
+        w.write(ok, 0)
+        w.write(bad, 0)
+    back = {d.id: d for d in PageRecordReader(str(tmp_path / "parquet"), glob_pattern="**/*.parquet",
+                                              fetch_images=False).run()}
+    assert "errors" not in back["b_0001"].metadata
+    assert back["b_0002"].metadata["errors"][0]["error"] == "no lines"
+
+
 def test_page_records_from_before_phase_1(tmp_path):
     """A record without ``schema`` is the format before phase 1: linecaster's transcription was ``ocr`` (now
     ``ocr_new``), and the run folder kept the records in ``rows/`` (now ``pages/``)."""
