@@ -43,6 +43,36 @@
           "additionalProperties": true,
           "title": "Resolved",
           "type": "object"
+        },
+        "pipeline": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a recipe edition: its expanded pipeline, every block with its functional parameters",
+          "title": "Pipeline"
+        },
+        "pipeline_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a recipe edition: the hash of its expanded pipeline, as run records name it",
+          "title": "Pipeline Sha256"
         }
       },
       "required": [

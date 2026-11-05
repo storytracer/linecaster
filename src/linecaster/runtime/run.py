@@ -240,7 +240,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     from ..backends import InProcess, Served
     from ..blocks.servers.serve import ModelServer
 
-    models = preset_models(models)
+    models = preset_models(models, installed=not getattr(a, "describe_only", False))
     if a.backend == "in-process":
         backends = {}
         for m in models:
@@ -274,16 +274,16 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
     return out
 
 
-def preset_models(models: list[dict]) -> list[dict]:
+def preset_models(models: list[dict], installed: bool = True) -> list[dict]:
     """Model dicts with a catalog ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
     engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
-    are."""
+    are. ``installed=False``: the engines need not be installed here (``describe_script``)."""
     out = []
     for m in models:
         if m.get("preset") and not m.get("spec"):
             from ..catalog.registry import engine_spec
 
-            spec, kwargs, r = engine_spec(m["preset"])
+            spec, kwargs, r = engine_spec(m["preset"], installed=installed)
             m = {**m, "spec": spec, "kwargs": {**kwargs, **m.get("overrides", {})}, "preset": r.ref,
                  "preset_sha256": r.sha256}
         out.append(m)
@@ -547,6 +547,73 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
                        **({"overrides": overrides} if overrides else {})}
 
 
+def parse(argv: list[str], description: str | None, options: Callable, pipeline_id: str | None = None,
+          slots: dict[str, str] | None = None, c=None) -> argparse.Namespace:
+    """A pipeline's command line parsed: the shared options and the script's, the recipe applied (from catalog
+    ``c``, default the installed one), checked."""
+    ap = parser(description)
+    g = ap.add_argument_group("pipeline")
+    if pipeline_id:
+        g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
+                                        "command line leaves open")
+    options(g)
+    a = ap.parse_args(argv)
+    if pipeline_id:
+        apply_recipe(ap, a, pipeline_id, slots or {}, argv, c)
+    return check(ap, a)
+
+
+def load_script(script: str | Path):
+    """A pipeline script as a module of this process (its ``__main__`` block does not run): its ``options``,
+    ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``. Its PEP 723 environment is not needed as long as nothing
+    loads an engine: blocks and backends import no engine before ``warm_up``."""
+    import importlib.util
+
+    path = Path(script).resolve()
+    spec = importlib.util.spec_from_file_location(f"linecaster_pipeline_{path.stem}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def describe_script(script: str | Path, argv: list[str], c=None):
+    """The builder's plan of the pipeline script ``script`` with the command line ``argv``, built in this process
+    without its engines (the describe mode: presets name their engines without importing them, nothing is
+    loaded or launched)."""
+    module = load_script(script)
+    pipeline_id = getattr(module, "PIPELINE", None)
+    a = parse(list(argv), module.__doc__, module.options, pipeline_id, getattr(module, "SLOTS", None), c)
+    a.describe_only = True
+    built = module.pipeline(a, str(Path(script).resolve()))
+    pipeline = built[0] if isinstance(built, tuple) else built
+    return build_plan(a, pipeline)
+
+
+def describe_recipe(ref: str, c=None) -> dict:
+    """A recipe edition's expanded pipeline: its pipeline script (by the recipe's pipeline id, in the checkout)
+    described with ``--recipe REF`` on placeholder folders (``describe_script``), in-process, one task:
+    ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
+    catalog the recipe is in (default the installed one)."""
+    from ..blocks.base import model
+    from ..catalog import code
+    from ..catalog.registry import active, catalog
+    from . import provenance
+
+    c = c if c is not None else catalog()
+    pipeline_id = c.resolve_recipe(ref).content["pipeline"]
+    scripts = code.pipelines() if code.REPO is not None and (code.REPO / "pipelines").is_dir() else {}
+    if pipeline_id not in scripts:
+        raise CatalogError(f"recipe {ref}: no pipeline script for {pipeline_id} (it needs the repository checkout)")
+    model._preset_produces.cache_clear()
+    try:
+        with active(c):
+            p = describe_script(scripts[pipeline_id].source, ["IMAGES", "OUT", "--recipe", ref], c)
+    finally:
+        model._preset_produces.cache_clear()
+    p.check()
+    return {"pipeline": provenance.functional_pipeline(p), "pipeline_sha256": provenance.pipeline_sha256(p)}
+
+
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
          pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
     """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``pipeline_id``
@@ -561,16 +628,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     try:
         if argv[:1] == ["serve"]:
             return serve(argv[1:], options, models, pipeline_id, slots)
-        ap = parser(description)
-        g = ap.add_argument_group("pipeline")
-        if pipeline_id:
-            g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
-                                            "command line leaves open")
-        options(g)
-        a = ap.parse_args(argv)
-        if pipeline_id:
-            apply_recipe(ap, a, pipeline_id, slots or {}, argv)
-        a = check(ap, a)
+        a = parse(argv, description, options, pipeline_id, slots)
         built = build(a, str(Path(script).resolve()))
         pipeline, extra = built if isinstance(built, tuple) else (built, {})
         run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)

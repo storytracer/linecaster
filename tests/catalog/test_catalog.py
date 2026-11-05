@@ -1,6 +1,7 @@
 """The catalog (docs/reference/catalog.md): YAML 1.2 booleans, documents, release, immutability, old editions, and
 the installed catalog being consistent."""
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
@@ -41,7 +42,7 @@ def make(root, temperature=0.0, edition=1, prose="Why these settings."):
         "license": "MIT"}, "Ours.\n")
     write_entry(root / "presets" / "recognition" / "p.yaml", {
         "schema": "linecaster.preset/1", "id": "p", "edition": edition, "step": "recognition",
-        "model": {"id": "m", "revision": "abc"}, "engine": "chat.v1", "options": {"adapter": "x"},
+        "model": {"id": "m", "revision": "abc"}, "engine": "chat.v1", "options": {"adapter": "lighton-ocr-2"},
         "settings": {"sampling": {"temperature": temperature}}, "capabilities": {"unit": "page"}, "support": "core"}, prose)
 
 
@@ -160,10 +161,10 @@ def test_unknown_engines_are_reported(tmp_path):
     assert any("'chat.v9' is not registered" in p for p in Catalog([tmp_path]).verify())
 
 
-def make_recipe(root, preset="p@1", text="reflow", edition=1):
+def make_recipe(root, preset="p@1", window=16, edition=1, pipeline="transcribe_vlm.v1"):
     write_entry(root / "recipes" / "r.yaml", {
-        "schema": "linecaster.recipe/1", "id": "r", "edition": edition, "pipeline": "transcribe_modular.v1",
-        "presets": {"recognition": preset}, "options": {"text": text}, "support": "core"}, "Why this combination.")
+        "schema": "linecaster.recipe/1", "id": "r", "edition": edition, "pipeline": pipeline,
+        "presets": {"recognition": preset}, "options": {"window": window}, "support": "core"}, "Why this combination.")
 
 
 def test_a_recipe_cannot_share_a_presets_name(tmp_path):
@@ -188,11 +189,11 @@ def test_recipes_pin_released_preset_editions(tmp_path):
     entry = c.release("r")
     assert entry.resolved["presets"] == {"recognition": {"ref": "p@1", "sha256": c.resolve("p@1").sha256}}
     assert Catalog([tmp_path]).verify() == []
-    make_recipe(tmp_path, text="lines")                       # changed without a new edition
+    make_recipe(tmp_path, window=8)                           # changed without a new edition
     assert any("recipe r@1 is released" in p for p in Catalog([tmp_path]).verify())
-    make_recipe(tmp_path, text="lines", edition=2)
+    make_recipe(tmp_path, window=8, edition=2)
     c = Catalog([tmp_path])
-    assert c.verify() == [] and c.resolve_recipe("r@1").content["options"] == {"text": "reflow"}
+    assert c.verify() == [] and c.resolve_recipe("r@1").content["options"] == {"window": 16}
     with pytest.raises(CatalogError, match="exact preset editions"):
         make_recipe(tmp_path, preset="p")
         Catalog([tmp_path])
@@ -225,19 +226,66 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
     ap = argparse.ArgumentParser()
     ap.add_argument("--recipe")
     ap.add_argument("--recognition")
-    ap.add_argument("--text", default="lines")
+    ap.add_argument("--window", type=int, default=48)
     c = Catalog([tmp_path])
     argv = ["--recipe", "r"]
     a = ap.parse_args(argv)
-    run.apply_recipe(ap, a, "transcribe_modular.v1", {"recognition": "recognition"}, argv, c)
-    assert (a.recognition, a.text) == ("p@1", "reflow")
+    run.apply_recipe(ap, a, "transcribe_vlm.v1", {"recognition": "recognition"}, argv, c)
+    assert (a.recognition, a.window) == ("p@1", 16)
     assert a.recipe_record["ref"] == "r@1" and "overrides" not in a.recipe_record
-    argv += ["--text", "lines", "--recognition", "other@1"]
+    argv += ["--window", "8", "--recognition", "other@1"]
     a = ap.parse_args(argv)
-    run.apply_recipe(ap, a, "transcribe_modular.v1", {"recognition": "recognition"}, argv, c)
-    assert a.recipe_record["overrides"] == {"recognition": "other@1", "text": "lines"}
-    with pytest.raises(PipelineConfigError, match="not transcribe_vlm.v1"):
-        run.apply_recipe(ap, ap.parse_args(argv[:2]), "transcribe_vlm.v1", {}, argv[:2], c)
+    run.apply_recipe(ap, a, "transcribe_vlm.v1", {"recognition": "recognition"}, argv, c)
+    assert a.recipe_record["overrides"] == {"recognition": "other@1", "window": 8}
+    with pytest.raises(PipelineConfigError, match="not transcribe_modular.v1"):
+        run.apply_recipe(ap, ap.parse_args(argv[:2]), "transcribe_modular.v1", {}, argv[:2], c)
+
+
+def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
+    """``release`` records the recipe's pipeline, built from its pipeline script without the engines; ``verify``
+    builds it again and reports drift."""
+    from linecaster.catalog import registry
+    from linecaster.runtime import provenance, run
+
+    make(tmp_path)
+    make_recipe(tmp_path)
+    Catalog([tmp_path]).release("p")
+    c = Catalog([tmp_path])
+    entry = c.release("r")
+    assert entry.pipeline_sha256.startswith("sha256:")
+    assert [b["block"] for b in entry.pipeline] == ["ImageFolderReader", "PageRecognizer", "RecipeStamper",
+                                                    "RejectWriter", "PageJsonlWriter"]
+    recognizer = entry.pipeline[1]["params"]
+    assert recognizer["spec"]["preset"] == "p@1" and "endpoint" not in recognizer["backend"]
+    assert entry.pipeline[2]["params"] == {"recipe": "r@1", "recipe_sha256": entry.sha256}
+    # what the script builds into other folders is the same pipeline (in this process: the catalog put in place)
+    script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_vlm.py"
+    with registry.active(c):
+        plan = run.describe_script(script, ["IN", "ELSEWHERE", "--recipe", "r"], c)
+    assert provenance.pipeline_sha256(plan) == entry.pipeline_sha256
+    assert Catalog([tmp_path]).verify() == []
+    # drift: the lock no longer matches what the pipeline script builds
+    lock = (tmp_path / "catalog.lock").read_text()
+    (tmp_path / "catalog.lock").write_text(lock.replace("recipe_sha256:", "recipe_sha256_old:").replace(
+        entry.pipeline_sha256, "sha256:" + "1" * 64))
+    problems = Catalog([tmp_path]).verify()
+    assert any("recipe r@1: its expanded pipeline drifted from the lock" in p and "RecipeStamper (block 3)" in p
+               for p in problems)
+    with pytest.raises(CatalogError, match="drifted"):
+        Catalog([tmp_path]).release("r")
+    assert Catalog([tmp_path]).release("r", migrate_pipeline=True).pipeline_sha256 == entry.pipeline_sha256
+    assert Catalog([tmp_path]).verify() == []
+    # a released edition from before pipelines were locked gets its pipeline on release (a catalog migration)
+    lock = (tmp_path / "catalog.lock").read_text()
+    head, _, _ = lock.partition("    pipeline:\n")
+    (tmp_path / "catalog.lock").write_text(head)
+    assert any("its expanded pipeline is not in the lock" in p for p in Catalog([tmp_path]).verify())
+    again = Catalog([tmp_path]).release("r")
+    assert (again.sha256, again.pipeline_sha256) == (entry.sha256, entry.pipeline_sha256)
+    # a recipe whose pipeline cannot be built is not released
+    make_recipe(tmp_path, edition=2, pipeline="transcribe_modular.v1")
+    with pytest.raises(CatalogError, match="its pipeline cannot be built"):
+        Catalog([tmp_path]).release("r")
 
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
@@ -304,3 +352,21 @@ def test_whole_page_vlms_are_recognition_presets():
     pages = [pid for pid, (_, p) in c.presets.items() if p.page_preset]
     assert len(pages) >= 19 and all(c.preset(pid).engine == "chat.v1" for pid in pages)
     assert all(c.resolve(pid).content["step"] == "recognition" for pid in pages)
+
+
+def test_describing_a_recipe_imports_no_engine():
+    """The describe mode builds the modular pipeline's blocks without its engines: nothing of them is imported."""
+    import json
+    import subprocess
+    import sys
+
+    check = ("import json, sys\n"
+             "from linecaster.runtime.run import describe_recipe\n"
+             "d = describe_recipe('squiddle@1')\n"
+             "heavy = ('linecaster_kraken', 'linecaster_paddlex', 'linecaster_tesseract', 'kraken', 'torch', "
+             "'onnxruntime', 'paddlex')\n"
+             "print(json.dumps({'sha': d['pipeline_sha256'], 'loaded': sorted(m for m in sys.modules "
+             "if m.split('.')[0] in heavy)}))\n")
+    out = json.loads(subprocess.run([sys.executable, "-c", check], capture_output=True, text=True, check=True).stdout)
+    assert out["loaded"] == []
+    assert out["sha"] == Catalog().dirs[0].lock.recipes["squiddle@1"].pipeline_sha256

@@ -299,6 +299,10 @@ class LockEntry(_Doc):
     released: dt.date
     linecaster: str | None = Field(None, description="the linecaster commit it was released in")
     resolved: dict[str, Any]
+    pipeline: list[dict[str, Any]] | None = Field(None, description="a recipe edition: its expanded pipeline, every "
+                                                                    "block with its functional parameters")
+    pipeline_sha256: str | None = Field(None, description="a recipe edition: the hash of its expanded pipeline, as "
+                                                          "run records name it")
 
 
 class Lock(_Doc):

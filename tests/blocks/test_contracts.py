@@ -91,7 +91,7 @@ def test_served_backends_carry_the_preset(monkeypatch):
     class R:
         ref, sha256 = "pp-doclayoutv3@1", "sha256:" + "0" * 64
 
-    monkeypatch.setattr(registry, "engine_spec", lambda ref: ("linecaster_paddlex:PaddleLayoutEngine", {}, R()))
+    monkeypatch.setattr(registry, "engine_spec", lambda ref, installed=True: ("linecaster_paddlex:PaddleLayoutEngine", {}, R()))
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["images", "out", "--backend", "served"]))
     backends, servers = run.engines(a, [{"name": "layout", "preset": "pp-doclayoutv3"}], "script.py")

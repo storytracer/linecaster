@@ -1558,3 +1558,219 @@ recipes:
         tables:
           ref: slanet-plus@2
           sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
+    pipeline:
+    - block: ImageFolderReader
+      class: linecaster.blocks.readers.images:ImageFolderReader
+      params:
+        item_from_parent: false
+        item_id: null
+        sequence: false
+        default_metadata: null
+    - block: LayoutDetector
+      class: linecaster.blocks.layout.detector:LayoutDetector
+      params:
+        backend:
+          engine: linecaster_paddlex:PaddleLayoutEngine
+          options:
+            model_name: PP-DocLayoutV3
+            threshold: 0.3
+            header_zone: 0.15
+            nms: true
+            merge_mode:
+              '0': union
+              '1': union
+              '2': union
+              '3': large
+              '4': union
+              '5': large
+              '6': large
+              '7': union
+              '8': union
+              '9': union
+              '10': union
+              '11': union
+              '12': union
+              '13': union
+              '14': union
+              '15': large
+              '16': union
+              '17': large
+              '18': union
+              '19': union
+              '20': union
+              '21': union
+              '22': union
+              '23': union
+              '24': union
+            max_containment: 0.8
+            weights:
+              model: pp-doclayoutv3-onnx
+              source:
+                kind: hf
+                ref: PaddlePaddle/PP-DocLayoutV3_onnx
+              revision: 46bbdf188bb0a772c08aed74882ce7e51a8f1ea6
+              files:
+                inference.onnx: sha256:45bf71750b00739a41fc209f132eb104a4d6b5bb29483c9078164d8b87cf28ba
+          preset: pp-doclayoutv3@1
+          preset_sha256: sha256:a76f9337c505909134ae1f26859fa8b07f70c7ff4d6f97d57fbf009fea0eba87
+        transcription: ocr_new
+        params: null
+        primary: null
+        skip_on_error: true
+    - block: LineDetector
+      class: linecaster.blocks.lines.detector:LineDetector
+      params:
+        backend:
+          engine: linecaster_paddlex:PaddleLineEngine
+          options:
+            model_name: PP-OCRv6_medium_det
+            per_region: false
+            unclip_ratio: 1.5
+            box_thresh: 0.6
+            thresh: 0.3
+            pad: 0
+            mask: false
+            weights:
+              model: pp-ocrv6-medium-det-onnx
+              source:
+                kind: hf
+                ref: PaddlePaddle/PP-OCRv6_medium_det_onnx
+              revision: 61323801669c338b7891481ec7bac61ce31b576a
+              files:
+                inference.onnx: sha256:eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1
+          preset: pp-ocrv6-medium-det@1
+          preset_sha256: sha256:a8ab13d76b42f9b5b69dbb0d48e1da4135fd5e84a106f3df6d5dac613f05852e
+        transcription: ocr_new
+        params: null
+        primary: null
+        skip_on_error: true
+    - block: LineAssigner
+      class: linecaster.blocks.lines.assigner:LineAssigner
+      params:
+        transcription: ocr_new
+        skip_labels:
+        - chart
+        - picture
+        formulas_separately: true
+    - block: LineRecognizer
+      class: linecaster.blocks.recognition.recognizers:LineRecognizer
+      params:
+        backend:
+          engine: linecaster_kraken:KrakenRecognitionEngine
+          options:
+            model: medium
+            batch_size: 8
+            precision: auto
+            text_direction: horizontal-lr
+            weights:
+              model: kraken-ppocrv6-medium
+              source:
+                kind: hf
+                ref: small-models-for-glam/kraken-ppocrv6-medium
+              revision: f7fd70f3fd22b615f41bada4674ac2462f938339
+              files:
+                medium.safetensors: sha256:15313b51ace64cbfa81f8f6ef25ad64f04e5a6fb7f7823e67b107527bc081ac9
+          preset: kraken-ppocrv6-medium@1
+          preset_sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
+        transcription: ocr_new
+        params: null
+        primary: null
+        skip_on_error: true
+    - block: UnicodeNormalizer
+      class: linecaster.blocks.text.unicode:UnicodeNormalizer
+      params:
+        transcription: ocr_new
+        form: NFC
+    - block: TableRecognizer
+      class: linecaster.blocks.recognition.recognizers:TableRecognizer
+      params:
+        backend:
+          engine: linecaster_paddlex:PaddleTableEngine
+          options:
+            crop_pad: 8
+            e2e: true
+            name: table_recognition_v2/SLANet_plus
+            weights:
+              model: slanet-plus-onnx
+              source:
+                kind: hf
+                ref: PaddlePaddle/SLANet_plus_onnx
+              revision: 7dbe640e127602bf506815e822c09758de73c482
+              files:
+                inference.onnx: sha256:7790c0c13ce064782c9d22ebeb16b4da8216f83d3ba576da962c106ef58386da
+            submodel_weights:
+              PP-LCNet_x1_0_table_cls:
+                model: pp-lcnet-x1-0-table-cls-onnx
+                source:
+                  kind: hf
+                  ref: PaddlePaddle/PP-LCNet_x1_0_table_cls_onnx
+                revision: 605f623b09f67a562bae77e781d5d5266f14905a
+                files:
+                  inference.onnx: sha256:f8e4cb1b58a29bebd36852edcb238b53e0acefa75116a8a4db443f13dbc72b0b
+              RT-DETR-L_wired_table_cell_det:
+                model: rt-detr-l-wired-table-cell-det-onnx
+                source:
+                  kind: hf
+                  ref: PaddlePaddle/RT-DETR-L_wired_table_cell_det_onnx
+                revision: b2c0720b5fe6f1c0dd40f8a7993a3f28e04252f8
+                files:
+                  inference.onnx: sha256:bf5490020512a31f43813d90feadae9526a2c3474ffe807571f2c23594f5958f
+              RT-DETR-L_wireless_table_cell_det:
+                model: rt-detr-l-wireless-table-cell-det-onnx
+                source:
+                  kind: hf
+                  ref: PaddlePaddle/RT-DETR-L_wireless_table_cell_det_onnx
+                revision: 94c021be206064f0136ef1383fbd4b68b168fa61
+                files:
+                  inference.onnx: sha256:47515940ec5c37156e09aa9acb20c4e7e22456cad6ce49473661f1762fb46a78
+          preset: slanet-plus@2
+          preset_sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
+        transcription: ocr_new
+        params: null
+        primary: null
+        skip_on_error: true
+    - block: FormulaRecognizer
+      class: linecaster.blocks.recognition.recognizers:FormulaRecognizer
+      params:
+        backend:
+          engine: linecaster_paddlex:PaddleFormulaEngine
+          options:
+            model_name: PP-FormulaNet_plus-L
+            batch_size: 8
+            weights:
+              model: pp-formulanet-plus-l-safetensors
+              source:
+                kind: hf
+                ref: PaddlePaddle/PP-FormulaNet_plus-L_safetensors
+              revision: 6cc004a8e91ea3f3819b05317f40b290cbe99c2b
+              files:
+                model.safetensors: sha256:582848cf9b7066bb1cf3166ad75a476da492c3661ffa61bb7439f9fd098bde13
+          preset: pp-formulanet-plus-l@1
+          preset_sha256: sha256:15cd51d26ee7f253e4bdd4b1da5d56516e2af01c06ac680a622cdcb6c519a4bf
+        transcription: ocr_new
+        params: null
+        primary: null
+        skip_on_error: true
+    - block: Typographer
+      class: linecaster.blocks.composition.typographer:Typographer
+      params:
+        transcription: ocr_new
+    - block: Composer
+      class: linecaster.blocks.composition.composer:Composer
+      params:
+        transcription: ocr_new
+        text: reflow
+        rtl: false
+        sections: false
+    - block: RecipeStamper
+      class: linecaster.blocks.validation.recipe:RecipeStamper
+      params:
+        recipe: squiddle@1
+        recipe_sha256: sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
+    - block: RejectWriter
+      class: linecaster.blocks.writers.rejects:RejectWriter
+    - block: PageJsonlWriter
+      class: linecaster.blocks.writers.records:PageJsonlWriter
+      params:
+        item_shards: null
+    pipeline_sha256: sha256:37da2cd496805834b9907be757476190f371a19ddeedf7f148f2da478c25982b

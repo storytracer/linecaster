@@ -84,8 +84,9 @@ def _catalog(a) -> None:
         for path in docs.write(registry.Catalog(), a.out or "docs/catalog", readme=a.readme):
             print(path)
     elif a.action == "release":
-        e = registry.Catalog().release(a.ref, commit=a.commit)
-        print(f"{a.ref}: {e.sha256} (released {e.released})")
+        e = registry.Catalog().release(a.ref, commit=a.commit, migrate_pipeline=a.migrate_pipeline)
+        print(f"{a.ref}: {e.sha256} (released {e.released})"
+              + (f", pipeline {e.pipeline_sha256}" if e.pipeline_sha256 else ""))
     elif a.action == "schemas":
         from .catalog import schema
 
@@ -161,6 +162,9 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--tag", help="pin (GitHub): the tag or branch the commit was taken from")
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
     c.add_argument("--commit", help="release: the linecaster commit")
+    c.add_argument("--migrate-pipeline", action="store_true",
+                   help="release: record a released recipe edition's expanded pipeline anew (a catalog migration: the "
+                        "pipeline's code changed, its behavior did not)")
     c.add_argument("--out", help="schemas, docs: output folder (default: the package's schemas/, docs/catalog)")
     c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
     p = sub.add_parser("page", help="run a pipeline script's blocks on one page image in this process, without an "
