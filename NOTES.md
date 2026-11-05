@@ -872,3 +872,36 @@ servers with linecaster's user agent, 2 requests per second, 3 pages per item:
 
 Open: the per-task rate limit is the only limit (datatrove keeps no state between tasks); a run against one
 server sets `--workers` × `--rate-limit` to what that server accepts.
+
+## Tracing: overhead and storage (2026-11-05, GB10)
+
+The squiddle recipe on the 60-page sample, one task, in-process and served (`--backend served`: the task starts
+`linecaster serve`), each configuration twice. Untraced is the commit before tracing (`e4b8d1d`); traced at
+`--trace-sample` 0, 0.01 and 1. Seconds per page from the reader's first file to datatrove's "Processing done"
+(warm-ups and server start left out):
+
+| | untraced | sample 0 | sample 0.01 | sample 1 |
+|---|---|---|---|---|
+| in-process | 1.092, 1.088 | 1.092, 1.084 | 1.087, 1.078 | 1.091, 1.087, 1.091 |
+| served | 0.811, 0.810 | 0.812, 0.811 | 0.815, 0.817 | 0.814, 0.818, 0.812 |
+
+- The differences are within the run-to-run variation. The cost alone, on CPU: the modular pipeline with fake
+  engines (ten blocks with the rejects writer) on 2,000 small pages, best of three: 0.526 ms per page untraced,
+  +0.20 ms at sample 0 and 0.01 (every page's spans are recorded and held until it is done), +0.50 ms at sample 1.
+- Storage (gzipped OTLP JSON lines): the task spans take about 1.05 KB per task in-process, 1.25 KB served; a traced
+  page about 0.5 KB in-process (31,340 bytes for 60 pages at sample 1) and 1.7 KB served, pipeline and server
+  together (102,518 bytes). Per 1,000 pages: sample 0, only the task spans (and 0.5 KB per failed page); sample
+  0.01, about 5 KB in-process and 17 KB served; sample 1, about 0.5 MB in-process and 1.7 MB served.
+- Memory of the buffer for unsampled pages: 3.3 KB per held span (tracemalloc), 39 KB for a page of twelve blocks.
+- `linecaster serve` lost its last spans at first: saturate's `Engine` signals the server's process group and
+  `uv run` passes the signal on, so the server got SIGTERM twice and the second cut its graceful end short; and
+  PaddlePaddle puts its own SIGTERM handler in place at its first operation ("FatalError: Termination signal"),
+  which ends the process at once. The server now ends on the first signal only and sets its handlers again after
+  the engines load and after each model's first call; with that every request of the served run has its
+  `linecaster.serve.*` spans (60 of 60 per model).
+- vLLM 0.20.0 continues a `traceparent` from request headers when started with `--otlp-traces-endpoint`
+  (protocol from `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, default gRPC); saturate 0.3.0 sends the same headers with
+  every request, so a chat request carries no page context and vLLM's spans are traces of their own. Not run
+  against vLLM or an OTLP collector here.
+- Parity: the squiddle recipe in-process (sample 0.01) and served (sample 1) reproduce the goldens (60 of 60 pages
+  exact).
