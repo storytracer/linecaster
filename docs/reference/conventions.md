@@ -1,0 +1,80 @@
+# Conventions
+
+Rules that hold across the repository. Each rule is followed by its reason. Terms are the
+[glossary](glossary.md)'s.
+
+## Names
+
+| What | Pattern | Examples |
+|---|---|---|
+| block | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `Typographer`, `Composer`, `Binder`, `ManifestReader`, `PageJsonlWriter` |
+| composite block | `<Purpose><RoleNoun>` | `ModularTranscriber` |
+| block base classes | `<Unit>Block` | `PageBlock`, `ItemBlock`, `ModelBlock` |
+| engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
+| engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
+| VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
+| pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py` |
+| pipeline id | the script's file name, `.v<n>` | `transcribe_modular.v1` |
+| slot and its flag | the step's name | `--layout`, `--lines`, `--recognition` |
+| catalog step | a noun for the activity | `layout`, `recognition`, `recomposition` |
+| transcription names | `ocr_new`, `ocr_original`, `ground_truth`, or `<source>` | |
+
+Reason: one pattern makes names guessable, and role nouns say what a block is in a pipeline. Pipeline scripts are
+verbs because they are what one runs.
+
+## Spelling
+
+American English everywhere: code, flags, docs, commit messages (normalize, recognizer, behavior, license, color,
+catalog). Upstream text copied verbatim (model cards) keeps its spelling.
+
+Reason: one spelling for everything typed, matching Python and its ecosystem.
+
+## YAML and Markdown
+
+- Data that tools read is YAML; prose for people is Markdown. A catalog entry is `<id>.yaml`, optionally with
+  `<id>.md` next to it; tools never read the Markdown. Reason: Markdown renders cleanly, data validates, and diffs
+  of the two do not mix.
+- Every YAML file names its format twice: a first line `# yaml-language-server: $schema=<relative path to
+  schemas/<kind>-<n>.json>` (editors validate and complete) and a field `schema: linecaster.<kind>/<n>` (tools
+  check it). Reason: mistakes show while editing, not at run time.
+- The schemas are generated from the pydantic models (`model_json_schema()`) into `schemas/`, and a test fails when
+  a committed schema differs from a fresh one. The pydantic models are the only source of truth. Reason: one
+  definition, used by tools and editors alike.
+- YAML is YAML 1.2, read with `ruamel.yaml`: `true`/`false` are the only booleans (`NO` stays a string), duplicate
+  keys are errors, and tools that write files back keep their comments.
+- An edition's hash covers its YAML only. Prose can be corrected without a new edition; git keeps its history.
+
+Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `pipeline`, `lock`.
+
+## Contracts
+
+- Every block declares its unit and what it reads, adds and replaces. A part of the record is added by one block
+  only, unless a later block declares that it replaces it. Reason: the builder can then check a pipeline before it
+  runs and derive its graph.
+- Blocks are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
+  the same blocks run on any executor and in `run_pages()`.
+
+## Tracing
+
+- Tracing (OpenTelemetry) is always on. Spans per task always; spans per page for a sample chosen by page id, plus
+  every page that failed. Reason: where a run loses time is only visible per page and across processes.
+- A page carries its trace context from the reader on; blocks open spans as children of the page's context, never
+  of "the current span". Reason: pages are interleaved in the stream.
+- Attributes are identifiers and numbers under `linecaster.*`, never content (text, images). Reason: content
+  belongs in the rows, which the page id links to.
+- Traces are written to `OUT/traces/` and, when the standard `OTEL_*` variables are set, exported to a backend.
+
+## Telemetry
+
+linecaster sends nothing to anyone that the user did not configure. No usage data, no phoning home, not even
+opt-in. Reason: libraries and archives run it on their own infrastructure under their own rules.
+
+## Logging
+
+loguru (datatrove's), with `{placeholder}` templates and named values, never formatted strings; JSON lines on Jobs.
+Log records carry `trace_id` and `span_id`. Reason: logs can be filtered and joined to traces.
+
+## Changes
+
+`CHANGELOG.md` in the Keep a Changelog format, with upgrade notes first. `NOTES.md` is the log of measurements and
+decisions; reference documents (`docs/reference/`) describe what is, without history.
