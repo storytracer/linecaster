@@ -8,7 +8,7 @@ table then lives in `CHANGELOG.md`'s upgrade notes. Terms are the [glossary](../
 
 | # | Decision | Proposal |
 |---|---|---|
-| D1 | The default name of linecaster's own transcription | `ocr` → **`ocr_new`**, next to `ocr_original` (as the EBDC page row and `linecaster.page` already name them) |
+| D1 | The default name of linecaster's own transcription | `ocr` → **`ocr_new`**, next to `ocr_original` (as the EBDC pilot and `linecaster.page` already name them) |
 | D2 | The catalog step `page` (a VLM reads the whole page) | merged into **`recognition` with unit `page`**: there is no step `page`; `presets/page/` moves to `presets/recognition/`; in `transcribe_vlm.py` the slot `vlm` and flag `--vlm` become `recognition` / `--recognition` |
 | D3 | Released editions when the catalog changes format (YAML + Markdown, the hash over YAML only, renamed fields and steps, new pipeline ids) | one **catalog migration** in phase 1: a lock format `linecaster.lock/2`; every edition keeps its number, its hash is recomputed under the new format, and the old hash stays in the lock so existing run records still resolve. Allowed only for changes that keep behavior; anything else is a new edition. This also moves `squiddle@1` to `transcribe_modular.v1` without a `squiddle@2` |
 | D4 | Writers that overlap | `PageFilesWriter` + `PageExportsWriter` → **`PageFileWriter`** (one writer for every per-page format, with a naming option for squiddleocr's names); `ItemExportsWriter` → **`ItemDocumentWriter`**; `ItemTextJsonlWriter` + `ItemTextFilesWriter` → **`ItemTextWriter`** (`format="jsonl" \| "files"`) |
