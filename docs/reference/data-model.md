@@ -30,14 +30,14 @@ the image bytes, `metadata["page"]` the page record.
 | `source` | `kind` (`produced`, `converted`, `ground_truth`), `format`, `uri`, image size |
 | derived | `text` (as written, as laid out, full page; tables as Markdown), `confidence` (line confidences weighted by length) |
 
-- **`regions` are the contract between steps.** Lines and recognisers need the layout (label, polygon,
+- **`regions` are the contract between steps.** Lines and recognizers need the layout (label, polygon,
   reading order, score) long before a DoclingDocument can be built, so regions are a primary part next to
   `lines`; `docling` is composed from regions, lines and tables. Region ids are the producer's own
   (PP-DocLayout: `<raw label>_<index>`; rows outside every region: `orphan_<n>`); lines refer to them with
   `region_id`.
 - **Words are the finest level**; there is no glyph level. Engines with character positions turn them into
   words by the engine's own rule (kraken: split at whitespace, a word's box the bounding box of its cuts).
-- **A line's `text` is `None` until a recogniser ran**; an empty string is a line recognised as empty.
+- **A line's `text` is `None` until a recognizer ran**; an empty string is a line recognized as empty.
 - **Text-only transcriptions** (a delivered plain text) are lines without geometry (`bbox` and `polygon`
   `None`), one per text line, `source.kind = "converted"`, `source.format = "text"`. They cannot be written as
   ALTO, PAGE or hOCR.
@@ -52,7 +52,7 @@ coordinate to another image size.
 ## Order
 
 - **Processing order** is the list order of `Transcription.lines` after the line steps: regions in the layout
-  step's order, orphan rows last, rows within each region. A recogniser processes and batches lines in this
+  step's order, orphan rows last, rows within each region. A recognizer processes and batches lines in this
   order.
 - **Reading order** is separate: `reading_order` ranks the lines on the page (regions by their reading order,
   then rows); `row` is the visual row within a region.

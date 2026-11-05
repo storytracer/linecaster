@@ -5,7 +5,7 @@ Two engines: ``onnxruntime`` for the exported vision models (layout, text detect
 torch (PP-FormulaNet). Paddle Inference itself is never used.
 
 PaddleX prints INFO lines about cached models and checks its model hosters on every start; ONNX
-Runtime reports unused initialisers in the official ONNX exports. None of that is actionable for a
+Runtime reports unused initializers in the official ONNX exports. None of that is actionable for a
 user, so predictors are created with PaddleX's logger at WARNING, the hoster check disabled and
 ONNX Runtime's log level at ERROR (``LINECASTER_VERBOSE=1`` restores PaddleX's INFO output).
 """

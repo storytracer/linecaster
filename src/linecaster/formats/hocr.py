@@ -1,6 +1,6 @@
 """hOCR 1.2 (XHTML) on lxml.
 
-Mapping (see ``docs/reference/serialisation.md``):
+Mapping (see ``docs/reference/serialization.md``):
 
 * region -> a ``div`` of class ``ocr_carea`` (``ocr_header``, ``ocr_footer``, ``ocr_photo``,
   ``ocr_table``, ``ocr_math`` for page headers, page footers, pictures/charts, tables and formulas),
@@ -71,7 +71,7 @@ def _conf_pct(c: float) -> int:
     return X.round_half_up(float(c) * 100)
 
 
-def quantise_confidence(c: float | None) -> float | None:
+def quantize_confidence(c: float | None) -> float | None:
     """The confidence a reader gets back from hOCR's integer ``x_wconf``."""
     return None if c is None else _conf_pct(c) / 100
 
@@ -106,7 +106,7 @@ def _baseline_from_std(qbox, slope: float, offset: float) -> list[list[float]]:
 class _Writer:
     def __init__(self, t: Transcription, extensions: bool):
         self.t = t
-        self.qz = X.Quantiser(0)
+        self.qz = X.Quantizer(0)
         self.extensions = extensions
         self.used = {r.id for r in t.regions} | {ln.id for ln in t.lines} | {
             w.id for ln in t.lines for w in ln.words}
@@ -257,7 +257,7 @@ class _Writer:
 
 def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, extensions: bool = True) -> bytes:
-    """Serialise ``t`` as hOCR 1.2 (XHTML, UTF-8)."""
+    """Serialize ``t`` as hOCR 1.2 (XHTML, UTF-8)."""
     width = image_width if image_width is not None else t.source.image_width
     height = image_height if image_height is not None else t.source.image_height
     if width is None or height is None:

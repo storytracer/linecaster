@@ -31,7 +31,7 @@ PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "
             "line_confidences", "tables", "formulas", "markdown", "html", "doctags", "layout_json", "latex")
 SUPPORT = ("core", "experimental", "legacy")
 EVIDENCE_SOURCES = ("own-run", "board", "card-claim", "vendor-benchmark")
-RELATIONS = ("mirror", "converted", "quantised", "finetuned")
+RELATIONS = ("mirror", "converted", "quantized", "finetuned")
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
 #: engines and pipelines are named by a versioned id: kraken.recognition.v1, chat.v1, transcribe_modular.v1
@@ -63,7 +63,7 @@ class Pin(_Doc):
     files: dict[str, str] = Field(default_factory=dict, description="file name -> sha256:<hex>")
     card: str = Field(description="the upstream card, verbatim, relative to the model folder")
     card_sha256: str
-    license_file: str | None = Field(None, description="an upstream licence file copied next to the card")
+    license_file: str | None = Field(None, description="an upstream license file copied next to the card")
 
     @field_validator("card_sha256")
     @classmethod
@@ -83,7 +83,7 @@ class Pin(_Doc):
 
 class DerivedFrom(_Doc):
     ref: str = Field(description="what it derives from: a model id, hub repo@revision or DOI")
-    relation: Literal["mirror", "converted", "quantised", "finetuned"]
+    relation: Literal["mirror", "converted", "quantized", "finetuned"]
 
 
 class ModelDoc(_Doc):
@@ -92,7 +92,7 @@ class ModelDoc(_Doc):
     version: str | None = Field(None, description="what upstream calls it, verbatim")
     source: Source
     pins: list[Pin] = Field(min_length=1)
-    license: str = Field(description="SPDX id where there is one, else the licence's own name")
+    license: str = Field(description="SPDX id where there is one, else the license's own name")
     languages: list[str] = Field(default_factory=list, description="ISO 639-3")
     scripts: list[str] = Field(default_factory=list, description="ISO 15924")
     params: str | None = None

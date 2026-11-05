@@ -30,14 +30,14 @@ class InProcess:
 
     def __init__(self, spec: str, **kwargs):
         self.spec, self.kwargs = spec, kwargs
-        self.preset: str | None = None           # id@edition when built from a catalogue preset
+        self.preset: str | None = None           # id@edition when built from a catalog preset
         self.preset_sha256: str | None = None
         self.overrides: dict | None = None       # options given over the preset's (the pipelines' --set)
         self._model = None
 
     @classmethod
     def from_preset(cls, ref: str) -> "InProcess":
-        """The engine and options of catalogue preset ``ref`` (``id`` or ``id@edition``)."""
+        """The engine and options of catalog preset ``ref`` (``id`` or ``id@edition``)."""
         from ..catalog.registry import engine_spec
 
         spec, kwargs, resolved = engine_spec(ref)

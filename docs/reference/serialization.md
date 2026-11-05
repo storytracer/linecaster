@@ -1,4 +1,4 @@
-# Serialisation and working images
+# Serialization and working images
 
 `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml;
 `linecaster.images.convert` turns any page image into the working image. Neither imports datatrove,
@@ -17,7 +17,7 @@ saturate or an engine.
    extensions and readers fall back to the inferred values.
 2. **Semantic round trip** (`from_x(to_x(t))`): regions, lines and words with their ids, text,
    geometry, confidences, alternatives, the `hyphen` flag, region label, raw label, score and
-   heading level, line score, `reading_order` and `row`. Not serialised: `docling` (export only),
+   heading level, line score, `reading_order` and `row`. Not serialized: `docling` (export only),
    `extra` dicts, `model`'s `measurements` other than `datetime`, `source` (readers set
    `kind="converted"`, `format`, `uri`, image size). Readers return regions and lines in document
    order, which may differ from the original list order; tests compare by id.
@@ -54,7 +54,7 @@ saturate or an engine.
    (double spaces, `None` with words), the text goes into the extension. A line without words is
    written as a single ALTO `String` carrying the line text and confidence (extension
    `{"wordless": true}`), as a PAGE `TextLine` with only a line `TextEquiv`, as an hOCR line with
-   the text directly in the span. `text=None` (not recognised) and `text=""` (recognised as empty)
+   the text directly in the span. `text=None` (not recognized) and `text=""` (recognized as empty)
    stay distinct in all three.
 8. **Output is deterministic**: same input, same bytes (PAGE `Created`/`LastChange` default to
    `1970-01-01T00:00:00`; pass `created=` for a real timestamp).
@@ -66,7 +66,7 @@ saturate or an engine.
     writers raise lxml's `ValueError`; text is not silently altered. Language is written to hOCR
     `lang` only.
 11. **Tests** cover the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
-    empty and unrecognised lines, a region-less line, hyphenation, alternatives), irregular orders,
+    empty and unrecognized lines, a region-less line, hyphenation, alternatives), irregular orders,
     300 seeded random transcriptions per format (every tenth also validated against the XSD),
     and foreign files (ALTO v2 mm10, v3 without namespace, eScriptorium v4; PAGE 2010 and
     Transkribus 2013; Tesseract hOCR and tag-soup HTML).
@@ -142,9 +142,9 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
   `ImageTooLarge` with the same kind of reason. Checked from the header (`Image.open` without
   `load`), so oversized pages are never decoded; between 1× and 2× Pillow's warning is silenced
   and the page converted.
-- **Colour**: embedded ICC → sRGB (LittleCMS, perceptual); a profile that cannot be applied is
-  reported (`icc_error`) and the plain conversion used. 16-bit greyscale → 8 bit as
-  `round(v·255/65535)`; Pillow reads 16-bit RGB as 8-bit itself. Greyscale/bilevel/palette → RGB.
+- **Color**: embedded ICC → sRGB (LittleCMS, perceptual); a profile that cannot be applied is
+  reported (`icc_error`) and the plain conversion used. 16-bit grayscale → 8 bit as
+  `round(v·255/65535)`; Pillow reads 16-bit RGB as 8-bit itself. Grayscale/bilevel/palette → RGB.
   Alpha is composited onto white (`alpha_flattened`); fully opaque alpha is just dropped. CMYK
   without a profile: Pillow's conversion. EXIF orientation is not applied (coordinates refer to
   the stored pixels) but reported as `exif_orientation`.

@@ -146,7 +146,7 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
     def assemble_markdown(self, t, keep_labels=()) -> str:
         """The page's Markdown exactly as minicpm-ocr 1.0.1 assembles it (needs the ``minicpm-ocr`` package):
-        each block post-processed (``postprocess_content``), normalised and de-duplicated
+        each block post-processed (``postprocess_content``), normalized and de-duplicated
         (``_normalize_and_dedupe_blocks``), then ``assemble_markdown`` with the SDK's ignore list minus
         ``keep_labels``."""
         from minicpmvocr.pipeline._text import _normalize_and_dedupe_blocks

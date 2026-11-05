@@ -19,6 +19,6 @@ capabilities:
   - line_confidences
 provenance:
   derived_from:
-  - 'storytracer/linecaster@7beadcc (NOTES: More line recognisers, the comparison on sample-60)'
+  - 'storytracer/linecaster@7beadcc (NOTES: More line recognizers, the comparison on sample-60)'
   created: 2026-11-03
 support: experimental

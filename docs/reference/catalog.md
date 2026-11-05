@@ -1,6 +1,6 @@
-# The catalogue: models, presets, recipes, evidence
+# The catalog: models, presets, recipes, evidence
 
-The catalogue describes every model Linecaster can run, how it runs it, the tested combinations, and the
+The catalog describes every model Linecaster can run, how it runs it, the tested combinations, and the
 measurements behind them. Its documents live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
 
@@ -16,7 +16,7 @@ src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic 
 
 ## Components
 
-"Component" is the umbrella word for the five things the catalogue and the docs are organised by.
+"Component" is the umbrella word for the five things the catalog and the docs are organized by.
 
 | Component | Is | Named | Lives in |
 |---|---|---|---|
@@ -46,7 +46,7 @@ resolved).
   thing.
 - Code ids (`CODE_ID`): lowercase dotted names ending in `.v<n>`. An incompatible change is a new id
   (`.v2`); the old one stays registered. Adding an option is compatible when its default keeps the old
-  behaviour; changing a default, removing or renaming an option is not.
+  behavior; changing a default, removing or renaming an option is not.
 - A reference is `id@edition`; `id` alone means the current edition. Run records always store the explicit
   edition and its hash.
 - A tag or branch is resolved to a commit when a model is pinned; the tag is kept as `tag:` for information.
@@ -85,13 +85,13 @@ quoted (`"1.0"`). Commands that write a file back (`release`, `pin`) keep its co
 | `id`, `version` | our slug; upstream's name, verbatim |
 | `source` | `kind` (`hf`, `zenodo`, `git`, `url`) and `ref` (repo id, concept DOI, repository URL, download URL) |
 | `pins` | one entry per upstream revision: `revision`, `tag`, `doi`, `pinned` (date), `files` (name → `sha256:<hex>`), `card`, `card_sha256`, `license_file` |
-| `license` | SPDX id where there is one, else the licence's own name |
+| `license` | SPDX id where there is one, else the license's own name |
 | `languages`, `scripts` | ISO 639-3 (`mul` for many), ISO 15924 |
 | `params` | parameter count, as upstream states it |
-| `derived_from` | `ref` and `relation` (`mirror`, `converted`, `quantised`, `finetuned`) |
+| `derived_from` | `ref` and `relation` (`mirror`, `converted`, `quantized`, `finetuned`) |
 
-The upstream card is always copied, verbatim, at the pinned revision, whatever its licence: Hugging Face
-`README.md`, the HTRMoPo record, a repository README; a separate licence file next to it. Its sha256 is in the
+The upstream card is always copied, verbatim, at the pinned revision, whatever its license: Hugging Face
+`README.md`, the HTRMoPo record, a repository README; a separate license file next to it. Its sha256 is in the
 pin. Cards are never edited; license, languages and scripts in `model.yaml` are taken from them where they say.
 A new upstream revision is a new entry in `pins`, with its own `upstream/<revision>/` folder. Model entries
 are written by `linecaster catalog pin`.
@@ -123,7 +123,7 @@ are written by `linecaster catalog pin`.
 | `provenance`, `support`, `superseded_by` | as for presets |
 
 Measurements of a whole run (goldens, the pipeline's CER) are the recipe's evidence. A derivative's recipe
-lives in this catalogue too (squiddleocr's `squiddle`); the derivative names it by id.
+lives in this catalog too (squiddleocr's `squiddle`); the derivative names it by id.
 
 ### Evidence (`evidence/<date>-<subject>-<dataset>.yaml`)
 
@@ -177,7 +177,7 @@ An engine is a class registered under its id in the entry-point group `linecaste
 presets, served only). It declares `engine_id`, `step`, `Options` (a Pydantic model whose fields have
 descriptions; the docs come from it) and `capabilities`, and takes the pin as `weights` (and
 `submodel_weights`), fetched and checked by `linecaster.catalog.fetch`. Engine packages carry code only; their
-presets and models are in this catalogue.
+presets and models are in this catalog.
 
 ## Pipelines, recipes and `launch.py`
 

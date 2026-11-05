@@ -1,4 +1,4 @@
-"""HTTP for linecaster's readers: pybookget's HTTP layer (``linecaster[pybookget]``: rate limits, retries that honour
+"""HTTP for linecaster's readers: pybookget's HTTP layer (``linecaster[pybookget]``: rate limits, retries that honor
 ``Retry-After``, the fallback URL on 404, the environment's proxy settings) on an event loop in a background thread,
 for blocking callers such as datatrove blocks.
 

@@ -1,5 +1,5 @@
-"""The catalogue (docs/reference/catalog.md): YAML 1.2 booleans, documents, release, immutability, old editions, and
-the installed catalogue being consistent."""
+"""The catalog (docs/reference/catalog.md): YAML 1.2 booleans, documents, release, immutability, old editions, and
+the installed catalog being consistent."""
 import datetime as dt
 
 import pytest
@@ -114,7 +114,7 @@ def test_engine_and_pipeline_ids_are_versioned(tmp_path):
         Catalog([tmp_path])
 
 
-def test_the_catalogue_is_consistent():
+def test_the_catalog_is_consistent():
     """Read as data: engines that are not installed are not an error here (tests/test_engines_catalog.py)."""
     c = Catalog()
     assert c.verify() == []
@@ -122,7 +122,7 @@ def test_the_catalogue_is_consistent():
     assert all(c.resolve_recipe(f"{rid}@{r.edition}").released for rid, (_, r) in c.recipes.items())
 
 
-def test_docs_from_the_catalogue(tmp_path):
+def test_docs_from_the_catalog(tmp_path):
     from linecaster.catalog import docs
 
     root = tmp_path / "cat"

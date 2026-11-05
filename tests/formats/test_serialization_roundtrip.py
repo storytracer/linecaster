@@ -9,7 +9,7 @@ from lxml import etree
 
 from linecaster.data import Line, ModelInfo, Region, Transcription, Word
 from linecaster.formats import _xml as X, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
-from linecaster.formats.hocr import quantise_confidence
+from linecaster.formats.hocr import quantize_confidence
 
 from conftest import make_transcription
 
@@ -32,7 +32,7 @@ def expected(t: Transcription, fmt: str) -> Transcription:
     e = t.model_copy(deep=True)
     if fmt in ("alto", None):
         return e
-    qz = X.Quantiser(0, clamp=(fmt == "page"))
+    qz = X.Quantizer(0, clamp=(fmt == "page"))
     for r in e.regions:
         r.polygon = qz.points(r.polygon)
         r.bbox = qz.box(r.bbox)
@@ -43,9 +43,9 @@ def expected(t: Transcription, fmt: str) -> Transcription:
         for w in ln.words:
             w.bbox = qz.box(w.bbox) if w.bbox is not None else None
         if fmt == "hocr":
-            ln.confidence = quantise_confidence(ln.confidence)
+            ln.confidence = quantize_confidence(ln.confidence)
             for w in ln.words:
-                w.confidence = quantise_confidence(w.confidence)
+                w.confidence = quantize_confidence(w.confidence)
     return e
 
 
@@ -103,7 +103,7 @@ def test_roundtrip_fixture(transcription, fmt):
 
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_roundtrip_is_stable(transcription, fmt):
-    """A second round trip changes nothing (the first one already quantised)."""
+    """A second round trip changes nothing (the first one already quantized)."""
     once = roundtrip(transcription, fmt)
     once.source = transcription.source
     assert_same(roundtrip(once, fmt), once)

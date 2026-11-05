@@ -21,7 +21,7 @@ the pipeline's engine packages or linecaster alone.
 Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.runtime.provenance.run_record``:
 the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
 later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml`` next to it.
-``--dry-run`` writes nothing and prints the record with the plan. A model dict may name a catalogue
+``--dry-run`` writes nothing and prints the record with the plan. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
 """
@@ -244,7 +244,7 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
 
 
 def preset_models(models: list[dict]) -> list[dict]:
-    """Model dicts with a catalogue ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
+    """Model dicts with a catalog ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
     engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
     are."""
     out = []
@@ -386,7 +386,7 @@ def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
 
 def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id: str, slots: dict[str, str],
                  argv: list[str] | None = None, c=None) -> None:
-    """Fill ``a`` from the recipe ``a.recipe`` (id[@edition] in the catalogue ``c``): each slot's preset edition
+    """Fill ``a`` from the recipe ``a.recipe`` (id[@edition] in the catalog ``c``): each slot's preset edition
     and each option, unless the command line gives its own; what it gives instead is recorded as an override
     (``a.recipe_record``: the recipe edition, its hash and the overrides, for the run record)."""
     if not getattr(a, "recipe", None):
@@ -439,7 +439,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     ap = parser(description)
     g = ap.add_argument_group("pipeline")
     if pipeline_id:
-        g.add_argument("--recipe", help="a catalogue recipe (id[@edition]) filling the slots and options the "
+        g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
                                         "command line leaves open")
     options(g)
     a = ap.parse_args(argv)

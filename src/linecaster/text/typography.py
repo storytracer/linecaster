@@ -25,7 +25,7 @@ Ids and where things go:
   its lines keep their ids (``<region id>_l<n>``) and get the new ``region_id``. The body region's
   polygon and bbox shrink to the box around its remaining lines.
 - A drop capital's letter is prepended to the target line's ``text`` (``line.extra["drop_capital"]``
-  records it; the line's words are left as the recogniser gave them).
+  records it; the line's words are left as the recognizer gave them).
 - Removed regions (drop capitals, uncertain page numbers) leave ``regions`` together with their lines;
   each is recorded in ``Transcription.extra["retyper_dropped"]`` (region id, label, raw label, text,
   reason, confidence), so nothing is lost silently.

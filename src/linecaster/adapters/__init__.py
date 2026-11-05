@@ -1,5 +1,5 @@
 """Chat-VLM adapters: page and region recognition by VLMs behind an OpenAI-compatible chat endpoint (vLLM,
-SGLang, ...), configured by catalogue presets (``docs/reference/catalog.md``).
+SGLang, ...), configured by catalog presets (``docs/reference/catalog.md``).
 
 Everything about a model that is data lives in its preset (``linecaster/catalog/data/presets/<step>/<id>.yaml``,
 ``engine: chat.v1``): the model pin, the served name, sampling, prompts, page size, region padding, the

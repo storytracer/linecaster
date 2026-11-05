@@ -1,4 +1,4 @@
-"""datatrove behaviour with linecaster blocks, against a running ``linecaster serve`` (squiddle models):
+"""datatrove behavior with linecaster blocks, against a running ``linecaster serve`` (squiddle models):
 
 1. depends: pipeline A (layout, lines, line assignment) writes page records; pipeline B, launched with
    ``depends=A``, reads A's rows (images fetched again by URI) and adds recognition.

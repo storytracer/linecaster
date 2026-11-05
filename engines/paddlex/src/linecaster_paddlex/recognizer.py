@@ -1,8 +1,8 @@
-"""PP-OCRv6 text recognition through PaddleX's ONNX Runtime engine: PaddleOCR's own recognisers (tiny, small,
+"""PP-OCRv6 text recognition through PaddleX's ONNX Runtime engine: PaddleOCR's own recognizers (tiny, small,
 medium) on the lines of a transcription.
 
 Lines are cut out the way PaddleX's OCR pipeline cuts them (the minimum-area rectangle of the line
-polygon, rotated upright: ``CropByPolys``), sorted by aspect ratio and recognised ``batch_size`` at a
+polygon, rotated upright: ``CropByPolys``), sorted by aspect ratio and recognized ``batch_size`` at a
 time, as PaddleX's pipeline does. Words: the text split at whitespace (kraken's rule), each word placed
 along the line rectangle by the CTC columns of its characters, the same mapping as PaddleX's
 ``cal_ocr_word_box`` (whose own word list groups punctuation separately)."""
@@ -52,7 +52,7 @@ def crop_line(image: np.ndarray, box: np.ndarray) -> np.ndarray:
 
 def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word]:
     """Words of ``text`` placed along ``box`` by the CTC columns of their characters. ``word_info`` is
-    the recogniser's ``[col_num, word_list, word_col_list, state_list]``; flattened, ``word_col_list``
+    the recognizer's ``[col_num, word_list, word_col_list, state_list]``; flattened, ``word_col_list``
     has one column per character of ``text``."""
     col_num, _, word_cols, _ = word_info
     cols = [c for group in word_cols for c in group]
@@ -77,10 +77,10 @@ def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word
 
 
 class PaddleRecognitionEngine:
-    """linecaster engine model for the recognition step: a PaddleOCR text recogniser on every line of the
-    transcription (``RECOGNIZERS``). Fills text, confidence (the recogniser's mean character probability) and words
+    """linecaster engine model for the recognition step: a PaddleOCR text recognizer on every line of the
+    transcription (``RECOGNIZERS``). Fills text, confidence (the recognizer's mean character probability) and words
     (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model
-    files: ``weights`` (a catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
+    files: ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""
 
     engine_id: ClassVar[str] = "paddlex.recognition.v1"
     step = "recognition"
@@ -89,7 +89,7 @@ class PaddleRecognitionEngine:
     class Options(BaseModel):
         model_config = ConfigDict(extra="forbid", protected_namespaces=())
 
-        model_name: str = Field("PP-OCRv6_medium_rec", description="PaddleX text recogniser: "
+        model_name: str = Field("PP-OCRv6_medium_rec", description="PaddleX text recognizer: "
                                                                    "PP-OCRv6_{tiny,small,medium}_rec")
         device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
         batch_size: int = Field(8, description="line images per forward pass (sorted by aspect ratio first, as "

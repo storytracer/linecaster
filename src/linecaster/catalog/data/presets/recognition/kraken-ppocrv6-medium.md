@@ -1,5 +1,5 @@
-kraken's PP-OCRv6 medium recogniser through kraken's own code (`RecognitionTaskModel`), on every line of the
-page in the line step's order; the squiddle combination's recogniser, which reproduces squiddleocr's goldens line for line (1,560/1,560 lines on sample-60, spark and forge).
+kraken's PP-OCRv6 medium recognizer through kraken's own code (`RecognitionTaskModel`), on every line of the
+page in the line step's order; the squiddle combination's recognizer, which reproduces squiddleocr's goldens line for line (1,560/1,560 lines on sample-60, spark and forge).
 
 - `batch_size` 8: the batch size squiddleocr's goldens were recorded with. kraken pads a batch to its widest
   line, so the batch size can move numerics; one page per request, batching only within the page.

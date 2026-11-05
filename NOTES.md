@@ -39,7 +39,7 @@ Ideas, none measured:
 - ONNX Runtime execution providers (TensorRT, CoreML, OpenVINO, DirectML) for platforms without a usable
   PyTorch; costs an export path of our own for kraken.
 - VLMs off NVIDIA: llama.cpp (`llama-server`, GGUF) or MLX-VLM behind the same OpenAI interface as `chat.v1`;
-  GGUF files as `converted` / `quantised` model documents, each with its own evidence. GGUF does not suit
+  GGUF files as `converted` / `quantized` model documents, each with its own evidence. GGUF does not suit
   kraken (no graph importer in ggml; a reimplementation).
 
 ## kraken: batching by line width and torch.compile (#1, 2026-11-04: spark, HF Jobs L4)
@@ -94,8 +94,8 @@ Daniel van Strien's issue #1: kraken's recognition loop makes the CPU wait for t
 empty-line check on a tensor built on the device) and once per batch (`seq_lens` copied after the backbone is
 queued). Fork commit `48eecb78` (storytracer/kraken, `perf/recognition-prefetch`): lines are extracted,
 transformed and checked on the CPU in a producer thread, `seq_lens` goes to the device before the forward pass,
-and the last partial batch is recognised also when a page ends in empty lines (stock kraken flushed it only on an
-append, so such lines were never recognised and the page failed `zip(strict=True)`). Batches are formed as
+and the last partial batch is recognized also when a page ends in empty lines (stock kraken flushed it only on an
+append, so such lines were never recognized and the page failed `zip(strict=True)`). Batches are formed as
 before, so the output is unchanged.
 
 | machine | recognition, pinned `3d235ee8` | patched `48eecb78` | output |
@@ -117,11 +117,11 @@ record the step), a malformed served answer is that page's error, the readiness 
 
 `specs/` describes what is, without history. Moved here from them:
 
-- The catalogue's role models: HTRMoPo v1 and Hugging Face model cards (Markdown with YAML front matter),
+- The catalog's role models: HTRMoPo v1 and Hugging Face model cards (Markdown with YAML front matter),
   OCR-D (functional steps, declared resources, provenance per processing step), Docling (typed options per
   engine, one factory per stage), spaCy (versioned registry names that stay resolvable), Datalab's marker,
   surya and chandra (configuration declared once, evidence with its source), Daniel van Strien's
-  `uv-scripts/ocr/models.json` (one catalogue, support levels), ocrscout's profiles (label mappings as data).
+  `uv-scripts/ocr/models.json` (one catalog, support levels), ocrscout's profiles (label mappings as data).
 - WebP encoding effort, one measurement on spark, a 3996 × 5964 newspaper JPEG: decode 0.09 s; encode effort
   0: 1.67 s / 17.2 MB, 25: 1.99 s / 17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4× faster
   for 4 % more bytes; left at Pillow's default (80) until measured on a broader sample.
@@ -135,14 +135,14 @@ pipeline (`chain.v1`), a whole-page preset runs in `vlm.v1`; `launch.py` finds t
 (or `--vlm NAME`), so the pipeline keeps its own environment and launch.py needs only linecaster's core.
 Discussed and dropped: a component type as first argument (`model`/`recipe`/`pipeline`), `server` and `cluster`
 words, and names such as run.py (`uv run run.py`), recipe.py, transcribe.py, read.py, lc.py. Own combinations
-use the pipeline scripts directly. Names stay unambiguous: the catalogue already refuses an id used by a preset
-and a recipe. A preset that is one step (a line recogniser, a region reader) gets a hint instead: which pipeline
+use the pipeline scripts directly. Names stay unambiguous: the catalog already refuses an id used by a preset
+and a recipe. A preset that is one step (a line recognizer, a region reader) gets a hint instead: which pipeline
 and flag, and the recipes that use it. Checked: `--dry-run` builds the squiddle chain with its recipe record and
 chandra-ocr-2's vLLM command at the pinned revision.
 
-## One catalogue (2026-11-04, spark)
+## One catalog (2026-11-04, spark)
 
-The catalogue is one folder, `src/linecaster/catalog/data/`: the engine packages' catalogues (kraken, PaddleX,
+The catalog is one folder, `src/linecaster/catalog/data/`: the engine packages' catalogs (kraken, PaddleX,
 Tesseract: 21 models, 18 presets, their evidence) and squiddleocr's (the recipe `squiddle` and its 4 evidence
 records) were moved into it, and the entry-point group `linecaster.catalog`, `--with-dir` and recipe file paths
 went. Presets are grouped by step (`presets/<step>/<id>.md`, the folder checked against `step`). "kind" is gone: a
@@ -160,23 +160,23 @@ source with `ast`, since no environment has every engine.
 
 "Recipes" were pipeline shapes with slots, and since the defaults went they chose nothing: renamed `pipelines/`
 (`chain.py`, kind `chain/1`; `vlm.py`, `vlm/1`; `cuda_probe.py` to `tools/`; since 2026-11-05
-`transcribe_chain.py` and `transcribe_vlm.py`, and the item stage `items.py` is `bind.py`). A **recipe** is now a catalogue
+`transcribe_chain.py` and `transcribe_vlm.py`, and the item stage `items.py` is `bind.py`). A **recipe** is now a catalog
 document: a pipeline kind, a preset edition for each slot, options; edition, provenance, support level and evidence
 like presets. Its hash covers its presets' hashes (and so their model pins), and it is released only on released
 preset editions. `--recipe id[@edition]` or a recipe file fills the slots and options the command line leaves open;
 what the command line gives instead goes into the run record as overrides. `RecipeStamp` (before the first writer)
 puts the recipe edition and hash into every `ModelInfo`, so page rows and ALTO/PAGE/hOCR name it.
 
-- squiddleocr ships `squiddle@1` (its catalogue, entry point `linecaster.catalog`): pp-doclayoutv3@1,
+- squiddleocr ships `squiddle@1` (its catalog, entry point `linecaster.catalog`): pp-doclayoutv3@1,
   pp-ocrv6-medium-det@1, kraken-ppocrv6-medium@1, slanet-plus@2, pp-formulanet-plus-l@1, text reflow. Its evidence:
   the goldens reproduced (sample-60 1,560/1,560 lines and tables-7 651/651, in-process and served).
   `uv run pipelines/chain.py IMAGES OUT --recipe ../squiddleocr/src/squiddleocr/catalog/recipes/squiddle.md` on
   sample-60: goldens 1,560/1,560, `squiddle@1` in every ALTO step and in `run.yaml`. `squiddle ocr` stamps the recipe
   when its options are the recipe's.
-- The recogniser comparison stays preset evidence (it varied one preset), with the rest of the pipeline as
+- The recognizer comparison stays preset evidence (it varied one preset), with the rest of the pipeline as
   `context`.
 
-## The catalogue: models, presets, evidence (2026-11-03, spark)
+## The catalog: models, presets, evidence (2026-11-03, spark)
 
 `docs/reference/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the
 foundation (`linecaster.catalog`). In the checkout: 39 models with their upstream cards copied verbatim, 39 presets
@@ -198,7 +198,7 @@ released as edition 1 (`slanet-plus` also edition 2), 39 evidence records.
   models, with two deliberate changes: LightOnOCR-3 (0.8B, 4B) now names `vllm/vllm-openai:v0.30.0`, the version the
   board validated them with (the old recipe used 0.26.0, with which LightOn says they loop); Unlimited-OCR-2's
   recorded `sglang_version` is now the wheel that runs (`0.5.20.dev10+g8d62f5fb9c`).
-- **Licences to check by hand** (as the cards state them): chandra "AI Pubs Open RAIL-M License (Modified)",
+- **Licenses to check by hand** (as the cards state them): chandra "AI Pubs Open RAIL-M License (Modified)",
   Nemotron `OpenMDW-1.1`; SmolDocling's front matter says CDLA-Permissive-2.0, its text Apache-2.0.
 
 Parity of `recipes/chain.py` through presets (pinned PaddleX snapshots, kraken from its pin) with squiddleocr's
@@ -246,7 +246,7 @@ Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, on
   The old HF Jobs recipe's run of the same model scores 0.0403 with today's harness; sampling is at temperature 0.2.
 - `--regions` (PP-DocLayoutV3 in-process + LightOnOCR-2-1B per region): 60/60 pages in 584 s, no errors, 418 regions
   read; 64 of them ran into the token limit (LightOnOCR's known looping on crops). Not scored.
-- HF Jobs: a LightOnOCR page smoke was launched; MiniCPM regions was cancelled while it waited for an L4.
+- HF Jobs: a LightOnOCR page smoke was launched; MiniCPM regions was canceled while it waited for an L4.
 
 ## Self-contained uv scripts instead of environment folders (2026-11-03, spark)
 
@@ -279,10 +279,10 @@ and served through `uv run servers/kraken-paddlex.py`:
 | in-process | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 89 s |
 | served | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 48 s |
 
-## More line recognisers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, spark)
+## More line recognizers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, spark)
 
 Two more engines for `RecognitionStep`, next to kraken:
-- `linecaster_paddlex:PaddleRecognitionModel`: PaddleOCR's own PP-OCRv6 recognisers (`PP-OCRv6_{tiny,small,medium}_rec`)
+- `linecaster_paddlex:PaddleRecognitionModel`: PaddleOCR's own PP-OCRv6 recognizers (`PP-OCRv6_{tiny,small,medium}_rec`)
   on PaddleX's ONNX Runtime engine. Lines cut as PaddleX's OCR pipeline cuts them (minimum-area rectangle, warped upright),
   sorted by aspect ratio, `batch_size` 8. Words: the text split at whitespace (kraken's rule), placed along the line
   rectangle by the CTC columns of their characters (PaddleX's `return_word_box` mapping); no per-word confidence.
@@ -296,10 +296,10 @@ Two more engines for `RecognitionStep`, next to kraken:
   `servers/paddlex-tesseract.py`.
 
 Comparison on the 60-page sample: the same chain for every row (PP-DocLayoutV3 → PP-OCRv6 medium detection → line
-assignment → *recogniser* → NFC → tables → typography → document → Markdown), in-process, one task, scored as-is
+assignment → *recognizer* → NFC → tables → typography → document → Markdown), in-process, one task, scored as-is
 (no postproc) with the frozen bhl-ocr-eval harness (`score_dataset`, sample-60 at 41ff3475). Wall includes model loading.
 
-| recogniser | CERdip | CERread | recall | wall, 60 pages |
+| recognizer | CERdip | CERread | recall | wall, 60 pages |
 |---|---:|---:|---:|---:|
 | kraken PP-OCRv6 medium (bf16) | 0.0341 | 0.0270 | 0.9508 | 72 s |
 | PaddleX PP-OCRv6 medium | 0.0387 | 0.0315 | 0.9343 | 49 s |
@@ -342,9 +342,9 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | `--per-document` | already in linecaster | `BindItem` + `ItemExportsWriter`; `ImageFolderReader(item_id=, sequence=)` (built) puts a run's pages into one item in name order |
 | `-f md, txt, json` | already in linecaster | `PageFilesWriter`, `PageExportsWriter`, `ItemExportsWriter`; JSON now formatted as docling's `save_as_json` |
 | `-f html, doclang` | missing, built | `linecaster.formats.docling.export` / `to_html` / `to_doclang` in all three writers |
-| `-f hocr, alto, page` | already in linecaster | linecaster's lxml serialisers (not kraken's, by design) |
-| `--detail word` | already in linecaster | the serialisers' default (words are the finest level) |
-| `--detail line` | missing, built | `PageFilesWriter(detail="line")` (a word-less copy to the serialisers) |
+| `-f hocr, alto, page` | already in linecaster | linecaster's lxml serializers (not kraken's, by design) |
+| `--detail word` | already in linecaster | the serializers' default (words are the finest level) |
+| `--detail line` | missing, built | `PageFilesWriter(detail="line")` (a word-less copy to the serializers) |
 | `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; squiddle's default becomes `word` |
 | `--plots` | missing, built | `linecaster.images.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
 | processing settings in ALTO | already in linecaster | `ModelInfo` per step → ALTO `Processing` |
@@ -376,13 +376,13 @@ parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in 
   (`-f json` alone kept a picture box at y = −3). `DocumentBuilder.build` now validates (clamped always); 4
   sample-60 pages with picture boxes past the edge are exact since.
 - **JSON charspans and DocLang:** docling-core's DocLang export rewrites the provenance charspans of the document
-  it serialises; 0.3 saved its JSON from that same document, so with `doclang` before `json` in `-f` 0.3's
+  it serializes; 0.3 saved its JSON from that same document, so with `doclang` before `json` in `-f` 0.3's
   charspans changed (reflow paragraphs: every row's span restarted at 0). linecaster writes JSON from the
   stored document and `to_doclang` works on a copy, so the order of formats does not matter; the parity runs
   list json before doclang.
-- **hocr, alto, page** are linecaster's serialisers, so the files differ by design; read back with linecaster's
+- **hocr, alto, page** are linecaster's serializers, so the files differ by design; read back with linecaster's
   readers, every line on every page has the same text, line box and word boxes (words: NFC text and box),
-  with three conventions of kraken's serialiser set aside: kraken writes whitespace runs as words of their
+  with three conventions of kraken's serializer set aside: kraken writes whitespace runs as words of their
   own (hOCR, PAGE), collapses double spaces between ALTO Strings, and clips line boxes to width − 1 / height − 1
   (one `--layout none` page whose line reaches the right edge). At `--detail line` kraken's ALTO has one
   box-less String per line, linecaster's one String with the line's box: same text and line boxes.
@@ -457,7 +457,7 @@ board's drivers (module docstrings). Not checked on a GPU yet.
   model repo, so `parse` does not call it; `to_markdown` reproduces it.
 - Not chat models, so no spec. They do not fit `ChatPageStep`:
   - `datalab-to/indra-ocr`: the board ran it in-process on CPU (the `indra-ocr` package: ONNX Runtime detector,
-    orientation, script classifier, line recognisers, layout and reading order). It would need an engine package
+    orientation, script classifier, line recognizers, layout and reading order). It would need an engine package
     `backends/indra/` (`linecaster-indra`, pinning `indra-ocr==1.1.2` and the model tag `v1.1.0`). Its engine model
     would call `indra_ocr.load(mode="auto", furniture=False, math=False, dpi=200, threads=1)` and `Converter.convert(path)`
     on the page file, and return `page.markdown` (and the package's lines, if it exposes geometry). A page the package
@@ -486,7 +486,7 @@ board's drivers (module docstrings). Not checked on a GPU yet.
 ## chandra-ocr-2, dots.ocr, OvisOCR2, OvisOCR3 specs for ChatPageStep (2026-11-03, not yet run)
 
 - `models/chandra_ocr2.py`, `models/dots_ocr.py`, `models/ovis_ocr.py` reproduce the board drivers; request
-  bodies (image bytes included) were checked equal to the drivers' `to_request` on JPEG/PNG/WebP, RGB and grey
+  bodies (image bytes included) were checked equal to the drivers' `to_request` on JPEG/PNG/WebP, RGB and gray
   pages, and the serve flags equal the drivers' `SERVING` flags. Checkpoints pinned; vLLM 0.26.0 for all four.
 - Completions verbatim. The board converts chandra's HTML layout blocks to Markdown
   (`chandra_html_to_markdown`) and drops Ovis's `<img src="images/bbox_…">` blocks (`drop_bbox_blocks`) in the
@@ -528,7 +528,7 @@ as the BHL board row did) and the board lane (consolidate → normalize postproc
 ## NFC step and item-level documents (2026-11-03, spark)
 
 **NFC (`NormalizeUnicode`, after recognition).** The chain with the step against squiddleocr's goldens
-(7c8a052, spark), goldens NFC-normalised (the parity scripts' new default; `--no-nfc` for raw):
+(7c8a052, spark), goldens NFC-normalized (the parity scripts' new default; `--no-nfc` for raw):
 
 | set | lines (box + words) | txt | md | raw, without NFC on the goldens |
 |---|---:|---:|---:|---:|
@@ -554,7 +554,7 @@ combinations; cross-checked against the real command (`squiddle ocr BOOK --per-d
 | lines, sections, dividers | 6/6 / 6/6 / 6/6 | 6/6 / 6/6 |
 
 - The port is exact: from the same rows, md, txt and docling JSON (structure; furniture layer and version
-  normalised) are identical for every book and combination, and squiddleocr's own `DocumentBuilder` fed
+  normalized) are identical for every book and combination, and squiddleocr's own `DocumentBuilder` fed
   with the NFC'd rows gives linecaster's NFC output exactly (24/24).
 - With NFC, reflow differs on 2 books, for a reason, not by accident: squiddleocr's `ends_with_mark`
   requires a letter before the hyphen, and in kraken's decomposed text that character is the combining
@@ -576,7 +576,7 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
 `PageExportsWriter(suffix=".paddle", furniture=True)`, compared byte for byte with squiddleocr's goldens
 (`7c8a052`, spark, `--text lines --furniture`; `tests/parity/compare_exports.py`):
 
-| set | txt | md | docling JSON (furniture layer and version field normalised) |
+| set | txt | md | docling JSON (furniture layer and version field normalized) |
 |---|---:|---:|---:|
 | sample-60 | 60/60 | 60/60 | 60/60 |
 | tables-7 | 7/7 | 7/7 | 7/7 |
@@ -589,7 +589,7 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
 - `wcwidth` is now a core dependency: tabulate (docling's text export of tables) pads with `wcwidth` when
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
-  text is not NFC yet; normalising it is a separate, recorded transform, not done here.)
+  text is not NFC yet; normalizing it is a separate, recorded transform, not done here.)
 - Reflow (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.text.recomposition` is
   squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
   checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
@@ -608,7 +608,7 @@ Setup:
   - Flags: the spec's serve flags plus `--gpu-memory-utilization 0.22`, because the GPU was shared with `linecaster serve` and kraken-paddlex jobs.
   - The board pins vLLM 0.26.0. That version was not tested here.
 
-Scoring: the rows were converted to the harness's input shape (id, raw, finish_reason) and scored with the frozen bhl-ocr-eval harness along the FineBooks leaderboard's path (consolidation, output normalisation, scoring).
+Scoring: the rows were converted to the harness's input shape (id, raw, finish_reason) and scored with the frozen bhl-ocr-eval harness along the FineBooks leaderboard's path (consolidation, output normalization, scoring).
 
 | run | CERdip | CERread | recall µ | loops |
 |---|---:|---:|---:|---:|
@@ -679,7 +679,7 @@ How the Job is arranged:
   words, docling, model, source), `Page`, `PageImage`, `Item`, `Text`. Decisions in
   `docs/reference/data-model.md`.
 - ALTO 4.4 / PAGE 2019 / hOCR 1.2 writers and readers on lxml, schema-validated
-  (`docs/reference/serialisation.md`); image conversion functions (`linecaster.images.convert`: lossless WebP at full
+  (`docs/reference/serialization.md`); image conversion functions (`linecaster.images.convert`: lossless WebP at full
   resolution, combined size limit).
 - Blocks on datatrove: readers (image folder, HF image dataset, page rows), model steps (layout,
   lines, recognition) with an in-process or a served backend, line assignment, page writers,
@@ -687,7 +687,7 @@ How the Job is arranged:
 - `linecaster serve`: a stateless model server (aiohttp) hosting several engine models; blocks reach it
   through saturate.
 - Engines: `backends/paddlex` (PP-DocLayoutV3 layout, PP-OCRv6 detection), `backends/kraken` (kraken's
-  PP-OCRv6 recogniser), moved from squiddleocr with their history; `envs/kraken-paddlex` is the
+  PP-OCRv6 recognizer), moved from squiddleocr with their history; `envs/kraken-paddlex` is the
   environment that installs both.
 - Recipes: `recipes/hf-jobs/squiddle_chain.py` (datatrove `JobsPipelineExecutor`, one
   `linecaster serve` per Job), `recipes/hf-jobs/cuda_probe.py`.
@@ -706,7 +706,7 @@ in line box, text and every word box.
 
 Goldens are per machine: squiddleocr itself gives 50/67 byte-identical text files between spark and
 forge (36 differing word tokens in 17 files), the usual GPU numerics. squiddleocr is run-to-run
-deterministic on one machine (rerun: 60/60 identical). On the 7 table pages the recognised lines are
+deterministic on one machine (rerun: 60/60 identical). On the 7 table pages the recognized lines are
 identical too; one extra line in linecaster's output is one that squiddleocr's typography step
 (retyper, after recognition, not yet ported) removes.
 
@@ -767,7 +767,7 @@ tables are identical for every N (2,165/2,165 pages).
 Recognition is GPU-bound, not GIL-bound: per-request time roughly doubles with two replicas (L4 0.81 →
 1.49 s), and on forge kraken in two separate processes reaches the same total throughput as one (80
 pages in 52 s alone; 2 × 80 pages in 102 s side by side). Replicas only fill the gaps between a page's
-batches. The lever left is the recogniser's GPU efficiency (8 lines per forward pass in bf16), which
+batches. The lever left is the recognizer's GPU efficiency (8 lines per forward pass in bf16), which
 changes numerics if the batching changes.
 Revisit only with a server that runs model copies on separate CUDA streams or processes, or after a
 change that makes recognition much faster (then layout, at about 0.2 s/page, sets the pace).
@@ -809,7 +809,7 @@ in-process on sample-60 (images grouped by book in subfolders, 6 books): 1 m 45 
 per-page files (`<item>/<page>.hocr|.alto.xml|.page.xml|.txt|.md|.json`) and 18 item texts.
 
 - All 60 ALTO and 60 PAGE files validate against the schemas in `tests/schemas/`; the 60 hOCR files
-  read back with `from_hocr` (1,560 lines, as recognised).
+  read back with `from_hocr` (1,560 lines, as recognized).
 - readable variants: ſ folded (`proſtrati` → `prostrati` on pisciumquerelaee), the as-written ſ kept
   in verbatim_txt; line-end hyphens resolved (`Verbin-/dung`, `Meso-/pleurit`, `Differen-/zierung`
   → joined, on daschitinskelett); page headers and numbers (`— 38 —`) gone from readable, kept in

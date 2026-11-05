@@ -272,7 +272,7 @@ class Catalog:
     # --------------------------------------------------------------------------------------- release, verify
 
     def release(self, pid: str, commit: str | None = None, today: dt.date | None = None) -> LockEntry:
-        """Freeze the current edition of preset or recipe ``pid`` in its catalogue's ``catalog.lock``. A recipe
+        """Freeze the current edition of preset or recipe ``pid`` in its catalog's ``catalog.lock``. A recipe
         is released only on released preset editions."""
         if pid in self.recipes:
             d, doc = self.recipes[pid]
@@ -307,7 +307,7 @@ class Catalog:
                     elif files and sha256_file(card) != pin.card_sha256:
                         problems.append(f"model {mid}: card {pin.card} differs from its pinned sha256")
                     if pin.license_file and not (d.root / "models" / mid / pin.license_file).exists():
-                        problems.append(f"model {mid}: licence file {pin.license_file} is missing")
+                        problems.append(f"model {mid}: license file {pin.license_file} is missing")
             for pid, p in d.presets.items():
                 bad = []
                 for ref in ([p.model] if p.model is not None else []) + list(p.submodels.values()):
@@ -432,7 +432,7 @@ class Resolved:
 
 @lru_cache(maxsize=1)
 def catalog() -> Catalog:
-    """The installed catalogue (cached; ``catalog.cache_clear()`` after changing documents)."""
+    """The installed catalog (cached; ``catalog.cache_clear()`` after changing documents)."""
     return Catalog()
 
 

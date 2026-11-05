@@ -8,7 +8,7 @@ from datatrove.pipeline.base import PipelineStep
 
 #: format -> file extension
 PAGE_FILE_EXTENSIONS = {
-    "hocr": "hocr",                       # hOCR 1.2 (linecaster's serialiser)
+    "hocr": "hocr",                       # hOCR 1.2 (linecaster's serializer)
     "alto": "alto.xml",                   # ALTO 4.4
     "page": "page.xml",                   # PAGE-XML 2019
     "txt": "txt",                         # the DoclingDocument's text export, else the page text
@@ -28,7 +28,7 @@ class PageFileWriter(PipelineStep):
     """One file per page and format: ``<output_folder>/<item_id>/<page_id><suffix>.<ext>`` (any fsspec
     folder: local, ``s3://``, ``hf://buckets/...``). Pages pass through, so writers can be chained.
 
-    * ``hocr``, ``alto``, ``page``: linecaster's serialisers (``to_hocr``/``to_alto``/``to_page``) at the
+    * ``hocr``, ``alto``, ``page``: linecaster's serializers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
     * ``md``, ``txt``, ``html``, ``doclang``, ``json``: the DoclingDocument's exports
       (``linecaster.formats.docling.export``) when the transcription has one (``Composer``;

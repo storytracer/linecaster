@@ -3,10 +3,10 @@
 PaddleX itself downloads an official model from Hugging Face as ``PaddlePaddle/<name>_onnx`` (the ONNX Runtime
 engine) or ``PaddlePaddle/<name>_safetensors`` (the transformers engine), always the repository's current
 ``main``, into ``~/.paddlex/official_models/`` (``paddlex.inference.utils.official_models``). Here the same
-repositories are pinned in the catalogue (``linecaster/catalog/data/models/<name>-onnx/model.yaml``, the name
+repositories are pinned in the catalog (``linecaster/catalog/data/models/<name>-onnx/model.yaml``, the name
 lowercased with ``_`` as ``-``): a preset passes its pin as ``weights``, a model name resolves to its model
 document's newest pin, and the snapshot at that commit (Hugging Face cache, checked against the pinned
-sha256) goes to ``create_predictor(model_dir=...)``. A name the catalogue does not know is left to PaddleX's
+sha256) goes to ``create_predictor(model_dir=...)``. A name the catalog does not know is left to PaddleX's
 own download.
 """
 from __future__ import annotations
@@ -21,20 +21,20 @@ PACKAGES = {"onnxruntime": "onnx", "transformers": "safetensors"}
 
 
 def model_id(name: str, package: str = "onnx") -> str:
-    """The catalogue id of PaddleX model ``name``'s ``package`` (``PP-OCRv6_medium_det`` -> ``pp-ocrv6-medium-det-onnx``)."""
+    """The catalog id of PaddleX model ``name``'s ``package`` (``PP-OCRv6_medium_det`` -> ``pp-ocrv6-medium-det-onnx``)."""
     return f"{name}_{package}".lower().replace("_", "-")
 
 
-def catalogue_weights(name: str, package: str = "onnx", revision: str | None = None) -> dict | None:
+def catalog_weights(name: str, package: str = "onnx", revision: str | None = None) -> dict | None:
     """``weights`` for PaddleX model ``name`` from its model document: the pin with ``revision``, else the newest
-    pin; ``None`` when the catalogue has no document for it."""
+    pin; ``None`` when the catalog has no document for it."""
     from linecaster.catalog.fetch import weights_of
     from linecaster.catalog.registry import catalog
 
     mid = model_id(name, package)
     if mid not in catalog().models:
         if revision is not None:
-            raise KeyError(f"{name}: revision {revision} requested, but the catalogue has no model {mid!r}")
+            raise KeyError(f"{name}: revision {revision} requested, but the catalog has no model {mid!r}")
         return None
     return weights_of(mid, revision)
 
@@ -55,9 +55,9 @@ def check(name: str, weights: dict | None, engine: str = "onnxruntime") -> None:
 
 
 def resolve(name: str, weights: dict | None = None, engine: str = "onnxruntime") -> tuple[str | None, str | None]:
-    """``(model folder, revision)`` for PaddleX model ``name``: the pin ``weights``, else the catalogue's newest
-    pin for the name; ``(None, None)`` (PaddleX downloads it itself) when the catalogue does not know the name."""
+    """``(model folder, revision)`` for PaddleX model ``name``: the pin ``weights``, else the catalog's newest
+    pin for the name; ``(None, None)`` (PaddleX downloads it itself) when the catalog does not know the name."""
     check(name, weights, engine)
     if weights is None:
-        weights = catalogue_weights(name, PACKAGES[engine])
+        weights = catalog_weights(name, PACKAGES[engine])
     return (model_dir(weights), weights["revision"]) if weights is not None else (None, None)

@@ -1,4 +1,4 @@
-"""Table structure with PaddleX's table pipeline, fed with the page's own lines and recognised text.
+"""Table structure with PaddleX's table pipeline, fed with the page's own lines and recognized text.
 
 PaddleX's ``table_recognition_v2`` pipeline is what PP-StructureV3 runs on a table: a wired/wireless
 classifier, SLANeXt / SLANet structure models, RT-DETR cell detectors and a matching step that
@@ -29,7 +29,7 @@ from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_pipeline, paddle_image
 from .crops import crop_bbox
-from .weights import catalogue_weights, check, resolve
+from .weights import catalog_weights, check, resolve
 
 
 @dataclass
@@ -176,13 +176,13 @@ class PaddleTableRecognizer:
 
 class PaddleTableEngine:
     """linecaster engine model for the tables step: the cell structure of every ``table`` region, with the
-    region's recognised lines placed into the cells (needs the recognition step first). The result goes
+    region's recognized lines placed into the cells (needs the recognition step first). The result goes
     into ``region.extra["table"]``: ``num_rows``, ``num_cols``, ``html`` and ``cells`` (text, row, col,
     row_span, col_span, bbox, header).
 
     The pipeline's models: the structure model (``STRUCTURE``, for wired and wireless tables) from ``weights``
-    (a catalogue pin) or the catalogue's newest pin; the classifier and the two cell detectors (``SUBMODELS``) at
-    ``submodel_weights`` (catalogue pins by PaddleX name, from a preset's ``submodels``), else
+    (a catalog pin) or the catalog's newest pin; the classifier and the two cell detectors (``SUBMODELS``) at
+    ``submodel_weights`` (catalog pins by PaddleX name, from a preset's ``submodels``), else
     ``submodel_revisions`` (each a pin of its model document; edition 1 of ``slanet-plus``), else their newest
     pins."""
 
@@ -204,7 +204,7 @@ class PaddleTableEngine:
         name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded in ModelInfo")
         submodel_revisions: dict[str, str] | None = Field(
             None, description="PaddleX model name -> Hugging Face commit of its ONNX package, for the table "
-                              "classifier and the cell detectors; each must be a pin in the catalogue (None: the "
+                              "classifier and the cell detectors; each must be a pin in the catalog (None: the "
                               "newest pins)")
 
     def __init__(self, device: str = "auto", crop_pad: int = 8, e2e: bool = True, name: str = "table_recognition_v2/SLANet_plus",
@@ -225,7 +225,7 @@ class PaddleTableEngine:
         dirs[self.STRUCTURE], self.revision = resolve(self.STRUCTURE, self.weights)
         for name in self.SUBMODELS:
             rev = (self.options.submodel_revisions or {}).get(name)
-            w = self.submodel_weights.get(name) or (catalogue_weights(name, revision=rev) if rev else None)
+            w = self.submodel_weights.get(name) or (catalog_weights(name, revision=rev) if rev else None)
             dirs[name] = resolve(name, w)[0]
         self.recognizer = PaddleTableRecognizer(self.device, self.crop_pad, self.e2e,
                                                 config=table_pipeline_config(model_dirs=dirs))

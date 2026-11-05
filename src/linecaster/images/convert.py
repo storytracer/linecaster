@@ -10,12 +10,12 @@ Size limit (all three must hold):
   open an image as a decompression bomb). The value is read at call time and never changed here;
   with ``MAX_IMAGE_PIXELS = None`` there is no pixel-count limit.
 
-Colour conversion to 8-bit sRGB RGB (see ``docs/reference/serialisation.md``):
+Color conversion to 8-bit sRGB RGB (see ``docs/reference/serialization.md``):
 
 * an embedded ICC profile is applied with LittleCMS (perceptual intent) to sRGB;
-* 16-bit greyscale is scaled to 8 bits (``round(v * 255 / 65535)``); Pillow itself already reads
+* 16-bit grayscale is scaled to 8 bits (``round(v * 255 / 65535)``); Pillow itself already reads
   16-bit-per-channel RGB as 8-bit RGB;
-* greyscale, bilevel and palette images become RGB (channels replicated / palette expanded);
+* grayscale, bilevel and palette images become RGB (channels replicated / palette expanded);
 * alpha is composited onto white (OCR wants opaque pages); CMYK without a profile uses Pillow's
   plain conversion;
 * EXIF orientation is NOT applied (coordinates refer to the stored pixel grid); it is reported.
@@ -161,7 +161,7 @@ def to_working_webp(data: bytes, *, effort: int = 80) -> tuple[bytes, dict[str, 
 
     ``effort`` is libwebp's lossless compression effort (Pillow's ``quality`` for lossless; 80 is
     Pillow's default). It changes size and speed, never pixels: on a 24 MP newspaper scan, 0 encoded
-    in 1.7 s to 17.2 MB, 80 in 7.0 s to 16.6 MB (spark, one measurement; see docs/reference/serialisation.md).
+    in 1.7 s to 17.2 MB, 80 in 7.0 s to 16.6 MB (spark, one measurement; see docs/reference/serialization.md).
 
     Raises ``ImageTooLarge`` (with ``reason``) before decoding when the page is over the limit.
     ``info`` keys: ``format`` (``"webp"``), ``width``, ``height``, ``source_format``, ``source_mode``,

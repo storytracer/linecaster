@@ -1,6 +1,6 @@
 """ALTO (writes v4.4; reads v1 to v4, with or without namespace) on lxml.
 
-Mapping (see ``docs/reference/serialisation.md``):
+Mapping (see ``docs/reference/serialization.md``):
 
 * region -> ``TextBlock`` (``Illustration`` for a picture or chart region without lines), its
   Docling label as a ``LayoutTag`` of ``TYPE="label"``, its producer's label as a ``LayoutTag`` of
@@ -46,7 +46,7 @@ def _e(parent, tag: str, **attrs) -> etree._Element:
 class _Writer:
     def __init__(self, t: Transcription, precision: int | None, extensions: bool):
         self.t = t
-        self.qz = X.Quantiser(precision)
+        self.qz = X.Quantizer(precision)
         self.extensions = extensions
         self.used: set[str] = {r.id for r in t.regions} | {ln.id for ln in t.lines} | {
             w.id for ln in t.lines for w in ln.words}
@@ -247,7 +247,7 @@ class _Writer:
 
 def to_alto(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, precision: int | None = None, extensions: bool = True) -> bytes:
-    """Serialise ``t`` as ALTO 4.4 (pixel units).
+    """Serialize ``t`` as ALTO 4.4 (pixel units).
 
     ``image_width``/``image_height`` default to ``t.source``'s. ``precision``: ``None`` writes
     coordinates exactly as stored (ALTO coordinates are floats), ``0`` writes integers (rounded half

@@ -2,8 +2,8 @@
 
     python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr_new] [--no-nfc]
 
-The goldens' word texts are NFC-normalised first (squiddleocr wrote kraken's decomposed text; linecaster
-normalises with UnicodeNormalizer), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
+The goldens' word texts are NFC-normalized first (squiddleocr wrote kraken's decomposed text; linecaster
+normalizes with UnicodeNormalizer), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
 
 Per page and in total: lines present in both (by id), line boxes equal (kraken's integer clip of the
 polygon), word sequences equal (text and box), and the ids only one side has.

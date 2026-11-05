@@ -6,10 +6,10 @@
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
 </p>
 <p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science
-Museum Group Collection, CC BY-NC-SA 4.0. <a href="#-licence">Credit</a></sub></p>
+Museum Group Collection, CC BY-NC-SA 4.0. <a href="#-license">Credit</a></sub></p>
 
 Build an OCR pipeline from interchangeable parts: a model that reads the text, either a vision-language
-model or a line recogniser, combined with layout, table and formula models and post-processing. Run
+model or a line recognizer, combined with layout, table and formula models and post-processing. Run
 the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF Jobs].
 
 **Jump to:** [Why](#-why-linecaster) · [Quick start](#-quick-start) · [How it works](#-how-it-works) ·
@@ -19,7 +19,7 @@ the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF
 ## 🤔 Why Linecaster
 
 Turning a scan into usable text takes more than one model. The text has to be read, by a
-vision-language model or by a line recogniser. Around that, the layout has to be found, tables and
+vision-language model or by a line recognizer. Around that, the layout has to be found, tables and
 formulas rebuilt, and the text cleaned, reflowed and written in the formats people use. Every model
 comes with its own software, and every machine has its own way of starting and scaling work. Swapping
 a model or moving to bigger hardware usually means starting over.
@@ -28,7 +28,7 @@ Linecaster keeps the parts and the machines apart:
 
 - 🧩 **Any component.** Reading, layout, lines, tables, formulas and post-processing are separate
   steps. Use a [vision-language model](#-vision-language-models-whole-pages) on whole pages or on layout regions,
-  or a [line recogniser](#%EF%B8%8F-recognition) with a line detector, and add any of the other steps.
+  or a [line recognizer](#%EF%B8%8F-recognition) with a line detector, and add any of the other steps.
 - 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
 - 🖥️ **No serving stack to build.** Models load inside the pipeline, or each task starts its own model
   server on its GPU.
@@ -88,7 +88,7 @@ in the VLM pipeline with a layout preset:
 
 ### 🧱 The modular pipeline: smaller models, step by step
 
-Layout, line detection and a line recogniser, then post-processing into a document. You pick each
+Layout, line detection and a line recognizer, then post-processing into a document. You pick each
 step's preset; `linecaster models` lists them.
 
 ```bash
@@ -207,7 +207,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   - `--existing-ocr` also fetches the library's own OCR the manifest links (METS `FULLTEXT`, IIIF
     `seeAlso`/`rendering`; ALTO or hOCR) and keeps it as the transcription `ocr_original`, next to the new one.
 - **http(s):// image URLs** (manifests, or paths in a Parquet column) go through pybookget:
-  - retries that honour `Retry-After`, and an honest user agent;
+  - retries that honor `Retry-After`, and an honest user agent;
   - the environment's proxy settings (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `NO_PROXY`), as everywhere
     else in Linecaster;
   - `--rate-limit 5/1` (repeatable) per task, so the server sees up to `--workers` times that.
@@ -331,11 +331,11 @@ MODELS = [
 | 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 
 Files come per page or, for a book, one per version. Word positions need a model that gives them,
-such as a line recogniser.
+such as a line recognizer.
 
 ## 🧰 Models and blocks
 
-Every model is a **preset** in Linecaster's catalogue: one engine, one model at a pinned revision, and its
+Every model is a **preset** in Linecaster's catalog: one engine, one model at a pinned revision, and its
 settings. The original model card is copied next to it, unchanged, at exactly that revision.
 `linecaster models` lists the presets; [docs/catalog](docs/catalog/README.md) has a page for each
 engine, model, preset, pipeline and recipe, with the results and where every number comes from.
@@ -486,7 +486,7 @@ These blocks need no model.
 - A `Transcription` survives a round trip through JSON exactly, and through ALTO, PAGE-XML and hOCR
   without losing structure, text, positions or confidences.
 - [docs/reference/data-model.md](docs/reference/data-model.md) and
-  [docs/reference/serialisation.md](docs/reference/serialisation.md) are the reference.
+  [docs/reference/serialization.md](docs/reference/serialization.md) are the reference.
 
 </details>
 
@@ -497,17 +497,17 @@ Text moves along three independent axes, one step at a time:
 
 | Axis | From | To |
 |---|---|---|
-| Characters | as written | normalised, expanded, regularised |
+| Characters | as written | normalized, expanded, regularized |
 | Flow | as laid out | flowed |
 | Scope | full page | body text only |
 
 Named versions:
 
 - `verbatim_txt`: as written, as laid out, full page.
-- `readable_txt`, `readable_md`: normalised characters, flowed paragraphs, hyphens joined, body text.
+- `readable_txt`, `readable_md`: normalized characters, flowed paragraphs, hyphens joined, body text.
 
-All text is Unicode [NFC]. Normalisation folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
-Spelling is never modernised.
+All text is Unicode [NFC]. Normalization folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
+Spelling is never modernized.
 
 </details>
 
@@ -549,9 +549,9 @@ Spelling is never modernised.
 </details>
 
 <details>
-<summary><b>📚 The catalogue</b></summary>
+<summary><b>📚 The catalog</b></summary>
 
-- **One catalogue**, in `src/linecaster/catalog/data/`: models (`models/<id>/model.yaml`, with the upstream
+- **One catalog**, in `src/linecaster/catalog/data/`: models (`models/<id>/model.yaml`, with the upstream
   card in `upstream/<revision>/`), presets by step (`presets/<step>/<id>.yaml`), recipes (`recipes/<id>.yaml`)
   and evidence records (`evidence/*.yaml`). The data is YAML, checked against JSON Schemas generated from the
   code (`src/linecaster/catalog/schemas/`); the reasons are in a Markdown file next to it (`<id>.md`,
@@ -594,18 +594,18 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 
 | Folder | Contents |
 |---|---|
-| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalogue, chat `adapters/`, `runtime/` (command line, executors, run record) |
-| `src/linecaster/catalog/data/` | the catalogue: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
-| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalogue) |
+| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalog, chat `adapters/`, `runtime/` (command line, executors, run record) |
+| `src/linecaster/catalog/data/` | the catalog: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
+| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalog) |
 | `launch.py` | launches a recipe or a whole-page model by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `docs/reference/` | reference: glossary, conventions, the data model, serialisation, the catalogue |
-| `docs/` | the generated catalogue pages (`docs/catalog/`, one folder per component), images for this README |
+| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog |
+| `docs/` | the generated catalog pages (`docs/catalog/`, one folder per component), images for this README |
 
 </details>
 
-## 📄 Licence
+## 📄 License
 
 The code is Apache-2.0, see [LICENSE](LICENSE).
 
@@ -622,7 +622,7 @@ black-and-white line drawing.
 
 The drawing is an adaptation of that photograph and is licensed under the same terms,
 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It may not be used for
-commercial purposes. The Apache-2.0 licence of the code does not apply to it. The same credit is in
+commercial purposes. The Apache-2.0 license of the code does not apply to it. The same credit is in
 [docs/LICENSE-linecaster-image.md](docs/LICENSE-linecaster-image.md).
 
 </details>

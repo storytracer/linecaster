@@ -47,7 +47,7 @@
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
-text lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
+text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
 and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
 --files per-page files in the --formats asked for (--naming squiddleocr: flat `<page>.paddle.<ext>`, as
 squiddleocr names them), with --item-texts one text per item in each text version.

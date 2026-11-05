@@ -1,6 +1,6 @@
 """Bridge from linecaster's lines to kraken's containers.
 
-kraken's recogniser takes a ``Segmentation`` of line records. This builds one from linecaster
+kraken's recognizer takes a ``Segmentation`` of line records. This builds one from linecaster
 ``Line``s: a ``BaselineLine`` (boundary polygon + baseline) when the line step gave a baseline, else a
 ``BBoxLine`` with the axis-aligned bounds of the polygon. Record ids are the lines' ids
 (``<region id>_l<n>``) and each record names its region.

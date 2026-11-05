@@ -3,7 +3,7 @@
 ``best`` is tessdata_best (the most accurate LSTM models, float), ``fast`` tessdata_fast (integer,
 faster). A language is a code such as ``eng``, ``deu``, ``lat`` or ``frk`` or a script such as
 ``script/Latin``; ``+`` combines several (``eng+lat``). The commits and the sha256 of the pinned files live in
-the catalogue (``linecaster/catalog/data/models/tessdata-{best,fast}/model.yaml``): ``data`` resolves to its
+the catalog (``linecaster/catalog/data/models/tessdata-{best,fast}/model.yaml``): ``data`` resolves to its
 model document's newest pin, a preset passes its pin as ``weights``. Files land in
 ``~/.cache/linecaster/tessdata`` (``LINECASTER_CACHE``) under the repository and commit, and every pinned file
 is checked against its sha256 whenever it is used; with ``weights`` only pinned files are accepted.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-#: the catalogue's model document for each kind of tessdata
+#: the catalog's model document for each kind of tessdata
 MODEL_IDS = {"best": "tessdata-best", "fast": "tessdata-fast"}
 
 
@@ -28,7 +28,7 @@ class Tessdata:
     repo: str                                   # owner/name on GitHub
     commit: str
     files: dict[str, str] = field(default_factory=dict)   # path in the repository -> sha256:<hex>
-    model: str | None = None                    # the catalogue model id
+    model: str | None = None                    # the catalog model id
 
     @classmethod
     def of(cls, weights: dict) -> "Tessdata":
@@ -51,7 +51,7 @@ def tessdata(data: str = "best") -> Tessdata:
                         "files": dict(pin.files)})
 
 
-def __getattr__(name):   # TESSDATA: kind -> Tessdata, read from the catalogue when asked for
+def __getattr__(name):   # TESSDATA: kind -> Tessdata, read from the catalog when asked for
     if name == "TESSDATA":
         return {data: tessdata(data) for data in MODEL_IDS}
     raise AttributeError(name)

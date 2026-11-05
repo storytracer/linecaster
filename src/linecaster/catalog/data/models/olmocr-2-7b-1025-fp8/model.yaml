@@ -23,6 +23,6 @@ scripts:
 params: 7B (FP8)
 derived_from:
 - ref: allenai/olmOCR-2-7B-1025
-  relation: quantised
+  relation: quantized
 - ref: Qwen/Qwen2.5-VL-7B-Instruct
   relation: finetuned

@@ -1,15 +1,15 @@
 # CLAUDE.md
 
 Guidance for working on linecaster. Status: first version built (November 2026): data model and
-serialisers, blocks, `linecaster serve`, kraken and PaddleX engines, HF Jobs pipelines; the squiddle
+serializers, blocks, `linecaster serve`, kraken and PaddleX engines, HF Jobs pipelines; the squiddle
 combination reproduces squiddleocr's goldens line for line. Measurements and decisions in NOTES.md;
 the reference in `docs/reference/` (with the glossary and the conventions).
 
 ## What this is
 
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new
-documents). It combines layout, line, text, table and formula recognisers with post-processing
-(dehyphenation, reflow, normalisation) into reproducible datatrove pipelines that turn page images
+documents). It combines layout, line, text, table and formula recognizers with post-processing
+(dehyphenation, reflow, normalization) into reproducible datatrove pipelines that turn page images
 into text: the text as written, readable variants next to it, ALTO, PAGE-XML and hOCR on request.
 Everything that produces text from images lives here; evaluation (ocrscout, bhl-ocr-eval) and
 project pipelines (EBDC, FineBooks) are built on top of it, never the other way round.
@@ -37,7 +37,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
   the job helpers and pipeline-building helpers; example pipelines only as pipeline
-  scripts (`pipelines/`), recipes as catalogue documents, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
+  scripts (`pipelines/`), recipes as catalog documents, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
   pipeline in `storytracer/squiddleocr`, the BHL re-OCR in `finebooks/bhl-commonpile-pipeline`.
 
 ## Architecture: servers host models, the pipeline puts the steps together
@@ -55,15 +55,15 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` /
-  `RegionRecognizer` (`blocks/recognition/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
+  `RegionRecognizer` (`blocks/recognition/chat.py`) with `chat_model(<preset>)`: a catalog preset (engine `chat.v1`,
   data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
-- **The catalogue** (`docs/reference/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
+- **The catalog** (`docs/reference/catalog.md`, `linecaster.catalog`): one catalog, `src/linecaster/catalog/data/`
   (engine packages and derivatives ship none): every entry is a YAML file (its JSON Schema, generated from the
   Pydantic models into `catalog/schemas/`, named in its first line; read with `ruamel.yaml` through
   `catalog.yamlio`) with its prose in a Markdown file next to it; every model is a model entry
   (`models/<id>/model.yaml`) with its
-  upstream card copied verbatim at the pinned revision (always, whatever the licence), every configuration
+  upstream card copied verbatim at the pinned revision (always, whatever the license), every configuration
   a preset (`presets/<step>/<id>.yaml`, `id@edition`; steps `layout`, `lines`, `recognition`, `tables`,
   `formulas`, a VLM reading whole pages is `recognition` with `unit: page`; it names its engine by versioned id, `engine:
   kraken.recognition.v1`, with `options` beside it, no "kind"; `version`/`revision` are upstream's, `edition`
@@ -86,12 +86,12 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `uv run <script>`) that builds one pipeline shape with slots, and **one pipeline script per shape,
   never one per machine**: `linecaster.runtime.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
   `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
-  for Ray's CLI from its environment). `pipelines/transcribe_modular.py` (lines and a recogniser, optionally layout,
+  for Ray's CLI from its environment). `pipelines/transcribe_modular.py` (lines and a recognizer, optionally layout,
   tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/transcribe_vlm.py` (a VLM per page or per
-  region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalogue
+  region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalog
   entry naming a pipeline id (`transcribe_modular.v1`, the script's `PIPELINE`), a preset edition per slot and options,
   edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
-  catalogue). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
+  catalog). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
   script whose `PIPELINE` the recipe names (whole-page presets: `transcribe_vlm.v1`) and runs it (`uv run --script`) with
   `--recipe` / `--recognition`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
   component (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
@@ -105,7 +105,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `stubs/opencv-contrib-python` (the headless build of the same version; one cv2). After changing
   a script's metadata: `uv lock --script <script>`.
 
-## Data model and serialisation (from the EBDC pilot architecture)
+## Data model and serialization (from the EBDC pilot architecture)
 
 Classes: `Item` (any multi-page unit: book, issue, manuscript, file; key `item_id`), `Page` (the
 page record with its image and named transcriptions: `ocr_new` from a linecaster run, every block's default,
@@ -121,19 +121,19 @@ transcriptions), `docling` (the docling-core `DoclingDocument`, nested as it is)
 `objects`, `confidence`, plus `language`, `model` (one `ModelInfo` per step) and `source`. Every bbox
 is `[x, y, width, height]` in pixels of the received image; `Transcription.scaled(sx, sy)` moves it
 to another image size. Out: JSON via `model_dump_json` (exact round-trip), `to_alto` / `to_page` /
-`to_hocr` and in: `from_alto` / `from_page` / `from_hocr` (lxml, never kraken's serialiser; semantic
+`to_hocr` and in: `from_alto` / `from_page` / `from_hocr` (lxml, never kraken's serializer; semantic
 round-trip: structure, text, geometry, confidences, ids, reading order; `linecaster.formats`,
-`docs/reference/serialisation.md`).
+`docs/reference/serialization.md`).
 No glyph level: words are the finest level.
 
 Text (`linecaster.text.variants`, block `ItemTexts`): era-neutral vocabulary, three independent dimensions:
-character fidelity (as written, normalised, expanded, regularised), flow (as laid out, flowed),
+character fidelity (as written, normalized, expanded, regularized), flow (as laid out, flowed),
 scope (full page, body only). Each transform moves one step on one dimension; the as-written layer
 is never overwritten. Named variants: `verbatim_txt` (as written, as laid out, full page; pages
-joined with a form feed) and `readable_txt` / `readable_md` (normalised by the explicit mapping
+joined with a form feed) and `readable_txt` / `readable_md` (normalized by the explicit mapping
 table, flowed with dehyphenation, body only). All text is NFC; the mapping folds ſ, ligatures,
 r rotunda and superscript e over a/o/u; æ, œ, ø, å and ß stay; **never NFKC**; spelling is never
-modernised.
+modernized.
 
 ## Run layout, enrichment chain, rejects
 
@@ -180,7 +180,7 @@ throttles): `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}`, revision
 model documents (`src/linecaster/catalog/data/models/kraken-ppocrv6-*`; the Zenodo DOIs are provenance,
 in each pin's `doi`); `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026)
 is still pinned in `linecaster_kraken.models` (no engine uses it). PaddleX's official models are its
-`PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the catalogue and loaded from
+`PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the catalog and loaded from
 the pinned snapshot (`create_predictor(model_dir=...)`); new models: `linecaster catalog pin`.
 
 ## Environment and machines

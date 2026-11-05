@@ -1,7 +1,7 @@
-Benjamin Kiessling's PP-OCRv6 (tiny) line recogniser for kraken (ALMAnaCH, Inria Paris), as mirrored byte for
+Benjamin Kiessling's PP-OCRv6 (tiny) line recognizer for kraken (ALMAnaCH, Inria Paris), as mirrored byte for
 byte on the Hugging Face Hub by Small Models for GLAM; the canonical release is the Zenodo record
 [10.5281/zenodo.21788403](https://doi.org/10.5281/zenodo.21788403), which is provenance only: linecaster always downloads from the mirror (Zenodo
-throttles). Licence, languages (44 plus `mul`) and scripts are the card's.
+throttles). License, languages (44 plus `mul`) and scripts are the card's.
 
 The card describes the model as trained from scratch by kraken's author on line images of historical,
 contemporary and born-digital documents, handwritten and printed, on an architecture adapted from PaddlePaddle's

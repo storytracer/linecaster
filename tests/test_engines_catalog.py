@@ -41,9 +41,9 @@
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""The engine packages in the catalogue (docs/reference/catalog.md), without loading any model: every engine's ``Options``
+"""The engine packages in the catalog (docs/reference/catalog.md), without loading any model: every engine's ``Options``
 mirror its constructor, capabilities use the vocabulary, every preset builds through ``InProcess.from_preset``,
-and the installed catalogue (core + engines) verifies. Skipped in the core environment; with the engines:
+and the installed catalog (core + engines) verifies. Skipped in the core environment; with the engines:
 ``uv run tests/test_engines_catalog.py``."""
 import inspect
 from pathlib import Path
@@ -100,7 +100,7 @@ def test_capabilities_use_the_vocabulary(engine):
     assert caps.unit in ("line", "region", "page") and caps.produces
 
 
-def test_the_catalogue_verifies_with_the_engines_installed():
+def test_the_catalog_verifies_with_the_engines_installed():
     """With the engines installed, verify also checks that every preset's engine is registered."""
     assert len(ENGINE_PRESETS) == 18
     assert Catalog().verify() == []
@@ -118,7 +118,7 @@ def test_preset_constructs_its_engine(pid):
     assert model.weights == b.kwargs["weights"]
     # the preset states every option but the device (and what its submodels replace), so an edition does not
     # depend on code defaults; editions released before an option was added leave it out (its default keeps
-    # the old behaviour)
+    # the old behavior)
     replaced = {"submodel_revisions"} if p.submodels else set()
     later, upto = ADDED_LATER.get(p.engine, (set(), 0))
     unstated = later if p.edition <= upto else set()
@@ -143,16 +143,16 @@ def test_weights_must_name_the_model():
         TesseractRecognitionEngine(data="fast", weights=w("tesseract-best-eng"))
 
 
-def test_names_resolve_through_the_catalogue():
+def test_names_resolve_through_the_catalog():
     from linecaster_kraken.models import size_weights
-    from linecaster_paddlex.weights import catalogue_weights, model_id
+    from linecaster_paddlex.weights import catalog_weights, model_id
     from linecaster_tesseract import models as tess
 
     for size in ("tiny", "small", "medium"):
         assert size_weights(size)["revision"] == catalog().preset(f"kraken-ppocrv6-{size}").model.revision
     assert model_id("PP-DocLayout_plus-L") == "pp-doclayout-plus-l-onnx"
-    assert catalogue_weights("PP-FormulaNet_plus-L", "safetensors")["model"] == "pp-formulanet-plus-l-safetensors"
-    assert catalogue_weights("PP-OCRv5_server_det") is None     # not in the catalogue: PaddleX downloads it
+    assert catalog_weights("PP-FormulaNet_plus-L", "safetensors")["model"] == "pp-formulanet-plus-l-safetensors"
+    assert catalog_weights("PP-OCRv5_server_det") is None     # not in the catalog: PaddleX downloads it
     assert {k: td.commit for k, td in tess.TESSDATA.items()} == {
         k: catalog().model(f"tessdata-{k}").pins[-1].revision for k in ("best", "fast")}
 
@@ -187,8 +187,8 @@ def test_table_submodels_are_pinned_models():
     assert set(b.kwargs["submodel_weights"]) == set(PaddleTableEngine.SUBMODELS)
 
 
-def test_the_engine_packages_ship_no_catalogue():
-    """One catalogue: the engines' presets and models live in linecaster's (``src/linecaster/catalog/data``)."""
+def test_the_engine_packages_ship_no_catalog():
+    """One catalog: the engines' presets and models live in linecaster's (``src/linecaster/catalog/data``)."""
     import importlib
 
     for pkg in ("linecaster_kraken", "linecaster_paddlex", "linecaster_tesseract"):

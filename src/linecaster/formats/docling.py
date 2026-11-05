@@ -20,7 +20,7 @@ Empty regions produce no item. ``build_docling`` makes the document of one page 
 ``DocumentBuilder`` binds all pages of an item into one, with paragraphs continued across page breaks,
 optional sections and the region map for Markdown dividers (squiddleocr's ``--per-document``,
 ``--sections``, ``--dividers``). Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
-docling-core's own serialisers.
+docling-core's own serializers.
 
 ``text="reflow"`` is squiddleocr's default document mode (``linecaster.text.recomposition``): the rows of a text
 region joined into paragraphs, the typesetter's division marks removed (the page's own words as the
@@ -367,7 +367,7 @@ def to_doclang(doc_or_t) -> str:
     """Docling's DocLang XML, with named groups (sections survive as ``<group>``). DocLang keeps every
     content layer and marks the furniture items (``<layer value="furniture"/>``), so it has no
     ``furniture`` switch. docling-core's DocLang export rewrites the provenance charspans of the document it
-    serialises, so it runs on a copy (0.3's JSON depended on whether doclang was exported before it)."""
+    serializes, so it runs on a copy (0.3's JSON depended on whether doclang was exported before it)."""
     doc = load_docling(doc_or_t) if isinstance(doc_or_t, Transcription) else doc_or_t
     return doc.model_copy(deep=True).export_to_doclang(add_named_groups=True)
 

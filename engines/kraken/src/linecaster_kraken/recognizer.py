@@ -1,8 +1,8 @@
-"""kraken's own recogniser, unchanged: ``RecognitionTaskModel`` on kraken's PP-OCRv6 weights.
+"""kraken's own recognizer, unchanged: ``RecognitionTaskModel`` on kraken's PP-OCRv6 weights.
 
 Lines are extracted, transformed, batched, decoded and turned into ``ocr_record``s (text,
 per-character cuts and confidences) by kraken itself; the weights are kraken's safetensors from
-their Hugging Face mirrors (pinned in the catalogue: ``models``), running on torch. Our part is ``segmentation.py`` (linecaster lines -> kraken's
+their Hugging Face mirrors (pinned in the catalog: ``models``), running on torch. Our part is ``segmentation.py`` (linecaster lines -> kraken's
 ``Segmentation``) and turning records into linecaster lines and words (``record_words``, kraken's rule).
 """
 from __future__ import annotations
@@ -34,7 +34,7 @@ def max_bbox(cuts) -> BBox:
 
 
 def record_words(rec, line_id: str) -> list[Word]:
-    """Words from a kraken record the way kraken's serialiser makes them: the prediction split at
+    """Words from a kraken record the way kraken's serializer makes them: the prediction split at
     whitespace, a word's box the box around its characters' cuts, its confidence their mean."""
     words, offset = [], 0
     text = getattr(rec, "prediction", "") or ""
@@ -107,11 +107,11 @@ class KrakenRecognizer:
 
 
 class KrakenRecognitionEngine:
-    """linecaster engine model for the recognition step: kraken's PP-OCRv6 recogniser on every line of
+    """linecaster engine model for the recognition step: kraken's PP-OCRv6 recognizer on every line of
     the transcription, in list order (the line step's processing order), ``batch_size`` lines per
     forward pass. A page's result depends only on the page. Fills text, confidence and words.
 
-    The model file: ``weights`` (a catalogue pin, as a preset passes it) when given, else ``model``: a size
+    The model file: ``weights`` (a catalog pin, as a preset passes it) when given, else ``model``: a size
     name, resolved to its model document's newest pin, or a kraken model file."""
 
     engine_id: ClassVar[str] = "kraken.recognition.v1"

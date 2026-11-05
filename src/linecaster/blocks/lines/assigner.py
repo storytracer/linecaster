@@ -5,7 +5,7 @@ each line goes to the region it overlaps most; lines outside every region (a pag
 model missed, marginalia) become their own ``text`` regions, one per visual row, slotted into the
 reading order; duplicates are dropped and lines are ordered row by row within each region.
 
-The list order of ``Transcription.lines`` afterwards is the processing order a recogniser follows
+The list order of ``Transcription.lines`` afterwards is the processing order a recognizer follows
 (regions in the layout step's order, orphan rows last, rows within each region); ``reading_order``
 is the reading rank (regions by reading order, then rows). Line ids are ``<region id>_l<n>``.
 """
@@ -84,7 +84,7 @@ def order_rows(lines: list[Line]) -> list[Line]:
 class LineAssigner(PageBlock):
     """Assign page-level lines to the layout regions and order them (see the module docstring).
 
-    Regions labelled in ``skip_labels`` take no lines (pictures); with ``formulas_separately`` formula
+    Regions labeled in ``skip_labels`` take no lines (pictures); with ``formulas_separately`` formula
     regions take none either (a formula step reads them as LaTeX), and lines inside them are dropped.
     """
 

@@ -2,7 +2,7 @@
 
 PP-FormulaNet_plus-L and PP-FormulaNet-L ship as safetensors for PaddleX's ``transformers`` engine
 (Hugging Face ``transformers`` on torch), so they run on the same torch and GPU as kraken's
-recogniser; the official model source has no ONNX package for any formula model, and Paddle
+recognizer; the official model source has no ONNX package for any formula model, and Paddle
 Inference is not used. A formula region's crop goes in, LaTeX comes out. Ported from squiddleocr.
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ class PaddleFormulaEngine:
     """linecaster engine model for the formulas step: LaTeX for every ``formula`` region, into
     ``region.extra["formula"]``. The page's formula crops are read together, in the regions' list order,
     ``batch_size`` crops per forward pass (a page's result depends only on the page). The model files:
-    ``weights`` (a catalogue pin of the ``_safetensors`` package) or the catalogue's newest pin for
+    ``weights`` (a catalog pin of the ``_safetensors`` package) or the catalog's newest pin for
     ``model_name`` (``weights.resolve``)."""
 
     engine_id: ClassVar[str] = "paddlex.formulas.v1"
@@ -36,7 +36,7 @@ class PaddleFormulaEngine:
     class Options(BaseModel):
         model_config = ConfigDict(extra="forbid", protected_namespaces=())
 
-        model_name: str = Field(DEFAULT_FORMULA_MODEL, description="PaddleX formula recogniser on the transformers "
+        model_name: str = Field(DEFAULT_FORMULA_MODEL, description="PaddleX formula recognizer on the transformers "
                                                                    "engine: PP-FormulaNet_plus-L or PP-FormulaNet-L")
         device: str = Field("auto", description="auto (CUDA if available) or cpu (torch)")
         batch_size: int = Field(8, description="formula crops per forward pass")

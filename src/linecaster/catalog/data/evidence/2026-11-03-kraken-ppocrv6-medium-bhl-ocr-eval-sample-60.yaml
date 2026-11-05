@@ -2,7 +2,7 @@
 schema: linecaster.evidence/1
 preset: kraken-ppocrv6-medium@1
 context: transcribe_modular.v1 with pp-doclayoutv3@1, pp-ocrv6-medium-det@1, slanet-plus@1, no formulas, text lines;
-  only the recogniser varied
+  only the recognizer varied
 source: own-run
 dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
 metrics:
@@ -19,10 +19,10 @@ software:
   onnxruntime-gpu: 1.29.0
   paddlex: 3.7.2
   tesserocr: 2.12.0 (Tesseract 5.5.3)
-notes: 'One row of the line-recogniser comparison of 2026-11-03 (NOTES.md, ''More line recognisers'').
+notes: 'One row of the line-recognizer comparison of 2026-11-03 (NOTES.md, ''More line recognizers'').
   The same modular pipeline for every row: PP-DocLayoutV3 -> PP-OCRv6 medium detection on the whole page -> lines
-  assigned to regions -> the recogniser -> NFC -> tables -> typography -> document -> Markdown, in-process,
+  assigned to regions -> the recognizer -> NFC -> tables -> typography -> document -> Markdown, in-process,
   one task. The other steps at the settings of pp-doclayoutv3@1, pp-ocrv6-medium-det@1 and slanet-plus@1.
   Scored as-is (no post-processing) with the frozen bhl-ocr-eval harness (score_dataset). Wall time for
-  the 60 pages includes model loading. Run before the catalogue existed, with the settings and model revisions
+  the 60 pages includes model loading. Run before the catalog existed, with the settings and model revisions
   this preset edition now states.'

@@ -45,7 +45,7 @@ class Hosted:
     spec: str
     kwargs: dict
     max_queue: int = 16
-    preset: str | None = None          # id@edition when hosted from a catalogue preset
+    preset: str | None = None          # id@edition when hosted from a catalog preset
     preset_sha256: str | None = None
     model: object = None
     jobs: queue.Queue = field(default_factory=queue.Queue)

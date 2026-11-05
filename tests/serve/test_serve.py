@@ -18,7 +18,7 @@ SEEN: dict = {}
 
 
 class FakeTables:
-    """A tables engine model that notes whether it got an image; for a page whose region is labelled ``bad``
+    """A tables engine model that notes whether it got an image; for a page whose region is labeled ``bad``
     it answers something that is not a transcription."""
 
     step, name = "tables", "fake-tables"

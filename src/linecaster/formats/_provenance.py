@@ -1,4 +1,4 @@
-"""Provenance shared by the serialisers: which software wrote a file, and one record per step.
+"""Provenance shared by the serializers: which software wrote a file, and one record per step.
 
 A step record is the part of a ``ModelInfo`` that identifies what ran: ``step``, ``name``, ``revision``,
 ``preset``, ``preset_sha256``, ``backend`` and ``settings``. ``measurements`` (seconds, tokens, ...) vary from

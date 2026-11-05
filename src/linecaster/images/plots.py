@@ -1,8 +1,8 @@
 """Layout plots: a page image with the regions, lines and labels of a transcription drawn in.
 
-Region polygons coloured by Docling label with a tag (label, heading level, reading-order rank and
+Region polygons colored by Docling label with a tag (label, heading level, reading-order rank and
 the producing model's own label when it differs), the lines as thin boxes, furniture (page numbers,
-running heads) in grey. Large pages are scaled down to ``max_width`` pixels. Ported from
+running heads) in gray. Large pages are scaled down to ``max_width`` pixels. Ported from
 squiddleocr's ``--plots`` (``plots.py``); Pillow only.
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from ..data.geometry import bbox_of
 from ..data.transcription import Transcription
 from ..text.typography import line_bbox
 
-COLOURS = {
+COLORS = {
     "text": (30, 100, 230), "section_header": (220, 40, 40), "title": (220, 40, 40),
     "page_header": (120, 120, 120), "page_footer": (120, 120, 120),
     "picture": (150, 60, 200), "table": (240, 140, 20), "caption": (0, 150, 150), "footnote": (0, 150, 150),
@@ -50,11 +50,11 @@ def plot_layout(image, t: Transcription, max_width: int = 2400, fmt: str = "JPEG
             d.rectangle((b.x0 * scale, b.y0 * scale, b.x1 * scale, b.y1 * scale), outline=ROW + (255,),
                         width=max(1, line_w // 2))
     for r in t.regions:
-        colour = COLOURS.get(r.label, DEFAULT)
+        color = COLORS.get(r.label, DEFAULT)
         pts = [(float(x) * scale, float(y) * scale) for x, y in np.asarray(r.polygon, dtype=float).reshape(-1, 2)]
         if len(pts) >= 3:
-            d.polygon(pts, outline=colour + (255,), fill=colour + (28,))
-            d.line(pts + [pts[0]], fill=colour + (255,), width=line_w)
+            d.polygon(pts, outline=color + (255,), fill=color + (28,))
+            d.line(pts + [pts[0]], fill=color + (255,), width=line_w)
         tag = (r.label + (f" h{r.heading_level}" if r.heading_level else "")
                + (f" #{r.reading_order}" if r.reading_order is not None else ""))
         if r.raw_label and r.raw_label.split("/")[-1] not in ("", r.label):
@@ -62,7 +62,7 @@ def plot_layout(image, t: Transcription, max_width: int = 2400, fmt: str = "JPEG
         b = bbox_of(r.polygon)
         x, y = b.x0 * scale, b.y0 * scale
         tw = d.textlength(tag, font=font) + 8
-        d.rectangle((x, y - size - 6, x + tw, y), fill=colour + (230,))
+        d.rectangle((x, y - size - 6, x + tw, y), fill=color + (230,))
         d.text((x + 4, y - size - 4), tag, fill=(255, 255, 255, 255), font=font)
     out = io.BytesIO()
     if fmt.upper() in ("JPEG", "JPG"):

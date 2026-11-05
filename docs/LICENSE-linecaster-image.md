@@ -10,6 +10,6 @@ Photograph © The Board of Trustees of the Science Museum, released under CC BY-
 
 Changes: the photograph was redrawn as a black-and-white line drawing.
 
-Licence of this drawing: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/).
-It may not be used for commercial purposes. The Apache-2.0 licence of the linecaster code does not
+License of this drawing: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/).
+It may not be used for commercial purposes. The Apache-2.0 license of the linecaster code does not
 apply to this file.

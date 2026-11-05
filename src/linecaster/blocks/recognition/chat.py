@@ -9,7 +9,7 @@ request from the page image and parsing the completion into a text-only ``Transc
     from linecaster.adapters import chat_model
     from linecaster.backends import Served
 
-    spec = chat_model("lightonocr-2-1b")          # a catalogue preset (or its Hugging Face id)
+    spec = chat_model("lightonocr-2-1b")          # a catalog preset (or its Hugging Face id)
     PageRecognizer(spec, Served("http://127.0.0.1:8000/v1", model=spec.served_name, max_window=48, initial_window=8))
 
 ``spec`` may also be the preset ref itself (``PageRecognizer("lightonocr-2-1b", ...)``). Every result's
@@ -38,7 +38,7 @@ from ..base.page import image_bytes, page_of, set_page
 
 
 class PageRecognizer(ModelBlock):
-    """Recognise every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr_new``).
+    """Recognize every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr_new``).
 
     ``backend.model`` is the name the server hosts the model under (for vLLM without
     ``--served-model-name``: the Hub id, ``spec.model``). ``prepare_workers`` threads build requests
@@ -76,7 +76,7 @@ REGION_LABELS = frozenset({"text", "title", "section_header", "page_header", "pa
 
 
 class RegionRecognizer(PageRecognizer):
-    """Recognise each layout region with a chat VLM: one request per region crop, through the same saturate
+    """Recognize each layout region with a chat VLM: one request per region crop, through the same saturate
     machinery as ``PageRecognizer``, results collected per page. Any layout step can come before it.
 
     Crops are cut at the scale the model expects for a whole page (``spec.page_longest``: the page is

@@ -101,11 +101,11 @@ def test_working_images_and_attach(tmp_path: Path):
 
 # ------------------------------------------------------------------ text
 
-def test_normalise_never_nfkc():
-    assert T.normalise("Weſen ﬁnden ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ ꝛecht Ꝛ") == "Wesen finden fl ff ffi ffl st st recht R"
-    assert T.normalise("Muͤller Koͤnig Gaͤrten Uͤber eͤ") == "Müller König Gärten Über eͤ"
-    assert T.normalise("Æsop œuvre søster år Straße ½ x² ¹") == "Æsop œuvre søster år Straße ½ x² ¹"
-    assert T.normalise("é") == "é"
+def test_normalize_never_nfkc():
+    assert T.normalize("Weſen ﬁnden ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ ꝛecht Ꝛ") == "Wesen finden fl ff ffi ffl st st recht R"
+    assert T.normalize("Muͤller Koͤnig Gaͤrten Uͤber eͤ") == "Müller König Gärten Über eͤ"
+    assert T.normalize("Æsop œuvre søster år Straße ½ x² ¹") == "Æsop œuvre søster år Straße ½ x² ¹"
+    assert T.normalize("é") == "é"
 
 
 def test_join_lines():

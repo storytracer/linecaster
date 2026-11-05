@@ -5,7 +5,7 @@ differing pages a short diff.
 
     python compare_exports.py EXPORTS_DIR GOLDEN_DIR [--show N] [--no-nfc]
 
-Both sides are NFC-normalised before comparing (squiddleocr wrote kraken's decomposed text; linecaster's
+Both sides are NFC-normalized before comparing (squiddleocr wrote kraken's decomposed text; linecaster's
 as-written layer is NFC after ``UnicodeNormalizer``), so parity means "byte-exact after NFC";
 ``--no-nfc`` compares the raw bytes.
 """

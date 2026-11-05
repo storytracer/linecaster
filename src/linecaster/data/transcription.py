@@ -13,7 +13,7 @@ A page is transcribed in steps, each adding one part:
 * page composition (``Composer``) builds ``docling`` (the document structure) from regions and lines.
 
 ``regions`` is the layout contract between steps; ``docling`` is the document a reader exports.
-Words are the finest level: a recogniser that has character cuts turns them into words itself.
+Words are the finest level: a recognizer that has character cuts turns them into words itself.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class _Model(BaseModel):
 
 
 class Word(_Model):
-    """A word of a recognised line."""
+    """A word of a recognized line."""
 
     id: str
     text: str
@@ -80,7 +80,7 @@ class ModelInfo(_Model):
     step: str                                # layout, lines, recognition, tables, formulas, page, ...
     name: str                                # e.g. kraken-ppocrv6-medium, PP-DocLayoutV3
     revision: str | None = None
-    preset: str | None = None                # the catalogue preset edition it ran as: id@edition
+    preset: str | None = None                # the catalog preset edition it ran as: id@edition
     preset_sha256: str | None = None         # the hash of that edition's functional content (catalog.lock)
     recipe: str | None = None                # the recipe edition the run followed: id@edition
     recipe_sha256: str | None = None
@@ -106,7 +106,7 @@ class Transcription(_Model):
 
     regions: list[Region] = Field(default_factory=list)
     lines: list[Line] = Field(default_factory=list)
-    docling: dict[str, Any] | None = None    # a DoclingDocument, serialised as docling-core dumps it
+    docling: dict[str, Any] | None = None    # a DoclingDocument, serialized as docling-core dumps it
     language: str | None = None
     model: list[ModelInfo] = Field(default_factory=list)
     source: Source = Field(default_factory=Source)
@@ -118,7 +118,7 @@ class Transcription(_Model):
 
     @property
     def text(self) -> str:
-        """The page's text as written, as laid out, full page: the recognised lines in reading order, one
+        """The page's text as written, as laid out, full page: the recognized lines in reading order, one
         per line; a region with a table structure (``region.extra["table"]``, from a tables step) is
         written as a Markdown table instead of its lines (an HTML table when a cell spans)."""
         tables = {r.id: r.extra["table"] for r in self.regions if r.extra.get("table", {}).get("cells")}

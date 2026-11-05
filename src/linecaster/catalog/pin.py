@@ -1,7 +1,7 @@
 """``linecaster catalog pin``: write a model document from its source, with the upstream card copied verbatim.
 
 * Hugging Face: the revision (a commit; a tag or branch is resolved and kept as ``tag``), the sha256 of every
-  LFS file, ``README.md`` and any licence file at that commit, copied unchanged into
+  LFS file, ``README.md`` and any license file at that commit, copied unchanged into
   ``models/<id>/upstream/<revision>/``.
 * git (GitHub): a commit, the named files (downloaded and hashed) and the repository README at that commit.
 
@@ -21,7 +21,7 @@ from . import yamlio
 from .registry import sha256_file, write_entry
 from .schema import ModelDoc, Pin
 
-#: card licence ids (Hugging Face uses lowercase SPDX-like ids) -> SPDX
+#: card license ids (Hugging Face uses lowercase SPDX-like ids) -> SPDX
 SPDX = {"apache-2.0": "Apache-2.0", "mit": "MIT", "bsd-3-clause": "BSD-3-Clause", "cc-by-4.0": "CC-BY-4.0",
         "cc-by-sa-4.0": "CC-BY-SA-4.0", "cc-by-nc-4.0": "CC-BY-NC-4.0", "cc-by-nc-sa-4.0": "CC-BY-NC-SA-4.0",
         "gpl-3.0": "GPL-3.0-only", "agpl-3.0": "AGPL-3.0-only", "lgpl-3.0": "LGPL-3.0-only",

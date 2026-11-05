@@ -1,4 +1,4 @@
-"""``UnicodeNormalizer``: the as-written layer in one Unicode normalisation form (default NFC), right after
+"""``UnicodeNormalizer``: the as-written layer in one Unicode normalization form (default NFC), right after
 recognition (see ``linecaster.text.unicode`` for why it is a step of its own)."""
 from __future__ import annotations
 

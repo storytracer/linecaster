@@ -23,7 +23,7 @@ from . import ChatAdapter, data_url, png_bytes
 
 
 def scale_to_fit(img, max_size=(3072, 2048), min_size=(1792, 28), grid_size: int = 28):
-    """chandra-ocr v0.2.0 ``chandra/model/util.py: scale_to_fit``, verbatim in behaviour."""
+    """chandra-ocr v0.2.0 ``chandra/model/util.py: scale_to_fit``, verbatim in behavior."""
     from PIL import Image
 
     width, height = img.size

@@ -13,7 +13,7 @@ def _serve(a) -> None:
     if a.config:
         with open(a.config) as f:
             for m in json.load(f)["models"]:
-                if m.get("preset"):        # a catalogue preset, with options over the preset's
+                if m.get("preset"):        # a catalog preset, with options over the preset's
                     from .catalog.registry import engine_spec
 
                     spec, kw, r = engine_spec(m["preset"])
@@ -41,7 +41,7 @@ def _models(a) -> None:
     from .catalog.registry import catalog
 
     c = catalog()
-    rows = [("preset", "step", "engine", "model", "licence", "support")]
+    rows = [("preset", "step", "engine", "model", "license", "support")]
     for pid, (_, p) in sorted(c.presets.items()):
         if a.step and p.step != a.step:
             continue
@@ -106,14 +106,14 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--config", help="JSON file: {\"models\": [{\"name\", \"preset\", \"overrides\"} or "
                                     "{\"name\", \"spec\", \"kwargs\"}, optional \"max_queue\"]}")
     s.add_argument("--preset", action="append", default=[], metavar="NAME=ID[@EDITION]",
-                   help="host a catalogue preset under NAME")
+                   help="host a catalog preset under NAME")
     s.add_argument("--model", action="append", default=[], metavar="NAME=module:Class")
     s.add_argument("--kwargs", action="append", default=[], metavar="NAME=JSON")
     s.add_argument("--host", default="127.0.0.1", help="bind address (default loopback only)")
     s.add_argument("--port", type=int, default=8100)
     s.add_argument("--max-queue", type=int, default=64, help="requests a model accepts before answering 429")
     s.add_argument("--decode-workers", type=int, default=4)
-    m = sub.add_parser("models", help="the catalogue's presets")
+    m = sub.add_parser("models", help="the catalog's presets")
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas", "docs"])

@@ -1,6 +1,6 @@
 """PAGE-XML (writes the 2019-07-15 schema; reads 2009 to 2019 namespaces) on lxml.
 
-Mapping (see ``docs/reference/serialisation.md``):
+Mapping (see ``docs/reference/serialization.md``):
 
 * region -> ``TextRegion`` with ``@type`` from its Docling label (``ImageRegion``, ``ChartRegion``,
   ``TableRegion``, ``MathsRegion`` for picture, chart, table and formula regions without lines);
@@ -91,7 +91,7 @@ def _conf(v: float | None) -> str | None:
 class _Writer:
     def __init__(self, t: Transcription, extensions: bool):
         self.t = t
-        self.qz = X.Quantiser(0, clamp=True)
+        self.qz = X.Quantizer(0, clamp=True)
         self.extensions = extensions
 
     def ext(self, el, data: dict[str, Any]) -> None:
@@ -250,7 +250,7 @@ class _Writer:
 
 def to_page(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, created: str = DEFAULT_CREATED, extensions: bool = True) -> bytes:
-    """Serialise ``t`` as PAGE-XML 2019-07-15.
+    """Serialize ``t`` as PAGE-XML 2019-07-15.
 
     ``created`` fills ``Metadata/Created`` and ``LastChange``; it defaults to a fixed timestamp so
     the output is byte-reproducible (pass the run's UTC time if wanted). ``extensions=False`` leaves

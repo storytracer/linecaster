@@ -159,7 +159,7 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | `models/<id>/model.md` | `models/<id>/model.yaml` + `model.md` |
 | `catalog.lock` | lock format `linecaster.lock/2` (D3) |
 | "component" (the umbrella word) | "catalog entry" |
-| "catalogue" | "catalog" |
+| "catalog" | "catalog" |
 
 ### Data model
 

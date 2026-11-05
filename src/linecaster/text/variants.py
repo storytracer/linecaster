@@ -2,8 +2,8 @@
 each transform moving one step on one of them.
 
 * **character fidelity**: *as written* (NFC only: ſ, ligatures, r rotunda, superscript e kept) or
-  *normalised* (``normalise``: the explicit mapping table below, then NFC; never NFKC, spelling
-  never modernised);
+  *normalized* (``normalize``: the explicit mapping table below, then NFC; never NFKC, spelling
+  never modernized);
 * **flow**: *as laid out* (one line per printed line, pages separated by a form feed) or *flowed*
   (``join_lines``: lines of a region joined into a paragraph with line-end hyphens resolved;
   paragraphs joined across page breaks where they continue);
@@ -20,7 +20,7 @@ variant                   fidelity            flow        scope      format
 ``readable_md``           normalised          flowed      body only  text/markdown
 ========================  ==================  ==========  =========  ==============
 
-Normalisation table: ſ -> s; the typographic ligatures ﬀ ﬁ ﬂ ﬃ ﬄ ﬅ ﬆ -> their letters; r rotunda
+Normalization table: ſ -> s; the typographic ligatures ﬀ ﬁ ﬂ ﬃ ﬄ ﬅ ﬆ -> their letters; r rotunda
 ꝛ/Ꝛ -> r/R; a combining superscript e (U+0364) over a, o, u (A, O, U) -> ä, ö, ü (Ä, Ö, Ü); over any
 other letter it stays. æ, œ, ø, å, ß and every other character stay (NFKC would also flatten
 superscripts, fractions and typographic characters).
@@ -33,7 +33,7 @@ from dataclasses import dataclass
 
 from ..data.transcription import Transcription, render_table
 
-NORMALISE_MAP = str.maketrans({
+NORMALIZE_MAP = str.maketrans({
     "ſ": "s",                                   # ſ long s
     "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
     "ﬅ": "st",                                  # ﬅ long s + t
@@ -59,11 +59,11 @@ def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
 
-def normalise(s: str) -> str:
-    """Character fidelity *as written* -> *normalised* (the table in the module docstring), NFC."""
+def normalize(s: str) -> str:
+    """Character fidelity *as written* -> *normalized* (the table in the module docstring), NFC."""
     s = nfc(s)
     s = _SUPERSCRIPT_E.sub(lambda m: _UMLAUT[m.group(1)], s)
-    return nfc(s.translate(NORMALISE_MAP))
+    return nfc(s.translate(NORMALIZE_MAP))
 
 
 def join_lines(a: str, b: str) -> str:
@@ -108,9 +108,9 @@ def _map_table(table: dict, f) -> dict:
 
 
 def page_blocks(t: Transcription, skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
-    """The page's regions in reading order (regions without an order last), each region's recognised
+    """The page's regions in reading order (regions without an order last), each region's recognized
     lines flowed into one block (NFC first, whatever the producer delivered); a region with a table
-    structure (``region.extra["table"]``) becomes a ``table`` block; regions labelled in
+    structure (``region.extra["table"]``) becomes a ``table`` block; regions labeled in
     ``skip_labels`` are left out (body only). Lines without a known region form one paragraph at the
     end."""
     order = {r.id: (r.reading_order is None, r.reading_order or 0, i) for i, r in enumerate(t.regions)}
@@ -144,7 +144,7 @@ def page_blocks(t: Transcription, skip_labels: frozenset[str] = FURNITURE | NO_T
 def continues(prev: Block, nxt: Block) -> bool:
     """Whether a text paragraph at the foot of a page continues in the first one of the next page:
     it ends in a hyphen or without sentence-final punctuation (the case of the next word is no
-    signal: German nouns are capitalised)."""
+    signal: German nouns are capitalized)."""
     if prev.kind != "paragraph" or nxt.kind != "paragraph" or prev.label != "text" or nxt.label != "text":
         return False
     if prev.text.endswith(HYPHENS):
@@ -168,7 +168,7 @@ def book_blocks(pages: list[Transcription], skip_labels: frozenset[str] = FURNIT
 _MD_START = re.compile(r"^([#>*+\-]|\d+[.)])(\s|$)")
 
 
-def render(blocks: list[Block], markdown: bool = False, normalised: bool = True) -> str:
+def render(blocks: list[Block], markdown: bool = False, normalized: bool = True) -> str:
     """Blocks -> text, paragraphs separated by a blank line. Markdown: ``#`` title, ``##`` section header
     (``#`` x (heading_level + 1) when the layout gives a level), ``- `` list item, tables as Markdown
     pipe tables (HTML when a cell spans); a paragraph that would read as Markdown syntax is escaped.
@@ -176,10 +176,10 @@ def render(blocks: list[Block], markdown: bool = False, normalised: bool = True)
     parts = []
     for b in blocks:
         if b.kind == "table":
-            table = _map_table(b.table, normalise if normalised else nfc)
+            table = _map_table(b.table, normalize if normalized else nfc)
             parts.append(render_table(table) if markdown else table_plain(table))
             continue
-        text = normalise(b.text) if normalised else nfc(b.text)
+        text = normalize(b.text) if normalized else nfc(b.text)
         if not markdown:
             parts.append(text)
         elif b.kind == "title":

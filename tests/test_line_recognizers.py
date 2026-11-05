@@ -34,8 +34,8 @@
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""The PaddleX and Tesseract line recognisers' geometry, without models. Skipped in the core environment;
-with the engines: ``uv run tests/test_line_recognisers.py``."""
+"""The PaddleX and Tesseract line recognizers' geometry, without models. Skipped in the core environment;
+with the engines: ``uv run tests/test_line_recognizers.py``."""
 import numpy as np
 import pytest
 

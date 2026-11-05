@@ -1,4 +1,4 @@
-"""Chat presets (catalogue, engine chat.v1): every preset resolves and builds its adapter, Hugging Face ids still
+"""Chat presets (catalog, engine chat.v1): every preset resolves and builds its adapter, Hugging Face ids still
 work, the edition and its hash reach ModelInfo, and the blocks take preset refs."""
 from __future__ import annotations
 

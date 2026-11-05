@@ -63,7 +63,7 @@ def test_jp2_round_trip_and_decoder_string():
     assert "OpenJPEG" in info["decoder"]
 
 
-def test_greyscale_becomes_rgb():
+def test_grayscale_becomes_rgb():
     src = _noise("L")
     webp, info = to_working_webp(_encode(src, "PNG"))
     out = _decode(webp)
@@ -104,13 +104,13 @@ def test_opaque_alpha_is_dropped_without_change():
     assert info["alpha_flattened"] is False
 
 
-def test_16bit_greyscale_png_scaled_to_8bit():
+def test_16bit_grayscale_png_scaled_to_8bit():
     rng = np.random.default_rng(1)
     a16 = rng.integers(0, 65536, (30, 40), dtype=np.uint16)
     a16[0, 0], a16[0, 1] = 0, 65535
     data = _encode(Image.fromarray(a16), "PNG")
     with Image.open(io.BytesIO(data)) as im:
-        assert im.mode.startswith("I")              # Pillow reads it as 16-bit greyscale
+        assert im.mode.startswith("I")              # Pillow reads it as 16-bit grayscale
     webp, info = to_working_webp(data)
     out = _decode(webp)
     want = ((a16.astype(np.int64) * 255 + 32767) // 65535).astype(np.uint8)

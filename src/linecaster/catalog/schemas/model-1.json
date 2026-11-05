@@ -13,7 +13,7 @@
           "enum": [
             "mirror",
             "converted",
-            "quantised",
+            "quantized",
             "finetuned"
           ],
           "title": "Relation",
@@ -94,7 +94,7 @@
             }
           ],
           "default": null,
-          "description": "an upstream licence file copied next to the card",
+          "description": "an upstream license file copied next to the card",
           "title": "License File"
         }
       },
@@ -170,7 +170,7 @@
       "type": "array"
     },
     "license": {
-      "description": "SPDX id where there is one, else the licence's own name",
+      "description": "SPDX id where there is one, else the license's own name",
       "title": "License",
       "type": "string"
     },

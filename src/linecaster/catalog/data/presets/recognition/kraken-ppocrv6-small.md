@@ -1,4 +1,4 @@
-kraken's PP-OCRv6 small recogniser through kraken's own code (`RecognitionTaskModel`), on every line of the
+kraken's PP-OCRv6 small recognizer through kraken's own code (`RecognitionTaskModel`), on every line of the
 page in the line step's order.
 
 - `batch_size` 8: the batch size squiddleocr's goldens were recorded with. kraken pads a batch to its widest

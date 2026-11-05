@@ -1,4 +1,4 @@
-"""Shared helpers for the ALTO, PAGE-XML and hOCR serialisers (lxml only, no engines).
+"""Shared helpers for the ALTO, PAGE-XML and hOCR serializers (lxml only, no engines).
 
 Every writer follows the same rule: a value goes into the format's own vocabulary when the format
 has a place for it; what the format cannot hold, or what a reader would infer differently, goes into
@@ -57,7 +57,7 @@ def parse_num(s: str | None) -> float | None:
 
 def round_bbox(bbox: Sequence[float]) -> list[float]:
     """Round a ``[x, y, w, h]`` box by its corners, so the edges land on the same integers as the
-    rounded edges of neighbouring geometry."""
+    rounded edges of neighboring geometry."""
     x0, y0 = round_half_up(bbox[0]), round_half_up(bbox[1])
     x1, y1 = round_half_up(bbox[0] + bbox[2]), round_half_up(bbox[1] + bbox[3])
     return [float(x0), float(y0), float(x1 - x0), float(y1 - y0)]
@@ -175,7 +175,7 @@ def ncname(s: str) -> str:
     return s
 
 
-class Quantiser:
+class Quantizer:
     """Coordinate precision of a writer and what its reader will get back.
 
     ``precision=None`` writes floats exactly (shortest repr), ``0`` writes integers (half up), ``k``

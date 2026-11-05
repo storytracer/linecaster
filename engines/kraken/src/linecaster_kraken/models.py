@@ -2,8 +2,8 @@
 
 kraken's models always come from the Hugging Face mirrors of their Zenodo releases
 (``small-models-for-glam``): Zenodo throttles downloads badly. The mirrors are byte-identical to the
-Zenodo records (the DOIs are provenance, in the model documents). The PP-OCRv6 recognisers' revisions and
-file hashes live in the catalogue (``linecaster/catalog/data/models/kraken-ppocrv6-<size>/model.yaml``): a
+Zenodo records (the DOIs are provenance, in the model documents). The PP-OCRv6 recognizers' revisions and
+file hashes live in the catalog (``linecaster/catalog/data/models/kraken-ppocrv6-<size>/model.yaml``): a
 size name resolves to its model document's newest pin, a preset passes its pin as ``weights``. Files land in
 the Hugging Face cache (``~/.cache/huggingface/hub``, ``HF_HOME``; ``HF_HUB_OFFLINE=1`` reads it without the
 network) and are checked against the pinned sha256.
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 SIZES = ("tiny", "small", "medium")
 DEFAULT_SIZE = "medium"
-#: the catalogue's model document of each PP-OCRv6 size
+#: the catalog's model document of each PP-OCRv6 size
 MODEL_IDS = {size: f"kraken-ppocrv6-{size}" for size in SIZES}
 
 
@@ -34,7 +34,7 @@ class KrakenModel:
 
 
 #: kraken's blla segmenter: the BLLA base model (Sept 2026), newer than the one kraken 7.1.1 bundles (our fork
-#: bundles this file too). Not used by an engine here, so not in the catalogue; the recognisers are.
+#: bundles this file too). Not used by an engine here, so not in the catalog; the recognizers are.
 KRAKEN_MODELS = {
     "blla": KrakenModel("small-models-for-glam/kraken-blla-base", "blla.mlmodel",
                         "3e91a744c37defc10c3714d9f0f4fa54174fe5c0", "10.5281/zenodo.22879549"),
@@ -45,7 +45,7 @@ Log = Callable[[str], None]
 
 def size_weights(size: str) -> dict:
     """``weights`` (as ``linecaster.catalog.registry.engine_spec`` passes them) for a PP-OCRv6 size: the newest
-    pin of its model document in the catalogue."""
+    pin of its model document in the catalog."""
     from linecaster.catalog.fetch import weights_of
 
     return weights_of(MODEL_IDS[size])
@@ -64,7 +64,7 @@ def fetch_weights(weights: dict, log: Log = logger.info, download: bool = True) 
 
 
 def kraken_model_file(name: str, log: Log = logger.info, download: bool = True) -> Path:
-    """The file of kraken model ``name`` (a PP-OCRv6 size, through the catalogue, or a key of ``KRAKEN_MODELS``)
+    """The file of kraken model ``name`` (a PP-OCRv6 size, through the catalog, or a key of ``KRAKEN_MODELS``)
     from its pinned Hugging Face mirror: downloaded on first use, served from the Hugging Face cache afterwards.
     ``download=False`` only looks in the cache and raises when the file is not there."""
     if name in SIZES:

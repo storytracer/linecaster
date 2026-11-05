@@ -29,7 +29,7 @@ def sniff_mime(raw: bytes) -> str:
             return mime
     if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
         return "image/webp"
-    raise ValueError(f"unrecognised image magic bytes: {raw[:8]!r}")
+    raise ValueError(f"unrecognized image magic bytes: {raw[:8]!r}")
 
 
 class QianfanOCRAdapter(ChatAdapter):

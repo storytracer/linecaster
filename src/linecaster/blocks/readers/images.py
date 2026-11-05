@@ -12,7 +12,7 @@ earlier run: ``linecaster.blocks.readers.records``.
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
 (in a Parquet image column or a page record) are fetched with pybookget (``linecaster[pybookget]``), politely:
-rate limits per task, retries that honour ``Retry-After``. Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
+rate limits per task, retries that honor ``Retry-After``. Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _stem(path: str) -> str:
 
 class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
-    ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honour
+    ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honor
     ``Retry-After``; ``http`` sets its ``Config`` fields, ``linecaster.net.http.HTTPFetcher``)."""
 
     def __init__(self, http: dict | None = None):

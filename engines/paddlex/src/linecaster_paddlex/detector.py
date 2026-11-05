@@ -20,8 +20,8 @@ class PaddleTextDetector:
     """DBNet-style detector; ``unclip_ratio`` expands boxes (PaddleOCR's default 1.5; see NOTES "Unclip ratio back to 1.5").
 
     Given a region, detection runs on its crop: the bounding box with ``pad`` pixels around it and,
-    with ``mask``, everything outside the region polygon painted white (a layout analyser's regions
-    in front of the detector, so a neighbouring column cannot leak in)."""
+    with ``mask``, everything outside the region polygon painted white (a layout analyzer's regions
+    in front of the detector, so a neighboring column cannot leak in)."""
 
     def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", unclip_ratio: float = 1.5,
                  box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0, mask: bool = False,
@@ -58,7 +58,7 @@ class PaddleLineEngine:
     """linecaster engine model for the lines step: PP-OCRv6 detection on the whole page (default) or,
     with ``per_region``, on each region's crop. Fills ``Transcription.lines`` with geometry (polygon,
     bbox, score); text stays ``None``. Replaces any lines already present. The model files: ``weights`` (a
-    catalogue pin) or the catalogue's newest pin for ``model_name`` (``weights.resolve``)."""
+    catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""
 
     engine_id: ClassVar[str] = "paddlex.lines.v1"
     step = "lines"
@@ -74,7 +74,7 @@ class PaddleLineEngine:
         unclip_ratio: float = Field(1.5, description="how far the DB boxes are grown around the text kernel "
                                                      "(PaddleOCR's default 1.5)")
         box_thresh: float = Field(0.6, description="minimum mean score of a box")
-        thresh: float = Field(0.3, description="binarisation threshold of the probability map")
+        thresh: float = Field(0.3, description="binarization threshold of the probability map")
         pad: int = Field(0, description="per_region: pixels around a region's crop")
         mask: bool = Field(False, description="per_region: paint everything outside the region polygon white")
 

@@ -1,4 +1,4 @@
-"""Tesseract's LSTM recogniser on the lines of a transcription, one line image at a time.
+"""Tesseract's LSTM recognizer on the lines of a transcription, one line image at a time.
 
 Each line is cut out as the bounding box of its polygon, with ``pad`` pixels around it and everything
 outside the polygon painted white, and read with page segmentation mode 7 (one line of text), so
@@ -40,7 +40,7 @@ class TesseractRecognitionEngine:
     """linecaster engine model for the recognition step: Tesseract 5 (LSTM) on every line of the
     transcription. ``lang`` is a tessdata language or script (``eng``, ``deu+lat``, ``script/Latin``),
     ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences.
-    The language data: ``weights`` (a catalogue pin; only its files) or ``data``'s newest pin in the catalogue."""
+    The language data: ``weights`` (a catalog pin; only its files) or ``data``'s newest pin in the catalog."""
 
     engine_id: ClassVar[str] = "tesseract.recognition.v1"
     step = "recognition"

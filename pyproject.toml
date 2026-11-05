@@ -1,7 +1,7 @@
 [project]
 name = "linecaster"
 version = "0.0.1"
-description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognisers plus post-processing as datatrove pipelines"
+description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognizers plus post-processing as datatrove pipelines"
 readme = "README.md"
 license = "Apache-2.0"
 authors = [
@@ -33,7 +33,7 @@ minicpm-ocr = ["minicpm-ocr==1.0.1"]
 ray = ["ray[default]>=2.40"]
 # items' manifests (IIIF, METS) and http(s):// images (linecaster.blocks.readers.manifests, linecaster.net.http):
 # pybookget's manifest parser and HTTP layer
-# (rate limits, retries that honour Retry-After); its core install, without its CLI
+# (rate limits, retries that honor Retry-After); its core install, without its CLI
 pybookget = ["pybookget>=1.1"]
 
 [project.scripts]

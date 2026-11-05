@@ -7,7 +7,7 @@
   and its version pins, for the packages its lock resolves.
 * ``WheelJobsExecutor``: ``JobsPipelineExecutor`` that also mounts volumes into every Job. A private
   derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
-  mounts that folder read-only (authorised by the Job's own HF token; no credential is persisted)
+  mounts that folder read-only (authorized by the Job's own HF token; no credential is persisted)
   and ``uv run --with <mount>/<wheel>`` installs it. ``wheel_volume`` builds the mount.
 * ``GPUJobsExecutor``: one Job per ``gpus`` datatrove tasks on a multi-GPU flavor (``l4x4``,
   ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*

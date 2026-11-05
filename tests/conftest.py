@@ -1,4 +1,4 @@
-"""Shared fixtures and helpers: a realistic transcription exercising every serialiser feature, regions and lines
+"""Shared fixtures and helpers: a realistic transcription exercising every serializer feature, regions and lines
 by their boxes, and page documents for the blocks."""
 from __future__ import annotations
 
@@ -56,13 +56,13 @@ def make_transcription() -> Transcription:
                     Word(id="l2_w4", text="were", bbox=[750.0, 410.0, 110.0, 50.0], confidence=0.92),
                     Word(id="l2_w5", text="col-", bbox=[875.0, 410.0, 90.0, 50.0], confidence=0.71,
                          hyphen=True)]),
-        # boxes only, recognised: no polygon, no baseline, no words
+        # boxes only, recognized: no polygon, no baseline, no words
         Line(id="l3", region_id="text_2", reading_order=3, row=1, bbox=[120.0, 475.0, 1300.0, 60.0],
              text="lected in the summer of 1887 by the author.", confidence=0.9),
-        # empty text line (recognised as empty)
+        # empty text line (recognized as empty)
         Line(id="l4", region_id="text_2", reading_order=4, row=2, bbox=[120.0, 545.0, 1300.0, 60.0],
              baseline=[[120.0, 595.0], [1420.0, 595.0]], text="", confidence=0.5),
-        # not recognised yet (text None)
+        # not recognized yet (text None)
         Line(id="l5", region_id="text_2", reading_order=5, row=3, bbox=[120.0, 615.0, 1300.0, 60.0],
              polygon=[[120.0, 615.0], [1420.0, 615.0], [1420.0, 675.0], [120.0, 675.0]]),
         # a line without a region (an orphan row from the line step)

@@ -65,8 +65,8 @@ def _split(idx: list[int], boxes: Sequence[BBox], axis: str, min_gap: float) -> 
 def place_unordered(regions: Sequence) -> None:
     """Give regions without an ``order`` a place among those that have one, in place.
 
-    An unordered region goes after the last ordered region that ends above its centre and overlaps
-    it horizontally (falling back to any region whose centre is above it), so a page number at the
+    An unordered region goes after the last ordered region that ends above its center and overlaps
+    it horizontally (falling back to any region whose center is above it), so a page number at the
     top comes first, a missed line follows the paragraph above it and a drop capital precedes its
     paragraph. When no region carries an order the whole set is ordered with XY-cut. Ranks are
     renumbered 0..n-1.

@@ -29,9 +29,9 @@ Decisions at a row end, in order:
 - **Region continuation** (``continues``): a text region whose last row ends without sentence-final
   punctuation, at the end margin or with a division mark, continues into the next text region in
   reading order when that region's first row is not indented and starts with a letter (a capital
-  too, German capitalises every noun, except after a division mark).
+  too, German capitalizes every noun, except after a division mark).
 
-Out of scope, by design: glyph normalisation (long s, ligatures), spelling modernisation, emphasis
+Out of scope, by design: glyph normalization (long s, ligatures), spelling modernization, emphasis
 from letter-spacing, Korean's unmarked in-word breaks, vertical writing.
 """
 from __future__ import annotations
@@ -139,7 +139,7 @@ class Stats:
 
 
 class Lexicon:
-    """Word counts over everything recognised so far in a run: the document as its own dictionary."""
+    """Word counts over everything recognized so far in a run: the document as its own dictionary."""
 
     def __init__(self):
         self.counts: Counter[str] = Counter()
@@ -267,7 +267,7 @@ def continues(prev: Paragraph, first_row: Row, m: Margins, rtl: bool = False) ->
         return False
     # after a division mark a capital would make a compound; across regions that is more often a wrong
     # pairing of regions than a compound, so it is refused. Without a mark a capital is allowed: German
-    # capitalises every noun.
+    # capitalizes every noun.
     return not (ch.isupper() and ends_with_mark(prev.text))
 
 
