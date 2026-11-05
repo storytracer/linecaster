@@ -34,7 +34,7 @@ uv run launch.py chandra-ocr-2 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [Chandra 2](../../models/chandra-ocr-2.md) |
 | Revision | [`af93b47dba1b47b6640c86ccf487ed2260ab9a09`](https://huggingface.co/datalab-to/chandra-ocr-2/tree/af93b47dba1b47b6640c86ccf487ed2260ab9a09) |
-| Licence | AI Pubs Open RAIL-M License (Modified) |
+| License | AI Pubs Open RAIL-M License (Modified) |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | html |

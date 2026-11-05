@@ -15,7 +15,7 @@ The squiddle combination's formula step: 29/29 formulas identical to squiddleocr
 | Engine | [`paddlex.formulas.v1`](../../engines/paddlex.formulas.v1.md) |
 | Model | [PP-FormulaNet_plus-L](../../models/pp-formulanet-plus-l-safetensors.md) |
 | Revision | [`6cc004a8e91ea3f3819b05317f40b290cbe99c2b`](https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L_safetensors/tree/6cc004a8e91ea3f3819b05317f40b290cbe99c2b) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | formulas, latex |
 
 ## Options

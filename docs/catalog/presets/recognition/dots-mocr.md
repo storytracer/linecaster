@@ -29,7 +29,7 @@ uv run launch.py dots-mocr IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [dots.mocr](../../models/dots-mocr.md) |
 | Revision | [`e539fbb52280393adc081b289ec597430a0f9031`](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
-| Licence | MIT |
+| License | MIT |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | text |

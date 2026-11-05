@@ -18,7 +18,7 @@ experimental way to read regions with a page model; region reading wants a regio
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [LightOnOCR-2-1B](../../models/lightonocr-2-1b.md) |
 | Revision | [`c97bd377f04481830395218fa8951df9deaba756`](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |

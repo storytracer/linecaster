@@ -2,7 +2,7 @@
 
 *Pipeline · [`bind.py`](../../../pipelines/bind.py)*
 
-The item stage (binding): one text per item (book, issue, manuscript) and text version, from the page records of a first
+The item stage (binding): one text per item (book, issue, manuscript) and text variant, from the page records of a first
 stage written in item shards (`--item-shards N`). Each task reads whole shard folders, so it sees every page of
 its items; no engine or GPU is needed.
 

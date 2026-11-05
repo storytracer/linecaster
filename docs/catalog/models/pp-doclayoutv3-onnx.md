@@ -5,7 +5,7 @@
 PaddleOCR's PP-DocLayoutV3, the layout model of PaddleOCR-VL-1.5, in the ONNX package PaddleX downloads for its
 ONNX Runtime engine (`PaddlePaddle/PP-DocLayoutV3_onnx`, an export of `PaddlePaddle/PP-DocLayoutV3`; the card
 does not say from which revision). 25 classes (`inference.yml`), region polygons and a learned reading order:
-PaddleX returns the boxes sorted by the model's order. Licence and languages are the card's.
+PaddleX returns the boxes sorted by the model's order. License and languages are the card's.
 
 PaddleX itself always downloads the repository's current `main`; linecaster pins the commit that was `main` on
 2026-11-03 (for every model PaddleX had already downloaded on spark, among them those of squiddleocr's goldens,
@@ -16,7 +16,7 @@ own download (2026-11-03).
 |  |  |
 |---|---|
 | Source | [PaddlePaddle/PP-DocLayoutV3_onnx](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Languages | eng, zho, mul |
 | Derived from | converted of PaddlePaddle/PP-DocLayoutV3 |
 

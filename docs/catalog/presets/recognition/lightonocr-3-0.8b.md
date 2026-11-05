@@ -27,7 +27,7 @@ uv run launch.py lightonocr-3-0.8b IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [LightOnOCR-3-0.8B](../../models/lightonocr-3-0.8b.md) |
 | Revision | [`36d8636925327c671bd8e479c517a004f7566bd9`](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.30.0 |
 | Image | `vllm/vllm-openai:v0.30.0` |
 | Produces | markdown |

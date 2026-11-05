@@ -29,7 +29,7 @@ uv run launch.py unlimited-ocr IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [Unlimited-OCR](../../models/unlimited-ocr.md) |
 | Revision | [`07dea832e22aefee32ad281d4b80551282e1c168`](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
-| Licence | MIT |
+| License | MIT |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |

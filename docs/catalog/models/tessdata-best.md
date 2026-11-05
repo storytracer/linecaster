@@ -6,7 +6,7 @@ Tesseract's trained data from the tesseract-ocr project's `tessdata_best` reposi
 and later with the LSTM engine. The repository has no tags; the pin is a commit, and the two files linecaster's
 presets use are hashed: `eng.traineddata` (English) and `script/Latin.traineddata` (every language written in the
 Latin script). `languages` and `scripts` describe these two files only (the repository has many more; the
-Latin script model covers many Latin-script languages, of which the README names none). Licence: Apache-2.0, as
+Latin script model covers many Latin-script languages, of which the README names none). License: Apache-2.0, as
 the README states and its `LICENSE` file (copied next to it) says.
 
 Files are fetched from `raw.githubusercontent.com` at the pinned commit into `~/.cache/linecaster/tessdata` and
@@ -15,7 +15,7 @@ checked against these hashes whenever they are used.
 |  |  |
 |---|---|
 | Source | [https://github.com/tesseract-ocr/tessdata_best](https://github.com/tesseract-ocr/tessdata_best) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Languages | eng, mul |
 | Scripts | Latn |
 

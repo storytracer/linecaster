@@ -35,7 +35,7 @@ uv run launch.py deepseek-ocr IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [DeepSeek-OCR](../../models/deepseek-ocr.md) |
 | Revision | [`9f30c71f441d010e5429c532364a86705536c53a`](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/9f30c71f441d010e5429c532364a86705536c53a) |
-| Licence | MIT |
+| License | MIT |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |

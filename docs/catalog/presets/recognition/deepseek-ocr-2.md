@@ -35,7 +35,7 @@ uv run launch.py deepseek-ocr-2 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [DeepSeek-OCR 2](../../models/deepseek-ocr-2.md) |
 | Revision | [`aaa02f3811945a91062062994c5c4a3f4c0af2b0`](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |

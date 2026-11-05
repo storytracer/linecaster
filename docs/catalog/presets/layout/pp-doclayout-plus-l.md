@@ -11,8 +11,8 @@ table boxes and one heading label.
 
 Labels: PaddleX's labels are mapped to DoclingDocument labels as `linecaster_paddlex.layout.LABEL_MAP` does;
 `number` (a page number) is not in `labels:` because the engine places it by position: `page_header` when its
-centre lies in the top `header_zone` (15 %) of the page, else `page_footer`. `seal` stays `seal`, which is not a
-DoclingDocument label (the serialisers write it as a picture). Regions contained in another by more than
+center lies in the top `header_zone` (15 %) of the page, else `page_footer`. `seal` stays `seal`, which is not a
+DoclingDocument label (the serializers write it as a picture). Regions contained in another by more than
 `max_containment` (80 %) of their area are dropped.
 
 |  |  |
@@ -21,7 +21,7 @@ DoclingDocument label (the serialisers write it as a picture). Regions contained
 | Engine | [`paddlex.layout.v1`](../../engines/paddlex.layout.v1.md) |
 | Model | [PP-DocLayout_plus-L](../../models/pp-doclayout-plus-l-onnx.md) |
 | Revision | [`feb74619326f634e0e883218598096a3733ad9f7`](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L_onnx/tree/feb74619326f634e0e883218598096a3733ad9f7) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | regions, reading_order |
 
 ## Options

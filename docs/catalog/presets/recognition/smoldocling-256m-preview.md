@@ -32,7 +32,7 @@ uv run launch.py smoldocling-256m-preview IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [SmolDocling-256M-preview](../../models/smoldocling-256m-preview.md) |
 | Revision | [`ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8`](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
-| Licence | CDLA-Permissive-2.0 |
+| License | CDLA-Permissive-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | doctags, markdown |

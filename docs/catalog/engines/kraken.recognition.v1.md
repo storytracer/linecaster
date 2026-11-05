@@ -2,11 +2,11 @@
 
 *Engine · recognition · package `linecaster-kraken`*
 
-linecaster engine model for the recognition step: kraken's PP-OCRv6 recogniser on every line of
+linecaster engine for the recognition step: kraken's PP-OCRv6 recognizer on every line of
 the transcription, in list order (the line step's processing order), `batch_size` lines per
 forward pass. A page's result depends only on the page. Fills text, confidence and words.
 
-The model file: `weights` (a catalogue pin, as a preset passes it) when given, else `model`: a size
+The model file: `weights` (a catalog pin, as a preset passes it) when given, else `model`: a size
 name, resolved to its model document's newest pin, or a kraken model file.
 
 |  |  |

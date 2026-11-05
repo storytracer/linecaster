@@ -36,7 +36,7 @@ uv run launch.py unlimited-ocr-2 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [Unlimited-OCR 2](../../models/unlimited-ocr-2.md) |
 | Revision | [`9cf077c4b206e0e2a31879df937b0b0bcba3661c`](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
-| Licence | MIT |
+| License | MIT |
 | Server | sglang 0.5.20.dev10+g8d62f5fb9c |
 | Image | `lmsysorg/sglang:v0.5.20-cu130` |
 | Produces | text |

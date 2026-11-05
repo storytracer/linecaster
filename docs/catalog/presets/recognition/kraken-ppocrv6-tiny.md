@@ -2,7 +2,7 @@
 
 *Preset · edition 1 · recognition · experimental*
 
-kraken's PP-OCRv6 tiny recogniser through kraken's own code (`RecognitionTaskModel`), on every line of the
+kraken's PP-OCRv6 tiny recognizer through kraken's own code (`RecognitionTaskModel`), on every line of the
 page in the line step's order.
 
 - `batch_size` 8: the batch size squiddleocr's goldens were recorded with. kraken pads a batch to its widest
@@ -20,7 +20,7 @@ page in the line step's order.
 | Engine | [`kraken.recognition.v1`](../../engines/kraken.recognition.v1.md) |
 | Model | [PP-OCRv6 (tiny)](../../models/kraken-ppocrv6-tiny.md) |
 | Revision | [`045d350d5a7664054370539b87bab0e790724ee2`](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny/tree/045d350d5a7664054370539b87bab0e790724ee2) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | text, words, word_confidences, line_confidences |
 
 ## Options

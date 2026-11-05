@@ -37,7 +37,7 @@ with its own containment suppression. Experimental: validated against the SDK, n
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [MiniCPM-OCR 1.0](../../models/minicpm-ocr-1.0.md) |
 | Revision | [`a59a4acf215e34c6d73149e9eafdb88ed2086e39`](https://huggingface.co/openbmb/MiniCPM-OCR-1.0/tree/a59a4acf215e34c6d73149e9eafdb88ed2086e39) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.32.1rc1.dev602+g5d35ce393 |
 | Image | `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3` |
 | Produces | text, html, latex |

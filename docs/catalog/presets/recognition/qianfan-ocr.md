@@ -30,7 +30,7 @@ uv run launch.py qianfan-ocr IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [Qianfan-OCR](../../models/qianfan-ocr.md) |
 | Revision | [`623bf5d20d446abdb36606aa4547cd0c18886fe5`](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |

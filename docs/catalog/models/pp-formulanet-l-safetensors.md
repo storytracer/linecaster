@@ -2,10 +2,10 @@
 
 *Model · PP-FormulaNet-L · Apache-2.0*
 
-PaddleOCR's PP-FormulaNet-L, a formula recogniser (formula image in, LaTeX out), in the safetensors package PaddleX
+PaddleOCR's PP-FormulaNet-L, a formula recognizer (formula image in, LaTeX out), in the safetensors package PaddleX
 downloads for its transformers engine (`PaddlePaddle/PP-FormulaNet-L_safetensors`: Hugging Face transformers on torch; the
 official model source has no ONNX package for it). A conversion of `PaddlePaddle/PP-FormulaNet-L`; the card does not say
-from which revision, and is empty but for its licence. Formula recognition has no natural language, so
+from which revision, and is empty but for its license. Formula recognition has no natural language, so
 `languages` and `scripts` stay empty.
 
 PaddleX itself always downloads the repository's current `main`; linecaster pins the commit that was `main` on
@@ -17,7 +17,7 @@ compared on three pages gave identical outputs, 2026-11-03).
 |  |  |
 |---|---|
 | Source | [PaddlePaddle/PP-FormulaNet-L_safetensors](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Derived from | converted of PaddlePaddle/PP-FormulaNet-L |
 
 ## Pins

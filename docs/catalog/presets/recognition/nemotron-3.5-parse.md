@@ -38,7 +38,7 @@ uv run launch.py nemotron-3.5-parse IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [Nemotron 3.5 Parse](../../models/nemotron-3.5-parse.md) |
 | Revision | [`62cb1e4ba153d113ff64aaf2be6e068c377cf53c`](https://huggingface.co/nvidia/Nemotron-3.5-Parse/tree/62cb1e4ba153d113ff64aaf2be6e068c377cf53c) |
-| Licence | OpenMDW-1.1 |
+| License | OpenMDW-1.1 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0@sha256:770fe65b2c73ee74a5c42165cf3433de4048cc2cd9c57a937ca4e35aba5aa87b` |
 | Produces | markdown |

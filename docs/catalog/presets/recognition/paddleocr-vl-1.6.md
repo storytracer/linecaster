@@ -27,7 +27,7 @@ uv run launch.py paddleocr-vl-1.6 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [PaddleOCR-VL-1.6](../../models/paddleocr-vl-1.6.md) |
 | Revision | [`66317acc4c9fc17bd154591ce650735cd2855f3e`](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | text |

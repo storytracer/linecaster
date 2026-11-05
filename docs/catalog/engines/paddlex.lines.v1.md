@@ -2,10 +2,10 @@
 
 *Engine · lines · package `linecaster-paddlex`*
 
-linecaster engine model for the lines step: PP-OCRv6 detection on the whole page (default) or,
+linecaster engine for the lines step: PP-OCRv6 detection on the whole page (default) or,
 with `per_region`, on each region's crop. Fills `Transcription.lines` with geometry (polygon,
 bbox, score); text stays `None`. Replaces any lines already present. The model files: `weights` (a
-catalogue pin) or the catalogue's newest pin for `model_name` (`weights.resolve`).
+catalog pin) or the catalog's newest pin for `model_name` (`weights.resolve`).
 
 |  |  |
 |---|---|
@@ -23,7 +23,7 @@ catalogue pin) or the catalogue's newest pin for `model_name` (`weights.resolve`
 | `per_region` | `bool` | `False` | detect on each region's crop instead of the whole page |
 | `unclip_ratio` | `float` | `1.5` | how far the DB boxes are grown around the text kernel (PaddleOCR's default 1.5) |
 | `box_thresh` | `float` | `0.6` | minimum mean score of a box |
-| `thresh` | `float` | `0.3` | binarisation threshold of the probability map |
+| `thresh` | `float` | `0.3` | binarization threshold of the probability map |
 | `pad` | `int` | `0` | per_region: pixels around a region's crop |
 | `mask` | `bool` | `False` | per_region: paint everything outside the region polygon white |
 

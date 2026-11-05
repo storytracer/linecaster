@@ -26,7 +26,7 @@ uv run launch.py ovisocr3 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [OvisOCR3](../../models/ovisocr3.md) |
 | Revision | [`5f6ce6932efee9ec10c30746db55bd780214b7fd`](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown, html |

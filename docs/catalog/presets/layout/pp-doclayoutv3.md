@@ -14,8 +14,8 @@ chart, display and inline formula, doc and paragraph title: classes 3, 5, 6, 15 
 
 Labels: PaddleX's labels are mapped to DoclingDocument labels as `linecaster_paddlex.layout.LABEL_MAP` does;
 `number` (a page number) is not in `labels:` because the engine places it by position: `page_header` when its
-centre lies in the top `header_zone` (15 %) of the page, else `page_footer`. `seal` stays `seal`, which is not a
-DoclingDocument label (the serialisers write it as a picture). Regions contained in another by more than
+center lies in the top `header_zone` (15 %) of the page, else `page_footer`. `seal` stays `seal`, which is not a
+DoclingDocument label (the serializers write it as a picture). Regions contained in another by more than
 `max_containment` (80 %) of their area are dropped.
 
 |  |  |
@@ -24,7 +24,7 @@ DoclingDocument label (the serialisers write it as a picture). Regions contained
 | Engine | [`paddlex.layout.v1`](../../engines/paddlex.layout.v1.md) |
 | Model | [PP-DocLayoutV3](../../models/pp-doclayoutv3-onnx.md) |
 | Revision | [`46bbdf188bb0a772c08aed74882ce7e51a8f1ea6`](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx/tree/46bbdf188bb0a772c08aed74882ce7e51a8f1ea6) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | regions, reading_order |
 
 ## Options

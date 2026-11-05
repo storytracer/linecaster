@@ -15,7 +15,7 @@ squiddleocr's alternative (`--formula-model PP-FormulaNet-L`); not exercised in 
 | Engine | [`paddlex.formulas.v1`](../../engines/paddlex.formulas.v1.md) |
 | Model | [PP-FormulaNet-L](../../models/pp-formulanet-l-safetensors.md) |
 | Revision | [`69869f2891cc61347d230ef234bcc8b8d297c43a`](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors/tree/69869f2891cc61347d230ef234bcc8b8d297c43a) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | formulas, latex |
 
 ## Options

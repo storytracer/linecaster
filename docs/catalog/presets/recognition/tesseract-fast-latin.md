@@ -14,7 +14,7 @@ tessdata_fast was not part of the 2026-11-03 comparison; integer models, faster 
 | Engine | [`tesseract.recognition.v1`](../../engines/tesseract.recognition.v1.md) |
 | Model | [tessdata_fast](../../models/tessdata-fast.md) |
 | Revision | [`87416418657359cb625c412a48b6e1d6d41c29bd`](https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Produces | text, words, word_confidences, line_confidences |
 
 ## Options
@@ -28,4 +28,4 @@ tessdata_fast was not part of the 2026-11-03 comparison; integer models, faster 
 
 ## Provenance
 
-- storytracer/linecaster@7beadcc (NOTES: More line recognisers, the comparison on sample-60)
+- storytracer/linecaster@7beadcc (NOTES: More line recognizers, the comparison on sample-60)

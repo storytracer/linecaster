@@ -26,7 +26,7 @@ uv run launch.py glm-ocr IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [GLM-OCR](../../models/glm-ocr.md) |
 | Revision | [`ca5d8b3e287e52589e37c28385d9655ee4372f9d`](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
-| Licence | MIT |
+| License | MIT |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | text |

@@ -28,7 +28,7 @@ uv run launch.py olmocr-2-7b-1025-fp8 IMAGES OUT
 | Engine | [`chat.v1`](../../engines/chat.v1.md) |
 | Model | [olmOCR-2-7B-1025-FP8](../../models/olmocr-2-7b-1025-fp8.md) |
 | Revision | [`40bd7202494b8264ee17ada08b401b5aab7a9ce1`](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
-| Licence | Apache-2.0 |
+| License | Apache-2.0 |
 | Server | vllm 0.26.0 |
 | Image | `vllm/vllm-openai:v0.26.0` |
 | Produces | markdown |
