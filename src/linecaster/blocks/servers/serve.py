@@ -32,7 +32,8 @@ class ModelServer(Contracted, PipelineStep):
             return
         from ...serve import engine
 
-        server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
+        env = self._observers.environment() if self._observers is not None else {}
+        server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script, env)
         try:
             server.__enter__()
         except Exception as e:
@@ -130,10 +131,31 @@ class ChatModelServer(Contracted, PipelineStep):
         own = os.path.realpath(os.path.join(sys.prefix, "bin"))
         return os.pathsep.join(p for p in path.split(os.pathsep) if os.path.realpath(p) != own)
 
+    def tracing_args(self) -> tuple[list[str], dict[str, str]]:
+        """vLLM's own tracing when the ``OTEL_*`` variables ask for an OTLP export: ``--otlp-traces-endpoint`` (the
+        traces URL) with the protocol linecaster uses (``OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf``, vLLM's
+        default is gRPC). vLLM continues a ``traceparent`` it gets in a request's headers, which saturate cannot set
+        per request: its spans are traces of their own. Nothing for SGLang, or without OTLP."""
+        from ...tracing import otlp_traces_endpoint
+
+        endpoint = otlp_traces_endpoint()
+        if self.server != "vllm" or endpoint is None:
+            return [], {}
+        import os
+
+        protocol = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL") or "http/protobuf"
+        return ["--otlp-traces-endpoint", endpoint], {"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": protocol}
+
     def launch_command(self, python: str | None = None) -> list[str]:
-        """``command()``, behind ``env [-u VIRTUAL_ENV PATH=...] [spec.server_env...]`` when either applies."""
+        """``command()``, behind ``env [-u VIRTUAL_ENV PATH=...] [spec.server_env...]`` when either applies; with
+        vLLM's tracing arguments (``tracing_args``) when OTLP is configured."""
         cmd = self.command(python)
-        env = [f"{k}={v}" for k, v in (getattr(self.spec, "server_env", None) or {}).items()]
+        args, trace_env = self.tracing_args()
+        if args:
+            import shlex
+
+            cmd = cmd + args if cmd[0] != "bash" else [*cmd[:-1], cmd[-1] + " " + shlex.join(args)]
+        env = [f"{k}={v}" for k, v in {**(getattr(self.spec, "server_env", None) or {}), **trace_env}.items()]
         if self.outside_venv:
             env = ["-u", "VIRTUAL_ENV", f"PATH={self.server_path()}", *env]
         return ["env", *env, *cmd] if env else cmd

@@ -16,6 +16,12 @@ Each model has one worker thread that runs its requests one at a time in arrival
 result depends only on the page, and different models (layout, lines, recognition) work on
 different pages at the same time. Image decoding happens in a small thread pool before a request
 joins its model's queue.
+
+Tracing: a request that carries a W3C ``traceparent`` (in the body, as linecaster's served blocks send it, or in
+the headers) continues that trace with ``linecaster.serve.decode`` (the image decoded, the transcription read),
+``linecaster.serve.queue`` (waiting for the model's worker) and ``linecaster.serve.model`` (the model call); an
+unsampled trace (flags 00) or a request without one records nothing. The spans go to the file the task names
+(``LINECASTER_TRACES``, or ``--traces``) and, with the ``OTEL_*`` variables, to OTLP (``serve_provider``).
 """
 from __future__ import annotations
 
@@ -31,10 +37,14 @@ from dataclasses import dataclass, field
 
 from aiohttp import web
 from loguru import logger
+from opentelemetry import context as otel_context
+from opentelemetry import trace as trace_api
+from opentelemetry.trace import StatusCode
 
 from ..backends import resolve
 from ..blocks.base.page import decode_rgb
 from ..data.transcription import Transcription
+from ..tracing import context_of
 
 
 
@@ -65,9 +75,24 @@ class Hosted:
         logger.info("loaded {model} ({engine}, step {step}) in {seconds}s", model=self.name, engine=self.spec,
                     step=self.step, seconds=round(time.perf_counter() - t, 1))
 
-    def work(self, loop: asyncio.AbstractEventLoop) -> None:
+    def attributes(self) -> dict:
+        """The identifying attributes of this model's spans."""
+        attrs = {"linecaster.model": self.name, "linecaster.engine": self.spec}
+        if self.model is not None and isinstance(getattr(self.model, "step", None), str):
+            attrs["linecaster.step"] = self.model.step
+        if self.preset:
+            attrs["linecaster.preset"], _, edition = self.preset.partition("@")
+            if edition:
+                attrs["linecaster.edition"] = edition
+        return attrs
+
+    def work(self, loop: asyncio.AbstractEventLoop, tracer=None) -> None:
+        tracer = tracer or trace_api.NoOpTracer()
         while True:
-            image, t, params, fut = self.jobs.get()
+            image, t, params, fut, parent, waiting = self.jobs.get()
+            waiting.end()
+            span = tracer.start_span("linecaster.serve.model", context=parent, attributes=self.attributes())
+            token = otel_context.attach(trace_api.set_span_in_context(span))      # this thread's logs
             self.running += 1
             start = time.perf_counter()
             try:
@@ -79,17 +104,27 @@ class Hosted:
                     out.model[-1].preset, out.model[-1].preset_sha256 = self.preset, self.preset_sha256
                 if out.model:
                     out.model[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
-                result = (200, {"transcription": out.model_dump(mode="json"),
+                dumped = out.model_dump(mode="json")
+                result = (200, {"transcription": dumped,
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},
                                 "timing": {"model_seconds": round(time.perf_counter() - start, 4)}})
+                if span.is_recording():
+                    lines = dumped.get("lines") or []
+                    span.set_attributes({"linecaster.lines": len(lines),
+                                         "linecaster.regions": len(dumped.get("regions") or []),
+                                         "linecaster.words": sum(len(x.get("words") or ()) for x in lines)})
                 self.served += 1
             except Exception as e:  # a page the model cannot read: an error for this request only
                 logger.opt(exception=True).warning("model {model} failed on a request: {error_type}: {error}",
                                                    model=self.name, error_type=type(e).__name__, error=str(e))
                 result = (422, {"error": f"{type(e).__name__}: {e}"})
+                span.set_status(StatusCode.ERROR)
+                span.set_attribute("linecaster.error.type", type(e).__name__)
                 self.failed += 1
             self.busy_seconds += time.perf_counter() - start
             self.running -= 1
+            otel_context.detach(token)
+            span.end()
             loop.call_soon_threadsafe(_resolve, fut, result)
 
 
@@ -98,7 +133,10 @@ def _resolve(fut: asyncio.Future, result) -> None:
         fut.set_result(result)
 
 
-def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
+def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None) -> web.Application:
+    """The server's application. ``tracer``: where the spans of traced requests go (``serve_provider``); none:
+    no spans."""
+    tracer = tracer or trace_api.NoOpTracer()
     by_name = {h.name: h for h in hosted}
     pool = ThreadPoolExecutor(decode_workers, thread_name_prefix="decode")
     app = web.Application(client_max_size=256 * 2**20)
@@ -108,7 +146,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
         loop = asyncio.get_running_loop()
         for h in hosted:   # load one after another (the GPU is shared), then serve
             await loop.run_in_executor(None, h.load)
-            threading.Thread(target=h.work, args=(loop,), name=f"model-{h.name}", daemon=True).start()
+            threading.Thread(target=h.work, args=(loop, tracer), name=f"model-{h.name}", daemon=True).start()
         ready["ok"] = True
 
     async def health(request):
@@ -148,14 +186,24 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
         h.admitted += 1
         try:
             loop = asyncio.get_running_loop()
+            parent = context_of(body.get("traceparent") or request.headers.get("traceparent"))
+            attrs = h.attributes()
+            if body.get("page_id"):
+                attrs["linecaster.page.id"] = str(body["page_id"])
+            decoding = tracer.start_span("linecaster.serve.decode", context=parent, attributes=attrs)
             try:
                 data = body["image"]
                 image = None if data is None else await loop.run_in_executor(pool, decode_rgb, base64.b64decode(data))
                 t = Transcription.model_validate(body.get("transcription") or {})
             except Exception as e:
+                decoding.set_status(StatusCode.ERROR)
+                decoding.set_attribute("linecaster.error.type", type(e).__name__)
                 return web.json_response({"error": f"bad request: {type(e).__name__}: {e}"}, status=422)
+            finally:
+                decoding.end()
             fut = loop.create_future()
-            h.jobs.put((image, t, body.get("params") or {}, fut))
+            waiting = tracer.start_span("linecaster.serve.queue", context=parent, attributes=attrs)
+            h.jobs.put((image, t, body.get("params") or {}, fut, parent, waiting))
             status, payload = await fut
             return web.json_response(payload, status=status)
         finally:
@@ -174,8 +222,37 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
     return app
 
 
-def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decode_workers: int = 4) -> None:
-    from ..runtime.logs import configure
+def serve_provider(traces: str | None = None):
+    """The server's tracer provider: it continues the traces of requests that carry one (unsampled ones and requests
+    without one record nothing), into the file ``traces`` (default ``LINECASTER_TRACES``, which a task sets for the
+    server it starts) and, with the ``OTEL_*`` variables, to OTLP. None when there is neither."""
+    import os
+
+    from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ParentBased
+
+    from ..tracing import RUN_ENV, TASK_ENV, TRACES_ENV, otlp_configured, resource, task_provider
+
+    traces = traces or os.environ.get(TRACES_ENV)
+    if not traces and not otlp_configured():
+        return None
+    task = os.environ.get(TASK_ENV)
+    res = resource("serve", os.environ.get(RUN_ENV), int(task) if task and task.isdigit() else None)
+    provider, _ = task_provider(res, ParentBased(ALWAYS_OFF), traces)
+    return provider
+
+
+def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decode_workers: int = 4,
+          traces: str | None = None) -> None:
+    from ..runtime.logs import configure, install_trace_ids
 
     configure()
-    web.run_app(build_app(hosted, decode_workers), host=host, port=port, access_log=None, print=None)
+    provider = serve_provider(traces)
+    app = build_app(hosted, decode_workers, provider.get_tracer("linecaster") if provider else None)
+    if provider is not None:
+        install_trace_ids()
+
+        async def flush(app_):           # on SIGTERM (saturate's Engine stops the server so) and SIGINT
+            await asyncio.get_running_loop().run_in_executor(None, provider.shutdown)
+
+        app.on_cleanup.append(flush)
+    web.run_app(app, host=host, port=port, access_log=None, print=None)
