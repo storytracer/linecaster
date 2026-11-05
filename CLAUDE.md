@@ -34,7 +34,9 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   images (`net/http.py`). A manifest lists an item's pages and their files. Corpus or institution
   adapters (BHL, GRIN, Europeana, e-rara) belong in derivatives (pybookget's own handlers stay there).
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
-  an extra. No LiteLLM anywhere.
+  an extra. No LiteLLM anywhere. The one exception to keeping the core's dependencies few is OpenTelemetry
+  (`opentelemetry-api`, `-sdk`, `-exporter-otlp-proto-http`, with protobuf): tracing is always on
+  (`linecaster.tracing`), so it is a required dependency, not an extra.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
   the job helpers and pipeline-building helpers; example pipelines only as pipeline
   scripts (`pipelines/`), recipes as catalog entries, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
