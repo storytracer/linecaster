@@ -6,6 +6,8 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
+from ..base.contract import Contract, Contracted, parts
+
 #: format -> file extension
 PAGE_FILE_EXTENSIONS = {
     "hocr": "hocr",                       # hOCR 1.2 (linecaster's serializer)
@@ -22,9 +24,12 @@ PAGE_FILE_EXTENSIONS = {
 #: depth of hocr/alto/page: ``word`` (lines and words; linecaster has no glyph level) or ``line`` (text per line)
 DETAILS = ("word", "line")
 DOCUMENT_FORMATS = ("md", "txt", "html", "doclang", "json")
+#: the part each format is written from (md and txt: the document when there is one, else the page text)
+FORMAT_PARTS = {"hocr": "lines", "alto": "lines", "page": "lines", "txt": "text", "md": "text", "html": "document",
+                "doclang": "document", "json": "document", "transcription": None, "plot": "image"}
 
 
-class PageFileWriter(PipelineStep):
+class PageFileWriter(Contracted, PipelineStep):
     """One file per page and format: ``<output_folder>/<item_id>/<page_id><suffix>.<ext>`` (any fsspec
     folder: local, ``s3://``, ``hf://buckets/...``). Pages pass through, so writers can be chained.
 
@@ -45,6 +50,7 @@ class PageFileWriter(PipelineStep):
 
     type = "💽 - WRITER"
     name = "🗂️ page files"
+    role = "writer"
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
@@ -58,6 +64,13 @@ class PageFileWriter(PipelineStep):
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
         self.detail, self.dividers, self.text_fallback = detail, dividers, text_fallback
+
+    def contract(self) -> Contract:
+        """It reads what its formats are written from (``FORMAT_PARTS``)."""
+        names = {FORMAT_PARTS[f] for f in self.formats} - {None}
+        if not self.text_fallback and names & {"text"} and {"md", "txt"} & set(self.formats):
+            names = (names - {"text"}) | {"document"}
+        return Contract(unit="page", role=self.role, reads=parts(names, self.transcription))
 
     def path(self, page) -> str:
         stem = f"{page.page_id}{self.suffix}"

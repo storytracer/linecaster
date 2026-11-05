@@ -14,20 +14,71 @@ import queue
 import threading
 import time
 from datetime import datetime, timezone
+from functools import lru_cache
 
 from ...backends import InProcess, Served
 from ...data.page import Page
 from ...data.transcription import Transcription
+from .contract import Contract, parts
 from .page import PageBlock, decode_rgb, image_bytes, page_of, set_page
 
 _END = object()
 
+#: what a step's block reads, besides the page image
+STEP_READS = {"layout": (), "lines": (), "recognition": ("lines",), "tables": ("regions",), "formulas": ("regions",)}
+#: what a step adds when neither its preset nor its engine says
+STEP_PRODUCES = {"layout": ("regions", "reading_order"), "lines": ("lines",), "recognition": ("text",),
+                 "tables": ("tables",), "formulas": ("formulas",)}
+
+
+@lru_cache(maxsize=None)
+def _preset_produces(ref: str) -> tuple[str, ...] | None:
+    from ...catalog.registry import catalog, split_ref
+
+    try:
+        p = catalog().preset(split_ref(ref)[0])
+    except (KeyError, ValueError):
+        return None
+    return tuple(p.capabilities.produces) or None
+
+
+@lru_cache(maxsize=None)
+def _engine_produces(spec: str) -> tuple[str, ...] | None:
+    """The ``capabilities`` an engine class declares, read from its source where the repository has it (nothing
+    imported), else from the class."""
+    from ...catalog import code
+
+    if code.REPO is not None and (code.REPO / "engines").is_dir():
+        for e in code.engines().values():
+            if e.target == spec:
+                return tuple(e.capabilities.get("produces") or ()) or None
+    try:
+        from ...backends import resolve
+
+        caps = getattr(resolve(spec), "capabilities", None) or {}
+    except Exception:          # not installed here: the step's default
+        return None
+    return tuple(caps.get("produces") or ()) or None
+
+
+def produces(backend, step: str, spec=None) -> tuple[str, ...]:
+    """What a model block adds: its preset's ``capabilities.produces`` (the backend's or the chat ``spec``'s
+    preset), else its engine's declared capabilities, else the step's default (``STEP_PRODUCES``)."""
+    for ref in (getattr(spec, "preset", None), getattr(backend, "preset", None)):
+        if ref and (found := _preset_produces(ref)):
+            return found
+    engine = getattr(backend, "spec", None) if not getattr(backend, "served", False) else getattr(backend, "engine", None)
+    if isinstance(engine, str) and (found := _engine_produces(engine)):
+        return found
+    return STEP_PRODUCES.get(step, ())
 
 
 class ModelBlock(PageBlock):
-    """Run one model step on every page, adding its part to the page's ``transcription``."""
+    """Run one model step on every page, adding its part to the page's ``transcription``. In-process it is a
+    per-unit transform; served a stream transform (pages in flight in a window, passed on as they finish)."""
 
     step = "model"
+    role = "model"
     route: str | None = None       # the served route; None = linecaster serve's ``/linecaster/{step}``
     #: a step that reads only regions with this label gets no image for a page without one (``None``)
     region_label: str | None = None
@@ -40,6 +91,15 @@ class ModelBlock(PageBlock):
         self.backend, self.transcription, self.params = backend, transcription, params or {}
         self.primary, self.skip_on_error = primary or transcription, skip_on_error
         self._skipped: list = []
+
+    @property
+    def shape(self) -> str:
+        return "stream" if self.backend.served else "unit"
+
+    def contract(self) -> Contract:
+        reads = parts(("image", *STEP_READS.get(self.step, ())), self.transcription)
+        return Contract(unit="page", role=self.role, reads=reads,
+                        adds=parts(produces(self.backend, self.step), self.transcription))
 
     def needs_image(self, t: Transcription) -> bool:
         return self.region_label is None or any(r.label == self.region_label for r in t.regions)
@@ -97,10 +157,14 @@ class ModelBlock(PageBlock):
         results: queue.Queue = queue.Queue(maxsize=4 * b.max_window)
         rows = ((doc.id, {"doc": doc}) for doc in data)
 
+        def request(row: dict) -> dict:       # in saturate's prepare threads
+            self.notify(row["doc"], "prepare")
+            return self._request(row)
+
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
                                       read_timeout=b.read_timeout) as client:
-                async with through(client, rows, self._request, self._parse,
+                async with through(client, rows, request, self._parse,
                                    route=self.route or f"/linecaster/{self.step}",
                                    prepare_workers=self.prepare_workers) as stream:
                     async for done in stream:
@@ -120,6 +184,7 @@ class ModelBlock(PageBlock):
                 raise item
             doc = item.row["doc"]
             self.stat_update("pages")
+            self.notify(doc, "done", error=item.error)
             if item.error is not None:
                 self.stat_update("errors")
                 doc.metadata.setdefault("errors", []).append({"step": self.step, "error": item.error})
@@ -140,13 +205,4 @@ class ModelBlock(PageBlock):
             yield doc
         # wall time of the served run, first request to last result (downstream blocks included)
         self.stat_update("served_wall_seconds", value=round(time.perf_counter() - started, 2))
-
-
-
-
-
-
-
-
-
 

@@ -8,6 +8,7 @@ from datatrove.io import DataFolderLike
 from datatrove.pipeline.writers import JsonlWriter, ParquetWriter
 
 from ...data.page import PAGE_KEY
+from ..base.contract import Contracted
 
 
 def page_record(self, doc) -> dict:
@@ -27,11 +28,12 @@ def page_record_json(self, doc) -> dict:
     return row
 
 
-class PageJsonlWriter(JsonlWriter):
+class PageJsonlWriter(Contracted, JsonlWriter):
     """Page records as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
     (``<shard>/${rank}.jsonl.gz``, ``linecaster.blocks.writers.shards``), for a later stage that reads whole items."""
 
     name = "🐿 page records (jsonl)"
+    role = "writer"            # the whole page record: no part in particular
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
                  item_shards: int | None = None, **kwargs):
@@ -52,8 +54,9 @@ class PageJsonlWriter(JsonlWriter):
         return super().write(document, rank, **kwargs)
 
 
-class PageParquetWriter(ParquetWriter):
+class PageParquetWriter(Contracted, ParquetWriter):
     name = "📒 page records (parquet)"
+    role = "writer"
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.parquet", **kwargs):
         super().__init__(output_folder, output_filename, adapter=page_record_json, **kwargs)

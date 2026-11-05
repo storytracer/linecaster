@@ -4,13 +4,14 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
+from ..base.contract import Contracted
 
 #: file extension per image format (Pillow's names, as ``PageImage.format`` holds them)
 IMAGE_FILE_EXTENSIONS = {"jpeg": "jpg", "png": "png", "webp": "webp", "tiff": "tif", "jpeg2000": "jp2",
                          "gif": "gif", "bmp": "bmp"}
 
 
-class ImageFilesWriter(PipelineStep):
+class ImageFilesWriter(Contracted, PipelineStep):
     """Each page's image bytes as they came, one file per page: ``<output_folder>/<item_id>/<page_id>.<ext>``
     (any fsspec folder; ``<page_id>.<ext>`` for pages without an item), the extension from the image's format.
     The page's ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from,
@@ -23,6 +24,8 @@ class ImageFilesWriter(PipelineStep):
 
     type = "💽 - WRITER"
     name = "🖼️ image files"
+    role = "writer"
+    parts_read = ("image",)
 
     def __init__(self, output_folder: DataFolderLike, ocr_folder: DataFolderLike | None = None):
         super().__init__()

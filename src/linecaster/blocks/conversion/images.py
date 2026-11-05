@@ -21,6 +21,7 @@ from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import PageImage
 from ...images.convert import ImageTooLarge, to_working_webp
+from ..base.contract import Contract, Contracted, parts
 from ..base.page import page_of, set_page
 from ..writers.rejects import RejectWriter
 
@@ -32,9 +33,11 @@ def read_uri(uri: str) -> bytes:
         return f.read()
 
 
-class ImageFetcher(PipelineStep):
+class ImageFetcher(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image fetcher"
+    parts_read = ("metadata",)
+    parts_replaced = ("image",)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         for doc in data:
@@ -50,7 +53,7 @@ class ImageFetcher(PipelineStep):
             yield doc
 
 
-class ImageConverter(PipelineStep):
+class ImageConverter(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter (lossless WebP)"
 
@@ -59,6 +62,11 @@ class ImageConverter(PipelineStep):
         super().__init__()
         self.output_folder, self.rejects_folder = output_folder, rejects_folder
         self.effort, self.keep_bytes = effort, keep_bytes
+
+    def contract(self) -> Contract:
+        """The working image replaces the page image (its bytes travel on only with ``keep_bytes``)."""
+        return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
+                        replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None))
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         out = get_datafolder(self.output_folder)

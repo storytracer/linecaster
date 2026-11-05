@@ -19,6 +19,7 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 
 from ...net.http import HTTPFetcher, _pybookget, is_url
+from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ class _Local:
         self.content, self.url = content, url
 
 
-class ManifestReader(BaseDiskReader):
+class ManifestReader(Contracted, BaseDiskReader):
     """One page per image of each item's manifest (IIIF Presentation 2/3, or METS with MODS, also inside an
     OAI-PMH response; ``manifest_format`` forces one, else pybookget tells them apart by content).
 
@@ -116,6 +117,13 @@ class ManifestReader(BaseDiskReader):
     ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` per task, ``timeout``, ``proxy``, ...)."""
 
     name = "📜 manifests"
+    role = "reader"
+    whole_items = True          # a manifest is one entry, so an item's pages stay in one task
+
+    def contract(self) -> Contract:
+        """The page image and record, and with ``existing_ocr`` whatever the library's OCR holds."""
+        adds = {Part("image"), Part("metadata")} | ({Part("*", OCR_ORIGINAL)} if self.existing_ocr else set())
+        return Contract(unit="page", role=self.role, adds=frozenset(adds))
 
     def __init__(self, data_folder: DataFolderLike = ".", paths_file: DataFileLike | None = None,
                  glob_pattern: str | None = None, recursive: bool = True, limit: int = -1, skip: int = 0,

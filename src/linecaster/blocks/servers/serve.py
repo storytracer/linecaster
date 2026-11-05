@@ -10,10 +10,13 @@ from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
 
+from ..base.contract import Contracted
 
-class ModelServer(PipelineStep):
+
+class ModelServer(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖥️ model server"
+    unit, role = "any", "server"
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
                  max_queue: int = 16, script: str | None = None):
@@ -33,7 +36,7 @@ class ModelServer(PipelineStep):
             server.__exit__(None, None, None)
 
 
-class ChatModelServer(PipelineStep):
+class ChatModelServer(Contracted, PipelineStep):
     """Start a chat VLM server for a task's ``PageRecognizer``, through saturate's ``Engine``. ``spec`` is a chat
     preset's adapter (``linecaster.adapters.chat_model``) or the preset ref; the command comes from the preset's
     ``serve`` block (server, flags, environment, packages), and its ``server`` picks it:
@@ -63,6 +66,7 @@ class ChatModelServer(PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "🖥️ chat model server"
+    unit, role = "any", "server"
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,

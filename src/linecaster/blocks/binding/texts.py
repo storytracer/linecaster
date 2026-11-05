@@ -18,12 +18,18 @@ from datatrove.pipeline.base import PipelineStep
 from ...data.page import Page
 from ...data.transcription import Transcription
 from ...text.variants import VARIANTS, variants
+from ..base.contract import Contract, Contracted, Part, parts
 from ..base.page import page_of
 
 
-class ItemTexts(PipelineStep):
+class ItemTexts(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "📚 item texts"
+    role = "binder"
+
+    def contract(self) -> Contract:
+        return Contract(unit="page", unit_out="item", role=self.role, reads=parts(("text",), self.transcription),
+                        adds=frozenset({Part("text")}))
 
     def __init__(self, transcription: str = "ocr_new", variants: tuple[str, ...] = tuple(VARIANTS),
                  token_counter: Callable[[str], int] | None = None, count_key: str = "item_page_count"):

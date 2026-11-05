@@ -89,6 +89,9 @@ class LineAssigner(PageBlock):
     """
 
     name = "line assigner"
+    parts_read = ("lines", "regions")
+    parts_added = ("line_regions",)
+    parts_replaced = ("regions", "reading_order", "lines")      # orphan regions, line ids and order
 
     def __init__(self, transcription: str = "ocr_new", skip_labels=SKIP_LABELS, formulas_separately: bool = True):
         super().__init__()

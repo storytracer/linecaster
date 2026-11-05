@@ -4,10 +4,11 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
+from ..base.contract import Contract, Contracted, Part
 from .images import _Opener
 
 
-class PageRecordReader(PipelineStep):
+class PageRecordReader(Contracted, PipelineStep):
     """Page records written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
     enrichment chain: each pipeline reads the previous one's folder and adds one part. With
     ``fetch_images`` the image bytes are read again from ``page.image.uri`` (page records never carry them), through
@@ -15,19 +16,38 @@ class PageRecordReader(PipelineStep):
 
     Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards
     (``PageJsonlWriter(item_shards=N)``): the shard folders are distributed instead, each read whole, so a task
-    sees every page of its items."""
+    sees every page of its items.
+
+    ``provides`` declares the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for
+    the builder's checks; without it the records may carry anything (reads after this reader are not checked). The
+    builder sets it when it starts a stage from the page records of an earlier one."""
 
     type = "📖 - READER"
     name = "📄 page records"
+    role = "reader"
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
-                 uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None):
+                 uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None,
+                 provides=None):
         """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files); ``http``
         sets pybookget ``Config`` fields for ``http(s)://`` image URIs."""
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
         self.uri_map, self.item_shards = uri_map or {}, item_shards
+        self.provides = None if provides is None else frozenset(Part.parse(p) for p in provides)
         self._opener = _Opener(http)
+
+    @property
+    def whole_items(self) -> bool:
+        """Whether each task reads whole items (item shards): a binder after it needs no second stage."""
+        return self.item_shards
+
+    def contract(self) -> Contract:
+        """The page record and image (``fetch_images``) and what ``provides`` declares; every part (``*``) when it
+        declares nothing."""
+        given = frozenset({Part("*")}) if self.provides is None else self.provides
+        own = {Part("metadata")} | ({Part("image")} if self.fetch_images else set())
+        return Contract(unit="page", role=self.role, adds=frozenset(own) | (given - {Part("image")}))
 
     def _records(self, path: str):
         import gzip

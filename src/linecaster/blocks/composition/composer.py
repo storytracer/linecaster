@@ -22,6 +22,8 @@ class Composer(PageBlock):
     ``transcription.extra["docling_region_of"]``, for the Markdown dividers of the export writers."""
 
     name = "composer"
+    parts_read = ("regions", "lines")
+    parts_added = ("document",)
     REGION_MAP = REGION_MAP_KEY
 
     def __init__(self, transcription: str = "ocr_new", text: str = "lines", rtl: bool = False, sections: bool = False):

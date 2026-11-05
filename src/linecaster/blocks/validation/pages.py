@@ -9,6 +9,7 @@ from datatrove.pipeline.base import PipelineStep
 from pydantic import ValidationError
 
 from ...data.page import PAGE_KEY, Page
+from ..base.contract import Contract, Contracted, Part
 from ..writers.rejects import RejectWriter
 
 
@@ -19,7 +20,7 @@ def has_part(page: Page, part: str) -> bool:
     return getattr(page, part, None) is not None
 
 
-class PageValidator(PipelineStep):
+class PageValidator(Contracted, PipelineStep):
     """Drop page records that do not validate against ``Page`` or lack a ``required`` part, with a reject
     record each (field = the failing location, raw value = the offending input)."""
 
@@ -29,6 +30,15 @@ class PageValidator(PipelineStep):
     def __init__(self, rejects_folder: DataFolderLike, required: tuple[str, ...] = (), prefix: str = "validate_"):
         super().__init__()
         self.rejects_folder, self.required, self.prefix = rejects_folder, tuple(required), prefix
+
+    role = "validator"
+
+    def contract(self) -> Contract:
+        """It reads what it requires: a transcription (``transcriptions.<name>``: any part of it) or a page
+        field (the page record)."""
+        reads = frozenset(Part("*", p.split(".", 1)[1]) if p.startswith("transcriptions.")
+                          else Part("image" if p == "image" else "metadata") for p in self.required)
+        return Contract(unit="page", role=self.role, reads=reads)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         with RejectWriter(self.rejects_folder, rank, self.prefix) as sink:

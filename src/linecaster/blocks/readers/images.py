@@ -22,6 +22,8 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.readers.parquet import ParquetReader
 
+from ..base.contract import Contracted
+
 from ..base.page import new_page_document
 
 IMAGE_EXTENSIONS = ("webp", "jpg", "jpeg", "png", "tif", "tiff", "jp2")
@@ -59,7 +61,7 @@ class _Opener:
             return f.read()
 
 
-class ImageFolderReader(BaseDiskReader):
+class ImageFolderReader(Contracted, BaseDiskReader):
     """One page per image file, read the way datatrove reads files: the image files under ``data_folder`` matching
     ``glob_pattern``, or the files listed in ``paths_file`` (one per line, relative to ``data_folder``), distributed
     over tasks in turn (``[rank::world_size]``, as ``DataFolder.get_shard``).
@@ -72,6 +74,8 @@ class ImageFolderReader(BaseDiskReader):
     (``linecaster.blocks.writers.shards``)."""
 
     name = "🖼️ image folder"
+    role = "reader"
+    parts_added = ("image", "metadata")
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str = IMAGE_GLOB, recursive: bool = True, limit: int = -1, skip: int = 0,
@@ -138,7 +142,7 @@ class ImageFolderReader(BaseDiskReader):
         yield doc
 
 
-class ImageParquetReader(ParquetReader):
+class ImageParquetReader(Contracted, ParquetReader):
     """One page per row of Parquet files with an image column, read through datatrove's ``ParquetReader`` (files
     distributed over tasks in turn, so a file should hold whole items). ``image_key`` holds the image as Hugging
     Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as plain
@@ -149,6 +153,8 @@ class ImageParquetReader(ParquetReader):
     without it only the named columns are read. ``http``: pybookget ``Config`` fields for ``http(s)://`` paths."""
 
     name = "🖼️ image parquet"
+    role = "reader"
+    parts_added = ("image", "metadata")
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str | None = "**/*.parquet", recursive: bool = True, limit: int = -1, skip: int = 0,

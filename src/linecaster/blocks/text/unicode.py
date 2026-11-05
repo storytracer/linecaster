@@ -9,6 +9,9 @@ from ..base.page import PageBlock
 
 class UnicodeNormalizer(PageBlock):
     name = "unicode normalizer"
+    parts_read = ("text",)
+    parts_added = ("nfc",)
+    parts_replaced = ("text",)
 
     def __init__(self, transcription: str = "ocr_new", form: str = "NFC"):
         if form not in FORMS:

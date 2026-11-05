@@ -10,9 +10,12 @@ term is added here before it is used.
 |---|---|---|
 | **block** | One processing unit of a pipeline: a datatrove `PipelineStep`. Blocks are named as role nouns (`LineRecognizer`, `Composer`, `PageJsonlWriter`). | not a "step" (that is a catalog term), not a "component", not a "module" |
 | **role** | What a block does, defined by its contract; implementations and strategies of one role are interchangeable. | |
-| **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers. One subpackage of `linecaster.blocks` each. | |
+| **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers, composites. One subpackage of `linecaster.blocks` each. | |
 | **contract** | What a block reads, adds and replaces in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
+| **part** | One named piece of the page record (or item record) a contract names: page-level (`image`, `metadata`), or of one transcription (`ocr_new:lines`); the vocabulary is `PARTS` (below). | not a datatrove `Document` field |
 | **unit** | What one call of a block or engine processes: `line`, `region`, `page` or `item`. | |
+| **per-unit transform**, **stream transform** | The two shapes of a block: a per-unit transform processes one unit per call and its base class owns the loop; a stream transform takes the whole stream and passes each unit on when it is done, possibly out of order (served model blocks). | |
+| **condition** | A picklable predicate on the page record with a `describe()`; a block with one (`when=`) processes only the pages it accepts, the others pass unchanged. Blocks sharing a group are **alternatives**: each page goes through one of them. | |
 | **composite block** | A named group of blocks with its own outward contract (e.g. `ModularTranscriber`). The builder expands it into its blocks. | |
 | **pipeline** | An ordered list of blocks that a stream of pages (or items) passes through, run by an executor. datatrove's sense. | not a graph of components as in Haystack |
 | **graph** | The dependencies between a pipeline's blocks, derived from their contracts by the builder: for checking, drawing, and cutting into stages. It is not executed as a graph. | |
@@ -26,6 +29,7 @@ term is added here before it is used.
 | **backend** | Where a model block's engine runs: `in-process`, `served` (a server reached through saturate), or `chat` (an OpenAI-compatible VLM server). | not the executor |
 | **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs. Started by the server blocks `ModelServer` and `ChatModelServer`, which go last in a pipeline. | |
 | **observer** | A callback at block boundaries (before and after a unit): taps, sampling, progress, tracing. | not a Haystack "hook" |
+| **boundary step** | The step the builder puts after a block when a stage has observers: it tells them that each unit left that block and entered the next. It adds no stats. | not a block |
 | **tap** | An observer that writes the page records as they pass a given block (`--tap-after`). | |
 | **partial run** | A run of part of a pipeline: up to a block (`--until`), or from page records after one (`--after`). | |
 | **run folder** | The output folder of a run (`OUT`): `pages/` (the page records), `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
@@ -33,6 +37,20 @@ term is added here before it is used.
 | **reject** | A page that failed a check or a step, written to `rejects/` with the reason. | |
 | **trace**, **span** | OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes. | not telemetry |
 | **sample** | The pages that are traced: a fixed share chosen by page id, plus every page that failed. | |
+
+## Parts
+
+What contracts name besides the parts presets produce (`PRODUCES` in `linecaster.catalog.schema`: `regions`,
+`reading_order`, `lines`, `baselines`, `text`, `words`, ...); `PARTS` holds them all.
+
+| Part | Meaning |
+|---|---|
+| `image` | The page image's bytes, as the reader brought them (page-level). |
+| `metadata` | The page record's own fields: ids, sequence, the image's record, the metadata (page-level). |
+| `line_regions` | Lines assigned to the layout regions and ordered within them (the `LineAssigner`). |
+| `hierarchy` | Heading levels, headline splits and drop capitals (the `Typographer`). |
+| `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |
+| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`BindItem`). |
 
 ## The catalog
 

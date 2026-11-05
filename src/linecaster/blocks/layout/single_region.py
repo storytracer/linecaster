@@ -17,6 +17,8 @@ class SingleRegionLayout(PageBlock):
     label ``text``, reading order 0)."""
 
     name = "single region layout"
+    parts_read = ("metadata",)
+    parts_added = ("regions", "reading_order")
 
     def __init__(self, transcription: str = "ocr_new", label: str = "text", region_id: str = "page"):
         super().__init__()

@@ -9,6 +9,8 @@ from ..base.page import PageBlock
 
 
 class RecipeStamper(PageBlock):
+    """The recipe edition on every step of every transcription (it adds no part)."""
+
     name = "recipe stamper"
 
     def __init__(self, recipe: str, recipe_sha256: str):

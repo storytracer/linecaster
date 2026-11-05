@@ -11,6 +11,9 @@ class Typographer(PageBlock):
     splits, drop capitals, uncertain page numbers removed (see ``linecaster.text.typography``)."""
 
     name = "typographer"
+    parts_read = ("regions", "lines")
+    parts_added = ("hierarchy",)
+    parts_replaced = ("regions", "lines")      # heading levels, headline splits, page numbers removed
 
     def __init__(self, transcription: str = "ocr_new"):
         super().__init__()

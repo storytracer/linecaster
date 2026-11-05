@@ -5,10 +5,11 @@ from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import Page
 from ...formats.docling import DocumentBuilder, docling_dict, to_text
+from ..base.contract import Contract, Contracted, Part, parts
 from ..base.page import page_of
 
 
-class BindItem(PipelineStep):
+class BindItem(Contracted, PipelineStep):
     """One ``DoclingDocument`` per item from its pages (``linecaster.formats.docling.DocumentBuilder``):
     paragraphs continued across page breaks (``text="reflow"``), optional ``sections``, page ``n`` of the
     document = the item's ``n``-th page in order (``Page.sequence``, then page id).
@@ -24,6 +25,11 @@ class BindItem(PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "📚 bind item"
+    role = "binder"
+
+    def contract(self) -> Contract:
+        return Contract(unit="page", unit_out="item", role=self.role,
+                        reads=parts(("regions", "lines"), self.transcription), adds=frozenset({Part("document")}))
 
     def __init__(self, transcription: str = "ocr_new", text: str = "reflow", sections: bool = False, rtl: bool = False,
                  count_key: str = "item_page_count"):

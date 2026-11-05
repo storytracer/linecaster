@@ -7,9 +7,10 @@ from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
 from ...formats.docling import EXPORT_FORMATS, export
+from ..base.contract import Contract, Contracted, Part
 
 
-class ItemDocumentWriter(PipelineStep):
+class ItemDocumentWriter(Contracted, PipelineStep):
     """Write ``BindItem``'s documents as ``<item id><suffix>.<ext>``: ``md``, ``txt``,
     ``html``, ``doclang``, ``json`` (``linecaster.formats.docling.export``). ``furniture`` keeps page headers
     and footers in md, txt and html; ``dividers`` puts ``---`` between the items of consecutive layout
@@ -17,6 +18,10 @@ class ItemDocumentWriter(PipelineStep):
 
     type = "💽 - WRITER"
     name = "📝 item documents"
+    unit, role = "item", "writer"
+
+    def contract(self) -> Contract:
+        return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
                  furniture: bool = False, dividers: bool = False):
@@ -57,10 +62,15 @@ def item_text_row(self, doc) -> dict:
     return {"id": doc.id, "text": doc.text, **{k: v for k, v in doc.metadata.items()}}
 
 
-class ItemTextWriter(JsonlWriter):
+class ItemTextWriter(Contracted, JsonlWriter):
     """``ItemTexts`` documents, one per item and variant. ``format="jsonl"``: JSON Lines, one folder per variant
     (``<variant>/<rank>.jsonl.gz``; ``output_filename`` and datatrove's ``JsonlWriter`` options apply);
     ``format="files"``: one file each, ``<output_folder>/<variant>/<item_id>.<txt|md>``. Documents pass through."""
+
+    unit, role = "item", "writer"
+
+    def contract(self) -> Contract:
+        return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("text")}))
 
     def __init__(self, output_folder: DataFolderLike, format: str = "jsonl",
                  output_filename: str = "${variant}/${rank}.jsonl.gz", **kwargs):

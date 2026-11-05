@@ -33,7 +33,8 @@ import threading
 from ...adapters import ChatAdapter, chat_model
 from ...backends import Served
 from ...data.transcription import ModelInfo
-from ..base.model import _END, ModelBlock
+from ..base.contract import Contract, parts
+from ..base.model import _END, ModelBlock, produces
 from ..base.page import image_bytes, page_of, set_page
 
 
@@ -58,10 +59,22 @@ class PageRecognizer(ModelBlock):
         spec.served_name = backend.model
         self.spec, self.prepare_workers = spec, prepare_workers
 
+    shape = "stream"
+    #: what it reads besides the page image, and what it adds besides the text and its preset's parts
+    regions_read: tuple[str, ...] = ()
+    lines_added: tuple[str, ...] = ()
+
+    def contract(self) -> Contract:
+        """The completion is the text; the preset's ``capabilities.produces`` say what else (``markdown``, ...)."""
+        adds = {*self.lines_added, "text", *produces(self.backend, self.step, self.spec)}
+        return Contract(unit="page", role=self.role, reads=parts(("image", *self.regions_read), self.transcription),
+                        adds=parts(adds, self.transcription))
+
     def process_page(self, doc, page):  # pragma: no cover - only reached with an in-process backend
         raise TypeError("PageRecognizer runs served only")
 
     def _request(self, row: dict) -> dict:
+        self.notify(row["doc"], "prepare")
         return self.spec.request(image_bytes(row["doc"]))
 
     def _parse(self, body: dict) -> dict:
@@ -86,6 +99,9 @@ class RegionRecognizer(PageRecognizer):
     ``finish_reason``); the transcription's earlier lines are replaced. A page whose regions all
     failed is recorded as an error; a page without readable regions passes through unchanged."""
 
+    regions_read = ("regions",)
+    lines_added = ("lines",)          # one line per region read
+
     def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr_new", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
         if isinstance(spec, str):
@@ -106,6 +122,7 @@ class RegionRecognizer(PageRecognizer):
         import io
 
         state, region = row["state"], row["region"]
+        self.notify(state["doc"], "prepare", region=region.id)
         crop = self.spec.crop_region(state["image"], region, state["scale"], self.pad)
         buf = io.BytesIO()
         crop.save(buf, format="PNG")
@@ -170,6 +187,7 @@ class RegionRecognizer(PageRecognizer):
                 doc.metadata.setdefault("errors", []).append({"step": self.step, "error": failed})
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
+        self.notify(doc, "done", error=doc.metadata["errors"][-1] if failed and not lines else None)
         return doc
 
     def _run_regions(self, data):

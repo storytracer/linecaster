@@ -29,6 +29,9 @@ OCRD_STEPS = {
 #: what a preset can put into a transcription
 PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "word_confidences",
             "line_confidences", "tables", "formulas", "markdown", "html", "doctags", "layout_json", "latex")
+#: the parts of a page record (or item record) that block contracts name: the page image and record, what presets
+#: produce, and what the blocks without a model add (``docs/reference/pipelines.md``)
+PARTS = ("image", "metadata", *PRODUCES, "line_regions", "hierarchy", "nfc", "document")
 SUPPORT = ("core", "experimental", "legacy")
 EVIDENCE_SOURCES = ("own-run", "board", "card-claim", "vendor-benchmark")
 RELATIONS = ("mirror", "converted", "quantized", "finetuned")
