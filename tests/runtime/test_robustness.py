@@ -257,3 +257,31 @@ def test_an_env_var_is_never_pickled_with_its_value(monkeypatch):
         block.warm_up()
     with pytest.raises(PipelineConfigError, match="EnvVar"):
         Served("https://api.example.org/v1", model="m", api_key="s3cret-value")
+
+
+# ------------------------------------------------------------------------------------------------ logging
+
+def test_task_logs_are_json_lines_on_jobs(tmp_path: Path, monkeypatch):
+    from datatrove.io import get_datafolder
+    from datatrove.utils.logging import close_task_logger
+    from loguru import logger
+
+    from linecaster.runtime import logs
+
+    folder = get_datafolder(str(tmp_path))
+    monkeypatch.setenv(logs.JSON_ENV, "1")
+    f = logs.add_task_logger(folder, 3)
+    logger.warning("page {page_id} failed in {block}", page_id="b_0001", block="LineRecognizer")
+    close_task_logger(f)
+    lines = [json.loads(x) for x in (tmp_path / "logs" / "task_00003.log").read_text().splitlines()]
+    last = lines[-1]["record"]
+    assert last["message"] == "page b_0001 failed in LineRecognizer"
+    assert last["extra"] == {"page_id": "b_0001", "block": "LineRecognizer"}
+    # without the variable: datatrove's own text format
+    monkeypatch.delenv(logs.JSON_ENV)
+    f = logs.add_task_logger(folder, 4)
+    logger.info("plain")
+    close_task_logger(f)
+    assert "| INFO" in (tmp_path / "logs" / "task_00004.log").read_text()
+    logger.remove()
+    logger.add(__import__("sys").stderr)

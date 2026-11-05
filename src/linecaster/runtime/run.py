@@ -322,7 +322,7 @@ def executor_name(a: argparse.Namespace) -> str:
     if getattr(a, "page", None):
         return "run_pages"
     return {"local": "LocalPipelineExecutor", "ray": "RayGPUExecutor"}.get(
-        a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsPipelineExecutor")
+        a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsExecutor")
 
 
 def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None = None,
@@ -442,12 +442,11 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             previous = Ray(stage.pipeline, tasks=stage.tasks, cpus_per_task=a.cpus_per_task,
                            mem_per_cpu_gb=a.mem_per_cpu_gb, logging_dir=logs, depends=previous)
         else:
-            from datatrove.executor import JobsPipelineExecutor
-
-            from .jobs import GPUJobsExecutor
+            from .jobs import GPUJobsExecutor, JobsExecutor
+            from .logs import JSON_ENV
 
             run_id = out.rsplit("/", 1)[-1]
-            env = {"LINECASTER_RUN": run_id, **dict(kv.split("=", 1) for kv in a.env)}
+            env = {"LINECASTER_RUN": run_id, JSON_ENV: "1", **dict(kv.split("=", 1) for kv in a.env)}
             kw = dict(tasks=stage.tasks, workers=a.workers or -1, logging_dir=logs, flavor=a.flavor,
                       namespace=a.namespace, dependencies=deps, timeout=a.timeout, python="3.12",
                       job_name=f"linecaster-{run_id}" + (f"-{stage.name}" if many else ""),
@@ -457,7 +456,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             if a.gpus > 1 and servers:
                 previous = GPUJobsExecutor(stage.pipeline, gpus=a.gpus, **kw)
             else:
-                previous = JobsPipelineExecutor(stage.pipeline, tasks_per_job=a.tasks_per_job or 1, **kw)
+                previous = JobsExecutor(stage.pipeline, tasks_per_job=a.tasks_per_job or 1, **kw)
     return previous
 
 

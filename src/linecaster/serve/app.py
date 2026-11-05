@@ -22,7 +22,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import logging
 import queue
 from datetime import datetime, timezone
 import threading
@@ -31,12 +30,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from aiohttp import web
+from loguru import logger
 
 from ..backends import resolve
 from ..blocks.base.page import decode_rgb
 from ..data.transcription import Transcription
 
-log = logging.getLogger("linecaster.serve")
 
 
 @dataclass
@@ -63,7 +62,8 @@ class Hosted:
         t = time.perf_counter()
         self.model = resolve(self.spec)(**self.kwargs)
         self.model.load()
-        log.info("loaded %s (%s, step %s) in %.1fs", self.name, self.spec, self.step, time.perf_counter() - t)
+        logger.info("loaded {model} ({engine}, step {step}) in {seconds}s", model=self.name, engine=self.spec,
+                    step=self.step, seconds=round(time.perf_counter() - t, 1))
 
     def work(self, loop: asyncio.AbstractEventLoop) -> None:
         while True:
@@ -84,7 +84,8 @@ class Hosted:
                                 "timing": {"model_seconds": round(time.perf_counter() - start, 4)}})
                 self.served += 1
             except Exception as e:  # a page the model cannot read: an error for this request only
-                log.exception("model %s failed", self.name)
+                logger.opt(exception=True).warning("model {model} failed on a request: {error_type}: {error}",
+                                                   model=self.name, error_type=type(e).__name__, error=str(e))
                 result = (422, {"error": f"{type(e).__name__}: {e}"})
                 self.failed += 1
             self.busy_seconds += time.perf_counter() - start
@@ -174,5 +175,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4) -> web.Application:
 
 
 def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decode_workers: int = 4) -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    from ..runtime.logs import configure
+
+    configure()
     web.run_app(build_app(hosted, decode_workers), host=host, port=port, access_log=None, print=None)

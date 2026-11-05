@@ -581,3 +581,4 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
         assert (type(first).__name__, type(last).__name__) == ("RayGPUExecutor", "RayPipelineExecutor")
     if on == "hf-jobs":
         assert (first.job_name, last.job_name) == ("linecaster-stages-hf-jobs-pages", "linecaster-stages-hf-jobs-items")
+        assert type(first).__name__ == "JobsExecutor" and first.env["LINECASTER_LOG_JSON"] == "1"  # JSON lines

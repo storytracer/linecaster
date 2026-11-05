@@ -6,7 +6,9 @@
   ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
   git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
   and its version pins, for the packages its lock resolves.
-* ``WheelJobsExecutor``: ``JobsPipelineExecutor`` that also mounts volumes into every Job. A private
+* ``JobsExecutor``: datatrove's ``JobsPipelineExecutor`` with the tasks' logs as JSON lines (``runtime.logs``;
+  the pipeline scripts set ``LINECASTER_LOG_JSON`` in their Jobs' environment); the other two build on it.
+* ``WheelJobsExecutor``: ``JobsExecutor`` that also mounts volumes into every Job. A private
   derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
   mounts that folder read-only (authorized by the Job's own HF token; no credential is persisted)
   and ``uv run --with <mount>/<wheel>`` installs it. ``wheel_volume`` builds the mount.
@@ -144,8 +146,25 @@ def upload_wheel(wheel: str | Path, folder_url: str) -> str:
     return url
 
 
-class WheelJobsExecutor(JobsPipelineExecutor):
-    """``JobsPipelineExecutor`` that mounts ``volumes`` (dicts of ``huggingface_hub.Volume`` fields)
+class JobsExecutor(JobsPipelineExecutor):
+    """datatrove's ``JobsPipelineExecutor``, its tasks logging JSON lines when ``LINECASTER_LOG_JSON`` is set in
+    the Job (``linecaster.runtime.logs.add_task_logger`` in place of datatrove's)."""
+
+    def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
+        import datatrove.executor.jobs as datatrove_jobs
+
+        from .logs import add_task_logger
+
+        original = datatrove_jobs.add_task_logger
+        datatrove_jobs.add_task_logger = add_task_logger
+        try:
+            return super()._run_for_rank(rank, local_rank, node_rank)
+        finally:
+            datatrove_jobs.add_task_logger = original
+
+
+class WheelJobsExecutor(JobsExecutor):
+    """``JobsExecutor`` that mounts ``volumes`` (dicts of ``huggingface_hub.Volume`` fields)
     into every Job it launches."""
 
     def __init__(self, *args, volumes: list[dict] | None = None, **kwargs):
@@ -190,8 +209,8 @@ def point_to_gpu(pipeline: list, local: int) -> list:
     return pipeline
 
 
-class GPUJobsExecutor(JobsPipelineExecutor):
-    """``JobsPipelineExecutor`` for multi-GPU flavors: each Job takes ``gpus`` datatrove tasks and runs
+class GPUJobsExecutor(JobsExecutor):
+    """``JobsExecutor`` for multi-GPU flavors: each Job takes ``gpus`` datatrove tasks and runs
     them at the same time, one forked process per task, task *i* on GPU *i* with its servers *i* ports
     up (``point_to_gpu``). ``tasks`` should be a multiple of ``gpus``. The Job fails if
     any of its tasks fails; datatrove's completion markers make a rerun skip the finished ones."""

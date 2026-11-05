@@ -10,20 +10,19 @@ pages stay in one task.
 """
 from __future__ import annotations
 
-import logging
 import posixpath
 import re
 from collections import deque
 
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
 from datatrove.pipeline.readers.base import BaseDiskReader
+from loguru import logger
 
 from ...errors import PipelineConfigError
 from ...net.http import HTTPFetcher, _pybookget, is_url
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
 
-logger = logging.getLogger(__name__)
 
 #: characters an item id keeps (it names a folder); others become "_"
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -211,7 +210,8 @@ class ManifestReader(Contracted, BaseDiskReader):
                 data, uri = self._read(fetcher, ref)
                 manifest = read_manifest(data, fetcher.config, format=self.manifest_format)
             except Exception as e:  # noqa: BLE001 - a broken manifest must not stop the task
-                logger.warning(f"manifest {ref}: {type(e).__name__}: {e}")
+                logger.warning("manifest {ref}: {error_type}: {error}", ref=ref, error_type=type(e).__name__,
+                               error=str(e))
                 self.stat_update("manifests_failed")
                 continue
             self.stat_update(f"manifests_{manifest.format}")
@@ -263,7 +263,8 @@ class ManifestReader(Contracted, BaseDiskReader):
         try:
             response = image.result()
         except Exception as e:  # noqa: BLE001 - logged and counted; the task goes on
-            logger.warning(f"page {item_id} {page.index}: {page.url}: {type(e).__name__}: {e}")
+            logger.warning("page {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
+                           url=page.url, error_type=type(e).__name__, error=str(e))
             self.stat_update("pages_failed")
             if ocr is not None:
                 ocr.cancel()
@@ -275,7 +276,8 @@ class ManifestReader(Contracted, BaseDiskReader):
             doc = new_page_document(page_id, response.content, uri=str(response.url), item_id=item_id,
                                     sequence=page.index, metadata=metadata)
         except Exception as e:  # noqa: BLE001 - e.g. an HTML error page sent with status 200
-            logger.warning(f"page {item_id} {page.index}: {response.url}: not an image: {type(e).__name__}: {e}")
+            logger.warning("page {item_id} {index}: {url}: not an image: {error_type}: {error}", item_id=item_id,
+                           index=page.index, url=response.url, error_type=type(e).__name__, error=str(e))
             self.stat_update("pages_not_images")
             if ocr is not None:
                 ocr.cancel()
@@ -290,7 +292,8 @@ class ManifestReader(Contracted, BaseDiskReader):
                                        url=str(raw.url), media_bytes=raw.content))
                 self.stat_update("ocr")
             except Exception as e:  # noqa: BLE001 - the page goes on without it
-                logger.warning(f"ocr {item_id} {page.index}: {page.ocr_url}: {type(e).__name__}: {e}")
+                logger.warning("ocr {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
+                               url=page.ocr_url, error_type=type(e).__name__, error=str(e))
                 self.stat_update("ocr_failed")
         self.stat_update("pages")
         self.update_media_stats(doc.media[0])
