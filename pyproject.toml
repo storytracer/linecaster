@@ -16,6 +16,8 @@ dependencies = [
     "wcwidth>=0.2",
     # Unicode line, word and sentence breaking for recomposition (pure Python)
     "uniseg>=0.10",
+    # Unicode scripts (\p{Script=...}) for the rule-based steps' by-script dispatch (linecaster.engines.scripts)
+    "regex>=2024.11.6",
     "lxml>=5",
     "numpy>=2",
     "Pillow>=11",

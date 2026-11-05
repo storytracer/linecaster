@@ -10,7 +10,8 @@
               "enum": [
                 "line",
                 "region",
-                "page"
+                "page",
+                "item"
               ],
               "type": "string"
             },
@@ -22,6 +23,7 @@
           "title": "Unit"
         },
         "produces": {
+          "description": "parts it adds (PARTS): what a model produces, or what a rule-based step adds",
           "items": {
             "type": "string"
           },
@@ -207,7 +209,12 @@
         "lines",
         "recognition",
         "tables",
-        "formulas"
+        "formulas",
+        "image",
+        "normalization",
+        "typography",
+        "recomposition",
+        "composition"
       ],
       "title": "Step",
       "type": "string"
@@ -254,6 +261,14 @@
       },
       "description": "native label -> DoclingDocument label",
       "title": "Labels",
+      "type": "object"
+    },
+    "by_script": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "a by-script engine's strategies: ISO 15924 script code, or * for every other script (required) -> preset id@edition of the same step",
+      "title": "By Script",
       "type": "object"
     },
     "serve": {

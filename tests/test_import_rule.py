@@ -1,12 +1,12 @@
-"""The import rule: the data model, the formats, the text transforms and the image helpers (every module of
-``linecaster.data``, ``linecaster.formats``, ``linecaster.text`` and ``linecaster.images``) load neither
-datatrove nor saturate, nor linecaster's blocks or runtime. Checked in a fresh interpreter, so nothing another
+"""The import rule: the data model, the formats, the text transforms, the image helpers and the built-in rule-based
+engines (every module of ``linecaster.data``, ``linecaster.formats``, ``linecaster.text``, ``linecaster.images`` and
+``linecaster.engines``) load neither datatrove nor saturate, nor linecaster's blocks or runtime. Checked in a fresh interpreter, so nothing another
 test imported counts."""
 import json
 import subprocess
 import sys
 
-LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.images")
+LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.images", "linecaster.engines")
 HEAVY = ("datatrove", "saturate", "linecaster.blocks", "linecaster.runtime")
 
 CHECK = f"""

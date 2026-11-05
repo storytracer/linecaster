@@ -1,0 +1,31 @@
+# typography.ratios.v1
+
+*Engine · typography · package `linecaster`*
+
+squiddleocr's retyper (`linecaster.text.typography`): every rule a ratio to the page's own body type.
+Heading levels from the type size, section headers in body type made text, headlines split off the text
+region they were merged into, drop capitals joined to their line, uncertain page numbers removed. The rules
+cover every script that is set in lines of type sizes.
+
+Runs today's code with today's thresholds: options other than the defaults are refused until the thresholds
+are its parameters.
+
+|  |  |
+|---|---|
+| Class | `linecaster.engines:RatiosTypographyEngine` |
+| Source | [typography.py](../../../src/linecaster/engines/typography.py) |
+| Reads | pages |
+| Produces | hierarchy |
+| Scripts | all |
+| Runs | in the pipeline's process |
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `page_number_min_conf` | `float` | `0.75` | a page number read with a lower mean character confidence is removed |
+| `demote` | `float` | `1.2` | a section header whose rows are less than this many times the body size becomes text |
+| `split` | `float` | `1.6` | leading rows this many times taller than the rest and the body size are a headline of their own |
+| `levels` | `list[tuple[float, int]]` | `[(2.5, 1), (1.7, 2), (0.0, 3)]` | (ratio to the body size, heading level), highest first: a heading gets the first level whose ratio it reaches |
+| `max_headline_rows` | `int` | `3` | at most this many leading rows split off as a headline |
+| `heading_labels` | `list[str]` | `['section_header', 'title']` | the region labels of headings |

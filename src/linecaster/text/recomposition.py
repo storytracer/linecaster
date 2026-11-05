@@ -271,10 +271,23 @@ def continues(prev: Paragraph, first_row: Row, m: Margins, rtl: bool = False) ->
     return not (ch.isupper() and ends_with_mark(prev.text))
 
 
+class Rules:
+    """The decisions at a row end that depend on the characters around it: ``resolve_mark`` and ``separator``,
+    this module's Unicode rules. ``reflow_rows`` takes another object with the same two methods, e.g. an engine
+    that routes each decision to a strategy by script (``linecaster.engines.recomposition``)."""
+
+    resolve_mark = staticmethod(resolve_mark)
+    separator = staticmethod(separator)
+
+
+UNICODE_RULES = Rules()
+
+
 # ---------------------------------------------------------------------------------------------- rows
 def reflow_rows(rows: Sequence[Row], rtl: bool = False, lexicon: Lexicon | None = None, single: bool = False,
-                stats: Stats | None = None) -> list[Paragraph]:
-    """Join the rows of one region into paragraphs. ``single`` (headings) makes one paragraph."""
+                stats: Stats | None = None, rules=UNICODE_RULES) -> list[Paragraph]:
+    """Join the rows of one region into paragraphs. ``single`` (headings) makes one paragraph. ``rules`` makes the
+    decisions that depend on characters (``Rules``)."""
     stats = stats if stats is not None else Stats()
     rows = [r for r in rows if r.text.strip()]
     if not rows:
@@ -292,7 +305,7 @@ def reflow_rows(rows: Sequence[Row], rtl: bool = False, lexicon: Lexicon | None 
             continue
         prev_text = current.text
         if ends_with_mark(prev_text):
-            removed, hyphenated = resolve_mark(prev_text, text, lexicon)
+            removed, hyphenated = rules.resolve_mark(prev_text, text, lexicon)
             if removed:
                 current.text = prev_text[:-1]
                 current.spans[-1].end -= 1
@@ -303,7 +316,7 @@ def reflow_rows(rows: Sequence[Row], rtl: bool = False, lexicon: Lexicon | None 
                 stats.marks_kept += 1
                 stats.note("kept", prev_text, text)
         else:
-            sep = separator(prev_text, text)
+            sep = rules.separator(prev_text, text)
         start = len(current.text) + len(sep)
         current.text = current.text + sep + text
         current.spans.append(Span(row.index, start, len(current.text)))

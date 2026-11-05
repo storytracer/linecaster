@@ -1,8 +1,9 @@
 """Engines and pipelines described from their source (``ast``), for the docs: nothing is imported, so the
 engines need not be installed (their pins conflict; there is no environment with all of them).
 
-Engines: the entry points in ``engines/*/pyproject.toml`` plus linecaster's own (``chat.v1``), each class's
-docstring, ``step``, ``capabilities`` and ``Options`` fields. Pipelines: ``pipelines/*.py`` with a
+Engines: the entry points in ``engines/*/pyproject.toml`` plus linecaster's own (``chat.v1`` and the rule-based
+engines of ``linecaster.engines``), each class's docstring, ``step``, ``capabilities``, ``scripts`` and ``Options``
+fields. Pipelines: ``pipelines/*.py`` with a
 ``PIPELINE`` id, their docstring, ``SLOTS`` and the options ``options()`` adds.
 """
 from __future__ import annotations
@@ -35,6 +36,7 @@ class Engine:
     step: str | None
     capabilities: dict = field(default_factory=dict)
     options: list[Option] = field(default_factory=list)
+    scripts: list[str] = field(default_factory=list)            # rule-based engines: ISO 15924 codes, * for all
     adapters: dict[str, Path] = field(default_factory=dict)     # chat.v1: adapter name -> source
 
 
@@ -110,6 +112,14 @@ def engines(repo: Path = REPO) -> dict[str, Engine]:
             if isinstance(adapter, str):
                 e.adapters[adapter] = src
         found[e.id] = e
+    builtin = repo / "src" / "linecaster" / "engines"
+    if builtin.exists():
+        for name, (f, cls) in sorted(_classes(builtin).items()):
+            eid = _class_value(cls, "engine_id")
+            if isinstance(eid, str):
+                found[eid] = Engine(eid, f"linecaster.engines:{name}", "linecaster", f, _doc(cls),
+                                    _class_value(cls, "step"), _class_value(cls, "capabilities") or {}, _options(cls),
+                                    scripts=list(_class_value(cls, "scripts") or []))
     for pyproject in sorted(repo.glob("engines/*/pyproject.toml")):
         meta = tomllib.loads(pyproject.read_text(encoding="utf-8"))
         classes = _classes(pyproject.parent / "src")

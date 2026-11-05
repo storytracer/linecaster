@@ -13,11 +13,12 @@ from collections import defaultdict
 from pathlib import Path
 
 from . import code
-from .registry import Catalog
+from .registry import IN_PROCESS_ONLY, Catalog
 from .schema import STEPS
 
 STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
-               "formulas": "➗ Formulas"}
+               "formulas": "➗ Formulas", "image": "🖼️ Image", "normalization": "🔤 Normalization",
+               "typography": "🔠 Typography", "recomposition": "📝 Recomposition", "composition": "📄 Composition"}
 #: the preset sections of the index and the README: one per step, page presets (VLMs reading whole pages) last
 SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language models, whole pages", "recognition", True))
 SOURCE_NAMES = {"own-run": "Linecaster run", "board": "BHL board", "card-claim": "model card claim",
@@ -99,6 +100,11 @@ def preset_page(c: Catalog, pid: str, evs: list) -> str:
     lines += _table(("", ""), rows)
     if p.options:
         lines += ["## Options", "", *_table(("Option", "Value"), [(k, f"`{v}`") for k, v in p.options.items()])]
+    if p.by_script:
+        lines += ["## Strategies by script", "", "Each decision is made by the strategy for the script around it; "
+                  "`*` decides for every other script.", "",
+                  *_table(("Script", "Preset"), [(f"`{code}`", f"[`{ref}`](../../{preset_path(c, ref.rsplit('@', 1)[0])})")
+                                                 for code, ref in sorted(p.by_script.items())])]
     lines += _evidence_table(evs)
     if p.provenance.derived_from:
         lines += ["## Provenance", "", *[f"- {x}" for x in p.provenance.derived_from], ""]
@@ -146,6 +152,10 @@ def engine_page(c: Catalog, e: code.Engine, out: Path) -> str:
         rows.append(("Reads", f"{e.capabilities['unit']}s"))
     if e.capabilities.get("produces"):
         rows.append(("Produces", ", ".join(e.capabilities["produces"])))
+    if e.scripts:
+        rows.append(("Scripts", "all" if e.scripts == ["*"] else ", ".join(e.scripts)))
+    if e.id in IN_PROCESS_ONLY:
+        rows.append(("Runs", "in the pipeline's process"))
     lines += _table(("", ""), rows)
     if e.options:
         lines += ["## Options", "", *_table(("Option", "Type", "Default", "Description"),

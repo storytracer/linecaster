@@ -27,7 +27,7 @@ pins.
 | `device` | `str` | `'auto'` | auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers) |
 | `crop_pad` | `int` | `8` | pixels the table region's crop is grown by (with the exact layout box the models can flip to a worse cell set; stable from 8 px) |
 | `e2e` | `bool` | `True` | structure and cell boxes from SLANet_plus's own prediction for both table classes (False: the cell detectors, PP-StructureV3's route) |
-| `name` | `str` | `'table_recognition_v2/SLANet_plus'` | the name recorded in ModelInfo |
+| `name` | `str` | `'table_recognition_v2/SLANet_plus'` | the name recorded in StepInfo |
 | `submodel_revisions` | `dict[str, str] \| None` | `None` | PaddleX model name -> Hugging Face commit of its ONNX package, for the table classifier and the cell detectors; each must be a pin in the catalog (None: the newest pins) |
 
 ## Presets

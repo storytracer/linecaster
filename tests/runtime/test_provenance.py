@@ -445,7 +445,7 @@ def test_engines_carry_presets(monkeypatch):
     class R:
         ref, sha256 = "rec@4", SHA
 
-    monkeypatch.setattr(registry, "engine_spec", lambda ref, installed=True: ("pkg:Rec", {"weights": {"model": "m"}}, R()))
+    monkeypatch.setattr(registry, "engine_spec", lambda ref, installed=True, served=False: ("pkg:Rec", {"weights": {"model": "m"}}, R()))
     models = [{"name": "recognition", "preset": "rec"}, {"name": "layout", "spec": "pkg:Layout"}]
     a = _args("images", "out")
     backends, servers = run.engines(a, models, "recipe.py")

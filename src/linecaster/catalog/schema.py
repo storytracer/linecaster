@@ -19,22 +19,32 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from ..errors import CatalogError
 from ..runtime.record import RunRecord
 
-#: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``
-STEPS = ("layout", "lines", "recognition", "tables", "formulas")
-#: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``)
+#: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
+#: the others rules (their engines are built in, ``linecaster.engines``)
+STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "normalization", "typography",
+         "recomposition", "composition")
+#: the steps whose engines are rules (strategies), in the pipeline's process only
+RULE_STEPS = ("image", "normalization", "typography", "recomposition", "composition")
+#: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
+#: post-processing (``linecaster.runtime.provenance.OCRD_FALLBACK_STEP``)
 OCRD_STEPS = {
     "layout": "layout/segmentation/region",
     "lines": "layout/segmentation/line",
     "recognition": "recognition/text-recognition",
     "tables": "layout/segmentation/region",
     "formulas": "recognition/text-recognition",
+    "image": "preprocessing/optimization",
+    "typography": "layout/segmentation/classification",
+    "composition": "layout/analysis",
 }
 #: what a preset can put into a transcription
 PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "word_confidences",
             "line_confidences", "tables", "formulas", "markdown", "html", "doctags", "layout_json", "latex")
 #: the parts of a page record (or item record) that block contracts name: the page image and record, what presets
 #: produce, and what the blocks without a model add (``docs/reference/pipelines.md``)
-PARTS = ("image", "metadata", *PRODUCES, "line_regions", "hierarchy", "nfc", "document")
+PARTS = ("image", "metadata", *PRODUCES, "line_regions", "hierarchy", "nfc", "paragraphs", "normalized", "document")
+#: what an engine's work is done on, per call (``capabilities.unit``)
+UNITS = ("line", "region", "page", "item")
 SUPPORT = ("core", "experimental", "legacy")
 EVIDENCE_SOURCES = ("own-run", "board", "card-claim", "vendor-benchmark")
 RELATIONS = ("mirror", "converted", "quantized", "finetuned")
@@ -43,6 +53,8 @@ SLUG = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
 #: engines and pipelines are named by a versioned id: kraken.recognition.v1, chat.v1, transcribe_modular.v1
 CODE_ID = re.compile(r"^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)*\.v[0-9]+$")
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
+#: an ISO 15924 script code (``linecaster.engines.scripts`` checks that Unicode knows it)
+SCRIPT_CODE = re.compile(r"^[A-Z][a-z]{3}$")
 
 
 class _Doc(BaseModel):
@@ -146,15 +158,16 @@ class Serve(_Doc):
 
 
 class Capabilities(_Doc):
-    unit: Literal["line", "region", "page"] | None = None
-    produces: list[str] = Field(default_factory=list)
+    unit: Literal["line", "region", "page", "item"] | None = None
+    produces: list[str] = Field(default_factory=list, description="parts it adds (PARTS): what a model produces, "
+                                                                  "or what a rule-based step adds")
 
     @field_validator("produces")
     @classmethod
     def _produces(cls, v):
-        bad = [x for x in v if x not in PRODUCES]
+        bad = [x for x in v if x not in PARTS]
         if bad:
-            raise ValueError(f"unknown capabilities {bad}; known: {PRODUCES}")
+            raise ValueError(f"unknown capabilities {bad}; known: {PARTS}")
         return v
 
 
@@ -169,7 +182,8 @@ class PresetDoc(_Doc):
     schema_: Literal["linecaster.preset/1"] = Field(alias="schema")
     id: str
     edition: int = Field(ge=1)
-    step: Literal["layout", "lines", "recognition", "tables", "formulas"]
+    step: Literal["layout", "lines", "recognition", "tables", "formulas", "image", "normalization", "typography",
+                  "recomposition", "composition"]
     model: ModelRef | None = Field(None, description="None for engines without weights (rules)")
     submodels: dict[str, ModelRef] = Field(default_factory=dict,
                                            description="further models of a multi-model engine, by role")
@@ -177,6 +191,10 @@ class PresetDoc(_Doc):
     options: dict[str, Any] = Field(default_factory=dict, description="the engine's options")
     settings: dict[str, Any] = Field(default_factory=dict)
     labels: dict[str, str] = Field(default_factory=dict, description="native label -> DoclingDocument label")
+    by_script: dict[str, str] = Field(default_factory=dict,
+                                      description="a by-script engine's strategies: ISO 15924 script code, or * for "
+                                                  "every other script (required) -> preset id@edition of the same "
+                                                  "step")
     serve: Serve | None = None
     capabilities: Capabilities = Field(default_factory=Capabilities)
     provenance: Provenance = Field(default_factory=Provenance)
@@ -197,6 +215,21 @@ class PresetDoc(_Doc):
     def _engine(cls, v):
         if not CODE_ID.match(v):
             raise ValueError(f"engine ids are versioned, e.g. kraken.recognition.v1: {v!r}")
+        return v
+
+    @field_validator("by_script")
+    @classmethod
+    def _by_script(cls, v):
+        if not v:
+            return v
+        bad = [k for k in v if k != "*" and not SCRIPT_CODE.match(k)]
+        if bad:
+            raise ValueError(f"by_script keys are ISO 15924 script codes (Latn, Hebr) or '*': {bad}")
+        if "*" not in v:
+            raise ValueError("by_script needs a default strategy: '*'")
+        loose = [f"{k}: {r}" for k, r in v.items() if "@" not in r]
+        if loose:
+            raise ValueError(f"by_script names exact preset editions (id@edition): {loose}")
         return v
 
     @property

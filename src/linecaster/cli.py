@@ -18,7 +18,7 @@ def _serve(a) -> None:
                 if m.get("preset"):        # a catalog preset, with options over the preset's
                     from .catalog.registry import engine_spec
 
-                    spec, kw, r = engine_spec(m["preset"])
+                    spec, kw, r = engine_spec(m["preset"], served=True)
                     hosted.append(Hosted(m["name"], spec, {**kw, **m.get("overrides", {})},
                                          m.get("max_queue", a.max_queue), preset=r.ref, preset_sha256=r.sha256))
                 else:
@@ -28,7 +28,7 @@ def _serve(a) -> None:
         from .catalog.registry import engine_spec
 
         name, ref = kv.split("=", 1)
-        spec, kw, r = engine_spec(ref)
+        spec, kw, r = engine_spec(ref, served=True)
         kw.update(json.loads(kwargs.pop(name, "{}")))          # overrides, merged over the preset's options
         hosted.append(Hosted(name, spec, kw, a.max_queue, preset=r.ref, preset_sha256=r.sha256))
     for m in a.model:

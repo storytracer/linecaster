@@ -244,7 +244,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     from ..backends import InProcess, Served
     from ..blocks.servers.serve import ModelServer
 
-    models = preset_models(models, installed=not getattr(a, "describe_only", False))
+    models = preset_models(models, installed=not getattr(a, "describe_only", False), served=a.backend != "in-process")
     if a.backend == "in-process":
         backends = {}
         for m in models:
@@ -278,16 +278,17 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
     return out
 
 
-def preset_models(models: list[dict], installed: bool = True) -> list[dict]:
+def preset_models(models: list[dict], installed: bool = True, served: bool = False) -> list[dict]:
     """Model dicts with a catalog ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
     engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
-    are. ``installed=False``: the engines need not be installed here (``describe_script``)."""
+    are. ``installed=False``: the engines need not be installed here (``describe_script``). ``served``: for a server,
+    which refuses the in-process-only engines."""
     out = []
     for m in models:
         if m.get("preset") and not m.get("spec"):
             from ..catalog.registry import engine_spec
 
-            spec, kwargs, r = engine_spec(m["preset"], installed=installed)
+            spec, kwargs, r = engine_spec(m["preset"], installed=installed, served=served)
             m = {**m, "spec": spec, "kwargs": {**kwargs, **m.get("overrides", {})}, "preset": r.ref,
                  "preset_sha256": r.sha256}
         out.append(m)
