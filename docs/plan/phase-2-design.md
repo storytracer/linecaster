@@ -128,7 +128,7 @@ class Plan:
 - `to_dict()` on every block: the constructor parameters it was built with (same-named attributes, Haystack's
   convention), JSON-compatible, backends and nested blocks included; secrets as references. The run record gets
   `pipeline:` (the stages with their blocks as dicts) and `pipeline_sha256` over the functional parameters.
-- A run into an OUT whose `run.yaml` has a different `pipeline_sha256` is refused (`--force-new-pipeline` to
+- A run into an OUT whose `run.yaml` has a different `pipeline_sha256` is refused (`--new-pipeline` to
   override knowingly); a resume with a different `--tasks` is refused too (it would change each task's input).
 - Recipe editions lock their expanded pipeline: `catalog release` records the recipe's pipeline description
   (`describe()`) and its hash in the lock; `catalog verify` rebuilds it (a describe mode that needs no engine

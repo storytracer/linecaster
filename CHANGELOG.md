@@ -54,6 +54,34 @@ compatibility aliases: old imports, flags and ids fail.
   in item shards (`OUT/pages/<shard>/`), then the item stage; their logs are `OUT/logs/pages/` and
   `OUT/logs/items/`. One stage logs to `OUT/logs/` as before.
 - `--dry-run` prints the plan under `plan` and the Mermaid graph after the JSON.
+- A page an in-process block fails on no longer fails the task: it carries the error (`doc.metadata["errors"]`:
+  `block`, `step`, `preset`, `type`, `error`; served failures in the same shape, no longer `{step, error}`), later
+  model blocks pass it on at once, and it is written to `OUT/rejects/<rank>.jsonl` and kept in the page records.
+  More failures than `--max-page-errors` (1 % of a task's pages, counting at least 100) fail the task.
+- `ImageConverter(output_folder, rejects_folder, ...)` → `ImageConverter(output_folder, ...)` and
+  `PageValidator(rejects_folder, required, prefix)` → `PageValidator(required)`: they record why on the page and
+  pass it on (no longer dropped); the `RejectWriter` (now a writer block, `RejectWriter(output_folder, prefix="")`,
+  which the builder puts before the first writer of a run) writes the rejects. A derivative that used either adds
+  a `RejectWriter` where it wants the file, or lets the builder add one.
+- Library code raises `linecaster.errors` (`PipelineConfigError`, `CatalogError`, `PageError`, `ServerError`)
+  instead of `SystemExit`, `ValueError`, `KeyError`, `RuntimeError` and `TypeError` for configuration, catalog,
+  page and server errors (e.g. an unknown preset is a `CatalogError`, an unknown block option a
+  `PipelineConfigError`); pipeline scripts raise `PipelineConfigError` from `pipeline()`.
+- `runtime.jobs.dependencies(commit)` without a script raises; give the pipeline's script,
+  `runtime.jobs.ENGINE_SCRIPT` (the modular pipeline's engines) or `engines=False` (linecaster alone).
+- The run record's schema is `linecaster.run-record/1` (was `linecaster.run/1`): `pipeline` lists the stages with
+  every block's `to_dict()` and contract (was a list of block entries; the separate `stages` is gone), and
+  `pipeline_sha256` is new. A run into an OUT whose record has another `pipeline_sha256` (or none: a record from
+  before) is refused unless `--new-pipeline`; another `--tasks` always is.
+- Page records carry `schema: linecaster.page/1` in their row. Records without one (written before phase 1) are read
+  with `ocr` as `ocr_new`, and a `pages/` folder without records is read from its sibling `rows/`: no
+  `transcription="ocr"` needed any more.
+- Engines load in `warm_up()` before the first page, not on it: a page's measured `seconds` no longer include
+  loading; the load time is the block's `warm_up_seconds` stat. `ModelServer` and `ChatModelServer` start their
+  servers in `warm_up()` (stat `warm_up_seconds`, was the `boot` time stat).
+- `engine_spec(ref)` and `preset_models(models)` take `installed=True`; tests that replace `engine_spec` accept it.
+- On HF Jobs the tasks log JSON lines (`LINECASTER_LOG_JSON=1`, `runtime.jobs.JobsExecutor`; the run record's
+  executor is `JobsExecutor`).
 
 ### Added
 
@@ -63,3 +91,13 @@ compatibility aliases: old imports, flags and ids fail.
   partial runs (`--until`, `--after`, `--tap-after`), `--page IMAGE` and `linecaster page`;
   `docs/reference/pipelines.md`.
 - `docs/reference/glossary.md` and `docs/reference/conventions.md`.
+- `warm_up()` on every block and backend, with the observers' `on_warm_up(block, seconds)`; per-page failures,
+  `RejectWriter` as a block, the error budget (`--max-page-errors`, `build(max_page_errors=...)`).
+- `to_dict()` on every block, backend and chat adapter; the run record's pydantic model
+  (`linecaster.runtime.record.RunRecord`, `schemas/run-record-1.json`); `provenance.functional_pipeline` and
+  `pipeline_sha256`; `--new-pipeline`.
+- The describe mode (`runtime.run.describe_script`, `describe_recipe`, `load_script`, `parse`); a recipe edition's
+  expanded pipeline in the lock (`pipeline`, `pipeline_sha256`), checked by `catalog verify`; `catalog release
+  --migrate-pipeline`. `squiddle@1` has its pipeline recorded.
+- Secrets as references: `linecaster.runtime.secrets.EnvVar`; `Served(api_key=..., headers=...)`.
+- `linecaster.runtime.logs` (JSON-lines task logs), `runtime.jobs.JobsExecutor`.

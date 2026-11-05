@@ -33,8 +33,13 @@ term is added here before it is used.
 | **tap** | An observer that writes the page records as they pass a given block (`--tap-after`). | |
 | **partial run** | A run of part of a pipeline: up to a block (`--until`), or from page records after one (`--after`). | |
 | **run folder** | The output folder of a run (`OUT`): `pages/` (the page records), `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
-| **run record** | `OUT/run.yaml`: the pipeline as run (every block's settings), the recipe, the command line, the executor and the software, with `pipeline_sha256`. | |
-| **reject** | A page that failed a check or a step, written to `rejects/` with the reason. | |
+| **run record** | `OUT/run.yaml`: the pipeline as run (every block's parameters, `to_dict()`), the recipe, the command line, the executor and the software, with `pipeline_sha256` (the hash of the functional parameters). | |
+| **reject** | A page that failed a check or a step, written to `rejects/` with the reason; it stays in the page records with its errors. | |
+| **warm-up** | What a block loads before its first unit (`warm_up()`): an engine, a server, a client's secrets. Timed as its own stat. | |
+| **error budget** | The share of a task's pages a block may fail on before the task fails (`--max-page-errors`, default 1 % of at least 100 pages). | |
+| **functional parameter**, **operational parameter** | A block parameter that can change what a run writes (functional), or only where things are and how the work runs (operational: folders, ports, endpoints, windows, worker counts). `pipeline_sha256` covers the functional ones. | |
+| **describe mode** | Building a pipeline script's blocks in the current process without its engines, for its description and hash (`describe_script`). | not `--dry-run`, which runs in the script's environment |
+| **secret reference** | `EnvVar("NAME")`: a credential named by its environment variable, read in the task, never stored in a pipeline or a record. | |
 | **trace**, **span** | OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes. | not telemetry |
 | **sample** | The pages that are traced: a fixed share chosen by page id, plus every page that failed. | |
 

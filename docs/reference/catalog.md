@@ -69,6 +69,7 @@ YAML only. Bulk data (page records, exports) is JSON Lines or Parquet, not catal
 | recipe | `linecaster.recipe/1` | `schemas/recipe-1.json` |
 | evidence | `linecaster.evidence/1` | `schemas/evidence-1.json` |
 | lock | `linecaster.lock/2` | `schemas/lock-2.json` |
+| run record (`OUT/run.yaml`, not catalog data; its schema ships here) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
 
 Every YAML file names its format twice: its first line is `# yaml-language-server: $schema=<relative path to
 src/linecaster/catalog/schemas/<kind>-<n>.json>` (for editors), and its field `schema` holds the schema id (for
@@ -138,7 +139,7 @@ every number.
 
 `linecaster catalog release <id>` writes the current edition's resolved functional content and its sha256 into
 `catalog.lock` (per entry: `sha256`, `previous_sha256` where a catalog migration changed it, `released`,
-`linecaster` commit, `resolved`).
+`linecaster` commit, `resolved`; a recipe edition also `pipeline` and `pipeline_sha256`, below).
 
 - **A preset's functional content** is what can change outputs: `step`, the model pin and every submodel pin
   (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels` and `serve`. Only what the YAML file
@@ -151,6 +152,29 @@ every number.
 `linecaster catalog verify` (and `tests/catalog/test_catalog.py`) fails when a released edition's content changed;
 such a change is a new edition. Old editions stay resolvable from the lock after the file moves on.
 Unreleased editions are drafts.
+
+### A recipe edition's expanded pipeline
+
+A recipe names a pipeline id, presets and options; what runs is the pipeline its script builds from them. The lock
+keeps that too: `release` builds the recipe's pipeline (its pipeline script with `--recipe id@edition` on placeholder
+folders, in-process, one task) and records `pipeline`, every block with its class and its functional parameters
+(engines with their options, presets with their hashes; [pipelines](pipelines.md#the-run-record)), and its
+`pipeline_sha256`, the hash a run record of that recipe names. `verify` builds every released recipe edition's
+pipeline again and reports drift: a block, a parameter or a default that changed in code changes the hash, and
+`verify` names the blocks that differ.
+
+Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe_script`) loads the pipeline
+script as a module of the current process (its PEP 723 environment is not used), and blocks and backends import
+no engine before `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's
+engine packages (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the
+script with its engines records. It needs the pipeline scripts of the checkout.
+
+Drift is resolved like any change of a released edition: a change that can change outputs gives the recipe a new
+edition; a change of the code that keeps behavior (a renamed parameter, a new option whose default keeps the old
+behavior) is recorded anew with `linecaster catalog release <id> --migrate-pipeline`. A recipe edition released
+before pipelines were locked gets its pipeline on its next `release` (a catalog migration: the edition and its
+`sha256` stay). The lock format stays `linecaster.lock/2`: the two fields are optional, and only recipe entries have
+them.
 
 ### Catalog migrations
 
@@ -205,8 +229,8 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster models [--step STEP]` | lists the presets (and the recipes) |
 | `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model entry, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
-| `linecaster catalog release ID [--commit SHA]` | freezes the current edition of a preset or recipe in the lock |
-| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and evidence |
+| `linecaster catalog release ID [--commit SHA] [--migrate-pipeline]` | freezes the current edition of a preset or recipe in the lock, a recipe with its expanded pipeline |
+| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and their expanded pipelines, and evidence |
 | `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
 | `linecaster catalog docs [--out docs/catalog] [--readme README.md]` | the generated docs and the README's tables |

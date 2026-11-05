@@ -44,11 +44,13 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 
 - **Model blocks** (`ModelBlock` in `blocks/base/`: `LayoutDetector`, `LineDetector`, `LineRecognizer`,
   `TableRecognizer`, `FormulaRecognizer`, in their families under `blocks/`) each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine in the
-  worker (lazily; never pickled), `Served(endpoint, model=name)` streams pages through saturate
+  worker (in `warm_up()`, before the first page; never pickled), `Served(endpoint, model=name)` streams pages through saturate
   (`AdaptiveClient` + `through()`: a window of pages in flight adapted to the server's queue gauges
-  and 429s; results passed on as they finish). In-process is always available and is the parity
-  reference. A page that failed a step carries `doc.metadata["errors"]` and bypasses later model
-  steps (`skip_on_error`).
+  and 429s; results passed on as they finish; secrets as `EnvVar`). In-process is always available and is the parity
+  reference. A page that failed a step (an exception in-process, a failed request served) carries
+  `doc.metadata["errors"]`, bypasses later model steps at once (`skip_on_error`) and goes to `rejects/`; more
+  failures than the error budget (`--max-page-errors`) fail the task. Library code raises `linecaster.errors`,
+  never `SystemExit`.
 - **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per
   model (several replicas per model were measured at +7–10 % and removed; NOTES.md) with a bounded
   queue (`--max-queue`, 429 with `Retry-After` when full), routes `POST /v1/linecaster/{step}`
@@ -96,7 +98,9 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `--recipe` / `--recognition`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
   kind (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
-  `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
+  `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list
+  (`ENGINE_SCRIPT` for the modular pipeline's engines). `OUT/run.yaml` records every block's `to_dict()` and
+  `pipeline_sha256` (functional parameters only); a run into an OUT of another pipeline or `--tasks` is refused.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
   dependencies, so scripts with kraken list the fork directly; the numerically relevant versions
   are pinned with `constraint-dependencies`, the same list in every engine script;
@@ -141,7 +145,8 @@ Each page-level pipeline reads the previous folder (`PageRecordReader`: page rec
 writers, images fetched again by URI, `uri_map` for local copies) and writes complete page records
 with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are bucketed by item id
 (a whole item in one file; no joins); `originals/` is never modified; `processed/…/<pipeline>/`,
-`rejects/<output>/` (`RejectWriter`: key, field, error, raw value; `PageValidator`) and
+`rejects/` (`RejectWriter`, put before the first writer by the builder: key, field, error, raw value of every
+page that carries errors; checks like `PageValidator` record why on the page) and
 `logs/<pipeline>/…` (datatrove's completion markers, logs, stats). One job = one pipeline for one
 batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
 conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or

@@ -65,8 +65,8 @@ class Contract:
 - **Stream transform** (`shape = "stream"`): overrides `run(data)` and yields each page when it is done, possibly
   out of order (served model blocks, `PageRecognizer`, `RegionRecognizer`). It reports what happens to each page
   inside it with `notify(doc, event)`: `prepare` when a request is built, `done` when its result came back.
-- Only readers and writers see `rank`, `world_size` and files (a test walks every block class); the blocks that
-  still write a rejects file per task are listed in that test.
+- Only readers and writers see `rank`, `world_size` and files (a test walks every block class, with no exceptions):
+  a block that rejects a page records why on the page, and the `RejectWriter` names the task's file.
 
 ## The builder
 
@@ -88,8 +88,9 @@ that server's list; the alternatives of a group add the same parts, sit next to 
 `OTHERWISE` last; names given to `until`, `after` and `taps` fit exactly one block.
 
 **Order** is the given one; the builder checks it and does not reorder. It inserts the `RecipeStamper` before the
-first writer when the run follows a recipe, and moves the server blocks at the end into the stage of the model
-blocks when it cuts.
+first writer when the run follows a recipe, a `RejectWriter` into `<run_folder>/rejects` before the first writer
+(or binder) when there is a run folder and the pipeline has none, and moves the server blocks at the end into the
+stage of the model blocks when it cuts. `build(..., max_page_errors=SHARE)` sets every page block's error budget.
 
 **Branches**: `branch(block, when=Condition, group=None)` gives a block a condition, a picklable predicate on the
 page record with a `describe()` (`MetadataEquals(key, value)`, `OTHERWISE`). The block processes the pages the
@@ -114,7 +115,7 @@ record lists the stages. Each stage gets its own executor, and the later one `de
 |---|---|---|
 | `local` | `LocalPipelineExecutor` | the second starts when the first is complete |
 | `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage | the same, through `depends=` |
-| `hf-jobs` | `JobsPipelineExecutor` (`GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
+| `hf-jobs` | `JobsExecutor` (datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
 
 **Partial runs** (blocks named by their datatrove `name`, their class name, or a composite's name for its last
 block):
@@ -144,3 +145,109 @@ observers=[...])`, taps), the builder puts a `Boundary` after every block: the b
 1* calls `on_exit(i)` and `on_enter(i + 1)` for each page, so a block's time per page includes waiting in a served
 window; `error` is the entry the block added to `doc.metadata["errors"]`. Boundaries are plain callables, not
 datatrove steps, so they add no stats; a stage without observers has none.
+
+## Warm-up
+
+Every block has `warm_up()` (idempotent): engines load there (`InProcess.warm_up()`), servers start there
+(`ModelServer`, `ChatModelServer`), a served backend reads its secrets there; blocks with nothing to load keep the
+no-op. A block's `__call__`, which datatrove's executors call, warms it up before its `run` starts: blocks warm up
+as the stream reaches them, the last one first (the servers before the blocks that call them). The time is the
+block's own stat, `warm_up_seconds` (per task), and goes to the observers (`on_warm_up(block, seconds)`); a page's
+measured `seconds` never include loading. An error in a warm-up fails the task (a server that does not start: a
+`ServerError`).
+
+## Failures
+
+- **Per page.** An exception in a per-unit transform's `process_page` (other than a `PipelineConfigError`,
+  `CatalogError` or `ServerError`, which fail the task) becomes an entry in the page's `doc.metadata["errors"]`:
+  `{"block": class, "step": a model block's step, "preset": its edition or null, "type": the exception's class,
+  "error": the message}`; a failed request of a served block is the same with type `ServerError`; checks
+  (`PageValidator`, `ImageConverter`) add `field` and `raw_value`. The page goes on as it was.
+- **Later model blocks pass it by** (`skip_on_error`, the default for model blocks; stat `skipped_after_error`), at
+  once: in-process the page leaves the block before the next one enters, served it is put straight onto the
+  block's results (it never waits for the window, nor for the end of the input).
+- **Rejects.** The `RejectWriter` writes every page that carries errors to `OUT/rejects/<rank>.jsonl`, one line
+  per error (`key`, `field`, `error`, `raw_value`, and the entry's `block`, `step`, `preset`, `type`), and passes
+  it on: the page records keep failed pages with their errors, so a later pipeline reading them passes them by too.
+- **The error budget.** A block may fail on `max_page_errors` of a task's pages (`--max-page-errors`, default
+  0.01), counted against at least 100 pages: more errors than `share × max(pages, 100)` fail the task with a
+  `PageError` (with the default, a second failure in the first 100 pages; the third in 300). datatrove reruns a
+  failed task whole.
+- **Errors** (`linecaster.errors`): library code raises `PipelineConfigError` (a pipeline, option or input that
+  cannot work; `problems` lists them), `CatalogError`, `PageError(page_id, block)` and `ServerError`, all
+  `LinecasterError`s, never `SystemExit`; the `linecaster` command and a pipeline script's `main` turn them into
+  exit codes (2: nothing was launched).
+
+## The run record
+
+`OUT/run.yaml` (schema `linecaster.run-record/1`, the pydantic model `linecaster.runtime.record.RunRecord`, JSON
+Schema `catalog/schemas/run-record-1.json`) records the script, the recipe, the command line, the options, where it
+ran and the software, and:
+
+- `pipeline`: per stage its name, tasks and blocks in order, each block as its `to_dict()` (below) with its
+  `contract`, composite, group and condition;
+- `pipeline_sha256`: the hash of the pipeline's **functional** parameters.
+
+**`to_dict()`** gives a block as it was built: `{"block": class name, "class": "module:Class", "params": {...}}`,
+every constructor parameter with the value it was given or its default (`**kwargs` flattened), JSON-compatible:
+backends as `{"backend": "in-process", "engine", "options", "preset", "preset_sha256"}` or `{"backend": "served",
+"endpoint", "model", "max_window", ..., "preset", "engine"}`, chat adapters with their preset, model and revision,
+nested blocks as their dicts, secrets as `{"env": NAME}`, folders as paths, callables as `module:name`. A block
+keeps the arguments it was constructed with; `live_params` names those the builder may change afterwards (a page
+record reader's `provides`). A composite's dict is its group: its parameters and its blocks' dicts.
+
+**Functional and operational parameters.** A parameter is *functional* when changing it can change what a run
+writes for a page or an item (its page records, files and texts) or how they are partitioned (`item_shards`); it is
+*operational* when it only changes where things are read and written, how the work is spread and paced, or how a
+server is reached. `pipeline_sha256` covers the functional ones (`provenance.functional_pipeline`):
+
+| Operational (left out) | Why |
+|---|---|
+| folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
+| which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `prefetch`, `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
+| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers` | how a server is started and reached |
+| `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
+| server blocks (`ModelServer`, `ChatModelServer`) as a whole | their models count through the blocks they serve |
+| the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
+
+Everything else is functional: block classes and their order, transcription names, engine options, presets and
+their hashes, the recipe stamp, conditions and groups, writers' formats and options, `item_shards`. The base list
+is `OPERATIONAL` in `linecaster.blocks.base.block`; a block class adds its own in `operational`. So a resumed run,
+a run on another executor or backend, or into another folder has the same hash; another preset, option or block
+has another.
+
+**Resume.** A run into an OUT that holds a run record is checked against its newest record (`run.yaml`, or a later
+`run-<time>.yaml`): another `pipeline_sha256` is refused with a `PipelineConfigError` (finished tasks would be
+skipped and the folder would mix two pipelines' outputs) unless `--new-pipeline` (the new record is written next
+to the earlier one and is the one the next resume is checked against); another `--tasks` is always refused (each
+task would read other input). The same hash and tasks: a resume, as datatrove's completion markers make it.
+`--dry-run` reports the same problems.
+
+**Describe mode.** `linecaster.runtime.run.describe_script(script, argv)` builds a pipeline script's plan in the
+current process without its engines: the script is loaded as a module, its options parsed, presets resolved
+without checking that their engines are installed, nothing loaded or started. `describe_recipe(ref)` describes a
+recipe edition that way (its pipeline script by the recipe's pipeline id, `--recipe REF`, placeholder folders):
+what `linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
+
+## Secrets
+
+`linecaster.runtime.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
+(`resolve()`), never stored: an `EnvVar` pickles by name, `to_dict()` writes `{"env": "NAME"}`.
+`Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` sends
+`Authorization: Bearer <key>` and the headers with every request through saturate's `AdaptiveClient(headers=...)`;
+a key given as text is refused. A missing variable fails the block's warm-up.
+
+## Page records
+
+Stored page records are rows `{"schema": "linecaster.page/1", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+`PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`). `PageRecordReader` brings older rows to today's format
+(`UPGRADES`, keyed by the row's `schema`): a row without one was written before phase 1, its transcription `ocr` is
+read as `ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's name before
+phase 1).
+
+## HF Jobs helpers
+
+`linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
+pipeline script's metadata; without a script it raises unless `engines=False` (linecaster alone). A derivative
+whose own pipeline needs the engine packages passes `ENGINE_SCRIPT` (the modular pipeline script of the checkout,
+`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources and pins.

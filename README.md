@@ -304,9 +304,9 @@ its model was checked with; `--image` names another. `--dry-run` prints the plan
 - **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
   until every page is written: `ChatModelServer(spec)` starts [vLLM] or [SGLang],
   `ModelServer(MODELS, script=...)` a pipeline's `serve`.
-- **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsPipelineExecutor` or
-  `GPUJobsExecutor` with `dependencies(commit, script)`, which turns a script's `# /// script` block
-  into what each Job installs.
+- **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsExecutor` (datatrove's
+  `JobsPipelineExecutor`, logging JSON lines) or `GPUJobsExecutor` with `dependencies(commit, script)`, which turns
+  a script's `# /// script` block into what each Job installs.
 
 `MODELS` names the models a server hosts:
 
@@ -453,7 +453,7 @@ These blocks need no model.
 |---|---|
 | `ImageFetcher` | loads a page's image again by its address |
 | `ImageConverter` | the image as lossless WebP, size checked |
-| `PageValidator` | sets aside invalid pages, with the reason |
+| `PageValidator` | marks invalid pages with the reason, for `rejects/` |
 
 **Writers**
 
@@ -533,7 +533,8 @@ Spelling is never modernized.
 - Each stage reads the page records the last one wrote (`PageRecordReader`), adds one part and writes
   complete page records again.
 - Originals are never changed.
-- A check step (`PageValidator`, `RejectWriter`) sends failed pages to `rejects/` with the reason.
+- A page that fails a check or a step carries the reason; the `RejectWriter` writes it to `rejects/`, later model
+  steps pass it by, and too many failures fail the task.
 - datatrove keeps logs and completion markers in `logs/`, so finished tasks are skipped on a rerun.
 
 </details>
@@ -568,8 +569,8 @@ Spelling is never modernized.
   and its hash, and `linecaster catalog verify` fails when a released edition changes. Old editions stay
   resolvable.
 - **Provenance:** each page file names the presets and revisions that made it (ALTO `Processing`,
-  PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every preset, edition, hash
-  and override.
+  PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every block's parameters, preset,
+  edition, hash and override, and the pipeline's hash; a run into a folder of another pipeline is refused.
 - **Recipes** (`recipes/<id>.yaml`): a pipeline, a preset edition per slot, options. A recipe's hash covers
   its presets' hashes, so one recipe edition pins everything down to the weights.
 - **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
