@@ -109,6 +109,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
                    help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
                         "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
+    g.add_argument("--new-pipeline", action="store_true",
+                   help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
+                        "without it such a run is refused")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
                    help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
                         "stage (pipelines/bind.py) reads whole items")
@@ -322,19 +325,54 @@ def executor_name(a: argparse.Namespace) -> str:
         a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsPipelineExecutor")
 
 
-def record(a: argparse.Namespace, pipeline: list, script: str | None, argv: list[str] | None = None,
-           deps: list | None = None, image: str | None = None, stages: list | None = None) -> dict:
-    """The run record of this launch (``linecaster.runtime.provenance.run_record``); ``stages`` (the plan's, when it
-    has more than one) are recorded with their blocks and tasks."""
+def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None = None,
+           deps: list | None = None, image: str | None = None) -> dict:
+    """The run record of this launch (``linecaster.runtime.provenance.run_record``) for the builder's plan ``p``:
+    its stages with their blocks, and ``pipeline_sha256``."""
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
-    if stages and len(stages) > 1:
-        extra["stages"] = [{"name": s.name, "tasks": s.tasks, "blocks": [type(b).__name__ for b in s.blocks]}
-                           for s in stages]
-    opts = {k: v for k, v in vars(a).items() if k != "recipe_record"}
-    return run_record(opts, pipeline, script=script, argv=sys.argv[1:] if argv is None else argv,
+    opts = {k: v for k, v in vars(a).items() if k not in ("recipe_record", "describe_only")}
+    return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
+
+
+def previous_record(out: str) -> dict | None:
+    """The newest run record in ``out`` (``run.yaml`` or a later ``run-<time>.yaml``), or None."""
+    from datatrove.io import get_datafolder
+
+    from ..catalog import yamlio
+
+    folder = get_datafolder(out)
+    if not folder.exists(RUN_RECORD):
+        return None
+    records = []
+    for name in [RUN_RECORD, *folder.glob("run-*.yaml")]:
+        with folder.open(name, "r") as f:
+            rec = yamlio.load(f.read()) or {}
+        records.append((str(rec.get("created", "")), name != RUN_RECORD, rec))
+    return max(records, key=lambda r: r[:2])[2]
+
+
+def resume_problems(out: str, rec: dict, new_pipeline: bool = False) -> list[str]:
+    """Why a run with the record ``rec`` cannot go into ``out``, where an earlier run left its record: another
+    ``--tasks`` (each task would read other input; never overridden) or another pipeline (``pipeline_sha256``; unless
+    ``new_pipeline``). Empty: a new folder, or a resume of the same pipeline."""
+    previous = previous_record(out)
+    if previous is None:
+        return []
+    problems = []
+    if previous.get("tasks") != rec.get("tasks"):
+        problems.append(f"{out} holds a run with --tasks {previous.get('tasks')}; a resume with --tasks "
+                        f"{rec.get('tasks')} would give each task other input. Resume with --tasks "
+                        f"{previous.get('tasks')}, or run into a new folder")
+    if previous.get("pipeline_sha256") != rec["pipeline_sha256"] and not new_pipeline:
+        was = previous.get("pipeline_sha256") or "none (a record from before pipelines were hashed)"
+        problems.append(f"{out} holds a run of another pipeline (pipeline_sha256 {was}, this one "
+                        f"{rec['pipeline_sha256']}): its finished tasks would be skipped and the folder would mix "
+                        f"two pipelines' outputs. Run into a new folder, or give --new-pipeline to resume into this "
+                        f"one knowingly (its record is kept next to the earlier one)")
+    return problems
 
 
 def write_record(out: str, rec: dict) -> str:
@@ -437,15 +475,21 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
 
         deps = dependencies(a.commit, script, engines)
     if a.dry_run:
-        rec = record(a, blocks, script, argv, deps, image or a.image, p.stages)
+        rec = record(a, p, script, argv, deps, image or a.image)
         print(json.dumps({**plan(a, blocks, deps, image or a.image, p.stages), "plan": p.describe(), "record": rec},
                          indent=1))
         print()
         print(p.mermaid())
         p.check()
+        problems = resume_problems(out, rec, getattr(a, "new_pipeline", False))
+        if problems:
+            raise PipelineConfigError(problems)
         return
     p.check()
-    rec = record(a, blocks, script, argv, deps, image or a.image, p.stages)
+    rec = record(a, p, script, argv, deps, image or a.image)
+    problems = resume_problems(out, rec, getattr(a, "new_pipeline", False))
+    if problems:
+        raise PipelineConfigError(problems)
     write_record(out, rec)
     if getattr(a, "page", None):
         from .builder import run_plan

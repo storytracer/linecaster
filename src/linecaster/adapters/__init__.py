@@ -126,6 +126,13 @@ class ChatAdapter:
                min(image.width, int((b.x1 + pad) * scale + 0.999)), min(image.height, int((b.y1 + pad) * scale + 0.999)))
         return image.crop(box)
 
+    def to_dict(self) -> dict[str, Any]:
+        """The adapter as the run record names it: the preset edition and its hash, the model and revision, the
+        adapter class and the name the server hosts the model under."""
+        return {"adapter": f"{type(self).__module__}:{type(self).__qualname__}", "preset": self.preset,
+                "preset_sha256": self.preset_sha256, "model": self.model, "revision": self.revision,
+                "served_name": self.served_name}
+
     def settings(self) -> dict[str, Any]:
         """Everything that decides the output, recorded in ``ModelInfo.settings`` (next to the preset edition
         and its hash)."""

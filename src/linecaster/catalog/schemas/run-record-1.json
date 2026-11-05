@@ -1,0 +1,511 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "BlockEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "the block's node in the plan's graph",
+          "title": "Id",
+          "type": "string"
+        },
+        "block": {
+          "description": "its class name",
+          "title": "Block",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "its datatrove name, where it differs from the class name",
+          "title": "Name"
+        },
+        "class": {
+          "description": "module:Class",
+          "title": "Class",
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "its constructor's parameters as built (to_dict())",
+          "title": "Params"
+        },
+        "contract": {
+          "$ref": "#/$defs/Contract"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "unit (a per-unit transform) or stream",
+          "title": "Shape"
+        },
+        "composite": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the composites it sits in, outermost first, joined by /",
+          "title": "Composite"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "its condition",
+          "title": "When"
+        },
+        "provides": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provides"
+        }
+      },
+      "required": [
+        "id",
+        "block",
+        "class",
+        "contract"
+      ],
+      "title": "BlockEntry",
+      "type": "object"
+    },
+    "Contract": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "unit_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit Out"
+        },
+        "reads": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reads"
+        },
+        "adds": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adds"
+        },
+        "replaces": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replaces"
+        }
+      },
+      "required": [
+        "role",
+        "unit"
+      ],
+      "title": "Contract",
+      "type": "object"
+    },
+    "Recipe": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "description": "the recipe edition, id@edition",
+          "title": "Ref",
+          "type": "string"
+        },
+        "pipeline": {
+          "description": "the pipeline id it fills",
+          "title": "Pipeline",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "the edition's hash",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "released": {
+          "title": "Released",
+          "type": "boolean"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "what the command line gave instead of the recipe",
+          "title": "Overrides"
+        }
+      },
+      "required": [
+        "ref",
+        "pipeline",
+        "sha256",
+        "released"
+      ],
+      "title": "Recipe",
+      "type": "object"
+    },
+    "Script": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "the pipeline script, relative to its git checkout (else its file name)",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the script file's hash (sha256:<hex>)",
+          "title": "Sha256"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Script",
+      "type": "object"
+    },
+    "Software": {
+      "additionalProperties": false,
+      "properties": {
+        "linecaster": {
+          "title": "Linecaster",
+          "type": "string"
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commit"
+        },
+        "dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dirty"
+        },
+        "python": {
+          "title": "Python",
+          "type": "string"
+        },
+        "packages": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Packages",
+          "type": "object"
+        }
+      },
+      "required": [
+        "linecaster",
+        "python"
+      ],
+      "title": "Software",
+      "type": "object"
+    },
+    "Stage": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "tasks": {
+          "title": "Tasks",
+          "type": "integer"
+        },
+        "blocks": {
+          "items": {
+            "$ref": "#/$defs/BlockEntry"
+          },
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "tasks",
+        "blocks"
+      ],
+      "title": "Stage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "linecaster.run-record/1",
+      "default": "linecaster.run-record/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "created": {
+      "description": "when the run was launched, UTC (YYYY-MM-DDTHH:MM:SSZ)",
+      "title": "Created",
+      "type": "string"
+    },
+    "script": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Script"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "recipe": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Recipe"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "argv": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the command line, --env values redacted",
+      "title": "Argv"
+    },
+    "on": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "On"
+    },
+    "executor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Executor"
+    },
+    "tasks": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tasks"
+    },
+    "workers": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Workers"
+    },
+    "options": {
+      "additionalProperties": true,
+      "description": "the other parsed options",
+      "title": "Options",
+      "type": "object"
+    },
+    "pipeline": {
+      "description": "the stages with their blocks, in order",
+      "items": {
+        "$ref": "#/$defs/Stage"
+      },
+      "title": "Pipeline",
+      "type": "array"
+    },
+    "pipeline_sha256": {
+      "description": "the hash of the pipeline's functional parameters: a resume into the same run folder needs the same one",
+      "title": "Pipeline Sha256",
+      "type": "string"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "HF Jobs: the container image",
+      "title": "Image"
+    },
+    "dependencies": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "HF Jobs: what each Job installs",
+      "title": "Dependencies"
+    },
+    "software": {
+      "$ref": "#/$defs/Software"
+    }
+  },
+  "required": [
+    "created",
+    "pipeline_sha256",
+    "software"
+  ],
+  "title": "RunRecord",
+  "type": "object"
+}

@@ -26,6 +26,7 @@ class PageRecordReader(Contracted, PipelineStep):
     type = "📖 - READER"
     name = "📄 page records"
     role = "reader"
+    live_params = ("provides",)          # the builder declares what an earlier stage wrote
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
                  uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None,

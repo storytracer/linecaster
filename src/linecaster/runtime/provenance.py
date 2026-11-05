@@ -8,7 +8,8 @@
   it back.
 * ``step_entries(models)``: the steps as plain dicts, the shape the run record and the page files share.
 * ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.runtime.run.run``): script, recipe,
-  command line, options, executor, the pipeline's blocks with their backends and presets, software.
+  command line, options, executor, the pipeline (every stage's blocks as ``to_dict()`` with their contracts), its
+  ``pipeline_sha256`` (``functional_pipeline``: the functional parameters only), software.
 
 Import-light: lxml and the standard library (datatrove only for the blocks it inspects, lazily).
 """
@@ -28,7 +29,7 @@ from lxml import etree
 from ..data.transcription import ModelInfo
 from ..formats import _provenance as P
 
-RUN_SCHEMA = "linecaster.run/1"
+RUN_SCHEMA = "linecaster.run-record/1"
 METS = "http://www.loc.gov/METS/"
 OCRD = "https://ocr-d.de"
 LC = "https://github.com/storytracer/linecaster"
@@ -175,91 +176,101 @@ def from_mets_agent(agent: etree._Element) -> ModelInfo:
 
 # ------------------------------------------------------------------------------------------------ run record
 
-def _served_models(pipeline: list) -> dict[str, dict]:
-    """Model name -> the model dict of the pipeline's ``ModelServer`` blocks (name, spec, kwargs, preset)."""
+def pipeline_section(plan) -> list[dict[str, Any]]:
+    """The run record's ``pipeline``: per stage its name, tasks and blocks in order, each block as its
+    ``to_dict()`` with its contract (``Plan.describe()``'s stages)."""
+    return plan.describe()["stages"] if plan is not None else []
+
+
+def _served_models(blocks: list) -> dict[str, dict]:
+    """Model name -> the model dict of the ``ModelServer`` blocks (name, spec, kwargs, preset, preset_sha256)."""
     out = {}
-    for s in pipeline:
-        if type(s).__name__ == "ModelServer":
-            for m in getattr(s, "models", []):
+    for b in blocks:
+        if type(b).__name__ == "ModelServer":
+            for m in getattr(b, "models", []):
                 out[m["name"]] = m
     return out
 
 
-def _engine(spec: str | None, kwargs: dict | None, preset: str | None, preset_sha256: str | None,
-            overrides: dict | None = None) -> dict[str, Any]:
-    """An engine: its class, and the preset edition and hash it was built from, with the options given
-    over the preset's (``--set``); its options only when there is no preset (a preset's hash covers them)."""
-    out: dict[str, Any] = {}
-    if spec:
-        out["engine"] = spec
-    if preset:
-        out["preset"] = preset
-        if preset_sha256:
-            out["preset_sha256"] = preset_sha256
-        if overrides:
-            out["overrides"] = overrides
-    elif kwargs:
-        out["options"] = kwargs
+def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any]:
+    """What a model block's backend contributes to the pipeline's hash: the engine, its options and the preset
+    edition with its hash, wherever the engine runs (in-process, or the server model a served backend names);
+    for a server this run does not start, what the backend knows (engine, preset, else the served model's name)."""
+    from ..blocks.base.block import plain
+
+    if backend.get("backend") == "in-process":
+        out = {"engine": backend.get("engine"), "options": backend.get("options") or {},
+               "preset": backend.get("preset"), "preset_sha256": backend.get("preset_sha256")}
+    elif (m := served.get(backend.get("model"))) is not None:
+        out = {"engine": m.get("spec"), "options": plain(m.get("kwargs") or {}), "preset": m.get("preset"),
+               "preset_sha256": m.get("preset_sha256")}
+    else:
+        out = {"engine": backend.get("engine"), "preset": backend.get("preset")}
+        if not any(out.values()):
+            out["model"] = backend.get("model")
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def _functional_value(value, served: dict[str, dict]):
+    if isinstance(value, dict) and "backend" in value and isinstance(value.get("backend"), str):
+        return _functional_backend(value, served)
+    if isinstance(value, dict) and "adapter" in value and "preset" in value:       # a chat adapter
+        return {k: v for k, v in value.items() if k != "served_name"}
+    return value
+
+
+def functional_block(block, served: dict[str, dict] | None = None) -> dict[str, Any] | None:
+    """What a block contributes to the pipeline's hash: its class and its functional parameters (every parameter
+    but its ``operational_params()``; backends by their engine, options and preset, ``_functional_backend``), its
+    condition and group. Server blocks contribute nothing (their models count through the blocks they serve)."""
+    from ..blocks.base.contract import contract_of
+    from .builder import block_dict
+
+    if contract_of(block).role == "server":
+        return None
+    d = block_dict(block)
+    out: dict[str, Any] = {"block": d["block"], "class": d["class"]}
+    operational = block.operational_params() if hasattr(block, "operational_params") else frozenset()
+    params = {k: _functional_value(v, served or {}) for k, v in (d.get("params") or {}).items() if k not in operational}
+    if params:
+        out["params"] = params
+    when = getattr(block, "when", None)
+    if when is not None:
+        out["when"] = when.describe()
+        if getattr(block, "group", None) is not None:
+            out["group"] = block.group
     return out
 
 
-def _chat_spec(spec) -> dict[str, Any]:
-    out: dict[str, Any] = {"model": getattr(spec, "model", None)}
-    for k in ("revision", "preset", "preset_sha256"):
-        if getattr(spec, k, None):
-            out[k] = getattr(spec, k)
-    return out
+def functional_pipeline(plan) -> list[dict[str, Any]]:
+    """The pipeline as its hash covers it: every stage's blocks in order (``functional_block``)."""
+    blocks = plan.blocks if plan is not None else []
+    served = _served_models(blocks)
+    return [f for b in blocks if (f := functional_block(b, served)) is not None]
 
 
-def block_entry(block, served: dict[str, dict] | None = None) -> dict[str, Any]:
-    """One block of a pipeline: its class, and for a model block its step and backend (with the engine and
-    preset, from the backend when in-process and from the server's model list when served)."""
-    entry: dict[str, Any] = {"block": type(block).__name__}
-    backend = getattr(block, "backend", None)
-    if backend is not None and hasattr(backend, "served"):
-        entry["step"] = getattr(block, "step", None)
-        if getattr(block, "spec", None) is not None:        # a chat VLM (PageRecognizer and friends)
-            entry.update(_chat_spec(block.spec))
-        if not backend.served:
-            entry["backend"] = "in-process"
-            entry.update(_engine(getattr(backend, "spec", None), getattr(backend, "kwargs", None),
-                                 getattr(backend, "preset", None), getattr(backend, "preset_sha256", None),
-                                 getattr(backend, "overrides", None)))
-        else:
-            entry["backend"] = "served"
-            entry["endpoint"] = backend.endpoint
-            entry["served_model"] = backend.model
-            m = (served or {}).get(backend.model)
-            if m is not None and getattr(block, "spec", None) is None:
-                entry.update(_engine(m.get("spec"), m.get("kwargs"), m.get("preset"), m.get("preset_sha256"),
-                                     m.get("overrides")))
-    elif type(block).__name__ == "ModelServer":
-        entry["port"] = block.port
-        entry["models"] = [{"name": m["name"], **_engine(m.get("spec"), m.get("kwargs"), m.get("preset"),
-                                                         m.get("preset_sha256"), m.get("overrides"))}
-                           for m in block.models]
-    elif type(block).__name__ == "ChatModelServer":
-        entry["server"] = getattr(block, "server", None)
-        entry["port"] = block.port
-        entry.update(_chat_spec(block.spec))
-    return entry
+def pipeline_sha256(plan) -> str:
+    """The hash of the pipeline's functional parameters (``functional_pipeline``), canonical JSON: the same for a
+    resumed run, a run on another executor or backend, or into another folder; different when a block, a preset, an
+    engine option or any other functional parameter changes."""
+    from ..catalog.registry import canonical_sha256
+
+    return canonical_sha256(functional_pipeline(plan))
 
 
-def pipeline_entries(pipeline: list) -> list[dict[str, Any]]:
-    served = _served_models(pipeline)
-    return [block_entry(s, served) for s in pipeline]
-
-
-def engine_packages(pipeline: list) -> list[str]:
+def engine_packages(plan) -> list[str]:
     """The distributions that provide the pipeline's engine classes (``linecaster-kraken``, ...), where
     installed here. Editable installs do not map their modules, so the module name with ``-`` for ``_`` is
     the fallback (``package_versions`` leaves out what is not installed)."""
     from importlib.metadata import packages_distributions
 
-    specs = []
-    for e in pipeline_entries(pipeline):
-        specs += [e.get("engine")] + [m.get("engine") for m in e.get("models", [])]
-    modules = {s.split(":", 1)[0].split(".", 1)[0] for s in specs if s}
+    blocks = plan.blocks if plan is not None else []
+    specs = [m.get("spec") for m in _served_models(blocks).values()]
+    for b in blocks:
+        backend = getattr(b, "backend", None)
+        specs.append(getattr(backend, "spec", None) if not getattr(backend, "served", True) else
+                     getattr(backend, "engine", None))
+    modules = {s.split(":", 1)[0].split(".", 1)[0] for s in specs if isinstance(s, str)}
     dists = packages_distributions()
     return sorted({d for mod in modules for d in dists.get(mod) or [mod.replace("_", "-")]})
 
@@ -308,14 +319,17 @@ def script_entry(script: str | None) -> dict[str, Any] | None:
     return out
 
 
-def run_record(options: dict[str, Any], pipeline: list, *, script: str | None = None, argv: list[str] | None = None,
+def run_record(options: dict[str, Any], plan=None, *, script: str | None = None, argv: list[str] | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
                created: dt.datetime | None = None, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
-    """The run record (schema ``linecaster.run/1``): the time, the pipeline script, the recipe (edition, hash,
-    what the command line changed in it), the command line (``--env``
-    values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline's
-    blocks in order (model blocks with backend, engine and preset), ``extra`` (e.g. the Jobs' image and
-    dependencies) and the software (linecaster release and commit, Python, key packages, engine packages)."""
+    """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the time, the
+    pipeline script, the recipe (edition, hash, what the command line changed in it), the command line (``--env``
+    values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
+    builder's ``plan`` (per stage its blocks as dicts, in order, with their contracts) and its ``pipeline_sha256``,
+    ``extra`` (the Jobs' image and dependencies) and the software (linecaster release and commit, Python, key
+    packages, engine packages). Validated against ``RunRecord``."""
+    from .record import RunRecord
+
     opts = _plain(dict(options))
     if opts.get("env"):
         opts["env"] = [kv.split("=", 1)[0] + "=<redacted>" for kv in opts["env"]]
@@ -336,8 +350,9 @@ def run_record(options: dict[str, Any], pipeline: list, *, script: str | None = 
         if k in opts:
             rec[k] = opts.pop(k)
     rec["options"] = opts           # the rest of the parsed options
-    rec["pipeline"] = pipeline_entries(pipeline)
+    rec["pipeline"] = pipeline_section(plan)
+    rec["pipeline_sha256"] = pipeline_sha256(plan)
     if extra:
         rec.update(_plain({k: v for k, v in extra.items() if v is not None}))
-    rec["software"] = software(engine_packages(pipeline))
-    return rec
+    rec["software"] = software(engine_packages(plan))
+    return RunRecord.model_validate(rec).model_dump(mode="json", by_alias=True, exclude_none=True)

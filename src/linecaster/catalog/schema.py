@@ -17,6 +17,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..errors import CatalogError
+from ..runtime.record import RunRecord
 
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
@@ -319,6 +320,7 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.recipe/1": RecipeDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.lock/2": Lock,
+    "linecaster.run-record/1": RunRecord,
 }
 
 

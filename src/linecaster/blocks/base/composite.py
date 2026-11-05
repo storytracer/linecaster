@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from ...errors import PipelineConfigError
+from .block import Block
 from .contract import Contract, contract_of
 
 
-class Composite:
+class Composite(Block):
     """A named group of ``blocks`` (blocks or composites, in order). Its contract is ``contract`` when given, else
     derived from its blocks: what they read that no block inside adds, what they add and replace, the first block's
-    unit and the last one's output unit. It is not a datatrove step: run it through the builder."""
+    unit and the last one's output unit. It is not a datatrove step: run it through the builder. ``to_dict()`` is
+    the group: its parameters and its blocks' dicts."""
 
     role = "composite"
 
@@ -27,6 +29,9 @@ class Composite:
             else:
                 out.append((b, (self.name,)))
         return out
+
+    def to_dict(self) -> dict:
+        return {**super().to_dict(), "composite": self.name, "blocks": [b.to_dict() for b in self.blocks]}
 
     def contract(self) -> Contract:
         if self._contract is not None:

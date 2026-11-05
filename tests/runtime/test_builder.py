@@ -374,7 +374,7 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
     shards = {f.relative_to(out2 / "pages").parts[0] for f in (out2 / "pages").rglob("*.jsonl.gz")}
     assert shards and shards <= {"00000", "00001"} and len(_records(out2 / "pages")) == 5
     rec = yamlio.load((out2 / "run.yaml").read_text())
-    assert [s["name"] for s in rec["stages"]] == ["pages", "items"]
+    assert [(s["name"], s["tasks"]) for s in rec["pipeline"]] == [("pages", 2), ("items", 2)]
 
 
 def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):

@@ -208,3 +208,81 @@ def test_the_two_shapes():
     assert PageBlock.shape == "unit" and LineAssigner().shape == "unit"
     assert LineDetector(InProcess("x:Y")).shape == "unit"
     assert LineDetector(Served("http://127.0.0.1:8100/v1", model="lines")).shape == "stream"
+
+
+# ------------------------------------------------------------------------------------------------ to_dict
+
+def _one_of_each(tmp_path) -> list:
+    """One block of every class in ``linecaster.blocks``, with what its constructor needs."""
+    from linecaster.adapters import chat_model
+    from linecaster.runtime.secrets import EnvVar
+
+    served = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"), headers={"X-Team": "ocr"})
+    needs = {
+        "ModelBlock": {"backend": InProcess("pkg:Engine", size=3)},
+        "LayoutDetector": {"backend": InProcess("pkg:Layout")}, "LineDetector": {"backend": InProcess("pkg:Lines")},
+        "LineRecognizer": {"backend": served}, "TableRecognizer": {"backend": InProcess("pkg:Tables")},
+        "FormulaRecognizer": {"backend": InProcess("pkg:Formulas")},
+        "PageRecognizer": {"spec": chat_model("lightonocr-2-1b"), "backend": Served("http://127.0.0.1:8000/v1", model="m")},
+        "RegionRecognizer": {"spec": "lightonocr-2-1b-regions", "backend": Served("http://127.0.0.1:8000/v1", model="m")},
+        "ChatModelServer": {"spec": "lightonocr-2-1b"},
+        "ModelServer": {"models": [{"name": "lines", "spec": "pkg:Lines", "kwargs": {"x": 1}}]},
+        "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
+        "ManifestReader": {"data_folder": str(tmp_path)},
+    }
+    out = []
+    for cls in block_classes():
+        if cls.__name__ in needs:
+            out.append(cls(**needs[cls.__name__]))
+        elif "data_folder" in inspect.signature(cls.__init__).parameters:
+            out.append(cls(str(tmp_path / "in")))
+        elif "output_folder" in inspect.signature(cls.__init__).parameters:
+            out.append(cls(str(tmp_path / cls.__name__)))
+        else:
+            out.append(cls())
+    return out
+
+
+def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypatch):
+    import json
+
+    from linecaster.blocks.composites import ModularTranscriber
+    from linecaster.catalog import yamlio
+    from linecaster.runtime import provenance
+    from linecaster.runtime.builder import build
+    from linecaster.runtime.record import RunRecord
+
+    monkeypatch.setenv("LC_TEST_KEY", "s3cret-value")
+    blocks = _one_of_each(tmp_path)
+    assert {family(type(b)) for b in blocks} >= {"base", "binding", "composition", "conversion", "layout", "lines",
+                                                 "readers", "recognition", "servers", "text", "validation", "writers"}
+    composite = ModularTranscriber(InProcess("pkg:Lines"), InProcess("pkg:Text"))
+    plan = build([*blocks, composite])            # contracts need not fit: every block is described
+    rec = provenance.run_record({"on": "local", "tasks": 1}, plan)
+    back = yamlio.load(yamlio.dump(rec))
+    assert back == rec == json.loads(json.dumps(rec))       # JSON-compatible, and the YAML round trip is exact
+    RunRecord.model_validate(back)
+    entries = rec["pipeline"][0]["blocks"]
+    assert "s3cret-value" not in yamlio.dump(rec)
+    for block, entry in zip([*blocks, *[b for b, _ in composite.expanded()]], entries):
+        d = block.to_dict()
+        assert entry["block"] == d["block"] == type(block).__name__ and entry["class"] == d["class"]
+        assert entry["params"] == json.loads(json.dumps(d["params"]))
+        own = [p for p, x in list(inspect.signature(type(block).__init__).parameters.items())[1:]
+               if x.kind not in (x.VAR_KEYWORD, x.VAR_POSITIONAL)]
+        assert set(own) <= set(d["params"]), type(block).__name__        # every constructor parameter
+        assert entry["contract"]["role"] == block.contract().role
+    by_name = {e["block"]: e for e in entries[:len(blocks)]}
+    assert by_name["LineRecognizer"]["params"]["backend"] == {
+        "backend": "served", "endpoint": "https://api.example.org/v1", "model": "m", "max_window": 32,
+        "initial_window": 4, "read_timeout": 600.0, "api_key": {"env": "LC_TEST_KEY"}, "headers": {"X-Team": "ocr"}}
+    assert by_name["ModelBlock"]["params"]["backend"] == {"backend": "in-process", "engine": "pkg:Engine",
+                                                          "options": {"size": 3}}
+    assert by_name["PageRecognizer"]["params"]["spec"]["preset"].startswith("lightonocr-2-1b@")
+    assert by_name["ImageFolderReader"]["params"]["data_folder"] == str(tmp_path / "in")
+    # composites as groups: their blocks carry the group in the record, and the composite's own dict lists them
+    assert [e.get("composite") for e in entries[-4:]] == ["modular transcriber"] * 4
+    group = composite.to_dict()
+    assert group["composite"] == "modular transcriber" and [b["block"] for b in group["blocks"]] == [
+        "SingleRegionLayout", "LineDetector", "LineAssigner", "LineRecognizer"]
+    assert group["params"]["lines"] == {"backend": "in-process", "engine": "pkg:Lines", "options": {}}

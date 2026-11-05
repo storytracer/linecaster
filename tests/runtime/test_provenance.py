@@ -12,8 +12,10 @@ from PIL import Image
 from linecaster.backends import InProcess, Served
 from linecaster.catalog import yamlio
 from linecaster.data import ModelInfo
+from linecaster.errors import PipelineConfigError
 from linecaster.formats import _provenance as P, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.runtime import provenance, run
+from linecaster.runtime.record import RunRecord
 
 from conftest import make_transcription
 
@@ -305,16 +307,23 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     text = (tmp_path / "out" / "run.yaml").read_text()
     assert "secret" not in text
     rec = yamlio.load(text)
-    assert rec["schema"] == "linecaster.run/1" and rec["created"].endswith("Z")
+    assert rec["schema"] == "linecaster.run-record/1" and rec["created"].endswith("Z")
+    assert RunRecord.model_validate(rec).pipeline_sha256 == rec["pipeline_sha256"]
     assert rec["script"]["path"].endswith("tests/runtime/test_provenance.py")
     assert rec["script"]["sha256"].startswith("sha256:")
     assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
-    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
+    (stage,) = rec["pipeline"]
+    assert (stage["name"], stage["tasks"]) == ("pages", 1)
+    assert [b["block"] for b in stage["blocks"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
                                                      "RejectWriter", "PageFileWriter", "PageJsonlWriter"]
-    assert rec["pipeline"][2] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
-                                  "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}
+    recognizer = stage["blocks"][2]
+    assert recognizer["class"] == "linecaster.blocks.recognition.recognizers:LineRecognizer"
+    assert recognizer["params"]["backend"] == {"backend": "in-process", "engine": "test_provenance:StampModel",
+                                               "options": {"size": 3}, "preset": "stamp@2", "preset_sha256": SHA}
+    assert recognizer["contract"]["role"] == "model" and recognizer["contract"]["reads"] == ["image", "ocr_new:lines"]
+    assert rec["pipeline_sha256"] == provenance.pipeline_sha256(run.build_plan(a, _pipeline(a, files)))
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
     assert set(sw["packages"]) >= {"datatrove", "saturate", "docling-core"}
@@ -323,10 +332,40 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
         m = reader((tmp_path / "files" / name).read_bytes()).model
         assert [(x.step, x.name, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
             ("recognition", "stamp", "r1", "stamp@2", SHA, {"size": 3})]
-    # a second launch into the same OUT keeps run.yaml and writes its own record next to it
+    # a second launch of the same pipeline into the same OUT (a resume) keeps run.yaml and writes its own record next
+    # to it
     run.run(a, _pipeline(a, files), __file__, argv=argv)
     assert (tmp_path / "out" / "run.yaml").read_text() == text
     assert len(list((tmp_path / "out").glob("run-*.yaml"))) == 1
+
+
+def test_a_run_into_a_folder_of_another_pipeline_or_tasks_is_refused(tmp_path: Path):
+    images, out, files = _images(tmp_path / "images"), str(tmp_path / "out"), str(tmp_path / "files")
+    a = _args(images, out)
+    run.run(a, _pipeline(a, files), __file__, argv=[])
+    other = _args(images, out)
+    changed = _pipeline(other, files)
+    changed[2].backend.kwargs["size"] = 4                      # a functional option: another pipeline
+    with pytest.raises(PipelineConfigError, match="holds a run of another pipeline") as e:
+        run.run(other, changed, __file__, argv=[])
+    assert "--new-pipeline" in str(e.value)
+    with pytest.raises(PipelineConfigError, match="--tasks 1"):
+        run.run(_args(images, out, "--tasks", "2"), _pipeline(a, files), __file__, argv=[])
+    # --dry-run says so too, after printing the plan
+    with pytest.raises(PipelineConfigError, match="another pipeline"):
+        run.run(_args(images, out, "--dry-run"), changed, __file__, argv=[])
+    # an operational change (where the files go) is the same pipeline: a resume
+    moved = _args(images, out)
+    run.run(moved, _pipeline(moved, str(tmp_path / "elsewhere")), __file__, argv=[])
+    assert len(list((tmp_path / "out").glob("run-*.yaml"))) == 1
+    # --new-pipeline knowingly: its record is kept next to the first, and the next resume compares with it
+    knowingly = _args(images, out, "--new-pipeline")
+    run.run(knowingly, changed, __file__, argv=[])
+    assert run.previous_record(out)["pipeline_sha256"] == provenance.pipeline_sha256(run.build_plan(other, changed))
+    assert yamlio.load((tmp_path / "out" / "run.yaml").read_text())["pipeline_sha256"] != (
+        run.previous_record(out)["pipeline_sha256"])
+    with pytest.raises(PipelineConfigError, match="--tasks"):        # the tasks never change, not even knowingly
+        run.run(_args(images, out, "--tasks", "3", "--new-pipeline"), changed, __file__, argv=[])
 
 
 def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
@@ -335,8 +374,9 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
     run.run(a, _pipeline(a, str(tmp_path / "files")), __file__, argv=[images, out, "--dry-run"])
     printed = capsys.readouterr().out
     plan, end = json.JSONDecoder().raw_decode(printed)
-    assert plan["record"]["schema"] == "linecaster.run/1"
-    assert plan["record"]["pipeline"][2]["preset"] == "stamp@2"
+    assert plan["record"]["schema"] == "linecaster.run-record/1"
+    assert plan["record"]["pipeline"][0]["blocks"][2]["params"]["backend"]["preset"] == "stamp@2"
+    assert plan["record"]["pipeline_sha256"].startswith("sha256:")
     assert [b["block"] for b in plan["plan"]["stages"][0]["blocks"]][:3] == ["ImageFolderReader", "LineDetector",
                                                                             "LineRecognizer"]
     assert plan["plan"]["problems"] == []
@@ -345,7 +385,7 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
 
 
 def test_record_on_any_fsspec_folder():
-    rec = provenance.run_record({"on": "local", "tasks": 2}, [], created=__import__("datetime").datetime(
+    rec = provenance.run_record({"on": "local", "tasks": 2}, None, created=__import__("datetime").datetime(
         2026, 11, 3, 12, 0, tzinfo=__import__("datetime").timezone.utc))
     assert rec["created"] == "2026-11-03T12:00:00Z" and rec["pipeline"] == []
     out = "memory://linecaster-tests/run-record"
@@ -357,33 +397,45 @@ def test_record_on_any_fsspec_folder():
         assert yamlio.load(f.read()) == rec
 
 
-def test_served_blocks_take_engine_and_preset_from_the_server_models():
+def test_served_and_in_process_are_the_same_pipeline():
+    """The hash covers what a block does: the engine, its options and preset, wherever it runs."""
+    from linecaster.blocks.readers.images import ImageFolderReader
     from linecaster.blocks.recognition.recognizers import LineRecognizer
     from linecaster.blocks.servers.serve import ModelServer
+    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.runtime.builder import build
 
-    models = [{"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {}}, "preset": "rec@3",
-               "preset_sha256": SHA},
-              {"name": "layout", "spec": "pkg:Layout", "kwargs": {"model_name": "L"}}]
-    pipeline = [LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition")), ModelServer(models)]
-    entries = provenance.pipeline_entries(pipeline)
-    assert entries[0] == {"block": "LineRecognizer", "step": "recognition", "backend": "served",
-                          "endpoint": "http://127.0.0.1:8100/v1", "served_model": "recognition", "engine": "pkg:Rec",
-                          "preset": "rec@3", "preset_sha256": SHA}
-    assert entries[1] == {"block": "ModelServer", "port": 8100, "models": [
-        {"name": "recognition", "engine": "pkg:Rec", "preset": "rec@3", "preset_sha256": SHA},
-        {"name": "layout", "engine": "pkg:Layout", "options": {"model_name": "L"}}]}
+    m = {"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {"model": "m"}}, "preset": "rec@3",
+         "preset_sha256": SHA}
+    local = InProcess(m["spec"], **m["kwargs"])
+    local.preset, local.preset_sha256 = m["preset"], m["preset_sha256"]
+    reader = ImageFolderReader("images")
+    in_process = build([reader, LineRecognizer(local), PageJsonlWriter("out/pages")], run_folder="out")
+    served = build([ImageFolderReader("elsewhere"), LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition",
+                                                                          max_window=8)),
+                    PageJsonlWriter("other/pages"), ModelServer([m], port=8100)], run_folder="other")
+    assert provenance.functional_pipeline(in_process) == provenance.functional_pipeline(served)
+    assert provenance.pipeline_sha256(in_process) == provenance.pipeline_sha256(served)
+    f = provenance.functional_pipeline(in_process)
+    assert [b["block"] for b in f] == ["ImageFolderReader", "LineRecognizer", "RejectWriter", "PageJsonlWriter"]
+    assert f[1]["params"]["backend"] == {"engine": "pkg:Rec", "options": {"weights": {"model": "m"}},
+                                         "preset": "rec@3", "preset_sha256": SHA}
+    assert "data_folder" not in f[0]["params"] and "output_folder" not in f[3].get("params", {})
+    # a functional parameter changes it
+    other = build([reader, LineRecognizer(local, transcription="mine"), PageJsonlWriter("out/pages")], run_folder="out")
+    assert provenance.pipeline_sha256(other) != provenance.pipeline_sha256(in_process)
 
 
-def test_chat_blocks_record_the_model_and_revision():
-    class Spec:
-        model, revision = "org/vlm", "abc123"
+def test_chat_blocks_record_the_preset_model_and_revision():
+    from linecaster.adapters import chat_model
+    from linecaster.blocks.recognition import PageRecognizer
 
-    class Chat:
-        step, spec, backend = "page", Spec(), Served("http://127.0.0.1:8000/v1", model="org/vlm")
-
-    assert provenance.block_entry(Chat()) == {"block": "Chat", "step": "page", "model": "org/vlm",
-                                              "revision": "abc123", "backend": "served",
-                                              "endpoint": "http://127.0.0.1:8000/v1", "served_model": "org/vlm"}
+    spec = chat_model("lightonocr-2-1b")
+    d = PageRecognizer(spec, Served("http://127.0.0.1:8000/v1", model="m")).to_dict()
+    assert d["params"]["spec"] == {"adapter": f"{type(spec).__module__}:{type(spec).__qualname__}",
+                                   "preset": spec.preset, "preset_sha256": spec.preset_sha256, "model": spec.model,
+                                   "revision": spec.revision, "served_name": "m"}
+    assert d["params"]["backend"]["endpoint"] == "http://127.0.0.1:8000/v1"
 
 
 def test_engines_carry_presets(monkeypatch):

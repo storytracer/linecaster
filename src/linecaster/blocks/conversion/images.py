@@ -56,6 +56,7 @@ class ImageFetcher(Contracted, PipelineStep):
 class ImageConverter(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter (lossless WebP)"
+    operational = ("keep_bytes",)          # whether the WebP also travels on in memory: the same files
 
     def __init__(self, output_folder: DataFolderLike, effort: int = 80, keep_bytes: bool = False):
         super().__init__()

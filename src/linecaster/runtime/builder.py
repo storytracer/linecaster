@@ -269,8 +269,9 @@ class Plan:
         return self.graph.mermaid([f"{s.name} ({s.tasks} task{'s' if s.tasks != 1 else ''})" for s in self.stages])
 
     def describe(self) -> dict:
-        """The stages with their blocks (contract, composite, group, condition), the graph's edges and the
-        problems: for ``--dry-run`` and the run record."""
+        """The stages with their blocks (each its ``to_dict()``: class and parameters; its contract, composite,
+        group, condition), the graph's edges and the problems: for ``--dry-run``; the stages are the run record's
+        ``pipeline``."""
         return {"stages": [{"name": s.name, "tasks": s.tasks, "blocks": d} for s, d in zip(self.stages, self._describe)],
                 "edges": [{"from": e.source, "to": e.target, "parts": list(e.parts)} for e in self.graph.edges],
                 "problems": list(self.problems)}
@@ -567,11 +568,19 @@ class _Analysis:
                                      f"{backend.model!r}, which it does not host ({', '.join(hosted) or 'none'})")
 
 
+def block_dict(block) -> dict:
+    """``block.to_dict()``; a plain datatrove step (no ``to_dict``) by its class only."""
+    if callable(getattr(block, "to_dict", None)):
+        return block.to_dict()
+    return {"block": type(block).__name__, "class": f"{type(block).__module__}:{type(block).__qualname__}"}
+
+
 def _describe_block(e: _Entry, node: Node) -> dict:
     out: dict = {"id": node.id, "block": node.block}
     if node.name != node.block:
         out["name"] = node.name
-    out.update(e.contract.describe())
+    out.update(block_dict(e.block))
+    out["contract"] = e.contract.describe()
     shape = getattr(e.block, "shape", None)
     if shape:
         out["shape"] = shape

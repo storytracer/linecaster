@@ -49,5 +49,17 @@ class Served:
         client opens with the block's run."""
         self.request_headers()
 
+    def to_dict(self) -> dict:
+        """The backend as the run record names it: endpoint, the served model's name, the window and timeout, the
+        preset and engine when known, and the secrets by name (``{"env": NAME}``)."""
+        out = {"backend": "served", "endpoint": self.endpoint, "model": self.model, "max_window": self.max_window,
+               "initial_window": self.initial_window, "read_timeout": self.read_timeout}
+        for k in ("preset", "engine", "api_key", "headers"):
+            if getattr(self, k) is not None:
+                out[k] = getattr(self, k)
+        from ..blocks.base.block import plain
+
+        return plain(out)
+
     def describe(self) -> str:
         return f"served {self.endpoint} ({self.model})"

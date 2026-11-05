@@ -60,6 +60,17 @@ class InProcess:
     def describe(self) -> str:
         return "in-process"
 
+    def to_dict(self) -> dict:
+        """The backend as the run record names it: the engine class, its options (a preset's with ``overrides``
+        over them), and the preset edition and its hash when it came from one."""
+        out = {"backend": "in-process", "engine": self.spec, "options": self.kwargs}
+        for k in ("preset", "preset_sha256", "overrides"):
+            if getattr(self, k, None):
+                out[k] = getattr(self, k)
+        from ..blocks.base.block import plain
+
+        return plain(out)
+
     def __getstate__(self):   # never pickle a loaded model (datatrove pickles the pipeline)
         return {"spec": self.spec, "kwargs": self.kwargs, "preset": self.preset, "preset_sha256": self.preset_sha256,
                 "overrides": self.overrides, "_model": None}
