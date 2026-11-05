@@ -11,24 +11,24 @@ term is added here before it is used.
 | **block** | One processing unit of a pipeline: a datatrove `PipelineStep`. Blocks are named as role nouns (`LineRecognizer`, `Composer`, `PageJsonlWriter`). | not a "step" (that is a catalog term), not a "component", not a "module" |
 | **role** | What a block does, defined by its contract; implementations and strategies of one role are interchangeable. | |
 | **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers. One subpackage of `linecaster.blocks` each. | |
-| **contract** | What a block reads, adds and replaces in the record, and its unit. The builder checks contracts before a run. | not a Python type signature |
+| **contract** | What a block reads, adds and replaces in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
 | **unit** | What one call of a block or engine processes: `line`, `region`, `page` or `item`. | |
 | **composite block** | A named group of blocks with its own outward contract (e.g. `ModularTranscriber`). The builder expands it into its blocks. | |
 | **pipeline** | An ordered list of blocks that a stream of pages (or items) passes through, run by an executor. datatrove's sense. | not a graph of components as in Haystack |
 | **graph** | The dependencies between a pipeline's blocks, derived from their contracts by the builder: for checking, drawing, and cutting into stages. It is not executed as a graph. | |
 | **builder** | The code that turns a pipeline definition into stages: derives the graph, checks it, expands composites, cuts it at unit changes. | |
-| **stage** | One datatrove pipeline run as part of a longer computation; stages run one after another and hand over through files (e.g. page rows written in item shards, read by the next stage). | not a "phase" |
+| **stage** | One datatrove pipeline run as part of a longer computation; stages run one after another and hand over through files (e.g. page records written in item shards, read by the next stage). | not a "phase" |
 | **pipeline script** | A self-contained uv script in `pipelines/` (PEP 723 metadata, a lock next to it) that builds one pipeline shape and runs it on every executor. Named as a verb: `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py`. | |
 | **pipeline id** | A pipeline script's versioned id, its file name plus `.v<n>`: `transcribe_modular.v1`. Recipes name the pipeline they run by it. | |
 | **workflow** | The sequence of pipeline scripts for a collection: harvest → transcribe → bind. | not one pipeline; not a GitHub Actions workflow (say "CI workflow" for that) |
 | **executor**, **job**, **task**, **worker**, **shard** | datatrove's terms: the executor runs a pipeline as tasks; a job is one launch (one HF Job, one Slurm job); a task is one unit of work with its own rank; workers are tasks running at once; a shard is the part of the input one task reads. | |
-| **item shard** | A folder of page rows holding every page of a set of items, so that a later stage reads whole items. | not a datatrove shard |
+| **item shard** | A folder of page records holding every page of a set of items, so that a later stage reads whole items. | not a datatrove shard |
 | **backend** | Where a model block's engine runs: `in-process`, `served` (a server reached through saturate), or `chat` (an OpenAI-compatible VLM server). | not the executor |
 | **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs. Started by the server blocks `ModelServer` and `ChatModelServer`, which go last in a pipeline. | |
 | **observer** | A callback at block boundaries (before and after a unit): taps, sampling, progress, tracing. | not a Haystack "hook" |
-| **tap** | An observer that writes the records as they pass a given block (`--tap-after`). | |
-| **partial run** | A run of part of a pipeline: up to a block (`--until`), or from rows after one (`--after`). | |
-| **run folder** | The output folder of a run (`OUT`): `rows/`, `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
+| **tap** | An observer that writes the page records as they pass a given block (`--tap-after`). | |
+| **partial run** | A run of part of a pipeline: up to a block (`--until`), or from page records after one (`--after`). | |
+| **run folder** | The output folder of a run (`OUT`): `pages/` (the page records), `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
 | **run record** | `OUT/run.yaml`: the pipeline as run (every block's settings), the recipe, the command line, the executor and the software, with `pipeline_sha256`. | |
 | **reject** | A page that failed a check or a step, written to `rejects/` with the reason. | |
 | **trace**, **span** | OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes. | not telemetry |
@@ -63,15 +63,15 @@ term is added here before it is used.
 |---|---|---|
 | **item** | Any multi-page unit: a book, an issue, a manuscript, a file. Key `item_id`. | not "book" in generic code, flags or docs |
 | **page** | One page of an item, with its image and its named transcriptions. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
-| **page row** | A page as stored: one row of JSONL or Parquet, everything but the image bytes. | not a visual row |
-| **record** | What a block reads and adds to while a page or item passes: the page row in memory. | |
+| **page record** | A page with its image reference, its transcriptions and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
+| **item record** | An item with its pages in order, as the `Binder` passes it on. | |
 | **manifest** | An item's list of its pages and their files, in order: an IIIF Presentation manifest or a METS document (also inside OAI-PMH). | not a BagIt checksum manifest |
 | **page image** | The image a page's coordinates refer to (`PageImage`): its URI, format, size, hash. | |
 | **working image** | The `working-image` preset of the `ImageConverter`: lossless WebP at full resolution, 8-bit sRGB. | not a role |
 | **transcription** | Everything read from a page by one source (`Transcription`): regions, lines, words, paragraphs, the document, the steps that made it, and its source. Named per page: `ocr_new` (linecaster's), `ocr_original` (the library's own), `ground_truth`. | not "OCR" (it also holds HTR and ground truth) |
 | **region** | An area of a page with a label (`text`, `title`, `table`, ...) from layout. | |
 | **line** | One printed or written line: its geometry and, once recognized, its text and words. | |
-| **visual row** | The lines of one region that sit side by side at the same height. | not a page row |
+| **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
 | **paragraph** | Running text recomposed from a region's rows, with the decisions that made it. Added by the `Recomposer`. | |
 | **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry |

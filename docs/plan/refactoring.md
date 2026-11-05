@@ -13,7 +13,7 @@ table then lives in `CHANGELOG.md`'s upgrade notes. Terms are the [glossary](../
 | D3 | Released editions when the catalog changes format (YAML + Markdown, the hash over YAML only, renamed fields and steps, new pipeline ids) | one **catalog migration** in phase 1: a lock format `linecaster.lock/2`; every edition keeps its number, its hash is recomputed under the new format, and the old hash stays in the lock so existing run records still resolve. Allowed only for changes that keep behavior; anything else is a new edition. This also moves `squiddle@1` to `transcribe_modular.v1` without a `squiddle@2` |
 | D4 | Writers that overlap | `PageFilesWriter` + `PageExportsWriter` → **`PageFileWriter`** (one writer for every per-page format, with a naming option for squiddleocr's names); `ItemExportsWriter` → **`ItemDocumentWriter`**; `ItemTextJsonlWriter` + `ItemTextFilesWriter` → **`ItemTextWriter`** (`format="jsonl" \| "files"`) |
 | D5 | `--text lines\|reflow` and `--texts DIR` (one letter apart, unrelated) | `--text` becomes the slot **`--recomposition PRESET`** (none: the page stays as laid out); `--texts DIR` becomes **`--item-texts DIR`** |
-| D6 | `Line.row` (the visual row) next to "page row" | **`Line.visual_row`**, in phase 3's schema version |
+| D6 | "page row" and "record" (the stored and the in-memory page) next to `Line.row` (the lines side by side at one height) | **page record** for the page, in memory and on disk: `OUT/rows/` → `OUT/pages/`, `PageRowReader` → `PageRecordReader`, `--rows` → `--pages`; **row** only means the visual row, and `Line.row` keeps its name |
 | D7 | Where built-in engines live | **`linecaster.engines`** (normalization, typography, recomposition, composition, image, chat); the repository folder `engines/` keeps the engine packages |
 | D8 | "Connector" | dropped; inputs are **readers** |
 
@@ -59,7 +59,7 @@ The glossary, the conventions, `CHANGELOG.md`, this plan with its rename table. 
 1. Catalog steps `image`, `normalization`, `typography`, `recomposition`, `composition`, with built-in engines and
    presets; thresholds as options; strategies declare their scripts; presets map scripts to strategies.
 2. Data model (new schema version): `Transcription.paragraphs`; `StepInfo` and `Transcription.steps`; the
-   measurements vocabulary; `Line.visual_row` (D6).
+   measurements vocabulary.
 3. One recomposition: `reflow.py` as `recomposition.unicode.v1` with a text-only fallback; `text.py`'s
    `join_lines` removed; `Binder` + `Recomposer`/`Composer` at the item level + the item writers replace
    `BindItem` and `ItemTexts`; `bind.py` writes `texts/<variant>/` and `documents/<format>/`; the `Splitter`.
@@ -120,7 +120,8 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | `PageFilesWriter`, `PageExportsWriter` | `PageFileWriter` (D4) | writers | 1 |
 | `ItemExportsWriter` | `ItemDocumentWriter` (D4) | writers | 1 |
 | `ItemTextJsonlWriter`, `ItemTextFilesWriter` | `ItemTextWriter` (D4) | writers | 1 |
-| readers, `PageJsonlWriter`, `PageParquetWriter`, `ImageFilesWriter` | unchanged | readers, writers | |
+| `PageRowReader` | `PageRecordReader` (D6) | readers | 1 |
+| other readers, `PageJsonlWriter`, `PageParquetWriter`, `ImageFilesWriter` | unchanged | readers, writers | |
 | — | `ModularTranscriber` (composite) | composites | 2 |
 | — | `PdfReader` (skeleton) | readers | 4 |
 
@@ -146,6 +147,7 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | `--text lines\|reflow` | `--recomposition PRESET` (D5) |
 | `--texts DIR` | `--item-texts DIR` (D5) |
 | `--files`, `--exports` | `--files` with every per-page format (D4) |
+| `--rows DIR`, `OUT/rows/` | `--pages DIR`, `OUT/pages/` (D6) |
 
 ### Catalog
 
@@ -166,7 +168,6 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | `ModelInfo` | `StepInfo` | 3 |
 | `Transcription.model` | `Transcription.steps` | 3 |
 | — | `Transcription.paragraphs` (`Paragraph`) | 3 |
-| `Line.row` | `Line.visual_row` (D6) | 3 |
 | `measurements` (free keys) | a fixed vocabulary | 3 |
 | transcription name `ocr` | `ocr_new` (D1) | 1 |
 
@@ -197,6 +198,7 @@ After phase 3 or at the end: the tag `v0.1.0`, then versioned docs.
 | text version | text variant |
 | axes | dimensions |
 | book (generic) | item |
+| page row, record | page record (D6) |
 | model (for a page preset, an engine class or an adapter) | page preset, engine, adapter |
 | connector | reader |
 | British spelling | American spelling |
