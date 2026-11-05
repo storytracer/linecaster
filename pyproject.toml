@@ -21,8 +21,9 @@ dependencies = [
     "Pillow>=11",
     "datatrove[io]>=0.10.1,<0.11",
     "saturate==0.3.0",
-    # the catalogue's documents (YAML front matter; read with YAML 1.2 booleans, linecaster.catalog.yamlio)
-    "pyyaml>=6",
+    # every YAML file (the catalog, run records): YAML 1.2, duplicate keys are errors, comments kept on write
+    # (linecaster.catalog.yamlio)
+    "ruamel.yaml>=0.18",
 ]
 
 [project.optional-dependencies]

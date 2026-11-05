@@ -14,6 +14,21 @@ def test_yaml_12_booleans():
     assert yamlio.load(yamlio.dump({"x": "no", "y": "multi\nline"})) == {"x": "no", "y": "multi\nline"}
 
 
+def test_yaml_duplicate_keys_are_errors():
+    from ruamel.yaml.constructor import DuplicateKeyError
+
+    with pytest.raises(DuplicateKeyError):
+        yamlio.load("a: 1\na: 2\n")
+
+
+def test_yaml_written_back_keeps_comments():
+    doc = yamlio.load_rt("# head\nb: 1  # why\nc:\n  x: 1\n")
+    yamlio.update(doc, {"a": 0, "b": 1, "c": {"x": 2}})
+    text = yamlio.dump_rt(doc)
+    assert text.startswith("# head\n") and "b: 1  # why" in text and yamlio.load(text) == {"a": 0, "b": 1, "c": {"x": 2}}
+    assert list(yamlio.load(text)) == ["a", "b", "c"]          # a new key among sorted keys goes where it sorts
+
+
 def make(root, temperature=0.0, edition=1, prose="Why these settings."):
     up = root / "models" / "m" / "upstream" / "abc"
     up.mkdir(parents=True, exist_ok=True)
