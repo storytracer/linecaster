@@ -18,11 +18,11 @@ def png(color="white") -> bytes:
     return buf.getvalue()
 
 
-def books(root: Path, sizes: dict[str, int]):
-    for book, n in sizes.items():
-        (root / book).mkdir(parents=True, exist_ok=True)
+def item_folders(root: Path, sizes: dict[str, int]):
+    for item, n in sizes.items():
+        (root / item).mkdir(parents=True, exist_ok=True)
         for i in range(1, n + 1):
-            (root / book / f"{book}_{i:04d}.png").write_bytes(png())
+            (root / item / f"{item}_{i:04d}.png").write_bytes(png())
 
 
 def read(reader, rank=0, world_size=1):
@@ -30,7 +30,7 @@ def read(reader, rank=0, world_size=1):
 
 
 def test_paths_file_lists_image_files_distributed_in_turn(tmp_path):
-    books(tmp_path / "images", {"a": 2, "b": 1})
+    item_folders(tmp_path / "images", {"a": 2, "b": 1})
     (tmp_path / "pages.txt").write_text("a/a_0001.png\na/a_0002.png\nb/b_0001.png\n")
     r = lambda: ImageFolderReader(str(tmp_path / "images"), paths_file=str(tmp_path / "pages.txt"),  # noqa: E731
                                   item_from_parent=True)
@@ -41,7 +41,7 @@ def test_paths_file_lists_image_files_distributed_in_turn(tmp_path):
 
 
 def test_limit_and_skip_count_pages_per_task(tmp_path):
-    books(tmp_path, {"a": 3, "b": 3})
+    item_folders(tmp_path, {"a": 3, "b": 3})
     r = ImageFolderReader(str(tmp_path), item_from_parent=True, limit=2, skip=1)
     assert [pid for _, pid in read(r)] == ["a_0002", "a_0003"]
 
@@ -79,7 +79,7 @@ def test_parquet_with_bytes_structs_and_paths(tmp_path):
         list(ImageParquetReader(str(tmp_path / "data"), item_key="book", image_folder=str(tmp_path / "img")).run())
 
 
-def test_item_shards_bring_a_books_pages_together(tmp_path):
+def test_item_shards_bring_an_items_pages_together(tmp_path):
     """Stage 1: four tasks each read some pages of three items and write them into item shards. Stage 2: two
     tasks read whole shards, so each item's pages all arrive in one task, and ItemTexts emits it whole."""
     from linecaster.blocks.binding.texts import ItemTexts

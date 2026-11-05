@@ -133,7 +133,7 @@ record the step), a malformed served answer is that page's error, the readiness 
 pipeline (`chain.v1`), a whole-page preset runs in `vlm.v1`; `launch.py` finds the script declaring that
 `PIPELINE` (`catalog.code.pipelines`, ast) and execs `uv run --script pipelines/<script>.py ... --recipe NAME`
 (or `--vlm NAME`), so the pipeline keeps its own environment and launch.py needs only linecaster's core.
-Discussed and dropped: a component type as first argument (`model`/`recipe`/`pipeline`), `server` and `cluster`
+Discussed and dropped: the kind of entry as first argument (`model`/`recipe`/`pipeline`), `server` and `cluster`
 words, and names such as run.py (`uv run run.py`), recipe.py, transcribe.py, read.py, lc.py. Own combinations
 use the pipeline scripts directly. Names stay unambiguous: the catalog already refuses an id used by a preset
 and a recipe. A preset that is one step (a line recognizer, a region reader) gets a hint instead: which pipeline
@@ -147,7 +147,7 @@ Tesseract: 21 models, 18 presets, their evidence) and squiddleocr's (the recipe 
 records) were moved into it, and the entry-point group `linecaster.catalog`, `--with-dir` and recipe file paths
 went. Presets are grouped by step (`presets/<step>/<id>.md`, the folder checked against `step`). "kind" is gone: a
 preset names its engine, `engine: kraken.recognition.v1`, with `options:` beside it; a recipe its pipeline,
-`pipeline: chain.v1`; code ids end in `.v<n>` (were `/1`). The generated docs are grouped by component
+`pipeline: chain.v1`; code ids end in `.v<n>` (were `/1`). The generated docs are grouped by kind
 (`docs/catalog/{engines,models,presets/<step>,pipelines,recipes}`); engine and pipeline pages are read from the
 source with `ast`, since no environment has every engine.
 
@@ -329,7 +329,7 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | PP-OCRv6 detection, `--det-model`, `--unclip-ratio` | already in linecaster | `LinesStep` + `PaddleLineModel(model_name, unclip_ratio)` |
 | lines into regions, orphan rows, pictures skipped | already in linecaster | `AssignLinesToRegions` (`formulas_separately=False` without formulas) |
 | kraken recognition, `-m tiny/small/medium/path`, `--batch-size`, `--precision` | already in linecaster | `RecognitionStep` + `KrakenRecognitionModel` |
-| `--device` | already in linecaster | `device` of every engine model (in-process; the server's otherwise) |
+| `--device` | already in linecaster | `device` of every engine (in-process; the server's otherwise) |
 | `--rtl` | already in linecaster | `KrakenRecognitionModel(text_direction=...)`, `ComposePage(rtl=)`, `BindItem(rtl=)` |
 | `--tables` | already in linecaster | `TablesStep` + `PaddleTableModel` |
 | `--formulas`, `--formula-model` | already in linecaster | `FormulasStep` + `PaddleFormulaModel` (29/29 formulas identical, 82e2e7b) |
@@ -590,14 +590,14 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
   text is not NFC yet; normalizing it is a separate, recorded transform, not done here.)
-- Reflow (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.text.recomposition` is
+- Recomposition (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.text.recomposition` is
   squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
   checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
   and lines: md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks
   removed, 1 kept, 4 continuations across regions), and on the 1,000 reflow pages of the random check.
 - Not ported: formula recognition (squiddleocr reads formula regions as LaTeX by default; no formula
   regions on these 67 pages; `ComposePage` takes `region.extra["formula"]` when a formula step
-  provides it), paragraphs continued across pages (needs a book-level document), sections, Markdown
+  provides it), paragraphs continued across pages (needs an item-level document), sections, Markdown
   dividers.
 
 ## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, spark)
@@ -684,7 +684,7 @@ How the Job is arranged:
 - Blocks on datatrove: readers (image folder, HF image dataset, page rows), model steps (layout,
   lines, recognition) with an in-process or a served backend, line assignment, page writers,
   `ServeModels`.
-- `linecaster serve`: a stateless model server (aiohttp) hosting several engine models; blocks reach it
+- `linecaster serve`: a stateless model server (aiohttp) hosting several engines; blocks reach it
   through saturate.
 - Engines: `backends/paddlex` (PP-DocLayoutV3 layout, PP-OCRv6 detection), `backends/kraken` (kraken's
   PP-OCRv6 recognizer), moved from squiddleocr with their history; `envs/kraken-paddlex` is the

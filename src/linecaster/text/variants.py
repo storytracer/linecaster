@@ -152,7 +152,7 @@ def continues(prev: Block, nxt: Block) -> bool:
     return bool(nxt.text) and not prev.text.rstrip().endswith(SENTENCE_END)
 
 
-def book_blocks(pages: list[Transcription], skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
+def item_blocks(pages: list[Transcription], skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
     """The blocks of consecutive pages, paragraphs joined across page breaks where they continue. Only
     a page's final block may continue (a footnote or caption after the text blocks a join)."""
     out: list[Block] = []
@@ -201,6 +201,6 @@ def verbatim(pages: list[Transcription]) -> str:
 
 
 def variants(pages: list[Transcription]) -> dict[str, str]:
-    """The three named variants of consecutive pages (a book)."""
-    blocks = book_blocks(pages)
+    """The three named variants of consecutive pages (an item)."""
+    blocks = item_blocks(pages)
     return {"verbatim_txt": verbatim(pages), "readable_txt": render(blocks), "readable_md": render(blocks, markdown=True)}

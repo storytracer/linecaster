@@ -1,4 +1,4 @@
-"""Reflow: running text from the visual rows of a region (the reading transcription).
+"""Recomposition: running text from the visual rows of a region (the reading transcription).
 
 Ported verbatim from squiddleocr's ``reflow.py`` (main ``7c8a052``); used by ``linecaster.formats.docling``'s
 ``text="reflow"`` mode. (``linecaster.text.variants`` keeps its own, simpler flow for the readable item texts.)

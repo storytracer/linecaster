@@ -102,7 +102,7 @@ def _catalog(a) -> None:
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="linecaster")
     sub = ap.add_subparsers(dest="command", required=True)
-    s = sub.add_parser("serve", help="host engine models over HTTP (for blocks with a Served backend)")
+    s = sub.add_parser("serve", help="host engines over HTTP (for blocks with a Served backend)")
     s.add_argument("--config", help="JSON file: {\"models\": [{\"name\", \"preset\", \"overrides\"} or "
                                     "{\"name\", \"spec\", \"kwargs\"}, optional \"max_queue\"]}")
     s.add_argument("--preset", action="append", default=[], metavar="NAME=ID[@EDITION]",

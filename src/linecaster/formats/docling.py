@@ -81,7 +81,7 @@ def _table_data(table: dict):
 
 
 def region_rows(lines: list[Line]):
-    """The region's visual rows (``reflow.Row``): text of the lines on each row joined with a space,
+    """The region's visual rows (``recomposition.Row``): text of the lines on each row joined with a space,
     the row's box the union of their boxes, in row order (squiddleocr's ``RegionContent.rows``)."""
     from ..text.recomposition import Row
     from ..text.typography import line_bbox
@@ -107,7 +107,7 @@ class DocumentBuilder:
     ``DocumentBuilder``; ``add_page`` once per page). Page ``n`` of the document is the ``n``-th page added
     (``page_no`` in every provenance entry).
 
-    ``text``: ``lines`` or ``reflow`` (see the module docstring). In reflow mode the lexicon grows with
+    ``text``: ``lines`` or ``reflow`` (see the module docstring). In ``reflow`` mode the lexicon grows with
     every page added and a paragraph left open at the foot of a page continues on the next page (an
     item of digits only, a page number, between them does not close it).
 

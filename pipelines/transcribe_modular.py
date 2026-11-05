@@ -50,7 +50,7 @@ r"""The modular pipeline: smaller models, picked step by step from the catalog's
 text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
 and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
 --files per-page files in the --formats asked for (--naming squiddleocr: flat `<page>.paddle.<ext>`, as
-squiddleocr names them), with --item-texts one text per item in each text version.
+squiddleocr names them), with --item-texts one text per item in each text variant.
 
     uv run pipelines/transcribe_modular.py IMAGES OUT --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \

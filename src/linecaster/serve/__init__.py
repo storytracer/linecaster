@@ -1,4 +1,4 @@
-"""``linecaster serve``: an OpenAI-style HTTP server for linecaster's engine models."""
+"""``linecaster serve``: an OpenAI-style HTTP server for linecaster's engines."""
 from __future__ import annotations
 
 import json

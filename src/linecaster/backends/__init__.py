@@ -1,4 +1,4 @@
-"""Where a block's model runs: in the pipeline's process, or behind a server reached through saturate.
+"""Where a block's engine runs: in the pipeline's process, or behind a server reached through saturate.
 
 An engine (in ``engines/<engine>/``, its own package and environment) is a class with an ``engine_id``
 (``kraken.recognition.v1``), a ``step`` (layout, lines, recognition, ...), ``capabilities``, an ``Options`` model

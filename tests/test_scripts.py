@@ -35,7 +35,7 @@ def test_every_pipeline_script_has_its_id():
 
 
 def test_launch_finds_the_pipeline():
-    """``uv run launch.py NAME ...`` runs the script of the pipeline a recipe or a whole-page model runs in."""
+    """``uv run launch.py NAME ...`` runs the script of the pipeline a recipe or a page preset runs in."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("launch", ROOT / "launch.py")

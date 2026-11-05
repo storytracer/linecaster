@@ -81,6 +81,6 @@ The retyper edits regions and lines in place:
 - **Page composition** (`Composer`): `docling` from regions, lines and tables; page headers and footers always
   in Docling's furniture layer. Exports choose whether to include them (`furniture=True`).
 - **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
-  `n`-th page (by sequence, then page id). In reflow mode paragraphs continue across page breaks; sections are
+  `n`-th page (by sequence, then page id). In `reflow` mode paragraphs continue across page breaks; sections are
   optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for Markdown
   dividers. A task must see whole items; the run layout buckets page records by item.

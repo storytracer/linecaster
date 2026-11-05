@@ -20,13 +20,13 @@ the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF
 
 Turning a scan into usable text takes more than one model. The text has to be read, by a
 vision-language model or by a line recognizer. Around that, the layout has to be found, tables and
-formulas rebuilt, and the text cleaned, reflowed and written in the formats people use. Every model
+formulas rebuilt, and the text cleaned, recomposed and written in the formats people use. Every model
 comes with its own software, and every machine has its own way of starting and scaling work. Swapping
 a model or moving to bigger hardware usually means starting over.
 
 Linecaster keeps the parts and the machines apart:
 
-- 🧩 **Any component.** Reading, layout, lines, tables, formulas and post-processing are separate
+- 🧩 **Any step.** Reading, layout, lines, tables, formulas and post-processing are separate
   steps. Use a [vision-language model](#-vision-language-models-whole-pages) on whole pages or on layout regions,
   or a [line recognizer](#%EF%B8%8F-recognition) with a line detector, and add any of the other steps.
 - 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
@@ -178,7 +178,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
 
 | Input | Flags |
 |---|---|
-| a folder of images | `IMAGES` (`--glob-pattern` to choose files; `--item-from-parent`: the subfolder is the book) |
+| a folder of images | `IMAGES` (`--glob-pattern` to choose files; `--item-from-parent`: the subfolder is the item) |
 | a list of images | `IMAGES --paths-file pages.txt` (one image per line, relative to `IMAGES`) |
 | Parquet with an image column (pages) | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
 | items' manifests (IIIF, METS) | `--manifests FOLDER`, `--manifests list.txt` (one link per line), or an item table: `--manifests items.parquet --manifest-key manifest_url [--item-key item_id]` |
@@ -330,12 +330,12 @@ MODELS = [
 | 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
 | 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 
-Files come per page or, for a book, one per version. Word positions need a model that gives them,
+Files come per page or, for an item, one per text variant. Word positions need a model that gives them,
 such as a line recognizer.
 
 ## 🧰 Models and blocks
 
-Every model is a **preset** in Linecaster's catalog: one engine, one model at a pinned revision, and its
+Every configuration is a **preset** in Linecaster's catalog: one engine, one model at a pinned revision, and its
 settings. The original model card is copied next to it, unchanged, at exactly that revision.
 `linecaster models` lists the presets; [docs/catalog](docs/catalog/README.md) has a page for each
 engine, model, preset, pipeline and recipe, with the results and where every number comes from.
@@ -430,8 +430,8 @@ These blocks need no model.
 | `UnicodeNormalizer` | the text in one Unicode form, [NFC] by default |
 | `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
 | `Composer` | composes a page: a [DoclingDocument] per page, lines joined into paragraphs, line-end hyphens removed |
-| `BindItem` | binds a book's pages into one DoclingDocument, paragraphs continued across pages |
-| `ItemTexts` | one text per book in each [text version](#-reference) |
+| `BindItem` | binds an item's pages into one DoclingDocument, paragraphs continued across pages |
+| `ItemTexts` | one text per item in each [text variant](#-reference) |
 
 ### 📥 Input, output and servers
 
@@ -458,8 +458,8 @@ These blocks need no model.
 | `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text, HTML, DocLang, JSON and more |
 | `PageJsonlWriter` | page records as JSON Lines |
 | `PageParquetWriter` | page records as Parquet |
-| `ItemDocumentWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
-| `ItemTextWriter` | book texts as JSON Lines or as files |
+| `ItemDocumentWriter` | item documents as Markdown, text, HTML, DocLang, JSON |
+| `ItemTextWriter` | item texts as JSON Lines or as files |
 
 **Servers**
 
@@ -491,17 +491,17 @@ These blocks need no model.
 </details>
 
 <details>
-<summary><b>📖 Text versions</b></summary>
+<summary><b>📖 Text variants</b></summary>
 
-Text moves along three independent axes, one step at a time:
+Text moves along three independent dimensions, one step at a time:
 
-| Axis | From | To |
+| Dimension | From | To |
 |---|---|---|
 | Characters | as written | normalized, expanded, regularized |
 | Flow | as laid out | flowed |
 | Scope | full page | body text only |
 
-Named versions:
+Named variants:
 
 - `verbatim_txt`: as written, as laid out, full page.
 - `readable_txt`, `readable_md`: normalized characters, flowed paragraphs, hyphens joined, body text.
@@ -539,7 +539,7 @@ Spelling is never modernized.
 
 - **Every step is replaceable.** Steps share a data model and nothing else.
 - **Deployment is not part of the pipeline.** Executors and backends change; steps do not.
-- **The text as written is kept.** Readable versions are derived from it and stored next to it.
+- **The text as written is kept.** Readable variants are derived from it and stored next to it.
 - **The core stays light.** No machine-learning libraries in the core; engines are separate packages
   that a pipeline installs when it needs them.
 - **Readers stay generic.** Folders, buckets, Hugging Face datasets, and the standards for manifests (IIIF,
@@ -597,11 +597,11 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalog, chat `adapters/`, `runtime/` (command line, executors, run record) |
 | `src/linecaster/catalog/data/` | the catalog: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
 | `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalog) |
-| `launch.py` | launches a recipe or a whole-page model by its name, in the pipeline it needs |
+| `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
 | `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog |
-| `docs/` | the generated catalog pages (`docs/catalog/`, one folder per component), images for this README |
+| `docs/` | the generated catalog pages (`docs/catalog/`, one folder per kind of entry), images for this README |
 
 </details>
 

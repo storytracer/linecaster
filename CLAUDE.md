@@ -9,7 +9,7 @@ the reference in `docs/reference/` (with the glossary and the conventions).
 
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new
 documents). It combines layout, line, text, table and formula recognizers with post-processing
-(dehyphenation, reflow, normalization) into reproducible datatrove pipelines that turn page images
+(dehyphenation, recomposition, normalization) into reproducible datatrove pipelines that turn page images
 into text: the text as written, readable variants next to it, ALTO, PAGE-XML and hOCR on request.
 Everything that produces text from images lives here; evaluation (ocrscout, bhl-ocr-eval) and
 project pipelines (EBDC, FineBooks) are built on top of it, never the other way round.
@@ -18,7 +18,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 
 - **datatrove's terms and machinery.** A *block* is a datatrove `PipelineStep`; a *pipeline* is a
   list of blocks; *executor*, *job*, *task*, *shard*, *worker* as in datatrove. Never call a
-  linecaster concept a "module". The only new term is **backend**: where a block's model runs (in
+  linecaster concept a "module". The only new term is **backend**: where a block's engine runs (in
   the pipeline's process, or behind a server reached through saturate).
 - **datatrove + saturate are the integration** and required dependencies. Pins:
   `datatrove[io]>=0.10.1,<0.11` (has `JobsPipelineExecutor`), `saturate==0.3.0` (0.x changes without
@@ -43,13 +43,13 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 ## Architecture: servers host models, the pipeline puts the steps together
 
 - **Model blocks** (`ModelBlock` in `blocks/base/`: `LayoutDetector`, `LineDetector`, `LineRecognizer`,
-  `TableRecognizer`, `FormulaRecognizer`, in their families under `blocks/`) each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine model in the
+  `TableRecognizer`, `FormulaRecognizer`, in their families under `blocks/`) each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine in the
   worker (lazily; never pickled), `Served(endpoint, model=name)` streams pages through saturate
   (`AdaptiveClient` + `through()`: a window of pages in flight adapted to the server's queue gauges
   and 429s; results passed on as they finish). In-process is always available and is the parity
   reference. A page that failed a step carries `doc.metadata["errors"]` and bypasses later model
   steps (`skip_on_error`).
-- **`linecaster serve`** hosts engine models: stateless (no state between requests), one worker per
+- **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per
   model (several replicas per model were measured at +7–10 % and removed; NOTES.md) with a bounded
   queue (`--max-queue`, 429 with `Retry-After` when full), routes `POST /v1/linecaster/{step}`
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
@@ -91,10 +91,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalog
   entry naming a pipeline id (`transcribe_modular.v1`, the script's `PIPELINE`), a preset edition per slot and options,
   edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
-  catalog). `uv run launch.py NAME IMAGES OUT` launches a recipe or a whole-page preset by name: it finds the
-  script whose `PIPELINE` the recipe names (whole-page presets: `transcribe_vlm.v1`) and runs it (`uv run --script`) with
+  catalog). `uv run launch.py NAME IMAGES OUT` launches a recipe or a page preset by name: it finds the
+  script whose `PIPELINE` the recipe names (page presets: `transcribe_vlm.v1`) and runs it (`uv run --script`) with
   `--recipe` / `--recognition`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
-  component (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
+  kind (engines, models, presets, pipelines, recipes). `ModelServer(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
   `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct

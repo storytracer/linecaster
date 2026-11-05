@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Served:
-    """The model runs behind ``linecaster serve`` (or any server speaking its routes), reached through
+    """The engine runs behind ``linecaster serve`` (or any server speaking its routes), reached through
     saturate: ``endpoint`` is the server's ``.../v1`` base, ``model`` the name it hosts the model under."""
 
     endpoint: str

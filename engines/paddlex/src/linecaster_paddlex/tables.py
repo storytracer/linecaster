@@ -175,7 +175,7 @@ class PaddleTableRecognizer:
 
 
 class PaddleTableEngine:
-    """linecaster engine model for the tables step: the cell structure of every ``table`` region, with the
+    """linecaster engine for the tables step: the cell structure of every ``table`` region, with the
     region's recognized lines placed into the cells (needs the recognition step first). The result goes
     into ``region.extra["table"]``: ``num_rows``, ``num_cols``, ``html`` and ``cells`` (text, row, col,
     row_span, col_span, bbox, header).

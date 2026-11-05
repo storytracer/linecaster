@@ -107,7 +107,7 @@ class KrakenRecognizer:
 
 
 class KrakenRecognitionEngine:
-    """linecaster engine model for the recognition step: kraken's PP-OCRv6 recognizer on every line of
+    """linecaster engine for the recognition step: kraken's PP-OCRv6 recognizer on every line of
     the transcription, in list order (the line step's processing order), ``batch_size`` lines per
     forward pass. A page's result depends only on the page. Fills text, confidence and words.
 

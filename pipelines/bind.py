@@ -8,7 +8,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-r"""The item stage (binding): one text per item (book, issue, manuscript) and text version, from the page records of a first
+r"""The item stage (binding): one text per item (book, issue, manuscript) and text variant, from the page records of a first
 stage written in item shards (`--item-shards N`). Each task reads whole shard folders, so it sees every page of
 its items; no engine or GPU is needed.
 

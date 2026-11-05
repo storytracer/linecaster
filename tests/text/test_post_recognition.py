@@ -148,7 +148,7 @@ def test_blocks_run_and_write_files(tmp_path):
     assert Page.model_validate_json(Page.model_dump_json(page_of(out[0]))) == page_of(out[0])
 
 
-# --------------------------------------------------------------- reflow
+# -------------------------------------------------------- recomposition
 def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
     from linecaster.text.recomposition import Stats
 

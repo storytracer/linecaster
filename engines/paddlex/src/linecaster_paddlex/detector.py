@@ -55,7 +55,7 @@ class PaddleTextDetector:
 
 
 class PaddleLineEngine:
-    """linecaster engine model for the lines step: PP-OCRv6 detection on the whole page (default) or,
+    """linecaster engine for the lines step: PP-OCRv6 detection on the whole page (default) or,
     with ``per_region``, on each region's crop. Fills ``Transcription.lines`` with geometry (polygon,
     bbox, score); text stays ``None``. Replaces any lines already present. The model files: ``weights`` (a
     catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""

@@ -166,7 +166,7 @@ def make_recipe(root, preset="p@1", text="reflow", edition=1):
 
 
 def test_a_recipe_cannot_share_a_presets_name(tmp_path):
-    """launch.py runs recipes and whole-page presets by name, so a name means one thing."""
+    """launch.py runs recipes and page presets by name, so a name means one thing."""
     make(tmp_path)
     make_recipe(tmp_path)
     (tmp_path / "recipes" / "r.yaml").rename(tmp_path / "recipes" / "p.yaml")

@@ -14,7 +14,7 @@ dependencies = [
     # tabulate (docling's text export of tables) measures cell widths with wcwidth when it is installed and
     # with len() otherwise: combining marks (kraken writes a + U+0308) then pad tables differently
     "wcwidth>=0.2",
-    # Unicode line, word and sentence breaking for the document reflow (pure Python)
+    # Unicode line, word and sentence breaking for recomposition (pure Python)
     "uniseg>=0.10",
     "lxml>=5",
     "numpy>=2",

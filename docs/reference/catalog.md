@@ -14,11 +14,12 @@ src/linecaster/catalog/data/
 src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic models
 ```
 
-## Components
+## What the catalog holds
 
-"Component" is the umbrella word for the five things the catalog and the docs are organized by.
+The catalog and its docs are organized by five kinds: engines and pipelines (code, by versioned id) and
+three kinds of catalog entry (models, presets, recipes; a YAML file each).
 
-| Component | Is | Named | Lives in |
+| Kind | Is | Named | Lives in |
 |---|---|---|---|
 | engine | code that runs a model for one step | versioned id: `kraken.recognition.v1` | `engines/<engine>/` (a package each); `chat.v1` in linecaster |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
@@ -26,7 +27,7 @@ src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic 
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
 | recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
 
-Besides the documents above: **evidence** (one measurement of a preset or recipe edition), the **lock**
+Besides these: **evidence** records (catalog entries too: one measurement of a preset or recipe edition), the **lock**
 (released editions) and the **run record** (`OUT/run.yaml`, and per page in each `ModelInfo`: what a run
 resolved).
 
@@ -210,6 +211,6 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
 | `linecaster catalog docs [--out docs/catalog] [--readme README.md]` | the generated docs and the README's tables |
 
-The generated docs are grouped by component: `docs/catalog/{engines, models, presets/<step>, pipelines,
+The generated docs are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
 recipes}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
 `ast`), so the engines need not be installed.

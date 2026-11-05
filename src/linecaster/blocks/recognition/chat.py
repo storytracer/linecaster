@@ -3,7 +3,7 @@
 ``PageRecognizer`` is a served ``ModelBlock`` whose route is ``/chat/completions`` instead of
 ``linecaster serve``'s ``/linecaster/{step}``: the same saturate machinery (``AdaptiveClient`` +
 ``through()``: a window of pages in flight, adapted to the engine's queue gauges, 429s and delivered
-tokens; results passed on as they finish), with a model spec (``linecaster.adapters``) building the
+tokens; results passed on as they finish), with an adapter (``linecaster.adapters``) building the
 request from the page image and parsing the completion into a text-only ``Transcription``.
 
     from linecaster.adapters import chat_model

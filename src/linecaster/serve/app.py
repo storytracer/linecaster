@@ -1,4 +1,4 @@
-"""``linecaster serve``: host engine models over HTTP for blocks that reach them through saturate.
+"""``linecaster serve``: host engines over HTTP for blocks that reach them through saturate.
 
 Stateless: every request carries the page image, the transcription so far and the parameters; the
 server keeps nothing between requests. Routes:

@@ -28,7 +28,7 @@ from linecaster.catalog import code
 from linecaster.catalog.registry import catalog, split_ref
 
 ROOT = Path(__file__).resolve().parent
-#: the pipeline a whole-page model runs in, and its slot
+#: the pipeline a page preset runs in, and its slot
 MODEL_PIPELINE, MODEL_SLOT = "transcribe_vlm.v1", "recognition"
 #: the pipeline whose slots the other presets fill
 MODULAR_PIPELINE = "transcribe_modular.v1"
@@ -65,7 +65,7 @@ def not_runnable(name: str) -> str:
 
 
 def command(name: str, args: list[str]) -> list[str]:
-    """The pipeline script's command line for ``name`` (id[@edition] of a recipe or a whole-page preset)."""
+    """The pipeline script's command line for ``name`` (id[@edition] of a recipe or a page preset)."""
     c = catalog()
     rid, _ = split_ref(name)
     if rid in c.recipes:

@@ -187,7 +187,7 @@ def _served_models(pipeline: list) -> dict[str, dict]:
 
 def _engine(spec: str | None, kwargs: dict | None, preset: str | None, preset_sha256: str | None,
             overrides: dict | None = None) -> dict[str, Any]:
-    """An engine model: its class, and the preset edition and hash it was built from, with the options given
+    """An engine: its class, and the preset edition and hash it was built from, with the options given
     over the preset's (``--set``); its options only when there is no preset (a preset's hash covers them)."""
     out: dict[str, Any] = {}
     if spec:

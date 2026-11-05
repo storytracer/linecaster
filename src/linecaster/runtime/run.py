@@ -7,13 +7,13 @@ that builds one pipeline shape with slots for presets; ``main`` gives it:
     uv run pipelines/transcribe_modular.py serve                                   # linecaster serve with its models
     uv run pipelines/transcribe_modular.py ray start --head                        # Ray's command line, same environment
 
-Engine models run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
+Engines run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
 server that each task starts for itself (``--backend served``, the default on Ray and HF Jobs): the
 pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
 ``--endpoint`` points them at a server that is already running instead.
 
 A pipeline passes ``main`` its ``__file__``, its docstring, a function that adds its options, a function
-that returns its engine models from the options (for ``serve``) and a function that builds the pipeline
+that returns its engines from the options (for ``serve``) and a function that builds the pipeline
 (``reader``, ``engines`` and ``pages`` help with the usual parts). The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
 the pipeline's engine packages or linecaster alone.
@@ -98,9 +98,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--tasks", type=int, default=1, help="datatrove tasks (one GPU each on Ray and HF Jobs)")
     g.add_argument("--workers", type=int, default=None, help="tasks at once (default: all)")
     g.add_argument("--backend", choices=["in-process", "served"], default=None,
-                   help="engine models inside the pipeline or behind a server in each task "
+                   help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
-    g.add_argument("--endpoint", default=None, help="a running server for the engine models")
+    g.add_argument("--endpoint", default=None, help="a running server for the engines")
     g = ap.add_argument_group("Ray")
     g.add_argument("--address", default="auto", help="the Ray cluster")
     g.add_argument("--cpus-per-task", type=int, default=12)

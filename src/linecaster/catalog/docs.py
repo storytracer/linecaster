@@ -1,4 +1,4 @@
-"""Generated documentation from the catalog, one folder per component: ``engines/``, ``models/``,
+"""Generated documentation from the catalog, one folder per kind: ``engines/``, ``models/``,
 ``presets/<step>/``, ``pipelines/``, ``recipes/``, an index (``README.md``), and the README's tables.
 
 Nothing here is written by hand twice: facts come from the model, preset and recipe documents and from the
@@ -23,7 +23,7 @@ SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language
 SOURCE_NAMES = {"own-run": "Linecaster run", "board": "BHL board", "card-claim": "model card claim",
                 "vendor-benchmark": "vendor benchmark"}
 MARK_START, MARK_END = "<!-- catalog:start -->", "<!-- catalog:end -->"
-COMPONENTS = ("engines", "models", "presets", "pipelines", "recipes")
+KINDS = ("engines", "models", "presets", "pipelines", "recipes")
 
 
 def preset_path(c: Catalog, pid: str) -> str:
@@ -256,10 +256,10 @@ def _rel(path: Path, frm: Path) -> str:
 
 
 def write(c: Catalog, out: str | Path, readme: str | Path | None = None, repo: Path | None = code.REPO) -> list[Path]:
-    """Every page, into ``out``; the component folders are generated and replaced. Engine and pipeline pages
+    """Every page, into ``out``; the folders of the kinds are generated and replaced. Engine and pipeline pages
     need the repository checkout (``repo``)."""
     out = Path(out)
-    for comp in COMPONENTS:
+    for comp in KINDS:
         shutil.rmtree(out / comp, ignore_errors=True)
     evs = _evidence(c)
     engines = code.engines(repo) if repo is not None and repo.exists() else {}

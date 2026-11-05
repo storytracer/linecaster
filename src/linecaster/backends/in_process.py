@@ -24,7 +24,7 @@ def resolve(spec: str):
 
 
 class InProcess:
-    """The model runs in the pipeline's process. ``spec`` names its class; ``kwargs`` construct it."""
+    """The engine runs in the pipeline's process. ``spec`` names its class; ``kwargs`` construct it."""
 
     served = False
 

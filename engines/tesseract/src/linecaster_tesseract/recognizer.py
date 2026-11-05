@@ -37,7 +37,7 @@ def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, in
 
 
 class TesseractRecognitionEngine:
-    """linecaster engine model for the recognition step: Tesseract 5 (LSTM) on every line of the
+    """linecaster engine for the recognition step: Tesseract 5 (LSTM) on every line of the
     transcription. ``lang`` is a tessdata language or script (``eng``, ``deu+lat``, ``script/Latin``),
     ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences.
     The language data: ``weights`` (a catalog pin; only its files) or ``data``'s newest pin in the catalog."""
