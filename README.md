@@ -138,7 +138,11 @@ LocalPipelineExecutor(
 
 Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_modular.py` at the top, which brings the
 engines, and `uv run` it. Built with `linecaster.runtime.run.main`, as the pipelines are, it gets their command
-line for every machine.
+line for every machine, and a check before anything starts: every block declares what it reads and adds, so a
+recognizer without lines or a writer after a server fails at once, with every problem listed. `--dry-run` prints
+the plan and its graph as a Mermaid flowchart; `--until`, `--after` and `--tap-after` run or tap a part of it.
+`ModularTranscriber` puts layout, lines, line assignment and line recognition together in one block
+([docs/reference/pipelines.md](docs/reference/pipelines.md)).
 
 > [!TIP]
 > The two kinds mix: a `LayoutDetector` followed by `RegionRecognizer` has a vision-language model read
@@ -600,7 +604,7 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog |
+| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog, pipelines |
 | `docs/` | the generated catalog pages (`docs/catalog/`, one folder per kind of entry), images for this README |
 
 </details>

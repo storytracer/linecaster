@@ -46,6 +46,20 @@ compatibility aliases: old imports, flags and ids fail.
   so files stamped by a recipe carry the new hash; old hashes still resolve (`previous_sha256`).
 - American spelling throughout (e.g. `normalize`, `NORMALIZE_MAP`, `quantize_confidence`, `COLORS`).
 
+**Phase 2: contracts and the builder**
+
+- Pipeline scripts check their pipeline before they launch: a pipeline whose contracts do not fit exits with code 2
+  and lists every problem. Own blocks without a `contract()` pass unchecked.
+- With `--tasks` over 1, a binder after the page blocks (`--item-texts`) cuts the run into two stages: page records
+  in item shards (`OUT/pages/<shard>/`), then the item stage; their logs are `OUT/logs/pages/` and
+  `OUT/logs/items/`. One stage logs to `OUT/logs/` as before.
+- `--dry-run` prints the plan under `plan` and the Mermaid graph after the JSON.
+
 ### Added
 
+- Block contracts (`contract()`, `Part`, `Contract`, `PARTS`), the builder (`linecaster.runtime.builder`: `build`,
+  `Plan`, checks, branches with `when=`/`group=`, composites, stages, `run_pages`), observers
+  (`linecaster.runtime.observers`), the composite `ModularTranscriber`, the error classes (`linecaster.errors`),
+  partial runs (`--until`, `--after`, `--tap-after`), `--page IMAGE` and `linecaster page`;
+  `docs/reference/pipelines.md`.
 - `docs/reference/glossary.md` and `docs/reference/conventions.md`.

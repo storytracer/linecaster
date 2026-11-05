@@ -51,9 +51,9 @@ Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `pipeline`, `loc
 
 ## Contracts
 
-- Every block declares its unit and what it reads, adds and replaces. A part of the record is added by one block
-  only, unless a later block declares that it replaces it. Reason: the builder can then check a pipeline before it
-  runs and derive its graph.
+- Every block declares its unit and what it reads, adds and replaces ([pipelines](pipelines.md)). A part of the
+  record is added by one block only, unless a later block declares that it replaces it. Reason: the builder can then
+  check a pipeline before it runs and derive its graph.
 - Blocks are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
   the same blocks run on any executor and in `run_pages()`.
 
