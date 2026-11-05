@@ -48,7 +48,7 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
   part of it, so they can be corrected without a new edition; git keeps their history.
 
 Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored page records name their format in a
-`schema` field of their row (`linecaster.page/1`).
+`schema` field of their row (`linecaster.page/2`).
 
 ## Contracts
 

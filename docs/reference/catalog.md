@@ -7,7 +7,7 @@ linecaster; `linecaster.catalog` reads, validates and resolves them.
 ```
 src/linecaster/catalog/data/
   models/<id>/model.yaml, model.md        # + upstream/<revision>/ (the upstream card, verbatim)
-  presets/<step>/<id>.yaml, <id>.md       # layout, lines, recognition, tables, formulas
+  presets/<step>/<id>.yaml, <id>.md       # one folder per step (STEPS)
   recipes/<id>.yaml, <id>.md
   evidence/<date>-<subject>-<dataset>.yaml
   catalog.lock
@@ -21,14 +21,14 @@ three kinds of catalog entry (models, presets, recipes; a YAML file each).
 
 | Kind | Is | Named | Lives in |
 |---|---|---|---|
-| engine | code that runs a model for one step | versioned id: `kraken.recognition.v1` | `engines/<engine>/` (a package each); `chat.v1` in linecaster |
+| engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `typography.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
 | preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium@1` | `presets/<step>/<id>.yaml` |
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
 | recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
 
 Besides these: **evidence** records (catalog entries too: one measurement of a preset or recipe edition), the **lock**
-(released editions) and the **run record** (`OUT/run.yaml`, and per page in each `ModelInfo`: what a run
+(released editions) and the **run record** (`OUT/run.yaml`, and per page in each `StepInfo`: what a run
 resolved).
 
 ## Ids and versions
@@ -109,8 +109,9 @@ are written by `linecaster catalog pin`.
 | `options` | the engine's options (its `Options` model) |
 | `settings` | prompts, sampling and other request settings (chat presets) |
 | `labels` | native layout label → DoclingDocument label; unmapped labels are `text` |
+| `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
 | `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding) |
-| `capabilities` | `unit` (`line`, `region`, `page`) and `produces` (vocabulary `PRODUCES`) |
+| `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |
 
@@ -142,7 +143,9 @@ every number.
 `linecaster` commit, `resolved`; a recipe edition also `pipeline` and `pipeline_sha256`, below).
 
 - **A preset's functional content** is what can change outputs: `step`, the model pin and every submodel pin
-  (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels` and `serve`. Only what the YAML file
+  (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels`, `by_script` (each strategy's edition with
+  that edition's hash, as a recipe names its presets) and `serve`. A by-script preset is released only on released
+  strategies. Only what the YAML file
   states counts, so a new optional schema field changes no hash. The Markdown prose, provenance, support level
   and capabilities are not part of it.
 - **A recipe's functional content** is its pipeline, each slot's preset edition with that edition's hash and
@@ -187,10 +190,15 @@ sha256:<hex>`). A change that can change outputs is never a migration: it is a n
 
 ## Steps, capabilities, labels
 
-Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`. Recognition reads a `unit`
-(`capabilities.unit`): `line` (kraken, PaddleX, Tesseract), `region` (a VLM per layout region) or `page` (a VLM
-reads the whole page: a **page preset**, which `launch.py` runs by name). `OCRD_STEPS` maps the steps to OCR-D's
-functional steps for METS agents.
+Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose engines run models, and the
+rule-based steps (`RULE_STEPS`) `image` (the working image), `normalization` (character fidelity: as written →
+normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs)
+and `composition` (the document). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
+Tesseract), `region` (a VLM per layout region) or `page` (a VLM reads the whole page: a **page preset**, which
+`launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
+`OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:
+`preprocessing/optimization`, `typography`: `layout/segmentation/classification`, `composition`:
+`layout/analysis`); the others are post-processing (`recognition/post-correction`).
 
 What depends on the code belongs to the engine (`capabilities` on the class), e.g. kraken's word boxes with
 confidences. What depends on the weights belongs to the model or preset: languages, scripts, output format.
@@ -198,11 +206,50 @@ confidences. What depends on the weights belongs to the model or preset: languag
 ## Engines
 
 An engine is a class registered under its id in the entry-point group `linecaster.engines`
-(`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"`); linecaster's own is `chat.v1` (VLM
-presets, served only). It declares `engine_id`, `step`, `Options` (a Pydantic model whose fields have
-descriptions; the docs come from it) and `capabilities`, and takes the pin as `weights` (and
-`submodel_weights`), fetched and checked by `linecaster.catalog.fetch`. Engine packages carry code only; their
-presets and models are in this catalog.
+(`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"`), or one of linecaster's own
+(`BUILTIN_ENGINES`): `chat.v1` (VLM presets, served only: `SERVED_ONLY`) and the rule-based engines. It declares
+`engine_id`, `step`, `Options` (a Pydantic model whose fields have descriptions; the docs come from it) and
+`capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
+`linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
+
+### Rule-based engines
+
+The engines of the rule-based steps (**strategies**) live in `linecaster.engines`, are pure Python and run in the
+pipeline's process only (`IN_PROCESS_ONLY`; `linecaster serve` refuses them): `image.webp-lossless.v1`,
+`normalization.latin-historic.v1`, `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.docling.v1`,
+and the by-script engines `normalization.by-script.v1` and `recomposition.by-script.v1`. Each has no weights; its
+`Options` turn the rules' thresholds into options whose defaults are the values the rules have always had, and it
+declares `scripts`: the ISO 15924 scripts it covers (`Latn`, `Hebr`, ...), `"*"` for all. The rules themselves stay
+in `linecaster.text`, `linecaster.images` and `linecaster.formats`; the engines are thin.
+
+The call per unit (`linecaster.engines.base`): page unit `__call__(t: Transcription, **options) -> Transcription`;
+item unit `__call__(pages: list[Transcription], **options) -> list[Transcription]` (an item's pages in order; a page
+is an item of one page); the image step takes and returns the image's bytes (`__call__(data, **options) -> (bytes,
+info)`). Options given to a call override the engine's for that call. Each records a `StepInfo` with its
+`engine` id, its options as `settings` and its counts as `measurements`.
+
+### Scripts and dispatch
+
+A preset whose engine is a by-script engine names its strategies in `by_script`: an ISO 15924 code per script that
+needs its own rules, `"*"` for every other script.
+
+```yaml
+id: hebrew-latin-recomposition
+step: recomposition
+engine: recomposition.by-script.v1
+by_script:
+  Hebr: hebrew-recomposition@1
+  "*": unicode-recomposition@1
+```
+
+`engine_spec` resolves them into the engine's `strategies` (each strategy's engine, options, edition and hash).
+The engine (`ScriptDispatch`) routes each decision to the strategy of the script around it: for a decision at a row
+end (a division mark, the separator between two rows) the script of the last character before the row end that has
+one, else of the first after it (characters of the scripts Common and Inherited, such as spaces, hyphens, digits and
+combining marks, have none); for a normalization, each run of a text in one script (Common and Inherited
+characters stay with the run before them). A script without a strategy of its own goes to `"*"`. Scripts are
+Unicode's `Script` property, matched with the `regex` package's `\p{Script=...}`. `verify` checks that every
+strategy is an edition of the same step and covers its script.
 
 ## Pipelines, recipes and `launch.py`
 

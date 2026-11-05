@@ -58,6 +58,8 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | `line_regions` | Lines assigned to the layout regions and ordered within them (the `LineAssigner`). |
 | `hierarchy` | Heading levels, headline splits and drop capitals (the `Typographer`). |
 | `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |
+| `paragraphs` | The running text recomposed from the rows, with its decisions (the `Recomposer`). |
+| `normalized` | The normalized texts of lines and paragraphs (the `CharacterNormalizer`). |
 | `document` | The DoclingDocument of a page (the `Composer`) or of an item (`BindItem`). |
 
 ## The catalog
@@ -69,6 +71,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `normalization`, `typography`, `recomposition`, `composition`. A preset belongs to one step. | not a block |
 | **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit. Built-in engines live in the core; engine packages (`linecaster-kraken`, ...) add more. | not saturate's `Engine` class (its server launcher) |
 | **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image). A strategy declares the scripts it covers. | |
+| **script** | A writing system, named by its ISO 15924 code (`Latn`, `Hebr`, `Arab`): Unicode's `Script` property. A by-script engine routes each decision to the strategy for the script around it; `*` stands for every script. | not a pipeline script |
 | **model** | An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim. | not an engine, not a preset, not a VLM adapter |
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as `id@edition`. | |
 | **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM). `launch.py` can run one directly. | not "a model" |
@@ -109,6 +112,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **recomposition** | Turning lines back into running text: paragraphs, removed division marks, separators, continuation (the `Recomposer`). | not "reflow" (the old name) |
 | **binding** | Gathering an item's pages in order into one item (the `Binder`). | |
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
+| **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
 
 ## The print shop
 

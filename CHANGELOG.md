@@ -89,6 +89,25 @@ compatibility aliases: old imports, flags and ids fail.
   `on_task_event`, `on_leave`, `environment()`. Stream blocks notify `request` (with a `carrier`) after `prepare`,
   and `done` with tokens and `finish_reason`; `PageRecognizer` notifies `prepare` once (was twice).
 
+**Phase 3: rule-based steps, recomposition, binding**
+
+- Data model: `ModelInfo` → `StepInfo` (new field `engine`, the engine's code id, filled by the model blocks,
+  `linecaster serve` and the chat adapters), `Transcription.model` → `Transcription.steps`, `ChatAdapter.model_info()`
+  → `step_info()`. New: `Transcription.paragraphs` (`Paragraph`, `ParagraphRow`, `ParagraphRef`, `Decision`),
+  `Line.normalized`, and the measurements vocabulary `linecaster.data.MEASUREMENTS` (the keys a step writes; an
+  engine package in this repository adds a new key there first, a test checks it).
+- Page records are `linecaster.page/2` (`steps` instead of `model`, `paragraphs`, `normalized`). `PageRecordReader`
+  reads `linecaster.page/1` records and those from before phase 1 as `/2`; code that reads the JSON itself reads
+  `steps`.
+- The page files' step records (ALTO `processingStepSettings`, PAGE `Labels`, hOCR `linecaster-step-<n>`, METS agents)
+  carry `engine` for steps an engine ran.
+- Catalog: the steps `image`, `normalization`, `typography`, `recomposition`, `composition` with built-in engines in
+  `linecaster.engines`, in-process only (`linecaster serve` refuses them); presets may name `by_script` strategies;
+  `capabilities.unit` may be `item` and `produces` names parts (`PARTS`). `preset-1.json` gains them; no released
+  hash changes. `engine_spec(ref, installed=True, served=False)` and `preset_models(models, installed=True,
+  served=False)`: tests that replace `engine_spec` accept `served`.
+- `regex` is a new core dependency (Unicode scripts).
+
 ### Added
 
 - Block contracts (`contract()`, `Part`, `Contract`, `PARTS`), the builder (`linecaster.runtime.builder`: `build`,
@@ -114,6 +133,11 @@ compatibility aliases: old imports, flags and ids fail.
   `ChatModelServer` starts vLLM with `--otlp-traces-endpoint` when OTLP is configured; fetch spans from
   `net.http.HTTPFetcher` (`fetch_record`); `trace_id` and `span_id` on log records; `linecaster traces OUT [--by
   block|preset|task] [--slowest N] [--json]`.
+- Rule-based engines (`linecaster.engines`): `image.webp-lossless.v1`, `normalization.latin-historic.v1`,
+  `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.docling.v1` (wrapping today's code), the
+  engine protocol for page and item units, and dispatch by script (`ScriptDispatch`, `linecaster.engines.scripts`,
+  `normalization.by-script.v1`, `recomposition.by-script.v1`, a preset's `by_script`); their pages in
+  `docs/catalog/engines/`.
 
 ### Fixed
 

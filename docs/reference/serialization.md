@@ -18,11 +18,11 @@ saturate or an engine.
 2. **Semantic round trip** (`from_x(to_x(t))`): regions, lines and words with their ids, text,
    geometry, confidences, alternatives, the `hyphen` flag, region label, raw label, score and
    heading level, line score, `reading_order` and `row`. Not serialized: `docling` (export only),
-   `extra` dicts, `model`'s `measurements` other than `datetime`, `source` (readers set
+   `paragraphs`, `Line.normalized`, `extra` dicts, the steps' `measurements` other than `datetime`, `source` (readers set
    `kind="converted"`, `format`, `uri`, image size). Readers return regions and lines in document
    order, which may differ from the original list order; tests compare by id.
-   **Provenance** round-trips: every `ModelInfo` (step, name, revision, preset, preset hash, backend,
-   settings; `datetime` as ALTO `processingDateTime` and PAGE `MetadataItem/@date`) is written as ALTO
+   **Provenance** round-trips: every `StepInfo` (step, name, engine, revision, preset, preset hash, recipe,
+   recipe hash, backend, settings; `datetime` as ALTO `processingDateTime` and PAGE `MetadataItem/@date`) is written as ALTO
    `Processing`, PAGE `MetadataItem type="processingStep"` with `Labels`, and hOCR `linecaster-step-<n>`
    metas next to `ocr-system` and `ocr-capabilities` (computed from what the file contains). Other tools'
    provenance is read too (ALTO `OCRProcessing`, OCR-D PAGE steps, hOCR `ocr-system`). METS agents per

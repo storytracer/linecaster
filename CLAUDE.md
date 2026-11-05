@@ -69,7 +69,9 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   (`models/<id>/model.yaml`) with its
   upstream card copied verbatim at the pinned revision (always, whatever the license), every configuration
   a preset (`presets/<step>/<id>.yaml`, `id@edition`; steps `layout`, `lines`, `recognition`, `tables`,
-  `formulas`, a VLM reading whole pages is `recognition` with `unit: page`; it names its engine by versioned id, `engine:
+  `formulas`, a VLM reading whole pages is `recognition` with `unit: page`, and the rule-based steps `image`,
+  `normalization`, `typography`, `recomposition`, `composition`, whose engines are built in (`linecaster.engines`,
+  in-process only, each declaring the scripts it covers; a preset's `by_script` maps scripts to strategies); it names its engine by versioned id, `engine:
   kraken.recognition.v1`, with `options` beside it, no "kind"; `version`/`revision` are upstream's, `edition`
   ours), released editions frozen in
   `catalog.lock` (`linecaster.lock/2`: an edition's hash covers its YAML; a catalog migration that keeps
@@ -121,10 +123,13 @@ page record with its image and named transcriptions: `ocr_new` from a linecaster
 `Document`, which clashes with datatrove.
 
 `Transcription` has `regions` (the layout contract between steps), `lines` (Line: id, region_id,
-reading_order, row, bbox, polygon, baseline, score, text, confidence, alternatives, words, extra;
+reading_order, row, bbox, polygon, baseline, score, text, normalized, confidence, alternatives, words, extra;
 Word: id, text, bbox, confidence, hyphen, alternatives, extra; `bbox` is optional for text-only
-transcriptions), `docling` (the docling-core `DoclingDocument`, nested as it is), derived `text`,
-`objects`, `confidence`, plus `language`, `model` (one `ModelInfo` per step) and `source`. Every bbox
+transcriptions), `paragraphs` (Paragraph: id, region_id, rows with their line ids and character spans,
+text, normalized, continuations, decisions), `docling` (the docling-core `DoclingDocument`, nested as it is),
+derived `text`, `objects`, `confidence`, plus `language`, `steps` (one `StepInfo` per step: step, name,
+engine, preset, settings, measurements in the fixed vocabulary `linecaster.data.MEASUREMENTS`) and `source`.
+Stored page records are `linecaster.page/2`; `PageRecordReader` reads older ones. Every bbox
 is `[x, y, width, height]` in pixels of the received image; `Transcription.scaled(sx, sy)` moves it
 to another image size. Out: JSON via `model_dump_json` (exact round-trip), `to_alto` / `to_page` /
 `to_hocr` and in: `from_alto` / `from_page` / `from_hocr` (lxml, never kraken's serializer; semantic

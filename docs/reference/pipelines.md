@@ -246,10 +246,11 @@ a key given as text is refused. A missing variable fails the block's warm-up.
 
 ## Page records
 
-Stored page records are rows `{"schema": "linecaster.page/1", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+Stored page records are rows `{"schema": "linecaster.page/2", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`). `PageRecordReader` brings older rows to today's format
-(`UPGRADES`, keyed by the row's `schema`): a row without one was written before phase 1, its transcription `ocr` is
-read as `ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's name before
+(`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/1` row names a transcription's
+steps `model` (read as `steps`); a row without `schema` was written before phase 1, its transcription `ocr` is read
+as `ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's name before
 phase 1).
 
 ## HF Jobs helpers
