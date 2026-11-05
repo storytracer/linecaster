@@ -135,7 +135,7 @@ LocalPipelineExecutor(
 ```
 
 Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_chain.py` at the top, which brings the
-engines, and `uv run` it. Built with `linecaster.run.main`, as the pipelines are, it gets their command
+engines, and `uv run` it. Built with `linecaster.runtime.run.main`, as the pipelines are, it gets their command
 line for every machine.
 
 > [!TIP]
@@ -314,7 +314,7 @@ MODELS = [
 ]
 ```
 
-`linecaster.run` puts these together for the pipelines.
+`linecaster.runtime.run` puts these together for the pipelines.
 
 </details>
 
@@ -578,7 +578,7 @@ Spelling is never modernised.
 | To add | Write |
 |---|---|
 | a model | `linecaster catalog pin <id> --hf <repo>` for its model document and card, then a preset (`presets/<step>/<id>.md`) and `linecaster catalog release <id>` |
-| a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.models.ADAPTERS` if no existing one fits |
+| a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
 | an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`) |
 | a recipe | `recipes/<id>.md`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
 | a processing step | a `PageStep` with `process_page(doc, page)` |

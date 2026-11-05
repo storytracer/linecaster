@@ -6,8 +6,8 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import BBox, bbox_of, xywh
-from linecaster.transcription import Line, ModelInfo, Transcription
+from linecaster.data import Line, ModelInfo, Transcription
+from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_predictor, paddle_image
 from .crops import crop_bbox, crop_polygon

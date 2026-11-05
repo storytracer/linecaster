@@ -1,4 +1,4 @@
-"""Loading, resolving, releasing and verifying the catalogue (``specs/catalog.md``).
+"""Loading, resolving, releasing and verifying the catalogue (``docs/reference/catalog.md``).
 
 A catalogue directory holds ``models/<id>/model.md`` (+ ``upstream/<revision>/``), ``presets/<id>.md``,
 ``evidence/*.yaml`` and ``catalog.lock``. linecaster's own is ``linecaster/catalog/data``; engine packages add
@@ -319,7 +319,7 @@ def catalog() -> Catalog:
 # ----------------------------------------------------------------------------------------------- engines
 
 #: engines linecaster itself provides; chat presets run behind an OpenAI-compatible server only
-BUILTIN_ENGINES = {"chat.v1": "linecaster.models:ChatModel"}
+BUILTIN_ENGINES = {"chat.v1": "linecaster.adapters:ChatModel"}
 SERVED_ONLY = {"chat.v1"}
 
 
@@ -343,7 +343,7 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
     r = catalog().resolve(ref)
     known = engine_ids()
     if r.engine in SERVED_ONLY:
-        raise ValueError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.models.chat_model")
+        raise ValueError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.adapters.chat_model")
     if r.engine not in known:
         raise KeyError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
     kwargs = dict(r.content.get("options", {}))

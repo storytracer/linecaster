@@ -12,9 +12,9 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import BBox, xywh
-from linecaster.geometry.order import suppress_contained, xy_cut_order
-from linecaster.transcription import ModelInfo, Region as LCRegion, Transcription
+from linecaster.data import ModelInfo, Region as LCRegion, Transcription
+from linecaster.data.geometry import BBox, xywh
+from linecaster.data.geometry.order import suppress_contained, xy_cut_order
 
 from .compat import create_predictor, paddle_image
 from .weights import check, resolve

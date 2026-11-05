@@ -100,11 +100,11 @@ def _options(cls: ast.ClassDef) -> list[Option]:
 
 def engines(repo: Path = REPO) -> dict[str, Engine]:
     found = {}
-    core = repo / "src" / "linecaster" / "models"
+    core = repo / "src" / "linecaster" / "adapters"
     if core.exists():
         classes = _classes(core)
         f, cls = classes["ChatModel"]
-        e = Engine("chat.v1", "linecaster.models:ChatModel", "linecaster", f, _doc(cls), "page")
+        e = Engine("chat.v1", "linecaster.adapters:ChatModel", "linecaster", f, _doc(cls), "page")
         for name, (src, c) in sorted(classes.items()):
             adapter = _class_value(c, "adapter")
             if isinstance(adapter, str):

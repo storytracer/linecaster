@@ -15,10 +15,13 @@ import sys
 from datatrove.executor import LocalPipelineExecutor
 
 from linecaster.backends import Served
-from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import LayoutStep, LinesStep, RecognitionStep
-from linecaster.blocks.readers import ImageFolderReader, PageRowReader
-from linecaster.blocks.writers import PageJsonlWriter
+from linecaster.blocks.layout.detector import LayoutStep
+from linecaster.blocks.lines.assigner import AssignLinesToRegions
+from linecaster.blocks.lines.detector import LinesStep
+from linecaster.blocks.readers.images import ImageFolderReader
+from linecaster.blocks.readers.records import PageRowReader
+from linecaster.blocks.recognition.recognizers import RecognitionStep
+from linecaster.blocks.writers.records import PageJsonlWriter
 
 
 def executors(images: str, out: pathlib.Path, ep: str):

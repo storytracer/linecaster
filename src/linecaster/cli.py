@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--decode-workers", type=int, default=4)
     m = sub.add_parser("models", help="the catalogue's presets")
     m.add_argument("--step", default=None)
-    c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (specs/catalog.md)")
+    c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schema", "docs"])
     c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")

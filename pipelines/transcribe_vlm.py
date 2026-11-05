@@ -58,12 +58,12 @@ environment (``outside_venv``), so neither the image's Python nor its CUDA libra
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling.
 """
-from linecaster import run
+from linecaster.adapters import chat_model
 from linecaster.backends import Served
-from linecaster.blocks.chat import ChatPageStep, ChatRegionStep
-from linecaster.blocks.models import LayoutStep
-from linecaster.blocks.serve import ServeChatModel
-from linecaster.models import chat_model
+from linecaster.blocks.layout.detector import LayoutStep
+from linecaster.blocks.recognition.chat import ChatPageStep, ChatRegionStep
+from linecaster.blocks.servers.serve import ServeChatModel
+from linecaster.runtime import run
 
 VLM_PORT = 8000
 

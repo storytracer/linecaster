@@ -24,8 +24,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dataclasses import dataclass, field
 
-from linecaster.geometry import BBox, bbox_of, xywh
-from linecaster.transcription import ModelInfo, Transcription
+from linecaster.data import ModelInfo, Transcription
+from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_pipeline, paddle_image
 from .crops import crop_bbox

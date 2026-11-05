@@ -28,10 +28,10 @@ manifests as fetched in OUT/manifests/<item>.json|.xml; page rows in OUT/rows/<r
 copy, ``image.extra.source_uri`` the source, ``metadata.manifest`` the item's and page's manifest data, the
 transcription ``ocr_original`` with the existing OCR). Rate limits hold per task: the servers see up to --workers
 times --rate-limit. A task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
-``linecaster.run`` has the options every pipeline shares.
+``linecaster.runtime.run`` has the options every pipeline shares.
 """
-from linecaster import run
-from linecaster.blocks.writers import ImageFilesWriter
+from linecaster.blocks.writers.images import ImageFilesWriter
+from linecaster.runtime import run
 
 
 def options(ap):

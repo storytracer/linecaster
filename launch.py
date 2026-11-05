@@ -17,7 +17,7 @@ starts that pipeline's script, in the script's own environment.
     uv run launch.py squiddle IMAGES OUT --text lines  # a flag on top: recorded as an override
     uv run launch.py squiddle --help                   # the pipeline's options
 
-Everything after the name goes to the pipeline (``linecaster.run``), ``serve`` and ``ray`` too. Your own
+Everything after the name goes to the pipeline (``linecaster.runtime.run``), ``serve`` and ``ray`` too. Your own
 combinations: the pipeline scripts in ``pipelines/``.
 """
 import os

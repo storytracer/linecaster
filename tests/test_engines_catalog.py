@@ -41,7 +41,7 @@
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
-"""The engine packages in the catalogue (specs/catalog.md), without loading any model: every engine's ``Options``
+"""The engine packages in the catalogue (docs/reference/catalog.md), without loading any model: every engine's ``Options``
 mirror its constructor, capabilities use the vocabulary, every preset builds through ``InProcess.from_preset``,
 and the installed catalogue (core + engines) verifies. Skipped in the core environment; with the engines:
 ``uv run tests/test_engines_catalog.py``."""

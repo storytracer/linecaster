@@ -1,4 +1,4 @@
-"""The catalogue's documents as Pydantic models (``specs/catalog.md``): model, preset, evidence, the lock.
+"""The catalogue's documents as Pydantic models (``docs/reference/catalog.md``): model, preset, evidence, the lock.
 
 Front matter is validated strictly (unknown keys are errors); the Markdown body is kept as ``body``.
 """

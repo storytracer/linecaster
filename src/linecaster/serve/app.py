@@ -33,8 +33,8 @@ from dataclasses import dataclass, field
 from aiohttp import web
 
 from ..backends import resolve
-from ..blocks.base import decode_rgb
-from ..transcription.model import Transcription
+from ..blocks.base.page import decode_rgb
+from ..data.transcription import Transcription
 
 log = logging.getLogger("linecaster.serve")
 

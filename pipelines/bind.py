@@ -17,12 +17,12 @@ its items; no engine or GPU is needed.
     ... --on hf-jobs --commit <sha> --flavor cpu-upgrade --tasks 64
 
 Texts in OUT2/texts/<version>/<rank>.jsonl.gz; with --files also OUT2/files/<version>/<item>.txt|.md.
-``linecaster.run`` has the options every pipeline shares (IMAGES is the first stage's rows folder here).
+``linecaster.runtime.run`` has the options every pipeline shares (IMAGES is the first stage's rows folder here).
 """
-from linecaster import run
-from linecaster.blocks.readers import PageRowReader
-from linecaster.blocks.texts import ItemTexts
-from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter
+from linecaster.blocks.binding.texts import ItemTexts
+from linecaster.blocks.readers.records import PageRowReader
+from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
+from linecaster.runtime import run
 
 
 def options(ap):

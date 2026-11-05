@@ -11,8 +11,8 @@ from typing import Sequence
 
 import numpy as np
 
-from linecaster.geometry import BBox, bbox_of
-from linecaster.transcription import Line
+from linecaster.data import Line
+from linecaster.data.geometry import BBox, bbox_of
 
 
 def clip_points(poly, width: int, height: int) -> list[tuple[int, int]]:

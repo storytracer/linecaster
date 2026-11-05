@@ -61,16 +61,20 @@ and formula models after; then Unicode NFC, typography and page composition. Pag
     uv run pipelines/transcribe_chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --commit <sha> --tasks 64
 
-``linecaster.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
+``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
-from linecaster import run
-from linecaster.blocks.document import ComposePage, Typography
-from linecaster.blocks.layout import SingleRegionLayout
-from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
-from linecaster.blocks.texts import ItemTexts
-from linecaster.blocks.unicode import NormalizeUnicode
-from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter, PageFilesWriter
+from linecaster.blocks.binding.texts import ItemTexts
+from linecaster.blocks.composition.composer import ComposePage
+from linecaster.blocks.composition.typographer import Typography
+from linecaster.blocks.layout.detector import LayoutStep
+from linecaster.blocks.layout.single_region import SingleRegionLayout
+from linecaster.blocks.lines.assigner import AssignLinesToRegions
+from linecaster.blocks.lines.detector import LinesStep
+from linecaster.blocks.recognition.recognizers import FormulasStep, RecognitionStep, TablesStep
+from linecaster.blocks.text.unicode import NormalizeUnicode
+from linecaster.blocks.writers.files import PageFilesWriter
+from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
+from linecaster.runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 

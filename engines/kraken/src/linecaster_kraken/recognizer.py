@@ -15,8 +15,8 @@ import regex
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import BBox, xywh
-from linecaster.transcription import ModelInfo, Transcription, Word
+from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, SIZES, fetch_weights, resolve_kraken_model, size_weights
 from .segmentation import lines_to_segmentation

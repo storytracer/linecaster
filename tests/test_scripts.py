@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from linecaster.jobs import _name, dependencies, script_metadata
+from linecaster.runtime.jobs import _name, dependencies, script_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = sorted(p for p in [*ROOT.glob("*.py"), *(q for d in ("pipelines", "tools", "tests") for q in (ROOT / d).rglob("*.py"))]

@@ -22,8 +22,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   the pipeline's process, or behind a server reached through saturate).
 - **datatrove + saturate are the integration** and required dependencies. Pins:
   `datatrove[io]>=0.10.1,<0.11` (has `JobsPipelineExecutor`), `saturate==0.3.0` (0.x changes without
-  deprecation). Importing the data model, serialisers and text transforms (`linecaster.transcription`,
-  `linecaster.text`) must not import either. Extras only for genuinely optional things, each named
+  deprecation). Importing the data model, serialisers and text transforms (`linecaster.data`,
+  `linecaster.text.variants`) must not import either. Extras only for genuinely optional things, each named
   after the one dependency it brings; no umbrella or alias extras.
 - **I/O through datatrove.** One datatrove `Document` per page; datatrove's readers, writers,
   `DataFolder` (fsspec) and executors for everything. linecaster only adds what datatrove lacks.
@@ -55,7 +55,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `ChatPageStep` /
   `ChatRegionStep` (`blocks/chat.py`) with `chat_model(<preset>)`: a catalogue preset (engine `chat.v1`,
-  data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.models.ADAPTERS` (code:
+  data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
   request, parsing); on `/v1/chat/completions`; served only.
 - **The catalogue** (`specs/catalog.md`, `linecaster.catalog`): one catalogue, `src/linecaster/catalog/data/`
   (engine packages and derivatives ship none): every model is a model document with its
@@ -76,7 +76,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `__call__(image, transcription, **params) -> Transcription`. **No environment
   folders: a pipeline is a self-contained uv script** (`pipelines/`) (PEP 723 block, a `<script>.py.lock` next to it,
   `uv run <script>`) that builds one pipeline shape with slots, and **one pipeline script per shape,
-  never one per machine**: `linecaster.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
+  never one per machine**: `linecaster.runtime.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
   `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
   for Ray's CLI from its environment). `pipelines/transcribe_chain.py` (lines and a recogniser, optionally layout,
   tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/transcribe_vlm.py` (a VLM per page or per
@@ -88,7 +88,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `--recipe` / `--vlm`, so nobody needs to know the pipeline; own combinations use the pipeline scripts. Generated docs: `linecaster catalog docs --out docs/catalog --readme README.md`, one folder per
   component (engines, models, presets, pipelines, recipes). `ServeModels(script=...)` starts a
   pipeline's `serve` with `uv run --script`;
-  `linecaster.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
+  `linecaster.runtime.jobs.dependencies(commit, script)` turns its metadata into a Job's `--with` list.
   Not a uv workspace, because engine pins conflict. Sources apply only to a script's direct
   dependencies, so scripts with kraken list the fork directly; the numerically relevant versions
   are pinned with `constraint-dependencies`, the same list in every engine script;
@@ -102,7 +102,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 Classes: `Item` (any multi-page unit: book, issue, manuscript, file; key `item_id`), `Page` (the
 row with its image and named transcriptions; `page_id = item_id + sequence`), `PageImage`,
 `Transcription` (the pilot's PageOCR, renamed because it also holds HTR and ground truth; module
-`linecaster.transcription`), `Text` (one per item and variant). No "Class" suffixes; never
+`linecaster.data`), `Text` (one per item and variant). No "Class" suffixes; never
 `Document`, which clashes with datatrove.
 
 `Transcription` has `regions` (the layout contract between steps), `lines` (Line: id, region_id,
@@ -116,7 +116,7 @@ to another image size. Out: JSON via `model_dump_json` (exact round-trip), `to_a
 round-trip: structure, text, geometry, confidences, ids, reading order; `specs/serialisation.md`).
 No glyph level: words are the finest level.
 
-Text (`linecaster.text`, block `ItemTexts`): era-neutral vocabulary, three independent dimensions:
+Text (`linecaster.text.variants`, block `ItemTexts`): era-neutral vocabulary, three independent dimensions:
 character fidelity (as written, normalised, expanded, regularised), flow (as laid out, flowed),
 scope (full page, body only). Each transform moves one step on one dimension; the as-written layer
 is never overwritten. Named variants: `verbatim_txt` (as written, as laid out, full page; pages
@@ -147,7 +147,7 @@ servers.
 
 ## Images
 
-The working format for converted images is lossless WebP at full resolution (`linecaster.images`,
+The working format for converted images is lossless WebP at full resolution (`linecaster.images.convert`,
 block `WorkingImages`: 8-bit sRGB, ICC applied, method 0, exact); lossy output is never produced.
 Delivered images used as they are (e.g. an access derivative) stay as delivered. Size limit,
 checked from the header before decoding: width and height ≤ 16,383 (WebP's hard limit) and
@@ -193,7 +193,7 @@ Namespace `finebooks` (cap agreed per session; report the cost of every run), fl
 outputs and datatrove `logging_dir` in the bucket `hf://buckets/finebooks/linecaster-runs`. Always
 a small smoke job before a full run. datatrove's `JobsPipelineExecutor` is experimental and
 dill-pickles the pipeline, so the launching machine and the Jobs must run the same Python minor
-version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.jobs.dependencies(commit, script)`
+version (3.12). `uv run --with` drops `[tool.uv.sources]`: `linecaster.runtime.jobs.dependencies(commit, script)`
 spells out a pipeline's dependencies, sources (as URLs; the commit must be pushed) and pins. Private derivatives ship their code as a wheel mounted from a bucket
 folder (`WheelJobsExecutor`, `wheel_volume`); no credential is stored in a pipeline or a repo.
 

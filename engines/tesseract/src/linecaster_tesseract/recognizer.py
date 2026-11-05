@@ -14,8 +14,8 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import BBox, xywh
-from linecaster.transcription import ModelInfo, Transcription, Word
+from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
 

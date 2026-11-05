@@ -12,8 +12,8 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import bbox_of
-from linecaster.transcription import ModelInfo, Transcription
+from linecaster.data import ModelInfo, Transcription
+from linecaster.data.geometry import bbox_of
 
 from .compat import create_transformers_predictor, paddle_image
 from .crops import crop_bbox

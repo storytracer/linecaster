@@ -14,8 +14,8 @@ import numpy as np
 import regex
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.geometry import BBox, xywh
-from linecaster.transcription import ModelInfo, Transcription, Word
+from linecaster.data import ModelInfo, Transcription, Word
+from linecaster.data.geometry import BBox, xywh
 
 from .compat import create_predictor, paddle_image
 from .weights import check, resolve

@@ -167,7 +167,7 @@ def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path) -> str:
         lines += ["## Slots", "", "Each slot takes a preset of that step; a recipe fills them all.", "",
                   *_table(("Slot", "Option"), [(slot, f"`--{opt}`") for slot, opt in pl.slots.items()])]
     if pl.options:
-        lines += ["## Options", "", "Besides the options every pipeline shares (`linecaster.run`).", "",
+        lines += ["## Options", "", "Besides the options every pipeline shares (`linecaster.runtime.run`).", "",
                   *_table(("Option", "Values", "Default", "Description"),
                           [(f"`{o.name}`", o.type, f"`{o.default}`" if o.default not in ("", "None") else "",
                             o.description) for o in pl.options])]

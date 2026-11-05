@@ -22,7 +22,7 @@ dependencies = [
     "ftfy",
 ]
 
-# the engines by versioned id (specs/catalog.md); their presets and models live in linecaster's catalogue
+# the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalogue
 [project.entry-points."linecaster.engines"]
 "paddlex.layout.v1" = "linecaster_paddlex:PaddleLayoutModel"
 "paddlex.lines.v1" = "linecaster_paddlex:PaddleLineModel"
