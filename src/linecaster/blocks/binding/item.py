@@ -13,7 +13,7 @@ class BindItem(PipelineStep):
     paragraphs continued across page breaks (``text="reflow"``), optional ``sections``, page ``n`` of the
     document = the item's ``n``-th page in order (``Page.sequence``, then page id).
 
-    **A task must see whole items**: linecaster's run layout buckets page rows by item (one item in one
+    **A task must see whole items**: linecaster's run layout buckets page records by item (one item in one
     file), and the pages of an item must arrive in one task. An item is emitted once all its pages have
     arrived (``page.metadata[count_key]``, as ``ItemTexts`` does) or when the input ends.
 
@@ -25,7 +25,7 @@ class BindItem(PipelineStep):
     type = "🔠 - LINECASTER"
     name = "📚 bind item"
 
-    def __init__(self, transcription: str = "ocr", text: str = "reflow", sections: bool = False, rtl: bool = False,
+    def __init__(self, transcription: str = "ocr_new", text: str = "reflow", sections: bool = False, rtl: bool = False,
                  count_key: str = "item_page_count"):
         super().__init__()
         from ...formats.docling import TEXT_MODES

@@ -148,7 +148,7 @@ def test_item_texts_block():
     for item, seqs in (("b1", [2, 1]), ("b2", [1])):
         for s in seqs:
             p = Page(page_id=f"{item}_{s}", item_id=item, sequence=s, metadata={"item_page_count": len(seqs)})
-            p.transcriptions["ocr"] = _page([("a", "text", [f"Seite {s}"])])
+            p.transcriptions["ocr_new"] = _page([("a", "text", [f"Seite {s}"])])
             docs.append(_doc(p))
     out = list(ItemTexts(token_counter=len).run(iter(docs)))
     assert [(d.id, d.metadata["variant"]) for d in out] == [

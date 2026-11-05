@@ -38,7 +38,7 @@ from ..base.page import image_bytes, page_of, set_page
 
 
 class PageRecognizer(ModelBlock):
-    """Recognise every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr``).
+    """Recognise every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr_new``).
 
     ``backend.model`` is the name the server hosts the model under (for vLLM without
     ``--served-model-name``: the Hub id, ``spec.model``). ``prepare_workers`` threads build requests
@@ -47,7 +47,7 @@ class PageRecognizer(ModelBlock):
     step = "page"
     route = "/chat/completions"
 
-    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr", primary: str | None = None,
+    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr_new", primary: str | None = None,
                  skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
         if isinstance(spec, str):
             spec = chat_model(spec)
@@ -88,7 +88,7 @@ class RegionRecognizer(PageRecognizer):
 
     step = "regions"
 
-    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr", labels=REGION_LABELS,
+    def __init__(self, spec: ChatAdapter | str, backend: Served, transcription: str = "ocr_new", labels=REGION_LABELS,
                  pad: int = 8, primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
         if isinstance(spec, str):
             spec = chat_model(spec)

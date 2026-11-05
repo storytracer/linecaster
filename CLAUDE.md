@@ -27,7 +27,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   after the one dependency it brings; no umbrella or alias extras.
 - **I/O through datatrove.** One datatrove `Document` per page; datatrove's readers, writers,
   `DataFolder` (fsspec) and executors for everything. linecaster only adds what datatrove lacks.
-- **Generic connectors only.** Folders, buckets, HF datasets, and the standards for items' manifests
+- **Generic readers only.** Folders, buckets, HF datasets, and the standards for items' manifests
   (IIIF Presentation, METS/MODS, also via OAI-PMH): `blocks/manifests.py`, parsed by
   storytracer/pybookget (`read_manifest`), extra `[pybookget]`, which also fetches `http(s)://`
   images (`blocks/http.py`). A manifest lists an item's pages and their files. Corpus or institution
@@ -100,7 +100,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 ## Data model and serialisation (from the EBDC pilot architecture)
 
 Classes: `Item` (any multi-page unit: book, issue, manuscript, file; key `item_id`), `Page` (the
-row with its image and named transcriptions; `page_id = item_id + sequence`), `PageImage`,
+page record with its image and named transcriptions; `page_id = item_id + sequence`), `PageImage`,
 `Transcription` (the pilot's PageOCR, renamed because it also holds HTR and ground truth; module
 `linecaster.data`), `Text` (one per item and variant). No "Class" suffixes; never
 `Document`, which clashes with datatrove.
@@ -127,8 +127,8 @@ modernised.
 
 ## Run layout, enrichment chain, rejects
 
-Each page-level pipeline reads the previous folder (`PageRecordReader`: page rows of linecaster's
-writers, images fetched again by URI, `uri_map` for local copies) and writes complete page rows
+Each page-level pipeline reads the previous folder (`PageRecordReader`: page records of linecaster's
+writers, images fetched again by URI, `uri_map` for local copies) and writes complete page records
 with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are bucketed by item id
 (a whole item in one file; no joins); `originals/` is never modified; `processed/…/<pipeline>/`,
 `rejects/<output>/` (`RejectWriter`: key, field, error, raw value; `PageValidator`) and
@@ -139,9 +139,9 @@ Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files
 column: bytes, HF image struct or path), `ManifestReader` (IIIF or METS; a manifest, or a row of a Parquet item
 table, is an entry like a file, so an item stays in one task; pages fetched ahead with pybookget, rate limits per
 task; `existing_ocr` keeps a library's OCR as `ocr_original`). The usual sequence is harvest → transcribe → bind:
-`pipelines/harvest.py` downloads images (OCR, manifests) once into item folders plus page rows, the transcribe
-pipelines read those with `--rows`, `pipelines/bind.py` makes item texts. An item's pages can land in different tasks; item-level steps are a
-second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/bind.py` reads
+`pipelines/harvest.py` downloads images (OCR, manifests) once into item folders plus page records, the transcribe
+pipelines read those with `--pages`, `pipelines/bind.py` makes item texts. An item's pages can land in different tasks; item-level steps are a
+second stage over item shards (`--item-shards N` writes `OUT/pages/<shard>/<rank>`, `pipelines/bind.py` reads
 whole shards), as datatrove's own multi-stage pipelines read per-bucket folders. Each task starts its own
 servers.
 
@@ -157,7 +157,7 @@ never changed); larger pages go to `rejects/`.
 ## Parity and goldens
 
 squiddleocr's outputs (`~/data/goldens/squiddleocr-<sha>/<machine>/`) are the reference for the
-squiddle combination: `tests/parity/compare_goldens.py RUN GOLDENS` compares page rows with the
+squiddle combination: `tests/parity/compare_goldens.py RUN GOLDENS` compares page records with the
 golden hOCR line by line (line box, text, every word box). Goldens are per machine (GPU numerics
 differ: compare across machines at CER level, never byte for byte). Parity is checked in-process and
 served; a change that moves numerics (torch build, ONNX Runtime, decoding) is compared at CER level

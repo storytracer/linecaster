@@ -12,7 +12,7 @@ class Typographer(PageBlock):
 
     name = "typographer"
 
-    def __init__(self, transcription: str = "ocr"):
+    def __init__(self, transcription: str = "ocr_new"):
         super().__init__()
         self.transcription = transcription
 

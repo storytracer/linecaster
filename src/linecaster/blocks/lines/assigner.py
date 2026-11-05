@@ -90,7 +90,7 @@ class LineAssigner(PageBlock):
 
     name = "line assigner"
 
-    def __init__(self, transcription: str = "ocr", skip_labels=SKIP_LABELS, formulas_separately: bool = True):
+    def __init__(self, transcription: str = "ocr_new", skip_labels=SKIP_LABELS, formulas_separately: bool = True):
         super().__init__()
         self.transcription, self.skip_labels, self.formulas_separately = transcription, frozenset(skip_labels), formulas_separately
 

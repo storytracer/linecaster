@@ -274,7 +274,7 @@ def _pipeline(a, files: str):
     backend = InProcess("test_provenance:StampModel", size=3)
     backend.preset, backend.preset_sha256 = "stamp@2", SHA
     return [run.reader(a), LineRecognizer(backend), PageFileWriter(files, formats=("alto", "page", "hocr")),
-            run.rows(a)]
+            run.pages(a)]
 
 
 def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):

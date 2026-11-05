@@ -39,10 +39,10 @@ def test_normalize_unicode_block_updates_doc_text():
     Image.new("RGB", (10, 10)).save(buf, format="PNG")
     doc = new_page_document("p", buf.getvalue())
     page = page_of(doc)
-    page.transcriptions["ocr"] = Transcription(lines=[Line(id="l0", text="schön")])
+    page.transcriptions["ocr_new"] = Transcription(lines=[Line(id="l0", text="schön")])
     set_page(doc, page)
     out = list(UnicodeNormalizer().run(iter([doc])))
-    assert out[0].text == "schön" and page_of(out[0]).transcriptions["ocr"].lines[0].text == "schön"
+    assert out[0].text == "schön" and page_of(out[0]).transcriptions["ocr_new"].lines[0].text == "schön"
 
 
 # --------------------------------------------------------------- item level
@@ -86,7 +86,7 @@ def test_item_blocks_group_pages_and_write(tmp_path):
     for seq, t in reversed(list(enumerate(two_pages(), start=1))):     # out of order on purpose
         d = new_page_document(f"b1-{seq}", buf.getvalue(), item_id="b1", sequence=seq)
         p = page_of(d)
-        p.transcriptions["ocr"] = t
+        p.transcriptions["ocr_new"] = t
         p.metadata["item_page_count"] = 2
         set_page(d, p)
         docs.append(d)

@@ -1,4 +1,4 @@
-"""Items, pages, page images and texts: the rows linecaster's pipelines read and write.
+"""Items, pages, page images and texts: the page records linecaster's pipelines read and write.
 
 An ``Item`` is any multi-page unit (a book, an issue, a manuscript, a file); a ``Page`` is one of its
 pages with its image and any number of named transcriptions (``ocr_original`` from a delivery,
@@ -6,7 +6,7 @@ pages with its image and any number of named transcriptions (``ocr_original`` fr
 page's sequence unless the source has its own stable page ids.
 
 In a datatrove pipeline a page travels as one ``Document``: ``id`` = ``page_id``, ``text`` = the text
-of the page's primary transcription, the image bytes in ``media[0]``, and the page row (everything
+of the page's primary transcription, the image bytes in ``media[0]``, and the page record (everything
 but the image bytes) under ``metadata["page"]``.
 """
 from __future__ import annotations

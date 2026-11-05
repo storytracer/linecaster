@@ -15,16 +15,16 @@
 # ///
 r"""The harvest stage: items' page images (and, with --existing-ocr, the library's own OCR) from their manifests
 (IIIF or METS; a folder, a list of links, or item tables with --manifest-key), or from http(s) image URLs in a page
-table (--parquet), downloaded once into item folders, with page rows that keep where everything came from. No
-engine or GPU is needed; the transcribe stage then reads the rows without waiting on the libraries' servers.
+table (--parquet), downloaded once into item folders, with page records that keep where everything came from. No
+engine or GPU is needed; the transcribe stage then reads the page records without waiting on the libraries' servers.
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --tasks 16 --workers 4 --rate-limit 5/1 --existing-ocr
-    uv run pipelines/transcribe_chain.py --rows OUT/rows OUT2 --recipe ...                 # keeps the metadata
+    uv run pipelines/transcribe_chain.py --pages OUT/pages OUT2 --recipe ...                 # keeps the metadata
     uv run pipelines/transcribe_chain.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
 
 OUT/images/<item>/<page>.<ext> as the server sent them; with --existing-ocr OUT/ocr/<item>/<page>.xml|.html; the
-manifests as fetched in OUT/manifests/<item>.json|.xml; page rows in OUT/rows/<rank>.jsonl.gz (``image.uri`` the
+manifests as fetched in OUT/manifests/<item>.json|.xml; page records in OUT/pages/<rank>.jsonl.gz (``image.uri`` the
 copy, ``image.extra.source_uri`` the source, ``metadata.manifest`` the item's and page's manifest data, the
 transcription ``ocr_original`` with the existing OCR). Rate limits hold per task: the servers see up to --workers
 times --rate-limit. A task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
@@ -43,13 +43,13 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str) -> list:
-    if a.images or a.rows:
+    if a.images or a.pages:
         raise SystemExit("harvest.py downloads: give --manifests or --parquet (with http(s) image URLs)")
     out = a.out.rstrip("/")
     return [
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None),
         ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if a.manifests and a.existing_ocr else None),
-        run.rows(a),
+        run.pages(a),
     ]
 
 

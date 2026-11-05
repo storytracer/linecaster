@@ -33,7 +33,7 @@ class ModelBlock(PageBlock):
     region_label: str | None = None
     prepare_workers: int = 2       # threads building requests ahead of admission (image encoding)
 
-    def __init__(self, backend: InProcess | Served, transcription: str = "ocr", params: dict | None = None,
+    def __init__(self, backend: InProcess | Served, transcription: str = "ocr_new", params: dict | None = None,
                  primary: str | None = None, skip_on_error: bool = True, name: str | None = None):
         self.name = name or f"{self.step} ({backend.describe()})"   # before the base __init__, which names the stats
         super().__init__()

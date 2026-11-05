@@ -160,12 +160,12 @@ def test_chat_page_step_end_to_end(fake_server):
     assert len(FakeChat.seen) == 5 and {m for m, _ in FakeChat.seen} == {"lightonai/LightOnOCR-2-1B"}
     for i in range(5):
         d = out[str(i)]
-        t = page_of(d).transcriptions["ocr"]
+        t = page_of(d).transcriptions["ocr_new"]
         w = round((1000 + 100 * i) * 1540 / 2000)
         assert t.extra["raw"] == f"\npage {w}x1540\n" and d.text == t.extra["raw"]
         assert t.model[0].measurements["completion_tokens"] == 3
         assert "errors" not in d.metadata
-    assert "ocr" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
+    assert "ocr_new" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
 
 
 def test_chat_page_step_records_server_errors(fake_server):
@@ -174,7 +174,7 @@ def test_chat_page_step_records_server_errors(fake_server):
     out = list(step.run(iter([new_page_document("p", image(100, 200))])))
     assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "page"
     assert "404" in out[0].metadata["errors"][0]["error"]
-    assert "ocr" not in page_of(out[0]).transcriptions
+    assert "ocr_new" not in page_of(out[0]).transcriptions
 
 
 def test_serve_block_outside_venv(monkeypatch):

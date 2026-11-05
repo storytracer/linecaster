@@ -57,7 +57,7 @@ def test_page_writers_write_every_document_format(tmp_path: Path):
     docs = _composed_doc()
     fmts = ("md", "txt", "html", "doclang", "json")
     list(PageFileWriter(str(tmp_path / "a"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
-    t = page_of(docs[0]).transcriptions["ocr"]
+    t = page_of(docs[0]).transcriptions["ocr_new"]
     for fmt in fmts:
         name = f"p1.x.{EXPORT_FORMATS[fmt]}"
         expected = export(t.docling if fmt == "json" else load_docling(t), fmt).encode("utf-8")
@@ -68,7 +68,7 @@ def test_page_writers_write_every_document_format(tmp_path: Path):
 
 def test_sections_and_dividers_per_page(tmp_path: Path):
     docs = _composed_doc(sections=True)
-    t = page_of(docs[0]).transcriptions["ocr"]
+    t = page_of(docs[0]).transcriptions["ocr_new"]
     groups = [g for g in t.docling["groups"] if g["label"] == "section"]
     assert [g["name"] for g in groups] == ["THE TITLE", "LAST"]
     region_of = t.extra[REGION_MAP_KEY]
@@ -115,7 +115,7 @@ def test_single_region_layout_takes_every_line():
     t = Transcription(lines=[Line(id="d0", polygon=[[10, 10], [200, 10], [200, 30], [10, 30]], bbox=[10, 10, 190, 20]),
                              Line(id="d1", polygon=[[10, 50], [200, 50], [200, 70], [10, 70]], bbox=[10, 50, 190, 20])])
     out = list(LineAssigner().run(SingleRegionLayout().run(iter([page_doc(t=t, item=None)]))))
-    t = page_of(out[0]).transcriptions["ocr"]
+    t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(r.id, r.label, r.bbox, r.reading_order) for r in t.regions] == [("page", "text", [0, 0, 1000, 1000], 0)]
     assert [(ln.id, ln.region_id, ln.row) for ln in t.lines] == [("page_l0", "page", 0), ("page_l1", "page", 1)]
 

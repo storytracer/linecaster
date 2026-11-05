@@ -48,7 +48,7 @@
 # ///
 r"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
 lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and page composition. Page rows in OUT/rows; with
+and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
 --texts one text per item in each text version.
 
@@ -121,7 +121,7 @@ def pipeline(a, script: str) -> list:
         raise SystemExit("chain: --tables and --formulas work on layout regions; pick --layout too")
     if a.texts and a.tasks > 1:
         raise SystemExit("chain: --texts needs every page of an item in one task; with several tasks write "
-                         "--item-shards N and run pipelines/bind.py on OUT/rows afterwards")
+                         "--item-shards N and run pipelines/bind.py on OUT/pages afterwards")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)
@@ -140,7 +140,7 @@ def pipeline(a, script: str) -> list:
         *([PageFileWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
         *([PageFileWriter(a.exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
                            bucket_by_item=False)] if a.exports else []),
-        run.rows(a),
+        run.pages(a),
         # after the page writers: ItemTexts consumes the pages and emits one document per item and version
         *([ItemTexts(), ItemTextWriter(a.texts, format="files"), ItemTextWriter(a.texts)] if a.texts else []),
         *servers,                                 # last: lives until every page is written

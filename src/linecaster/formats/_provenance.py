@@ -2,7 +2,7 @@
 
 A step record is the part of a ``ModelInfo`` that identifies what ran: ``step``, ``name``, ``revision``,
 ``preset``, ``preset_sha256``, ``backend`` and ``settings``. ``measurements`` (seconds, tokens, ...) vary from
-run to run and stay in the page rows. Every writer puts the record into its format's own provenance
+run to run and stay in the page records. Every writer puts the record into its format's own provenance
 vocabulary (ALTO ``Processing``, PAGE ``MetadataItem``, hOCR ``meta``) and its reader turns it back into a
 ``ModelInfo``. lxml-free and import-light on purpose.
 """

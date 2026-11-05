@@ -1,6 +1,6 @@
 """Compare a linecaster run (page-row JSONL) with squiddleocr goldens (hOCR) line by line.
 
-    python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr] [--no-nfc]
+    python compare_goldens.py RUN_DIR GOLDEN_DIR [--transcription ocr_new] [--no-nfc]
 
 The goldens' word texts are NFC-normalised first (squiddleocr wrote kraken's decomposed text; linecaster
 normalises with UnicodeNormalizer), so parity means "byte-exact after NFC"; --no-nfc compares raw text.
@@ -51,7 +51,7 @@ def ours(row: dict, transcription: str, width: int, height: int) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("run"); ap.add_argument("goldens"); ap.add_argument("--transcription", default="ocr")
+    ap.add_argument("run"); ap.add_argument("goldens"); ap.add_argument("--transcription", default="ocr_new")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--no-nfc", action="store_true",
                     help="compare the goldens' raw text (default: NFC, as linecaster's UnicodeNormalizer writes it)")

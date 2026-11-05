@@ -18,7 +18,7 @@ class SingleRegionLayout(PageBlock):
 
     name = "single region layout"
 
-    def __init__(self, transcription: str = "ocr", label: str = "text", region_id: str = "page"):
+    def __init__(self, transcription: str = "ocr_new", label: str = "text", region_id: str = "page"):
         super().__init__()
         self.transcription, self.label, self.region_id = transcription, label, region_id
 

@@ -1,4 +1,4 @@
-"""``PageRecordReader``: page rows written by an earlier linecaster pipeline (JSONL or Parquet)."""
+"""``PageRecordReader``: page records written by an earlier linecaster pipeline (JSONL or Parquet)."""
 from __future__ import annotations
 
 from datatrove.io import DataFolderLike, get_datafolder
@@ -8,12 +8,12 @@ from .images import _Opener
 
 
 class PageRecordReader(PipelineStep):
-    """Page rows written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
+    """Page records written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
     enrichment chain: each pipeline reads the previous one's folder and adds one part. With
-    ``fetch_images`` the image bytes are read again from ``page.image.uri`` (rows never carry them), through
+    ``fetch_images`` the image bytes are read again from ``page.image.uri`` (page records never carry them), through
     datatrove ``DataFolder``s.
 
-    Files are distributed over tasks in turn. With ``item_shards`` the rows were written into item shards
+    Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards
     (``PageJsonlWriter(item_shards=N)``): the shard folders are distributed instead, each read whole, so a task
     sees every page of its items."""
 
@@ -29,7 +29,7 @@ class PageRecordReader(PipelineStep):
         self.uri_map, self.item_shards = uri_map or {}, item_shards
         self._opener = _Opener(http)
 
-    def _rows(self, path: str):
+    def _records(self, path: str):
         import gzip
         import json
 
@@ -64,7 +64,7 @@ class PageRecordReader(PipelineStep):
         else:
             files = files[rank::world_size]
         for path in files:
-            for row in self._rows(path):
+            for row in self._records(path):
                 page = row["page"]
                 media = []
                 uri = (page.get("image") or {}).get("uri")

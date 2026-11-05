@@ -40,7 +40,7 @@
 """A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
 region it finds (``RegionRecognizer``, a region preset). Each task starts vLLM or SGLang for the model itself
 (``ChatModelServer``, last in the pipeline) unless --vlm-endpoint names a running server; with --layout it also
-serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page rows in OUT/rows; the
+serves the layout model (``--backend``, ``--endpoint`` as for any engine model). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
 
     uv run pipelines/transcribe_vlm.py IMAGES OUT --vlm dots-ocr                             # needs `vllm` on PATH
@@ -109,7 +109,7 @@ def pipeline(a, script: str):
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
         servers.append(ChatModelServer(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
                                       outside_venv=sglang or regions))
-    return steps + [run.rows(a)] + servers, {"image": spec.job_image, "engines": regions}
+    return steps + [run.pages(a)] + servers, {"image": spec.job_image, "engines": regions}
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots

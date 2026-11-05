@@ -88,17 +88,17 @@ def test_item_shards_bring_a_books_pages_together(tmp_path):
 
     pages = [new_page_document(f"{b}_{i}", png(), item_id=b) for b in ("a", "b", "c") for i in range(1, 5)]
     for rank in range(4):                                      # pages handed out in turn, as datatrove does
-        with PageJsonlWriter(str(tmp_path / "rows"), item_shards=3) as w:
+        with PageJsonlWriter(str(tmp_path / "pages"), item_shards=3) as w:
             for doc in pages[rank::4]:
                 w.write(doc, rank)
     shards = {item_shard(b, 3) for b in "abc"}
-    assert {p.name for p in (tmp_path / "rows").iterdir()} == shards
+    assert {p.name for p in (tmp_path / "pages").iterdir()} == shards
     seen = {}
     for rank in range(2):
-        for doc in PageRecordReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run(rank=rank,
+        for doc in PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run(rank=rank,
                                                                                                      world_size=2):
             seen.setdefault(page_of(doc).item_id, set()).add(rank)
     assert set(seen) == {"a", "b", "c"} and all(len(ranks) == 1 for ranks in seen.values())
     texts = list(ItemTexts(variants=("verbatim_txt",)).run(
-        PageRecordReader(str(tmp_path / "rows"), fetch_images=False, item_shards=True).run()))
+        PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
     assert sorted((d.id, d.metadata["pages"]) for d in texts) == [("a", 4), ("b", 4), ("c", 4)]

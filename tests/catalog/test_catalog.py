@@ -229,7 +229,7 @@ def test_recipe_stamp_names_the_recipe_on_every_step():
     from linecaster.data import ModelInfo, Transcription
     from linecaster.data.page import Page
 
-    page = Page(page_id="p", item_id="i", transcriptions={"ocr": Transcription(model=[
+    page = Page(page_id="p", item_id="i", transcriptions={"ocr_new": Transcription(model=[
         ModelInfo(step="layout", name="a"), ModelInfo(step="recognition", name="b")])})
     out = RecipeStamper("r@1", "sha256:" + "1" * 64).process_page(None, page)
-    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr"].model} == {("r@1", "sha256:1")}
+    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr_new"].model} == {("r@1", "sha256:1")}

@@ -1,6 +1,6 @@
 """``PageValidator``: a filter with rejects. A row that fails a check is written to ``rejects/<output>/``
 with ``key``, ``field``, ``error`` and ``raw_value`` (``RejectWriter``, so nothing disappears silently) and
-dropped: it validates the page row against ``Page`` and checks that required parts are present.
+dropped: it validates the page record against ``Page`` and checks that required parts are present.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def has_part(page: Page, part: str) -> bool:
 
 
 class PageValidator(PipelineStep):
-    """Drop page rows that do not validate against ``Page`` or lack a ``required`` part, with a reject
+    """Drop page records that do not validate against ``Page`` or lack a ``required`` part, with a reject
     record each (field = the failing location, raw value = the offending input)."""
 
     type = "🔻 - FILTER"

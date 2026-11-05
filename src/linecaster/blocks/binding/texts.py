@@ -1,4 +1,4 @@
-"""``ItemTexts``: page rows -> one text per item and variant (``linecaster.text.variants``).
+"""``ItemTexts``: page records -> one text per item and variant (``linecaster.text.variants``).
 
 Input pages may come in any order but an item's pages must all be in one input file (linecaster's
 run layout buckets files by item). An item is emitted once all its pages have arrived
@@ -25,7 +25,7 @@ class ItemTexts(PipelineStep):
     type = "🔠 - LINECASTER"
     name = "📚 item texts"
 
-    def __init__(self, transcription: str = "ocr", variants: tuple[str, ...] = tuple(VARIANTS),
+    def __init__(self, transcription: str = "ocr_new", variants: tuple[str, ...] = tuple(VARIANTS),
                  token_counter: Callable[[str], int] | None = None, count_key: str = "item_page_count"):
         super().__init__()
         unknown = set(variants) - set(VARIANTS)

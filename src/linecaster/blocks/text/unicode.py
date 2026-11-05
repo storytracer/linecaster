@@ -10,7 +10,7 @@ from ..base.page import PageBlock
 class UnicodeNormalizer(PageBlock):
     name = "unicode normalizer"
 
-    def __init__(self, transcription: str = "ocr", form: str = "NFC"):
+    def __init__(self, transcription: str = "ocr_new", form: str = "NFC"):
         if form not in FORMS:
             raise ValueError(f"form {form!r}; choose {', '.join(FORMS)}")
         self.name = f"unicode normalizer ({form})"

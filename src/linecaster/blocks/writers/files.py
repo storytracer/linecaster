@@ -46,7 +46,7 @@ class PageFileWriter(PipelineStep):
     name = "🗂️ page files"
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
-                 transcription: str = "ocr", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
+                 transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
                  detail: str = "word", dividers: bool = False, text_fallback: bool = True):
         super().__init__()
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)

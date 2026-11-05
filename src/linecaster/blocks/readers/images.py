@@ -6,12 +6,12 @@
   dataset on the Hub (``hf://datasets/<repo>@<revision>/data``), one page per row.
 
 Entries are distributed as datatrove distributes files, so an item's pages can land in different tasks;
-item-level steps run in a later stage over item shards (``linecaster.blocks.writers.shards``). Page rows of an
+item-level steps run in a later stage over item shards (``linecaster.blocks.writers.shards``). Page records of an
 earlier run: ``linecaster.blocks.readers.records``.
 
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
-(in a Parquet image column or a page row) are fetched with pybookget (``linecaster[pybookget]``), politely:
+(in a Parquet image column or a page record) are fetched with pybookget (``linecaster[pybookget]``), politely:
 rate limits per task, retries that honour ``Retry-After``. Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
 """
 from __future__ import annotations

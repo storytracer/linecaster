@@ -1,6 +1,6 @@
 """datatrove behaviour with linecaster blocks, against a running ``linecaster serve`` (squiddle models):
 
-1. depends: pipeline A (layout, lines, line assignment) writes page rows; pipeline B, launched with
+1. depends: pipeline A (layout, lines, line assignment) writes page records; pipeline B, launched with
    ``depends=A``, reads A's rows (images fetched again by URI) and adds recognition.
 2. resume: B runs as 3 tasks; one task's output and completion marker are deleted; re-running the same
    executors recomputes only that task (datatrove's completion markers) and gives the same rows.
@@ -35,7 +35,7 @@ def executors(images: str, out: pathlib.Path, ep: str):
 
 
 def content(text: str) -> list:
-    """Page rows without timings (``ModelInfo.measurements`` differ from run to run)."""
+    """Page records without timings (``ModelInfo.measurements`` differ from run to run)."""
     rows = []
     for line in text.splitlines():
         row = json.loads(line)

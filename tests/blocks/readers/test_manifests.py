@@ -229,11 +229,11 @@ def test_harvest_writes_item_folders_and_rows_that_point_at_the_copies(server, t
     url = publish(server, "a", v3(server["base"], "a", ["a1", "a2"]))
     (tmp_path / "m.txt").write_text(url)
     docs = ManifestReader(paths_file=str(tmp_path / "m.txt"), http=png_format).run()
-    with PageJsonlWriter(str(tmp_path / "rows")) as w:
+    with PageJsonlWriter(str(tmp_path / "pages")) as w:
         for doc in ImageFilesWriter(str(tmp_path / "images")).run(docs):
             w.write(doc, 0)
     assert sorted(p.name for p in (tmp_path / "images" / "a").iterdir()) == ["a_0001.png", "a_0002.png"]
-    rows = [page_of(d) for d in PageRecordReader(str(tmp_path / "rows")).run()]
+    rows = [page_of(d) for d in PageRecordReader(str(tmp_path / "pages")).run()]
     assert rows[0].image.uri == str(tmp_path / "images" / "a" / "a_0001.png")
     assert rows[0].image.extra["source_uri"].endswith("/iiif/a1/full/max/0/default.png")
     assert rows[0].metadata["manifest"]["url"] == url
@@ -269,9 +269,9 @@ def test_run_options(tmp_path):
     assert (t.glob_pattern, t.manifest_key, t.item_key, t.existing_ocr) == ("items.parquet", "url", "id", True)
     assert run.reader(run.check(ap, ap.parse_args(["--manifests", "m.txt.gz", "OUT"]))).paths_file == "m.txt.gz"
     assert r.http == {"iiif_format": "png", "rate_limits": [(5, 1.0), (200, 60.0)]}
-    assert isinstance(run.reader(run.check(ap, ap.parse_args(["--rows", str(tmp_path), "OUT"]))), PageRecordReader)
+    assert isinstance(run.reader(run.check(ap, ap.parse_args(["--pages", str(tmp_path), "OUT"]))), PageRecordReader)
     for argv in (["IMAGES", "--manifests", "m.txt", "OUT"], ["--manifests", "m.txt", "OUT", "--item-from-parent"],
-                 ["--rows", "R", "OUT", "--limit", "3"], ["--manifests", "m.txt", "OUT", "--rate-limit", "5"],
+                 ["--pages", "R", "OUT", "--limit", "3"], ["--manifests", "m.txt", "OUT", "--rate-limit", "5"],
                  ["IMAGES", "OUT", "--existing-ocr"], ["--manifests", "m.txt", "OUT", "--item-key", "id"]):
         with pytest.raises(SystemExit):
             run.check(ap, ap.parse_args(argv))

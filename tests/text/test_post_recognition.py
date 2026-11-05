@@ -136,12 +136,12 @@ def test_blocks_run_and_write_files(tmp_path):
     Image.new("RGB", (1000, 1000), "white").save(buf, format="PNG")
     doc = new_page_document("p1", buf.getvalue())
     page = page_of(doc)
-    page.transcriptions["ocr"] = page_to_compose()
-    set_page(doc, page, "ocr")
+    page.transcriptions["ocr_new"] = page_to_compose()
+    set_page(doc, page, "ocr_new")
     out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                               bucket_by_item=False).run(
         Composer().run(Typographer().run(iter([doc])))))
-    t = page_of(out[0]).transcriptions["ocr"]
+    t = page_of(out[0]).transcriptions["ocr_new"]
     assert t.docling["name"] == "p1" and t.model[-1].step == "typography"
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()

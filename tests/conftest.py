@@ -150,6 +150,6 @@ def page_doc(page_id="p1", item="book1", t: Transcription | None = None, seq=1):
     Image.new("RGB", (1000, 1000), "white").save(buf, format="PNG")
     doc = new_page_document(page_id, buf.getvalue(), uri=f"/scans/{page_id}.png", item_id=item, sequence=seq)
     page = page_of(doc)
-    page.transcriptions["ocr"] = t if t is not None else page_to_compose()
-    set_page(doc, page, "ocr")
+    page.transcriptions["ocr_new"] = t if t is not None else page_to_compose()
+    set_page(doc, page, "ocr_new")
     return doc

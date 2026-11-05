@@ -1,4 +1,4 @@
-"""Page rows (everything but the image bytes, plus id and text) on datatrove's writers: ``PageJsonlWriter``,
+"""Page records (everything but the image bytes, plus id and text) on datatrove's writers: ``PageJsonlWriter``,
 ``PageParquetWriter``, one file per task (``${rank}``) or per item (``${item_id}``)."""
 from __future__ import annotations
 
@@ -10,17 +10,17 @@ from datatrove.pipeline.writers import JsonlWriter, ParquetWriter
 from ...data.page import PAGE_KEY
 
 
-def page_row(self, doc) -> dict:
-    """datatrove adapter: ``id``, ``text`` and the page row; errors recorded on the way are kept."""
+def page_record(self, doc) -> dict:
+    """datatrove adapter: ``id``, ``text`` and the page record; errors recorded on the way are kept."""
     row = {"id": doc.id, "text": doc.text, PAGE_KEY: doc.metadata.get(PAGE_KEY)}
     if doc.metadata.get("errors"):
         row["errors"] = doc.metadata["errors"]
     return row
 
 
-def page_row_json(self, doc) -> dict:
-    """Parquet-friendly: the page row as a JSON string (its nested structure varies between steps)."""
-    row = page_row(self, doc)
+def page_record_json(self, doc) -> dict:
+    """Parquet-friendly: the page record as a JSON string (its nested structure varies between steps)."""
+    row = page_record(self, doc)
     row[PAGE_KEY] = json.dumps(row[PAGE_KEY], ensure_ascii=False)
     if "errors" in row:
         row["errors"] = json.dumps(row["errors"], ensure_ascii=False)
@@ -28,10 +28,10 @@ def page_row_json(self, doc) -> dict:
 
 
 class PageJsonlWriter(JsonlWriter):
-    """Page rows as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
+    """Page records as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
     (``<shard>/${rank}.jsonl.gz``, ``linecaster.blocks.writers.shards``), for a later stage that reads whole items."""
 
-    name = "🐿 page rows (jsonl)"
+    name = "🐿 page records (jsonl)"
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
                  item_shards: int | None = None, **kwargs):
@@ -39,7 +39,7 @@ class PageJsonlWriter(JsonlWriter):
             from .shards import SHARD_KEY
 
             output_filename = f"${{{SHARD_KEY}}}/{output_filename}"
-        super().__init__(output_folder, output_filename, adapter=page_row, **kwargs)
+        super().__init__(output_folder, output_filename, adapter=page_record, **kwargs)
         self.item_shards = item_shards
 
     def write(self, document, rank: int = 0, **kwargs):
@@ -53,7 +53,7 @@ class PageJsonlWriter(JsonlWriter):
 
 
 class PageParquetWriter(ParquetWriter):
-    name = "📒 page rows (parquet)"
+    name = "📒 page records (parquet)"
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.parquet", **kwargs):
-        super().__init__(output_folder, output_filename, adapter=page_row_json, **kwargs)
+        super().__init__(output_folder, output_filename, adapter=page_record_json, **kwargs)

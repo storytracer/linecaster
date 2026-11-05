@@ -1,7 +1,7 @@
 """The base of linecaster's blocks: one page per datatrove ``Document``.
 
 ``doc.id`` is the page id, ``doc.media[0]`` holds the page image's bytes, ``doc.metadata["page"]`` the
-page row (``Page`` as a JSON-compatible dict), and ``doc.text`` the text of the page's primary
+page record (``Page`` as a JSON-compatible dict), and ``doc.text`` the text of the page's primary
 transcription once there is one.
 """
 from __future__ import annotations

@@ -47,7 +47,7 @@ cd linecaster
 
 The quickest start is `launch.py` with a name: a **recipe** (a tested combination of models) or a
 **model** that reads whole pages. It knows which pipeline that needs. For your own combination, fill a
-pipeline's slots yourself, one preset per step. Either way you get a row per page in `out/rows`, and
+pipeline's slots yourself, one preset per step. Either way you get a page record per page in `out/pages`, and
 `--files` adds ALTO, PAGE-XML, hOCR, text and Markdown.
 
 ```bash
@@ -180,7 +180,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
 | a list of images | `IMAGES --paths-file pages.txt` (one image per line, relative to `IMAGES`) |
 | Parquet with an image column (pages) | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
 | items' manifests (IIIF, METS) | `--manifests FOLDER`, `--manifests list.txt` (one link per line), or an item table: `--manifests items.parquet --manifest-key manifest_url [--item-key item_id]` |
-| page rows of an earlier run | `--rows OUT/rows` (images fetched again from their URIs) |
+| page records of an earlier run | `--pages OUT/pages` (images fetched again from their URIs) |
 
 - The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
   or relative to `--image-folder`. Without a page-id column, `--item-key` and `--sequence-key` name pages
@@ -199,7 +199,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   - Each manifest is one item: one reader entry (or one row of an item table), so an item's pages stay in one
     task. Every page with an image becomes `<item>_<0001>`. The item id comes from `--item-key`, else from the
     manifest link's last segment that isn't `manifest`/`mets`; `--item-id-pattern` overrides it.
-  - Each page row keeps the item's and the page's data in `metadata.manifest`: format, link, id, label,
+  - Each page record keeps the item's and the page's data in `metadata.manifest`: format, link, id, label,
     rights, identifiers, descriptive metadata (MODS creators, date, language, …), the page's own id and label.
     An item table's other columns go into each of its pages' metadata.
   - `--existing-ocr` also fetches the library's own OCR the manifest links (METS `FULLTEXT`, IIIF
@@ -212,16 +212,16 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
 - **Harvest, transcribe, bind.** Harvesting first is the usual path, and it keeps the GPUs off the network:
   - `uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url OUT --tasks 16 --workers 4
     --rate-limit 5/1 --existing-ocr` writes `OUT/images/<item>/<page>.<ext>`, `OUT/ocr/…`, the manifests as
-    fetched in `OUT/manifests/`, and page rows;
-  - `uv run pipelines/transcribe_chain.py --rows OUT/rows OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
+    fetched in `OUT/manifests/`, and page records;
+  - `uv run pipelines/transcribe_chain.py --pages OUT/pages OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
     adds the new transcription; `OUT/images --item-from-parent` reads the plain folder instead;
   - `uv run pipelines/bind.py` makes the item texts (below).
   - For small runs, `--manifests` also works directly in the transcribe pipelines.
 - **Item-level outputs** (texts per book, issue or manuscript): with several tasks, an item's pages can land in
   different tasks. Item texts are then a second stage:
-  - the first run writes its page rows into item shards (`--item-shards 64`: `OUT/rows/<shard>/<rank>.jsonl.gz`,
+  - the first run writes its page records into item shards (`--item-shards 64`: `OUT/pages/<shard>/<rank>.jsonl.gz`,
     every item in one shard);
-  - `uv run pipelines/bind.py OUT/rows OUT2` reads whole shards, one or more per task, and writes the texts.
+  - `uv run pipelines/bind.py OUT/pages OUT2` reads whole shards, one or more per task, and writes the texts.
   - `--texts` in the same run needs a single task.
 
 </details>
@@ -326,7 +326,7 @@ MODELS = [
 | 📖 Readable text | reading and training: old letterforms folded, hyphens joined, paragraphs flowed |
 | 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
 | 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
-| 🗂️ Page rows ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
+| 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 
 Files come per page or, for a book, one per version. Word positions need a model that gives them,
 such as a line recogniser.
@@ -439,7 +439,7 @@ These blocks need no model.
 |---|---|
 | `ImageFolderReader` | page images from a folder or bucket |
 | `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
-| `PageRecordReader` | page rows written by an earlier run |
+| `PageRecordReader` | page records written by an earlier run |
 
 **Images and checks**
 
@@ -454,8 +454,8 @@ These blocks need no model.
 | Block | What it does |
 |---|---|
 | `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text and more |
-| `PageJsonlWriter` | page rows as JSON Lines |
-| `PageParquetWriter` | page rows as Parquet |
+| `PageJsonlWriter` | page records as JSON Lines |
+| `PageParquetWriter` | page records as Parquet |
 | `PageExportsWriter` | page documents as Markdown, text, HTML, DocLang, JSON |
 | `ItemDocumentWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
 | `ItemTextJsonlWriter` | book texts as JSON Lines |
@@ -525,8 +525,8 @@ Spelling is never modernised.
 <details>
 <summary><b>🔁 Long runs in stages</b></summary>
 
-- Each stage reads the page rows the last one wrote (`PageRecordReader`), adds one part and writes
-  complete rows again.
+- Each stage reads the page records the last one wrote (`PageRecordReader`), adds one part and writes
+  complete page records again.
 - Originals are never changed.
 - A check step (`PageValidator`, `RejectWriter`) sends failed pages to `rejects/` with the reason.
 - datatrove keeps logs and completion markers in `logs/`, so finished tasks are skipped on a rerun.
@@ -541,7 +541,7 @@ Spelling is never modernised.
 - **The text as written is kept.** Readable versions are derived from it and stored next to it.
 - **The core stays light.** No machine-learning libraries in the core; engines are separate packages
   that a pipeline installs when it needs them.
-- **Connectors stay generic.** Folders, buckets, Hugging Face datasets, and the standards for manifests (IIIF,
+- **Readers stay generic.** Folders, buckets, Hugging Face datasets, and the standards for manifests (IIIF,
   METS/MODS). Adapters for one collection or institution belong in the projects that use Linecaster.
 - **Open formats out.** ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, DoclingDocument.
 

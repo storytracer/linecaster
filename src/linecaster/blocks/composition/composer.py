@@ -24,7 +24,7 @@ class Composer(PageBlock):
     name = "composer"
     REGION_MAP = REGION_MAP_KEY
 
-    def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False, sections: bool = False):
+    def __init__(self, transcription: str = "ocr_new", text: str = "lines", rtl: bool = False, sections: bool = False):
         super().__init__()
         from ...formats.docling import TEXT_MODES
 

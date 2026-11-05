@@ -50,7 +50,7 @@ def page(page_id: str, label: str):
     box = [0.0, 0.0, 10.0, 5.0]
     region = Region(id=f"{page_id}-r", label=label, polygon=[[0, 0], [10, 0], [10, 5], [0, 5]], bbox=box)
     p = page_of(doc)
-    p.transcriptions["ocr"] = Transcription(regions=[region])
+    p.transcriptions["ocr_new"] = Transcription(regions=[region])
     set_page(doc, p)
     return doc
 
@@ -94,7 +94,7 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
         out = {d.id: d for d in step.run(iter([page("with", "table"), page("without", "text"), page("x", "bad")]))}
         assert SEEN == {"with-r": True, "without-r": False, "x-r": False}
         for pid in ("with", "without"):            # both pages carry the step's record, image or not
-            t: Transcription = Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr"]
+            t: Transcription = Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"]
             assert [m.name for m in t.model] == ["fake-tables"] and not out[pid].metadata.get("errors")
         assert out["x"].metadata["errors"][0]["step"] == "tables"     # the malformed answer: this page only
     finally:

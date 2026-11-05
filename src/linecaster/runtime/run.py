@@ -14,7 +14,7 @@ pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Jo
 
 A pipeline passes ``main`` its ``__file__``, its docstring, a function that adds its options, a function
 that returns its engine models from the options (for ``serve``) and a function that builds the pipeline
-(``reader``, ``engines`` and ``rows`` help with the usual parts). The builder may also return
+(``reader``, ``engines`` and ``pages`` help with the usual parts). The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
 the pipeline's engine packages or linecaster alone.
 
@@ -44,8 +44,8 @@ RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
 def parser(description: str | None) -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path: local, s3://, hf://), or "
-                                              "--parquet, --manifests or --rows")
-    ap.add_argument("out", help="output folder (any fsspec path): page rows in OUT/rows, logs in OUT/logs")
+                                              "--parquet, --manifests or --pages")
+    ap.add_argument("out", help="output folder (any fsspec path): page records in OUT/pages, logs in OUT/logs")
     g = ap.add_argument_group("input (datatrove's reader options)")
     g.add_argument("--paths-file", help="IMAGES: a file with one image per line, relative to IMAGES, instead of "
                                         "finding the images (datatrove's paths_file); --manifests FOLDER: one "
@@ -83,15 +83,15 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--prefetch", type=int, default=8, help="--manifests: pages requested ahead")
     g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
                                                         "services (jpg, png, tif, webp; what the server offers)")
-    g.add_argument("--rows", help="page rows of an earlier pipeline instead of IMAGES (e.g. "
-                                  "pipelines/harvest.py's OUT/rows), images fetched from their URIs")
+    g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
+                                   "pipelines/harvest.py's OUT/pages), images fetched from their URIs")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
                    help="http(s) requests (manifests, images, OCR) per task, e.g. 5/1; repeatable, all windows apply")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("output")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
-                   help="write the page rows into N item shards (OUT/rows/<shard>/<rank>.jsonl.gz), so a later "
+                   help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
                         "stage (pipelines/bind.py) reads whole items")
     g = ap.add_argument_group("where it runs")
     g.add_argument("--on", choices=ON, default="local")
@@ -135,10 +135,10 @@ def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
 
 
 def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
-    inputs = [x for x in ("images", "parquet", "manifests", "rows") if getattr(a, x, None)]
+    inputs = [x for x in ("images", "parquet", "manifests", "pages") if getattr(a, x, None)]
     if len(inputs) != 1:
-        ap.error("give one of IMAGES, --parquet, --manifests and --rows")
-    if (a.parquet or a.rows) and (a.paths_file or a.item_from_parent):
+        ap.error("give one of IMAGES, --parquet, --manifests and --pages")
+    if (a.parquet or a.pages) and (a.paths_file or a.item_from_parent):
         ap.error("--paths-file and --item-from-parent are for IMAGES and --manifests; --parquet names items "
                  "with --item-key")
     if a.manifests and a.item_from_parent:
@@ -147,8 +147,8 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--manifest-key, --manifest-format and --existing-ocr are for --manifests")
     if a.manifests and a.item_key and not a.manifest_key:
         ap.error("--manifests: --item-key names a column of item tables, so it needs --manifest-key")
-    if a.rows and (a.limit != -1 or a.skip or a.glob_pattern):
-        ap.error("--rows reads whole row files; --limit, --skip and --glob-pattern are for the other inputs")
+    if a.pages and (a.limit != -1 or a.skip or a.glob_pattern):
+        ap.error("--pages reads whole files of page records; --limit, --skip and --glob-pattern are for the other inputs")
     try:
         a.rate_limits = rate_limits(a.rate_limit)
     except ValueError as e:
@@ -193,8 +193,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, prefetch=a.prefetch,
                               http=http(a))
-    if getattr(a, "rows", None):
-        return PageRecordReader(a.rows, http=http(a))
+    if getattr(a, "pages", None):
+        return PageRecordReader(a.pages, http=http(a))
     if a.parquet:
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
@@ -259,10 +259,10 @@ def preset_models(models: list[dict]) -> list[dict]:
     return out
 
 
-def rows(a: argparse.Namespace):
+def pages(a: argparse.Namespace):
     from ..blocks.writers.records import PageJsonlWriter
 
-    return PageJsonlWriter(f"{a.out.rstrip('/')}/rows", output_filename="${rank}.jsonl.gz",
+    return PageJsonlWriter(f"{a.out.rstrip('/')}/pages", output_filename="${rank}.jsonl.gz",
                            item_shards=getattr(a, "item_shards", None))
 
 

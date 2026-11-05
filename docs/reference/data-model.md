@@ -1,6 +1,6 @@
 # The data model
 
-`linecaster.data` holds what a page's text recognition produces; `linecaster.data.page` the row it
+`linecaster.data` holds what a page's text recognition produces; `linecaster.data.page` the page record it
 travels in. Importing either needs neither datatrove nor saturate nor an engine.
 
 ## Classes
@@ -8,7 +8,7 @@ travels in. Importing either needs neither datatrove nor saturate nor an engine.
 | Class | Is | Key |
 |---|---|---|
 | `Item` | any multi-page unit: book, issue, manuscript, file | `item_id` |
-| `Page` | one row: the page image and its named transcriptions | `page_id` = `item_id` + sequence |
+| `Page` | one page record: the page image and its named transcriptions | `page_id` = `item_id` + sequence |
 | `PageImage` | the image's location, size, format and hashes | |
 | `Transcription` | OCR, HTR or ground truth of one page | |
 | `Text` | one text per item and variant (`linecaster.text.variants`) | |
@@ -16,7 +16,7 @@ travels in. Importing either needs neither datatrove nor saturate nor an engine.
 ## A page in a pipeline
 
 A page is one datatrove `Document`: `id` is the page id, `text` the primary transcription's text, `media[0]`
-the image bytes, `metadata["page"]` the page row.
+the image bytes, `metadata["page"]` the page record.
 
 ## `Transcription`
 
@@ -83,4 +83,4 @@ The retyper edits regions and lines in place:
 - **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
   `n`-th page (by sequence, then page id). In reflow mode paragraphs continue across page breaks; sections are
   optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for Markdown
-  dividers. A task must see whole items; the run layout buckets page rows by item.
+  dividers. A task must see whole items; the run layout buckets page records by item.

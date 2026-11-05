@@ -33,7 +33,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
     names = sorted(p.name for p in folder.iterdir())
     assert names == sorted(["p1.hocr", "p1.alto.xml", "p1.page.xml", "p1.txt", "p1.md", "p1.json",
                             "p1.transcription.json"])
-    t = page_of(out[0]).transcriptions["ocr"]
+    t = page_of(out[0]).transcriptions["ocr_new"]
     for name, reader in (("p1.hocr", from_hocr), ("p1.alto.xml", from_alto), ("p1.page.xml", from_page)):
         assert [ln.text for ln in reader((folder / name).read_bytes()).ordered_lines()] == \
             [ln.text for ln in t.ordered_lines()]
@@ -51,7 +51,7 @@ def test_page_files_flat_are_the_document_exports(tmp_path: Path):
     docs = list(Composer().run(Typographer().run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                         bucket_by_item=False).run(iter(docs)))
-    t = page_of(docs[0]).transcriptions["ocr"]
+    t = page_of(docs[0]).transcriptions["ocr_new"]
     for fmt in ("md", "txt", "json"):
         expected = export(t.docling if fmt == "json" else load_docling(t), fmt, True).encode("utf-8")
         assert (tmp_path / f"p1.x.{EXPORT_FORMATS[fmt]}").read_bytes() == expected, fmt

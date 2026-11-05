@@ -57,7 +57,7 @@ resolved).
 Model, preset and recipe documents are Markdown with YAML front matter: the front matter is data, validated
 strictly by `linecaster.catalog.schema` (unknown keys are errors); the body is prose for people (why these
 settings, limitations, changes). Evidence, the lock and run records are plain YAML. Every document starts with
-`schema: linecaster.<type>/<n>`. Bulk data (page rows, exports) is JSON Lines or Parquet, not catalogue data.
+`schema: linecaster.<type>/<n>`. Bulk data (page records, exports) is JSON Lines or Parquet, not catalogue data.
 
 YAML has 1.2 semantics: only `true` / `false` are booleans (`NO` stays Norwegian), read and written with
 `linecaster.catalog.yamlio`. Values that look like numbers or versions are quoted (`"1.0"`). JSON Schemas for
