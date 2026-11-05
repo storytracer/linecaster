@@ -12,7 +12,7 @@ item-level steps run in a later stage over item shards (``linecaster.blocks.shar
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
 (in a Parquet image column or a page row) are fetched with pybookget (``linecaster[pybookget]``), politely:
-rate limits per task, retries that honour ``Retry-After``. IIIF manifests: ``linecaster.blocks.iiif``.
+rate limits per task, retries that honour ``Retry-After``. Manifests (IIIF, METS): ``linecaster.blocks.manifests``.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _stem(path: str) -> str:
 class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
     ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honour
-    ``Retry-After``; ``http`` sets its ``Config`` fields, ``linecaster.blocks.iiif.HTTPFetcher``)."""
+    ``Retry-After``; ``http`` sets its ``Config`` fields, ``linecaster.blocks.http.HTTPFetcher``)."""
 
     def __init__(self, http: dict | None = None):
         self._folders: dict = {}
@@ -48,7 +48,7 @@ class _Opener:
     def read(self, uri: str) -> bytes:
         if uri.startswith(("http://", "https://")):
             if self._fetcher is None:
-                from .iiif import HTTPFetcher
+                from .http import HTTPFetcher
 
                 self._fetcher = HTTPFetcher(**self.http)
             return self._fetcher.get(uri).content
@@ -144,7 +144,8 @@ class ImageParquetReader(ParquetReader):
     distributed over tasks in turn, so a file should hold whole items). ``image_key`` holds the image as Hugging
     Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as plain
     bytes, or as a path: absolute (any fsspec URI) or relative to ``image_folder`` (default ``data_folder``).
-    ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the item and the page's position in it. With
+    ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the item and the page's position in it (a table
+    without the ``id_key`` column names pages ``<item>_<0001>`` from those two). With
     ``read_metadata`` the other columns go into the page's metadata (datatrove's default adapter keeps them too);
     without it only the named columns are read. ``http``: pybookget ``Config`` fields for ``http(s)://`` paths."""
 
@@ -180,15 +181,20 @@ class ImageParquetReader(ParquetReader):
     def read_file(self, filepath: str):
         import pyarrow.parquet as pq
 
-        keys = [k for k in (self.id_key, self.image_key, self.item_key, self.sequence_key) if k]
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
+            derive = self.id_key not in pqf.schema_arrow.names
+            if derive and not (self.item_key and self.sequence_key):
+                raise ValueError(f"{filepath}: no page id column {self.id_key!r}; give id_key, or item_key and "
+                                 "sequence_key to name pages <item>_<0001>")
+            keys = [k for k in (None if derive else self.id_key, self.image_key, self.item_key, self.sequence_key)
+                    if k]
             for batch in pqf.iter_batches(batch_size=self.batch_size, columns=None if self.read_metadata else keys):
                 for row in batch.to_pylist():
                     with self.track_time():
-                        page_id = str(row.pop(self.id_key))
-                        data, uri = self._image(row.pop(self.image_key), filepath, page_id)
                         item = row.pop(self.item_key) if self.item_key else None
                         sequence = row.pop(self.sequence_key) if self.sequence_key else None
+                        page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
+                        data, uri = self._image(row.pop(self.image_key), filepath, page_id)
                         metadata = {**(self.default_metadata or {}),
                                     **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
                         doc = new_page_document(page_id, data, uri=uri, item_id=None if item is None else str(item),

@@ -27,10 +27,11 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   after the one dependency it brings; no umbrella or alias extras.
 - **I/O through datatrove.** One datatrove `Document` per page; datatrove's readers, writers,
   `DataFolder` (fsspec) and executors for everything. linecaster only adds what datatrove lacks.
-- **Generic connectors only.** Folders, buckets, HF datasets, and IIIF (a standard:
-  `blocks/iiif.py`, through storytracer/pybookget, extra `[pybookget]`, also for `http(s)://`
-  image URLs). Corpus or institution adapters (BHL, GRIN, Europeana, e-rara, METS) belong in
-  derivatives (pybookget's own handlers stay in pybookget).
+- **Generic connectors only.** Folders, buckets, HF datasets, and the standards for items' manifests
+  (IIIF Presentation, METS/MODS, also via OAI-PMH): `blocks/manifests.py`, parsed by
+  storytracer/pybookget (`read_manifest`), extra `[pybookget]`, which also fetches `http(s)://`
+  images (`blocks/http.py`). A manifest lists an item's pages and their files. Corpus or institution
+  adapters (BHL, GRIN, Europeana, e-rara) belong in derivatives (pybookget's own handlers stay there).
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
@@ -135,9 +136,11 @@ with one more part filled in (`PageJsonlWriter`, `PageParquetWriter`); files are
 batch on one executor; resume is datatrove's, per task, so tasks stay small. Readers follow datatrove's
 conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or
 Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files), `ImageParquetReader` (an image
-column: bytes, HF image struct or path), `IIIFManifestReader` (a manifest is an entry like a file, so an item stays
-in one task; images fetched ahead with pybookget, rate limits per task; `pipelines/harvest.py` downloads them once
-into item folders plus page rows, `--rows` reads those). An item's pages can land in different tasks; item-level steps are a
+column: bytes, HF image struct or path), `ManifestReader` (IIIF or METS; a manifest, or a row of a Parquet item
+table, is an entry like a file, so an item stays in one task; pages fetched ahead with pybookget, rate limits per
+task; `existing_ocr` keeps a library's OCR as `ocr_original`). The usual sequence is harvest → transcribe → bind:
+`pipelines/harvest.py` downloads images (OCR, manifests) once into item folders plus page rows, the transcribe
+pipelines read those with `--rows`, `pipelines/bind.py` makes item texts. An item's pages can land in different tasks; item-level steps are a
 second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/bind.py` reads
 whole shards), as datatrove's own multi-stage pipelines read per-bucket folders. Each task starts its own
 servers.

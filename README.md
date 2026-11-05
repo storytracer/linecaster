@@ -178,33 +178,45 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
 |---|---|
 | a folder of images | `IMAGES` (`--glob-pattern` to choose files; `--item-from-parent`: the subfolder is the book) |
 | a list of images | `IMAGES --paths-file pages.txt` (one image per line, relative to `IMAGES`) |
-| Parquet with an image column | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
-| IIIF manifests | `--manifests manifests.txt` (manifest URLs, or paths relative to the list) or `--manifests FOLDER` (manifest files) |
+| Parquet with an image column (pages) | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
+| items' manifests (IIIF, METS) | `--manifests FOLDER`, `--manifests list.txt` (one link per line), or an item table: `--manifests items.parquet --manifest-key manifest_url [--item-key item_id]` |
 | page rows of an earlier run | `--rows OUT/rows` (images fetched again from their URIs) |
 
 - The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
-  or relative to `--image-folder`.
+  or relative to `--image-folder`. Without a page-id column, `--item-key` and `--sequence-key` name pages
+  `<item>_<0001>`.
 - A Hub image dataset is just Parquet: `--parquet hf://datasets/<repo>@<revision>/data`.
 - A public bucket needs no credentials with `FSSPEC_S3_ANON=true`.
-- **IIIF** (Presentation API 2 and 3; the `pybookget` extra, which brings
-  [pybookget](https://github.com/storytracer/pybookget)):
-  - Each manifest is one item and one reader entry, so an item's pages stay in one task.
-  - Every canvas becomes a page, `<item>_<0001>`. The item id is the manifest URL's last segment that isn't
-    `manifest`; `--item-id-pattern` overrides it.
-  - Images come through the image service at full size (`--iiif-format`), falling back to the image's own URL
-    on a 404.
-  - Each page row keeps the manifest, its label and rights, and the canvas in `metadata.iiif`.
-- **http(s):// image URLs** (IIIF, or paths in a Parquet column) go through pybookget:
+- **Manifests** (the `pybookget` extra, which brings [pybookget](https://github.com/storytracer/pybookget)):
+  a manifest lists an item's pages and their files, in order. Two formats are read, told apart by their
+  content (or `--manifest-format`):
+  - **IIIF Presentation 2 and 3**: images at full size through the image service (`--iiif-format`), the
+    image's own URL after a 404.
+  - **METS with MODS**, also inside an OAI-PMH `GetRecord` response (the DFG viewer's profile; Kitodo, Goobi,
+    Visual Library): pages from the physical structure map in `ORDER`, images from the first file group of
+    `MAX`, `ORIGINAL`, `MASTER`, `DEFAULT` (the next one after a 404). Relative file links are read next to the
+    METS file, so a package with local files works too.
+  - Each manifest is one item: one reader entry (or one row of an item table), so an item's pages stay in one
+    task. Every page with an image becomes `<item>_<0001>`. The item id comes from `--item-key`, else from the
+    manifest link's last segment that isn't `manifest`/`mets`; `--item-id-pattern` overrides it.
+  - Each page row keeps the item's and the page's data in `metadata.manifest`: format, link, id, label,
+    rights, identifiers, descriptive metadata (MODS creators, date, language, …), the page's own id and label.
+    An item table's other columns go into each of its pages' metadata.
+  - `--existing-ocr` also fetches the library's own OCR the manifest links (METS `FULLTEXT`, IIIF
+    `seeAlso`/`rendering`; ALTO or hOCR) and keeps it as the transcription `ocr_original`, next to the new one.
+- **http(s):// image URLs** (manifests, or paths in a Parquet column) go through pybookget:
   - retries that honour `Retry-After`, and an honest user agent;
   - the environment's proxy settings (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `NO_PROXY`), as everywhere
     else in Linecaster;
   - `--rate-limit 5/1` (repeatable) per task, so the server sees up to `--workers` times that.
-- **Harvest first** for large collections or slow servers. Then no GPU waits on the network, and a failed
-  recognition task doesn't download again:
-  - `uv run pipelines/harvest.py --manifests manifests.txt OUT --tasks 16 --workers 4 --rate-limit 5/1`
-    writes `OUT/images/<item>/<page>.<ext>` and page rows;
-  - `pipelines/transcribe_chain.py --rows OUT/rows OUT2 ...` keeps the IIIF metadata, or `OUT/images --item-from-parent`
-    reads the plain folder.
+- **Harvest, transcribe, bind.** Harvesting first is the usual path, and it keeps the GPUs off the network:
+  - `uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url OUT --tasks 16 --workers 4
+    --rate-limit 5/1 --existing-ocr` writes `OUT/images/<item>/<page>.<ext>`, `OUT/ocr/…`, the manifests as
+    fetched in `OUT/manifests/`, and page rows;
+  - `uv run pipelines/transcribe_chain.py --rows OUT/rows OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
+    adds the new transcription; `OUT/images --item-from-parent` reads the plain folder instead;
+  - `uv run pipelines/bind.py` makes the item texts (below).
+  - For small runs, `--manifests` also works directly in the transcribe pipelines.
 - **Item-level outputs** (texts per book, issue or manuscript): with several tasks, an item's pages can land in
   different tasks. Item texts are then a second stage:
   - the first run writes its page rows into item shards (`--item-shards 64`: `OUT/rows/<shard>/<rank>.jsonl.gz`,
@@ -529,8 +541,8 @@ Spelling is never modernised.
 - **The text as written is kept.** Readable versions are derived from it and stored next to it.
 - **The core stays light.** No machine-learning libraries in the core; engines are separate packages
   that a pipeline installs when it needs them.
-- **Connectors stay generic.** Folders, buckets, Hugging Face datasets and IIIF, which is a standard.
-  Adapters for one collection or institution belong in the projects that use Linecaster.
+- **Connectors stay generic.** Folders, buckets, Hugging Face datasets, and the standards for manifests (IIIF,
+  METS/MODS). Adapters for one collection or institution belong in the projects that use Linecaster.
 - **Open formats out.** ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, DoclingDocument.
 
 </details>

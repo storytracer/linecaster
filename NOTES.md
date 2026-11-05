@@ -852,16 +852,23 @@ CER reading, linecaster vs board:
 - Not ported: indra-ocr (in-process ONNX package, not a server), OXR-1.0 and Falcon-OCR (vendor parse
   APIs, not chat completions).
 
-## IIIF through pybookget (2026-11-04, spark)
+## Manifests through pybookget: IIIF (2026-11-04) and METS (2026-11-05), spark
 
-`IIIFManifestReader` and `pipelines/harvest.py` checked against public servers with linecaster's user agent,
-2 requests per second:
+`ManifestReader` (before 2026-11-05 `IIIFManifestReader`) and `pipelines/harvest.py` checked against public
+servers with linecaster's user agent, 2 requests per second, 3 pages per item:
 
 - Wellcome Collection (`presentation/v3/b18035723`): a Presentation 3 manifest whose image service is Image
-  API 2, so the request is `full/full` (not `max`); 36 canvases; harvest of 3 pages, then the squiddle recipe
-  on `--rows` (rows keep `metadata.iiif`, `image.extra.source_uri`).
+  API 2, so the request is `full/full` (not `max`); 36 canvases. Its canvases link ALTO (`seeAlso`), read as
+  `ocr_original` (35 and 5 lines; none on the cover). Canvas files skip a number (`_0001`, `_0003`, `_0004`):
+  pages count canvases, and each page's image and ALTO come from the same canvas. On 2026-11-04 a harvest of 3
+  pages, then the squiddle recipe on `--rows`.
 - Bodleian (a Presentation 2 manifest, 84 canvases): first image fetched at full size; the manifest has no
   `license`, so `rights` is empty.
+- Heidelberg University Library (`diglitData/mets/cpg389.xml`, a manuscript, 694 pages): METS with `MAX`,
+  `DEFAULT`, `DEFAULTPLUS`, `MIN`, `THUMBS`, `INTROIMAGE` groups; `MAX` taken; page labels from the METS
+  ("Vorderdeckel", "Vorderspiegel 1"); no `FULLTEXT`. Title and rights (Public Domain Mark) from MODS.
+- SLUB Dresden (OAI-PMH `GetRecord`, `metadataPrefix=mets`, a print of 472 pages): `ORIGINAL` taken, the
+  full-size JPEGs (2848 × 4288); no `FULLTEXT` in this record.
 
 Open: the per-task rate limit is the only limit (datatrove keeps no state between tasks); a run against one
 server sets `--workers` × `--rate-limit` to what that server accepts.

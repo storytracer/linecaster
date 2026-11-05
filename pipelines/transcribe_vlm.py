@@ -3,7 +3,7 @@
 # dependencies = [
 #     # Ray for --on ray (HF Jobs leave it out)
 #     "linecaster[ray,pybookget]",
-#     # IIIF manifests and http(s) images (--manifests); direct, so its source applies
+#     # manifests (IIIF, METS) and http(s) images (--manifests); direct, so its source applies
 #     "pybookget",
 #     "linecaster-paddlex",
 #     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)

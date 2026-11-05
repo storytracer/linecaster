@@ -52,30 +52,41 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                         "manifest per line")
     g.add_argument("--glob-pattern", default=None, help="IMAGES: the image files to read (default every image "
                                                         "file); --parquet: the Parquet files (default **/*.parquet); "
-                                                        "--manifests: the manifest files (default **/*.json)")
+                                                        "--manifests: the manifest files (default **/*.{json,xml}) or "
+                                                        "item tables (default **/*.parquet)")
     g.add_argument("--item-from-parent", action="store_true",
                    help="IMAGES: the parent folder is the item (item id)")
     g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES, e.g. a Hub dataset: "
                                      "hf://datasets/<repo>@<revision>/data")
-    g.add_argument("--id-key", default="id", help="--parquet: the page id column")
+    g.add_argument("--id-key", default="id", help="--parquet: the page id column (without it: <item>_<0001> from "
+                                                   "--item-key and --sequence-key)")
     g.add_argument("--image-key", default="image", help="--parquet: the image column (bytes, an HF image struct, "
                                                         "or a path)")
-    g.add_argument("--item-key", default=None, help="--parquet: the item id column")
+    g.add_argument("--item-key", default=None, help="--parquet, --manifests with --manifest-key: the item id column")
     g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its item")
     g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
-    g.add_argument("--manifests", help="IIIF manifests instead of IMAGES (linecaster[pybookget]): a folder of "
-                                       "manifest files (--glob-pattern, default **/*.json), or a .txt file listing "
-                                       "manifests, one per line: URLs, or paths relative to the file's folder")
+    g.add_argument("--manifests", help="items' manifests (IIIF or METS; linecaster[pybookget]) instead of IMAGES: a "
+                                       "folder of manifest files, a .txt/.txt.gz list (one per line: a URL, or a "
+                                       "path relative to the list's folder), or with --manifest-key item tables "
+                                       "(a folder of Parquet files or one .parquet file)")
+    g.add_argument("--manifest-key", default=None,
+                   help="--manifests: the item tables' column with each item's manifest link (other columns go into "
+                        "its pages' metadata)")
+    g.add_argument("--manifest-format", choices=["iiif", "mets"], default=None,
+                   help="--manifests: the manifests' format (default: told apart by content)")
+    g.add_argument("--existing-ocr", action="store_true",
+                   help="--manifests: also the library's own OCR the manifest links (ALTO, hOCR), as the "
+                        "transcription ocr_original")
     g.add_argument("--item-id-pattern", default=None,
                    help="--manifests: a regular expression whose first group is the item id in each manifest "
                         "entry (default: its last path segment that is not 'manifest')")
-    g.add_argument("--prefetch", type=int, default=8, help="--manifests: images requested ahead")
+    g.add_argument("--prefetch", type=int, default=8, help="--manifests: pages requested ahead")
     g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
                                                         "services (jpg, png, tif, webp; what the server offers)")
     g.add_argument("--rows", help="page rows of an earlier pipeline instead of IMAGES (e.g. "
                                   "pipelines/harvest.py's OUT/rows), images fetched from their URIs")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
-                   help="http(s) requests (IIIF, image URLs) per task, e.g. 5/1; repeatable, all windows apply")
+                   help="http(s) requests (manifests, images, OCR) per task, e.g. 5/1; repeatable, all windows apply")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("output")
@@ -132,6 +143,10 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
                  "with --item-key")
     if a.manifests and a.item_from_parent:
         ap.error("--manifests: each manifest is an item (--item-id-pattern names it)")
+    if not a.manifests and (a.manifest_key or a.manifest_format or a.existing_ocr):
+        ap.error("--manifest-key, --manifest-format and --existing-ocr are for --manifests")
+    if a.manifests and a.item_key and not a.manifest_key:
+        ap.error("--manifests: --item-key names a column of item tables, so it needs --manifest-key")
     if a.rows and (a.limit != -1 or a.skip or a.glob_pattern):
         ap.error("--rows reads whole row files; --limit, --skip and --glob-pattern are for the other inputs")
     try:
@@ -151,25 +166,32 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
 
 
 def http(a: argparse.Namespace) -> dict:
-    """pybookget ``Config`` fields from the options (``linecaster.blocks.iiif.HTTPFetcher``)."""
+    """pybookget ``Config`` fields from the options (``linecaster.blocks.http.HTTPFetcher``)."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "rate_limits", None):
         out["rate_limits"] = a.rate_limits
     return out
 
 
-def reader(a: argparse.Namespace):
+def reader(a: argparse.Namespace, manifest_folder: str | None = None):
+    """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
+    reads (``pipelines/harvest.py``)."""
     from .blocks.readers import IMAGE_GLOB, ImageFolderReader, ImageParquetReader, PageRowReader
 
     if getattr(a, "manifests", None):
-        from .blocks.iiif import IIIFManifestReader
+        from .blocks.manifests import ManifestReader
 
-        folder, paths_file = a.manifests, a.paths_file
-        if a.manifests.endswith(".txt"):
-            folder, paths_file = (a.manifests.rsplit("/", 1)[0] if "/" in a.manifests else "."), a.manifests
-        return IIIFManifestReader(folder, paths_file=paths_file, glob_pattern=a.glob_pattern or "**/*.json",
-                                  limit=a.limit, skip=a.skip, item_id_pattern=a.item_id_pattern,
-                                  prefetch=a.prefetch, http=http(a))
+        src, folder, paths_file, glob = a.manifests, a.manifests, a.paths_file, a.glob_pattern
+        parent, _, name = src.rpartition("/")
+        if src.endswith((".txt", ".txt.gz")):
+            folder, paths_file = parent or ".", src
+        elif a.manifest_key and src.endswith(".parquet"):
+            folder, glob = parent or ".", name
+        return ManifestReader(folder, paths_file=paths_file, glob_pattern=glob, limit=a.limit, skip=a.skip,
+                              manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
+                              manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
+                              existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, prefetch=a.prefetch,
+                              http=http(a))
     if getattr(a, "rows", None):
         return PageRowReader(a.rows, http=http(a))
     if a.parquet:
