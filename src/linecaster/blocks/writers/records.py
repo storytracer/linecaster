@@ -7,13 +7,14 @@ import json
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.writers import JsonlWriter, ParquetWriter
 
-from ...data.page import PAGE_KEY
+from ...data.page import PAGE_KEY, PAGE_SCHEMA
 from ..base.contract import Contracted
 
 
 def page_record(self, doc) -> dict:
-    """datatrove adapter: ``id``, ``text`` and the page record; errors recorded on the way are kept."""
-    row = {"id": doc.id, "text": doc.text, PAGE_KEY: doc.metadata.get(PAGE_KEY)}
+    """datatrove adapter: the format (``schema``), ``id``, ``text`` and the page record; errors recorded on the way
+    are kept."""
+    row = {"schema": PAGE_SCHEMA, "id": doc.id, "text": doc.text, PAGE_KEY: doc.metadata.get(PAGE_KEY)}
     if doc.metadata.get("errors"):
         row["errors"] = doc.metadata["errors"]
     return row

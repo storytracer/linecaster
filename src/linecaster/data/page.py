@@ -7,7 +7,8 @@ page's sequence unless the source has its own stable page ids.
 
 In a datatrove pipeline a page travels as one ``Document``: ``id`` = ``page_id``, ``text`` = the text
 of the page's primary transcription, the image bytes in ``media[0]``, and the page record (everything
-but the image bytes) under ``metadata["page"]``.
+but the image bytes) under ``metadata["page"]``. Stored (``PageJsonlWriter``, ``PageParquetWriter``), a page record
+is a row ``{"schema": PAGE_SCHEMA, "id", "text", "page", "errors"?}``.
 """
 from __future__ import annotations
 
@@ -19,6 +20,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from .transcription import Transcription
 
 PAGE_KEY = "page"
+#: the format of a stored page record (its row's ``schema``); rows without one were written before phase 1
+PAGE_SCHEMA = "linecaster.page/1"
 
 
 class PageImage(BaseModel):

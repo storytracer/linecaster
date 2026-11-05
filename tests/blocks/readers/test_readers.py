@@ -103,3 +103,49 @@ def test_item_shards_bring_an_items_pages_together(tmp_path):
     texts = list(ItemTexts(variants=("verbatim_txt",)).run(
         PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
     assert sorted((d.id, d.metadata["pages"]) for d in texts) == [("a", 4), ("b", 4), ("c", 4)]
+
+
+OLD_RECORD = Path(__file__).with_name("records-before-phase-1.jsonl")
+
+
+def test_page_records_carry_their_format(tmp_path):
+    import gzip
+    import json
+
+    from linecaster.blocks.writers.records import PageJsonlWriter, PageParquetWriter
+    from linecaster.data.page import PAGE_SCHEMA
+
+    doc = new_page_document("b_0001", png(), uri="b_0001.png", item_id="b")
+    with PageJsonlWriter(str(tmp_path / "jsonl")) as w:
+        w.write(doc, 0)
+    (row,) = [json.loads(x) for x in gzip.open(tmp_path / "jsonl" / "00000.jsonl.gz", "rt")]
+    assert PAGE_SCHEMA == "linecaster.page/1" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
+    with PageParquetWriter(str(tmp_path / "parquet")) as w:
+        w.write(doc, 0)
+    for folder in ("jsonl", "parquet"):
+        glob = "**/*.parquet" if folder == "parquet" else "**/*.jsonl*"
+        (back,) = PageRecordReader(str(tmp_path / folder), glob_pattern=glob, fetch_images=False).run()
+        assert page_of(back).page_id == "b_0001"
+
+
+def test_page_records_from_before_phase_1(tmp_path):
+    """A record without ``schema`` is the format before phase 1: linecaster's transcription was ``ocr`` (now
+    ``ocr_new``), and the run folder kept the records in ``rows/`` (now ``pages/``)."""
+    import json
+    import shutil
+
+    from linecaster.blocks.readers.records import upgrade
+
+    old = json.loads(OLD_RECORD.read_text())
+    assert "schema" not in old and list(old["page"]["transcriptions"]) == ["ocr"]
+    (tmp_path / "OUT" / "rows").mkdir(parents=True)
+    shutil.copy(OLD_RECORD, tmp_path / "OUT" / "rows" / "00000.jsonl")
+    (doc,) = PageRecordReader(str(tmp_path / "OUT" / "pages"), fetch_images=False).run()   # pages/: rows/ is read
+    page = page_of(doc)
+    assert list(page.transcriptions) == ["ocr_new"] and doc.text == "Die Untersuchung"
+    t = page.transcriptions["ocr_new"]
+    assert [w.text for w in t.lines[0].words] == ["Die", "Untersuchung"] and t.model[0].preset == "kraken-ppocrv6-medium@1"
+    (same,) = PageRecordReader(str(tmp_path / "OUT" / "rows"), fetch_images=False).run()     # or named directly
+    assert page_of(same) == page
+    with pytest.raises(PipelineConfigError, match="unknown format 'linecaster.page/9'"):
+        upgrade({"schema": "linecaster.page/9", "id": "x", "page": {}})
