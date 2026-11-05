@@ -112,6 +112,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--new-pipeline", action="store_true",
                    help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
                         "without it such a run is refused")
+    g.add_argument("--trace-sample", type=float, default=None, metavar="SHARE",
+                   help="the share of pages traced, chosen by page id (default 0.01; 0: only failed pages and the "
+                        "task spans, 1: every page); traces go to OUT/traces and, with the OTEL_* variables, to an "
+                        "OTLP endpoint")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
                    help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
                         "stage (pipelines/bind.py) reads whole items")
@@ -416,7 +420,8 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          until=getattr(a, "until", None), after=getattr(a, "after", None),
                          taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
-                         max_page_errors=getattr(a, "max_page_errors", None))
+                         max_page_errors=getattr(a, "max_page_errors", None),
+                         trace_sample=getattr(a, "trace_sample", None))
 
 
 def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None):

@@ -5,7 +5,11 @@ so each record carries them (``record["extra"]``) and logs can be filtered by th
 
 On HF Jobs (``LINECASTER_LOG_JSON=1``, which the pipeline scripts set for their Jobs) the records are JSON lines
 (loguru's ``serialize=True``): on the Job's stderr and in the task's log file, where datatrove writes its own.
-``linecaster serve`` started in such a task inherits the variable and logs the same way."""
+``linecaster serve`` started in such a task inherits the variable and logs the same way.
+
+Log records carry ``trace_id`` and ``span_id`` (in ``extra``, hex) while a task is traced (``install_trace_ids``, by
+``linecaster.tracing.Tracing``): the page the record names (``page_id``), else the span of the per-unit block
+running in the thread, else the task's span; in ``linecaster serve`` the span of the request the thread works on."""
 from __future__ import annotations
 
 import os
@@ -41,3 +45,39 @@ def add_task_logger(logging_dir, rank: int, local_rank: int = 0, node_rank: int 
     logger.add(logfile, level="DEBUG", serialize=True)
     logger.info("Launching pipeline for rank={rank}", rank=rank, node_rank=node_rank)
     return logfile
+
+
+#: the tracing observers of the tasks running in this process (datatrove runs a process's tasks one after another)
+_SOURCES: list = []
+_INSTALLED = [False]
+
+
+def _trace_ids(record) -> None:
+    ids = None
+    for source in reversed(_SOURCES):
+        ids = source.log_ids(record)
+        if ids:
+            break
+    if not ids:
+        from opentelemetry import trace
+
+        ctx = trace.get_current_span().get_span_context()
+        ids = (ctx.trace_id, ctx.span_id) if ctx.is_valid else None
+    if ids:
+        record["extra"]["trace_id"], record["extra"]["span_id"] = f"{ids[0]:032x}", f"{ids[1]:016x}"
+
+
+def install_trace_ids(source=None) -> None:
+    """Put ``trace_id`` and ``span_id`` on every log record (a loguru patcher, installed once per process);
+    ``source`` (a ``Tracing`` observer, for its task) says which span a record belongs to."""
+    if source is not None and source not in _SOURCES:
+        _SOURCES.append(source)
+    if not _INSTALLED[0]:
+        logger.configure(patcher=_trace_ids)
+        _INSTALLED[0] = True
+
+
+def remove_trace_ids(source) -> None:
+    """The task of ``source`` is over: its spans are no longer looked up."""
+    if source in _SOURCES:
+        _SOURCES.remove(source)

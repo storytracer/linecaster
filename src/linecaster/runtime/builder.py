@@ -597,17 +597,36 @@ def _describe_block(e: _Entry, node: Node) -> dict:
 
 def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
-          observers: list[Observer] | None = None, max_page_errors: float | None = None) -> Plan:
+          observers: list[Observer] | None = None, max_page_errors: float | None = None,
+          trace_sample: float | None = None) -> Plan:
     """The plan for ``blocks`` (blocks and composites, in order) run as ``tasks`` tasks into ``run_folder``.
     ``recipe`` (ref, sha256) stamps the recipe edition before the first writer (``RecipeStamper``); ``observers``
     join the taps on every stage; ``max_page_errors`` (a share of a task's pages) is every page block's error
-    budget. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them."""
+    budget. Every stage is traced (``linecaster.tracing.Tracing``) into ``<run_folder>/traces`` and, when the
+    ``OTEL_*`` variables ask for it, to an OTLP endpoint; ``trace_sample`` is the share of pages traced (default
+    ``linecaster.tracing.DEFAULT_SAMPLE``). Without a run folder or OTLP nothing is traced. Problems are collected
+    in ``Plan.problems``; ``Plan.check()`` raises them."""
     return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
-                  observers=observers, max_page_errors=max_page_errors)
+                  observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample)
+
+
+def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | None, problems: list[str]):
+    """The stage's tracing observer: when there is a run folder for its file, or an OTLP endpoint."""
+    from ..errors import PipelineConfigError
+    from ..tracing import DEFAULT_SAMPLE, Tracing, otlp_configured
+
+    if run_folder is None and not otlp_configured():
+        return None
+    try:
+        return Tracing(run_folder, DEFAULT_SAMPLE if trace_sample is None else trace_sample, stage=stage)
+    except PipelineConfigError as e:
+        if e.problems[0] not in problems:
+            problems.extend(e.problems)
+        return None
 
 
 def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
-           observers=None, given: bool = False, max_page_errors=None) -> Plan:
+           observers=None, given: bool = False, max_page_errors=None, trace_sample=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(blocks), problems)
     if after:
@@ -654,7 +673,8 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         tap_at.setdefault(s, []).append(Tap(e.block, folder))
     out = []
     for s, (name, stage_entries, stage_tasks) in enumerate(stages):
-        hub = Observers([*tap_at.get(s, []), *(observers or [])])
+        tracing = _tracing(run_folder, trace_sample, name if len(stages) > 1 else None, problems)
+        hub = Observers([*tap_at.get(s, []), *(observers or []), *([tracing] if tracing else [])])
         out.append(Stage(name=name, tasks=stage_tasks, blocks=[e.block for e in stage_entries],
                          pipeline=_pipeline(stage_entries, hub if hub else None), observers=hub if hub else None))
     return Plan(stages=out, graph=graph, problems=problems, _describe=described)
