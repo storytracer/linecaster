@@ -199,10 +199,11 @@ class RegionRecognizer(PageRecognizer):
         results: queue.Queue = queue.Queue(maxsize=8 * b.max_window)
         rows = self._rows(data, results)
         budget = ErrorBudget(self, self.max_page_errors)
+        headers = b.request_headers()            # secrets read here, in the task
 
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
-                                      read_timeout=b.read_timeout) as client:
+                                      read_timeout=b.read_timeout, headers=headers) as client:
                 async with through(client, rows, self._request, self._parse, route=self.route,
                                    prepare_workers=self.prepare_workers) as stream:
                     async for done in stream:

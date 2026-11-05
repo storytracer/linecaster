@@ -210,3 +210,50 @@ def test_failed_pages_are_written_to_rejects_and_kept_in_the_page_records(tmp_pa
                         "block": "LineRecognizer", "step": "recognition", "preset": None, "type": "RuntimeError"}]
     records = _rows(out / "pages")
     assert sorted(records) == ["p1", "p2", "p3"] and records["p2"]["errors"][0]["type"] == "RuntimeError"
+
+
+# ------------------------------------------------------------------------------------------------ secrets
+
+def test_an_env_var_is_never_pickled_with_its_value(monkeypatch):
+    import pickle
+
+    import dill
+    import saturate
+
+    from linecaster.backends import Served
+    from linecaster.errors import PipelineConfigError
+    from linecaster.runtime.secrets import EnvVar
+
+    monkeypatch.setenv("LC_TEST_KEY", "s3cret-value")
+    monkeypatch.setenv("LC_TEST_TOKEN", "t0ken-value")
+    backend = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"),
+                     headers={"X-Team": "ocr", "X-Token": EnvVar("LC_TEST_TOKEN")})
+    block = LineRecognizer(backend)
+    for blob in (pickle.dumps(block), dill.dumps(block), dill.dumps([block])):
+        assert b"s3cret-value" not in blob and b"t0ken-value" not in blob and b"LC_TEST_KEY" in blob
+    again = pickle.loads(pickle.dumps(block))
+    assert again.backend.api_key == EnvVar("LC_TEST_KEY")
+    assert again.backend.request_headers() == {"X-Team": "ocr", "X-Token": "t0ken-value",
+                                               "Authorization": "Bearer s3cret-value"}
+    assert repr(EnvVar("LC_TEST_KEY")) == "EnvVar('LC_TEST_KEY')" and EnvVar("X").to_dict() == {"env": "X"}
+
+    # the client gets the headers, read in the task
+    seen = {}
+
+    class Client:
+        def __init__(self, endpoint, **kwargs):
+            seen.update(kwargs, endpoint=endpoint)
+            raise RuntimeError("no server here")
+
+    monkeypatch.setattr(saturate, "AdaptiveClient", Client)
+    with pytest.raises(RuntimeError, match="no server here"):
+        list(block.run(iter([_doc()])))
+    assert seen["endpoint"] == "https://api.example.org/v1"
+    assert seen["headers"]["Authorization"] == "Bearer s3cret-value" and seen["headers"]["X-Team"] == "ocr"
+
+    # a missing variable fails the warm-up; a key given as text is refused
+    monkeypatch.delenv("LC_TEST_KEY")
+    with pytest.raises(PipelineConfigError, match="LC_TEST_KEY is not set"):
+        block.warm_up()
+    with pytest.raises(PipelineConfigError, match="EnvVar"):
+        Served("https://api.example.org/v1", model="m", api_key="s3cret-value")
