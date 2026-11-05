@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
 
+from ...errors import CatalogError, PipelineConfigError, ServerError
 from ..base.contract import Contracted
 
 
@@ -100,7 +101,7 @@ class ChatModelServer(Contracted, PipelineStep):
             return [python or self.python, "-m", "sglang.launch_server", "--model-path", self.spec.model,
                     "--host", self.host, "--port", str(self.port), "--enable-metrics",
                     *self.spec.sglang_args(self.gpu_memory_utilization, self.extra_args)]
-        raise ValueError(f"unknown server {self.server!r} for {self.spec.model} (vllm or sglang)")
+        raise PipelineConfigError(f"unknown server {self.server!r} for {self.spec.model} (vllm or sglang)")
 
     def server_path(self) -> str:
         """``PATH`` for the server: this one, without this interpreter's ``bin`` with ``outside_venv``."""
@@ -148,7 +149,7 @@ class ChatModelServer(Contracted, PipelineStep):
             if r.returncode == 0:
                 return py
             tried.append(f"{py}: {(r.stderr.strip().splitlines() or ['?'])[-1][:200]}")
-        raise RuntimeError(f"no {self.python} with sglang (outside_venv={self.outside_venv}); PATH={path}; "
+        raise ServerError(f"no {self.python} with sglang (outside_venv={self.outside_venv}); PATH={path}; "
                            f"tried: {tried or 'none found'}")
 
     def install_commands(self, python: str, uv: str = "uv") -> list[list[str]]:
@@ -187,7 +188,7 @@ class ChatModelServer(Contracted, PipelineStep):
 
 
 def check_default_branch(model: str, revision: str, ignore=()) -> None:
-    """Refuse (``RuntimeError``) unless every file on ``model``'s default branch, other than those matching
+    """Refuse (``CatalogError``) unless every file on ``model``'s default branch, other than those matching
     an ``ignore`` glob, has the same git blob as at ``revision`` (and no file is missing on either side):
     for a server that loads the default branch, the weights, config and tokenizer are then the pinned ones."""
     from fnmatch import fnmatch
@@ -204,5 +205,5 @@ def check_default_branch(model: str, revision: str, ignore=()) -> None:
     pinned, head = blobs(revision), blobs("main")
     differ = sorted(k for k in set(pinned) | set(head) if pinned.get(k) != head.get(k))
     if differ:
-        raise RuntimeError(f"{model}: the default branch differs from the pinned {revision} in {differ[:10]}; "
+        raise CatalogError(f"{model}: the default branch differs from the pinned {revision} in {differ[:10]}; "
                            "the server loads the default branch, so re-pin deliberately")

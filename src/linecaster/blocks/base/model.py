@@ -19,6 +19,7 @@ from functools import lru_cache
 from ...backends import InProcess, Served
 from ...data.page import Page
 from ...data.transcription import Transcription
+from ...errors import CatalogError
 from .contract import Contract, parts
 from .page import PageBlock, decode_rgb, image_bytes, page_of, set_page
 
@@ -37,7 +38,7 @@ def _preset_produces(ref: str) -> tuple[str, ...] | None:
 
     try:
         p = catalog().preset(split_ref(ref)[0])
-    except (KeyError, ValueError):
+    except (CatalogError, ValueError):     # unknown, or not an id@edition
         return None
     return tuple(p.capabilities.produces) or None
 

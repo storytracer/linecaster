@@ -63,6 +63,7 @@ from linecaster.backends import Served
 from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
 VLM_PORT = 8000
@@ -86,11 +87,11 @@ def models(a) -> list[dict]:
 
 def pipeline(a, script: str):
     if not a.recognition:
-        raise SystemExit("vlm: pick --recognition (`linecaster models` lists the presets)")
+        raise PipelineConfigError("vlm: pick --recognition (`linecaster models` lists the presets)")
     regions = bool(a.layout)
     spec = chat_model(a.recognition, prefer="region" if regions else "page")
     if regions != (spec.unit == "region"):
-        raise SystemExit(f"vlm: {a.recognition} reads {'regions' if spec.unit == 'region' else 'whole pages'}"
+        raise PipelineConfigError(f"vlm: {a.recognition} reads {'regions' if spec.unit == 'region' else 'whole pages'}"
                          + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
     sglang = spec.server == "sglang"
     vlm = Served(a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,

@@ -2,6 +2,7 @@
 (``linecaster.runtime.builder``) expands it into its blocks; the graph and the plan keep the group."""
 from __future__ import annotations
 
+from ...errors import PipelineConfigError
 from .contract import Contract, contract_of
 
 
@@ -14,7 +15,7 @@ class Composite:
 
     def __init__(self, name: str, blocks: list, contract: Contract | None = None):
         if not blocks:
-            raise ValueError(f"composite {name!r} has no blocks")
+            raise PipelineConfigError(f"composite {name!r} has no blocks")
         self.name, self.blocks, self._contract = name, list(blocks), contract
 
     def expanded(self) -> list[tuple[object, tuple[str, ...]]]:

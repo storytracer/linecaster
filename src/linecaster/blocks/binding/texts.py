@@ -17,6 +17,7 @@ from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import Page
 from ...data.transcription import Transcription
+from ...errors import PipelineConfigError
 from ...text.variants import VARIANTS, variants
 from ..base.contract import Contract, Contracted, Part, parts
 from ..base.page import page_of
@@ -36,7 +37,7 @@ class ItemTexts(Contracted, PipelineStep):
         super().__init__()
         unknown = set(variants) - set(VARIANTS)
         if unknown:
-            raise ValueError(f"unknown variants {sorted(unknown)}; known: {sorted(VARIANTS)}")
+            raise PipelineConfigError(f"unknown variants {sorted(unknown)}; known: {sorted(VARIANTS)}")
         self.transcription, self.variants, self.token_counter, self.count_key = \
             transcription, tuple(variants), token_counter, count_key
 

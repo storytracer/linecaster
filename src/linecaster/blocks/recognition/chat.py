@@ -33,6 +33,7 @@ import threading
 from ...adapters import ChatAdapter, chat_model
 from ...backends import Served
 from ...data.transcription import ModelInfo
+from ...errors import PipelineConfigError
 from ..base.contract import Contract, parts
 from ..base.model import _END, ModelBlock, produces
 from ..base.page import image_bytes, page_of, set_page
@@ -53,7 +54,7 @@ class PageRecognizer(ModelBlock):
         if isinstance(spec, str):
             spec = chat_model(spec)
         if not getattr(backend, "served", False):
-            raise TypeError("PageRecognizer needs a Served backend (an OpenAI-compatible chat endpoint)")
+            raise PipelineConfigError("PageRecognizer needs a Served backend (an OpenAI-compatible chat endpoint)")
         super().__init__(backend, transcription, None, primary, skip_on_error,
                          name=name or f"page ({spec.model}, served {backend.endpoint})")
         spec.served_name = backend.model
@@ -71,7 +72,7 @@ class PageRecognizer(ModelBlock):
                         adds=parts(adds, self.transcription))
 
     def process_page(self, doc, page):  # pragma: no cover - only reached with an in-process backend
-        raise TypeError("PageRecognizer runs served only")
+        raise PipelineConfigError("PageRecognizer runs served only")
 
     def _request(self, row: dict) -> dict:
         self.notify(row["doc"], "prepare")

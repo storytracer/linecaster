@@ -10,6 +10,7 @@ from PIL import Image
 from linecaster.blocks.base.page import image_bytes, new_page_document, page_of
 from linecaster.blocks.readers.images import ImageFolderReader, ImageParquetReader
 from linecaster.blocks.readers.records import PageRecordReader
+from linecaster.errors import PageError, PipelineConfigError
 
 
 def png(color="white") -> bytes:
@@ -36,7 +37,7 @@ def test_paths_file_lists_image_files_distributed_in_turn(tmp_path):
                                   item_from_parent=True)
     assert read(r(), 0, 2) == [("a", "a_0001"), ("b", "b_0001")]
     assert read(r(), 1, 2) == [("a", "a_0002")]
-    with pytest.raises(ValueError, match="glob_pattern, not paths_file"):
+    with pytest.raises(PipelineConfigError, match="glob_pattern, not paths_file"):
         ImageFolderReader(str(tmp_path / "images"), paths_file=str(tmp_path / "pages.txt"), sequence=True)
 
 
@@ -47,7 +48,7 @@ def test_limit_and_skip_count_pages_per_task(tmp_path):
 
 
 def test_no_images_is_an_error(tmp_path):
-    with pytest.raises(RuntimeError, match="No images"):
+    with pytest.raises(PipelineConfigError, match="No images"):
         list(ImageFolderReader(str(tmp_path)).run())
 
 
@@ -75,7 +76,7 @@ def test_parquet_with_bytes_structs_and_paths(tmp_path):
     assert pages[1].image.uri.endswith("img/x.png") and pages[2].image.uri == absolute
     assert pages[0].metadata["note"] == "n1"
     pq.write_table(table.slice(3), tmp_path / "data" / "part-1.parquet")
-    with pytest.raises(ValueError, match="neither image bytes nor an image path"):
+    with pytest.raises(PageError, match="neither image bytes nor an image path"):
         list(ImageParquetReader(str(tmp_path / "data"), item_key="book", image_folder=str(tmp_path / "img")).run())
 
 

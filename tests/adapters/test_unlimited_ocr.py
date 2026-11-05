@@ -13,6 +13,7 @@ from PIL import Image
 from linecaster.adapters import chat_model
 from linecaster.blocks.servers import serve as serve_mod
 from linecaster.blocks.servers.serve import ChatModelServer, check_default_branch
+from linecaster.errors import CatalogError, PipelineConfigError, ServerError
 
 NGRAM_PROCESSOR = chat_model("unlimited-ocr-2").custom_logit_processor
 
@@ -68,7 +69,7 @@ def test_v1_parse_is_verbatim_and_null_content_is_an_error():
     t = chat_model("unlimited-ocr").parse(completion(raw, "length"))
     assert t.text == raw and t.extra["raw"] == raw and t.extra["finish_reason"] == "length"
     assert t.model[0].revision == chat_model("unlimited-ocr").revision
-    with pytest.raises(ValueError, match="no content"):
+    with pytest.raises(ServerError, match="no content"):
         chat_model("unlimited-ocr").parse(completion(None))
     assert chat_model("unlimited-ocr").parse(completion("")).text == ""
 
@@ -116,7 +117,7 @@ def test_v2_sglang_command_and_environment(monkeypatch):
     assert launch[-len(cmd):] == cmd
     # a deployment's memory share becomes SGLang's flag (after the spec's: the later one wins)
     assert ChatModelServer(chat_model("unlimited-ocr-2"), gpu_memory_utilization=0.6).command()[-2:] == ["--mem-fraction-static", "0.6"]
-    with pytest.raises(TypeError):
+    with pytest.raises(PipelineConfigError):
         chat_model("unlimited-ocr-2").vllm_args()
 
 
@@ -146,10 +147,10 @@ def test_check_default_branch(monkeypatch):
     fake_hub(monkeypatch, {"pin": pinned, "main": {**pinned, "README.md": "r2", "wheel/sglang-dev13.whl": "w2"}})
     check_default_branch("m", "pin", chat_model("unlimited-ocr-2").pin_ignore)       # README and wheels moved: fine
     fake_hub(monkeypatch, {"pin": pinned, "main": {**pinned, "config.json": "c"}})
-    with pytest.raises(RuntimeError, match="config.json"):
+    with pytest.raises(CatalogError, match="config.json"):
         check_default_branch("m", "pin", chat_model("unlimited-ocr-2").pin_ignore)
     fake_hub(monkeypatch, {"pin": pinned, "main": {**pinned, "tokenizer.json": "t"}})
-    with pytest.raises(RuntimeError, match="tokenizer.json"):
+    with pytest.raises(CatalogError, match="tokenizer.json"):
         check_default_branch("m", "pin", chat_model("unlimited-ocr-2").pin_ignore)
 
 
@@ -210,5 +211,5 @@ def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, t
     block = ChatModelServer(chat_model("unlimited-ocr-2"), outside_venv=True)
     assert block.server_python() == str(good / "python3")
     good.joinpath("python3").write_text("#!/bin/sh\necho 'No module named sglang' >&2\nexit 1\n")
-    with pytest.raises(RuntimeError, match="No module named sglang"):
+    with pytest.raises(ServerError, match="No module named sglang"):
         block.server_python()

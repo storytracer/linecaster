@@ -19,6 +19,7 @@ import hashlib
 import io
 from typing import Any, ClassVar
 
+from ..errors import CatalogError
 from . import ChatAdapter, data_url, png_bytes
 
 
@@ -72,7 +73,7 @@ class ChandraOCRAdapter(ChatAdapter):
         super().__init__(preset, served_name)
         digest = hashlib.sha256(self.prompt.encode()).hexdigest()
         if f"sha256:{digest}" != self.config["prompt_sha256"]:
-            raise ValueError(f"{self.preset}: the prompt differs from chandra-ocr v0.2.0's ocr_layout prompt")
+            raise CatalogError(f"{self.preset}: the prompt differs from chandra-ocr v0.2.0's ocr_layout prompt")
 
     def scale(self, img):
         i = self.config["image"]

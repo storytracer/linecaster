@@ -8,6 +8,7 @@ In squiddleocr's order: ... recognition -> ``UnicodeNormalizer`` -> tables -> ``
 from __future__ import annotations
 
 from ...data.page import Page
+from ...errors import PipelineConfigError
 from ...formats.docling import REGION_MAP_KEY, DocumentBuilder, docling_dict
 from ..base.page import PageBlock
 
@@ -31,7 +32,7 @@ class Composer(PageBlock):
         from ...formats.docling import TEXT_MODES
 
         if text not in TEXT_MODES:
-            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
+            raise PipelineConfigError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
         self.transcription, self.text, self.rtl, self.sections = transcription, text, rtl, sections
 
     def process_page(self, doc, page: Page) -> Page:

@@ -21,6 +21,7 @@ from linecaster.blocks.writers.records import PageParquetWriter
 from linecaster.blocks.writers.rejects import RejectWriter
 from linecaster.data import Line, Region, Source, Transcription, Word
 from linecaster.data.page import PAGE_KEY, Page, PageImage
+from linecaster.errors import PipelineConfigError
 from linecaster.text import variants as T
 
 
@@ -157,7 +158,7 @@ def test_item_texts_block():
     assert out[0].text == "Seite 1\fSeite 2" and out[1].text == "Seite 1 Seite 2"
     assert out[0].metadata["page_ids"] == ["b1_1", "b1_2"] and out[0].metadata["token_count"] == len(out[0].text)
     assert out[2].metadata["format"] == "text/markdown" and out[1].metadata["fidelity"] == "normalized"
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         ItemTexts(variants=("nope",))
 
 
@@ -184,7 +185,11 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     assert "opencv-contrib-python @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz#subdirectory=stubs/opencv-contrib-python" in deps
     assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in deps and "pillow==12.3.0" in deps
-    assert jobs.dependencies("abc123") == ["linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
+    assert jobs.dependencies("abc123", engines=False) == [
+        "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
+    with pytest.raises(PipelineConfigError, match="ENGINE_SCRIPT"):     # engines expected, no script: not linecaster alone
+        jobs.dependencies("abc123")
+    assert jobs.dependencies("abc123", jobs.ENGINE_SCRIPT) == deps
     vol = jobs.wheel_volume("hf://buckets/ns/runs/run-1/wheels")
     assert vol == {"type": "bucket", "source": "ns/runs", "mount_path": "/wheels", "read_only": True,
                    "path": "run-1/wheels"}

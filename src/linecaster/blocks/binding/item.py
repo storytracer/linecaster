@@ -4,6 +4,7 @@ from __future__ import annotations
 from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import Page
+from ...errors import PipelineConfigError
 from ...formats.docling import DocumentBuilder, docling_dict, to_text
 from ..base.contract import Contract, Contracted, Part, parts
 from ..base.page import page_of
@@ -37,7 +38,7 @@ class BindItem(Contracted, PipelineStep):
         from ...formats.docling import TEXT_MODES
 
         if text not in TEXT_MODES:
-            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
+            raise PipelineConfigError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
         self.transcription, self.text, self.sections, self.rtl, self.count_key = transcription, text, sections, rtl, count_key
 
     def _emit(self, item: str, pages: list[Page]):

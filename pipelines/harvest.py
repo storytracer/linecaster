@@ -31,6 +31,7 @@ times --rate-limit. A task that fails runs again whole (datatrove's resume is pe
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
 from linecaster.blocks.writers.images import ImageFilesWriter
+from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
 
@@ -44,7 +45,7 @@ def models(a) -> list[dict]:
 
 def pipeline(a, script: str) -> list:
     if a.images or a.pages:
-        raise SystemExit("harvest.py downloads: give --manifests or --parquet (with http(s) image URLs)")
+        raise PipelineConfigError("harvest.py downloads: give --manifests or --parquet (with http(s) image URLs)")
     out = a.out.rstrip("/")
     return [
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None),

@@ -266,7 +266,7 @@ def test_group_checks():
         "Mark (mark N) is an alternative of group 'g' without a condition (when=)"]
     apart = [reader, branch(Mark("P"), when=OTHERWISE, group="g"), Composer(), branch(Mark("Q"), when=OTHERWISE, group="g")]
     assert "the pipeline: the alternatives of group 'g' are not next to each other" in _problems(apart)
-    with pytest.raises(TypeError):
+    with pytest.raises(PipelineConfigError):
         branch(Mark("X"), when=lambda page: True)
 
 
@@ -315,7 +315,7 @@ def test_nested_composites_and_given_contracts():
     assert "subgraph c1_outer_inner" in p.mermaid()
     given = Contract(unit="page", role="composite", reads=frozenset({Part("image")}))
     assert Composite("x", [_lines()], contract=given).contract() is given
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         Composite("empty", [])
 
 
@@ -547,7 +547,7 @@ def test_linecaster_page_finds_the_script():
     assert cmd[:3] == ["uv", "run", "--script"] and cmd[3].endswith("pipelines/transcribe_modular.py")
     assert cmd[4:] == ["--page", "p.png", "out", "--recipe", "squiddle", "--files", "out/files"]
     assert page_command("p.png", "out", [], "transcribe_vlm.v1")[3].endswith("pipelines/transcribe_vlm.py")
-    with pytest.raises(SystemExit):
+    with pytest.raises(PipelineConfigError):
         page_command("p.png", "out", [], "nope.v1")
 
 

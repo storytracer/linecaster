@@ -1,7 +1,8 @@
 """Hugging Face Jobs helpers for linecaster pipelines (on datatrove's ``JobsPipelineExecutor``).
 
-* ``dependencies(commit, script)``: what a Job installs with ``uv run --with`` to run a pipeline, read
-  from the pipeline script's inline metadata: its dependencies with the script's sources spelled out as URLs at
+* ``dependencies(commit, script, engines=True)``: what a Job installs with ``uv run --with`` to run a pipeline,
+  read from the pipeline script's inline metadata (``ENGINE_SCRIPT``, the modular pipeline script, for a derivative
+  that needs the engine packages without a script of its own): its dependencies with the script's sources spelled out as URLs at
   ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
   git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
   and its version pins, for the packages its lock resolves.
@@ -28,9 +29,14 @@ from pathlib import Path
 
 from datatrove.executor import JobsPipelineExecutor
 
+from ..errors import PipelineConfigError
+
 REPO = "https://github.com/storytracer/linecaster"
 #: the checkout the launcher runs from (pipelines, engines, stubs)
 ROOT = Path(__file__).resolve().parents[3]
+#: the modular pipeline script (in the checkout): its metadata lists every engine package with its sources and pins,
+#: for ``dependencies(commit, ENGINE_SCRIPT)`` from a derivative's own pipeline
+ENGINE_SCRIPT = ROOT / "pipelines" / "transcribe_modular.py"
 WHEEL_MOUNT = "/wheels"
 _SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
 
@@ -41,7 +47,7 @@ def script_metadata(path: str | Path) -> dict:
 
     m = _SCRIPT.search(Path(path).read_text())
     if not m:
-        raise ValueError(f"{path}: no '# /// script' block")
+        raise PipelineConfigError(f"{path}: no '# /// script' block")
     return tomllib.loads("".join(line[2:] if line.startswith("# ") else line[1:]
                                  for line in m.group("content").splitlines(keepends=True)))
 
@@ -54,9 +60,10 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
     metadata of ``script`` (a pipeline): its dependencies with the script's sources spelled out as URLs at
     ``commit`` (``url`` sources as they are) and its version pins, for the packages its lock resolves.
-    ``script=None``: linecaster alone. ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU
-    pipeline): linecaster with the script's extras and its ``url``-source dependencies (pybookget), no
-    engines and no pins.
+    ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU pipeline): linecaster with the script's
+    extras and its ``url``-source dependencies (pybookget), no engines and no pins; without a script, linecaster
+    alone. Engines without a script are a ``PipelineConfigError``: give ``ENGINE_SCRIPT`` (the modular pipeline's
+    engines) or the pipeline's own script.
 
     linecaster is installed from GitHub's source archive (``.../archive/<rev>.tar.gz``), not with ``git+``:
     some images (``vllm/vllm-openai``) have uv but no git executable; pybookget the same way (a ``url``
@@ -66,6 +73,10 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
 
     repo = f"{REPO}/archive/{commit}.tar.gz"
     if script is None:
+        if engines:
+            raise PipelineConfigError("dependencies() without a script has no engine packages: give the pipeline's "
+                                      "script, ENGINE_SCRIPT for the modular pipeline's engines, or engines=False "
+                                      "for linecaster alone")
         return [f"linecaster @ {repo}"]
     script = Path(script).resolve()
     meta = script_metadata(script)

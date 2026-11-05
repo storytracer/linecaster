@@ -18,6 +18,7 @@ from linecaster.blocks.readers.images import ImageFolderReader
 from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Line, Transcription
+from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
 from linecaster.formats.docling import (EXPORT_FORMATS, REGION_MAP_KEY, build_docling, export, load_docling, to_doclang,
                                         to_html, to_json)
@@ -99,7 +100,7 @@ def test_line_detail_drops_the_words(tmp_path: Path):
         assert [w.text for w in word.lines[0].words] == ["zwei", "Worte"], name
         assert ln.lines[0].text == "zwei Worte" and not ln.lines[0].words, name
     assert len(t.lines[0].words) == 2                      # the transcription itself is untouched
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         PageFileWriter(str(tmp_path), detail="glyph")
 
 
@@ -134,7 +135,7 @@ def test_image_folder_reader_item_and_sequence(tmp_path: Path):
     pages = [page_of(d) for d in ImageFolderReader(str(tmp_path), item_id="book", sequence=True).run(rank=1, world_size=2)]
     assert [(p.item_id, p.page_id, p.sequence) for p in pages] == [("book", "03", 2), ("book", "02", 4)]
     assert all(p.sequence is None for p in map(page_of, ImageFolderReader(str(tmp_path)).run()))
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         ImageFolderReader(str(tmp_path), item_id="x", item_from_parent=True)
 
 

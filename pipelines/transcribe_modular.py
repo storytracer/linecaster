@@ -74,6 +74,7 @@ from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRec
 from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.files import PAGE_FILE_EXTENSIONS, PageFileWriter
 from linecaster.blocks.writers.items import ItemTextWriter
+from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
@@ -122,13 +123,13 @@ def pipeline(a, script: str) -> list:
     picks = chosen(a)
     missing = [f"--{s}" for s in ("lines", "recognition") if s not in picks]
     if missing:
-        raise SystemExit(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
+        raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
     if not a.layout and (a.tables or a.formulas):
-        raise SystemExit("modular: --tables and --formulas work on layout regions; pick --layout too")
+        raise PipelineConfigError("modular: --tables and --formulas work on layout regions; pick --layout too")
     formats = tuple(a.formats.split(","))
     unknown = sorted(set(formats) - set(PAGE_FILE_EXTENSIONS))
     if unknown:
-        raise SystemExit(f"modular: unknown --formats {unknown}; choose from {', '.join(PAGE_FILE_EXTENSIONS)}")
+        raise PipelineConfigError(f"modular: unknown --formats {unknown}; choose from {', '.join(PAGE_FILE_EXTENSIONS)}")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)

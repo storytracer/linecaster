@@ -16,6 +16,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..errors import CatalogError
+
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``)
@@ -114,7 +116,7 @@ class ModelDoc(_Doc):
         for p in self.pins:
             if p.revision == revision:
                 return p
-        raise KeyError(f"{self.id}: no pin {revision!r} (pinned: {[p.revision for p in self.pins]})")
+        raise CatalogError(f"{self.id}: no pin {revision!r} (pinned: {[p.revision for p in self.pins]})")
 
 
 # ------------------------------------------------------------------------------------------------ presets

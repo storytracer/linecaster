@@ -20,6 +20,7 @@ from linecaster.blocks.readers.manifests import OCR_ORIGINAL, ManifestReader, ma
 from linecaster.blocks.readers.records import PageRecordReader  # noqa: E402
 from linecaster.blocks.writers.images import ImageFilesWriter
 from linecaster.blocks.writers.records import PageJsonlWriter  # noqa: E402
+from linecaster.errors import PipelineConfigError
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False}  # no proxy from the environment
 
@@ -169,7 +170,7 @@ def test_item_ids_from_manifest_entries(entry, item):
 
 def test_item_id_pattern():
     assert manifest_item_id("https://example.org/ark:/12148/bpt6k1/manifest.json", r"ark:/\d+/(\w+)") == "bpt6k1"
-    with pytest.raises(ValueError, match="does not match"):
+    with pytest.raises(PipelineConfigError, match="does not match"):
         manifest_item_id("https://example.org/x", r"ark:/(\w+)")
 
 
@@ -221,7 +222,7 @@ def test_manifest_files_in_a_folder(server, tmp_path, png_format):
     [page] = pages(ManifestReader(str(tmp_path / "m"), http=png_format))
     assert (page.item_id, page.page_id) == ("flora-1", "flora-1_0001")
     assert page.metadata["manifest"]["url"].endswith("m/flora-1.json")
-    with pytest.raises(RuntimeError, match="No manifests"):
+    with pytest.raises(PipelineConfigError, match="No manifests"):
         list(ManifestReader(str(tmp_path / "empty-or-missing"), http=png_format).run())
 
 
@@ -302,7 +303,7 @@ def test_mets_inside_oai_pmh_and_a_forced_format(server, tmp_path):
     (tmp_path / "m.txt").write_text(url)
     [page] = pages(ManifestReader(paths_file=str(tmp_path / "m.txt"), manifest_format="mets", http=FAST))
     assert page.image.uri.endswith("/direct/f1.png") and page.metadata["manifest"]["format"] == "mets"
-    with pytest.raises(ValueError, match="iiif or mets"):
+    with pytest.raises(PipelineConfigError, match="iiif or mets"):
         ManifestReader(paths_file=str(tmp_path / "m.txt"), manifest_format="alto")
 
 
@@ -321,7 +322,7 @@ def test_item_tables_name_items_and_carry_their_columns(server, tmp_path):
     assert [(p.item_id, p.page_id) for p in got] == [("book_1", "book_1_0001"), ("book_2", "book_2_0001")]
     assert (got[0].metadata["title"], got[0].metadata["year"]) == ("Flora", 1840)
     assert [p.metadata["manifest"]["format"] for p in got] == ["iiif", "mets"]
-    with pytest.raises(ValueError, match="manifest_key"):
+    with pytest.raises(PipelineConfigError, match="manifest_key"):
         ManifestReader(str(tmp_path / "items"), item_key="item_id")
 
 
@@ -358,5 +359,5 @@ def test_page_tables_without_page_ids(tmp_path):
                    tmp_path / "data" / "part-0.parquet")
     got = [page_of(d) for d in ImageParquetReader(str(tmp_path / "data"), item_key="item", sequence_key="page").run()]
     assert [(p.page_id, p.sequence) for p in got] == [("b1_0002", 2), ("b1_0001", 1)]
-    with pytest.raises(ValueError, match="no page id column"):
+    with pytest.raises(PipelineConfigError, match="no page id column"):
         list(ImageParquetReader(str(tmp_path / "data"), item_key="item").run())

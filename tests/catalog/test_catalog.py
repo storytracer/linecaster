@@ -6,6 +6,7 @@ import pytest
 
 from linecaster.catalog import yamlio
 from linecaster.catalog.registry import Catalog, sha256_file, write_entry
+from linecaster.errors import CatalogError, PipelineConfigError
 
 
 def test_yaml_12_booleans():
@@ -69,7 +70,7 @@ def test_release_freezes_an_edition(tmp_path):
     assert set(Catalog([tmp_path]).dirs[0].lock.presets) == {"p@1", "p@2"}
     assert "p@1:  # the first" in (tmp_path / "catalog.lock").read_text()       # written back with its comments
     make(tmp_path, temperature=0.5, edition=2)             # released edition 2 cannot be released again changed
-    with pytest.raises(ValueError, match="edition 3"):
+    with pytest.raises(CatalogError, match="edition 3"):
         Catalog([tmp_path]).release("p")
 
 
@@ -93,7 +94,7 @@ def test_documents_are_strict(tmp_path):
     meta = yamlio.read(tmp_path / "presets" / "recognition" / "p.yaml")
     meta["temprature"] = 0.1
     write_entry(tmp_path / "presets" / "recognition" / "p.yaml", meta)
-    with pytest.raises(ValueError, match="temprature"):
+    with pytest.raises(CatalogError, match="temprature"):
         Catalog([tmp_path])
 
 
@@ -101,7 +102,7 @@ def test_presets_live_in_their_step_folder(tmp_path):
     make(tmp_path)
     (tmp_path / "presets" / "layout").mkdir()
     (tmp_path / "presets" / "recognition" / "p.yaml").rename(tmp_path / "presets" / "layout" / "p.yaml")
-    with pytest.raises(ValueError, match="differs from its folder 'layout'"):
+    with pytest.raises(CatalogError, match="differs from its folder 'layout'"):
         Catalog([tmp_path])
 
 
@@ -110,7 +111,7 @@ def test_engine_and_pipeline_ids_are_versioned(tmp_path):
     meta = yamlio.read(tmp_path / "presets" / "recognition" / "p.yaml")
     meta["engine"] = "chat/1"
     write_entry(tmp_path / "presets" / "recognition" / "p.yaml", meta)
-    with pytest.raises(ValueError, match="versioned"):
+    with pytest.raises(CatalogError, match="versioned"):
         Catalog([tmp_path])
 
 
@@ -172,7 +173,7 @@ def test_a_recipe_cannot_share_a_presets_name(tmp_path):
     (tmp_path / "recipes" / "r.yaml").rename(tmp_path / "recipes" / "p.yaml")
     meta = yamlio.read(tmp_path / "recipes" / "p.yaml")
     write_entry(tmp_path / "recipes" / "p.yaml", {**meta, "id": "p"})
-    with pytest.raises(ValueError, match="ids used for a preset and a recipe"):
+    with pytest.raises(CatalogError, match="ids used for a preset and a recipe"):
         Catalog([tmp_path])
 
 
@@ -180,7 +181,7 @@ def test_recipes_pin_released_preset_editions(tmp_path):
     make(tmp_path)
     make_recipe(tmp_path)
     c = Catalog([tmp_path])
-    with pytest.raises(ValueError, match="release its presets first"):
+    with pytest.raises(CatalogError, match="release its presets first"):
         c.release("r")
     c.release("p")
     c = Catalog([tmp_path])
@@ -192,7 +193,7 @@ def test_recipes_pin_released_preset_editions(tmp_path):
     make_recipe(tmp_path, text="lines", edition=2)
     c = Catalog([tmp_path])
     assert c.verify() == [] and c.resolve_recipe("r@1").content["options"] == {"text": "reflow"}
-    with pytest.raises(ValueError, match="exact preset editions"):
+    with pytest.raises(CatalogError, match="exact preset editions"):
         make_recipe(tmp_path, preset="p")
         Catalog([tmp_path])
 
@@ -208,7 +209,7 @@ def test_evidence_for_a_recipe(tmp_path):
     write_entry(tmp_path / "evidence" / "e.yaml", {
         "schema": "linecaster.evidence/1", "recipe": "r@1", "preset": "p@1", "source": "own-run", "dataset": "d",
         "metrics": {}, "date": dt.date(2026, 11, 3)})
-    with pytest.raises(ValueError, match="one preset or one recipe"):
+    with pytest.raises(CatalogError, match="one preset or one recipe"):
         Catalog([tmp_path])
 
 
@@ -235,7 +236,7 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
     a = ap.parse_args(argv)
     run.apply_recipe(ap, a, "transcribe_modular.v1", {"recognition": "recognition"}, argv, c)
     assert a.recipe_record["overrides"] == {"recognition": "other@1", "text": "lines"}
-    with pytest.raises(SystemExit, match="not transcribe_vlm.v1"):
+    with pytest.raises(PipelineConfigError, match="not transcribe_vlm.v1"):
         run.apply_recipe(ap, ap.parse_args(argv[:2]), "transcribe_vlm.v1", {}, argv[:2], c)
 
 
@@ -288,9 +289,9 @@ def test_old_hashes_still_resolve():
         for sha in filter(None, (entry.sha256, entry.previous_sha256)):
             assert resolve(ref, sha256=sha).sha256 == entry.sha256
             assert c.by_sha256(sha).ref == ref
-    with pytest.raises(ValueError, match="not sha256:0"):
+    with pytest.raises(CatalogError, match="not sha256:0"):
         c.resolve_recipe("squiddle@1", sha256="sha256:" + "0" * 64)
-    with pytest.raises(KeyError, match="no released edition"):
+    with pytest.raises(CatalogError, match="no released edition"):
         c.by_sha256("sha256:" + "0" * 64)
 
 

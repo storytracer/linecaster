@@ -17,6 +17,7 @@ from linecaster.blocks.base.page import new_page_document, page_of
 from linecaster.blocks.recognition.chat import PageRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
+from linecaster.errors import PipelineConfigError, ServerError
 
 
 def image(w: int, h: int, fmt: str = "WEBP") -> bytes:
@@ -104,7 +105,7 @@ def test_parse_truncated_and_empty():
 
 
 def test_parse_without_choices_raises():
-    with pytest.raises(ValueError, match="no choices"):
+    with pytest.raises(ServerError, match="no choices"):
         chat_model("lightonocr-2-1b").parse({"object": "error"})
 
 
@@ -114,7 +115,7 @@ def test_text_transcription_round_trips_text():
 
 
 def test_chat_step_needs_a_served_backend():
-    with pytest.raises(TypeError):
+    with pytest.raises(PipelineConfigError):
         PageRecognizer(chat_model("lightonocr-2-1b"), InProcess("x:y"))
 
 

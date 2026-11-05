@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from ..data.transcription import Line, ModelInfo, Source, Transcription
+from ..errors import CatalogError, PipelineConfigError, ServerError
 
 #: the engine of chat presets
 ENGINE = "chat.v1"
@@ -135,7 +136,7 @@ class ChatAdapter:
         """``vllm serve`` arguments after the model id: the revision, the preset's flags, and overrides."""
         if self.server != "vllm":
             name = {"sglang": "SGLang"}.get(self.server, self.server)
-            raise TypeError(f"{self.model} has no vLLM support; it runs on {name} ({self.server}_args)")
+            raise PipelineConfigError(f"{self.model} has no vLLM support; it runs on {name} ({self.server}_args)")
         return self._server_args("--gpu-memory-utilization", gpu_memory_utilization, extra)
 
     def sglang_args(self, mem_fraction_static: float | None = None, extra: list[str] | None = None) -> list[str]:
@@ -163,7 +164,7 @@ class ChatAdapter:
         """The completion verbatim (``None`` content counts as empty) and its finish reason."""
         choices = body.get("choices") or []
         if not choices:
-            raise ValueError(f"no choices in response: {body!r}"[:500])
+            raise ServerError(f"no choices in response: {body!r}"[:500])
         return choices[0]["message"].get("content") or "", choices[0].get("finish_reason")
 
     def model_info(self, backend: str | None = None, settings: dict | None = None,
@@ -247,7 +248,7 @@ def adapter(name: str) -> type[ChatAdapter]:
     from importlib import import_module
 
     if name not in ADAPTERS:
-        raise KeyError(f"unknown chat adapter {name!r}; known: {sorted(ADAPTERS)}")
+        raise CatalogError(f"unknown chat adapter {name!r}; known: {sorted(ADAPTERS)}")
     module, _, cls = ADAPTERS[name].partition(":")
     return getattr(import_module(f"{__name__}.{module}"), cls)
 
@@ -276,7 +277,7 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
         return ref
     ids = [pid for pid, repo in chat_presets(c).items() if repo == ref]
     if not ids:
-        raise KeyError(f"no chat preset for {ref!r}; chat presets: {sorted(chat_presets(c))}")
+        raise CatalogError(f"no chat preset for {ref!r}; chat presets: {sorted(chat_presets(c))}")
     return sorted(ids, key=lambda pid: (c.preset(pid).capabilities.unit != prefer, pid))[0]
 
 
@@ -291,7 +292,7 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     content = r.content
     engine = content.get("engine")
     if engine != ENGINE:
-        raise ValueError(f"preset {r.ref} is not a chat preset (engine {engine!r}, not {ENGINE})")
+        raise CatalogError(f"preset {r.ref} is not a chat preset (engine {engine!r}, not {ENGINE})")
     options = dict(content.get("options") or {})
     m = c.model(content["model"]["id"])
     draft = None

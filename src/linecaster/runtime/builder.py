@@ -92,7 +92,7 @@ def branch(block, when: Condition, group: str | None = None):
     """``block`` with a condition: it processes the pages ``when`` accepts, the others pass unchanged. Blocks with
     the same ``group`` are alternatives (one after another in the pipeline). Returns the block."""
     if not isinstance(when, Condition):
-        raise TypeError(f"when= needs a Condition (a callable on the page record with describe()), got {when!r}")
+        raise PipelineConfigError(f"when= needs a Condition (a callable on the page record with describe()), got {when!r}")
     block.when, block.group = when, group
     return block
 

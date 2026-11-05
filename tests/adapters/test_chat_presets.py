@@ -11,6 +11,7 @@ from linecaster.backends import Served
 from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.catalog.registry import catalog
+from linecaster.errors import CatalogError
 
 PRESETS = sorted(chat_presets())
 
@@ -52,7 +53,7 @@ def test_hugging_face_ids_name_a_preset(hub_id, page, regions):
     assert preset_ref(hub_id) == page and preset_ref(hub_id, prefer="region") == regions
     assert chat_model(hub_id).preset == f"{page}@1"
     assert preset_ref("dots-ocr@1") == "dots-ocr@1"
-    with pytest.raises(KeyError, match="no chat preset"):
+    with pytest.raises(CatalogError, match="no chat preset"):
         preset_ref("nobody/nothing")
 
 
@@ -60,7 +61,7 @@ def test_an_explicit_edition_resolves_from_the_lock():
     spec = chat_model("dots-ocr@1")
     entry = catalog().dirs[0].lock.presets["dots-ocr@1"]
     assert spec.preset == "dots-ocr@1" and spec.preset_sha256 == entry.sha256
-    with pytest.raises(KeyError):
+    with pytest.raises(CatalogError):
         chat_model("dots-ocr@99")
 
 

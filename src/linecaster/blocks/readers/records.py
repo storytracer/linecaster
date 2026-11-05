@@ -4,6 +4,7 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
+from ...errors import PipelineConfigError
 from ..base.contract import Contract, Contracted, Part
 from .images import _Opener
 
@@ -78,7 +79,7 @@ class PageRecordReader(Contracted, PipelineStep):
         if self.item_shards:
             shards = sorted({f.split("/", 1)[0] for f in files if "/" in f})
             if not shards:
-                raise RuntimeError(f"No item shards (<shard>/...) under {self.data_folder.path}")
+                raise PipelineConfigError(f"No item shards (<shard>/...) under {self.data_folder.path}")
             mine = set(shards[rank::world_size])
             files = [f for f in files if f.split("/", 1)[0] in mine]
         else:

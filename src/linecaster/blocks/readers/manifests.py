@@ -18,6 +18,7 @@ from collections import deque
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
 from datatrove.pipeline.readers.base import BaseDiskReader
 
+from ...errors import PipelineConfigError
 from ...net.http import HTTPFetcher, _pybookget, is_url
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
@@ -43,7 +44,7 @@ def manifest_item_id(entry: str, pattern: str | None = None) -> str:
     if pattern:
         m = re.search(pattern, entry)
         if not m:
-            raise ValueError(f"item_id_pattern {pattern!r} does not match {entry!r}")
+            raise PipelineConfigError(f"item_id_pattern {pattern!r} does not match {entry!r}")
         raw = m.group(1)
     else:
         path = entry.split("?", 1)[0].split("#", 1)[0].rstrip("/")
@@ -51,7 +52,7 @@ def manifest_item_id(entry: str, pattern: str | None = None) -> str:
             path = path.split("://", 1)[1].split("/", 1)[-1]
         segments = [s for s in path.split("/") if s and s.lower() not in _MANIFEST_NAMES]
         if not segments:
-            raise ValueError(f"no item id in manifest entry {entry!r}; give item_id_pattern")
+            raise PipelineConfigError(f"no item id in manifest entry {entry!r}; give item_id_pattern")
         raw = segments[-1]
         for ext in (".json", ".xml"):
             raw = raw[: -len(ext)] if raw.lower().endswith(ext) else raw
@@ -138,11 +139,11 @@ class ManifestReader(Contracted, BaseDiskReader):
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         _pybookget()
         if prefetch < 1:
-            raise ValueError("prefetch must be at least 1")
+            raise PipelineConfigError("prefetch must be at least 1")
         if manifest_format not in (None, "iiif", "mets"):
-            raise ValueError(f"manifest_format is iiif or mets, not {manifest_format!r}")
+            raise PipelineConfigError(f"manifest_format is iiif or mets, not {manifest_format!r}")
         if item_key and not manifest_key:
-            raise ValueError("item_key names a column of an item table: give manifest_key too")
+            raise PipelineConfigError("item_key names a column of an item table: give manifest_key too")
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
         self.manifest_folder, self.prefetch, self.http = manifest_folder, prefetch, dict(http or {})
@@ -163,7 +164,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         entries = self._glob()
         if not entries:
             what = "item tables" if self.manifest_key else "manifests"
-            raise RuntimeError(f"No {what} found on {self.data_folder.path} matching {self.glob_pattern!r}")
+            raise PipelineConfigError(f"No {what} found on {self.data_folder.path} matching {self.glob_pattern!r}")
         return entries[rank::world_size]
 
     def _items(self, entries: list[str]):

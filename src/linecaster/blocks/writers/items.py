@@ -6,6 +6,7 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
+from ...errors import PipelineConfigError
 from ...formats.docling import EXPORT_FORMATS, export
 from ..base.contract import Contract, Contracted, Part
 
@@ -28,7 +29,7 @@ class ItemDocumentWriter(Contracted, PipelineStep):
         super().__init__()
         unknown = set(formats) - set(EXPORT_FORMATS)
         if unknown:
-            raise ValueError(f"unknown formats {sorted(unknown)}; choose from {', '.join(EXPORT_FORMATS)}")
+            raise PipelineConfigError(f"unknown formats {sorted(unknown)}; choose from {', '.join(EXPORT_FORMATS)}")
         self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
         self.furniture, self.dividers = furniture, dividers
 
@@ -75,7 +76,7 @@ class ItemTextWriter(Contracted, JsonlWriter):
     def __init__(self, output_folder: DataFolderLike, format: str = "jsonl",
                  output_filename: str = "${variant}/${rank}.jsonl.gz", **kwargs):
         if format not in ITEM_TEXT_FORMATS:
-            raise ValueError(f"unknown format {format!r}; choose from {', '.join(ITEM_TEXT_FORMATS)}")
+            raise PipelineConfigError(f"unknown format {format!r}; choose from {', '.join(ITEM_TEXT_FORMATS)}")
         self.name = f"📚 item texts ({format})"     # before the base __init__, which names the stats
         super().__init__(output_folder, output_filename, adapter=item_text_row, **kwargs)
         self.format = format

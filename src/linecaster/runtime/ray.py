@@ -11,6 +11,7 @@ import os
 
 from datatrove.executor.ray import RayPipelineExecutor
 
+from ..errors import PipelineConfigError
 from .jobs import point_to_gpu
 
 
@@ -19,7 +20,7 @@ def assigned_gpu() -> int:
     value = os.environ.get("CUDA_VISIBLE_DEVICES", "")
     first = value.split(",")[0].strip()
     if not first.isdigit():
-        raise RuntimeError(f"no GPU index for this task (CUDA_VISIBLE_DEVICES={value!r}); run with gpus_per_task=1")
+        raise PipelineConfigError(f"no GPU index for this task (CUDA_VISIBLE_DEVICES={value!r}); run with gpus_per_task=1")
     return int(first)
 
 
@@ -31,7 +32,7 @@ class RayGPUExecutor(RayPipelineExecutor):
         kwargs.setdefault("gpus_per_task", 1)
         super().__init__(*args, **kwargs)
         if self.gpus_per_task != 1:
-            raise ValueError("RayGPUExecutor runs one task per GPU (gpus_per_task=1)")
+            raise PipelineConfigError("RayGPUExecutor runs one task per GPU (gpus_per_task=1)")
 
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
         self.pipeline = point_to_gpu(self.pipeline, assigned_gpu())

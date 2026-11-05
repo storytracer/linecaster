@@ -15,6 +15,7 @@ from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.blocks.writers.items import ItemTextWriter
 from linecaster.data.transcription import Line, Region, Transcription
+from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
 from linecaster.formats.docling import EXPORT_FORMATS, export, load_docling
 from linecaster.text import variants as T
@@ -63,7 +64,7 @@ def test_page_files_without_document_fall_back_to_page_text(tmp_path: Path):
     out = list(PageFileWriter(str(tmp_path), formats=("txt", "md", "json")).run(iter([page_doc(t=t, item=None)])))
     assert (tmp_path / "p1.txt").read_text() == "nur Zeilen" and (tmp_path / "p1.md").exists()
     assert not (tmp_path / "p1.json").exists() and len(out) == 1
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         PageFileWriter(str(tmp_path), formats=("pdf",))
 
 
@@ -114,7 +115,7 @@ def test_item_text_writers(tmp_path: Path):
     assert (tmp_path / "files" / "verbatim_txt" / "b.txt").read_text() == "Die Unter-\fſuchung."
     assert (tmp_path / "files" / "readable_txt" / "b.txt").read_text() == "Die Untersuchung."
     assert (tmp_path / "files" / "readable_md" / "b.md").read_text() == "Die Untersuchung."
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         ItemTextWriter(str(tmp_path), format="csv")
     row = json.loads((tmp_path / "jsonl" / "readable_md" / "00000.jsonl").read_text())
     assert row["id"] == "b" and row["format"] == "text/markdown" and row["page_ids"] == ["b_1", "b_2"]

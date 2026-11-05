@@ -5,6 +5,8 @@ import argparse
 import json
 import sys
 
+from .errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+
 
 def _serve(a) -> None:
     from .serve import Hosted, serve
@@ -62,7 +64,7 @@ def _catalog(a) -> None:
     if a.action == "verify":
         try:
             problems = registry.Catalog().verify()
-        except ValueError as e:                     # a file that does not load: unreadable, or not its schema
+        except CatalogError as e:                   # a file that does not load: unreadable, or not its schema
             problems = [str(e)]
         print("\n".join(problems) or "catalog OK")
         sys.exit(1 if problems else 0)
@@ -118,10 +120,10 @@ def page_command(image: str, out: str, rest: list[str], pipeline: str | None = N
             pipeline = catalog().resolve_recipe(known.recipe).content["pipeline"]
     pipeline = pipeline or PAGE_PIPELINE
     if code.REPO is None or not (code.REPO / "pipelines").is_dir():
-        raise SystemExit("linecaster page runs a pipeline script (pipelines/*.py): it needs the repository checkout")
+        raise PipelineConfigError("linecaster page runs a pipeline script (pipelines/*.py): it needs the repository checkout")
     scripts = code.pipelines()
     if pipeline not in scripts:
-        raise SystemExit(f"no pipeline script for {pipeline} (pipelines/*.py: {', '.join(sorted(scripts))})")
+        raise PipelineConfigError(f"no pipeline script for {pipeline} (pipelines/*.py: {', '.join(sorted(scripts))})")
     return ["uv", "run", "--script", str(scripts[pipeline].source), "--page", image, out, *rest]
 
 
@@ -169,14 +171,18 @@ def main(argv: list[str] | None = None) -> None:
     a, rest = ap.parse_known_args(argv)
     if rest and a.command != "page":
         ap.error(f"unrecognized arguments: {' '.join(rest)}")
-    if a.command == "page":
-        _page(a, rest)
-    elif a.command == "serve":
-        _serve(a)
-    elif a.command == "models":
-        _models(a)
-    elif a.command == "catalog":
-        _catalog(a)
+    try:
+        if a.command == "page":
+            _page(a, rest)
+        elif a.command == "serve":
+            _serve(a)
+        elif a.command == "models":
+            _models(a)
+        elif a.command == "catalog":
+            _catalog(a)
+    except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
+        print(e, file=sys.stderr)
+        sys.exit(exit_code(e))
 
 
 if __name__ == "__main__":

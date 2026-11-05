@@ -15,6 +15,7 @@ import linecaster.blocks
 from linecaster.backends import InProcess, Served
 from linecaster.blocks.base.contract import Contract, Part, contract_of, parts
 from linecaster.catalog.schema import PARTS, PRODUCES
+from linecaster.errors import PipelineConfigError
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -48,9 +49,9 @@ def test_the_part_vocabulary():
     assert Part("*", "ocr_original").covers(Part("lines", "ocr_original"))
     assert not Part("*", "ocr_original").covers(Part("lines", "ocr_new")) and Part("*").covers(Part("text", "x"))
     assert parts(("image", "lines"), "t") == {Part("image"), Part("lines", "t")}
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         Part("paragraph", "ocr_new")
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         Contract(unit="line")
 
 

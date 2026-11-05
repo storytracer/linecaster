@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from ...catalog.schema import PARTS
+from ...errors import PipelineConfigError
 
 #: page-level parts: they belong to no transcription
 PAGE_PARTS = frozenset({"image", "metadata"})
@@ -27,7 +28,7 @@ class Part:
 
     def __post_init__(self):
         if self.name != "*" and self.name not in PARTS:
-            raise ValueError(f"unknown part {self.name!r}; known: {', '.join(PARTS)}")
+            raise PipelineConfigError(f"unknown part {self.name!r}; known: {', '.join(PARTS)}")
 
     def __str__(self) -> str:
         return self.name if self.transcription is None else f"{self.transcription}:{self.name}"
@@ -68,7 +69,7 @@ class Contract:
     def __post_init__(self):
         for u in (self.unit, self.unit_out):
             if u is not None and u not in UNITS:
-                raise ValueError(f"unknown unit {u!r}; known: {', '.join(UNITS)}")
+                raise PipelineConfigError(f"unknown unit {u!r}; known: {', '.join(UNITS)}")
 
     @property
     def output_unit(self) -> str:

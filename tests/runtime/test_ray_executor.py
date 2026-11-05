@@ -4,6 +4,7 @@ import pytest
 from linecaster.backends import Served
 from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.servers.serve import ModelServer
+from linecaster.errors import PipelineConfigError
 from linecaster.runtime.ray import RayGPUExecutor, assigned_gpu
 
 
@@ -11,7 +12,7 @@ def test_assigned_gpu(monkeypatch):
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "5")
     assert assigned_gpu() == 5
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(PipelineConfigError):
         assigned_gpu()
 
 
@@ -30,5 +31,5 @@ def test_task_moves_to_its_gpu_port(monkeypatch, tmp_path):
 
 
 def test_one_gpu_per_task(tmp_path):
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         RayGPUExecutor([], tasks=1, gpus_per_task=2, logging_dir=str(tmp_path))

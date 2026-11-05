@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from ..errors import ServerError
 from .dots import PASSTHROUGH, DotsAdapter
 
 
@@ -27,7 +28,7 @@ class UnlimitedOCRAdapter(DotsAdapter):
     def content(self, body: dict) -> tuple[str, str | None]:
         choice = (body.get("choices") or [None])[0]
         if not choice or choice.get("message", {}).get("content") is None:
-            raise ValueError(f"no content in response: {str(body)[:200]}")
+            raise ServerError(f"no content in response: {str(body)[:200]}")
         return choice["message"]["content"], choice.get("finish_reason")
 
     def settings(self) -> dict[str, Any]:

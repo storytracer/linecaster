@@ -6,6 +6,7 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
+from ...errors import PipelineConfigError
 from ..base.contract import Contract, Contracted, parts
 
 #: format -> file extension
@@ -58,9 +59,9 @@ class PageFileWriter(Contracted, PipelineStep):
         super().__init__()
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
-            raise ValueError(f"unknown formats {sorted(unknown)}; choose from {sorted(PAGE_FILE_EXTENSIONS)}")
+            raise PipelineConfigError(f"unknown formats {sorted(unknown)}; choose from {sorted(PAGE_FILE_EXTENSIONS)}")
         if detail not in DETAILS:
-            raise ValueError(f"unknown detail {detail!r}; choose from {', '.join(DETAILS)}")
+            raise PipelineConfigError(f"unknown detail {detail!r}; choose from {', '.join(DETAILS)}")
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
         self.detail, self.dividers, self.text_fallback = detail, dividers, text_fallback

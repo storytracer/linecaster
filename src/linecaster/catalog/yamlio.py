@@ -19,6 +19,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import LiteralScalarString
 
+from ..errors import CatalogError
+
 #: the first line of a catalog file: its JSON Schema, relative to the file
 MODELINE = "# yaml-language-server: $schema={}"
 _MODELINE = re.compile(r"^# yaml-language-server: \$schema=(\S+)\s*$")
@@ -137,11 +139,11 @@ def read_front_matter(path: str | Path) -> tuple[dict, str]:
     text = Path(path).read_text(encoding="utf-8")
     m = FRONT.match(text)
     if not m:
-        raise ValueError(f"{path}: no YAML front matter (the file must start with ---)")
+        raise CatalogError(f"{path}: no YAML front matter (the file must start with ---)")
     try:
         meta = load(m.group("meta")) or {}
     except Exception as e:  # noqa: BLE001 - ruamel's errors are not ValueErrors
-        raise ValueError(f"{path}: {e}") from e
+        raise CatalogError(f"{path}: {e}") from e
     if not isinstance(meta, dict):
-        raise ValueError(f"{path}: the front matter is not a mapping")
+        raise CatalogError(f"{path}: the front matter is not a mapping")
     return meta, m.group("body")

@@ -22,6 +22,7 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.readers.parquet import ParquetReader
 
+from ...errors import PageError, PipelineConfigError
 from ..base.contract import Contracted
 
 from ..base.page import new_page_document
@@ -85,9 +86,9 @@ class ImageFolderReader(Contracted, BaseDiskReader):
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         if item_id is not None and item_from_parent:
-            raise ValueError("item_id and item_from_parent exclude each other")
+            raise PipelineConfigError("item_id and item_from_parent exclude each other")
         if sequence and paths_file:
-            raise ValueError("sequence needs every file of an item, so it works with glob_pattern, not paths_file")
+            raise PipelineConfigError("sequence needs every file of an item, so it works with glob_pattern, not paths_file")
         self.item_from_parent, self.item_id, self.sequence = item_from_parent, item_id, sequence
         self._positions: dict[str, int] = {}
 
@@ -113,7 +114,7 @@ class ImageFolderReader(Contracted, BaseDiskReader):
         else:
             all_files = self._glob()
             if not all_files:
-                raise RuntimeError(f"No images found on {self.data_folder.path} matching {self.glob_pattern!r}")
+                raise PipelineConfigError(f"No images found on {self.data_folder.path} matching {self.glob_pattern!r}")
             if self.sequence:
                 counts: dict[str | None, int] = {}
                 for path in all_files:
@@ -177,7 +178,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         if data is not None:
             return bytes(data), f"{self.data_folder.resolve_paths(filepath)}#{page_id}"
         if not path:
-            raise ValueError(f"{filepath}: page {page_id} has neither image bytes nor an image path")
+            raise PageError(page_id, "ImageParquetReader", f"{filepath}: neither image bytes nor an image path")
         if "://" in path or path.startswith("/"):
             return self._opener.read(path), path
         with self.image_folder.open(path, "rb") as f:
@@ -189,7 +190,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
             derive = self.id_key not in pqf.schema_arrow.names
             if derive and not (self.item_key and self.sequence_key):
-                raise ValueError(f"{filepath}: no page id column {self.id_key!r}; give id_key, or item_key and "
+                raise PipelineConfigError(f"{filepath}: no page id column {self.id_key!r}; give id_key, or item_key and "
                                  "sequence_key to name pages <item>_<0001>")
             keys = [k for k in (None if derive else self.id_key, self.image_key, self.item_key, self.sequence_key)
                     if k]

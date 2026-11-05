@@ -39,6 +39,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from ..errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+
 ON = ("local", "ray", "hf-jobs")
 RUN_RECORD = "run.yaml"
 ENGINE_PORT = 8100
@@ -143,9 +145,9 @@ def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
         try:
             out.append((int(n), float(secs)))
         except ValueError:
-            raise ValueError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}") from None
+            raise PipelineConfigError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}") from None
         if not sep or out[-1][0] < 1 or out[-1][1] <= 0:
-            raise ValueError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}")
+            raise PipelineConfigError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}")
     return out or None
 
 
@@ -170,8 +172,8 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--pages reads whole files of page records; --limit, --skip and --glob-pattern are for the other inputs")
     try:
         a.rate_limits = rate_limits(a.rate_limit)
-    except ValueError as e:
-        ap.error(str(e))
+    except PipelineConfigError as e:
+        ap.error(e.problems[0])
     if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
         ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
     if a.on == "hf-jobs" and not a.commit:
@@ -259,9 +261,9 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
         key, sep, value = item.partition("=")
         step, dot, option = key.partition(".")
         if not sep or not dot or not option:
-            raise SystemExit(f"--set needs STEP.OPTION=VALUE, got {item!r}")
+            raise PipelineConfigError(f"--set needs STEP.OPTION=VALUE, got {item!r}")
         if step not in steps:
-            raise SystemExit(f"--set {item!r}: no step {step!r} in this pipeline ({', '.join(steps)})")
+            raise PipelineConfigError(f"--set {item!r}: no step {step!r} in this pipeline ({', '.join(steps)})")
         out.setdefault(step, {})[option] = yamlio.load(value) if value else ""
     return out
 
@@ -473,10 +475,10 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
     rid, edition = split_ref(ref)
     d, doc = c.recipes[rid] if rid in c.recipes else (None, None)
     if doc is None:
-        raise SystemExit(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
+        raise CatalogError(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
     pipeline = doc.pipeline if edition in (None, doc.edition) else d.lock.recipes[ref].resolved["pipeline"]
     if pipeline != pipeline_id:                  # before resolving: its presets may need other engines
-        raise SystemExit(f"recipe {ref} is for the pipeline {pipeline}, not {pipeline_id}")
+        raise PipelineConfigError(f"recipe {ref} is for the pipeline {pipeline}, not {pipeline_id}")
     r = c.resolve_recipe(ref)
     overrides = {}
     for slot, p in r.content["presets"].items():
@@ -488,7 +490,7 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
             overrides[slot] = given
     for name, value in r.content.get("options", {}).items():
         if not hasattr(a, name):
-            raise SystemExit(f"recipe {r.ref}: the pipeline {pipeline_id} has no option {name!r}")
+            raise PipelineConfigError(f"recipe {r.ref}: the pipeline {pipeline_id} has no option {name!r}")
         if not _given(ap, argv, name):
             setattr(a, name, value)
         elif getattr(a, name) != value:
@@ -508,24 +510,22 @@ def main(script: str, description: str | None, options: Callable, models: Callab
 
         sys.argv = ["ray", *argv[1:]]
         sys.exit(ray_cli())
-    if argv[:1] == ["serve"]:
-        return serve(argv[1:], options, models, pipeline_id, slots)
-    ap = parser(description)
-    g = ap.add_argument_group("pipeline")
-    if pipeline_id:
-        g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
-                                        "command line leaves open")
-    options(g)
-    a = ap.parse_args(argv)
-    if pipeline_id:
-        apply_recipe(ap, a, pipeline_id, slots or {}, argv)
-    a = check(ap, a)
-    built = build(a, str(Path(script).resolve()))
-    pipeline, extra = built if isinstance(built, tuple) else (built, {})
-    from ..errors import PipelineConfigError
-
     try:
+        if argv[:1] == ["serve"]:
+            return serve(argv[1:], options, models, pipeline_id, slots)
+        ap = parser(description)
+        g = ap.add_argument_group("pipeline")
+        if pipeline_id:
+            g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
+                                            "command line leaves open")
+        options(g)
+        a = ap.parse_args(argv)
+        if pipeline_id:
+            apply_recipe(ap, a, pipeline_id, slots or {}, argv)
+        a = check(ap, a)
+        built = build(a, str(Path(script).resolve()))
+        pipeline, extra = built if isinstance(built, tuple) else (built, {})
         run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)
-    except PipelineConfigError as e:        # the command line's exit code; every problem listed
+    except LinecasterError as e:            # the command line's exit code (2: nothing launched); every problem listed
         print(e, file=sys.stderr)
-        sys.exit(2)
+        sys.exit(exit_code(e))

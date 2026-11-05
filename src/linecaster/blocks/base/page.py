@@ -12,6 +12,7 @@ from datatrove.data import Document, Media, MediaType
 from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import PAGE_KEY, Page, PageImage
+from ...errors import PageError
 from .contract import Contracted
 
 
@@ -29,7 +30,7 @@ def image_bytes(doc: Document) -> bytes:
     for m in doc.media:
         if m.type == MediaType.IMAGE and m.media_bytes is not None:
             return m.media_bytes
-    raise ValueError(f"page {doc.id} carries no image bytes")
+    raise PageError(doc.id, message="it carries no image bytes")
 
 
 def decode_rgb(data: bytes):

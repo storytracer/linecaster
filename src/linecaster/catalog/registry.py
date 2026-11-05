@@ -20,6 +20,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Any
 
+from ..errors import CatalogError
 from . import yamlio
 from .schema import SCHEMA_DIR, Evidence, Lock, LockEntry, ModelDoc, PresetDoc, RecipeDoc, json_schemas, schema_file
 
@@ -99,19 +100,19 @@ class Directory:
         for p in sorted(d.root.glob("models/*/model.yaml")):
             m = d._read(ModelDoc, p)
             if m.id != p.parent.name:
-                raise ValueError(f"{p}: id {m.id!r} differs from its folder {p.parent.name!r}")
+                raise CatalogError(f"{p}: id {m.id!r} differs from its folder {p.parent.name!r}")
             d.models[m.id], d.model_bodies[m.id] = m, _prose(p)
         for p in sorted(d.root.glob("presets/*/*.yaml")):          # presets/<step>/<id>.yaml
             pr = d._read(PresetDoc, p)
             if pr.id != p.stem:
-                raise ValueError(f"{p}: id {pr.id!r} differs from its file name {p.stem!r}")
+                raise CatalogError(f"{p}: id {pr.id!r} differs from its file name {p.stem!r}")
             if pr.step != p.parent.name:
-                raise ValueError(f"{p}: step {pr.step!r} differs from its folder {p.parent.name!r}")
+                raise CatalogError(f"{p}: step {pr.step!r} differs from its folder {p.parent.name!r}")
             d.presets[pr.id], d.preset_bodies[pr.id] = pr, _prose(p)
         for p in sorted(d.root.glob("recipes/*.yaml")):
             rc = d._read(RecipeDoc, p)
             if rc.id != p.stem:
-                raise ValueError(f"{p}: id {rc.id!r} differs from its file name {p.stem!r}")
+                raise CatalogError(f"{p}: id {rc.id!r} differs from its file name {p.stem!r}")
             d.recipes[rc.id], d.recipe_bodies[rc.id] = rc, _prose(p)
         for p in sorted(d.root.glob("evidence/*.yaml")):
             d.evidence.append((p, d._read(Evidence, p)))
@@ -124,7 +125,7 @@ class Directory:
         try:
             data = yamlio.read(path)
         except Exception as e:  # noqa: BLE001 - name the file
-            raise ValueError(f"{path}: {e}") from e
+            raise CatalogError(f"{path}: {e}") from e
         doc = _validate(model, data, path)
         self.files[path] = doc.schema_
         return doc
@@ -150,7 +151,7 @@ def _validate(model, data, path):
     try:
         return model.model_validate(data)
     except Exception as e:  # noqa: BLE001 - name the file
-        raise ValueError(f"{path}: {e}") from e
+        raise CatalogError(f"{path}: {e}") from e
 
 
 class Catalog:
@@ -166,11 +167,11 @@ class Catalog:
                                    ("recipe", d.recipes, self.recipes)):
                 for k, v in src.items():
                     if k in dst:
-                        raise ValueError(f"{kind} {k!r} in both {dst[k][0].root} and {d.root}")
+                        raise CatalogError(f"{kind} {k!r} in both {dst[k][0].root} and {d.root}")
                     dst[k] = (d, v)
         both = set(self.presets) & set(self.recipes)
         if both:
-            raise ValueError(f"ids used for a preset and a recipe: {sorted(both)}")
+            raise CatalogError(f"ids used for a preset and a recipe: {sorted(both)}")
 
     # -------------------------------------------------------------------------------------------- lookups
 
@@ -178,19 +179,19 @@ class Catalog:
         try:
             return self.models[mid][1]
         except KeyError:
-            raise KeyError(f"unknown model {mid!r}; known: {sorted(self.models)}") from None
+            raise CatalogError(f"unknown model {mid!r}; known: {sorted(self.models)}") from None
 
     def preset(self, pid: str) -> PresetDoc:
         try:
             return self.presets[pid][1]
         except KeyError:
-            raise KeyError(f"unknown preset {pid!r}; known: {sorted(self.presets)}") from None
+            raise CatalogError(f"unknown preset {pid!r}; known: {sorted(self.presets)}") from None
 
     def recipe(self, rid: str) -> RecipeDoc:
         try:
             return self.recipes[rid][1]
         except KeyError:
-            raise KeyError(f"unknown recipe {rid!r}; known: {sorted(self.recipes)}") from None
+            raise CatalogError(f"unknown recipe {rid!r}; known: {sorted(self.recipes)}") from None
 
     def recipe_functional(self, rc: RecipeDoc) -> dict:
         """A recipe's functional content: its pipeline, each slot's preset edition with that edition's hash
@@ -205,7 +206,7 @@ class Catalog:
         a run record names must be the edition's hash or its hash before a catalog migration."""
         rid, edition = split_ref(ref)
         if rid not in self.recipes:
-            raise KeyError(f"unknown recipe {rid!r}; known: {sorted(self.recipes)}")
+            raise CatalogError(f"unknown recipe {rid!r}; known: {sorted(self.recipes)}")
         d, rc = self.recipes[rid]
         if edition is None or edition == rc.edition:
             content = self.recipe_functional(rc)
@@ -215,7 +216,7 @@ class Catalog:
         else:
             entry = d.lock.recipes.get(f"{rid}@{edition}")
             if entry is None:
-                raise KeyError(f"{rid}@{edition} is neither the current edition ({rc.edition}) nor released")
+                raise CatalogError(f"{rid}@{edition} is neither the current edition ({rc.edition}) nor released")
             r = Resolved(rid, edition, entry.resolved, entry.sha256, released=True,
                          previous_sha256=entry.previous_sha256)
         return r.checked(sha256)
@@ -245,7 +246,7 @@ class Catalog:
         pid, edition = split_ref(ref)
         d, p = self.presets[pid] if pid in self.presets else (None, None)
         if p is None:
-            raise KeyError(f"unknown preset {pid!r}; known: {sorted(self.presets)}")
+            raise CatalogError(f"unknown preset {pid!r}; known: {sorted(self.presets)}")
         if edition is None or edition == p.edition:
             content = self.functional(p)
             entry = d.lock.presets.get(p.ref)
@@ -254,7 +255,7 @@ class Catalog:
         else:
             entry = d.lock.presets.get(f"{pid}@{edition}")
             if entry is None:
-                raise KeyError(f"{pid}@{edition} is neither the current edition ({p.edition}) nor released")
+                raise CatalogError(f"{pid}@{edition} is neither the current edition ({p.edition}) nor released")
             r = Resolved(pid, edition, entry.resolved, entry.sha256, released=True,
                          previous_sha256=entry.previous_sha256)
         return r.checked(sha256)
@@ -267,7 +268,7 @@ class Catalog:
                 for key, entry in table.items():
                     if sha256 in (entry.sha256, entry.previous_sha256):
                         return resolve(key)
-        raise KeyError(f"no released edition has the hash {sha256}")
+        raise CatalogError(f"no released edition has the hash {sha256}")
 
     # --------------------------------------------------------------------------------------- release, verify
 
@@ -278,7 +279,7 @@ class Catalog:
             d, doc = self.recipes[pid]
             unreleased = [r for r in doc.presets.values() if not self.resolve(r).released]
             if unreleased:
-                raise ValueError(f"recipe {doc.ref}: release its presets first: {unreleased}")
+                raise CatalogError(f"recipe {doc.ref}: release its presets first: {unreleased}")
             table, content, kind = d.lock.recipes, self.recipe_functional(doc), "recipe"
         else:
             d, doc = self.presets[pid]
@@ -287,7 +288,7 @@ class Catalog:
         old = table.get(key)
         if old is not None:
             if old.sha256 != sha:
-                raise ValueError(f"{key} is released with other content; give the {kind} edition {doc.edition + 1}")
+                raise CatalogError(f"{key} is released with other content; give the {kind} edition {doc.edition + 1}")
             return old
         entry = LockEntry(sha256=sha, released=today or dt.date.today(), linecaster=commit, resolved=content)
         table[key] = entry
@@ -313,7 +314,7 @@ class Catalog:
                 for ref in ([p.model] if p.model is not None else []) + list(p.submodels.values()):
                     try:
                         self.model(ref.id).pin(ref.revision)
-                    except KeyError as e:
+                    except CatalogError as e:
                         bad.append(f"preset {pid}: {e.args[0]}")
                 if bad:
                     problems += bad
@@ -336,7 +337,7 @@ class Catalog:
             for rid, rc in d.recipes.items():
                 try:
                     content = self.recipe_functional(rc)
-                except KeyError as e:
+                except CatalogError as e:
                     problems.append(f"recipe {rid}: {e.args[0]}")
                     continue
                 unreleased = [r for r in rc.presets.values() if not self.resolve(r).released]
@@ -354,7 +355,7 @@ class Catalog:
             for path, ev in d.evidence:
                 try:
                     (self.resolve if ev.preset else self.resolve_recipe)(ev.subject)
-                except KeyError as e:
+                except CatalogError as e:
                     problems.append(f"evidence {path.name}: {e.args[0]}")
         return problems
 
@@ -422,7 +423,7 @@ class Resolved:
     def checked(self, sha256: str | None) -> "Resolved":
         """Itself, if ``sha256`` is ``None``, its hash or its previous hash; else a ``ValueError``."""
         if sha256 is not None and sha256 not in (self.sha256, self.previous_sha256):
-            raise ValueError(f"{self.ref} has the hash {self.sha256}, not {sha256}")
+            raise CatalogError(f"{self.ref} has the hash {self.sha256}, not {sha256}")
         return self
 
     @property
@@ -451,7 +452,7 @@ def engine_ids() -> dict[str, str]:
 def engine_class(engine: str):
     known = engine_ids()
     if engine not in known:
-        raise KeyError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
+        raise CatalogError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
     module, _, name = known[engine].partition(":")
     return getattr(import_module(module), name)
 
@@ -463,9 +464,9 @@ def engine_spec(ref: str) -> tuple[str, dict, "Resolved"]:
     r = catalog().resolve(ref)
     known = engine_ids()
     if r.engine in SERVED_ONLY:
-        raise ValueError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.adapters.chat_model")
+        raise CatalogError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.adapters.chat_model")
     if r.engine not in known:
-        raise KeyError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
+        raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
     kwargs = dict(r.content.get("options", {}))
 
     def weights(pin: dict) -> dict:
