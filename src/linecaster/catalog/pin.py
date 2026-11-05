@@ -1,4 +1,4 @@
-"""``linecaster catalog pin``: write a model document from its source, with the upstream card copied verbatim.
+"""``linecaster catalog pin``: write a model entry from its source, with the upstream card copied verbatim.
 
 * Hugging Face: the revision (a commit; a tag or branch is resolved and kept as ``tag``), the sha256 of every
   LFS file, ``README.md`` and any license file at that commit, copied unchanged into

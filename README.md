@@ -579,7 +579,7 @@ Spelling is never modernized.
 
 | To add | Write |
 |---|---|
-| a model | `linecaster catalog pin <id> --hf <repo>` for its model document and card, then a preset (`presets/<step>/<id>.yaml`, its reasons in `<id>.md`) and `linecaster catalog release <id>` |
+| a model | `linecaster catalog pin <id> --hf <repo>` for its model entry and card, then a preset (`presets/<step>/<id>.yaml`, its reasons in `<id>.md`) and `linecaster catalog release <id>` |
 | a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
 | an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`) |
 | a recipe | `recipes/<id>.yaml`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |

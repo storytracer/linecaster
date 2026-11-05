@@ -21,7 +21,7 @@ class Typographer(PageBlock):
         if t is None:
             return page
         stats = retype(t)
-        for key in ("levelled", "demoted", "split", "drop_capitals", "numbers_dropped"):
+        for key in ("leveled", "demoted", "split", "drop_capitals", "numbers_dropped"):
             if getattr(stats, key):
                 self.stat_update(key, value=getattr(stats, key))
         return page

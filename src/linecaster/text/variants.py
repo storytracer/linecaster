@@ -16,8 +16,8 @@ The named variants are points on these dimensions:
 variant                   fidelity            flow        scope      format
 ========================  ==================  ==========  =========  ==============
 ``verbatim_txt``          as written          as laid out full page  text/plain
-``readable_txt``          normalised          flowed      body only  text/plain
-``readable_md``           normalised          flowed      body only  text/markdown
+``readable_txt``          normalized          flowed      body only  text/plain
+``readable_md``           normalized          flowed      body only  text/markdown
 ========================  ==================  ==========  =========  ==============
 
 Normalization table: ſ -> s; the typographic ligatures ﬀ ﬁ ﬂ ﬃ ﬄ ﬅ ﬆ -> their letters; r rotunda
@@ -50,8 +50,8 @@ NO_TEXT = frozenset({"picture", "chart"})
 #: variant -> (fidelity, flow, scope, format)
 VARIANTS = {
     "verbatim_txt": ("as written", "as laid out", "full page", "text/plain"),
-    "readable_txt": ("normalised", "flowed", "body only", "text/plain"),
-    "readable_md": ("normalised", "flowed", "body only", "text/markdown"),
+    "readable_txt": ("normalized", "flowed", "body only", "text/plain"),
+    "readable_md": ("normalized", "flowed", "body only", "text/markdown"),
 }
 
 

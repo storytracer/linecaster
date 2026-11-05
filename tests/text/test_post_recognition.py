@@ -28,7 +28,7 @@ def test_heading_levels_and_demotion():
     assert big.heading_level == 1                      # 3.0x
     assert sub.label == "text" and sub.heading_level is None    # 1.1x: demoted
     assert mid.label == "section_header" and mid.heading_level == 2   # 1.8x
-    assert (stats.levelled, stats.demoted) == (2, 1)
+    assert (stats.leveled, stats.demoted) == (2, 1)
     assert t.model[-1].step == "typography" and t.model[-1].measurements["demoted"] == 1
 
 

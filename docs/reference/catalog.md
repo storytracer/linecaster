@@ -1,7 +1,7 @@
 # The catalog: models, presets, recipes, evidence
 
 The catalog describes every model Linecaster can run, how it runs it, the tested combinations, and the
-measurements behind them. Its documents live in one folder, `src/linecaster/catalog/data/`, shipped with
+measurements behind them. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
 
 ```
@@ -203,7 +203,7 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | Command | Does |
 |---|---|
 | `linecaster models [--step STEP]` | lists the presets (and the recipes) |
-| `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model document, card, file hashes |
+| `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model entry, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
 | `linecaster catalog release ID [--commit SHA]` | freezes the current edition of a preset or recipe in the lock |
 | `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and evidence |

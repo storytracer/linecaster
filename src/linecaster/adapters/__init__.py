@@ -299,7 +299,7 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     if serve.get("draft"):
         d = dict(serve["draft"])
         dm = c.model(d["model"])
-        dm.pin(d["revision"])                   # the draft's revision must be pinned in its model document
+        dm.pin(d["revision"])                   # the draft's revision must be pinned in its model entry
         draft = {"repo": dm.source.ref, "revision": d["revision"], "speculative": d.get("speculative") or {}}
     preset = ChatPreset(ref=r.ref, sha256=r.sha256, repo=m.source.ref, revision=content["model"]["revision"],
                         unit=c.preset(r.id).capabilities.unit or "page", options=options, settings=dict(content.get("settings") or {}),

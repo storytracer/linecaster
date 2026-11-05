@@ -14,7 +14,7 @@ with our text in PaddleX's HTML. The squiddle combination's table step.
   table against 17 cells and 121 words padded); from 8 px the result is stable.
 - The pipeline's other models are its `submodels`, by PaddleX name: the wired/wireless classifier
   (`PP-LCNet_x1_0_table_cls`, which picks the branch) and the two cell detectors (loaded by the pipeline, unused
-  with `e2e`), each a pin of its model document, so their files are part of the edition's hash.
+  with `e2e`), each a pin of its model entry, so their files are part of the edition's hash.
 
 Edition 2 (2026-11-03): the same models at the same revisions, moved from the option `submodel_revisions` (edition
 1) to `submodels`, so their file hashes count too. Edition 1 was dropped from the lock when the catalogs were

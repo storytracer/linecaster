@@ -37,7 +37,7 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
   the job helpers and pipeline-building helpers; example pipelines only as pipeline
-  scripts (`pipelines/`), recipes as catalog documents, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
+  scripts (`pipelines/`), recipes as catalog entries, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
   pipeline in `storytracer/squiddleocr`, the BHL re-OCR in `finebooks/bhl-commonpile-pipeline`.
 
 ## Architecture: servers host models, the pipeline puts the steps together
@@ -177,7 +177,7 @@ and recorded in NOTES.md.
 
 kraken's models always come from their pinned Hugging Face mirrors, never from Zenodo (it
 throttles): `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}`, revisions and hashes in their
-model documents (`src/linecaster/catalog/data/models/kraken-ppocrv6-*`; the Zenodo DOIs are provenance,
+model entries (`src/linecaster/catalog/data/models/kraken-ppocrv6-*`; the Zenodo DOIs are provenance,
 in each pin's `doi`); `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026)
 is still pinned in `linecaster_kraken.models` (no engine uses it). PaddleX's official models are its
 `PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the catalog and loaded from

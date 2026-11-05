@@ -28,7 +28,7 @@ def test_every_preset_builds_its_adapter(pid):
     assert isinstance(spec, ChatAdapter) and type(spec) is adapter(p.options["adapter"])
     m = c.model(p.model.id)
     assert (spec.model, spec.revision) == (m.source.ref, p.model.revision)
-    m.pin(spec.revision)                                       # pinned in the model document
+    m.pin(spec.revision)                                       # pinned in the model entry
     r = c.resolve(pid)
     assert (spec.preset, spec.preset_sha256) == (r.ref, r.sha256) and r.released
     assert p.step == spec.step == "recognition" and spec.unit == p.capabilities.unit in ("page", "region")

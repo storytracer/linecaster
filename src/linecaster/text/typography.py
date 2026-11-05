@@ -61,7 +61,7 @@ class RetypeStats:
     body_size: float = 0.0
     demoted: int = 0
     split: int = 0
-    levelled: int = 0
+    leveled: int = 0
     drop_capitals: int = 0
     numbers_dropped: int = 0
     examples: list[str] = field(default_factory=list)
@@ -71,7 +71,7 @@ class RetypeStats:
             self.examples.append(f"{kind}: {text[:60]}")
 
     def counts(self) -> dict:
-        return {"body_size": self.body_size, "levelled": self.levelled, "demoted": self.demoted, "split": self.split,
+        return {"body_size": self.body_size, "leveled": self.leveled, "demoted": self.demoted, "split": self.split,
                 "drop_capitals": self.drop_capitals, "numbers_dropped": self.numbers_dropped}
 
 
@@ -159,7 +159,7 @@ def level_headings(contents: list[Content], body: float, stats: RetypeStats) -> 
             stats.note("demoted", c.text)
         else:
             c.region.heading_level = heading_level(ratio)
-            stats.levelled += 1
+            stats.leveled += 1
 
 
 def split_leading_heading(c: Content, body: float, stats: RetypeStats) -> Content | None:

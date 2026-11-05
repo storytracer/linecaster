@@ -156,7 +156,7 @@ def test_item_texts_block():
         ("b2", "verbatim_txt"), ("b2", "readable_txt"), ("b2", "readable_md")]
     assert out[0].text == "Seite 1\fSeite 2" and out[1].text == "Seite 1 Seite 2"
     assert out[0].metadata["page_ids"] == ["b1_1", "b1_2"] and out[0].metadata["token_count"] == len(out[0].text)
-    assert out[2].metadata["format"] == "text/markdown" and out[1].metadata["fidelity"] == "normalised"
+    assert out[2].metadata["format"] == "text/markdown" and out[1].metadata["fidelity"] == "normalized"
     with pytest.raises(ValueError):
         ItemTexts(variants=("nope",))
 
