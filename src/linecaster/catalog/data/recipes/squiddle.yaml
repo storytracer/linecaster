@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../schemas/recipe-1.json
+schema: linecaster.recipe/1
+id: squiddle
+edition: 1
+pipeline: chain.v1
+presets:
+  layout: pp-doclayoutv3@1
+  lines: pp-ocrv6-medium-det@1
+  recognition: kraken-ppocrv6-medium@1
+  tables: slanet-plus@2
+  formulas: pp-formulanet-plus-l@1
+options:
+  text: reflow
+provenance:
+  derived_from:
+  - storytracer/squiddleocr 0.3, the paddle pipeline's defaults (`squiddle legacy ocr --pipeline paddle`)
+  - 'storytracer/squiddleocr@7c8a052 (the goldens: sample-60, tables-7)'
+  authored_by:
+  - Sebastian Majstorovic
+  created: 2026-11-03
+support: core

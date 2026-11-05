@@ -3,7 +3,7 @@
 PaddleX itself downloads an official model from Hugging Face as ``PaddlePaddle/<name>_onnx`` (the ONNX Runtime
 engine) or ``PaddlePaddle/<name>_safetensors`` (the transformers engine), always the repository's current
 ``main``, into ``~/.paddlex/official_models/`` (``paddlex.inference.utils.official_models``). Here the same
-repositories are pinned in the catalogue (``linecaster_paddlex/catalog/models/<name>-onnx/model.md``, the name
+repositories are pinned in the catalogue (``linecaster/catalog/data/models/<name>-onnx/model.yaml``, the name
 lowercased with ``_`` as ``-``): a preset passes its pin as ``weights``, a model name resolves to its model
 document's newest pin, and the snapshot at that commit (Hugging Face cache, checked against the pinned
 sha256) goes to ``create_predictor(model_dir=...)``. A name the catalogue does not know is left to PaddleX's

@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: kraken-ppocrv6-medium
+edition: 1
+step: recognition
+model:
+  id: kraken-ppocrv6-medium
+  revision: f7fd70f3fd22b615f41bada4674ac2462f938339
+engine: kraken.recognition.v1
+options:
+  model: medium
+  batch_size: 8
+  precision: auto
+  text_direction: horizontal-lr
+capabilities:
+  unit: line
+  produces:
+  - text
+  - words
+  - word_confidences
+  - line_confidences
+provenance:
+  derived_from:
+  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
+  created: 2026-11-03
+support: core

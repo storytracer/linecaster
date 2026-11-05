@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: ovisocr2
+edition: 1
+step: page
+model:
+  id: ovisocr2
+  revision: 65c619d374b55d4152e85150fc1b003700bc1f0c
+engine: chat.v1
+options:
+  adapter: ovis-ocr
+settings:
+  sampling:
+    temperature: 0.0
+    max_tokens: 16384
+  prompt: |2-
+
+    Extract all readable content from the image in natural human reading order and output the result as a single Markdown document. For charts or images, represent them using an HTML image tag: <img src="images/bbox_{left}_{top}_{right}_{bottom}.jpg" />, where left, top, right, bottom are bounding box coordinates scaled to [0, 1000). Format formulas as LaTeX. Format tables as HTML: <table>...</table>. Transcribe all other text as standard Markdown. Preserve the original text without translation or paraphrasing.
+  chat_template_kwargs:
+    enable_thinking: false
+  image:
+    max_pixels: 8294400
+    jpeg_quality: 95
+serve:
+  server: vllm
+  version: 0.26.0
+  image: vllm/vllm-openai:v0.26.0
+  flags:
+  - --max-model-len
+  - '32768'
+  - --no-enable-prefix-caching
+  - --mm-processor-cache-gb
+  - '0'
+  - --limit-mm-per-prompt
+  - '{"image": 1}'
+  - --mm-processor-kwargs
+  - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
+capabilities:
+  unit: page
+  produces:
+  - markdown
+  - html
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/ovis-ocr2-port.py
+  - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:ovis-ocr2-server.py
+  - ATH-MaaS/OvisOCR2@65c619d374b55d4152e85150fc1b003700bc1f0c:README.md
+  created: 2026-11-03
+support: core

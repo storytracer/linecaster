@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "DerivedFrom": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "description": "what it derives from: a model id, hub repo@revision or DOI",
+          "title": "Ref",
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "mirror",
+            "converted",
+            "quantised",
+            "finetuned"
+          ],
+          "title": "Relation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "relation"
+      ],
+      "title": "DerivedFrom",
+      "type": "object"
+    },
+    "Pin": {
+      "additionalProperties": false,
+      "description": "One exact upstream revision of the model, with its files and its card as published then.",
+      "properties": {
+        "revision": {
+          "description": "the exact identity: commit, version DOI, or the file's sha256",
+          "title": "Revision",
+          "type": "string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a tag or branch that pointed at it when pinned; information only",
+          "title": "Tag"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the version DOI of the same files, where there is one",
+          "title": "Doi"
+        },
+        "pinned": {
+          "format": "date",
+          "title": "Pinned",
+          "type": "string"
+        },
+        "files": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "file name -> sha256:<hex>",
+          "title": "Files",
+          "type": "object"
+        },
+        "card": {
+          "description": "the upstream card, verbatim, relative to the model folder",
+          "title": "Card",
+          "type": "string"
+        },
+        "card_sha256": {
+          "title": "Card Sha256",
+          "type": "string"
+        },
+        "license_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "an upstream licence file copied next to the card",
+          "title": "License File"
+        }
+      },
+      "required": [
+        "revision",
+        "pinned",
+        "card",
+        "card_sha256"
+      ],
+      "title": "Pin",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where the files come from. ``kind`` hf: ``ref`` is the repo id; zenodo: the concept DOI; git: the\nrepository URL; url: a download URL.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "hf",
+            "zenodo",
+            "git",
+            "url"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "linecaster.model/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "what upstream calls it, verbatim",
+      "title": "Version"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "pins": {
+      "items": {
+        "$ref": "#/$defs/Pin"
+      },
+      "minItems": 1,
+      "title": "Pins",
+      "type": "array"
+    },
+    "license": {
+      "description": "SPDX id where there is one, else the licence's own name",
+      "title": "License",
+      "type": "string"
+    },
+    "languages": {
+      "description": "ISO 639-3",
+      "items": {
+        "type": "string"
+      },
+      "title": "Languages",
+      "type": "array"
+    },
+    "scripts": {
+      "description": "ISO 15924",
+      "items": {
+        "type": "string"
+      },
+      "title": "Scripts",
+      "type": "array"
+    },
+    "params": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Params"
+    },
+    "derived_from": {
+      "items": {
+        "$ref": "#/$defs/DerivedFrom"
+      },
+      "title": "Derived From",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "source",
+    "pins",
+    "license"
+  ],
+  "title": "ModelDoc",
+  "type": "object"
+}

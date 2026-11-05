@@ -1,32 +1,3 @@
----
-schema: linecaster.preset/1
-id: pp-ocrv6-tiny-det
-edition: 1
-step: lines
-model:
-  id: pp-ocrv6-tiny-det-onnx
-  revision: 2ba1506c0380b8f0b03dd142459aac66d4421f6c
-engine: paddlex.lines.v1
-options:
-  model_name: PP-OCRv6_tiny_det
-  per_region: false
-  unclip_ratio: 1.5
-  box_thresh: 0.6
-  thresh: 0.3
-  pad: 0
-  mask: false
-capabilities:
-  unit: page
-  produces:
-  - lines
-provenance:
-  derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
-    --det-model PP-OCRv6_tiny_det'
-  created: 2026-11-03
-support: experimental
----
-
 PP-OCRv6 tiny text-line detection on the whole page, on ONNX Runtime.
 The same settings as the squiddle combination's medium detector, with the tiny model; not validated against the goldens.
 

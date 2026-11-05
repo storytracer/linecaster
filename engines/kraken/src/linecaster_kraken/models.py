@@ -3,7 +3,7 @@
 kraken's models always come from the Hugging Face mirrors of their Zenodo releases
 (``small-models-for-glam``): Zenodo throttles downloads badly. The mirrors are byte-identical to the
 Zenodo records (the DOIs are provenance, in the model documents). The PP-OCRv6 recognisers' revisions and
-file hashes live in the catalogue (``linecaster_kraken/catalog/models/kraken-ppocrv6-<size>/model.md``): a
+file hashes live in the catalogue (``linecaster/catalog/data/models/kraken-ppocrv6-<size>/model.yaml``): a
 size name resolves to its model document's newest pin, a preset passes its pin as ``weights``. Files land in
 the Hugging Face cache (``~/.cache/huggingface/hub``, ``HF_HOME``; ``HF_HUB_OFFLINE=1`` reads it without the
 network) and are checked against the pinned sha256.

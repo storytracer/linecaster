@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: pp-ocrv6-medium-det
+edition: 1
+step: lines
+model:
+  id: pp-ocrv6-medium-det-onnx
+  revision: 61323801669c338b7891481ec7bac61ce31b576a
+engine: paddlex.lines.v1
+options:
+  model_name: PP-OCRv6_medium_det
+  per_region: false
+  unclip_ratio: 1.5
+  box_thresh: 0.6
+  thresh: 0.3
+  pad: 0
+  mask: false
+capabilities:
+  unit: page
+  produces:
+  - lines
+provenance:
+  derived_from:
+  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
+  created: 2026-11-03
+support: core

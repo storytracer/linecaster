@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../schemas/evidence-1.json
 schema: linecaster.evidence/1
 preset: paddlex-ppocrv6-tiny@1
 context: chain.v1 with pp-doclayoutv3@1, pp-ocrv6-medium-det@1, slanet-plus@1, no formulas, text lines;

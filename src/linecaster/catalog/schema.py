@@ -1,11 +1,17 @@
-"""The catalogue's documents as Pydantic models (``docs/reference/catalog.md``): model, preset, evidence, the lock.
+"""The catalog's entries as Pydantic models (``docs/reference/catalog.md``): model, preset, recipe, evidence, the
+lock.
 
-Front matter is validated strictly (unknown keys are errors); the Markdown body is kept as ``body``.
+Each is a YAML file, validated strictly (unknown keys are errors); the prose is in a Markdown file next to it,
+which tools never read. These models are the only definition of the formats: the JSON Schemas in ``schemas/``
+(``<kind>-<n>.json``, named in each file's first line for editors) are generated from them (``json_schemas``,
+``linecaster catalog schemas``).
 """
 from __future__ import annotations
 
 import datetime as dt
+import json
 import re
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -279,14 +285,56 @@ class Evidence(_Doc):
 
 class LockEntry(_Doc):
     sha256: str
+    previous_sha256: str | None = Field(None, description="the edition's hash before a catalog migration (changes "
+                                                          "that keep behavior); run records may name it")
     released: dt.date
     linecaster: str | None = Field(None, description="the linecaster commit it was released in")
     resolved: dict[str, Any]
 
 
 class Lock(_Doc):
-    schema_: Literal["linecaster.catalog-lock/1"] = Field("linecaster.catalog-lock/1", alias="schema")
+    schema_: Literal["linecaster.lock/2"] = Field("linecaster.lock/2", alias="schema")
     presets: dict[str, LockEntry] = Field(default_factory=dict)
     recipes: dict[str, LockEntry] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+# ---------------------------------------------------------------------------------------------- schemas
+
+#: the JSON Schemas' folder, shipped with the package
+SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
+#: every format, by schema id
+FORMATS: dict[str, type[BaseModel]] = {
+    "linecaster.model/1": ModelDoc,
+    "linecaster.preset/1": PresetDoc,
+    "linecaster.recipe/1": RecipeDoc,
+    "linecaster.evidence/1": Evidence,
+    "linecaster.lock/2": Lock,
+}
+
+
+def schema_file(schema_id: str) -> str:
+    """``linecaster.preset/1`` -> ``preset-1.json``."""
+    kind, _, n = schema_id.removeprefix("linecaster.").partition("/")
+    return f"{kind}-{n}.json"
+
+
+def json_schemas() -> dict[str, str]:
+    """File name -> JSON Schema text, generated from the models."""
+    out = {}
+    for sid, model in FORMATS.items():
+        schema = {"$schema": "https://json-schema.org/draft/2020-12/schema",
+                  **model.model_json_schema(by_alias=True)}
+        out[schema_file(sid)] = json.dumps(schema, indent=2, ensure_ascii=False) + "\n"
+    return out
+
+
+def write_schemas(out: str | Path = SCHEMA_DIR) -> list[Path]:
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for name, text in json_schemas().items():
+        (out / name).write_text(text, encoding="utf-8")
+        written.append(out / name)
+    return written

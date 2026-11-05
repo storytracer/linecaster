@@ -1,28 +1,3 @@
----
-schema: linecaster.model/1
-id: tessdata-best
-version: tessdata_best
-source:
-  kind: git
-  ref: https://github.com/tesseract-ocr/tessdata_best
-pins:
-- revision: e12c65a915945e4c28e237a9b52bc4a8f39a0cec
-  pinned: 2026-11-03
-  files:
-    eng.traineddata: sha256:8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba
-    script/Latin.traineddata: sha256:cf7216998bf7f363f18e3def04cc6b28ae954d2a5a3bdad09f743c9d3538ef35
-  card: upstream/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/README.md
-  card_sha256: sha256:08c87523fb799c5bae6380f6ffa1a823494ab78f63906d7255dddd7671f94a5f
-  license_file: upstream/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/LICENSE
-license: Apache-2.0
-languages:
-- eng
-- mul
-scripts:
-- Latn
-derived_from: []
----
-
 Tesseract's trained data from the tesseract-ocr project's `tessdata_best` repository: the most accurate LSTM models (float), for Tesseract 4
 and later with the LSTM engine. The repository has no tags; the pin is a commit, and the two files linecaster's
 presets use are hashed: `eng.traineddata` (English) and `script/Latin.traineddata` (every language written in the

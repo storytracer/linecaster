@@ -5,8 +5,8 @@
   ``models/<id>/upstream/<revision>/``.
 * git (GitHub): a commit, the named files (downloaded and hashed) and the repository README at that commit.
 
-An existing ``model.md`` keeps its body and fields; the new pin is added (a known revision is left as it is).
-Licence and languages are taken from the card's front matter when the document has none yet.
+An existing ``model.yaml`` keeps its fields and comments, and ``model.md`` its prose; the new pin is added (a known
+revision is left as it is). License and languages are taken from the card's front matter for a new model.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 
 from . import yamlio
-from .registry import sha256_file
+from .registry import sha256_file, write_entry
 from .schema import ModelDoc, Pin
 
 #: card licence ids (Hugging Face uses lowercase SPDX-like ids) -> SPDX
@@ -55,24 +55,23 @@ def _languages(meta: dict) -> list[str]:
 
 
 def _write(directory: Path, model_id: str, source: dict, pin: Pin, card: Path, defaults: dict) -> Path:
-    doc_path = directory / "models" / model_id / "model.md"
-    if doc_path.exists():
-        meta, body = yamlio.read_front_matter(doc_path)
-        pins = meta.setdefault("pins", [])
-        if not any(p["revision"] == pin.revision for p in pins):
-            pins.append(pin.model_dump(mode="python", exclude_none=True))
-    else:
-        cmeta = _card_meta(card)
-        lic = str(cmeta.get("license", "")).lower()
-        meta = {"schema": "linecaster.model/1", "id": model_id, "version": None, "source": source,
-                "pins": [pin.model_dump(mode="python", exclude_none=True)],
-                "license": SPDX.get(lic, cmeta.get("license_name") or lic or "unknown"),
-                "languages": _languages(cmeta), "scripts": [], "derived_from": []}
-        meta.update({k: v for k, v in defaults.items() if v is not None})
-        body = f"\n{model_id}: the upstream card is in `{pin.card}`.\n"
+    path = directory / "models" / model_id / "model.yaml"
+    entry = pin.model_dump(mode="python", exclude_none=True)
+    if path.exists():
+        doc = yamlio.read_rt(path)
+        if not any(p["revision"] == pin.revision for p in doc["pins"]):
+            doc["pins"].append(yamlio.blocks(entry))
+        ModelDoc.model_validate(yamlio.load(yamlio.dump_rt(doc)))
+        path.write_text(yamlio.dump_rt(doc), encoding="utf-8")
+        return path
+    cmeta = _card_meta(card)
+    lic = str(cmeta.get("license", "")).lower()
+    meta = {"schema": "linecaster.model/1", "id": model_id, "version": None, "source": source, "pins": [entry],
+            "license": SPDX.get(lic, cmeta.get("license_name") or lic or "unknown"),
+            "languages": _languages(cmeta), "scripts": [], "derived_from": []}
+    meta.update({k: v for k, v in defaults.items() if v is not None})
     ModelDoc.model_validate(meta)
-    yamlio.write_front_matter(doc_path, meta, body)
-    return doc_path
+    return write_entry(path, meta, f"{model_id}: the upstream card is in `{pin.card}`.")
 
 
 def pin_hf(directory: str | Path, model_id: str, repo: str, revision: str | None = None,

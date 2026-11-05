@@ -29,11 +29,16 @@ def _yaml(typ: str) -> YAML:
     y.allow_duplicate_keys = False
     y.default_flow_style = False
     y.allow_unicode = True
-    y.width = 100
+    y.width = 4096                       # long values stay on their line
     y.indent(mapping=2, sequence=2, offset=0)
     if typ == "rt":
         y.preserve_quotes = True
+        y.representer.add_representer(type(None), _null)
     return y
+
+
+def _null(representer, _data):
+    return representer.represent_scalar("tag:yaml.org,2002:null", "null")
 
 
 def load(text: str) -> Any:
@@ -54,11 +59,12 @@ def read_rt(path: str | Path) -> Any:
     return load_rt(Path(path).read_text(encoding="utf-8"))
 
 
-def _literal(data: Any) -> Any:
+def blocks(data: Any) -> Any:
+    """Plain data ready for a round-trip document: multi-line strings as literal blocks."""
     if isinstance(data, dict):
-        return {k: _literal(v) for k, v in data.items()}
+        return {k: blocks(v) for k, v in data.items()}
     if isinstance(data, (list, tuple)):
-        return [_literal(v) for v in data]
+        return [blocks(v) for v in data]
     if isinstance(data, str) and "\n" in data and type(data) is str:
         return LiteralScalarString(data)
     return data
@@ -74,7 +80,7 @@ def dump(data: Any) -> str:
     """Plain data as YAML 1.2 text (no anchors: shared objects are written out each time)."""
     y = _yaml("rt")
     y.representer.ignore_aliases = lambda _data: True
-    return _dump(y, _literal(data))
+    return _dump(y, blocks(data))
 
 
 def dump_rt(doc: Any) -> str:
@@ -95,15 +101,15 @@ def update(doc: Any, data: Any) -> Any:
                 doc[k] = update(doc[k], v)
             elif ordered:
                 pos = sum(1 for x in doc if x < k)
-                doc.insert(pos, k, _literal(v))
+                doc.insert(pos, k, blocks(v))
             else:
-                doc[k] = _literal(v)
+                doc[k] = blocks(v)
         return doc
     if isinstance(doc, CommentedSeq) and isinstance(data, (list, tuple)) and len(doc) == len(data):
         for i, v in enumerate(data):
             doc[i] = update(doc[i], v)
         return doc
-    return doc if _plain(doc) == data else _literal(data)
+    return doc if _plain(doc) == data else blocks(data)
 
 
 def _plain(v: Any) -> Any:
@@ -121,22 +127,21 @@ def modeline(path: str | Path) -> str | None:
     return m.group(1) if m else None
 
 
+
 FRONT = re.compile(r"\A---\n(?P<meta>.*?)\n---\n?(?P<body>.*)\Z", re.S)
 
 
 def read_front_matter(path: str | Path) -> tuple[dict, str]:
-    """``(front matter, body)`` of a Markdown document that starts with ``---``."""
+    """``(front matter, body)`` of a Markdown file that starts with ``---`` (an upstream model card; linecaster's
+    own Markdown has no front matter)."""
     text = Path(path).read_text(encoding="utf-8")
     m = FRONT.match(text)
     if not m:
         raise ValueError(f"{path}: no YAML front matter (the file must start with ---)")
-    meta = load(m.group("meta")) or {}
+    try:
+        meta = load(m.group("meta")) or {}
+    except Exception as e:  # noqa: BLE001 - ruamel's errors are not ValueErrors
+        raise ValueError(f"{path}: {e}") from e
     if not isinstance(meta, dict):
         raise ValueError(f"{path}: the front matter is not a mapping")
     return meta, m.group("body")
-
-
-def write_front_matter(path: str | Path, meta: dict, body: str = "") -> None:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(f"---\n{dump(meta)}---\n{body if body.startswith(chr(10)) or not body else chr(10) + body}",
-                          encoding="utf-8")

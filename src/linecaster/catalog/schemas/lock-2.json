@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "LockEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "previous_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the edition's hash before a catalog migration (changes that keep behavior); run records may name it",
+          "title": "Previous Sha256"
+        },
+        "released": {
+          "format": "date",
+          "title": "Released",
+          "type": "string"
+        },
+        "linecaster": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the linecaster commit it was released in",
+          "title": "Linecaster"
+        },
+        "resolved": {
+          "additionalProperties": true,
+          "title": "Resolved",
+          "type": "object"
+        }
+      },
+      "required": [
+        "sha256",
+        "released",
+        "resolved"
+      ],
+      "title": "LockEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "linecaster.lock/2",
+      "default": "linecaster.lock/2",
+      "title": "Schema",
+      "type": "string"
+    },
+    "presets": {
+      "additionalProperties": {
+        "$ref": "#/$defs/LockEntry"
+      },
+      "title": "Presets",
+      "type": "object"
+    },
+    "recipes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/LockEntry"
+      },
+      "title": "Recipes",
+      "type": "object"
+    }
+  },
+  "title": "Lock",
+  "type": "object"
+}

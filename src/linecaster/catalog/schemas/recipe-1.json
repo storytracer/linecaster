@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "derived_from": {
+          "description": "sources of the settings, each at a commit or revision",
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "authored_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Authored By",
+          "type": "array"
+        },
+        "created": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created"
+        }
+      },
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A named, opinionated combination: one pipeline, a preset edition for each of its slots, its options.",
+  "properties": {
+    "schema": {
+      "const": "linecaster.recipe/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "edition": {
+      "minimum": 1,
+      "title": "Edition",
+      "type": "integer"
+    },
+    "pipeline": {
+      "description": "the pipeline it fills, by its versioned id, e.g. chain.v1 (pipelines/transcribe_chain.py)",
+      "title": "Pipeline",
+      "type": "string"
+    },
+    "presets": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "slot -> preset id@edition (always an explicit edition)",
+      "title": "Presets",
+      "type": "object"
+    },
+    "options": {
+      "additionalProperties": true,
+      "description": "the pipeline's options, by name",
+      "title": "Options",
+      "type": "object"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "support": {
+      "default": "experimental",
+      "enum": [
+        "core",
+        "experimental",
+        "legacy"
+      ],
+      "title": "Support",
+      "type": "string"
+    },
+    "superseded_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Superseded By"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "edition",
+    "pipeline",
+    "presets"
+  ],
+  "title": "RecipeDoc",
+  "type": "object"
+}

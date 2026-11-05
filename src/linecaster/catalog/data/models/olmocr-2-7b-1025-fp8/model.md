@@ -1,33 +1,3 @@
----
-schema: linecaster.model/1
-id: olmocr-2-7b-1025-fp8
-version: olmOCR-2-7B-1025-FP8
-source:
-  kind: hf
-  ref: allenai/olmOCR-2-7B-1025-FP8
-pins:
-- revision: 40bd7202494b8264ee17ada08b401b5aab7a9ce1
-  pinned: 2026-11-03
-  files:
-    model-00001-of-00003.safetensors: sha256:5d5550dbb21e309786fde9a151442181562cf9dc23141116a4e46e3e815b0d02
-    model-00002-of-00003.safetensors: sha256:65cb798f6478260b7eba5120cba2041ca252d3f94c9a2e32cc7fba16231f0c4a
-    model-00003-of-00003.safetensors: sha256:4a185c74b8147aff33829d1d7384e2781c8dd09461d50499afbd1d80a13e7e1a
-    tokenizer.json: sha256:9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa
-  card: upstream/40bd7202494b8264ee17ada08b401b5aab7a9ce1/README.md
-  card_sha256: sha256:3ad64556c43986a018480b643a12d929a9673835e7d15393e1b3fb29d269448b
-license: Apache-2.0
-languages:
-- eng
-scripts:
-- Latn
-params: 7B (FP8)
-derived_from:
-- ref: allenai/olmOCR-2-7B-1025
-  relation: quantised
-- ref: Qwen/Qwen2.5-VL-7B-Instruct
-  relation: finetuned
----
-
 olmOCR-2-7B-1025-FP8 is Ai2's FP8 quantisation (made with llmcompressor) of olmOCR-2-7B-1025, which is
 fine-tuned from Qwen2.5-VL-7B-Instruct on olmOCR-mix-1025 and further trained with GRPO RL. It reads a
 rendered page and returns natural text as Markdown, preceded by a YAML front matter block (primary language,

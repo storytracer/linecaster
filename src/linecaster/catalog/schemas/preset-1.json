@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Capabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "line",
+                "region",
+                "page"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "produces": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Produces",
+          "type": "array"
+        }
+      },
+      "title": "Capabilities",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "derived_from": {
+          "description": "sources of the settings, each at a commit or revision",
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "authored_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Authored By",
+          "type": "array"
+        },
+        "created": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created"
+        }
+      },
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Serve": {
+      "additionalProperties": false,
+      "description": "The server a served preset was validated with.",
+      "properties": {
+        "server": {
+          "enum": [
+            "vllm",
+            "sglang",
+            "linecaster"
+          ],
+          "title": "Server",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "container image with digest, for HF Jobs",
+          "title": "Image"
+        },
+        "flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Env",
+          "type": "object"
+        },
+        "revision_flag": {
+          "default": true,
+          "description": "pass --revision; false: the server loads the default branch, checked file by file against the pin",
+          "title": "Revision Flag",
+          "type": "boolean"
+        },
+        "pin_ignore": {
+          "description": "globs the default-branch check ignores",
+          "items": {
+            "type": "string"
+          },
+          "title": "Pin Ignore",
+          "type": "array"
+        },
+        "server_packages": {
+          "description": "uv pip install argument lists run in the server's Python first; {repo} and {revision} are the model's",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Server Packages",
+          "type": "array"
+        },
+        "draft": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "speculative decoding: {model: <model id>, revision, speculative: {...}}",
+          "title": "Draft"
+        }
+      },
+      "required": [
+        "server"
+      ],
+      "title": "Serve",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "linecaster.preset/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "edition": {
+      "minimum": 1,
+      "title": "Edition",
+      "type": "integer"
+    },
+    "step": {
+      "enum": [
+        "layout",
+        "lines",
+        "recognition",
+        "tables",
+        "formulas",
+        "page"
+      ],
+      "title": "Step",
+      "type": "string"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "None for engines without weights (rules)"
+    },
+    "submodels": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ModelRef"
+      },
+      "description": "further models of a multi-model engine, by role",
+      "title": "Submodels",
+      "type": "object"
+    },
+    "engine": {
+      "description": "the code that runs it, by its versioned id, e.g. kraken.recognition.v1",
+      "title": "Engine",
+      "type": "string"
+    },
+    "options": {
+      "additionalProperties": true,
+      "description": "the engine's options",
+      "title": "Options",
+      "type": "object"
+    },
+    "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
+    },
+    "labels": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "native label -> DoclingDocument label",
+      "title": "Labels",
+      "type": "object"
+    },
+    "serve": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Serve"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "capabilities": {
+      "$ref": "#/$defs/Capabilities"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "support": {
+      "default": "experimental",
+      "enum": [
+        "core",
+        "experimental",
+        "legacy"
+      ],
+      "title": "Support",
+      "type": "string"
+    },
+    "superseded_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Superseded By"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "edition",
+    "step",
+    "engine"
+  ],
+  "title": "PresetDoc",
+  "type": "object"
+}

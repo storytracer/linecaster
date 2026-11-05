@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: paddlex-ppocrv6-medium
+edition: 1
+step: recognition
+model:
+  id: pp-ocrv6-medium-rec-onnx
+  revision: 50c7eacafc52fa7bcf4194e8cd08e46f8558504b
+engine: paddlex.recognition.v1
+options:
+  model_name: PP-OCRv6_medium_rec
+  batch_size: 8
+  words: true
+capabilities:
+  unit: line
+  produces:
+  - text
+  - words
+  - line_confidences
+provenance:
+  derived_from:
+  - 'storytracer/linecaster@7beadcc (NOTES: More line recognisers, the comparison on sample-60)'
+  created: 2026-11-03
+support: experimental

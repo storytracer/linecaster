@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: minicpm-ocr-1.0-dspark
+version: MiniCPM-OCR 1.0 DSpark
+source:
+  kind: hf
+  ref: openbmb/MiniCPM-OCR-1.0-DSpark
+pins:
+- revision: 31e3feaf80e0061cd6aa73db23480d2d691d6452
+  pinned: 2026-11-03
+  files:
+    model.safetensors: sha256:3e6332e05e2539898a0691db381e3a85877728a754561f9e3d13e597e44c672b
+  card: upstream/31e3feaf80e0061cd6aa73db23480d2d691d6452/README.md
+  card_sha256: sha256:2da4db4f37791a1b3ceb7c4a1ab47477bea7d64c0f41649286a32ecd863f4993
+license: Apache-2.0
+languages:
+- eng
+- zho
+scripts:
+- Latn
+- Hani
+params: 297M
+derived_from:
+- ref: openbmb/MiniCPM-OCR-1.0
+  relation: finetuned

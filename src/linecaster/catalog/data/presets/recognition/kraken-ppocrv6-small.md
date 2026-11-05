@@ -1,32 +1,3 @@
----
-schema: linecaster.preset/1
-id: kraken-ppocrv6-small
-edition: 1
-step: recognition
-model:
-  id: kraken-ppocrv6-small
-  revision: 49c249bf81d95ab2c5f699638d066f7935da6f16
-engine: kraken.recognition.v1
-options:
-  model: small
-  batch_size: 8
-  precision: auto
-  text_direction: horizontal-lr
-capabilities:
-  unit: line
-  produces:
-  - text
-  - words
-  - word_confidences
-  - line_confidences
-provenance:
-  derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
-    -m small'
-  created: 2026-11-03
-support: experimental
----
-
 kraken's PP-OCRv6 small recogniser through kraken's own code (`RecognitionTaskModel`), on every line of the
 page in the line step's order.
 

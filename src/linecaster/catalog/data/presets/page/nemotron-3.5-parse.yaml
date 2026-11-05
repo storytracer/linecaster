@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: nemotron-3.5-parse
+edition: 1
+step: page
+model:
+  id: nemotron-3.5-parse
+  revision: 62cb1e4ba153d113ff64aaf2be6e068c377cf53c
+engine: chat.v1
+options:
+  adapter: nemotron-parse
+  plugin_patterns:
+  - pyproject.toml
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+  - TOKENIZER_ATTRIBUTION.md
+  - postprocessing.py
+  - latex2html.py
+  - nemotron_parse/*
+  - nemotron_parse/**
+  - vllm_tied_patch/*
+  - reference/parse_3_5/inference.constraints.txt
+settings:
+  sampling:
+    temperature: 0.0
+    max_tokens: 8744
+    top_k: 1
+    repetition_penalty: 1.1
+    skip_special_tokens: false
+  prompt: </s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>
+serve:
+  server: vllm
+  version: 0.26.0
+  image: vllm/vllm-openai:v0.26.0@sha256:770fe65b2c73ee74a5c42165cf3433de4048cc2cd9c57a937ca4e35aba5aa87b
+  flags:
+  - --max-model-len
+  - '16384'
+  - --trust-remote-code
+  - --dtype
+  - bfloat16
+  - --distributed-executor-backend
+  - uni
+  - --max-num-seqs
+  - '192'
+  - --max-num-batched-tokens
+  - '16384'
+  - --no-enable-prefix-caching
+  - --limit-mm-per-prompt
+  - '{"image": 1}'
+  - --attention-config
+  - '{"flash_attn_version": 3}'
+capabilities:
+  unit: page
+  produces:
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/nemotron-parse-35-port.py
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:docker/nemotron-parse-35/install-plugin.sh
+  - nvidia/Nemotron-3.5-Parse@62cb1e4ba153d113ff64aaf2be6e068c377cf53c:docs/serving.md
+  created: 2026-11-03
+support: core

@@ -57,13 +57,14 @@ def _models(a) -> None:
 
 
 def _catalog(a) -> None:
-    from pathlib import Path
-
     from .catalog import registry
 
     if a.action == "verify":
-        problems = registry.Catalog().verify()
-        print("\n".join(problems) or "catalogue OK")
+        try:
+            problems = registry.Catalog().verify()
+        except ValueError as e:                     # a file that does not load: unreadable, or not its schema
+            problems = [str(e)]
+        print("\n".join(problems) or "catalog OK")
         sys.exit(1 if problems else 0)
     if a.action == "show":
         from .catalog import yamlio
@@ -75,21 +76,16 @@ def _catalog(a) -> None:
     elif a.action == "docs":
         from .catalog import docs
 
-        for path in docs.write(registry.Catalog(), a.out if a.out != "schemas" else "docs/catalog",
-                               readme=a.readme):
+        for path in docs.write(registry.Catalog(), a.out or "docs/catalog", readme=a.readme):
             print(path)
     elif a.action == "release":
         e = registry.Catalog().release(a.ref, commit=a.commit)
         print(f"{a.ref}: {e.sha256} (released {e.released})")
-    elif a.action == "schema":
-        from .catalog import schema as S
+    elif a.action == "schemas":
+        from .catalog import schema
 
-        out = Path(a.out)
-        out.mkdir(parents=True, exist_ok=True)
-        for name, model in (("model", S.ModelDoc), ("preset", S.PresetDoc), ("evidence", S.Evidence),
-                            ("catalog-lock", S.Lock)):
-            (out / f"{name}.schema.json").write_text(json.dumps(model.model_json_schema(by_alias=True), indent=1))
-        print(f"schemas in {out}")
+        for path in schema.write_schemas(*([a.out] if a.out else [])):
+            print(path)
     elif a.action == "pin":
         from .catalog import pin
 
@@ -117,7 +113,7 @@ def main(argv: list[str] | None = None) -> None:
     m = sub.add_parser("models", help="the catalogue's presets")
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
-    c.add_argument("action", choices=["verify", "show", "release", "pin", "schema", "docs"])
+    c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas", "docs"])
     c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")
@@ -125,7 +121,7 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--tag", help="pin (GitHub): the tag or branch the commit was taken from")
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
     c.add_argument("--commit", help="release: the linecaster commit")
-    c.add_argument("--out", default="schemas", help="schema, docs: output folder (docs: default docs/catalog)")
+    c.add_argument("--out", help="schemas, docs: output folder (default: the package's schemas/, docs/catalog)")
     c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
     a = ap.parse_args(argv)
     if a.command == "serve":

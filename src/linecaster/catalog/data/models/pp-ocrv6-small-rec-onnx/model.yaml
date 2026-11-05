@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: pp-ocrv6-small-rec-onnx
+version: PP-OCRv6_small_rec
+source:
+  kind: hf
+  ref: PaddlePaddle/PP-OCRv6_small_rec_onnx
+pins:
+- revision: b8f84f0b80c529de40b4fbb3544b84fa7233a513
+  pinned: 2026-11-03
+  files:
+    inference.onnx: sha256:5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634
+  card: upstream/b8f84f0b80c529de40b4fbb3544b84fa7233a513/README.md
+  card_sha256: sha256:7d46dbd183ac09bd5a2e6b4577dcb29240751b1c00eb6813eca308d529f86806
+license: Apache-2.0
+languages:
+- eng
+- zho
+scripts: []
+params: 5.2M
+derived_from:
+- ref: PaddlePaddle/PP-OCRv6_small_rec
+  relation: converted

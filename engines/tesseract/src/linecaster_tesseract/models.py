@@ -3,7 +3,7 @@
 ``best`` is tessdata_best (the most accurate LSTM models, float), ``fast`` tessdata_fast (integer,
 faster). A language is a code such as ``eng``, ``deu``, ``lat`` or ``frk`` or a script such as
 ``script/Latin``; ``+`` combines several (``eng+lat``). The commits and the sha256 of the pinned files live in
-the catalogue (``linecaster_tesseract/catalog/models/tessdata-{best,fast}/model.md``): ``data`` resolves to its
+the catalogue (``linecaster/catalog/data/models/tessdata-{best,fast}/model.yaml``): ``data`` resolves to its
 model document's newest pin, a preset passes its pin as ``weights``. Files land in
 ``~/.cache/linecaster/tessdata`` (``LINECASTER_CACHE``) under the repository and commit, and every pinned file
 is checked against its sha256 whenever it is used; with ``weights`` only pinned files are accepted.

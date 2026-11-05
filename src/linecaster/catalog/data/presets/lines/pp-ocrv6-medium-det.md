@@ -1,31 +1,3 @@
----
-schema: linecaster.preset/1
-id: pp-ocrv6-medium-det
-edition: 1
-step: lines
-model:
-  id: pp-ocrv6-medium-det-onnx
-  revision: 61323801669c338b7891481ec7bac61ce31b576a
-engine: paddlex.lines.v1
-options:
-  model_name: PP-OCRv6_medium_det
-  per_region: false
-  unclip_ratio: 1.5
-  box_thresh: 0.6
-  thresh: 0.3
-  pad: 0
-  mask: false
-capabilities:
-  unit: page
-  produces:
-  - lines
-provenance:
-  derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
-  created: 2026-11-03
-support: core
----
-
 PP-OCRv6 medium text-line detection on the whole page, on ONNX Runtime; the squiddle combination's line step.
 PP-OCRv6 medium replaced PP-OCRv5 server as squiddleocr's detector on 2026-09-07 (PaddleX's own OCR pipeline moved to it); its finer boxes let the table step fill header cells that v5's whole-row boxes left empty, at the price of some Fraktur lines split at wide gaps.
 

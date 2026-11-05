@@ -1,29 +1,3 @@
----
-schema: linecaster.preset/1
-id: paddlex-ppocrv6-tiny
-edition: 1
-step: recognition
-model:
-  id: pp-ocrv6-tiny-rec-onnx
-  revision: 2612ab37152ae0a677521bae4e1e3d4fb4cf7c30
-engine: paddlex.recognition.v1
-options:
-  model_name: PP-OCRv6_tiny_rec
-  batch_size: 8
-  words: true
-capabilities:
-  unit: line
-  produces:
-  - text
-  - words
-  - line_confidences
-provenance:
-  derived_from:
-  - 'storytracer/linecaster@7beadcc (NOTES: More line recognisers, the comparison on sample-60)'
-  created: 2026-11-03
-support: experimental
----
-
 PaddleOCR's own PP-OCRv6 tiny recogniser on PaddleX's ONNX Runtime engine. Lines are cut as PaddleX's OCR
 pipeline cuts them (minimum-area rectangle of the polygon, warped upright), sorted by aspect ratio and read
 `batch_size` 8 at a time, as PaddleX's pipeline does. Words: the text split at whitespace, placed along the line by
