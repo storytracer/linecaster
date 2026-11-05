@@ -133,10 +133,11 @@ def _resolve(fut: asyncio.Future, result) -> None:
         fut.set_result(result)
 
 
-def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None) -> web.Application:
+def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_first_call=None) -> web.Application:
     """The server's application. ``tracer``: where the spans of traced requests go (``serve_provider``); none:
-    no spans."""
+    no spans. ``after_first_call()`` runs in the event loop once each model has answered its first request."""
     tracer = tracer or trace_api.NoOpTracer()
+    first_calls: set[str] = set()
     by_name = {h.name: h for h in hosted}
     pool = ThreadPoolExecutor(decode_workers, thread_name_prefix="decode")
     app = web.Application(client_max_size=256 * 2**20)
@@ -205,6 +206,9 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None) -> web
             waiting = tracer.start_span("linecaster.serve.queue", context=parent, attributes=attrs)
             h.jobs.put((image, t, body.get("params") or {}, fut, parent, waiting))
             status, payload = await fut
+            if after_first_call is not None and h.name not in first_calls:
+                first_calls.add(h.name)
+                after_first_call()
             return web.json_response(payload, status=status)
         finally:
             h.admitted -= 1
@@ -247,12 +251,40 @@ def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decod
 
     configure()
     provider = serve_provider(traces)
-    app = build_app(hosted, decode_workers, provider.get_tracer("linecaster") if provider else None)
+    app = build_app(hosted, decode_workers, provider.get_tracer("linecaster") if provider else None,
+                    after_first_call=_graceful_signals if provider else None)
     if provider is not None:
         install_trace_ids()
 
         async def flush(app_):           # on SIGTERM (saturate's Engine stops the server so) and SIGINT
             await asyncio.get_running_loop().run_in_executor(None, provider.shutdown)
 
-        app.on_cleanup.append(flush)
+        async def signals(app_):
+            _graceful_signals()
+
+        app.on_startup.append(signals)
+        app.on_shutdown.append(flush)
     web.run_app(app, host=host, port=port, access_log=None, print=None)
+
+
+def _graceful_signals() -> None:
+    """SIGTERM and SIGINT end the server gracefully, once (so its spans are flushed and its trace file closed), set
+    again after the engines loaded and after each model's first call: an engine's library may put its own handler in
+    place of aiohttp's (PaddlePaddle does, at its first operation, and ends the process at once)."""
+    import signal
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, _raise_graceful_exit)
+
+
+_STOPPING = threading.Event()
+
+
+def _raise_graceful_exit() -> None:
+    """The first signal ends the server; a second one (saturate's Engine signals the process group, and ``uv run``
+    passes the signal on to its child as well) must not cut the graceful end short."""
+    if _STOPPING.is_set():
+        return
+    _STOPPING.set()
+    raise web.GracefulExit()

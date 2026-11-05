@@ -97,6 +97,7 @@ class JsonlFileExporter(SpanExporter):
                 return SpanExportResult.FAILURE
             f = self._file or self._open()
             f.write(line + "\n")
+            f.flush()            # each batch on disk (a sync point of the gzip stream): a killed process loses little
         return SpanExportResult.SUCCESS
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
@@ -131,9 +132,11 @@ class PageBuffer(SpanProcessor):
     root span (``linecaster.page``, ``linecaster.item``) ends; if the root's status is an error (the unit failed in
     this stage), the held spans and the root go on, marked sampled; otherwise they are dropped.
 
-    Memory: the spans of the units in flight, about 1 KB each and some ten per page (its root, one per block, two per
-    request): the served windows, their result queues and a reader's prefetch hold a few hundred pages at most, so a
-    few MB. A unit that never reaches the end of the stage (a block dropped it) is held until the task ends."""
+    Memory: the ended spans of the units in flight, about 3 KB each (measured), one per block and two per request
+    (about 40 KB per page for the twelve blocks of the squiddle recipe). In-process a page or two are in flight; a
+    served block holds at most its window and its result queue (``max_window`` + ``4 × max_window`` pages), so with
+    the default window of 32 and five served blocks about 800 pages, some 30 MB. A unit that never reaches the end
+    of the stage (a block dropped it) is held until the task ends."""
 
     def __init__(self, inner: list[SpanProcessor]):
         self.inner = list(inner)

@@ -459,3 +459,17 @@ def test_the_buffer_holds_only_the_pages_in_flight():
     names = [s.name for s in exported.get_finished_spans()]
     assert names == ["linecaster.block"] * 3 + ["linecaster.page"] and buffer.exported_failed == 1
     provider.shutdown()
+
+
+def test_a_second_stop_signal_does_not_cut_the_servers_end_short():
+    from aiohttp import web
+
+    from linecaster.serve import app
+
+    app._STOPPING.clear()
+    try:
+        with pytest.raises(web.GracefulExit):
+            app._raise_graceful_exit()
+        assert app._raise_graceful_exit() is None          # the second one (from uv run, passing it on) is ignored
+    finally:
+        app._STOPPING.clear()
