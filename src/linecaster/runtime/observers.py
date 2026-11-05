@@ -3,6 +3,8 @@
 An ``Observer`` gets, per task:
 
 * ``on_task_start(rank, world_size)`` before the first page;
+* ``on_warm_up(block, seconds)`` when a block that loads something (an engine, a server) is warmed up, before its
+  first page (``linecaster.blocks.base.block.warm``; blocks warm up as the stream reaches them, the last one first);
 * ``on_enter(block, doc)`` when a page goes into a block, ``on_exit(block, doc, error=None)`` when it comes out
   (``error``: what the block recorded in ``doc.metadata["errors"]`` on the way, if anything);
 * ``on_unit(block, doc, event, **attributes)`` from inside a stream block (``PageBlock.notify``): ``prepare`` when
@@ -22,6 +24,9 @@ class Observer:
     """The hooks, all no-ops; observers override what they need."""
 
     def on_task_start(self, rank: int, world_size: int) -> None:
+        pass
+
+    def on_warm_up(self, block, seconds: float) -> None:
         pass
 
     def on_enter(self, block, doc) -> None:
@@ -55,6 +60,10 @@ class Observers(Observer):
         self._started = True
         for o in self.observers:
             o.on_task_start(rank, world_size)
+
+    def on_warm_up(self, block, seconds: float) -> None:
+        for o in self.observers:
+            o.on_warm_up(block, seconds)
 
     def on_enter(self, block, doc) -> None:
         self._errors[id(doc)] = len(doc.metadata.get("errors") or ())

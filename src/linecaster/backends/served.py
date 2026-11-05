@@ -21,5 +21,8 @@ class Served:
     engine: str | None = None
     served = True
 
+    def warm_up(self) -> None:
+        """Nothing to load: the client opens with the block's run."""
+
     def describe(self) -> str:
         return f"served {self.endpoint} ({self.model})"

@@ -24,7 +24,9 @@ def resolve(spec: str):
 
 
 class InProcess:
-    """The engine runs in the pipeline's process. ``spec`` names its class; ``kwargs`` construct it."""
+    """The engine runs in the pipeline's process. ``spec`` names its class; ``kwargs`` construct it. Nothing is
+    imported until ``warm_up()`` (or the first ``model()``): a pipeline builds, checks and describes without the
+    engine installed."""
 
     served = False
 
@@ -44,6 +46,10 @@ class InProcess:
         backend = cls(spec, **kwargs)
         backend.preset, backend.preset_sha256 = resolved.ref, resolved.sha256
         return backend
+
+    def warm_up(self) -> None:
+        """Import, construct and load the engine (idempotent)."""
+        self.model()
 
     def model(self) -> EngineModel:
         if self._model is None:

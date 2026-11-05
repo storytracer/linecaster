@@ -24,17 +24,30 @@ class ModelServer(Contracted, PipelineStep):
         super().__init__()
         self.models, self.port, self.python, self.boot_timeout, self.max_queue = models, port, python, boot_timeout, max_queue
         self.script = script
+        self._server = None
 
-    def run(self, data, rank: int = 0, world_size: int = 1):
+    def warm_up(self) -> None:
+        """Start the server and wait until it answers (idempotent; stopped when the task's pages are through)."""
+        if self._server is not None:
+            return
         from ...serve import engine
 
-        with self.track_time("boot"):
-            server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
+        server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script)
+        try:
             server.__enter__()
+        except Exception as e:
+            raise ServerError(f"linecaster serve on port {self.port} did not start: {type(e).__name__}: {e}") from e
+        self._server = server
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        self.warm_up()
         try:
             yield from data
         finally:
-            server.__exit__(None, None, None)
+            _stop(self)
+
+    def __getstate__(self):           # never pickle a running server
+        return {**self.__dict__, "_server": None}
 
 
 class ChatModelServer(Contracted, PipelineStep):
@@ -80,6 +93,7 @@ class ChatModelServer(Contracted, PipelineStep):
         self.spec, self.port, self.host = spec, port, host
         self.gpu_memory_utilization, self.extra_args = gpu_memory_utilization, list(extra_args or [])
         self.vllm, self.boot_timeout, self.outside_venv, self.python = vllm, boot_timeout, outside_venv, python
+        self._server = None
 
     @property
     def server(self) -> str:
@@ -173,18 +187,39 @@ class ChatModelServer(Contracted, PipelineStep):
                 subprocess.run(cmd, check=True, env=env)
         return python
 
-    def run(self, data, rank: int = 0, world_size: int = 1):
+    def warm_up(self) -> None:
+        """Prepare and start the server, and wait until it answers (idempotent; stopped when the task's pages are
+        through)."""
+        if self._server is not None:
+            return
         from saturate import Engine
 
-        with self.track_time("boot"):
-            python = self.prepare()
-            server = Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
-                            cmd=self.launch_command(python))
+        python = self.prepare()
+        server = Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
+                        cmd=self.launch_command(python))
+        try:
             server.__enter__()
+        except Exception as e:
+            raise ServerError(f"{self.server} for {self.spec.model} on port {self.port} did not start: "
+                              f"{type(e).__name__}: {e}") from e
+        self._server = server
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        self.warm_up()
         try:
             yield from data
         finally:
-            server.__exit__(None, None, None)
+            _stop(self)
+
+    def __getstate__(self):           # never pickle a running server
+        return {**self.__dict__, "_server": None}
+
+
+def _stop(block) -> None:
+    """Stop a server block's server, if it runs."""
+    server, block._server = block._server, None
+    if server is not None:
+        server.__exit__(None, None, None)
 
 
 def check_default_branch(model: str, revision: str, ignore=()) -> None:

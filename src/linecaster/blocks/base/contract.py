@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from ...catalog.schema import PARTS
 from ...errors import PipelineConfigError
+from .block import Block
 
 #: page-level parts: they belong to no transcription
 PAGE_PARTS = frozenset({"image", "metadata"})
@@ -85,8 +86,8 @@ class Contract:
         return out
 
 
-class Contracted:
-    """The default ``contract()``: from class attributes. ``parts_read``, ``parts_added`` and ``parts_replaced``
+class Contracted(Block):
+    """The default ``contract()``: from class attributes (and, from ``Block``, ``warm_up()``). ``parts_read``, ``parts_added`` and ``parts_replaced``
     name parts; page-level ones (``image``, ``metadata``) stay page-level, the others belong to the block's
     ``transcription`` attribute (default ``ocr_new``). Blocks whose parts depend on their options override
     ``contract()``."""

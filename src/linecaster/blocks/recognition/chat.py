@@ -113,6 +113,7 @@ class RegionRecognizer(PageRecognizer):
         self.pad = spec.region_pad if spec.region_pad is not None else pad
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        self.warm_up()
         if self.skip_on_error:
             data = self._passing_errors(data)
         yield from self._run_regions(data)

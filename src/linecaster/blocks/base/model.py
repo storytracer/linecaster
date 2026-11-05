@@ -102,6 +102,11 @@ class ModelBlock(PageBlock):
         return Contract(unit="page", role=self.role, reads=reads,
                         adds=parts(produces(self.backend, self.step), self.transcription))
 
+    def warm_up(self) -> None:
+        """The backend's: in-process the engine loads (not on the first page, so a page's measured ``seconds`` never
+        include it); served the client's settings are resolved."""
+        self.backend.warm_up()
+
     def needs_image(self, t: Transcription) -> bool:
         return self.region_label is None or any(r.label == self.region_label for r in t.regions)
 
@@ -120,6 +125,7 @@ class ModelBlock(PageBlock):
         return page
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        self.warm_up()
         if self.skip_on_error:
             data = self._passing_errors(data)
         if not self.backend.served:

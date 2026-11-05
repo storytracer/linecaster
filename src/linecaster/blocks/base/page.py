@@ -73,8 +73,6 @@ class PageBlock(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     shape = "unit"
-    #: the observers the builder installed (``linecaster.runtime.observers.Observers``); None: none
-    _observers = None
 
     def notify(self, doc: Document, event: str, **attributes) -> None:
         """Tell the observers about ``event`` for ``doc`` inside this block (``on_unit``); a no-op without any."""

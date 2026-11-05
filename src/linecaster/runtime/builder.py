@@ -131,6 +131,9 @@ class Branch:
         return doc
 
     def __call__(self, data, rank: int = 0, world_size: int = 1):
+        from ..blocks.base.block import warm
+
+        warm(self.block)
         if getattr(self.block, "shape", None) == "unit" and hasattr(self.block, "process_page"):
             for doc in data:
                 if self._takes(doc):
@@ -634,7 +637,7 @@ def _pipeline(entries: list[_Entry], hub: Observers | None) -> list:
     for i, e in enumerate(entries):
         b = e.block
         when = getattr(b, "when", None)
-        if hub is not None and hasattr(b, "notify"):
+        if hub is not None and hasattr(b, "warm_up"):
             b._observers = hub
         if when is not None:
             g = groups[i]
