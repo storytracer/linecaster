@@ -18,8 +18,8 @@ into item folders, with page rows that keep where each image came from. No engin
 recognition stage then reads the rows (or the image folder) without waiting on the libraries' servers.
 
     uv run pipelines/harvest.py --manifests manifests.txt OUT --tasks 16 --workers 4 --rate-limit 5/1
-    uv run pipelines/chain.py --rows OUT/rows OUT2 --recipe ...                 # keeps the IIIF metadata
-    uv run pipelines/chain.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
+    uv run pipelines/transcribe_chain.py --rows OUT/rows OUT2 --recipe ...                 # keeps the IIIF metadata
+    uv run pipelines/transcribe_chain.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
 
 Images in OUT/images/<item>/<page>.<ext> as the server sent them; page rows in OUT/rows/<rank>.jsonl.gz
 (``image.uri`` the copy, ``image.extra.source_uri`` and ``metadata.iiif`` the source). Rate limits hold per

@@ -1,7 +1,7 @@
 """Retyper: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
 
 Ported from squiddleocr's ``retyper.py`` (main ``7c8a052``) with the arithmetic unchanged. It runs
-after recognition (and tables), before document assembly. All rules are ratios to the page's own body
+after recognition (and tables), before page composition. All rules are ratios to the page's own body
 type, measured from the row heights the line step delivered (a row = the lines of one region with the
 same ``Line.row``; its box = the union of their boxes, derived from the polygons):
 

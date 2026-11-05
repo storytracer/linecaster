@@ -1,10 +1,10 @@
-"""Post-recognition blocks without a model: the retyper (``Typography``), document assembly per page
-(``AssembleDocument``) and per item (``AssembleItemDocument``), and export files (``PageExportsWriter``,
+"""Post-recognition blocks without a model: the retyper (``Typography``), page composition
+(``ComposePage``), binding an item's pages (``BindItem``), and export files (``PageExportsWriter``,
 ``ItemExportsWriter``).
 
 In squiddleocr's order: ... recognition -> ``NormalizeUnicode`` -> tables -> ``Typography`` ->
-``AssembleDocument`` -> writers; ``AssembleItemDocument`` after them, on whole items.
-``Typography`` changes regions and lines (``linecaster.retyper``); ``AssembleDocument`` fills the
+``ComposePage`` -> writers; ``BindItem`` after them, on whole items.
+``Typography`` changes regions and lines (``linecaster.retyper``); ``ComposePage`` fills the
 transcription's ``docling`` part from them (``linecaster.document``); ``PageExportsWriter`` writes
 ``<page id><suffix>.md`` / ``.txt`` / ``.html`` / ``.doclang.xml`` / ``.json`` (the DoclingDocument) per
 page.
@@ -41,7 +41,7 @@ class Typography(PageStep):
         return page
 
 
-class AssembleDocument(PageStep):
+class ComposePage(PageStep):
     """Build the named transcription's ``docling`` part from its regions, lines and tables
     (``linecaster.document.DocumentBuilder``; one document per page, named after the page id).
     ``text``: ``lines`` (one row per line) or ``reflow`` (paragraphs; squiddleocr's default).
@@ -50,7 +50,7 @@ class AssembleDocument(PageStep):
     The map from each Docling item to its layout region (``"<page_no>:<region id>"``) is kept in
     ``transcription.extra["docling_region_of"]``, for the Markdown dividers of the export writers."""
 
-    name = "assemble document"
+    name = "compose page"
     REGION_MAP = REGION_MAP_KEY
 
     def __init__(self, transcription: str = "ocr", text: str = "lines", rtl: bool = False, sections: bool = False):
@@ -88,7 +88,7 @@ class PageExportsWriter(PipelineStep):
     ``json`` (the DoclingDocument), all docling-core's serialisers (``linecaster.document.export``).
     ``furniture`` keeps page headers and footers in md, txt and html (squiddleocr's ``--furniture``);
     ``dividers`` puts ``---`` between the items of consecutive layout regions in md (needs the region
-    map ``AssembleDocument`` keeps). Pages pass through."""
+    map ``ComposePage`` keeps). Pages pass through."""
 
     type = "💽 - WRITER"
     name = "📝 page exports"
@@ -114,7 +114,7 @@ class PageExportsWriter(PipelineStep):
                 continue
             with self.track_time():
                 d = load_docling(t)
-                region_of = t.extra.get(AssembleDocument.REGION_MAP) if self.dividers else None
+                region_of = t.extra.get(ComposePage.REGION_MAP) if self.dividers else None
                 for fmt in self.formats:
                     content = t.docling if fmt == "json" else d
                     with self.folder.open(f"{page.page_id}{self.suffix}.{self.EXTENSIONS[fmt]}", "wt", encoding="utf-8") as f:
@@ -123,7 +123,7 @@ class PageExportsWriter(PipelineStep):
             yield doc
 
 
-class AssembleItemDocument(PipelineStep):
+class BindItem(PipelineStep):
     """One ``DoclingDocument`` per item from its pages (``linecaster.document.DocumentBuilder``):
     paragraphs continued across page breaks (``text="reflow"``), optional ``sections``, page ``n`` of the
     document = the item's ``n``-th page in order (``Page.sequence``, then page id).
@@ -138,7 +138,7 @@ class AssembleItemDocument(PipelineStep):
     Markdown dividers). Write it with ``ItemExportsWriter``."""
 
     type = "🔠 - LINECASTER"
-    name = "📚 assemble item document"
+    name = "📚 bind item"
 
     def __init__(self, transcription: str = "ocr", text: str = "reflow", sections: bool = False, rtl: bool = False,
                  count_key: str = "item_page_count"):
@@ -188,7 +188,7 @@ class AssembleItemDocument(PipelineStep):
 
 
 class ItemExportsWriter(PipelineStep):
-    """Write ``AssembleItemDocument``'s documents as ``<item id><suffix>.<ext>``: ``md``, ``txt``,
+    """Write ``BindItem``'s documents as ``<item id><suffix>.<ext>``: ``md``, ``txt``,
     ``html``, ``doclang``, ``json`` (``linecaster.document.export``). ``furniture`` keeps page headers
     and footers in md, txt and html; ``dividers`` puts ``---`` between the items of consecutive layout
     regions in md. Documents pass through."""

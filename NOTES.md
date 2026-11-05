@@ -19,7 +19,7 @@ per variant (one server reads every page), `--recipe squiddle`. Branches: kraken
 
 - Changes 1 and 2 are in main (fork 48eecb78, both together; −12 % measured earlier on 300 pages).
 - Change 3 reads the shortest lines (single characters, page numbers, the last word of a paragraph) worse:
-  in a batch of only narrow lines they get little padding. Not adopted; batching stays as kraken composes it.
+  in a batch of only narrow lines they get little padding. Not adopted; batching stays as kraken forms it.
 - Change 4 keeps the CER and the short lines; its 163 s warm-up per server pays off from about 2,000 pages
   per server (0.083 s saved per page). Candidate for long runs, ideally with the compile cache kept between
   Jobs (`torch.compiler.save_cache_artifacts` / `load_cache_artifacts`).
@@ -95,7 +95,7 @@ empty-line check on a tensor built on the device) and once per batch (`seq_lens`
 queued). Fork commit `48eecb78` (storytracer/kraken, `perf/recognition-prefetch`): lines are extracted,
 transformed and checked on the CPU in a producer thread, `seq_lens` goes to the device before the forward pass,
 and the last partial batch is recognised also when a page ends in empty lines (stock kraken flushed it only on an
-append, so such lines were never recognised and the page failed `zip(strict=True)`). Batches are composed as
+append, so such lines were never recognised and the page failed `zip(strict=True)`). Batches are formed as
 before, so the output is unchanged.
 
 | machine | recognition, pinned `3d235ee8` | patched `48eecb78` | output |
@@ -159,7 +159,8 @@ source with `ast`, since no environment has every engine.
 ## Pipelines and recipes (2026-11-03, spark)
 
 "Recipes" were pipeline shapes with slots, and since the defaults went they chose nothing: renamed `pipelines/`
-(`chain.py`, kind `chain/1`; `vlm.py`, `vlm/1`; `cuda_probe.py` to `tools/`). A **recipe** is now a catalogue
+(`chain.py`, kind `chain/1`; `vlm.py`, `vlm/1`; `cuda_probe.py` to `tools/`; since 2026-11-05
+`transcribe_chain.py` and `transcribe_vlm.py`, and the item stage `items.py` is `bind.py`). A **recipe** is now a catalogue
 document: a pipeline kind, a preset edition for each slot, options; edition, provenance, support level and evidence
 like presets. Its hash covers its presets' hashes (and so their model pins), and it is released only on released
 preset editions. `--recipe id[@edition]` or a recipe file fills the slots and options the command line leaves open;
@@ -214,7 +215,7 @@ twice. Now:
 - `recipes/chain.py`: layout → lines → assignment → kraken, PaddleX PP-OCRv6 or Tesseract (`--recognizer`) → NFC →
   tables → formulas → typography → document, with --files/--exports/--texts. One environment holds all three
   engines (torch + PaddleX + tesserocr resolve together), so the PaddleX + Tesseract combination needs no script of
-  its own. The HF Jobs chain now runs NFC, typography and document assembly too (it wrote raw page rows before).
+  its own. The HF Jobs chain now runs NFC, typography and page composition too (it wrote raw page rows before).
 - `recipes/vlm.py`: a chat VLM per page, or per PP-DocLayoutV3 region with `--regions` (MiniCPM-OCR is one model it
   takes; its DSpark draft comes from the spec, its image from the recipe's table of validated images).
 - `linecaster.run` gives both the same command line: `--on local|ray|hf-jobs`, `--backend in-process|served`
@@ -329,16 +330,16 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | lines into regions, orphan rows, pictures skipped | already in linecaster | `AssignLinesToRegions` (`formulas_separately=False` without formulas) |
 | kraken recognition, `-m tiny/small/medium/path`, `--batch-size`, `--precision` | already in linecaster | `RecognitionStep` + `KrakenRecognitionModel` |
 | `--device` | already in linecaster | `device` of every engine model (in-process; the server's otherwise) |
-| `--rtl` | already in linecaster | `KrakenRecognitionModel(text_direction=...)`, `AssembleDocument(rtl=)`, `AssembleItemDocument(rtl=)` |
+| `--rtl` | already in linecaster | `KrakenRecognitionModel(text_direction=...)`, `ComposePage(rtl=)`, `BindItem(rtl=)` |
 | `--tables` | already in linecaster | `TablesStep` + `PaddleTableModel` |
 | `--formulas`, `--formula-model` | already in linecaster | `FormulasStep` + `PaddleFormulaModel` (29/29 formulas identical, 82e2e7b) |
 | `--typography` (heading levels, demotion, headline split, drop capitals, uncertain page numbers) | already in linecaster | `Typography` |
 | NFC of the as-written text | linecaster's choice (0.3 kept kraken's decomposed text) | `NormalizeUnicode` |
-| `--text reflow/lines` | already in linecaster | `AssembleDocument(text=)`, `AssembleItemDocument(text=)` |
-| `--sections` | per item already; per page missing, built | `AssembleItemDocument(sections=)`; `AssembleDocument(sections=)` |
-| `--dividers` | per item already; per page missing, built | `AssembleDocument` keeps the item → region map (`extra["docling_region_of"]`); `dividers` on `PageFilesWriter` / `PageExportsWriter` |
+| `--text reflow/lines` | already in linecaster | `ComposePage(text=)`, `BindItem(text=)` |
+| `--sections` | per item already; per page missing, built | `BindItem(sections=)`; `ComposePage(sections=)` |
+| `--dividers` | per item already; per page missing, built | `ComposePage` keeps the item → region map (`extra["docling_region_of"]`); `dividers` on `PageFilesWriter` / `PageExportsWriter` |
 | `--furniture` | already in linecaster | `furniture` on the export writers (the items always sit in Docling's furniture layer) |
-| `--per-document` | already in linecaster | `AssembleItemDocument` + `ItemExportsWriter`; `ImageFolderReader(item_id=, sequence=)` (built) puts a run's pages into one item in name order |
+| `--per-document` | already in linecaster | `BindItem` + `ItemExportsWriter`; `ImageFolderReader(item_id=, sequence=)` (built) puts a run's pages into one item in name order |
 | `-f md, txt, json` | already in linecaster | `PageFilesWriter`, `PageExportsWriter`, `ItemExportsWriter`; JSON now formatted as docling's `save_as_json` |
 | `-f html, doclang` | missing, built | `linecaster.document.export` / `to_html` / `to_doclang` in all three writers |
 | `-f hocr, alto, page` | already in linecaster | linecaster's lxml serialisers (not kraken's, by design) |
@@ -350,7 +351,7 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | squiddleocr `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
 | status lines (typography and reflow counts), failed pages listed at the end | squiddle-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
 
-**Parity.** `squiddle ocr` (squiddleocr 0.4, now composed of these blocks) against `squiddle legacy ocr` on the same
+**Parity.** `squiddle ocr` (squiddleocr 0.4, now built from these blocks) against `squiddle legacy ocr` on the same
 machine and environment: sample-60 + tables-7 (67 BHL pages), `squiddletest/scans` (17), `squiddletest/formulas`
 (12), each in 7 configurations (defaults with every format and plots; `--text lines --furniture --sections
 --dividers --detail line`; `--no-typography --no-tables --no-formulas`; `--layout none`;
@@ -539,7 +540,7 @@ post-recognition merge), which gives `a` + U+0308 and `ä` the same display widt
 linecaster's NFC output pad identically. (Without `wcwidth`, `len()` would count the combining mark and
 the decomposed golden would pad one space less per such character.)
 
-**Item-level documents (`AssembleItemDocument`, `ItemExportsWriter`).** Goldens made with squiddleocr main
+**Item-level documents (`BindItem`, `ItemExportsWriter`).** Goldens made with squiddleocr main
 itself on the 6 books of sample-60 (10 pages each, in `seq` order): `squiddle_books.py` (squiddleocr's own
 `build_pipeline` with the `squiddle ocr` command's defaults, then its `--per-document` branch) for four
 combinations; cross-checked against the real command (`squiddle ocr BOOK --per-document --text lines
@@ -568,9 +569,9 @@ combinations; cross-checked against the real command (`squiddle ocr BOOK --per-d
 - Docling renders a heading inside a section one `#` deeper (`### ` for level 2); squiddleocr's goldens
   show the same.
 
-## Post-recognition blocks: retyper and document assembly (2026-11-03, spark)
+## Post-recognition blocks: retyper and page composition (2026-11-03, spark)
 
-`Typography` (squiddleocr's retyper) and `AssembleDocument` (squiddleocr's `DocumentBuilder`, `--text lines`)
+`Typography` (squiddleocr's retyper) and `ComposePage` (squiddleocr's `DocumentBuilder`, `--text lines`)
 after the in-process squiddle chain (layout, lines, assign, recognition, tables), exported with
 `PageExportsWriter(suffix=".paddle", furniture=True)`, compared byte for byte with squiddleocr's goldens
 (`7c8a052`, spark, `--text lines --furniture`; `tests/parity/compare_exports.py`):
@@ -589,13 +590,13 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
   text is not NFC yet; normalising it is a separate, recorded transform, not done here.)
-- Reflow (`AssembleDocument(text="reflow")`, squiddleocr's default document mode; `linecaster.reflow` is
+- Reflow (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.reflow` is
   squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
   checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
   and lines: md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks
   removed, 1 kept, 4 continuations across regions), and on the 1,000 reflow pages of the random check.
 - Not ported: formula recognition (squiddleocr reads formula regions as LaTeX by default; no formula
-  regions on these 67 pages; `AssembleDocument` takes `region.extra["formula"]` when a formula step
+  regions on these 67 pages; `ComposePage` takes `region.extra["formula"]` when a formula step
   provides it), paragraphs continued across pages (needs a book-level document), sections, Markdown
   dividers.
 
@@ -693,7 +694,7 @@ How the Job is arranged:
 
 ### Parity with squiddleocr
 
-The squiddle combination composed from blocks (layout → lines → assign lines → recognition)
+The squiddle combination built from blocks (layout → lines → assign lines → recognition)
 reproduces squiddleocr's outputs (main `7c8a052`, default paddle pipeline, batch 8, bf16-mixed on
 CUDA) line for line on the 60-page sample of the BHL IMPACT ground truth: 1,560/1,560 lines identical
 in line box, text and every word box.
@@ -795,7 +796,7 @@ per-region limits.
 
 ### Open
 
-- Port squiddleocr's post-recognition steps (retyper, reflow, document assembly into `docling`, tables,
+- Port squiddleocr's post-recognition steps (retyper, reflow, page composition into `docling`, tables,
   formulas) as blocks.
 - `/v1/chat/completions` preset route for OpenAI clients.
 - Deterministic algorithms flag: not set (squiddleocr does not set it and is run-to-run deterministic);

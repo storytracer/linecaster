@@ -12,14 +12,14 @@ from PIL import Image
 
 from linecaster import text as T
 from linecaster.blocks.base import new_page_document, page_of, set_page
-from linecaster.blocks.document import AssembleDocument, PageExportsWriter, Typography
+from linecaster.blocks.document import ComposePage, PageExportsWriter, Typography
 from linecaster.blocks.texts import ItemTexts
 from linecaster.blocks.writers import ItemTextFilesWriter, ItemTextJsonlWriter, PageFilesWriter
 from linecaster.page import Page
 from linecaster.transcription import from_alto, from_hocr, from_page
 from linecaster.transcription.model import Line, Region, Transcription
 
-from test_post_recognition import assembled
+from test_post_recognition import page_to_compose
 
 SCHEMAS = Path(__file__).parent / "schemas"
 
@@ -29,13 +29,13 @@ def _doc(page_id="p1", item="book1", t: Transcription | None = None, seq=1):
     Image.new("RGB", (1000, 1000), "white").save(buf, format="PNG")
     doc = new_page_document(page_id, buf.getvalue(), uri=f"/scans/{page_id}.png", item_id=item, sequence=seq)
     page = page_of(doc)
-    page.transcriptions["ocr"] = t if t is not None else assembled()
+    page.transcriptions["ocr"] = t if t is not None else page_to_compose()
     set_page(doc, page, "ocr")
     return doc
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(AssembleDocument().run(Typography().run(iter([_doc()]))))
+    docs = list(ComposePage().run(Typography().run(iter([_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFilesWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -57,7 +57,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 
 def test_page_files_matches_page_exports_writer(tmp_path: Path):
     """The merged writer gives PageExportsWriter's files byte for byte (flat, suffix, furniture)."""
-    docs = list(AssembleDocument().run(Typography().run(iter([_doc()]))))
+    docs = list(ComposePage().run(Typography().run(iter([_doc()]))))
     list(PageExportsWriter(str(tmp_path / "a"), formats=("md", "txt", "json"), suffix=".x", furniture=True).run(iter(docs)))
     list(PageFilesWriter(str(tmp_path / "b"), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                          bucket_by_item=False).run(iter(docs)))

@@ -80,7 +80,7 @@ PAGE_FILE_EXTENSIONS = {
     "md": "md",                           # the DoclingDocument's Markdown export, else the page text
     "html": "html",                       # the DoclingDocument's HTML export
     "doclang": "doclang.xml",             # the DoclingDocument's DocLang export
-    "json": "json",                       # the DoclingDocument (from AssembleDocument)
+    "json": "json",                       # the DoclingDocument (from ComposePage)
     "transcription": "transcription.json",  # the Transcription as linecaster JSON
     "plot": "layout.jpg",                 # the page image with regions and lines drawn in (linecaster.plots)
 }
@@ -96,7 +96,7 @@ class PageFilesWriter(PipelineStep):
     * ``hocr``, ``alto``, ``page``: linecaster's serialisers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
     * ``md``, ``txt``, ``html``, ``doclang``, ``json``: the DoclingDocument's exports
-      (``linecaster.document.export``) when the transcription has one (``AssembleDocument``;
+      (``linecaster.document.export``) when the transcription has one (``ComposePage``;
       ``furniture`` keeps page headers and footers in md, txt and html; ``dividers`` puts ``---``
       between layout regions in md); without one, md and txt fall back to ``Transcription.text`` (lines
       in reading order, tables as Markdown/HTML) and the others are skipped (counted as ``no_document``);

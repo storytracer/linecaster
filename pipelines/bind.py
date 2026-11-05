@@ -8,12 +8,12 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-r"""The item stage: one text per item (book, issue, manuscript) and text version, from the page rows of a first
+r"""The item stage (binding): one text per item (book, issue, manuscript) and text version, from the page rows of a first
 stage written in item shards (`--item-shards N`). Each task reads whole shard folders, so it sees every page of
 its items; no engine or GPU is needed.
 
-    uv run pipelines/chain.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
-    uv run pipelines/items.py OUT1/rows OUT2 --tasks 64
+    uv run pipelines/transcribe_chain.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
+    uv run pipelines/bind.py OUT1/rows OUT2 --tasks 64
     ... --on hf-jobs --commit <sha> --flavor cpu-upgrade --tasks 64
 
 Texts in OUT2/texts/<version>/<rank>.jsonl.gz; with --files also OUT2/files/<version>/<item>.txt|.md.

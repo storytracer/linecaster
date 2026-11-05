@@ -24,7 +24,7 @@ the image bytes, `metadata["page"]` the page row.
 |---|---|
 | `regions` | the layout: id, `label` (a DoclingDocument label), `raw_label` (the producer's), polygon, bbox, score, `reading_order`, `heading_level`, `extra` |
 | `lines` | id, `region_id`, `reading_order`, `row`, bbox, polygon, baseline, score, `text`, confidence, alternatives, `words`, `extra` |
-| `docling` | the assembled DoclingDocument, as docling-core dumps it |
+| `docling` | the page's composed DoclingDocument, as docling-core dumps it |
 | `language` | |
 | `model` | one `ModelInfo` per step that ran: step, name, revision, preset and its hash, recipe and its hash, backend, settings, measurements |
 | `source` | `kind` (`produced`, `converted`, `ground_truth`), `format`, `uri`, image size |
@@ -32,7 +32,7 @@ the image bytes, `metadata["page"]` the page row.
 
 - **`regions` are the contract between steps.** Lines and recognisers need the layout (label, polygon,
   reading order, score) long before a DoclingDocument can be built, so regions are a primary part next to
-  `lines`; `docling` is assembled from regions, lines and tables. Region ids are the producer's own
+  `lines`; `docling` is composed from regions, lines and tables. Region ids are the producer's own
   (PP-DocLayout: `<raw label>_<index>`; rows outside every region: `orphan_<n>`); lines refer to them with
   `region_id`.
 - **Words are the finest level**; there is no glyph level. Engines with character positions turn them into
@@ -78,9 +78,9 @@ The retyper edits regions and lines in place:
 
 ## Documents (`linecaster.document`)
 
-- **Per page** (`AssembleDocument`): `docling` from regions, lines and tables; page headers and footers always
+- **Page composition** (`ComposePage`): `docling` from regions, lines and tables; page headers and footers always
   in Docling's furniture layer. Exports choose whether to include them (`furniture=True`).
-- **Per item** (`AssembleItemDocument`, `DocumentBuilder`): one DoclingDocument whose page `n` is the item's
+- **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
   `n`-th page (by sequence, then page id). In reflow mode paragraphs continue across page breaks; sections are
   optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for Markdown
   dividers. A task must see whole items; the run layout buckets page rows by item.

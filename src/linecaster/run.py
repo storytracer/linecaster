@@ -1,11 +1,11 @@
 """One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
 that builds one pipeline shape with slots for presets; ``main`` gives it:
 
-    uv run pipelines/chain.py IMAGES OUT                              # this machine
-    uv run pipelines/chain.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
-    uv run pipelines/chain.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
-    uv run pipelines/chain.py serve                                   # linecaster serve with its models
-    uv run pipelines/chain.py ray start --head                        # Ray's command line, same environment
+    uv run pipelines/transcribe_chain.py IMAGES OUT                              # this machine
+    uv run pipelines/transcribe_chain.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
+    uv run pipelines/transcribe_chain.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
+    uv run pipelines/transcribe_chain.py serve                                   # linecaster serve with its models
+    uv run pipelines/transcribe_chain.py ray start --head                        # Ray's command line, same environment
 
 Engine models run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
 server that each task starts for itself (``--backend served``, the default on Ray and HF Jobs): the
@@ -81,7 +81,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g = ap.add_argument_group("output")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
                    help="write the page rows into N item shards (OUT/rows/<shard>/<rank>.jsonl.gz), so a later "
-                        "stage (pipelines/items.py) reads whole items")
+                        "stage (pipelines/bind.py) reads whole items")
     g = ap.add_argument_group("where it runs")
     g.add_argument("--on", choices=ON, default="local")
     g.add_argument("--tasks", type=int, default=1, help="datatrove tasks (one GPU each on Ray and HF Jobs)")

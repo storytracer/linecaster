@@ -203,7 +203,7 @@ class RecipeDoc(_Doc):
     schema_: Literal["linecaster.recipe/1"] = Field(alias="schema")
     id: str
     edition: int = Field(ge=1)
-    pipeline: str = Field(description="the pipeline it fills, by its versioned id, e.g. chain.v1 (pipelines/chain.py)")
+    pipeline: str = Field(description="the pipeline it fills, by its versioned id, e.g. chain.v1 (pipelines/transcribe_chain.py)")
     presets: dict[str, str] = Field(description="slot -> preset id@edition (always an explicit edition)")
     options: dict[str, Any] = Field(default_factory=dict, description="the pipeline's options, by name")
     provenance: Provenance = Field(default_factory=Provenance)

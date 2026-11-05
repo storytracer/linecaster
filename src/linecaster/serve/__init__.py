@@ -13,7 +13,7 @@ def serve_command(models: list[dict], port: int = 8100, python: str | None = Non
                   script: str | None = None) -> list[str]:
     """The command line that starts ``linecaster serve`` for ``models`` (dicts with name, spec, kwargs): with
     ``script``, a pipeline's ``serve`` command, run by uv in the pipeline's environment
-    (``uv run --script pipelines/chain.py serve``); otherwise ``python`` (default this interpreter) with
+    (``uv run --script pipelines/transcribe_chain.py serve``); otherwise ``python`` (default this interpreter) with
     ``-m linecaster.cli serve``."""
     if script:
         cmd = ["uv", "run", "--quiet", "--script", str(script), "serve"]

@@ -20,7 +20,7 @@ def lock_of(script: Path) -> dict:
 
 
 def test_there_are_scripts():
-    assert {"launch.py", "pipelines/chain.py", "pipelines/vlm.py"} <= set(IDS)
+    assert {"launch.py", "pipelines/transcribe_chain.py", "pipelines/transcribe_vlm.py"} <= set(IDS)
 
 
 def test_launch_finds_the_pipeline():
@@ -30,7 +30,7 @@ def test_launch_finds_the_pipeline():
     spec = importlib.util.spec_from_file_location("launch", ROOT / "launch.py")
     launch = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(launch)
-    chain, vlm = str(ROOT / "pipelines" / "chain.py"), str(ROOT / "pipelines" / "vlm.py")
+    chain, vlm = str(ROOT / "pipelines" / "transcribe_chain.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
     assert launch.command("squiddle", ["IN", "OUT", "--text", "lines"]) == [
         "uv", "run", "--script", chain, "IN", "OUT", "--text", "lines", "--recipe", "squiddle"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
@@ -102,7 +102,7 @@ def test_wheels_for_both_machines(script):
 
 
 def test_pipelines_feed_the_jobs_helper():
-    chain, vlm = ROOT / "pipelines/chain.py", ROOT / "pipelines/vlm.py"
+    chain, vlm = ROOT / "pipelines/transcribe_chain.py", ROOT / "pipelines/transcribe_vlm.py"
     for script in (chain, vlm):
         deps = dependencies("abc123", script)
         assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
@@ -119,6 +119,6 @@ def test_pipelines_feed_the_jobs_helper():
 def test_serve_command_for_a_pipeline():
     from linecaster.serve import serve_command
 
-    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="pipelines/chain.py")
-    assert cmd[:6] == ["uv", "run", "--quiet", "--script", "pipelines/chain.py", "serve"]
+    cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="pipelines/transcribe_chain.py")
+    assert cmd[:6] == ["uv", "run", "--quiet", "--script", "pipelines/transcribe_chain.py", "serve"]
     assert cmd[6:10] == ["--port", "8101", "--max-queue", "16"]

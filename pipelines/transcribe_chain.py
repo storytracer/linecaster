@@ -48,23 +48,23 @@
 # ///
 r"""A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
 lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and document assembly. Page rows in OUT/rows; with
+and formula models after; then Unicode NFC, typography and page composition. Page rows in OUT/rows; with
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
 --texts one text per item in each text version.
 
-    uv run pipelines/chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
-    uv run pipelines/chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+    uv run pipelines/transcribe_chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
+    uv run pipelines/transcribe_chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
         --recognizer tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
     ... --set recognition.batch_size=4          # an option over the preset's
     ... --backend served                        # a server in the task
-    uv run pipelines/chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
-    uv run pipelines/chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
+    uv run pipelines/transcribe_chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
+    uv run pipelines/transcribe_chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --commit <sha> --tasks 64
 
 ``linecaster.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
 from linecaster import run
-from linecaster.blocks.document import AssembleDocument, Typography
+from linecaster.blocks.document import ComposePage, Typography
 from linecaster.blocks.layout import SingleRegionLayout
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
@@ -117,7 +117,7 @@ def pipeline(a, script: str) -> list:
         raise SystemExit("chain: --tables and --formulas work on layout regions; pick --layout too")
     if a.texts and a.tasks > 1:
         raise SystemExit("chain: --texts needs every page of an item in one task; with several tasks write "
-                         "--item-shards N and run pipelines/items.py on OUT/rows afterwards")
+                         "--item-shards N and run pipelines/bind.py on OUT/rows afterwards")
     b, servers = run.engines(a, models(a), script, a.window)
     for kv in a.endpoint_for:
         step, url = kv.split("=", 1)
@@ -132,7 +132,7 @@ def pipeline(a, script: str) -> list:
         *([TablesStep(b["tables"])] if "tables" in b else []),
         *([FormulasStep(b["formulas"])] if "formulas" in b else []),
         Typography(),
-        AssembleDocument(text=a.text),
+        ComposePage(text=a.text),
         *([PageFilesWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
         *([PageFilesWriter(a.exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
                            bucket_by_item=False)] if a.exports else []),

@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from linecaster.blocks.base import new_page_document, page_of, set_page
-from linecaster.blocks.document import (AssembleDocument, AssembleItemDocument, ItemExportsWriter, PageExportsWriter,
+from linecaster.blocks.document import (BindItem, ComposePage, ItemExportsWriter, PageExportsWriter,
                                         Typography)
 from linecaster.blocks.layout import SingleRegionLayout
 from linecaster.blocks.lines import AssignLinesToRegions
@@ -22,15 +22,15 @@ from linecaster.transcription.model import Line, Transcription
 
 from test_book_level import page_t
 from test_outputs import _doc
-from test_post_recognition import assembled, line, region
+from test_post_recognition import line, page_to_compose, region
 
 
-def _assembled_doc(**kw):
-    return list(AssembleDocument(**kw).run(Typography().run(iter([_doc()]))))
+def _composed_doc(**kw):
+    return list(ComposePage(**kw).run(Typography().run(iter([_doc()]))))
 
 
 def test_html_and_doclang_follow_docling_and_the_furniture_layer():
-    t = assembled()
+    t = page_to_compose()
     doc = build_docling(t, name="p1", width=1000, height=1000)
     html, html_f = to_html(doc), to_html(doc, furniture=True)
     assert html == doc.export_to_html() and "THE TITLE" in html
@@ -45,7 +45,7 @@ def test_html_and_doclang_follow_docling_and_the_furniture_layer():
 
 
 def test_json_is_formatted_as_docling_saves_it(tmp_path: Path):
-    t = assembled()
+    t = page_to_compose()
     t.lines[0].text = "THE TITLE ſ ä"
     doc = build_docling(t, name="p1", width=1000, height=1000)
     doc.save_as_json(tmp_path / "ref.json")
@@ -54,7 +54,7 @@ def test_json_is_formatted_as_docling_saves_it(tmp_path: Path):
 
 
 def test_page_writers_write_every_document_format(tmp_path: Path):
-    docs = _assembled_doc()
+    docs = _composed_doc()
     fmts = ("md", "txt", "html", "doclang", "json")
     list(PageExportsWriter(str(tmp_path / "a"), formats=fmts, suffix=".x").run(iter(docs)))
     list(PageFilesWriter(str(tmp_path / "b"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
@@ -66,7 +66,7 @@ def test_page_writers_write_every_document_format(tmp_path: Path):
 
 
 def test_sections_and_dividers_per_page(tmp_path: Path):
-    docs = _assembled_doc(sections=True)
+    docs = _composed_doc(sections=True)
     t = page_of(docs[0]).transcriptions["ocr"]
     groups = [g for g in t.docling["groups"] if g["label"] == "section"]
     assert [g["name"] for g in groups] == ["THE TITLE", "LAST"]
@@ -102,7 +102,7 @@ def test_line_detail_drops_the_words(tmp_path: Path):
 
 
 def test_layout_plot(tmp_path: Path):
-    docs = _assembled_doc()
+    docs = _composed_doc()
     list(PageFilesWriter(str(tmp_path), formats=("plot",), suffix=".x", bucket_by_item=False).run(iter(docs)))
     with Image.open(tmp_path / "p1.x.layout.jpg") as im:
         assert im.format == "JPEG" and im.size == (1000, 1000)
@@ -142,7 +142,7 @@ def test_item_exports_html_doclang_json(tmp_path: Path):
         t = page_t(n, [f"Page {n} text."], heading="Chapter" if n == 1 else None)
         d = _doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
-    items = list(AssembleItemDocument(text="lines", sections=True).run(iter(docs)))
+    items = list(BindItem(text="lines", sections=True).run(iter(docs)))
     list(ItemExportsWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
@@ -157,7 +157,7 @@ def test_item_exports_html_doclang_json(tmp_path: Path):
 def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
     from docling_core.types.doc import DoclingDocument
 
-    t = assembled()
+    t = page_to_compose()
     t.regions[4].polygon = [[-18, -3], [300, -3], [300, 1034], [-18, 1034]]     # the picture, past the page edge
     doc = build_docling(t, name="p1", width=1000, height=1000)
     b = doc.pictures[0].prov[0].bbox
@@ -167,7 +167,7 @@ def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
 
 
 def test_doclang_export_leaves_the_document_alone():
-    t = assembled()
+    t = page_to_compose()
     t.lines[1].text = "a longer first row"
     doc = build_docling(t, name="p1", width=1000, height=1000, text="reflow")
     before = doc.export_to_dict()

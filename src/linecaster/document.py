@@ -1,5 +1,6 @@
-"""Document assembly: a ``Transcription``'s regions, lines and tables -> its ``docling`` part (a
-``DoclingDocument``), and the Markdown and text exports of it.
+"""Page composition and binding: a ``Transcription``'s regions, lines and tables -> its ``docling`` part (a
+``DoclingDocument``; ``ComposePage``), an item's pages bound into one (``BindItem``), and the Markdown and
+text exports of them.
 
 Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). ``text="lines"``
 (squiddleocr's ``--text lines``): one Docling item per region, in reading order (regions without an order last, in list order),
@@ -16,7 +17,7 @@ rows joined with ``\\n``), one provenance entry with the region's box:
   inside it as a child text item.
 
 Empty regions produce no item. ``build_docling`` makes the document of one page (page 1);
-``DocumentBuilder`` makes one for all pages of an item, with paragraphs continued across page breaks,
+``DocumentBuilder`` binds all pages of an item into one, with paragraphs continued across page breaks,
 optional sections and the region map for Markdown dividers (squiddleocr's ``--per-document``,
 ``--sections``, ``--dividers``). Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
 docling-core's own serialisers.
@@ -97,7 +98,7 @@ def region_rows(lines: list[Line]):
 
 
 TEXT_MODES = ("lines", "reflow")
-#: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``AssembleDocument``)
+#: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``ComposePage``)
 REGION_MAP_KEY = "docling_region_of"
 
 
@@ -291,7 +292,7 @@ def load_docling(t: Transcription):
     from docling_core.types.doc import DoclingDocument
 
     if t.docling is None:
-        raise ValueError("the transcription has no docling part (run the document assembly first)")
+        raise ValueError("the transcription has no docling part (compose the page first: ComposePage)")
     return DoclingDocument.model_validate(t.docling)
 
 

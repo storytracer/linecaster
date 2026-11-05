@@ -1,20 +1,20 @@
 # chain.v1
 
-*Pipeline · [`chain.py`](../../../pipelines/chain.py)*
+*Pipeline · [`transcribe_chain.py`](../../../pipelines/transcribe_chain.py)*
 
 A chain of smaller models, picked step by step from the catalogue's presets (`linecaster models`): text
 lines and a line recogniser, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and document assembly. Page rows in OUT/rows; with
+and formula models after; then Unicode NFC, typography and page composition. Page rows in OUT/rows; with
 --files per-page hOCR/ALTO/PAGE/txt/md/json, with --exports the per-page md/txt/json squiddleocr writes, with
 --texts one text per item in each text version.
 
-    uv run pipelines/chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
-    uv run pipelines/chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+    uv run pipelines/transcribe_chain.py IMAGES OUT --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
+    uv run pipelines/transcribe_chain.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
         --recognizer tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
     ... --set recognition.batch_size=4          # an option over the preset's
     ... --backend served                        # a server in the task
-    uv run pipelines/chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
-    uv run pipelines/chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
+    uv run pipelines/transcribe_chain.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
+    uv run pipelines/transcribe_chain.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --commit <sha> --tasks 64
 
 `linecaster.run` has the options every pipeline shares; `--recipe` fills the slots.

@@ -10,7 +10,7 @@ A page is transcribed in steps, each adding one part:
 * a layout step fills ``regions`` (label, polygon, reading order);
 * a line step fills ``lines`` with geometry only (``text`` is ``None``);
 * a recognition step fills each line's ``text``, ``confidence`` and ``words``;
-* an assembly step builds ``docling`` (the document structure) from regions and lines.
+* page composition (``ComposePage``) builds ``docling`` (the document structure) from regions and lines.
 
 ``regions`` is the layout contract between steps; ``docling`` is the document a reader exports.
 Words are the finest level: a recogniser that has character cuts turns them into words itself.

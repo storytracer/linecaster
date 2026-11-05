@@ -84,7 +84,7 @@ uv run launch.py lightonocr-2-1b scans/ out/
 
 Any [model for whole pages](#-models-and-blocks) works. A region model reads each layout region instead,
 in the `vlm` pipeline with a layout preset:
-`uv run pipelines/vlm.py scans/ out/ --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
+`uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --vlm minicpm-ocr-1.0`.
 
 ### 🧱 A chain of smaller models
 
@@ -92,7 +92,7 @@ Layout, line detection and a line recogniser, then post-processing into a docume
 step's preset; `linecaster models` lists them.
 
 ```bash
-uv run pipelines/chain.py scans/ out/ \
+uv run pipelines/transcribe_chain.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognizer kraken-ppocrv6-medium \
@@ -110,7 +110,7 @@ A pipeline is a list of blocks. This is the chain above, cut down:
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
 from linecaster.blocks.document import (
-    AssembleDocument, Typography)
+    ComposePage, Typography)
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import (
     LayoutStep, LinesStep, RecognitionStep)
@@ -127,20 +127,20 @@ pipeline = [
         P("linecaster_kraken:KrakenRecognitionModel")),
     NormalizeUnicode(),
     Typography(),
-    AssembleDocument(),
+    ComposePage(),
     PageFilesWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Save it in `pipelines/` with the `# /// script` block of `pipelines/chain.py` at the top, which brings the
+Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_chain.py` at the top, which brings the
 engines, and `uv run` it. Built with `linecaster.run.main`, as the pipelines are, it gets their command
 line for every machine.
 
 > [!TIP]
 > The two kinds mix: a `LayoutStep` followed by `ChatRegionStep` has a vision-language model read
-> each layout region, which is what `pipelines/vlm.py --layout …` does.
+> each layout region, which is what `pipelines/transcribe_vlm.py --layout …` does.
 
 ## 🧩 How it works
 
@@ -203,13 +203,13 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
   recognition task doesn't download again:
   - `uv run pipelines/harvest.py --manifests manifests.txt OUT --tasks 16 --workers 4 --rate-limit 5/1`
     writes `OUT/images/<item>/<page>.<ext>` and page rows;
-  - `pipelines/chain.py --rows OUT/rows OUT2 ...` keeps the IIIF metadata, or `OUT/images --item-from-parent`
+  - `pipelines/transcribe_chain.py --rows OUT/rows OUT2 ...` keeps the IIIF metadata, or `OUT/images --item-from-parent`
     reads the plain folder.
 - **Item-level outputs** (texts per book, issue or manuscript): with several tasks, an item's pages can land in
   different tasks. Item texts are then a second stage:
   - the first run writes its page rows into item shards (`--item-shards 64`: `OUT/rows/<shard>/<rank>.jsonl.gz`,
     every item in one shard);
-  - `uv run pipelines/items.py OUT/rows OUT2` reads whole shards, one or more per task, and writes the texts.
+  - `uv run pipelines/bind.py OUT/rows OUT2` reads whole shards, one or more per task, and writes the texts.
   - `--texts` in the same run needs a single task.
 
 </details>
@@ -224,12 +224,12 @@ runs at it:
 P="--layout pp-doclayoutv3
    --lines pp-ocrv6-medium-det
    --recognizer kraken-ppocrv6-medium"
-uv run pipelines/chain.py serve $P
-uv run pipelines/chain.py scans/ out/ $P \
+uv run pipelines/transcribe_chain.py serve $P
+uv run pipelines/transcribe_chain.py scans/ out/ $P \
   --endpoint http://127.0.0.1:8100/v1
 ```
 
-For a vision-language model, `--vlm-endpoint` points `pipelines/vlm.py` at a running vLLM or SGLang. The
+For a vision-language model, `--vlm-endpoint` points `pipelines/transcribe_vlm.py` at a running vLLM or SGLang. The
 servers listen on loopback only.
 
 </details>
@@ -241,7 +241,7 @@ servers listen on loopback only.
 Linecaster (`$P`: the presets, as above):
 
 ```bash
-R=pipelines/chain.py
+R=pipelines/transcribe_chain.py
 uv run $R ray start --head --num-gpus 8
 # on each other machine:
 # uv run $R ray start --address=<head>:6379
@@ -259,7 +259,7 @@ One GPU per Job. Each Job installs Linecaster at a pushed commit, with the engin
 the pipeline's `# /// script` block:
 
 ```bash
-uv run pipelines/chain.py \
+uv run pipelines/transcribe_chain.py \
   s3://bhl-open-data/images \
   hf://buckets/<ns>/<bucket>/<run> $P \
   --paths-file hf://buckets/<ns>/<bucket>/pages.txt \
@@ -273,7 +273,7 @@ uv run pipelines/chain.py \
 - **A rerun into the same output** runs only the tasks that didn't finish.
 - **`--tasks-per-job`** (datatrove's) lets a single-GPU Job run several tasks one after the other; each task
   starts its own model server.
-- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/vlm.py` picks the server image
+- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/transcribe_vlm.py` picks the server image
 its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
 
 </details>
@@ -415,8 +415,8 @@ These blocks need no model.
 |---|---|
 | `NormalizeUnicode` | the text in one Unicode form, [NFC] by default |
 | `Typography` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
-| `AssembleDocument` | a [DoclingDocument] per page: lines joined into paragraphs, line-end hyphens removed |
-| `AssembleItemDocument` | one DoclingDocument per book, paragraphs continued across pages |
+| `ComposePage` | composes a page: a [DoclingDocument] per page, lines joined into paragraphs, line-end hyphens removed |
+| `BindItem` | binds a book's pages into one DoclingDocument, paragraphs continued across pages |
 | `ItemTexts` | one text per book in each [text version](#-reference) |
 
 ### 📥 Input, output and servers

@@ -11,8 +11,8 @@ r"""Launch a recipe or a model that reads whole pages, by its name: this finds t
 starts that pipeline's script, in the script's own environment.
 
     uv run launch.py                                   # the recipes and models
-    uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/chain.py IMAGES OUT --recipe squiddle
-    uv run launch.py chandra-ocr-2 IMAGES OUT          # a model:  = pipelines/vlm.py IMAGES OUT --vlm chandra-ocr-2
+    uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_chain.py IMAGES OUT --recipe squiddle
+    uv run launch.py chandra-ocr-2 IMAGES OUT          # a model:  = pipelines/transcribe_vlm.py IMAGES OUT --vlm chandra-ocr-2
     uv run launch.py squiddle@1 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
     uv run launch.py squiddle IMAGES OUT --text lines  # a flag on top: recorded as an override
     uv run launch.py squiddle --help                   # the pipeline's options
@@ -52,10 +52,10 @@ def not_runnable(name: str) -> str:
     p = c.preset(name)
     uses = sorted(rid for rid, (_, r) in c.recipes.items() if any(split_ref(x)[0] == name for x in r.presets.values()))
     if p.step == "recognition" and p.capabilities.unit == "region":
-        what = f"reads layout regions: uv run pipelines/vlm.py IMAGES OUT --layout <layout preset> --vlm {name}"
+        what = f"reads layout regions: uv run pipelines/transcribe_vlm.py IMAGES OUT --layout <layout preset> --vlm {name}"
     else:
         opt = code.pipelines(ROOT)["chain.v1"].slots.get(p.step, p.step)
-        what = f"is one step ({p.step}) of a pipeline: uv run pipelines/chain.py IMAGES OUT --{opt} {name} ..."
+        what = f"is one step ({p.step}) of a pipeline: uv run pipelines/transcribe_chain.py IMAGES OUT --{opt} {name} ..."
     return f"{name} {what}" + (f"; recipes with it: {', '.join(uses)}" if uses else "")
 
 

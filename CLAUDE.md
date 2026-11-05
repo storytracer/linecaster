@@ -34,11 +34,11 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 - **A light core.** No kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as
   an extra. No LiteLLM anywhere.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout,
-  the job helpers and pipeline-assembly helpers; example pipelines only as pipeline
+  the job helpers and pipeline-building helpers; example pipelines only as pipeline
   scripts (`pipelines/`), recipes as catalogue documents, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the "squiddle"
   pipeline in `storytracer/squiddleocr`, the BHL re-OCR in `finebooks/bhl-commonpile-pipeline`.
 
-## Architecture: servers host models, the pipeline composes the chain
+## Architecture: servers host models, the pipeline puts the steps together
 
 - **Model blocks** (`blocks/models.py`: `LayoutStep`, `LinesStep`, `RecognitionStep`, `TablesStep`)
   each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine model in the
@@ -77,8 +77,8 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   `uv run <script>`) that builds one pipeline shape with slots, and **one pipeline script per shape,
   never one per machine**: `linecaster.run.main` gives every pipeline the same command line (`--on local|ray|hf-jobs`,
   `--backend in-process|served`, `--endpoint`, `serve` for `linecaster serve` with its models, `ray`
-  for Ray's CLI from its environment). `pipelines/chain.py` (lines and a recogniser, optionally layout,
-  tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/vlm.py` (a VLM per page or per
+  for Ray's CLI from its environment). `pipelines/transcribe_chain.py` (lines and a recogniser, optionally layout,
+  tables, formulas, then post-processing; every step a preset the user picks, no defaults) and `pipelines/transcribe_vlm.py` (a VLM per page or per
   region). **No default presets**: every slot is picked, or filled by a **recipe** (`--recipe`): a catalogue
   document naming a pipeline id (`chain.v1`, the script's `PIPELINE`), a preset edition per slot and options,
   edition-frozen like presets, with whole-run evidence (squiddleocr's `squiddle` lives in linecaster's
@@ -138,7 +138,7 @@ Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files
 column: bytes, HF image struct or path), `IIIFManifestReader` (a manifest is an entry like a file, so an item stays
 in one task; images fetched ahead with pybookget, rate limits per task; `pipelines/harvest.py` downloads them once
 into item folders plus page rows, `--rows` reads those). An item's pages can land in different tasks; item-level steps are a
-second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/items.py` reads
+second stage over item shards (`--item-shards N` writes `OUT/rows/<shard>/<rank>`, `pipelines/bind.py` reads
 whole shards), as datatrove's own multi-stage pipelines read per-bucket folders. Each task starts its own
 servers.
 

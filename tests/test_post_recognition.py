@@ -1,10 +1,10 @@
-"""Retyper and document assembly (the post-recognition CPU blocks ported from squiddleocr)."""
+"""Retyper and page composition (the post-recognition CPU blocks ported from squiddleocr)."""
 from __future__ import annotations
 
 import pytest
 
 from linecaster.blocks.base import new_page_document, page_of, set_page
-from linecaster.blocks.document import AssembleDocument, PageExportsWriter, Typography
+from linecaster.blocks.document import ComposePage, PageExportsWriter, Typography
 from linecaster.document import build_docling, load_docling, to_markdown, to_text
 from linecaster.page import Page
 from linecaster.retyper import retype
@@ -112,7 +112,7 @@ def test_page_number_confidence_is_character_weighted():
 
 
 # ------------------------------------------------------------- document
-def assembled():
+def page_to_compose():
     b, bl = body_region("text_1", 1, 300)
     t = page_with([
         region("doc_title_0", "title", 100, 100, 800, 60, 0),
@@ -137,7 +137,7 @@ def assembled():
 def test_build_docling_items_layers_and_order():
     from docling_core.types.doc import ContentLayer, DocItemLabel
 
-    doc = build_docling(assembled(), name="p1", width=1000, height=1000)
+    doc = build_docling(page_to_compose(), name="p1", width=1000, height=1000)
     labels = [(it.label, getattr(it, "text", None)) for it, _ in doc.iterate_items(included_content_layers={
         ContentLayer.BODY, ContentLayer.FURNITURE})]
     assert labels[0] == (DocItemLabel.TITLE, "THE TITLE")
@@ -157,7 +157,7 @@ def test_build_docling_items_layers_and_order():
 
 
 def test_exports_with_and_without_furniture():
-    t = assembled()
+    t = page_to_compose()
     t.docling = build_docling(t, name="p1", width=1000, height=1000).export_to_dict()
     md, md_f = to_markdown(t), to_markdown(t, furniture=True)
     assert md.startswith("# THE TITLE") and "\n12\n" not in md and "\n\n12\n\n" in md_f
@@ -176,10 +176,10 @@ def test_blocks_run_and_write_files(tmp_path):
     Image.new("RGB", (1000, 1000), "white").save(buf, format="PNG")
     doc = new_page_document("p1", buf.getvalue())
     page = page_of(doc)
-    page.transcriptions["ocr"] = assembled()
+    page.transcriptions["ocr"] = page_to_compose()
     set_page(doc, page, "ocr")
     out = list(PageExportsWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True).run(
-        AssembleDocument().run(Typography().run(iter([doc])))))
+        ComposePage().run(Typography().run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr"]
     assert t.docling["name"] == "p1" and t.model[-1].step == "typography"
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
