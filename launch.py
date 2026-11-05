@@ -7,12 +7,12 @@
 # [tool.uv.sources]
 # linecaster = { path = ".", editable = true }
 # ///
-r"""Launch a recipe or a model that reads whole pages, by its name: this finds the pipeline it runs in and
-starts that pipeline's script, in the script's own environment.
+r"""Launch a recipe or a page preset (a model that reads whole pages) by its name: this finds the pipeline it
+runs in and starts that pipeline's script, in the script's own environment.
 
-    uv run launch.py                                   # the recipes and models
+    uv run launch.py                                   # the recipes and page presets
     uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle
-    uv run launch.py chandra-ocr-2 IMAGES OUT          # a model:  = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
+    uv run launch.py chandra-ocr-2 IMAGES OUT          # a page preset: = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
     uv run launch.py squiddle@1 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
     uv run launch.py squiddle IMAGES OUT --text lines  # a flag on top: recorded as an override
     uv run launch.py squiddle --help                   # the pipeline's options
@@ -29,7 +29,7 @@ from linecaster.catalog.registry import catalog, split_ref
 
 ROOT = Path(__file__).resolve().parent
 #: the pipeline a page preset runs in, and its slot
-MODEL_PIPELINE, MODEL_SLOT = "transcribe_vlm.v1", "recognition"
+PAGE_PIPELINE, PAGE_SLOT = "transcribe_vlm.v1", "recognition"
 #: the pipeline whose slots the other presets fill
 MODULAR_PIPELINE = "transcribe_modular.v1"
 
@@ -39,7 +39,7 @@ def listing() -> None:
     print("recipes")
     for rid, (_, r) in sorted(c.recipes.items()):
         print(f"  {r.ref:<28} {', '.join(f'{k} {v}' for k, v in r.presets.items())}")
-    print("models that read whole pages")
+    print("page presets (models that read whole pages)")
     for pid, (_, p) in sorted(c.presets.items()):
         if p.page_preset:
             print(f"  {p.ref:<28} {c.model(p.model.id).version or p.model.id} ({c.model(p.model.id).license})")
@@ -50,7 +50,7 @@ def not_runnable(name: str) -> str:
     """Why ``name`` cannot be launched by itself, and what to run instead."""
     c = catalog()
     if name not in c.presets:
-        return f"no recipe or model {name!r} (`uv run launch.py` lists them)"
+        return f"no recipe or page preset {name!r} (`uv run launch.py` lists them)"
     p = c.preset(name)
     uses = sorted(rid for rid, (_, r) in c.recipes.items() if any(split_ref(x)[0] == name for x in r.presets.values()))
     if p.step == "recognition" and p.capabilities.unit == "region":
@@ -71,8 +71,8 @@ def command(name: str, args: list[str]) -> list[str]:
     if rid in c.recipes:
         pipeline, flag = c.resolve_recipe(name).content["pipeline"], "--recipe"
     elif rid in c.presets and c.preset(rid).page_preset:
-        pipeline = MODEL_PIPELINE
-        flag = f"--{code.pipelines(ROOT)[MODEL_PIPELINE].slots[MODEL_SLOT]}"
+        pipeline = PAGE_PIPELINE
+        flag = f"--{code.pipelines(ROOT)[PAGE_PIPELINE].slots[PAGE_SLOT]}"
         if args[:1] == ["serve"]:
             raise SystemExit(f"{name}: a run starts the model's server itself (vLLM or SGLang, from the preset)")
     else:

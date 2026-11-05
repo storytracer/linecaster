@@ -49,7 +49,7 @@ def test_launch_finds_the_pipeline():
     assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
         "uv", "run", "--script", modular, "serve", "--recipe", "squiddle@1", "--port", "8101"]
     assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]
-    for name, why in (("nope", "no recipe or model"), ("kraken-ppocrv6-medium", "--recognition kraken-ppocrv6-medium"),
+    for name, why in (("nope", "no recipe or page preset"), ("kraken-ppocrv6-medium", "--recognition kraken-ppocrv6-medium"),
                       ("minicpm-ocr-1.0", "reads layout regions")):
         with pytest.raises(SystemExit, match=why):
             launch.command(name, ["IN", "OUT"])
