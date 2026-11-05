@@ -39,8 +39,9 @@ class PageFileWriter(PipelineStep):
     * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.images.plots``).
 
     ``bucket_by_item=False`` writes ``<page_id><suffix>.<ext>`` flat, as squiddleocr names its files (with
-    ``suffix=".paddle"``); pages without ``item_id`` are always written flat. ``text_fallback=False`` writes md and
-    txt only from a document, so a page without one gets no files of the document formats."""
+    ``suffix=".paddle"``); pages without ``item_id`` are always written flat. With ``text_fallback`` (the
+    default) a page without a document still gets md and txt from ``Transcription.text``; ``text_fallback=False``
+    writes them only from a document, so such a page gets no files of the document formats."""
 
     type = "💽 - WRITER"
     name = "🗂️ page files"

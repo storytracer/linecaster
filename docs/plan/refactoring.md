@@ -53,6 +53,9 @@ The glossary, the conventions, `CHANGELOG.md`, this plan with its rename table. 
 6. `to_dict()` on every block; the run record with `pipeline_sha256`; resume refused into a different pipeline;
    expanded recipe pipelines in the lock.
 7. Secrets as references (`EnvVar`); the logging convention.
+8. Found while bringing the derivatives along: `runtime.jobs.dependencies(commit)` without a script silently
+   returns linecaster without engines (fail instead, or give the engine script a public name); page records written
+   before phase 1 (`ocr`, `rows/`) need a way to be read (a schema version on page records and a mapping on read).
 
 ### Phase 3: rule-based steps, recomposition, binding
 
