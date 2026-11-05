@@ -1,5 +1,5 @@
-"""Item writers: ``BindItem``'s documents (``ItemExportsWriter``) and ``ItemTexts``' texts
-(``ItemTextJsonlWriter``: one folder per variant; ``ItemTextFilesWriter``: ``<variant>/<item_id>.txt|.md``)."""
+"""Item writers: ``BindItem``'s documents (``ItemDocumentWriter``) and ``ItemTexts``' texts (``ItemTextWriter``:
+JSON Lines, one folder per variant, or files, ``<variant>/<item_id>.txt|.md``)."""
 from __future__ import annotations
 
 from datatrove.io import DataFolderLike, get_datafolder
@@ -9,14 +9,14 @@ from datatrove.pipeline.writers import JsonlWriter
 from ...formats.docling import EXPORT_FORMATS, export
 
 
-class ItemExportsWriter(PipelineStep):
+class ItemDocumentWriter(PipelineStep):
     """Write ``BindItem``'s documents as ``<item id><suffix>.<ext>``: ``md``, ``txt``,
     ``html``, ``doclang``, ``json`` (``linecaster.formats.docling.export``). ``furniture`` keeps page headers
     and footers in md, txt and html; ``dividers`` puts ``---`` between the items of consecutive layout
     regions in md. Documents pass through."""
 
     type = "💽 - WRITER"
-    name = "📝 item exports"
+    name = "📝 item documents"
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
                  furniture: bool = False, dividers: bool = False):
@@ -48,38 +48,36 @@ class ItemExportsWriter(PipelineStep):
             yield doc
 
 
+#: ``ItemTextWriter``'s formats
+ITEM_TEXT_FORMATS = ("jsonl", "files")
+
+
 def item_text_row(self, doc) -> dict:
     """datatrove adapter for ``ItemTexts`` documents: ``id`` (item), ``text`` and the metadata columns."""
     return {"id": doc.id, "text": doc.text, **{k: v for k, v in doc.metadata.items()}}
 
 
-class ItemTextJsonlWriter(JsonlWriter):
-    """``ItemTexts`` documents as JSONL, one folder per variant (``<variant>/<rank>.jsonl.gz``)."""
+class ItemTextWriter(JsonlWriter):
+    """``ItemTexts`` documents, one per item and variant. ``format="jsonl"``: JSON Lines, one folder per variant
+    (``<variant>/<rank>.jsonl.gz``; ``output_filename`` and datatrove's ``JsonlWriter`` options apply);
+    ``format="files"``: one file each, ``<output_folder>/<variant>/<item_id>.<txt|md>``. Documents pass through."""
 
-    name = "📚 item texts (jsonl)"
-
-    def __init__(self, output_folder: DataFolderLike, output_filename: str = "${variant}/${rank}.jsonl.gz", **kwargs):
+    def __init__(self, output_folder: DataFolderLike, format: str = "jsonl",
+                 output_filename: str = "${variant}/${rank}.jsonl.gz", **kwargs):
+        if format not in ITEM_TEXT_FORMATS:
+            raise ValueError(f"unknown format {format!r}; choose from {', '.join(ITEM_TEXT_FORMATS)}")
+        self.name = f"📚 item texts ({format})"     # before the base __init__, which names the stats
         super().__init__(output_folder, output_filename, adapter=item_text_row, **kwargs)
-
-
-class ItemTextFilesWriter(PipelineStep):
-    """``ItemTexts`` documents as files: ``<output_folder>/<variant>/<item_id>.<txt|md>``."""
-
-    type = "💽 - WRITER"
-    name = "📚 item text files"
-
-    def __init__(self, output_folder: DataFolderLike):
-        super().__init__()
-        self.output_folder = output_folder
+        self.format = format
 
     def run(self, data, rank: int = 0, world_size: int = 1):
-        from datatrove.io import get_datafolder
-
-        out = get_datafolder(self.output_folder)
+        if self.format == "jsonl":
+            yield from super().run(data, rank, world_size)
+            return
         for doc in data:
             variant = doc.metadata.get("variant", "text")
             ext = "md" if doc.metadata.get("format") == "text/markdown" else "txt"
-            with out.open(f"{variant}/{doc.id}.{ext}", "wb") as f:
+            with self.output_folder.open(f"{variant}/{doc.id}.{ext}", "wb") as f:
                 f.write(doc.text.encode("utf-8"))
             self.stat_update(variant)
             yield doc

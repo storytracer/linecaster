@@ -6,7 +6,7 @@ import pytest
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composition.typographer import Typographer
-from linecaster.blocks.writers.files import PageExportsWriter
+from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.data.page import Page
 from linecaster.formats.docling import build_docling, load_docling, to_markdown, to_text
 from linecaster.text.typography import retype
@@ -138,7 +138,8 @@ def test_blocks_run_and_write_files(tmp_path):
     page = page_of(doc)
     page.transcriptions["ocr"] = page_to_compose()
     set_page(doc, page, "ocr")
-    out = list(PageExportsWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True).run(
+    out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
+                              bucket_by_item=False).run(
         Composer().run(Typographer().run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr"]
     assert t.docling["name"] == "p1" and t.model[-1].step == "typography"

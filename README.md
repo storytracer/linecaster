@@ -116,7 +116,7 @@ from linecaster.blocks.models import (
     LayoutDetector, LineDetector, LineRecognizer)
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.unicode import UnicodeNormalizer
-from linecaster.blocks.writers import PageFilesWriter
+from linecaster.blocks.writers import PageFileWriter
 
 pipeline = [
     ImageFolderReader("scans/"),
@@ -128,7 +128,7 @@ pipeline = [
     UnicodeNormalizer(),
     Typographer(),
     Composer(),
-    PageFilesWriter("out/", formats=("md", "alto")),
+    PageFileWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
@@ -453,11 +453,11 @@ These blocks need no model.
 
 | Block | What it does |
 |---|---|
-| `PageFilesWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text and more |
+| `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text and more |
 | `PageJsonlWriter` | page rows as JSON Lines |
 | `PageParquetWriter` | page rows as Parquet |
 | `PageExportsWriter` | page documents as Markdown, text, HTML, DocLang, JSON |
-| `ItemExportsWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
+| `ItemDocumentWriter` | book documents as Markdown, text, HTML, DocLang, JSON |
 | `ItemTextJsonlWriter` | book texts as JSON Lines |
 | `ItemTextFilesWriter` | book texts as files |
 

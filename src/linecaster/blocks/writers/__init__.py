@@ -1,11 +1,9 @@
-"""Writers: page rows, per-page files, page images, item documents and texts, rejects."""
-from .files import PageExportsWriter, PageFilesWriter
+"""Writers: page records, per-page files, page images, item documents and texts, rejects."""
+from .files import PageFileWriter
 from .images import ImageFilesWriter
-from .items import ItemExportsWriter, ItemTextFilesWriter, ItemTextJsonlWriter
+from .items import ItemDocumentWriter, ItemTextWriter
 from .records import PageJsonlWriter, PageParquetWriter
 from .rejects import RejectWriter
 
-__all__ = [
-    "ImageFilesWriter", "ItemExportsWriter", "ItemTextFilesWriter", "ItemTextJsonlWriter", "PageExportsWriter",
-    "PageFilesWriter", "PageJsonlWriter", "PageParquetWriter", "RejectWriter"
-]
+__all__ = ["ImageFilesWriter", "ItemDocumentWriter", "ItemTextWriter", "PageFileWriter", "PageJsonlWriter",
+           "PageParquetWriter", "RejectWriter"]

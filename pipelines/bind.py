@@ -21,7 +21,7 @@ Texts in OUT2/texts/<version>/<rank>.jsonl.gz; with --files also OUT2/files/<ver
 """
 from linecaster.blocks.binding.texts import ItemTexts
 from linecaster.blocks.readers.records import PageRecordReader
-from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
+from linecaster.blocks.writers.items import ItemTextWriter
 from linecaster.runtime import run
 
 
@@ -38,8 +38,8 @@ def pipeline(a, script: str) -> list:
     return [
         PageRecordReader(a.images, fetch_images=False, item_shards=True),
         ItemTexts(),
-        *([ItemTextFilesWriter(f"{out}/files")] if a.files else []),
-        ItemTextJsonlWriter(f"{out}/texts", output_filename="${variant}/${rank}.jsonl.gz"),
+        *([ItemTextWriter(f"{out}/files", format="files")] if a.files else []),
+        ItemTextWriter(f"{out}/texts"),
     ], {"engines": False}
 
 

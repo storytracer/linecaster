@@ -1,5 +1,5 @@
-"""Byte comparison of linecaster's per-page md/txt exports (``PageExportsWriter`` with suffix
-``.paddle`` and ``furniture=True``) with squiddleocr's goldens (``--text lines --furniture``); for
+"""Byte comparison of linecaster's per-page md/txt exports (``PageFileWriter`` with ``bucket_by_item=False``,
+suffix ``.paddle`` and ``furniture=True``: the pipeline's ``--exports``) with squiddleocr's goldens (``--text lines --furniture``); for
 differing pages a short diff.
 
     python compare_exports.py EXPORTS_DIR GOLDEN_DIR [--show N] [--no-nfc]

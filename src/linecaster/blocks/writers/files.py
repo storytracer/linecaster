@@ -1,14 +1,10 @@
-"""Per-page files: ``PageFilesWriter`` (hOCR, ALTO, PAGE, txt, md, HTML, DocLang, DoclingDocument JSON,
-Transcription JSON, layout plots; ``<item_id>/<page_id>.<ext>``) and ``PageExportsWriter`` (the
-DoclingDocument's exports, ``<page_id><suffix>.<ext>``).
+"""Per-page files: ``PageFileWriter``, one file per page and format (hOCR, ALTO, PAGE, txt, md, HTML, DocLang,
+DoclingDocument JSON, Transcription JSON, layout plots), ``<item_id>/<page_id><suffix>.<ext>`` or flat.
 """
 from __future__ import annotations
 
-from datatrove.io import DataFolderLike, get_datafolder
+from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
-
-from ...formats.docling import EXPORT_FORMATS, REGION_MAP_KEY, export, load_docling
-from ..base.page import page_of
 
 #: format -> file extension
 PAGE_FILE_EXTENSIONS = {
@@ -28,7 +24,7 @@ DETAILS = ("word", "line")
 DOCUMENT_FORMATS = ("md", "txt", "html", "doclang", "json")
 
 
-class PageFilesWriter(PipelineStep):
+class PageFileWriter(PipelineStep):
     """One file per page and format: ``<output_folder>/<item_id>/<page_id><suffix>.<ext>`` (any fsspec
     folder: local, ``s3://``, ``hf://buckets/...``). Pages pass through, so writers can be chained.
 
@@ -42,15 +38,16 @@ class PageFilesWriter(PipelineStep):
     * ``transcription``: the ``Transcription`` itself as JSON;
     * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.images.plots``).
 
-    ``bucket_by_item=False`` writes ``<page_id><suffix>.<ext>`` flat (as squiddleocr and
-    ``PageExportsWriter`` name their files); pages without ``item_id`` are always written flat."""
+    ``bucket_by_item=False`` writes ``<page_id><suffix>.<ext>`` flat, as squiddleocr names its files (with
+    ``suffix=".paddle"``); pages without ``item_id`` are always written flat. ``text_fallback=False`` writes md and
+    txt only from a document, so a page without one gets no files of the document formats."""
 
     type = "💽 - WRITER"
     name = "🗂️ page files"
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
-                 detail: str = "word", dividers: bool = False):
+                 detail: str = "word", dividers: bool = False, text_fallback: bool = True):
         super().__init__()
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
@@ -59,7 +56,7 @@ class PageFilesWriter(PipelineStep):
             raise ValueError(f"unknown detail {detail!r}; choose from {', '.join(DETAILS)}")
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
-        self.detail, self.dividers = detail, dividers
+        self.detail, self.dividers, self.text_fallback = detail, dividers, text_fallback
 
     def path(self, page) -> str:
         stem = f"{page.page_id}{self.suffix}"
@@ -94,7 +91,7 @@ class PageFilesWriter(PipelineStep):
 
             region_of = t.extra.get(REGION_MAP_KEY) if self.dividers else None
             return export(document, fmt, self.furniture, region_of)
-        return t.text if fmt in ("md", "txt") else None
+        return t.text if fmt in ("md", "txt") and self.text_fallback else None
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
@@ -129,43 +126,3 @@ class PageFilesWriter(PipelineStep):
                 self.stat_update(fmt)
             yield doc
 
-
-class PageExportsWriter(PipelineStep):
-    """Write each page's document exports as files named ``<page id><suffix>.<ext>`` in
-    ``output_folder``: ``md`` (Markdown), ``txt`` (text), ``html``, ``doclang`` (DocLang XML) and
-    ``json`` (the DoclingDocument), all docling-core's serialisers (``linecaster.formats.docling.export``).
-    ``furniture`` keeps page headers and footers in md, txt and html (squiddleocr's ``--furniture``);
-    ``dividers`` puts ``---`` between the items of consecutive layout regions in md (needs the region
-    map ``Composer`` keeps). Pages pass through."""
-
-    type = "💽 - WRITER"
-    name = "📝 page exports"
-
-    EXTENSIONS = EXPORT_FORMATS
-
-    def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
-                 furniture: bool = False, transcription: str = "ocr", dividers: bool = False):
-        super().__init__()
-        unknown = set(formats) - set(self.EXTENSIONS)
-        if unknown:
-            raise ValueError(f"unknown formats {sorted(unknown)}; choose from {sorted(self.EXTENSIONS)}")
-        self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
-        self.furniture, self.transcription, self.dividers = furniture, transcription, dividers
-
-    def run(self, data, rank: int = 0, world_size: int = 1):
-        for doc in data:
-            page = page_of(doc)
-            t = page.transcriptions.get(self.transcription)
-            if t is None or t.docling is None:
-                self.stat_update("no_document")
-                yield doc
-                continue
-            with self.track_time():
-                d = load_docling(t)
-                region_of = t.extra.get(REGION_MAP_KEY) if self.dividers else None
-                for fmt in self.formats:
-                    content = t.docling if fmt == "json" else d
-                    with self.folder.open(f"{page.page_id}{self.suffix}.{self.EXTENSIONS[fmt]}", "wt", encoding="utf-8") as f:
-                        f.write(export(content, fmt, self.furniture, region_of))
-                    self.stat_update(fmt)
-            yield doc

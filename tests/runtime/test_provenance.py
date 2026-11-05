@@ -269,11 +269,11 @@ def _args(*argv):
 
 def _pipeline(a, files: str):
     from linecaster.blocks.recognition.recognizers import LineRecognizer
-    from linecaster.blocks.writers.files import PageFilesWriter
+    from linecaster.blocks.writers.files import PageFileWriter
 
     backend = InProcess("test_provenance:StampModel", size=3)
     backend.preset, backend.preset_sha256 = "stamp@2", SHA
-    return [run.reader(a), LineRecognizer(backend), PageFilesWriter(files, formats=("alto", "page", "hocr")),
+    return [run.reader(a), LineRecognizer(backend), PageFileWriter(files, formats=("alto", "page", "hocr")),
             run.rows(a)]
 
 
@@ -291,7 +291,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert rec["argv"] == [images, out, "--env", "HF_TOKEN=<redacted>"]
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
-    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineRecognizer", "PageFilesWriter",
+    assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineRecognizer", "PageFileWriter",
                                                      "PageJsonlWriter"]
     assert rec["pipeline"][1] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
                                   "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}

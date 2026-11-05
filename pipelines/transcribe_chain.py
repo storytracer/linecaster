@@ -72,8 +72,8 @@ from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.lines.detector import LineDetector
 from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
 from linecaster.blocks.text.unicode import UnicodeNormalizer
-from linecaster.blocks.writers.files import PageFilesWriter
-from linecaster.blocks.writers.items import ItemTextFilesWriter, ItemTextJsonlWriter
+from linecaster.blocks.writers.files import PageFileWriter
+from linecaster.blocks.writers.items import ItemTextWriter
 from linecaster.runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
@@ -137,13 +137,12 @@ def pipeline(a, script: str) -> list:
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
         Typographer(),
         Composer(text=a.text),
-        *([PageFilesWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
-        *([PageFilesWriter(a.exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
+        *([PageFileWriter(a.files, formats=tuple(a.formats.split(",")))] if a.files else []),
+        *([PageFileWriter(a.exports, formats=("md", "txt", "json"), suffix=".paddle", furniture=True,
                            bucket_by_item=False)] if a.exports else []),
         run.rows(a),
         # after the page writers: ItemTexts consumes the pages and emits one document per item and version
-        *([ItemTexts(), ItemTextFilesWriter(a.texts),
-           ItemTextJsonlWriter(a.texts, output_filename="${variant}/${rank}.jsonl.gz")] if a.texts else []),
+        *([ItemTexts(), ItemTextWriter(a.texts, format="files"), ItemTextWriter(a.texts)] if a.texts else []),
         *servers,                                 # last: lives until every page is written
     ]
 

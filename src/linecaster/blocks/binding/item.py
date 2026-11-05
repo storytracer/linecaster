@@ -20,7 +20,7 @@ class BindItem(PipelineStep):
     Output: one ``Document`` per item, ``id`` = item id, ``text`` = the document's plain text (with
     furniture), metadata ``item_id``, ``page_ids``, ``pages``, ``text_mode``, ``sections``, ``docling``
     (the DoclingDocument as a dict) and ``region_of`` (item ref -> ``"<page_no>:<region id>"``, for the
-    Markdown dividers). Write it with ``ItemExportsWriter``."""
+    Markdown dividers). Write it with ``ItemDocumentWriter``."""
 
     type = "🔠 - LINECASTER"
     name = "📚 bind item"

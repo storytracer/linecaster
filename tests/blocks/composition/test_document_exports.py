@@ -15,12 +15,12 @@ from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.layout.single_region import SingleRegionLayout
 from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.readers.images import ImageFolderReader
-from linecaster.blocks.writers.files import PageExportsWriter, PageFilesWriter
-from linecaster.blocks.writers.items import ItemExportsWriter
+from linecaster.blocks.writers.files import PageFileWriter
+from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Line, Transcription
 from linecaster.formats import from_alto, from_hocr, from_page
-from linecaster.formats.docling import (EXPORT_FORMATS, REGION_MAP_KEY, build_docling, export, to_doclang, to_html,
-                                        to_json)
+from linecaster.formats.docling import (EXPORT_FORMATS, REGION_MAP_KEY, build_docling, export, load_docling, to_doclang,
+                                        to_html, to_json)
 
 from conftest import line, page_doc, page_t, page_to_compose, region
 
@@ -56,11 +56,12 @@ def test_json_is_formatted_as_docling_saves_it(tmp_path: Path):
 def test_page_writers_write_every_document_format(tmp_path: Path):
     docs = _composed_doc()
     fmts = ("md", "txt", "html", "doclang", "json")
-    list(PageExportsWriter(str(tmp_path / "a"), formats=fmts, suffix=".x").run(iter(docs)))
-    list(PageFilesWriter(str(tmp_path / "b"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path / "a"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
+    t = page_of(docs[0]).transcriptions["ocr"]
     for fmt in fmts:
         name = f"p1.x.{EXPORT_FORMATS[fmt]}"
-        assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes(), name
+        expected = export(t.docling if fmt == "json" else load_docling(t), fmt).encode("utf-8")
+        assert (tmp_path / "a" / name).read_bytes() == expected, name
     assert (tmp_path / "a" / "p1.x.doclang.xml").read_text().startswith("<doclang")
     assert (tmp_path / "a" / "p1.x.html").read_text().lstrip().lower().startswith("<!doctype html>")
 
@@ -72,12 +73,13 @@ def test_sections_and_dividers_per_page(tmp_path: Path):
     assert [g["name"] for g in groups] == ["THE TITLE", "LAST"]
     region_of = t.extra[REGION_MAP_KEY]
     assert set(region_of.values()) >= {"1:doc_title_0", "1:text_1"}
-    list(PageFilesWriter(str(tmp_path), formats=("md",), bucket_by_item=False, dividers=True).run(iter(docs)))
-    list(PageFilesWriter(str(tmp_path), formats=("md",), suffix=".plain", bucket_by_item=False).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path), formats=("md",), bucket_by_item=False, dividers=True).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path), formats=("md",), suffix=".plain", bucket_by_item=False).run(iter(docs)))
     with_rules, plain = (tmp_path / "p1.md").read_text(), (tmp_path / "p1.plain.md").read_text()
     assert with_rules.count("\n\n---\n\n") == 4 and "\n\n---\n\n" not in plain
     assert with_rules.replace("\n\n---\n\n", "\n\n") == plain
-    list(PageExportsWriter(str(tmp_path / "e"), formats=("md",), dividers=True).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path / "e"), formats=("md",), bucket_by_item=False, dividers=True,
+                        text_fallback=False).run(iter(docs)))
     assert (tmp_path / "e" / "p1.md").read_text() == with_rules
 
 
@@ -90,20 +92,20 @@ def test_line_detail_drops_the_words(tmp_path: Path):
     t.lines[0].words = [Word(id="w0", text="zwei", bbox=[12, 12, 100, 30], confidence=0.9),
                         Word(id="w1", text="Worte", bbox=[130, 12, 160, 30], confidence=0.8)]
     docs = [page_doc(t=t, item=None)]
-    list(PageFilesWriter(str(tmp_path / "w"), formats=("hocr", "alto", "page")).run(iter(docs)))
-    list(PageFilesWriter(str(tmp_path / "l"), formats=("hocr", "alto", "page"), detail="line").run(iter(docs)))
+    list(PageFileWriter(str(tmp_path / "w"), formats=("hocr", "alto", "page")).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path / "l"), formats=("hocr", "alto", "page"), detail="line").run(iter(docs)))
     for name, reader in (("p1.hocr", from_hocr), ("p1.alto.xml", from_alto), ("p1.page.xml", from_page)):
         word, ln = reader((tmp_path / "w" / name).read_bytes()), reader((tmp_path / "l" / name).read_bytes())
         assert [w.text for w in word.lines[0].words] == ["zwei", "Worte"], name
         assert ln.lines[0].text == "zwei Worte" and not ln.lines[0].words, name
     assert len(t.lines[0].words) == 2                      # the transcription itself is untouched
     with pytest.raises(ValueError):
-        PageFilesWriter(str(tmp_path), detail="glyph")
+        PageFileWriter(str(tmp_path), detail="glyph")
 
 
 def test_layout_plot(tmp_path: Path):
     docs = _composed_doc()
-    list(PageFilesWriter(str(tmp_path), formats=("plot",), suffix=".x", bucket_by_item=False).run(iter(docs)))
+    list(PageFileWriter(str(tmp_path), formats=("plot",), suffix=".x", bucket_by_item=False).run(iter(docs)))
     with Image.open(tmp_path / "p1.x.layout.jpg") as im:
         assert im.format == "JPEG" and im.size == (1000, 1000)
         assert im.convert("RGB").getpixel((101, 101)) != (255, 255, 255)     # the title region's outline
@@ -143,7 +145,7 @@ def test_item_exports_html_doclang_json(tmp_path: Path):
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
     items = list(BindItem(text="lines", sections=True).run(iter(docs)))
-    list(ItemExportsWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
+    list(ItemDocumentWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
     from docling_core.types.doc import DoclingDocument
