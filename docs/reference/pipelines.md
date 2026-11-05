@@ -138,13 +138,20 @@ a run would when there are problems; a run with problems exits with code 2 befor
 
 ## Observers
 
-`linecaster.runtime.observers.Observer` has `on_task_start(rank, world_size)`, `on_enter(block, doc)`,
-`on_exit(block, doc, error=None)`, `on_unit(block, doc, event, **attributes)` (from stream blocks' `notify`, called
-in saturate's prepare threads for `prepare`) and `on_task_end()`. When a stage has observers (`build(...,
-observers=[...])`, taps), the builder puts a `Boundary` after every block: the boundary between block *i* and *i +
-1* calls `on_exit(i)` and `on_enter(i + 1)` for each page, so a block's time per page includes waiting in a served
-window; `error` is the entry the block added to `doc.metadata["errors"]`. Boundaries are plain callables, not
-datatrove steps, so they add no stats; a stage without observers has none.
+`linecaster.runtime.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(block, seconds)`,
+`on_enter(block, doc)`, `on_exit(block, doc, error=None)`, `on_unit(block, doc, event, **attributes)` (from stream
+blocks' `notify`: `prepare` and `request` in saturate's prepare threads, `request` with a `carrier` dict for the
+trace context, `done` with `error`, tokens and `finish_reason`; `region` for a request per region),
+`on_task_event(block, event, start_ns, end_ns, **attributes)` (from `Block.report`: a reader's `file`, a writer's
+`flush`), `on_leave(doc)` (a page leaves the stage's last block), `on_task_end(error=None)` (also when the task
+fails) and `environment()` (variables for a server a block starts in the task). When a stage has observers
+(`build(..., observers=[...])`, taps, tracing), the builder puts a `Boundary` after every block: the boundary
+between block *i* and *i + 1* calls `on_exit(i)` and `on_enter(i + 1)` for each page, so a block's time per page
+includes waiting in a served window; `error` is the entry the block added to `doc.metadata["errors"]`. Boundaries
+are plain callables, not datatrove steps, so they add no stats; a stage without observers has none.
+
+Every stage with a run folder (or an OTLP endpoint) is traced: the builder adds a `linecaster.tracing.Tracing`
+observer (`build(..., trace_sample=SHARE)`, `--trace-sample`; [tracing](tracing.md)).
 
 ## Warm-up
 

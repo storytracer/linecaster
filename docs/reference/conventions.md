@@ -66,7 +66,8 @@ Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored p
   of "the current span". Reason: pages are interleaved in the stream.
 - Attributes are identifiers and numbers under `linecaster.*`, never content (text, images). Reason: content
   belongs in the rows, which the page id links to.
-- Traces are written to `OUT/traces/` and, when the standard `OTEL_*` variables are set, exported to a backend.
+- Traces are written to `OUT/traces/` and, when the standard `OTEL_*` variables are set, exported to a backend
+  ([tracing](tracing.md)).
 
 ## Telemetry
 

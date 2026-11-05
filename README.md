@@ -337,6 +337,13 @@ MODELS = [
 Files come per page or, for an item, one per text variant. Word positions need a model that gives them,
 such as a line recognizer.
 
+Every run is also traced with [OpenTelemetry]: each task, and one page in a hundred (chosen by page id, so the same
+ones every time) plus every page that failed, block by block and into the servers. The traces land in
+`OUT/traces/`, and in your own tracing backend when the standard `OTEL_*` variables point to one; nothing is sent
+anywhere else. `linecaster traces OUT` says where the time went: per block the time per page, for served blocks
+how much of it was the queue and how much the model, the slowest pages, and each task's warm-up
+(`--trace-sample 1` traces every page; [docs/reference/tracing.md](docs/reference/tracing.md)).
+
 ## 🧰 Models and blocks
 
 Every configuration is a **preset** in Linecaster's catalog: one engine, one model at a pinned revision, and its
@@ -599,13 +606,13 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 
 | Folder | Contents |
 |---|---|
-| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalog, chat `adapters/`, `runtime/` (command line, executors, run record) |
+| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalog, chat `adapters/`, `runtime/` (command line, executors, run record), `tracing/` |
 | `src/linecaster/catalog/data/` | the catalog: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
 | `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalog) |
 | `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog, pipelines |
+| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog, pipelines, tracing |
 | `docs/` | the generated catalog pages (`docs/catalog/`, one folder per kind of entry), images for this README |
 
 </details>
@@ -637,6 +644,7 @@ commercial purposes. The Apache-2.0 license of the code does not apply to it. Th
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [datatrove]: https://github.com/huggingface/datatrove
 [saturate]: https://github.com/davanstrien/saturate
+[OpenTelemetry]: https://opentelemetry.io/
 [Ray]: https://www.ray.io/
 [HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
 [vLLM]: https://github.com/vllm-project/vllm

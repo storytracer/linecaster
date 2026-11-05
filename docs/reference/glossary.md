@@ -42,6 +42,9 @@ term is added here before it is used.
 | **secret reference** | `EnvVar("NAME")`: a credential named by its environment variable, read in the task, never stored in a pipeline or a record. | |
 | **trace**, **span** | OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes. | not telemetry |
 | **sample** | The pages that are traced: a fixed share chosen by page id, plus every page that failed. | |
+| **trace context** | A page's W3C `traceparent` (`doc.metadata["trace"]`), given at the reader's boundary: the page's spans are its children, and a served block sends it with the page's request. | not "the current span" |
+| **task span** | A span of the task's own work, traced for every task: the task, a block's warm-up, a server start, a reader's file, a writer's flush. | |
+| **gap** | The time a block had no page in it between its first page and its last: it waited for its input (`linecaster traces`). | |
 
 ## Parts
 

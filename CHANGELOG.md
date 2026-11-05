@@ -82,6 +82,12 @@ compatibility aliases: old imports, flags and ids fail.
 - `engine_spec(ref)` and `preset_models(models)` take `installed=True`; tests that replace `engine_spec` accept it.
 - On HF Jobs the tasks log JSON lines (`LINECASTER_LOG_JSON=1`, `runtime.jobs.JobsExecutor`; the run record's
   executor is `JobsExecutor`).
+- Every run is traced (OpenTelemetry, a new required dependency: `opentelemetry-api`, `-sdk`,
+  `-exporter-otlp-proto-http`): `OUT/traces/` appears in every run folder, and a sampled page's record carries
+  `metadata.trace_id`. Every stage with a run folder now has observers, so its pipeline has boundary steps.
+- Observers: `on_task_end(error=None)` (was `on_task_end()`; an own observer adds the parameter), and new hooks
+  `on_task_event`, `on_leave`, `environment()`. Stream blocks notify `request` (with a `carrier`) after `prepare`,
+  and `done` with tokens and `finish_reason`; `PageRecognizer` notifies `prepare` once (was twice).
 
 ### Added
 
@@ -101,3 +107,10 @@ compatibility aliases: old imports, flags and ids fail.
   --migrate-pipeline`. `squiddle@1` has its pipeline recorded.
 - Secrets as references: `linecaster.runtime.secrets.EnvVar`; `Served(api_key=..., headers=...)`.
 - `linecaster.runtime.logs` (JSON-lines task logs), `runtime.jobs.JobsExecutor`.
+- Tracing (`linecaster.tracing`, `docs/reference/tracing.md`): task spans, page traces sampled by page id
+  (`--trace-sample`, `build(trace_sample=...)`, default 0.01) plus every failed page, `OUT/traces/<rank>.jsonl.gz`
+  (OTLP JSON lines) and OTLP/HTTP when the `OTEL_*` variables say so; served blocks send the page's `traceparent`
+  in the request body and `linecaster serve` continues it (`--traces FILE`, `LINECASTER_TRACES`);
+  `ChatModelServer` starts vLLM with `--otlp-traces-endpoint` when OTLP is configured; fetch spans from
+  `net.http.HTTPFetcher` (`fetch_record`); `trace_id` and `span_id` on log records; `linecaster traces OUT [--by
+  block|preset|task] [--slowest N] [--json]`.
