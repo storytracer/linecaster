@@ -22,6 +22,9 @@ contracts before anything runs (``docs/reference/pipelines.md``).
 * **Stages**: with ``tasks > 1``, the stream's change to items (a binder) cuts the pipeline: the first stage writes
   page records in item shards (``PageJsonlWriter(item_shards=N)`` into ``<run_folder>/pages``), the next reads
   whole shards (``PageRecordReader(item_shards=True)``).
+* **Rejects**: with a run folder, a ``RejectWriter`` into ``<run_folder>/rejects`` goes before the first writer (or
+  binder) unless the pipeline has one: it writes the pages that carry errors. ``max_page_errors`` sets every page
+  block's error budget.
 * **Partial runs**: ``until`` keeps the blocks up to a block and writes page records; ``after`` starts from page
   records (the pipeline's ``PageRecordReader``) with the blocks after one; ``taps`` write page records after a
   block (``Tap`` observers). Blocks are named by their datatrove ``name``, their class name or their composite's
@@ -394,6 +397,18 @@ def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
     entries.insert(i, _Entry(RecipeStamper(*recipe)))
 
 
+def _rejects(entries: list[_Entry], run_folder: str) -> None:
+    """A ``RejectWriter`` into ``<run_folder>/rejects`` before the first writer, binder or server (the stream still
+    carries pages there), unless the pipeline has one."""
+    from ..blocks.writers.rejects import RejectWriter
+
+    if any(_is(e.block, "RejectWriter") for e in entries):
+        return
+    i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server", "binder")
+              or e.contract.unit_out == "item"), len(entries))
+    entries.insert(i, _Entry(RejectWriter(posixpath.join(run_folder.rstrip("/"), "rejects"))))
+
+
 def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: list[str]):
     """``[(name, entries, tasks)]``: one stage, or two cut where the stream changes to items (``tasks > 1``)."""
     end = len(entries)
@@ -573,16 +588,17 @@ def _describe_block(e: _Entry, node: Node) -> dict:
 
 def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
-          observers: list[Observer] | None = None) -> Plan:
+          observers: list[Observer] | None = None, max_page_errors: float | None = None) -> Plan:
     """The plan for ``blocks`` (blocks and composites, in order) run as ``tasks`` tasks into ``run_folder``.
     ``recipe`` (ref, sha256) stamps the recipe edition before the first writer (``RecipeStamper``); ``observers``
-    join the taps on every stage. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them."""
+    join the taps on every stage; ``max_page_errors`` (a share of a task's pages) is every page block's error
+    budget. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them."""
     return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
-                  observers=observers)
+                  observers=observers, max_page_errors=max_page_errors)
 
 
 def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
-           observers=None, given: bool = False) -> Plan:
+           observers=None, given: bool = False, max_page_errors=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(blocks), problems)
     if after:
@@ -591,6 +607,12 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         entries = _until(entries, until, run_folder, problems)
     if recipe:
         _stamp(entries, recipe)
+    if run_folder is not None:
+        _rejects(entries, run_folder)
+    if max_page_errors is not None:
+        for e in entries:
+            if hasattr(e.block, "max_page_errors"):
+                e.block.max_page_errors = max_page_errors
     cut = _cut(entries, tasks, run_folder, problems)
     graph, counter = Graph(), [0]
     analysis = _Analysis(graph, problems, counter)

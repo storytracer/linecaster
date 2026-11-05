@@ -393,8 +393,9 @@ def test_servers_go_with_the_model_stage(tmp_path: Path):
     p = build(blocks, tasks=3, run_folder=str(tmp_path))
     assert p.problems == []
     assert [type(b).__name__ for b in p.stages[0].blocks] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
-                                                             "PageJsonlWriter", "ModelServer"]
-    assert p.stages[0].blocks[3].item_shards == 3                 # the run's page writer, now in item shards
+                                                             "RejectWriter", "PageJsonlWriter", "ModelServer"]
+    assert p.stages[0].blocks[3].output_folder == f"{tmp_path}/rejects"    # the pages that failed, before the writer
+    assert p.stages[0].blocks[4].item_shards == 3                 # the run's page writer, now in item shards
     assert [type(b).__name__ for b in p.stages[1].blocks] == ["PageRecordReader", "ItemTexts", "ItemTextWriter"]
 
 
@@ -412,12 +413,12 @@ def test_until_after_and_taps(items, tmp_path: Path):
     first = _args(items, str(tmp_path / "first"), "--item-from-parent", "--until", "LineAssigner")
     p = run.build_plan(first, _modular(first))
     assert [type(b).__name__ for b in p.blocks] == ["ImageFolderReader", "SingleRegionLayout", "LineDetector",
-                                                    "LineAssigner", "PageJsonlWriter"]
+                                                    "LineAssigner", "RejectWriter", "PageJsonlWriter"]
     run.run(first, _modular(first), __file__, argv=[])
     second = _args(str(tmp_path / "second"), "--pages", str(tmp_path / "first" / "pages"), "--after", "LineAssigner")
     p = run.build_plan(second, _modular(second))
     assert [type(b).__name__ for b in p.blocks] == ["PageRecordReader", "LineRecognizer", "UnicodeNormalizer",
-                                                    "Typographer", "Composer", "PageJsonlWriter"]
+                                                    "Typographer", "Composer", "RejectWriter", "PageJsonlWriter"]
     assert {str(x) for x in p.blocks[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
     run.run(second, _modular(second), __file__, argv=[])
     halfway = _records(tmp_path / "first" / "pages")
@@ -444,8 +445,8 @@ def test_partial_run_problems(tmp_path: Path):
     # by datatrove name, and by composite (its last block)
     p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text()), PageJsonlWriter("o")],
               until="modular transcriber", run_folder=str(tmp_path))
-    assert p.problems == [] and type(p.blocks[-1]).__name__ == "PageJsonlWriter"
-    assert type(p.blocks[-2]).__name__ == "LineRecognizer"
+    assert p.problems == [] and [type(b).__name__ for b in p.blocks[-3:]] == ["LineRecognizer", "RejectWriter",
+                                                                              "PageJsonlWriter"]
     assert build(blocks, until="lines (in-process)", run_folder=str(tmp_path)).problems == []
 
 
@@ -504,10 +505,10 @@ def test_run_pages_checks_first():
 def test_contracts_with_tables_and_validation():
     from linecaster.blocks.validation import PageValidator
 
-    p = build([ImageFolderReader("x"), PageValidator("r", required=("transcriptions.ocr_new",)), _lines()])
+    p = build([ImageFolderReader("x"), PageValidator(required=("transcriptions.ocr_new",)), _lines()])
     assert p.problems == ["PageValidator (✅ page validator) reads ocr_new:*, which no block before it in the "
                           "pipeline adds"]
-    assert build([ImageFolderReader("x"), _lines(), PageValidator("r", required=("transcriptions.ocr_new",))]).problems == []
+    assert build([ImageFolderReader("x"), _lines(), PageValidator(required=("transcriptions.ocr_new",))]).problems == []
     assert build([ImageFolderReader("x"), TableRecognizer(InProcess("x:T"))]).problems == [
         "TableRecognizer (tables (in-process)) reads ocr_new:regions, which no block before it in the pipeline adds"]
 

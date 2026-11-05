@@ -35,8 +35,8 @@ from ...backends import Served
 from ...data.transcription import ModelInfo
 from ...errors import PipelineConfigError
 from ..base.contract import Contract, parts
-from ..base.model import _END, ModelBlock, produces
-from ..base.page import image_bytes, page_of, set_page
+from ..base.model import _END, ModelBlock, Passed, produces
+from ..base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
 
 
 class PageRecognizer(ModelBlock):
@@ -114,10 +114,7 @@ class RegionRecognizer(PageRecognizer):
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         self.warm_up()
-        if self.skip_on_error:
-            data = self._passing_errors(data)
         yield from self._run_regions(data)
-        yield from self._skipped
 
     # requests are built in saturate's prepare threads from the page image decoded once per page
     def _request(self, row: dict) -> dict:
@@ -139,13 +136,13 @@ class RegionRecognizer(PageRecognizer):
 
         from PIL import Image
 
-        for doc in data:
+        for doc in self._passing(data, results):
             page = page_of(doc)
             t = page.transcription(self.transcription)
             regions = sorted((r for r in t.regions if self.spec.reads_region(r, self.labels)),
                              key=lambda r: (r.reading_order is None, r.reading_order or 0))
             if not regions:
-                results.put(("pass", doc))
+                results.put(Passed(doc, "pages_without_regions"))
                 continue
             with Image.open(io.BytesIO(image_bytes(doc))) as im:
                 img = im.convert("RGB")
@@ -156,7 +153,7 @@ class RegionRecognizer(PageRecognizer):
             for r in regions:
                 yield f"{doc.id}|{r.id}", {"state": state, "region": r}
 
-    def _finish(self, state) -> object:
+    def _finish(self, state, budget: ErrorBudget) -> object:
         from ...data.transcription import Line
 
         doc, page = state["doc"], state["page"]
@@ -183,13 +180,16 @@ class RegionRecognizer(PageRecognizer):
                                                                             "page_scale": round(state["scale"], 6),
                                                                             "labels": sorted(self.labels)},
                                  measurements={**tokens, "regions": len(regions), "failed": len(failed)}))
-        if failed:
-            self.stat_update("region_errors", value=len(failed))
-            if not lines:
-                doc.metadata.setdefault("errors", []).append({"step": self.step, "error": failed})
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
-        self.notify(doc, "done", error=doc.metadata["errors"][-1] if failed and not lines else None)
+        entry = None
+        if failed:
+            self.stat_update("region_errors", value=len(failed))
+            if not lines:          # every region failed: the page did
+                entry = record_error(doc, error_entry(self, failed, "ServerError"))
+        self.notify(doc, "done", error=entry)
+        if entry is not None:
+            budget.failed(doc, entry)
         return doc
 
     def _run_regions(self, data):
@@ -198,6 +198,7 @@ class RegionRecognizer(PageRecognizer):
         b: Served = self.backend
         results: queue.Queue = queue.Queue(maxsize=8 * b.max_window)
         rows = self._rows(data, results)
+        budget = ErrorBudget(self, self.max_page_errors)
 
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
@@ -218,13 +219,14 @@ class RegionRecognizer(PageRecognizer):
         while (item := results.get()) is not _END:
             if isinstance(item, BaseException):
                 raise item
-            if isinstance(item, tuple) and item[0] == "pass":
-                self.stat_update("pages_without_regions")
-                yield item[1]
+            if isinstance(item, Passed):
+                self.stat_update(item.stat)
+                yield item.doc
                 continue
             state, region = item.row["state"], item.row["region"]
             state["out"][region.id] = {"error": item.error} if item.error is not None else item.out
             state["remaining"] -= 1
             if state["remaining"] == 0:
                 self.stat_update("pages")
-                yield self._finish(state)
+                budget.page()
+                yield self._finish(state, budget)

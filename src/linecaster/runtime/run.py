@@ -106,6 +106,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
                    help="also write the page records as they leave BLOCK into DIR; repeatable")
     g = ap.add_argument_group("output")
+    g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
+                   help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
+                        "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
     g.add_argument("--item-shards", type=int, default=None, metavar="N",
                    help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
                         "stage (pipelines/bind.py) reads whole items")
@@ -374,7 +377,8 @@ def build_plan(a: argparse.Namespace, pipeline: list):
     return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else a.tasks,
                          until=getattr(a, "until", None), after=getattr(a, "after", None),
                          taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
-                         recipe=(recipe["ref"], recipe["sha256"]) if recipe else None)
+                         recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
+                         max_page_errors=getattr(a, "max_page_errors", None))
 
 
 def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None):

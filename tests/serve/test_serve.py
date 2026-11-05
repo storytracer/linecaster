@@ -100,3 +100,35 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
+
+
+def test_a_served_block_passes_a_failed_page_on_at_once():
+    """A page an earlier block failed on leaves a served block before the next page is read, not when the stream
+    ends."""
+    from saturate.engine import wait_for_health
+
+    port = free_port()
+    loop, runner = serve_in_thread(port)
+    endpoint = f"http://127.0.0.1:{port}/v1"
+    out_first = threading.Event()
+    failed = page("failed", "table")
+    failed.metadata["errors"] = [{"block": "X", "type": "RuntimeError", "error": "earlier"}]
+
+    def pages():
+        yield failed
+        assert out_first.wait(10), "the failed page was held back"
+        yield page("next", "table")
+
+    try:
+        wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
+                        poll_interval=0.1)
+        step = TableRecognizer(Served(endpoint, model="tables"))
+        seen = []
+        for d in step.run(pages()):
+            seen.append(d.id)
+            out_first.set()
+        assert seen == ["failed", "next"] and step.stats["skipped_after_error"].total == 1
+        assert not page_of(failed).transcriptions["ocr_new"].model    # the step never read it
+    finally:
+        asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
+        loop.call_soon_threadsafe(loop.stop)

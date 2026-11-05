@@ -10,10 +10,18 @@ import io
 
 from datatrove.data import Document, Media, MediaType
 from datatrove.pipeline.base import PipelineStep
+from loguru import logger
 
 from ...data.page import PAGE_KEY, Page, PageImage
-from ...errors import PageError
+from ...errors import CatalogError, PageError, PipelineConfigError, ServerError
 from .contract import Contracted
+
+#: where a page records what failed on it: a list of entries (``error_entry``)
+ERRORS_KEY = "errors"
+#: the pages a task processes before its error budget is a share of them (with fewer, the share of this many)
+ERROR_GRACE = 100
+#: errors that are not the page's: they fail the task at once
+NOT_THE_PAGES = (PipelineConfigError, CatalogError, ServerError)
 
 
 def page_of(doc: Document) -> Page:
@@ -40,6 +48,56 @@ def decode_rgb(data: bytes):
 
     with Image.open(io.BytesIO(data)) as im:
         return np.asarray(im.convert("RGB"))
+
+
+def failed(doc: Document) -> bool:
+    """Whether an earlier block failed on this page (it carries ``doc.metadata["errors"]``)."""
+    return bool(doc.metadata.get(ERRORS_KEY))
+
+
+def error_entry(block, error: BaseException | str, error_type: str | None = None, **extra) -> dict:
+    """What a page records when ``block`` fails on it: ``block`` (its class), ``step`` (a model block's), ``preset``
+    (its edition, if it has one), ``type`` (the exception's class, or ``error_type``) and ``error`` (the message),
+    plus ``extra`` (e.g. ``field`` and ``raw_value`` of a check)."""
+    entry = {"block": type(block).__name__}
+    if getattr(block, "step", None) and block.step != "model":
+        entry["step"] = block.step
+    backend, spec = getattr(block, "backend", None), getattr(block, "spec", None)
+    preset = getattr(spec, "preset", None) or getattr(backend, "preset", None)
+    entry["preset"] = preset
+    entry["type"] = error_type or (type(error).__name__ if isinstance(error, BaseException) else "error")
+    entry["error"] = str(error) if isinstance(error, BaseException) else error
+    entry.update(extra)
+    return entry
+
+
+def record_error(doc: Document, entry: dict) -> dict:
+    """Add ``entry`` to the page's errors; later model blocks pass the page by and the rejects writer writes it."""
+    doc.metadata.setdefault(ERRORS_KEY, []).append(entry)
+    return entry
+
+
+class ErrorBudget:
+    """The share of a task's pages a block may fail on (``share``, e.g. 0.01) before the task fails: more errors
+    than ``share`` of the pages seen, counting at least ``ERROR_GRACE`` pages (with 1 %: a second error in the first
+    100 pages fails the task, the third in 300). ``None``: no limit."""
+
+    def __init__(self, block, share: float | None):
+        self.block, self.share, self.pages, self.errors = block, share, 0, 0
+
+    def page(self) -> None:
+        self.pages += 1
+
+    def failed(self, doc: Document, entry: dict, cause: BaseException | None = None) -> None:
+        """One more page failed: logged; a ``PageError`` (it fails the task) once the budget is spent."""
+        self.errors += 1
+        self.block.stat_update("errors")
+        logger.warning("page {page_id} failed in {block}: {error_type}: {error}", page_id=doc.id,
+                       block=entry["block"], error_type=entry["type"], error=entry["error"])
+        if self.share is not None and self.errors > self.share * max(self.pages, ERROR_GRACE):
+            raise PageError(doc.id, entry["block"], f"{self.errors} of {self.pages} pages failed, more than the error "
+                                                    f"budget (max_page_errors={self.share:g} of at least {ERROR_GRACE} "
+                                                    f"pages)") from cause
 
 
 def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id: str | None = None,
@@ -69,10 +127,19 @@ class PageBlock(Contracted, PipelineStep):
     The builder installs the observers (``linecaster.runtime.observers``): its boundary steps between blocks call
     ``on_enter`` and ``on_exit`` for every page; ``notify`` reaches them from inside a block. Neither shape sees
     tasks: ``rank`` and ``world_size`` are for readers and writers. The contract (``contract()``) comes from the
-    class attributes of ``Contracted`` unless a block computes it."""
+    class attributes of ``Contracted`` unless a block computes it.
+
+    **Failures.** An exception in ``process_page`` (other than a pipeline, catalog or server error, which fail the
+    task) becomes an entry in the page's ``doc.metadata["errors"]`` (``error_entry``), and the page goes on as it
+    was. With ``skip_on_error`` (model blocks) a page that carries errors passes through at once. More failures than
+    ``max_page_errors`` (a share of the task's pages, ``ErrorBudget``) fail the task with a ``PageError``."""
 
     type = "🔠 - LINECASTER"
     shape = "unit"
+    #: pass pages an earlier block failed on through at once (model blocks); others process them as any page
+    skip_on_error = False
+    #: the error budget: the share of a task's pages this block may fail on (None: no limit; the builder sets it)
+    max_page_errors: float | None = 0.01
 
     def notify(self, doc: Document, event: str, **attributes) -> None:
         """Tell the observers about ``event`` for ``doc`` inside this block (``on_unit``); a no-op without any."""
@@ -83,10 +150,23 @@ class PageBlock(Contracted, PipelineStep):
         raise NotImplementedError
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        budget = ErrorBudget(self, self.max_page_errors)
         for doc in data:
+            if self.skip_on_error and failed(doc):
+                self.stat_update("skipped_after_error")
+                yield doc
+                continue
             self.stat_update("pages")
-            with self.track_time():
-                page = self.process_page(doc, page_of(doc))
+            budget.page()
+            try:
+                with self.track_time():
+                    page = self.process_page(doc, page_of(doc))
+            except NOT_THE_PAGES:
+                raise
+            except Exception as e:      # the page's failure: recorded on it, counted against the budget
+                budget.failed(doc, record_error(doc, error_entry(self, e)), e)
+                yield doc
+                continue
             if page is None:
                 self.stat_update("dropped")
                 continue

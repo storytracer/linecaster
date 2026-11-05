@@ -147,17 +147,12 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert names(files.reads) == ["image", "ocr_new:document", "ocr_new:lines", "ocr_new:text"]
     assert PageJsonlWriter(str(tmp_path)).contract() == Contract(unit="page", role="writer")
     assert ModelServer([]).contract().unit == "any" and ModelServer([]).contract().role == "server"
-    assert names(ImageConverter(str(tmp_path), str(tmp_path), keep_bytes=True).contract().replaces) == [
+    assert names(ImageConverter(str(tmp_path), keep_bytes=True).contract().replaces) == [
         "image", "metadata"]
     assert contract_of(object()) == Contract(unit="page", role="transform")
 
 
 # ------------------------------------------------------------------------------------------------ block shapes
-
-#: blocks outside readers and writers that still name their task: they write rejects files named per task
-#: (``RejectWriter(folder, rank)``), which move to the rejects writer with the per-page failures
-TASK_AWARE = {"ImageConverter": "rejects file per task", "PageValidator": "rejects file per task"}
-
 
 TASK = ("rank", "world_size")
 
@@ -185,7 +180,7 @@ def task_uses(cls: type) -> list[str]:
 def test_only_readers_and_writers_know_about_tasks():
     offenders = []
     for cls in block_classes():
-        if family(cls) in ("readers", "writers") or cls.__name__ in TASK_AWARE:
+        if family(cls) in ("readers", "writers"):
             continue
         offenders += task_uses(cls)
     assert offenders == []
@@ -203,8 +198,7 @@ def test_the_rule_finds_a_block_that_uses_its_rank():
             yield from super().run(data, rank, world_size)
 
     assert task_uses(Peeks) == ["Peeks line 4: rank"] and task_uses(Passes) == []
-    assert all(task_uses(importlib.import_module("linecaster.blocks." + m).__dict__[c])
-               for m, c in (("conversion.images", "ImageConverter"), ("validation.pages", "PageValidator")))
+    assert task_uses(importlib.import_module("linecaster.blocks.writers.rejects").RejectWriter)  # a writer may
 
 
 def test_the_two_shapes():

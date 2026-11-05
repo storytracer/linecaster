@@ -54,18 +54,21 @@ def test_scaled_scales_everything_and_copies():
 
 # ------------------------------------------------------------------ filters
 
-def test_reject_sink_and_validate_pages(tmp_path: Path):
+def test_rejects_and_validate_pages(tmp_path: Path):
     good = Page(page_id="i_1", item_id="i", image=PageImage(uri="x"))
     no_image = Page(page_id="i_2", item_id="i")
     broken = Document(text="", id="i_3", metadata={PAGE_KEY: {"page_id": 3}})
     docs = [_doc(good), _doc(no_image), broken]
-    out = list(PageValidator(str(tmp_path), required=("image",)).run(iter(docs)))
-    assert [d.id for d in out] == ["i_1"]
-    rows = [json.loads(x) for x in (tmp_path / "validate_00000.jsonl").read_text().splitlines()]
-    assert [(r["key"], r["field"]) for r in rows] == [("i_2", "image"), ("i_3", "page_id")]
-    assert all({"key", "field", "error", "raw_value"} <= set(r) for r in rows)
-    with RejectWriter(str(tmp_path), rank=3) as sink:
-        pass
+    # the validator only records why; the rejects writer (the one that knows the task) writes the file
+    out = list(RejectWriter(str(tmp_path), prefix="validate_").run(
+        PageValidator(required=("image",)).run(iter(docs)), rank=2))
+    assert [d.id for d in out] == ["i_1", "i_2", "i_3"] and not out[0].metadata.get("errors")
+    assert [e["type"] for d in out[1:] for e in d.metadata["errors"]] == ["missing", "invalid"]
+    rows = [json.loads(x) for x in (tmp_path / "validate_00002.jsonl").read_text().splitlines()]
+    assert [(r["key"], r["field"], r["block"]) for r in rows] == [("i_2", "image", "PageValidator"),
+                                                                  ("i_3", "page_id", "PageValidator")]
+    assert all({"key", "field", "error", "raw_value", "type"} <= set(r) for r in rows)
+    assert list(RejectWriter(str(tmp_path)).run(iter([_doc(good)]), rank=3))
     assert not (tmp_path / "00003.jsonl").exists()                 # no rejects, no file
 
 
@@ -87,8 +90,12 @@ def test_working_images_and_attach(tmp_path: Path):
     pages = [Page(page_id="b_1", item_id="b", image=PageImage(uri=str(tmp_path / "a.tif"))),
              Page(page_id="b_2", item_id="b", image=PageImage(uri=str(tmp_path / "big.png"))),
              Page(page_id="b_3", item_id="b")]
-    out = list(ImageConverter(str(tmp_path / "webp"), str(tmp_path / "rejects")).run(iter(map(_doc, pages))))
+    converted = list(ImageConverter(str(tmp_path / "webp")).run(iter(map(_doc, pages))))
+    list(RejectWriter(str(tmp_path / "rejects")).run(iter(converted)))
+    assert [d.id for d in converted] == ["b_1", "b_2", "b_3"]          # the rejected pages carry why
+    out = [d for d in converted if not d.metadata.get("errors")]
     assert [d.id for d in out] == ["b_1"] and out[0].media == []
+    assert page_of(converted[1]).image.uri.endswith("big.png")         # a rejected page keeps its image
     img = page_of(out[0]).image
     assert img.format == "webp" and (img.width, img.height) == (60, 40) and img.uri.endswith("webp/b/b_1.webp")
     assert img.extra["original"]["format"] == "tiff" and img.pixels_sha256

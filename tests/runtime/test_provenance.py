@@ -312,7 +312,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert rec["options"]["env"] == ["HF_TOKEN=<redacted>"] and rec["options"]["images"] == images
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
     assert [b["block"] for b in rec["pipeline"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
-                                                     "PageFileWriter", "PageJsonlWriter"]
+                                                     "RejectWriter", "PageFileWriter", "PageJsonlWriter"]
     assert rec["pipeline"][2] == {"block": "LineRecognizer", "step": "recognition", "backend": "in-process",
                                   "engine": "test_provenance:StampModel", "preset": "stamp@2", "preset_sha256": SHA}
     sw = rec["software"]

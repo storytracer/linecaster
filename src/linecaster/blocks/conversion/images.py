@@ -7,9 +7,10 @@
   sRGB, lossless WebP at full resolution, method 0, exact), writes it to
   ``<output_folder>/<item_id>/<page_id>.webp`` and replaces ``page.image`` with the working image's
   ``PageImage`` (size, hashes, decoder); the delivered file is only read, its location, format,
-  sha256, size and mode stay under ``page.image.extra["original"]``. Pages over the size limit
-  (``check_size``) or that cannot be decoded go to ``rejects`` and are dropped. With
-  ``keep_bytes`` the WebP replaces ``doc.media`` so later blocks need not read it again.
+  sha256, size and mode stay under ``page.image.extra["original"]``. A page over the size limit
+  (``check_size``) or that cannot be decoded keeps its image and carries the reason as an error (field ``image``),
+  so later model blocks pass it by and the rejects writer writes it. With ``keep_bytes`` the WebP replaces
+  ``doc.media`` so later blocks need not read it again.
 """
 from __future__ import annotations
 
@@ -22,8 +23,7 @@ from datatrove.pipeline.base import PipelineStep
 from ...data.page import PageImage
 from ...images.convert import ImageTooLarge, to_working_webp
 from ..base.contract import Contract, Contracted, parts
-from ..base.page import page_of, set_page
-from ..writers.rejects import RejectWriter
+from ..base.page import error_entry, page_of, record_error, set_page
 
 
 def read_uri(uri: str) -> bytes:
@@ -57,60 +57,61 @@ class ImageConverter(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter (lossless WebP)"
 
-    def __init__(self, output_folder: DataFolderLike, rejects_folder: DataFolderLike, effort: int = 80,
-                 keep_bytes: bool = False):
+    def __init__(self, output_folder: DataFolderLike, effort: int = 80, keep_bytes: bool = False):
         super().__init__()
-        self.output_folder, self.rejects_folder = output_folder, rejects_folder
-        self.effort, self.keep_bytes = effort, keep_bytes
+        self.output_folder, self.effort, self.keep_bytes = output_folder, effort, keep_bytes
 
     def contract(self) -> Contract:
         """The working image replaces the page image (its bytes travel on only with ``keep_bytes``)."""
         return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
                         replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None))
 
+    def _reject(self, doc, stat: str, error: str, error_type: str, raw_value=None, **extra):
+        record_error(doc, error_entry(self, error, error_type, field="image", raw_value=raw_value, **extra))
+        self.stat_update(stat)
+        return doc
+
     def run(self, data, rank: int = 0, world_size: int = 1):
         out = get_datafolder(self.output_folder)
-        with RejectWriter(self.rejects_folder, rank) as sink:
-            for doc in data:
-                page = page_of(doc)
-                self.stat_update("pages")
-                src = page.image.uri if page.image else None
-                if not src:
-                    sink.write(doc.id, "image", "no image location", None)
-                    self.stat_update("rejected")
-                    continue
-                try:
-                    with self.track_time("read"):
-                        raw = next((m.media_bytes for m in doc.media if m.media_bytes is not None), None) or read_uri(src)
-                    with self.track_time("convert"):
-                        webp, info = to_working_webp(raw, effort=self.effort)
-                except ImageTooLarge as e:
-                    sink.write(doc.id, "image", e.reason, src, width=e.width, height=e.height)
-                    self.stat_update("rejected_too_large")
-                    continue
-                except Exception as e:      # an undecodable or unreadable delivery
-                    sink.write(doc.id, "image", f"cannot convert: {type(e).__name__}: {e}", src)
-                    self.stat_update("rejected_unreadable")
-                    continue
-                rel = f"{page.item_id or '_'}/{doc.id}.webp"
-                with out.open(rel, "wb") as f:
-                    f.write(webp)
-                original = {"uri": src, "format": info["source_format"] or (page.image.format if page.image else None),
-                            "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw), "mode": info["source_mode"],
-                            "width": page.image.width if page.image else None,
-                            "height": page.image.height if page.image else None}
-                extra = {"original": original, "webp_settings": info["webp_settings"],
-                         "icc_applied": info["icc_applied"], "alpha_flattened": info["alpha_flattened"]}
-                for k in ("exif_orientation", "icc_error"):
-                    if k in info:
-                        extra[k] = info[k]
-                uri = out.resolve_paths(rel)
-                page.image = PageImage(uri=uri, format="webp", width=info["width"], height=info["height"],
-                                       sha256=info["sha256"], pixels_sha256=info["pixels_sha256"],
-                                       decoder=info["decoder"], extra=extra)
-                set_page(doc, page)
-                doc.media = ([Media(id=doc.id, type=MediaType.IMAGE, url=uri, media_bytes=webp)] if self.keep_bytes
-                             else [])
-                self.stat_update("converted")
-                self.stat_update(f"from_{original['format']}")
-                yield doc
+        for doc in data:
+            page = page_of(doc)
+            self.stat_update("pages")
+            src = page.image.uri if page.image else None
+            if not src:
+                yield self._reject(doc, "rejected", "no image location", "missing")
+                continue
+            try:
+                with self.track_time("read"):
+                    raw = next((m.media_bytes for m in doc.media if m.media_bytes is not None), None) or read_uri(src)
+                with self.track_time("convert"):
+                    webp, info = to_working_webp(raw, effort=self.effort)
+            except ImageTooLarge as e:
+                yield self._reject(doc, "rejected_too_large", e.reason, "ImageTooLarge", src, width=e.width,
+                                   height=e.height)
+                continue
+            except Exception as e:      # an undecodable or unreadable delivery
+                yield self._reject(doc, "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}",
+                                   type(e).__name__, src)
+                continue
+            rel = f"{page.item_id or '_'}/{doc.id}.webp"
+            with out.open(rel, "wb") as f:
+                f.write(webp)
+            original = {"uri": src, "format": info["source_format"] or (page.image.format if page.image else None),
+                        "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw), "mode": info["source_mode"],
+                        "width": page.image.width if page.image else None,
+                        "height": page.image.height if page.image else None}
+            extra = {"original": original, "webp_settings": info["webp_settings"],
+                     "icc_applied": info["icc_applied"], "alpha_flattened": info["alpha_flattened"]}
+            for k in ("exif_orientation", "icc_error"):
+                if k in info:
+                    extra[k] = info[k]
+            uri = out.resolve_paths(rel)
+            page.image = PageImage(uri=uri, format="webp", width=info["width"], height=info["height"],
+                                   sha256=info["sha256"], pixels_sha256=info["pixels_sha256"],
+                                   decoder=info["decoder"], extra=extra)
+            set_page(doc, page)
+            doc.media = ([Media(id=doc.id, type=MediaType.IMAGE, url=uri, media_bytes=webp)] if self.keep_bytes
+                         else [])
+            self.stat_update("converted")
+            self.stat_update(f"from_{original['format']}")
+            yield doc

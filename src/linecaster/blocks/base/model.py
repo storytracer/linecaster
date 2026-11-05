@@ -21,9 +21,19 @@ from ...data.page import Page
 from ...data.transcription import Transcription
 from ...errors import CatalogError
 from .contract import Contract, parts
-from .page import PageBlock, decode_rgb, image_bytes, page_of, set_page
+from .page import ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error, set_page
 
 _END = object()
+
+
+class Passed:
+    """A page a stream block passes through at once (an earlier block failed on it, or it has nothing to read),
+    put on the results queue by the thread that reads the input; ``stat`` counts why."""
+
+    __slots__ = ("doc", "stat")
+
+    def __init__(self, doc, stat: str = "skipped_after_error"):
+        self.doc, self.stat = doc, stat
 
 #: what a step's block reads, besides the page image
 STEP_READS = {"layout": (), "lines": (), "recognition": ("lines",), "tables": ("regions",), "formulas": ("regions",)}
@@ -91,7 +101,6 @@ class ModelBlock(PageBlock):
         super().__init__()
         self.backend, self.transcription, self.params = backend, transcription, params or {}
         self.primary, self.skip_on_error = primary or transcription, skip_on_error
-        self._skipped: list = []
 
     @property
     def shape(self) -> str:
@@ -125,24 +134,26 @@ class ModelBlock(PageBlock):
         return page
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        """In-process ``PageBlock.run`` (pages one by one); served a stream. Either way a page an earlier block failed
+        on passes through at once (``skip_on_error``)."""
         self.warm_up()
-        if self.skip_on_error:
-            data = self._passing_errors(data)
         if not self.backend.served:
             yield from super().run(data, rank, world_size)
         else:
             yield from self._run_served(data)
-        yield from self._skipped
 
-    def _passing_errors(self, data):
-        """Pages a previous step failed on bypass this step (they are written with their errors)."""
-        self._skipped = []
+    def _passing(self, data, results: queue.Queue):
+        """``data`` without the pages an earlier block failed on: those go straight onto ``results`` (``Passed``),
+        in the thread that reads the input, so they leave the block at once."""
         for doc in data:
-            if doc.metadata.get("errors"):
-                self.stat_update("skipped_after_error")
-                self._skipped.append(doc)
+            if self.skip_on_error and failed(doc):
+                results.put(Passed(doc))
             else:
                 yield doc
+
+    def _served_failure(self, doc, error, budget: ErrorBudget) -> None:
+        """A page whose request failed (saturate's error for it): recorded, counted against the budget."""
+        budget.failed(doc, record_error(doc, error_entry(self, error, "ServerError")))
 
     # ----------------------------------------------------------------- served
     def _request(self, row: dict) -> dict:
@@ -162,7 +173,8 @@ class ModelBlock(PageBlock):
 
         b: Served = self.backend
         results: queue.Queue = queue.Queue(maxsize=4 * b.max_window)
-        rows = ((doc.id, {"doc": doc}) for doc in data)
+        rows = ((doc.id, {"doc": doc}) for doc in self._passing(data, results))
+        budget = ErrorBudget(self, self.max_page_errors)
 
         def request(row: dict) -> dict:       # in saturate's prepare threads
             self.notify(row["doc"], "prepare")
@@ -189,12 +201,16 @@ class ModelBlock(PageBlock):
         while (item := results.get()) is not _END:
             if isinstance(item, BaseException):
                 raise item
+            if isinstance(item, Passed):
+                self.stat_update(item.stat)
+                yield item.doc
+                continue
             doc = item.row["doc"]
             self.stat_update("pages")
+            budget.page()
             self.notify(doc, "done", error=item.error)
             if item.error is not None:
-                self.stat_update("errors")
-                doc.metadata.setdefault("errors", []).append({"step": self.step, "error": item.error})
+                self._served_failure(doc, item.error, budget)
                 yield doc
                 continue
             page = page_of(doc)
