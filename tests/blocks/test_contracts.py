@@ -130,7 +130,7 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
         return sorted(map(str, ps))
 
     assert names(ImageFolderReader("x").contract().adds) == ["image", "metadata"]
-    assert ManifestReader(str(tmp_path), existing_ocr=True).contract().adds >= {Part("*", "ocr_original")}
+    assert ManifestReader(str(tmp_path), existing_ocr=True).contract().adds >= {Part("transcription_file")}
     assert ManifestReader(str(tmp_path)).contract().adds == {Part("image"), Part("metadata")}
     assert PageRecordReader(str(tmp_path)).contract().adds == {Part("*"), Part("image"), Part("metadata")}
     r = PageRecordReader(str(tmp_path), fetch_images=False, provides=["ocr_new:lines", Part("text", "ocr_new")])

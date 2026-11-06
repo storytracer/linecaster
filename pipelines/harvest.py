@@ -30,6 +30,7 @@ transcription ``ocr_original`` with the existing OCR). Rate limits hold per task
 times --rate-limit. A task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
+from linecaster.blocks.conversion import TranscriptionConverter
 from linecaster.blocks.writers.images import ImageFilesWriter
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
@@ -47,9 +48,12 @@ def pipeline(a, script: str) -> list:
     if a.images or a.pages:
         raise PipelineConfigError("harvest.py downloads: give --manifests or --parquet (with http(s) image URLs)")
     out = a.out.rstrip("/")
+    ocr = bool(a.manifests and a.existing_ocr)
     return [
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None),
-        ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if a.manifests and a.existing_ocr else None),
+        # the library's OCR file (a document media) read into ocr_original
+        *([TranscriptionConverter()] if ocr else []),
+        ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if ocr else None),
         run.pages(a),
     ]
 

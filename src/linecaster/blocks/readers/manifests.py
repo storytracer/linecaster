@@ -106,10 +106,11 @@ class ManifestReader(Contracted, BaseDiskReader):
     requested ahead, across manifests, while the pipeline works.
 
     With ``existing_ocr``, a page's own OCR (ALTO or hOCR the manifest links: METS ``FULLTEXT``, IIIF ``seeAlso``
-    / ``rendering``) is fetched too, read with linecaster's ``from_alto`` / ``from_hocr`` at the image's size and
-    stored as the transcription ``ocr_original`` (source ``converted``); its bytes travel as a second media of the
-    document (``ImageFilesWriter(ocr_folder=...)`` writes them). With ``manifest_folder``, every manifest read is
-    saved there as fetched, ``<item_id>.json`` / ``.xml``.
+    / ``rendering``) is fetched too, as a second media of the document (type document, ``metadata["format"]``
+    ``alto`` or ``hocr``; the part ``transcription_file``): a ``TranscriptionConverter`` after the reader reads it
+    into the transcription ``ocr_original`` (the builder puts one there when the pipeline has none), and
+    ``ImageFilesWriter(ocr_folder=...)`` writes the bytes. With ``manifest_folder``, every manifest read is saved
+    there as fetched, ``<item_id>.json`` / ``.xml``.
 
     ``limit`` and ``skip`` count pages per task (as datatrove's count documents) and apply before downloading.
     A manifest that cannot be read or parsed, an image or OCR file that fails after pybookget's retries, or a
@@ -122,8 +123,8 @@ class ManifestReader(Contracted, BaseDiskReader):
     whole_items = True          # a manifest is one entry, so an item's pages stay in one task
 
     def contract(self) -> Contract:
-        """The page image and record, and with ``existing_ocr`` whatever the library's OCR holds."""
-        adds = {Part("image"), Part("metadata")} | ({Part("*", OCR_ORIGINAL)} if self.existing_ocr else set())
+        """The page image and record, and with ``existing_ocr`` the library's OCR file."""
+        adds = {Part("image"), Part("metadata")} | ({Part("transcription_file")} if self.existing_ocr else set())
         return Contract(unit="page", role=self.role, adds=frozenset(adds))
 
     def __init__(self, data_folder: DataFolderLike = ".", paths_file: DataFileLike | None = None,
@@ -263,8 +264,6 @@ class ManifestReader(Contracted, BaseDiskReader):
     def _page(self, entry, image, ocr):
         from datatrove.data import Media, MediaType
 
-        from ..base.page import page_of, set_page
-
         item_id, item, extra, page = entry
         try:
             response = image.result()
@@ -297,11 +296,9 @@ class ManifestReader(Contracted, BaseDiskReader):
                 if (r := fetch_record(raw)) is not None:
                     fetches.append({**r, "what": "ocr"})
                     doc.metadata["trace"] = {"fetch": fetches}
-                p = page_of(doc)
-                p.transcriptions[OCR_ORIGINAL] = self._transcription(raw.content, str(raw.url), page.ocr_format, p)
-                set_page(doc, p)
                 doc.media.append(Media(id=f"{page_id}.{page.ocr_format}", type=MediaType.DOCUMENT,
-                                       url=str(raw.url), media_bytes=raw.content))
+                                       url=str(raw.url), media_bytes=raw.content,
+                                       metadata={"format": page.ocr_format}))
                 self.stat_update("ocr")
             except Exception as e:  # noqa: BLE001 - the page goes on without it
                 logger.warning("ocr {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
@@ -310,18 +307,6 @@ class ManifestReader(Contracted, BaseDiskReader):
         self.stat_update("pages")
         self.update_media_stats(doc.media[0])
         return doc
-
-    @staticmethod
-    def _transcription(data: bytes, uri: str, fmt: str | None, page):
-        from ...formats import from_alto, from_hocr
-
-        if fmt == "hocr":
-            t = from_hocr(data, uri=uri)
-        else:
-            t = from_alto(data, image_width=page.image.width, image_height=page.image.height, uri=uri)
-        t.source.image_sha256 = page.image.sha256
-        t.source.image_width, t.source.image_height = page.image.width, page.image.height
-        return t
 
     def _fetched(self, fetcher: HTTPFetcher, pages):
         """The documents of ``pages`` in order, ``prefetch`` pages requested ahead."""
