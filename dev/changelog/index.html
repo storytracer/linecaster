@@ -767,6 +767,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -807,7 +818,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -890,6 +901,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -930,7 +952,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -978,13 +1000,24 @@ the tags; the first is <code>v0.1.0</code>.</p>
   folder needs <code>--new-pipeline</code>. No released recipe is affected.</li>
 <li><code>linecaster.testing.check_engine</code> calls a page engine (recognition, unit <code>page</code>) with an empty transcription
   (no regions, no lines), not the sample layout's regions.</li>
+<li><code>ImageParquetReader</code> requests up to 8 <code>http(s)://</code> images ahead (<code>prefetch=8</code>, <code>--prefetch</code> for <code>--parquet</code>), where
+  it requested one at a time. The rate limits (<code>--rate-limit</code>) still hold per task, but a server now sees up to 8
+  requests in flight from each task; <code>prefetch=1</code> (<code>--prefetch 1</code>) keeps the old behavior.</li>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
-<li>The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
+<li>
+<p><code>ImageParquetReader(prefetch=...)</code>: <code>http(s)://</code> images of a page table requested ahead, pages in the files' row
+  order, so one task of <code>pipelines/harvest.py --parquet</code> can use its whole rate limit instead of waiting for each
+  image; <code>--prefetch</code> now applies to <code>--parquet</code> as to <code>--manifests</code>. <code>linecaster.net.prefetched</code> is the ordered
+  window both readers use (<code>ManifestReader</code> unchanged in behavior).</p>
+</li>
+<li>
+<p>The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
   60-page sample (NOTES.md): model entries <code>surya-ocr-2.5</code>, <code>indra-ocr</code>, <code>oxr-1.0</code>, <code>falcon-ocr</code> (Falcon OCR pinned at
   the revision its vendor image ships) and their presets <code>surya-ocr-2.5@1</code>, <code>indra-ocr@1</code>, <code>oxr-1.0@1</code>,
-  <code>falcon-ocr@1</code> (step <code>recognition</code>, unit <code>page</code>), with evidence records where they ran.</li>
+  <code>falcon-ocr@1</code> (step <code>recognition</code>, unit <code>page</code>), with evidence records where they ran.</p>
+</li>
 <li>Page engines: <code>PageRecognizer</code> runs an engine whose unit is the page on the <code>InProcess</code> or <code>Served</code> backend (or a
   page engine's preset by name), besides a chat VLM on <code>Chat</code>. Engine packages <code>linecaster-indra</code>
   (<code>indra.recognition.v1</code>: the <code>indra-ocr</code> package on the CPU), <code>linecaster-surya</code> (<code>surya.recognition.v1</code>: the
@@ -1001,6 +1034,16 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li>Versioned docs: the docs workflow publishes the site with mike to the <code>gh-pages</code> branch, served by GitHub Pages:
   every release tag as version <code>&lt;major&gt;.&lt;minor&gt;</code> (<code>latest</code> the newest release, the default), every push to <code>main</code>
   as <code>dev</code>; <code>mike</code> joins the dependency group <code>docs</code>.</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ImageParquetReader</code>: an image that cannot be read (an <code>http(s)</code> error after the retries, a missing file, bytes
+  that are not an image) no longer fails the task. The page comes without image and with the error in
+  <code>doc.metadata["errors"]</code> (<code>field</code> <code>image</code>, <code>raw_value</code> its URI), so the page records and rejects keep it and a
+  rerun of the task does not fail on the same dead link again; the reader has an error budget (<code>max_page_errors</code>,
+  set by <code>--max-page-errors</code>), so a server that is down still fails the task. <code>ImageFilesWriter</code> passes a page that
+  carries errors and no image through without writing a file. A row with neither image bytes nor a path still fails
+  the task.</li>
 </ul>
 <h2 id="010-2026-11-06">0.1.0 (2026-11-06)<a class="headerlink" href="#010-2026-11-06" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes_1">Upgrade notes<a class="headerlink" href="#upgrade-notes_1" title="Permanent link">&para;</a></h3>
@@ -1791,7 +1834,7 @@ and ids fail.</p>
   item-unit <code>Recomposer</code>, <code>CharacterNormalizer</code> and <code>Composer</code>; <code>Binder</code> (pages → item records) and <code>Splitter</code> (item
   records → pages, with what the item-level steps added); the recipe <code>item-texts@1</code> (<code>bind.v1</code>).</li>
 </ul>
-<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>PageRecordReader(fetch_images=True)</code>, <code>ImageFetcher</code> and <code>ImageConverter</code> dropped the fragment of
   <code>page.image.uri</code> and fetched the whole file: for a <code>PdfReader</code> page (<code>file.pdf#page=n</code>) the PDF, for an

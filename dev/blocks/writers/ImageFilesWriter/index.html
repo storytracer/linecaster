@@ -852,7 +852,8 @@
 without an item), the extension from the image's format. It reads <code>image</code> and replaces <code>metadata</code>: the page's
 <code>image.uri</code> then names the written file and <code>image.extra["source_uri"]</code> where it came from, so page records written after this block
 point at the copy (<code>PageRecordReader</code> fetches it from there), and <code>ImageFolderReader(output_folder,
-item_from_parent=True)</code> reads the folder as it is. Pages pass through.</p>
+item_from_parent=True)</code> reads the folder as it is. Pages pass through; a page that carries errors and no image
+(e.g. its download failed) passes through unchanged, with no file written.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["ImageFilesWriter"]

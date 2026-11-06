@@ -941,6 +941,12 @@
 <td><code>None</code></td>
 <td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths.</td>
 </tr>
+<tr>
+<td><code>prefetch</code></td>
+<td><code>int</code></td>
+<td><code>8</code></td>
+<td><code>http(s)://</code> images requested ahead of the page being given on, at least 1 (1: one request at a time). Pages keep the files' row order; the rate limits in <code>http</code> hold for all of them together, so one task can use its whole rate limit instead of waiting for each image in turn.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
@@ -948,7 +954,13 @@
 hold whole items. Each row adds <code>image</code> and <code>metadata</code> (the page record). The image column holds the image
 as Hugging Face's <code>Image</code> feature stores it (<code>{"bytes", "path"}</code>: the bytes when present, else the path), as
 plain bytes, or as a path: absolute (any fsspec URI, <code>http(s)://</code> through pybookget) or relative to
-<code>image_folder</code>. A row with neither bytes nor a path is that page's error (a <code>PageError</code>).</p>
+<code>image_folder</code>. A row with neither bytes nor a path fails the task (a <code>PageError</code>: the table is wrong).</p>
+<p>An image that cannot be read (an http(s) error after pybookget's retries, a missing file, bytes that are not an
+image) makes a page without image whose <code>doc.metadata["errors"]</code> says why (<code>field</code> <code>image</code>, <code>raw_value</code>
+the image's URI), so the task goes on: later model blocks pass the page by, <code>ImageFilesWriter</code> writes no file
+for it, and the page records and rejects keep it. More such pages than <code>max_page_errors</code> (a share of the task's
+pages, judged from page 100 on, <code>ErrorBudget</code>) fail the task, so a server that is down does not mark every
+page failed.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["ImageParquetReader"]
