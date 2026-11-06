@@ -1084,7 +1084,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 </tr>
 <tr>
 <td><code>linecaster.testing</code></td>
-<td>test helpers: sample pages, fake engines (<code>fake.&lt;step&gt;.v1</code>), a fake chat server, the conformance checks <code>check_engine</code> and <code>check_block</code>, the pytest markers</td>
+<td>test helpers: sample pages, fake engines (<code>fake.&lt;step&gt;.v1</code>, the page engine <code>fake.recognition.page.v1</code>), a fake chat server, a fake HTTP service, the conformance checks <code>check_engine</code> and <code>check_block</code>, the pytest markers</td>
 </tr>
 </tbody>
 </table>
@@ -1120,22 +1120,31 @@ number of tasks or the backend.</p>
   so far in, the transcription with its part added out), <code>GET /v1/models</code>, <code>/health</code> and vLLM-shaped <code>/metrics</code>
   (the gauges saturate reads). Built-in engines are not served: they run in the pipeline's process.</li>
 <li><strong>VLMs</strong> run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): <code>PageRecognizer</code> and
-  <code>RegionRecognizer</code> on the <code>Chat</code> backend, on <code>/v1/chat/completions</code>, served only. A VLM is a catalog preset
+  <code>RegionRecognizer</code> on the <code>Chat</code> backend, on <code>/v1/chat/completions</code>, served only. <code>PageRecognizer</code> also runs a
+  <strong>page engine</strong> (an engine whose unit is the page) on the <code>InProcess</code> or <code>Served</code> backend: a vendor's package in
+  the worker (Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page
+  pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine <code>chat.v1</code>; its data: revision, prompt, sampling, serve block) plus an adapter in
   <code>linecaster.adapters.ADAPTERS</code> (its code: the request, the parsing; <code>chat_model(&lt;preset&gt;)</code>).</li>
 <li><strong>Servers inside a task</strong> (one GPU per HF Job): the server blocks <code>ModelServer</code> (<code>linecaster serve</code>) and
   <code>ChatModelServer</code> (vLLM or SGLang) start the server through saturate's <code>Engine</code> and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
   task starts its own servers. <code>ModelServer(script=...)</code> starts a pipeline script's <code>serve</code> with
-  <code>uv run --script</code>.</li>
+  <code>uv run --script</code>. <code>ServiceServer</code> starts the <strong>service</strong> a page preset's <code>serve</code> block names: <code>vllm serve</code> on the
+  pinned checkpoint (fetched and checked) for an engine package that attaches to vLLM, or a vendor image's entrypoint
+  (with the weights downloaded to the folder it reads first), ready once its health URLs answer; it runs without the
+  pipeline's environment, in the image's own. A vendor's entrypoint listens on the image's fixed ports: one service
+  per machine.</li>
 </ul>
 <h2 id="engines">Engines<a class="headerlink" href="#engines" title="Permanent link">&para;</a></h2>
 <p>An engine is a class with a versioned id (<a href="../catalog/#engines">catalog</a>). Engine packages live in
-<code>engines/&lt;engine&gt;/</code>, each its own package: <code>linecaster-kraken</code>, <code>linecaster-paddlex</code>, <code>linecaster-tesseract</code>. An
+<code>engines/&lt;engine&gt;/</code>, each its own package: <code>linecaster-kraken</code>, <code>linecaster-paddlex</code>, <code>linecaster-tesseract</code>, and the
+page engines' <code>linecaster-indra</code>, <code>linecaster-surya</code> and <code>linecaster-services</code> (the clients of Falcon-OCR's and OXR's
+services). An
 engine class (<code>&lt;Provider&gt;&lt;Step&gt;Engine</code>) has <code>engine_id</code> (the entry point's name in <code>linecaster.engines</code>), <code>step</code>,
 <code>capabilities</code> (unit, produces), an <code>Options</code> model (its keyword arguments; a preset's <code>weights</code> besides), <code>load()</code>
-and <code>__call__(image, transcription, **params) -&gt; Transcription</code> (the page image as an RGB array and the
-transcription so far, returned with its part added). Engines with weights load exactly the pin (<code>weights</code>,
+and <code>__call__(image, transcription, **params) -&gt; Transcription</code> (the page image as an RGB array, or the image file's
+bytes for an engine whose <code>image_input</code> is <code>"bytes"</code>, and the transcription so far, returned with its part added). Engines with weights load exactly the pin (<code>weights</code>,
 <code>linecaster.catalog.fetch</code>). PaddleX's models load from the pinned snapshot (<code>create_predictor(model_dir=...)</code>);
 <code>small-models-for-glam/kraken-blla-base</code> (the BLLA base model of September 2026) is pinned in
 <code>linecaster_kraken.models</code>, and no engine uses it. Engine packages carry code only; their presets and models are in
@@ -1152,7 +1161,7 @@ publishes the site with mike on the <code>gh-pages</code> branch, which GitHub P
 (<code>https://storytracer.github.io/linecaster/</code>): a release tag <code>v&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</code> as version <code>&lt;major&gt;.&lt;minor&gt;</code>,
 with <code>latest</code> (the site's default) moved to it, and every push to <code>main</code> as version <code>dev</code>. The engines' environments are too large for it
 (torch): their tests (<code>engines/&lt;engine&gt;/tests/</code>) and the PEP 723 test
-scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_line_recognizers.py</code>) run locally, the goldens compare
+scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_page_engines_catalog.py</code>, <code>tests/test_line_recognizers.py</code>) run locally, the goldens compare
 (<code>tests/parity/compare_goldens.py</code>) on the machines that have the goldens. Every built-in engine and every public
 block passes the conformance checks of <code>linecaster.testing</code> (<code>check_engine</code>: the engine protocol; <code>check_block</code>:
 the contract against what the block does to sample pages, <code>to_dict()</code>, pickling, <code>warm_up()</code>, failed pages).</p>
@@ -1183,6 +1192,11 @@ never one per machine:</p>
 <td><code>transcribe_vlm.py</code></td>
 <td><code>transcribe_vlm.v1</code></td>
 <td>a VLM per page or per layout region</td>
+</tr>
+<tr>
+<td><code>transcribe_page.py</code></td>
+<td><code>transcribe_page.v1</code></td>
+<td>a page engine per page, with the service its preset names</td>
 </tr>
 <tr>
 <td><code>bind.py</code></td>

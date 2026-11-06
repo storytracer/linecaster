@@ -1166,7 +1166,7 @@
 </tr>
 <tr>
 <td><a href="recognition/PageRecognizer/"><code>PageRecognizer</code></a></td>
-<td>Recognizes every page with a chat VLM, whose completion becomes the page's transcription.</td>
+<td>Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription.</td>
 </tr>
 <tr>
 <td><a href="recognition/RegionRecognizer/"><code>RegionRecognizer</code></a></td>
@@ -1303,6 +1303,10 @@
 <tr>
 <td><a href="servers/ModelServer/"><code>ModelServer</code></a></td>
 <td>Starts <code>linecaster serve</code> inside the task for its served model blocks, through saturate's <code>Engine</code>.</td>
+</tr>
+<tr>
+<td><a href="servers/ServiceServer/"><code>ServiceServer</code></a></td>
+<td>Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through.</td>
 </tr>
 </tbody>
 </table>

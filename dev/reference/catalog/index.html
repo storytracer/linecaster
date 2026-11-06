@@ -682,6 +682,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#page-engines-and-their-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page engines and their services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-single-region-layout" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1133,6 +1144,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#page-engines-and-their-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page engines and their services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-single-region-layout" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1486,7 +1508,7 @@ are written by <code>linecaster catalog pin</code>.</p>
 </tr>
 <tr>
 <td><code>serve</code></td>
-<td>the server it was validated with: <code>server</code> (<code>vllm</code>, <code>sglang</code>, <code>linecaster</code>), <code>version</code>, <code>image</code> (with digest, for HF Jobs), <code>flags</code>, <code>env</code>, <code>revision_flag</code>, <code>pin_ignore</code>, <code>server_packages</code>, <code>draft</code> (speculative decoding)</td>
+<td>the server it was validated with: <code>server</code> (<code>vllm</code>, <code>sglang</code>, <code>linecaster</code>, <code>vendor</code>), <code>version</code>, <code>image</code> (with digest, for HF Jobs), <code>flags</code>, <code>env</code>, <code>revision_flag</code>, <code>pin_ignore</code>, <code>server_packages</code>, <code>draft</code> (speculative decoding); a vendor's service also <code>command</code>, <code>health</code>, <code>weights_dir</code> (<a href="#page-engines-and-their-services">page engines</a>)</td>
 </tr>
 <tr>
 <td><code>capabilities</code></td>
@@ -1595,7 +1617,7 @@ again (the recipe stamp carries the new hash).</p>
 rule-based steps (<code>RULE_STEPS</code>) <code>image</code> (the working image), <code>normalization</code> (character fidelity: as written →
 normalized), <code>typography</code> (the hierarchy from type sizes), <code>recomposition</code> (running text from the rows: paragraphs)
 and <code>composition</code> (the document). Recognition reads a <code>unit</code> (<code>capabilities.unit</code>): <code>line</code> (kraken, PaddleX,
-Tesseract), <code>region</code> (a VLM per layout region) or <code>page</code> (a VLM reads the whole page: a <strong>page preset</strong>, which
+Tesseract), <code>region</code> (a VLM per layout region) or <code>page</code> (a VLM or a page engine reads the whole page: a <strong>page preset</strong>, which
 <code>launch.py</code> runs by name); a rule-based engine reads a <code>page</code> or an <code>item</code> (the pages of one item, in order).
 <code>OCRD_STEPS</code> maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (<code>image</code>:
 <code>preprocessing/optimization</code>, <code>typography</code>: <code>layout/segmentation/classification</code>, <code>composition</code>:
@@ -1610,7 +1632,8 @@ layout and the rule-based engines. It declares
 <code>engine_id</code>, <code>step</code>, <code>Options</code> (a Pydantic model whose fields have descriptions; the docs come from it) and
 <code>capabilities</code>, and takes the pin as <code>weights</code> (and <code>submodel_weights</code>), fetched and checked by
 <code>linecaster.catalog.fetch</code>. Engine packages carry code only; their presets and models are in this catalog.</p>
-<p><strong>Engine packages</strong> (<code>engines/&lt;engine&gt;/</code>: <code>linecaster-kraken</code>, <code>linecaster-paddlex</code>, <code>linecaster-tesseract</code>) have
+<p><strong>Engine packages</strong> (<code>engines/&lt;engine&gt;/</code>: <code>linecaster-kraken</code>, <code>linecaster-paddlex</code>, <code>linecaster-tesseract</code>,
+<code>linecaster-indra</code>, <code>linecaster-surya</code>, <code>linecaster-services</code>) have
 versions of their own and a range of linecaster releases they work with (<code>linecaster&gt;=0.0.1,&lt;0.2</code>), and import from
 linecaster only the data model (<code>linecaster.data</code>) and the engine API (<code>linecaster.engines.api</code>): the <code>Engine</code>
 protocol, <code>Capabilities</code>, and the weight helpers <code>weights_of</code> (a model pin as <code>weights</code>), <code>hf_file</code> and
@@ -1619,7 +1642,39 @@ protocol, <code>Capabilities</code>, and the weight helpers <code>weights_of</co
 preset whose engine is not installed is a <code>CatalogError</code> that names the package that provides it and the pipeline
 scripts whose environments install it (<code>catalog.code.install_hint</code>). Each package has its tests in
 <code>engines/&lt;engine&gt;/tests/</code> (conformance through <code>linecaster.testing.check_engine</code>, and its own units), run in an
-environment that has it (<code>uv run tests/test_engines_catalog.py engines/&lt;engine&gt;/tests</code>).</p>
+environment that has it (<code>uv run tests/test_engines_catalog.py engines/&lt;engine&gt;/tests</code>; the page engines'
+packages: <code>uv run tests/test_page_engines_catalog.py engines/&lt;engine&gt;/tests</code>, the environment of
+<code>pipelines/transcribe_page.py</code>).</p>
+<h3 id="page-engines-and-their-services">Page engines and their services<a class="headerlink" href="#page-engines-and-their-services" title="Permanent link">&para;</a></h3>
+<p>A page engine is an engine of the recognition step whose unit is the page (<code>capabilities.unit: page</code>): it gets the
+page image and returns the page's transcription, text-only, its raw output verbatim in <code>extra["raw"]</code>, as a chat
+preset's completion is kept. <code>PageRecognizer</code> runs it like any model block (<code>InProcess</code>, or <code>Served</code> through
+<code>linecaster serve</code>); <code>pipelines/transcribe_page.py</code> is its pipeline. Where the engine talks to a <strong>service</strong>, its
+preset's <code>serve</code> block names it and <code>ServiceServer</code> starts it in the task:</p>
+<table>
+<thead>
+<tr>
+<th><code>serve.server</code></th>
+<th>The service</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vllm</code></td>
+<td><code>vllm serve &lt;the model pin, fetched&gt; --host --port &lt;flags&gt; --served-model-name &lt;the Hugging Face id&gt;</code>, for an engine package that attaches to vLLM (<code>surya.recognition.v1</code>)</td>
+<td><code>version</code>, <code>image</code>, <code>flags</code></td>
+</tr>
+<tr>
+<td><code>vendor</code></td>
+<td>a vendor's page pipeline in its own image (<code>falcon.recognition.v1</code>, <code>oxr.recognition.v1</code>): the image's entrypoint</td>
+<td><code>image</code> (by digest), <code>command</code> (the entrypoint), <code>env</code>, <code>health</code> (loopback URLs that must answer 200, in order), <code>weights_dir</code> (where the model pin is downloaded first, when the image reads the weights from a folder)</td>
+</tr>
+</tbody>
+</table>
+<p>The engine's <code>endpoint</code> option (where its service is) is operational: presets leave it to its default (the service's
+loopback port), a pipeline sets it for a running service (<code>--recognition-endpoint</code>), and the pipeline's hash leaves
+it out.</p>
 <h3 id="the-single-region-layout">The single-region layout<a class="headerlink" href="#the-single-region-layout" title="Permanent link">&para;</a></h3>
 <p><code>layout.single-region.v1</code> (<code>linecaster.engines:SingleRegionLayoutEngine</code>, preset <code>single-region@1</code>) is a layout
 engine without a model: one region covering the page image (label <code>text</code>, id <code>page</code>, reading order 0; both options),
@@ -1668,7 +1723,7 @@ Unicode's <code>Script</code> property, matched with the <code>regex</code> pack
 strategy is an edition of the same step and covers its script.</p>
 <h2 id="pipelines-recipes-and-launchpy">Pipelines, recipes and <code>launch.py</code><a class="headerlink" href="#pipelines-recipes-and-launchpy" title="Permanent link">&para;</a></h2>
 <p>Every pipeline script declares <code>PIPELINE</code>, its id: its file name with <code>.v&lt;n&gt;</code> (<code>harvest.v1</code>,
-<code>transcribe_modular.v1</code>, <code>transcribe_vlm.v1</code>, <code>bind.v1</code>). A script with slots also declares <code>SLOTS</code> (slot →
+<code>transcribe_modular.v1</code>, <code>transcribe_vlm.v1</code>, <code>transcribe_page.v1</code>, <code>bind.v1</code>). A script with slots also declares <code>SLOTS</code> (slot →
 option; the option is the step's name: <code>--layout</code>, <code>--lines</code>, <code>--recognition</code>, ...; the rule-based steps are slots
 too: <code>transcribe_modular.v1</code> has <code>--typography</code>, <code>--recomposition</code>, <code>--normalization</code> (the readable item texts'
 normalization, for <code>--item-texts</code>) and <code>--composition</code>, <code>bind.v1</code> <code>--recomposition</code>, <code>--normalization</code> and
@@ -1680,7 +1735,8 @@ overrides in the run record (<code>recipe</code>: the edition, the pipeline id, 
 (<code>bind.v1</code>: <code>unicode-recomposition@1</code>, <code>latin-historic@1</code>, <code>docling-composition@1</code>, the item stage's default
 combination).</p>
 <p><code>uv run launch.py NAME IMAGES OUT [options]</code> launches a recipe or a page preset by name: it finds the
-script whose <code>PIPELINE</code> the recipe names (<code>transcribe_vlm.v1</code> for page presets) and runs it in that script's own
+script whose <code>PIPELINE</code> the recipe names (<code>transcribe_vlm.v1</code> for chat page presets, <code>transcribe_page.v1</code> for page
+engines' presets) and runs it in that script's own
 environment with <code>--recipe</code> or <code>--recognition</code>. <code>serve</code> and <code>ray</code> pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.</p>
 <h2 id="support">Support<a class="headerlink" href="#support" title="Permanent link">&para;</a></h2>

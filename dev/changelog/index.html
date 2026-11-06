@@ -746,6 +746,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -774,7 +785,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes" class="md-nav__link">
+  <a href="#upgrade-notes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -858,6 +869,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -886,7 +908,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes" class="md-nav__link">
+  <a href="#upgrade-notes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -949,14 +971,39 @@
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>pipeline_sha256</code> leaves an in-process engine's <code>endpoint</code> and <code>timeout</code> options out (<code>ENGINE_OPERATIONAL</code>: where
+  its service is). A derivative's run whose engine has an option of either name gets another hash: a resume into its
+  folder needs <code>--new-pipeline</code>. No released recipe is affected.</li>
+<li><code>linecaster.testing.check_engine</code> calls a page engine (recognition, unit <code>page</code>) with an empty transcription
+  (no regions, no lines), not the sample layout's regions.</li>
+</ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
+  60-page sample (NOTES.md): model entries <code>surya-ocr-2.5</code>, <code>indra-ocr</code>, <code>oxr-1.0</code>, <code>falcon-ocr</code> (Falcon OCR pinned at
+  the revision its vendor image ships) and their presets <code>surya-ocr-2.5@1</code>, <code>indra-ocr@1</code>, <code>oxr-1.0@1</code>,
+  <code>falcon-ocr@1</code> (step <code>recognition</code>, unit <code>page</code>), with evidence records where they ran.</li>
+<li>Page engines: <code>PageRecognizer</code> runs an engine whose unit is the page on the <code>InProcess</code> or <code>Served</code> backend (or a
+  page engine's preset by name), besides a chat VLM on <code>Chat</code>. Engine packages <code>linecaster-indra</code>
+  (<code>indra.recognition.v1</code>: the <code>indra-ocr</code> package on the CPU), <code>linecaster-surya</code> (<code>surya.recognition.v1</code>: the
+  <code>surya-ocr</code> package's full-page path attached to vLLM) and <code>linecaster-services</code> (<code>falcon.recognition.v1</code>,
+  <code>oxr.recognition.v1</code>: clients of Falcon-OCR's and OXR's page pipelines behind their own HTTP APIs).</li>
+<li><code>ServiceServer</code> (servers): starts the service a page preset's <code>serve</code> block names, last in the pipeline: <code>vllm
+  serve</code> on the fetched model pin, or a vendor image's entrypoint (<code>serve.server: vendor</code> with <code>command</code>, <code>health</code>,
+  <code>weights_dir</code>, new optional fields of the preset schema), ready once its health URLs answer.</li>
+<li><code>pipelines/transcribe_page.py</code> (<code>transcribe_page.v1</code>): a page engine per page, with the service its preset names
+  unless <code>--recognition-endpoint</code> names a running one; <code>launch.py</code> runs a page engine's preset there.</li>
+<li><code>linecaster.testing</code>: <code>FakePageEngine</code> (<code>fake.recognition.page.v1</code>) and <code>fake_service()</code>, an HTTP service on
+  loopback answering given routes. <code>tests/test_page_engines_catalog.py</code> checks the page engines in the environment
+  of <code>pipelines/transcribe_page.py</code>.</li>
 <li>Versioned docs: the docs workflow publishes the site with mike to the <code>gh-pages</code> branch, served by GitHub Pages:
   every release tag as version <code>&lt;major&gt;.&lt;minor&gt;</code> (<code>latest</code> the newest release, the default), every push to <code>main</code>
   as <code>dev</code>; <code>mike</code> joins the dependency group <code>docs</code>.</li>
 </ul>
 <h2 id="010-2026-11-06">0.1.0 (2026-11-06)<a class="headerlink" href="#010-2026-11-06" title="Permanent link">&para;</a></h2>
-<h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
+<h3 id="upgrade-notes_1">Upgrade notes<a class="headerlink" href="#upgrade-notes_1" title="Permanent link">&para;</a></h3>
 <p>The first release, after the refactoring of November 2026 in six phases; each phase's renames are listed
 here, and all of them in one table at the end of these notes. There are no compatibility aliases: old imports, flags
 and ids fail.</p>

@@ -113,6 +113,10 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/blocks/servers/ServiceServer/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/text/CharacterNormalizer/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
@@ -169,7 +173,15 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/falcon.recognition.v1/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/image.webp-lossless.v1/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/indra.recognition.v1/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -186,6 +198,10 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/normalization.latin-historic.v1/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/oxr.recognition.v1/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -217,6 +233,10 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/surya.recognition.v1/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/tesseract.recognition.v1/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
@@ -245,7 +265,15 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/models/falcon-ocr/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/glm-ocr/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/models/indra-ocr/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -294,6 +322,10 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/ovisocr3/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/models/oxr-1.0/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -369,6 +401,10 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/models/surya-ocr-2.5/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/tessdata-best/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
@@ -394,6 +430,10 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/transcribe_modular.v1/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/transcribe_page.v1/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -465,7 +505,15 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/falcon-ocr/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/glm-ocr/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/indra-ocr/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
@@ -517,6 +565,10 @@
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/oxr-1.0/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/paddleocr-vl-1.6/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
@@ -542,6 +594,10 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/smoldocling-256m-preview/</loc>
+         <lastmod>2026-11-06</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/surya-ocr-2.5/</loc>
          <lastmod>2026-11-06</lastmod>
     </url>
     <url>

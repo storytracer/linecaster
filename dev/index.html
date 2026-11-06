@@ -1875,8 +1875,16 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <td><a href="https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951">dots.ocr</a></td>
 </tr>
 <tr>
+<td><a href="catalog/presets/recognition/falcon-ocr/"><code>falcon-ocr</code></a></td>
+<td><a href="https://huggingface.co/tiiuae/Falcon-OCR/tree/177110bf36f6fd492428215baf76d0618854bed3">Falcon OCR</a></td>
+</tr>
+<tr>
 <td><a href="catalog/presets/recognition/glm-ocr/"><code>glm-ocr</code></a></td>
 <td><a href="https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d">GLM-OCR</a></td>
+</tr>
+<tr>
+<td><a href="catalog/presets/recognition/indra-ocr/"><code>indra-ocr</code></a></td>
+<td><a href="https://huggingface.co/datalab-to/indra-ocr/tree/bd02167fdf2005a19962cc15188f8496a2c87d3b">Indra OCR</a></td>
 </tr>
 <tr>
 <td><a href="catalog/presets/recognition/lightonocr-2-1b/"><code>lightonocr-2-1b</code></a></td>
@@ -1907,6 +1915,10 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <td><a href="https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd">OvisOCR3</a></td>
 </tr>
 <tr>
+<td><a href="catalog/presets/recognition/oxr-1.0/"><code>oxr-1.0</code></a></td>
+<td><a href="https://huggingface.co/SoMarkAI/OXR-1.0/tree/c708407f9d2b4df658f2543d9132b62bb7221df4">OXR-1.0</a></td>
+</tr>
+<tr>
 <td><a href="catalog/presets/recognition/paddleocr-vl-1.6/"><code>paddleocr-vl-1.6</code></a></td>
 <td><a href="https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e">PaddleOCR-VL-1.6</a></td>
 </tr>
@@ -1921,6 +1933,10 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <tr>
 <td><a href="catalog/presets/recognition/smoldocling-256m-preview/"><code>smoldocling-256m-preview</code></a></td>
 <td><a href="https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8">SmolDocling-256M-preview</a></td>
+</tr>
+<tr>
+<td><a href="catalog/presets/recognition/surya-ocr-2.5/"><code>surya-ocr-2.5</code></a></td>
+<td><a href="https://huggingface.co/datalab-to/surya-ocr-2.5/tree/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3">Surya OCR 2.5</a></td>
 </tr>
 <tr>
 <td><a href="catalog/presets/recognition/unlimited-ocr/"><code>unlimited-ocr</code></a></td>
@@ -2021,7 +2037,7 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <tr>
 <td>Recognition</td>
 <td><a href="blocks/recognition/PageRecognizer/"><code>PageRecognizer</code></a></td>
-<td>Recognizes every page with a chat VLM, whose completion becomes the page's transcription.</td>
+<td>Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription.</td>
 </tr>
 <tr>
 <td>Recognition</td>
@@ -2102,6 +2118,11 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <td>Servers</td>
 <td><a href="blocks/servers/ModelServer/"><code>ModelServer</code></a></td>
 <td>Starts <code>linecaster serve</code> inside the task for its served model blocks, through saturate's <code>Engine</code>.</td>
+</tr>
+<tr>
+<td>Servers</td>
+<td><a href="blocks/servers/ServiceServer/"><code>ServiceServer</code></a></td>
+<td>Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through.</td>
 </tr>
 <tr>
 <td>Writers</td>

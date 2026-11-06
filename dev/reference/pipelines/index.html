@@ -1208,7 +1208,10 @@ stages. Every pipeline script goes through it (<code>linecaster.runtime.run</cod
   headers=None, prefer="page")</code>: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on <code>/v1/chat/completions</code>; <code>preset</code> is a preset ref, a model's Hugging Face id (its preset with unit
   <code>prefer</code>) or a configured adapter (<code>chat_model</code>); without an endpoint, the task's <code>ChatModelServer</code> on port 8000.
-  <code>PageRecognizer(backend)</code> and <code>RegionRecognizer(backend, labels=..., pad=None)</code> (<code>pad</code>: the adapter's <code>region_pad</code>, else 8) take it (or a chat preset's ref).</li>
+  <code>PageRecognizer(backend)</code> and <code>RegionRecognizer(backend, labels=..., pad=None)</code> (<code>pad</code>: the adapter's <code>region_pad</code>, else 8) take it (or a chat preset's ref).
+  <code>PageRecognizer</code> also takes a page engine's <code>InProcess</code> or <code>Served</code> backend (or its preset's ref): a stream
+  transform served, a per-unit transform in-process; it reads the page image and adds <code>text</code> and what the preset
+  produces. A page engine's <code>endpoint</code> option (where its service is) is operational.</li>
 </ul>
 <p>The built-in engines (<code>layout.single-region.v1</code> and the rule-based steps') run in the pipeline's process only:
 <code>runtime.run.engines</code> keeps a preset of one in-process when the other models are served, and <code>linecaster serve</code>
@@ -1377,7 +1380,7 @@ server is reached. <code>pipeline_sha256</code> covers the functional ones (<cod
 <td>the pages themselves are recorded per page</td>
 </tr>
 <tr>
-<td>servers and clients: <code>port</code>, <code>host</code>, <code>python</code>, <code>script</code>, <code>vllm</code>, <code>outside_venv</code>, <code>boot_timeout</code>, <code>max_queue</code>, <code>prepare_workers</code>, <code>gpu_memory_utilization</code>, <code>extra_args</code>; a served backend's <code>endpoint</code>, <code>model</code> (the name it is hosted under, unless nothing else names its engine), <code>max_window</code>, <code>initial_window</code>, <code>read_timeout</code>, <code>api_key</code>, <code>headers</code>; a chat backend's <code>served_name</code> and the same (it counts by its adapter, preset edition and hash, model and revision)</td>
+<td>servers and clients: <code>port</code>, <code>host</code>, <code>python</code>, <code>script</code>, <code>vllm</code>, <code>outside_venv</code>, <code>boot_timeout</code>, <code>max_queue</code>, <code>prepare_workers</code>, <code>gpu_memory_utilization</code>, <code>extra_args</code>; an in-process engine's <code>endpoint</code> and <code>timeout</code> (<code>ENGINE_OPERATIONAL</code>: where its service is); a served backend's <code>endpoint</code>, <code>model</code> (the name it is hosted under, unless nothing else names its engine), <code>max_window</code>, <code>initial_window</code>, <code>read_timeout</code>, <code>api_key</code>, <code>headers</code>; a chat backend's <code>served_name</code> and the same (it counts by its adapter, preset edition and hash, model and revision)</td>
 <td>how a server is started and reached</td>
 </tr>
 <tr>
@@ -1385,7 +1388,7 @@ server is reached. <code>pipeline_sha256</code> covers the functional ones (<cod
 <td>presentation, file handling, memory</td>
 </tr>
 <tr>
-<td>server blocks (<code>ModelServer</code>, <code>ChatModelServer</code>) as a whole</td>
+<td>server blocks (<code>ModelServer</code>, <code>ChatModelServer</code>, <code>ServiceServer</code>) as a whole</td>
 <td>their models count through the blocks they serve</td>
 </tr>
 <tr>

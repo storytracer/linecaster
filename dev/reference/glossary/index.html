@@ -1056,8 +1056,13 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>server</strong></td>
-<td>A process that hosts models: <code>linecaster serve</code> for engines, vLLM or SGLang for VLMs. Started by the server blocks <code>ModelServer</code> and <code>ChatModelServer</code>, which go last in a pipeline.</td>
+<td>A process that hosts models: <code>linecaster serve</code> for engines, vLLM or SGLang for VLMs, a service for a page engine. Started by the server blocks <code>ModelServer</code>, <code>ChatModelServer</code> and <code>ServiceServer</code>, which go last in a pipeline.</td>
 <td></td>
+</tr>
+<tr>
+<td><strong>service</strong></td>
+<td>The server a page engine talks to that is neither <code>linecaster serve</code> nor a chat server: a vendor's page pipeline behind its own HTTP API, in the vendor's image (Falcon-OCR, OXR-1.0), or the vLLM a vendor's package attaches to (surya-ocr). A page preset's <code>serve</code> block names it; <code>ServiceServer</code> starts it.</td>
+<td>not an operating-system service</td>
 </tr>
 <tr>
 <td><strong>observer</strong></td>
@@ -1247,8 +1252,13 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>page preset</strong></td>
-<td>A preset whose unit is <code>page</code>: one model reads the whole page (a VLM). <code>launch.py</code> can run one directly.</td>
+<td>A preset whose unit is <code>page</code>: one model reads the whole page (a VLM, or a page engine). <code>launch.py</code> can run one directly.</td>
 <td>not "a model"</td>
+</tr>
+<tr>
+<td><strong>page engine</strong></td>
+<td>An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (<code>indra.recognition.v1</code>, <code>surya.recognition.v1</code>, and the clients of a vendor's service, <code>falcon.recognition.v1</code>, <code>oxr.recognition.v1</code>). <code>PageRecognizer</code> runs it.</td>
+<td>not a chat preset (<code>chat.v1</code>)</td>
 </tr>
 <tr>
 <td><strong>recipe</strong></td>

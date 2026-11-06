@@ -1200,6 +1200,10 @@
 <td>layout, lines, recognition, tables, formulas, typography, recomposition, normalization, composition</td>
 </tr>
 <tr>
+<td><a href="pipelines/transcribe_page.v1/"><code>transcribe_page.v1</code></a></td>
+<td>recognition</td>
+</tr>
+<tr>
 <td><a href="pipelines/transcribe_vlm.v1/"><code>transcribe_vlm.v1</code></a></td>
 <td>recognition, layout</td>
 </tr>
@@ -1226,9 +1230,19 @@
 <td><code>linecaster</code></td>
 </tr>
 <tr>
+<td><a href="engines/falcon.recognition.v1/"><code>falcon.recognition.v1</code></a></td>
+<td>recognition</td>
+<td><code>linecaster-services</code></td>
+</tr>
+<tr>
 <td><a href="engines/image.webp-lossless.v1/"><code>image.webp-lossless.v1</code></a></td>
 <td>image</td>
 <td><code>linecaster</code></td>
+</tr>
+<tr>
+<td><a href="engines/indra.recognition.v1/"><code>indra.recognition.v1</code></a></td>
+<td>recognition</td>
+<td><code>linecaster-indra</code></td>
 </tr>
 <tr>
 <td><a href="engines/kraken.recognition.v1/"><code>kraken.recognition.v1</code></a></td>
@@ -1249,6 +1263,11 @@
 <td><a href="engines/normalization.latin-historic.v1/"><code>normalization.latin-historic.v1</code></a></td>
 <td>normalization</td>
 <td><code>linecaster</code></td>
+</tr>
+<tr>
+<td><a href="engines/oxr.recognition.v1/"><code>oxr.recognition.v1</code></a></td>
+<td>recognition</td>
+<td><code>linecaster-services</code></td>
 </tr>
 <tr>
 <td><a href="engines/paddlex.formulas.v1/"><code>paddlex.formulas.v1</code></a></td>
@@ -1284,6 +1303,11 @@
 <td><a href="engines/recomposition.unicode.v1/"><code>recomposition.unicode.v1</code></a></td>
 <td>recomposition</td>
 <td><code>linecaster</code></td>
+</tr>
+<tr>
+<td><a href="engines/surya.recognition.v1/"><code>surya.recognition.v1</code></a></td>
+<td>recognition</td>
+<td><code>linecaster-surya</code></td>
 </tr>
 <tr>
 <td><a href="engines/tesseract.recognition.v1/"><code>tesseract.recognition.v1</code></a></td>
@@ -1626,10 +1650,22 @@
 <td>0.0170</td>
 </tr>
 <tr>
+<td><a href="presets/recognition/falcon-ocr/"><code>falcon-ocr</code></a></td>
+<td><code>falcon.recognition.v1</code></td>
+<td>Apache-2.0</td>
+<td>0.0775</td>
+</tr>
+<tr>
 <td><a href="presets/recognition/glm-ocr/"><code>glm-ocr</code></a></td>
 <td><code>chat.v1</code></td>
 <td>MIT</td>
 <td>0.0368</td>
+</tr>
+<tr>
+<td><a href="presets/recognition/indra-ocr/"><code>indra-ocr</code></a></td>
+<td><code>indra.recognition.v1</code></td>
+<td>AI Pubs Open RAIL-M License (Modified)</td>
+<td>0.0489</td>
 </tr>
 <tr>
 <td><a href="presets/recognition/lightonocr-2-1b/"><code>lightonocr-2-1b</code></a></td>
@@ -1674,6 +1710,12 @@
 <td>0.0299</td>
 </tr>
 <tr>
+<td><a href="presets/recognition/oxr-1.0/"><code>oxr-1.0</code></a></td>
+<td><code>oxr.recognition.v1</code></td>
+<td>OXR License (Apache-2.0 with additional terms)</td>
+<td>0.0380</td>
+</tr>
+<tr>
 <td><a href="presets/recognition/paddleocr-vl-1.6/"><code>paddleocr-vl-1.6</code></a></td>
 <td><code>chat.v1</code></td>
 <td>Apache-2.0</td>
@@ -1696,6 +1738,12 @@
 <td><code>chat.v1</code></td>
 <td>CDLA-Permissive-2.0</td>
 <td>0.0643</td>
+</tr>
+<tr>
+<td><a href="presets/recognition/surya-ocr-2.5/"><code>surya-ocr-2.5</code></a></td>
+<td><code>surya.recognition.v1</code></td>
+<td>AI Pubs Open RAIL-M License (Modified)</td>
+<td>0.0262</td>
 </tr>
 <tr>
 <td><a href="presets/recognition/unlimited-ocr/"><code>unlimited-ocr</code></a></td>
@@ -1747,9 +1795,19 @@
 <td>MIT</td>
 </tr>
 <tr>
+<td><a href="models/falcon-ocr/"><code>falcon-ocr</code></a></td>
+<td>Falcon OCR</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
 <td><a href="models/glm-ocr/"><code>glm-ocr</code></a></td>
 <td>GLM-OCR</td>
 <td>MIT</td>
+</tr>
+<tr>
+<td><a href="models/indra-ocr/"><code>indra-ocr</code></a></td>
+<td>Indra OCR</td>
+<td>AI Pubs Open RAIL-M License (Modified)</td>
 </tr>
 <tr>
 <td><a href="models/kraken-ppocrv6-medium/"><code>kraken-ppocrv6-medium</code></a></td>
@@ -1810,6 +1868,11 @@
 <td><a href="models/ovisocr3/"><code>ovisocr3</code></a></td>
 <td>OvisOCR3</td>
 <td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="models/oxr-1.0/"><code>oxr-1.0</code></a></td>
+<td>OXR-1.0</td>
+<td>OXR License (Apache-2.0 with additional terms)</td>
 </tr>
 <tr>
 <td><a href="models/paddleocr-vl-1.6/"><code>paddleocr-vl-1.6</code></a></td>
@@ -1900,6 +1963,11 @@
 <td><a href="models/smoldocling-256m-preview/"><code>smoldocling-256m-preview</code></a></td>
 <td>SmolDocling-256M-preview</td>
 <td>CDLA-Permissive-2.0</td>
+</tr>
+<tr>
+<td><a href="models/surya-ocr-2.5/"><code>surya-ocr-2.5</code></a></td>
+<td>Surya OCR 2.5</td>
+<td>AI Pubs Open RAIL-M License (Modified)</td>
 </tr>
 <tr>
 <td><a href="models/tessdata-best/"><code>tessdata-best</code></a></td>
