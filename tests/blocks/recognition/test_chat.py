@@ -237,3 +237,31 @@ def test_job_dependencies_without_kraken():
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
     assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "pipelines/transcribe_modular.py"))
+
+
+def test_region_recognizer_pad_explicit_wins_over_the_adapter():
+    from linecaster.blocks.recognition.chat import DEFAULT_PAD, RegionRecognizer
+
+    assert chat_model("minicpm-ocr-1.0").region_pad == 0
+    assert RegionRecognizer("minicpm-ocr-1.0@1").pad == 0                 # the adapter's region_pad is the default
+    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=4).pad == 4          # an explicit pad wins
+    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=0).pad == 0
+    backend = Chat("minicpm-ocr-1.0@1")
+    backend.adapter.region_pad = None
+    assert RegionRecognizer(backend).pad == DEFAULT_PAD == 8              # neither says
+
+
+def test_region_recognizer_declares_the_lines_it_replaces():
+    from linecaster.blocks.layout import LayoutDetector
+    from linecaster.blocks.lines import LineDetector
+    from linecaster.blocks.readers import ImageFolderReader
+    from linecaster.blocks.recognition.chat import RegionRecognizer
+    from linecaster.runtime.builder import build
+
+    c = RegionRecognizer("minicpm-ocr-1.0@1").contract()
+    assert {str(p) for p in c.replaces} == {"ocr_new:lines", "ocr_new:text"}
+    assert {"ocr_new:lines", "ocr_new:text"} <= {str(p) for p in c.adds}
+    # after a line step, the earlier lines are replaced: not a part added twice
+    plan = build([ImageFolderReader("x"), LayoutDetector("single-region@1"), LineDetector(InProcess("x:Y")),
+                  RegionRecognizer("minicpm-ocr-1.0@1")])
+    assert plan.problems == []
