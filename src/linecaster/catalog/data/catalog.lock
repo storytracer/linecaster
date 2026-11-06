@@ -1819,14 +1819,60 @@ recipes:
     - block: Typographer
       class: linecaster.blocks.composition.typographer:Typographer
       params:
+        preset:
+          engine: linecaster.engines:RatiosTypographyEngine
+          options:
+            page_number_min_conf: 0.75
+            demote: 1.2
+            split: 1.6
+            levels:
+            - - 2.5
+              - 1
+            - - 1.7
+              - 2
+            - - 0.0
+              - 3
+            max_headline_rows: 3
+            heading_labels:
+            - section_header
+            - title
+          preset: ratios@1
+          preset_sha256: sha256:86acd41378b04aaa14cad1b15b55cc089cc8909d2b7323dfda2b9b5dd752b60f
         transcription: ocr_new
+        options: null
+    - block: Recomposer
+      class: linecaster.blocks.composition.recomposer:Recomposer
+      params:
+        preset:
+          engine: linecaster.engines:UnicodeRecompositionEngine
+          options:
+            rtl: false
+            convention_marks: ¬
+            indent: 0.8
+            gap_leading: 0.6
+            gap_height: 0.5
+            short_row: 1.5
+            short_row_width: 0.25
+            end_margin: 0.6
+            justified_rows: 3
+            justified_share: 0.6
+          preset: unicode-recomposition@1
+          preset_sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
+        transcription: ocr_new
+        unit: page
+        options: null
     - block: Composer
       class: linecaster.blocks.composition.composer:Composer
       params:
+        preset:
+          engine: linecaster.engines:DoclingCompositionEngine
+          options:
+            sections: false
+          preset: docling-composition@1
+          preset_sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
         transcription: ocr_new
-        text: reflow
-        rtl: false
-        sections: false
+        unit: page
+        options: null
     - block: RecipeStamper
       class: linecaster.blocks.validation.recipe:RecipeStamper
       params:
@@ -1838,4 +1884,4 @@ recipes:
       class: linecaster.blocks.writers.records:PageJsonlWriter
       params:
         item_shards: null
-    pipeline_sha256: sha256:37da2cd496805834b9907be757476190f371a19ddeedf7f148f2da478c25982b
+    pipeline_sha256: sha256:47455c8ad7ba7d9828b007da17322afdf32d2853bfabd31ad77d934052bea6ed

@@ -4,9 +4,9 @@
 
 The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
 text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
---files per-page files in the --formats asked for (--naming squiddleocr: flat `<page>.paddle.<ext>`, as
-squiddleocr names them), with --item-texts one text per item in each text variant.
+and formula models after; then Unicode NFC, typography, recomposition (--text reflow) and page composition. Page
+records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
+`<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant.
 
     uv run pipelines/transcribe_modular.py IMAGES OUT --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
@@ -44,7 +44,7 @@ Besides the options every pipeline shares (`linecaster.runtime.run`).
 | `--tables` |  |  | table preset (needs --layout) |
 | `--formulas` |  |  | formula preset (needs --layout; without, formulas are read as text) |
 | `--set` |  | `[]` | an engine option over the preset's, e.g. recognition.batch_size=4; repeatable |
-| `--text` | lines \\| reflow | `'lines'` | document text |
+| `--text` | lines \\| reflow | `'lines'` |  |
 | `--files` |  |  | per-page files here, one per format (--formats, --naming) |
 | `--formats` |  | `'hocr,alto,page,txt,md,json'` |  |
 | `--naming` |  | `'item'` | --files names: item, <item>/<page>.<ext>; squiddleocr, <page>.paddle.<ext> in one folder |

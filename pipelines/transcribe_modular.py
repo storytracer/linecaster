@@ -48,9 +48,9 @@
 # ///
 r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
 text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC, typography and page composition. Page records in OUT/pages; with
---files per-page files in the --formats asked for (--naming squiddleocr: flat `<page>.paddle.<ext>`, as
-squiddleocr names them), with --item-texts one text per item in each text variant.
+and formula models after; then Unicode NFC, typography, recomposition (--text reflow) and page composition. Page
+records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
+`<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant.
 
     uv run pipelines/transcribe_modular.py IMAGES OUT --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
@@ -65,9 +65,8 @@ squiddleocr names them), with --item-texts one text per item in each text varian
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
 from linecaster.blocks.binding.texts import ItemTexts
-from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composites.modular import ModularTranscriber
-from linecaster.blocks.composition.typographer import Typographer
+from linecaster.blocks.composition import Composer, Recomposer, Typographer
 from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.lines.detector import LineDetector
 from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
@@ -80,6 +79,9 @@ from linecaster.runtime import run
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: --naming: how per-page files are named
 NAMING = {"item": {}, "squiddleocr": {"suffix": ".paddle", "bucket_by_item": False}}
+#: the rule-based steps' presets (slots of their own come with the recomposition presets' successors); --text reflow
+#: adds the recomposition, --text lines composes the page as laid out
+TYPOGRAPHY, RECOMPOSITION, COMPOSITION = "ratios@1", "unicode-recomposition@1", "docling-composition@1"
 
 
 def options(ap):
@@ -90,7 +92,8 @@ def options(ap):
     ap.add_argument("--formulas", help="formula preset (needs --layout; without, formulas are read as text)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
-    ap.add_argument("--text", choices=["lines", "reflow"], default="lines", help="document text")
+    ap.add_argument("--text", choices=["lines", "reflow"], default="lines",
+                    help=f"document text: reflow, recomposed into paragraphs ({RECOMPOSITION}); lines, as laid out")
     ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming)")
     ap.add_argument("--formats", default="hocr,alto,page,txt,md,json",
                     help=f"formats for --files, comma-separated: {', '.join(PAGE_FILE_EXTENSIONS)}")
@@ -144,8 +147,9 @@ def pipeline(a, script: str) -> list:
         UnicodeNormalizer(),                       # kraken writes decomposed text; the as-written layer is NFC
         *([TableRecognizer(b["tables"])] if "tables" in b else []),
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
-        Typographer(),
-        Composer(text=a.text),
+        Typographer(TYPOGRAPHY),
+        *([Recomposer(RECOMPOSITION)] if a.text == "reflow" else []),
+        Composer(COMPOSITION),
         *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, **NAMING[a.naming])] if a.files else []),
         run.pages(a),
         # after the page writers: ItemTexts consumes the pages and emits one document per item and version; with
