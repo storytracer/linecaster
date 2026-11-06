@@ -2,6 +2,42 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Readable item texts from the item recomposition (2026-11-06, spark)
+
+The six whole items of the BHL ground truth (2,165 pages), from the squiddle recipe's page records of the parity run
+above (531a422). Before: `ItemTexts` (its own line flow, `join_lines`), recorded at ff3328f. After: `bind.py --recipe
+item-texts` (`Binder` → `Recomposer(unit="item")` → `CharacterNormalizer` → `ItemTextWriter`).
+
+| Item | Pages | Paragraphs before | after | Decisions before | after | Differ | Only before | Only after | CER before | after |
+|---|---|---|---|---|---|---|---|---|---|---|
+| birdsofgreatbrit02butl | 341 | 1,392 | 1,521 | 287 | 268 | 54 | 19 | 0 | 0.0288 | 0.0287 |
+| conchologiaiconi05reev | 648 | 6,390 | 8,631 | 2,769 | 2,163 | 186 | 636 | 30 | 0.0705 | 0.0693 |
+| daschitinskelett00prel | 84 | 492 | 600 | 314 | 299 | 1 | 15 | 0 | 0.0388 | 0.0388 |
+| histoirenaturell10cuvi | 516 | 2,426 | 2,847 | 2,082 | 1,980 | 55 | 102 | 0 | 0.0475 | 0.0472 |
+| pisciumquerelaee00sche | 60 | 144 | 206 | 438 | 414 | 1 | 26 | 2 | 0.1491 | 0.1494 |
+| trudyrusskagoent161881russ | 516 | 3,096 | 3,843 | 3,155 | 2,994 | 17 | 163 | 2 | 0.0828 | 0.0827 |
+| all | 2,165 | 13,940 | 17,648 | 9,045 | 8,118 | 314 | 961 | 34 | 0.0615 | 0.0610 |
+
+- Paragraphs: the readable texts' blocks other than tables (a paragraph continued across regions or pages counts
+  once). Decisions: a line-end hyphen removed or kept, keyed by page and the line it ends (after: the last line of
+  the row). CER: `readable_txt` against the ground truth's page texts of the item joined in page order, whitespace
+  collapsed to single spaces, edit distance over the ground truth's length (3,220,317 characters). The ground truth
+  is as laid out and full page (running heads, page numbers, line-end hyphens kept), so both CERs include those.
+- Differ (314): 311 hyphens the old flow removed (a lower-case letter followed) are kept now because the item has
+  the hyphenated form elsewhere (`attested`): `ear-coverts`, `under tail-coverts`, `blackish-purple`,
+  `fusco-nigricante`, `au-dessous`, `Au-devant`, `lui¬|même` → `lui-même`, `semi¬|cercle` → `semi-cercle`; 3 the
+  other way (`letter_follows`), marks at the foot of a page whose paragraph continues on the next page.
+- Only before (961): 834 rows ending in a hyphen after which the recomposition starts a new paragraph at an indented
+  row (hanging indents in species descriptions and references, most of them in conchologiaiconi05reev:
+  `anfractibus nunc per-|paucis`), so the mark stays at the paragraph's end; 82 region ends the recomposition does
+  not continue (`olive to red-` at the end of a region); 37 lines the old flow joined side by side within a row
+  (index entries, `Calcarius lapponicus-|130`); 8 row ends inside a paragraph without a decision.
+- Only after (34): continuations across a region or page break the old flow did not join.
+- verbatim_txt: identical for all six items. Item documents (md, txt, json) from `bind.py`'s blocks equal
+  `BindItem`'s for all six in the project environment; `bind.py`'s own lock has docling-core 2.106.0 (the project
+  2.105.0), whose JSON says `version` 1.11.0 instead of 1.10.0, md and txt identical.
+- The squiddle recipe after the change: `compare_goldens.py` 60 of 60 pages exact, 1,560 of 1,560 lines.
+
 ## Rule-based steps on their engines: parity (2026-11-06, spark)
 
 The squiddle recipe before (531a422) and after the rule-based steps moved onto their engines and presets
