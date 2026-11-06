@@ -38,7 +38,7 @@
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
-region it finds (``RegionRecognizer``, a region preset). Each task starts vLLM or SGLang for the model itself
+region it finds (``RegionRecognizer``, a region preset), on the ``Chat`` backend. Each task starts vLLM or SGLang for the model itself
 (``ChatModelServer``, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (``--backend``, ``--endpoint`` as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
@@ -58,8 +58,8 @@ environment (``outside_venv``), so neither the image's Python nor its CUDA libra
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling.
 """
-from linecaster.adapters import chat_model
-from linecaster.backends import Served
+from linecaster.adapters import preset_ref
+from linecaster.backends import Chat
 from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
@@ -89,21 +89,22 @@ def pipeline(a, script: str):
     if not a.recognition:
         raise PipelineConfigError("vlm: pick --recognition (`linecaster models` lists the presets)")
     regions = bool(a.layout)
-    spec = chat_model(a.recognition, prefer="region" if regions else "page")
+    vlm = Chat(preset_ref(a.recognition, prefer="region" if regions else "page"),
+               a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", max_window=a.window,
+               initial_window=a.initial_window, read_timeout=a.read_timeout)
+    spec = vlm.adapter
     if regions != (spec.unit == "region"):
         reads = "regions" if spec.unit == "region" else "whole pages"
         raise PipelineConfigError(f"vlm: {a.recognition} reads {reads}"
                                   + ("; pick --layout for it" if not regions else "; pick a region preset with --layout"))
     sglang = spec.server == "sglang"
-    vlm = Served(a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", model=spec.served_name, max_window=a.window,
-                 initial_window=a.initial_window, read_timeout=a.read_timeout)
     steps = [run.reader(a)]
     servers = []
     if regions:
         b, servers = run.engines(a, models(a), script, a.layout_window)
-        steps += [LayoutDetector(b["layout"]), RegionRecognizer(spec, vlm)]
+        steps += [LayoutDetector(b["layout"]), RegionRecognizer(vlm)]
     else:
-        steps += [PageRecognizer(spec, vlm)]
+        steps += [PageRecognizer(vlm)]
     if not a.recognition_endpoint:
         draft = getattr(spec, "draft_model", None)
         extra = [] if a.no_speculative or not draft else spec.speculative_args(draft, spec.draft_revision)

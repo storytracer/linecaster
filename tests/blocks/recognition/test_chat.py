@@ -12,7 +12,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model, text_transcription
-from linecaster.backends import InProcess, Served
+from linecaster.backends import Chat, InProcess
 from linecaster.blocks.base.page import new_page_document, page_of
 from linecaster.blocks.recognition.chat import PageRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
@@ -114,9 +114,9 @@ def test_text_transcription_round_trips_text():
         assert text_transcription(raw).text == raw
 
 
-def test_chat_step_needs_a_served_backend():
-    with pytest.raises(PipelineConfigError):
-        PageRecognizer(chat_model("lightonocr-2-1b"), InProcess("x:y"))
+def test_chat_step_needs_a_chat_backend():
+    with pytest.raises(PipelineConfigError, match="needs a Chat backend"):
+        PageRecognizer(InProcess("x:y"))
 
 
 # ---------------------------------------------------- end to end, fake server
@@ -155,7 +155,7 @@ def test_chat_page_step_end_to_end(fake_server):
     docs = [new_page_document(str(i), image(1000 + 100 * i, 2000)) for i in range(5)]
     errored = new_page_document("bad", image(10, 10))
     errored.metadata["errors"] = [{"step": "earlier", "error": "x"}]
-    step = PageRecognizer(chat_model("lightonocr-2-1b"), Served(fake_server, model="lightonai/LightOnOCR-2-1B", max_window=4))
+    step = PageRecognizer(Chat("lightonocr-2-1b", fake_server, max_window=4))
     out = {d.id: d for d in step.run(iter([*docs, errored]))}
     assert set(out) == {"0", "1", "2", "3", "4", "bad"}
     assert len(FakeChat.seen) == 5 and {m for m, _ in FakeChat.seen} == {"lightonai/LightOnOCR-2-1B"}
@@ -169,9 +169,37 @@ def test_chat_page_step_end_to_end(fake_server):
     assert "ocr_new" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
 
 
+def test_chat_region_step_end_to_end(fake_server):
+    from linecaster.blocks.base.page import set_page
+    from linecaster.blocks.recognition.chat import RegionRecognizer
+    from linecaster.data.transcription import Region
+
+    def with_regions(page_id, regions):
+        d = new_page_document(page_id, image(2000, 3000))
+        page = page_of(d)
+        page.transcriptions["ocr_new"] = Transcription(regions=[
+            Region(id=rid, label=label, polygon=[[x, y], [x + w, y], [x + w, y + h], [x, y + h]], bbox=[x, y, w, h],
+                   reading_order=k) for k, (rid, label, (x, y, w, h)) in enumerate(regions)])
+        set_page(d, page)
+        return d
+
+    docs = [with_regions("a", [("r1", "text", (100, 100, 800, 400)), ("pic", "picture", (0, 0, 10, 10)),
+                               ("r2", "title", (100, 600, 1000, 200))]),
+            with_regions("none", [("pic", "picture", (0, 0, 10, 10))])]
+    step = RegionRecognizer(Chat("lightonocr-2-1b-regions", fake_server, max_window=4))
+    out = {d.id: d for d in step.run(iter(docs))}
+    assert set(out) == {"a", "none"} and len(FakeChat.seen) == 2          # the picture is not read
+    t = page_of(out["a"]).transcriptions["ocr_new"]
+    assert [ln.region_id for ln in t.lines] == ["r1", "r2"] and all(ln.text.startswith("\npage ") for ln in t.lines)
+    m = t.steps[-1]
+    assert (m.preset, m.measurements["regions"], m.measurements["prompt_tokens"]) == (
+        "lightonocr-2-1b-regions@1", 2, 20)
+    assert page_of(out["none"]).transcriptions["ocr_new"].lines == []     # passed through unchanged
+
+
 def test_chat_page_step_records_server_errors(fake_server):
     # a route the server does not have: the page comes out with the error recorded, no transcription
-    step = PageRecognizer(chat_model("lightonocr-2-1b"), Served(fake_server.replace("/v1", "/nope"), model="m", max_window=2))
+    step = PageRecognizer(Chat("lightonocr-2-1b", fake_server.replace("/v1", "/nope"), served_name="m", max_window=2))
     out = list(step.run(iter([new_page_document("p", image(100, 200))])))
     assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "recognition"
     assert "404" in out[0].metadata["errors"][0]["error"]

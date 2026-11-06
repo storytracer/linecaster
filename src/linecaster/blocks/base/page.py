@@ -62,9 +62,7 @@ def error_entry(block, error: BaseException | str, error_type: str | None = None
     entry = {"block": type(block).__name__}
     if getattr(block, "step", None) and block.step != "model":
         entry["step"] = block.step
-    backend, spec = getattr(block, "backend", None), getattr(block, "spec", None)
-    preset = getattr(spec, "preset", None) or getattr(backend, "preset", None)
-    entry["preset"] = preset
+    entry["preset"] = getattr(getattr(block, "backend", None), "preset", None)
     entry["type"] = error_type or (type(error).__name__ if isinstance(error, BaseException) else "error")
     entry["error"] = str(error) if isinstance(error, BaseException) else error
     entry.update(extra)

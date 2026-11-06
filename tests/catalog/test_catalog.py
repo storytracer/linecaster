@@ -256,7 +256,7 @@ def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
     assert [b["block"] for b in entry.pipeline] == ["ImageFolderReader", "PageRecognizer", "RecipeStamper",
                                                     "RejectWriter", "PageJsonlWriter"]
     recognizer = entry.pipeline[1]["params"]
-    assert recognizer["spec"]["preset"] == "p@1" and "endpoint" not in recognizer["backend"]
+    assert recognizer["backend"]["preset"] == "p@1" and "endpoint" not in recognizer["backend"]
     assert entry.pipeline[2]["params"] == {"recipe": "r@1", "recipe_sha256": entry.sha256}
     # what the script builds into other folders is the same pipeline (in this process: the catalog put in place)
     script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_vlm.py"

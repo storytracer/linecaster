@@ -8,6 +8,24 @@ from ..errors import PipelineConfigError
 from ..runtime.secrets import EnvVar, resolve
 
 
+def check_secrets(backend: str, api_key, headers) -> None:
+    """A backend's ``api_key`` must be an ``EnvVar``, its ``headers`` strings or ``EnvVar``s."""
+    if api_key is not None and not isinstance(api_key, EnvVar):
+        raise PipelineConfigError(f"{backend}(api_key=...) takes EnvVar(NAME), not the key: a key in the pipeline "
+                                  "would be pickled with it and recorded")
+    for k, v in (headers or {}).items():
+        if not isinstance(v, (str, EnvVar)):
+            raise PipelineConfigError(f"{backend}(headers=...): {k} is {type(v).__name__}, not a string or an EnvVar")
+
+
+def request_headers(api_key: EnvVar | None, headers: dict | None) -> dict[str, str]:
+    """``headers`` with the secrets read now (in the task), and ``api_key`` as ``Authorization: Bearer <key>``."""
+    out = {k: resolve(v) for k, v in (headers or {}).items()}
+    if api_key is not None:
+        out["Authorization"] = f"Bearer {api_key.resolve()}"
+    return out
+
+
 @dataclass
 class Served:
     """The engine runs behind ``linecaster serve`` (or any server speaking its routes), reached through
@@ -30,19 +48,11 @@ class Served:
     served = True
 
     def __post_init__(self):
-        if self.api_key is not None and not isinstance(self.api_key, EnvVar):
-            raise PipelineConfigError("Served(api_key=...) takes EnvVar(NAME), not the key: a key in the pipeline "
-                                      "would be pickled with it and recorded")
-        for k, v in (self.headers or {}).items():
-            if not isinstance(v, (str, EnvVar)):
-                raise PipelineConfigError(f"Served(headers=...): {k} is {type(v).__name__}, not a string or an EnvVar")
+        check_secrets("Served", self.api_key, self.headers)
 
     def request_headers(self) -> dict[str, str]:
         """The headers every request carries, secrets read now (in the task)."""
-        out = {k: resolve(v) for k, v in (self.headers or {}).items()}
-        if self.api_key is not None:
-            out["Authorization"] = f"Bearer {self.api_key.resolve()}"
-        return out
+        return request_headers(self.api_key, self.headers)
 
     def warm_up(self) -> None:
         """The secrets are read (a missing one fails the task before its first page); nothing else to load: the

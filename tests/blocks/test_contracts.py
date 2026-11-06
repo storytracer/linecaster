@@ -104,13 +104,16 @@ def test_chat_recognizers():
     from linecaster.adapters import chat_model
     from linecaster.blocks.recognition import PageRecognizer, RegionRecognizer
 
-    backend = Served("http://127.0.0.1:8000/v1", model="m")
-    page = PageRecognizer(chat_model("lightonocr-2-1b"), backend).contract()
+    from linecaster.backends import Chat
+
+    page = PageRecognizer(Chat(chat_model("lightonocr-2-1b"))).contract()
     assert page.reads == {Part("image")} and {str(p) for p in page.adds} == {"ocr_new:text", "ocr_new:markdown"}
-    regions = RegionRecognizer(chat_model("lightonocr-2-1b-regions"), backend).contract()
+    regions = RegionRecognizer(Chat("lightonocr-2-1b-regions")).contract()
     assert regions.reads == {Part("image"), Part("regions", "ocr_new")}
     assert {p.name for p in regions.adds} == {"lines", "text", "markdown"}
-    assert PageRecognizer(chat_model("lightonocr-2-1b"), backend).shape == "stream"
+    assert PageRecognizer("lightonocr-2-1b").shape == "stream"
+    with pytest.raises(PipelineConfigError, match="needs a Chat backend"):
+        PageRecognizer(Served("http://127.0.0.1:8000/v1", model="m"))
 
 
 def test_contracts_of_the_blocks_without_a_model(tmp_path):
@@ -225,6 +228,7 @@ def test_the_two_shapes():
 def _one_of_each(tmp_path) -> list:
     """One block of every class in ``linecaster.blocks``, with what its constructor needs."""
     from linecaster.adapters import chat_model
+    from linecaster.backends import Chat
     from linecaster.runtime.secrets import EnvVar
 
     served = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"), headers={"X-Team": "ocr"})
@@ -233,8 +237,8 @@ def _one_of_each(tmp_path) -> list:
         "LayoutDetector": {"backend": InProcess("pkg:Layout")}, "LineDetector": {"backend": InProcess("pkg:Lines")},
         "LineRecognizer": {"backend": served}, "TableRecognizer": {"backend": InProcess("pkg:Tables")},
         "FormulaRecognizer": {"backend": InProcess("pkg:Formulas")},
-        "PageRecognizer": {"spec": chat_model("lightonocr-2-1b"), "backend": Served("http://127.0.0.1:8000/v1", model="m")},
-        "RegionRecognizer": {"spec": "lightonocr-2-1b-regions", "backend": Served("http://127.0.0.1:8000/v1", model="m")},
+        "PageRecognizer": {"backend": Chat(chat_model("lightonocr-2-1b"), api_key=EnvVar("LC_TEST_KEY"))},
+        "RegionRecognizer": {"backend": "lightonocr-2-1b-regions"},
         "ChatModelServer": {"spec": "lightonocr-2-1b"},
         "ModelServer": {"models": [{"name": "lines", "spec": "pkg:Lines", "kwargs": {"x": 1}}]},
         "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
@@ -293,7 +297,10 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
         "initial_window": 4, "read_timeout": 600.0, "api_key": {"env": "LC_TEST_KEY"}, "headers": {"X-Team": "ocr"}}
     assert by_name["ModelBlock"]["params"]["backend"] == {"backend": "in-process", "engine": "pkg:Engine",
                                                           "options": {"size": 3}}
-    assert by_name["PageRecognizer"]["params"]["spec"]["preset"].startswith("lightonocr-2-1b@")
+    chat = by_name["PageRecognizer"]["params"]["backend"]
+    assert chat["backend"] == "chat" and chat["preset"].startswith("lightonocr-2-1b@")
+    assert chat["endpoint"] == "http://127.0.0.1:8000/v1" and chat["api_key"] == {"env": "LC_TEST_KEY"}
+    assert by_name["RegionRecognizer"]["params"]["backend"]["preset"].startswith("lightonocr-2-1b-regions@")
     from linecaster.catalog.registry import catalog
 
     composer = by_name["Composer"]["params"]

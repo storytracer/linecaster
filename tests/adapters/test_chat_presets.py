@@ -7,7 +7,7 @@ import pickle
 import pytest
 
 from linecaster.adapters import ADAPTERS, ENGINE, ChatAdapter, adapter, chat_model, chat_presets, preset_ref
-from linecaster.backends import Served
+from linecaster.backends import Chat
 from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.catalog.registry import catalog
@@ -74,11 +74,15 @@ def test_step_info_records_the_preset_edition():
 
 
 def test_blocks_take_preset_refs():
-    page = PageRecognizer("dots-ocr", Served("http://127.0.0.1:1/v1", model="rednote-hilab/dots.ocr"))
-    assert page.spec.preset == "dots-ocr@1"
-    regions = RegionRecognizer("lightonocr-2-1b-regions", Served("http://127.0.0.1:1/v1", model="m"))
-    assert regions.pad == 8 and regions.spec.page_longest == 1540 and regions.spec.served_name == "m"
-    assert RegionRecognizer("minicpm-ocr-1.0", Served("http://127.0.0.1:1/v1", model="minicpm-ocr")).pad == 0
+    page = PageRecognizer(Chat("dots-ocr", "http://127.0.0.1:1/v1"))
+    assert page.adapter.preset == "dots-ocr@1" and page.backend.model == "rednote-hilab/dots.ocr"
+    regions = RegionRecognizer(Chat("lightonocr-2-1b-regions", "http://127.0.0.1:1/v1", served_name="m"))
+    assert regions.pad == 8 and regions.adapter.page_longest == 1540 and regions.adapter.served_name == "m"
+    assert RegionRecognizer("minicpm-ocr-1.0").pad == 0
+    # a preset by name: Chat on the task's ChatModelServer; a Hugging Face id picks the preset of the block's unit
+    assert PageRecognizer("lightonocr-2-1b").backend.endpoint == "http://127.0.0.1:8000/v1"
+    assert RegionRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b-regions@1"
+    assert PageRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b@1"
     serve = ChatModelServer("unlimited-ocr-2")
     assert serve.server == "sglang" and serve.spec.served_name == "Unlimited-OCR-2"
 

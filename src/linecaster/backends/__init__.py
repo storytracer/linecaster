@@ -10,8 +10,13 @@ The same class serves both backends:
   worker (lazily, so a pickled pipeline carries only the spec);
 * ``Served("http://127.0.0.1:8100/v1", model="layout")`` sends each page to ``linecaster serve``,
   which hosts the same class, through saturate.
+
+The third backend is for VLMs: ``Chat("dots-ocr", endpoint="http://127.0.0.1:8000/v1")`` reads pages (or regions)
+with a chat preset's model behind an OpenAI-compatible server (vLLM, SGLang, a hosted endpoint), through saturate
+as well; the preset's adapter (``linecaster.adapters``) builds the requests and parses the completions.
 """
+from .chat import Chat
 from .in_process import EngineModel, InProcess, resolve
 from .served import Served
 
-__all__ = ["EngineModel", "InProcess", "Served", "resolve"]
+__all__ = ["Chat", "EngineModel", "InProcess", "Served", "resolve"]

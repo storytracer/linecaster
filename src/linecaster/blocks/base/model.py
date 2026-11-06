@@ -1,10 +1,12 @@
 """``ModelBlock``: the base of the model blocks, one block per step (layout, lines, recognition, ...), each with
 its backend.
 
-In-process, a block calls its model page by page. Served, it streams its pages through saturate:
-up to a window of pages in flight (adapted to the server's queue gauges and 429s), results passed
-on as they finish, so CPU work upstream and downstream overlaps the server's GPU work. Either
-way a page's result depends only on the page (the server never mixes pages in a batch).
+In-process, a block calls its model page by page. Served (``Served``, or ``Chat`` for a VLM), it streams its pages
+through saturate: up to a window of requests in flight (adapted to the server's queue gauges and 429s), results
+passed on as they finish, so CPU work upstream and downstream overlaps the server's GPU work. The streaming exists
+once, here; a block says what its requests are (``_rows``: one per page by default, one per region for
+``RegionRecognizer``), how each is built and parsed (``_request``, ``_parse``) and what a finished one completes
+(``_done``). Either way a page's result depends only on the page (the server never mixes pages in a batch).
 """
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from functools import lru_cache
 from ...backends import InProcess, Served
 from ...data.page import Page
 from ...data.transcription import Transcription
-from ...errors import CatalogError
+from ...errors import CatalogError, PipelineConfigError
 from .contract import Contract, parts
 from .page import ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error, set_page
 
@@ -84,6 +86,19 @@ def produces(backend, step: str, spec=None) -> tuple[str, ...]:
     return STEP_PRODUCES.get(step, ())
 
 
+def preset_backend(ref: str, step: str) -> InProcess:
+    """The in-process backend of catalog preset ``ref`` (``id`` or ``id@edition``) for a block of ``step``."""
+    from ...catalog.registry import catalog
+
+    try:
+        found = catalog().resolve(ref).content.get("step")
+    except (CatalogError, ValueError) as e:
+        raise PipelineConfigError(f"{step}: {e}") from None
+    if found != step:
+        raise PipelineConfigError(f"{step}: preset {ref!r} is a {found} preset")
+    return InProcess.from_preset(ref)
+
+
 class ModelBlock(PageBlock):
     """Run one model step on every page, adding its part to the page's ``transcription``. In-process it is a
     per-unit transform; served a stream transform (pages in flight in a window, passed on as they finish)."""
@@ -94,13 +109,22 @@ class ModelBlock(PageBlock):
     #: a step that reads only regions with this label gets no image for a page without one (``None``)
     region_label: str | None = None
     prepare_workers: int = 2       # threads building requests ahead of admission (image encoding)
+    results_windows: int = 4       # served: finished results held for the pipeline, in windows
 
-    def __init__(self, backend: InProcess | Served, transcription: str = "ocr_new", params: dict | None = None,
+    def __init__(self, backend: InProcess | Served | str, transcription: str = "ocr_new", params: dict | None = None,
                  primary: str | None = None, skip_on_error: bool = True, name: str | None = None):
+        if isinstance(backend, str):         # a catalog preset: its engine in the pipeline's process
+            backend = preset_backend(backend, self.step)
         self.name = name or f"{self.step} ({backend.describe()})"   # before the base __init__, which names the stats
         super().__init__()
         self.backend, self.transcription, self.params = backend, transcription, params or {}
         self.primary, self.skip_on_error = primary or transcription, skip_on_error
+
+    def init_params(self) -> dict:
+        """The parameters, ``backend`` as the backend it is (a preset given by name: the one it resolved to)."""
+        out = super().init_params()
+        out["backend"] = self.backend
+        return out
 
     @property
     def shape(self) -> str:
@@ -158,6 +182,16 @@ class ModelBlock(PageBlock):
         budget.failed(doc, record_error(doc, error_entry(self, error, "ServerError")))
 
     # ----------------------------------------------------------------- served
+    def _rows(self, data, results: queue.Queue):
+        """The requests, ``(key, row)`` with the page as ``row["doc"]``: one per page (a block reading parts of a
+        page, e.g. its regions, yields one per part and gathers them in ``_done``)."""
+        for doc in self._passing(data, results):
+            yield doc.id, {"doc": doc}
+
+    def _unit(self, row: dict) -> dict:
+        """What names a request's part of its page for the observers (e.g. ``{"region": id}``); nothing for a page."""
+        return {}
+
     def _request(self, row: dict) -> dict:
         doc = row["doc"]
         t = page_of(doc).transcription(self.transcription)
@@ -170,21 +204,51 @@ class ModelBlock(PageBlock):
         """Validated here, so a malformed response is that page's error (saturate), not the task's."""
         return {"transcription": Transcription.model_validate(body["transcription"]), "usage": body.get("usage") or {}}
 
+    def _done(self, item, budget: ErrorBudget):
+        """The pages one finished request completes (saturate's result for a row): here its page, with the
+        transcription the server returned, or with the request's error recorded."""
+        doc = item.row["doc"]
+        self.stat_update("pages")
+        budget.page()
+        if item.error is not None:
+            self.notify(doc, "done", error=item.error)
+            self._served_failure(doc, item.error, budget)
+            yield doc
+            return
+        page = page_of(doc)
+        out = item.out["transcription"]
+        page.transcriptions[self.transcription] = out
+        set_page(doc, page, self.primary)
+        measured = out.steps[-1].measurements if out.steps else {}
+        if "seconds" in measured:
+            self.stat_update("model_seconds", value=measured["seconds"], unit="doc")
+        for key in ("prompt_tokens", "completion_tokens"):
+            if isinstance(measured.get(key), int):
+                self.stat_update(key, value=measured[key], unit="doc")
+        if measured.get("finish_reason") not in (None, "stop"):
+            self.stat_update(f"finish_{measured['finish_reason']}")
+        self.notify(doc, "done", **{k: measured[k] for k in ("prompt_tokens", "completion_tokens", "finish_reason")
+                                    if measured.get(k) is not None})
+        yield doc
+
     def _run_served(self, data):
+        """The requests (``_rows``) through saturate: built in its prepare threads (``_request``, with the observers'
+        ``prepare`` and ``request`` events around it), up to the backend's window in flight, each result handed to
+        ``_done`` as it finishes."""
         from saturate import AdaptiveClient, Auto, through
 
-        b: Served = self.backend
-        results: queue.Queue = queue.Queue(maxsize=4 * b.max_window)
-        rows = ((doc.id, {"doc": doc}) for doc in self._passing(data, results))
+        b = self.backend
+        results: queue.Queue = queue.Queue(maxsize=self.results_windows * b.max_window)
+        rows = self._rows(data, results)
         budget = ErrorBudget(self, self.max_page_errors)
         headers = b.request_headers()            # secrets read here, in the task
 
         def request(row: dict) -> dict:       # in saturate's prepare threads
-            doc = row["doc"]
-            self.notify(doc, "prepare")
+            doc, unit = row["doc"], self._unit(row)
+            self.notify(doc, "prepare", **unit)
             body = self._request(row)
             carrier: dict = {}
-            self.notify(doc, "request", carrier=carrier)
+            self.notify(doc, "request", carrier=carrier, **unit)
             # saturate sends the same headers with every request: linecaster serve reads the trace context from the
             # body (an OpenAI-compatible server would not)
             if self.route is None and carrier.get("traceparent"):
@@ -216,29 +280,6 @@ class ModelBlock(PageBlock):
                 self.stat_update(item.stat)
                 yield item.doc
                 continue
-            doc = item.row["doc"]
-            self.stat_update("pages")
-            budget.page()
-            if item.error is not None:
-                self.notify(doc, "done", error=item.error)
-                self._served_failure(doc, item.error, budget)
-                yield doc
-                continue
-            page = page_of(doc)
-            out = item.out["transcription"]
-            page.transcriptions[self.transcription] = out
-            set_page(doc, page, self.primary)
-            measured = out.steps[-1].measurements if out.steps else {}
-            if "seconds" in measured:
-                self.stat_update("model_seconds", value=measured["seconds"], unit="doc")
-            for key in ("prompt_tokens", "completion_tokens"):
-                if isinstance(measured.get(key), int):
-                    self.stat_update(key, value=measured[key], unit="doc")
-            if measured.get("finish_reason") not in (None, "stop"):
-                self.stat_update(f"finish_{measured['finish_reason']}")
-            self.notify(doc, "done", **{k: measured[k] for k in ("prompt_tokens", "completion_tokens", "finish_reason")
-                                        if measured.get(k) is not None})
-            yield doc
+            yield from self._done(item, budget)
         # wall time of the served run, first request to last result (downstream blocks included)
         self.stat_update("served_wall_seconds", value=round(time.perf_counter() - started, 2))
-

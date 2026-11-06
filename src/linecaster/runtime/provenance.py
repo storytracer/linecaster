@@ -195,12 +195,15 @@ def _served_models(blocks: list) -> dict[str, dict]:
 def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any]:
     """What a model block's backend contributes to the pipeline's hash: the engine, its options and the preset
     edition with its hash, wherever the engine runs (in-process, or the server model a served backend names);
-    for a server this run does not start, what the backend knows (engine, preset, else the served model's name)."""
+    for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
+    for a chat backend its adapter, preset edition and hash, model and revision."""
     from ..blocks.base.block import plain
 
     if backend.get("backend") == "in-process":
         out = {"engine": backend.get("engine"), "options": backend.get("options") or {},
                "preset": backend.get("preset"), "preset_sha256": backend.get("preset_sha256")}
+    elif backend.get("backend") == "chat":         # the adapter and the preset, not where the server is
+        out = {k: backend.get(k) for k in ("adapter", "preset", "preset_sha256", "model", "revision")}
     elif (m := served.get(backend.get("model"))) is not None:
         out = {"engine": m.get("spec"), "options": plain(m.get("kwargs") or {}), "preset": m.get("preset"),
                "preset_sha256": m.get("preset_sha256")}
@@ -214,8 +217,6 @@ def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any
 def _functional_value(value, served: dict[str, dict]):
     if isinstance(value, dict) and "backend" in value and isinstance(value.get("backend"), str):
         return _functional_backend(value, served)
-    if isinstance(value, dict) and "adapter" in value and "preset" in value:       # a chat adapter
-        return {k: v for k, v in value.items() if k != "served_name"}
     return value
 
 
