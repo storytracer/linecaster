@@ -20,9 +20,11 @@ UNITS = ("page", "item")
 
 
 class Composer(RuleBlock):
-    """The DoclingDocument of the named transcription by a composition engine (``preset``: e.g.
-    ``docling-composition@1``, or an ``InProcess`` engine spec; ``options`` over it, e.g. ``{"sections": True}``):
-    text regions from their paragraphs when a ``Recomposer`` made them, else from their lines as laid out.
+    """Composes the DoclingDocument of a page or an item by a composition engine.
+
+    Text regions are composed from their paragraphs when a ``Recomposer`` made them, else from their lines as laid
+    out (a diplomatic document). Reads ``regions`` and ``lines`` (and the paragraphs when there are); adds
+    ``document``; stat ``documents`` (pages) or ``items``.
 
     ``unit="page"``: one document per page, named after the page id, in the transcription's ``docling``; the map
     from each Docling item to its layout region (``"<page_no>:<region id>"``) in
@@ -30,11 +32,23 @@ class Composer(RuleBlock):
     ``unit="item"``: one document per item record (``linecaster.blocks.base.item``), page ``n`` its ``n``-th
     page, paragraphs continued across pages (an item-level ``Recomposer`` before it): ``doc.metadata["docling"]``,
     ``["region_of"]`` and ``["item_id"]``, ``doc.text`` its plain text (with furniture), as ``ItemDocumentWriter``
-    writes them."""
+    writes them. Each page's transcription records the step.
+
+    Args:
+        preset: the composition engine: a preset (e.g. ``docling-composition@1``) or an ``InProcess`` engine spec.
+        transcription: the transcription to compose.
+        unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``Binder``).
+        options: engine options over the preset's, e.g. ``{"sections": True}``; ``None``: the preset's.
+
+    Example:
+        Composer("docling-composition@1")
+        Composer("docling-composition@1", unit="item")
+    """
 
     name = "composer"
     step = "composition"
     REGION_MAP = REGION_MAP_KEY
+    docs_args = {"preset": "docling-composition@1"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

@@ -53,11 +53,24 @@ class _Flushed:
 
 
 class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
-    """Page records as JSON Lines. With ``item_shards`` every page goes into its item's shard folder
-    (``<shard>/${rank}.jsonl.gz``, ``linecaster.blocks.writers.shards``), for a later stage that reads whole items."""
+    """Writes the page records as JSON Lines, one file per task, or into item shards for a later stage.
+
+    A row per page: ``schema`` (``linecaster.page/2``), ``id``, ``text``, ``page`` (the page record without the
+    image bytes) and ``errors`` when a block failed on the page. It reads no part in particular (the whole page
+    record). The files' flush is reported to the observers. Pages pass through.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the records go to.
+        output_filename: the file name, datatrove's template (``${rank}``, ``${item_id}``, ...).
+        item_shards: the number of item shards: every page goes into its item's shard folder
+            (``<shard>/<output_filename>``, ``linecaster.blocks.writers.shards``), so a later stage reads whole
+            items; default: no shards.
+        **kwargs: datatrove's ``JsonlWriter`` arguments (``compression``, ``max_file_size``, ...).
+    """
 
     name = "🐿 page records (jsonl)"
     role = "writer"            # the whole page record: no part in particular
+    docs_args = {"output_folder": "out/pages"}
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
                  item_shards: int | None = None, **kwargs):
@@ -79,8 +92,22 @@ class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
 
 
 class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
+    """Writes the page records as Parquet, one file per task.
+
+    The columns are fixed (``parquet_schema``): ``schema``, ``id``, ``text``, ``page`` (the page record as a JSON
+    string) and ``errors`` (a JSON string, or null), so every row has the same columns. It reads no part in
+    particular. The files' flush is reported to the observers. Pages pass through.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the records go to.
+        output_filename: the file name, datatrove's template (``${rank}``, ...).
+        **kwargs: datatrove's ``ParquetWriter`` arguments (``compression``, ``batch_size``, ``max_file_size``, ...;
+            ``schema`` defaults to the page records' columns).
+    """
+
     name = "📒 page records (parquet)"
     role = "writer"
+    docs_args = {"output_folder": "out/pages"}
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.parquet", **kwargs):
         kwargs.setdefault("schema", parquet_schema())

@@ -110,6 +110,9 @@ class Block:
     live_params: tuple[str, ...] = ()
     #: this class's operational parameters besides ``OPERATIONAL``
     operational: tuple[str, ...] = ()
+    #: the arguments the generated docs build an instance with (``linecaster docs``: the contract on the block's page),
+    #: for a block whose constructor needs some; a model block's preset needs no engine installed there
+    docs_args: dict[str, Any] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

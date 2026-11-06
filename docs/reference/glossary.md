@@ -116,6 +116,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
 
+## Docs and changes
+
+| Term | Meaning | Not |
+|---|---|---|
+| **derivative** | A project built on linecaster: its own pipelines, blocks or engines (squiddleocr, the EBDC pilot pipeline, the FineBooks pipelines). | not a fork |
+| **generated docs** | The files `linecaster docs` writes from code, docstrings and the catalog: the catalog's and the blocks' pages, the README's tables between their markers, the site's index and `llms.txt`. Never edited by hand; `--check` fails when one is not current. | not the reference docs (`docs/reference/`, hand-written) |
+| **block page** | The generated page of one block (`docs/blocks/<family>/<Block>.md`): its contract, backends, catalog step and presets, position, options, behavior and example. | |
+| **breaking change** | A change after which code, a command line, a stored file or a catalog reference that worked before stops working or means something else ([compatibility](compatibility.md)). | |
+| **upgrade note** | The entry in `CHANGELOG.md` for a breaking change: what changed, who is affected, what to do. | |
+
 ## The print shop
 
 The block names follow the roles of a hot-metal print shop, in the order they work. linecaster makes a new,

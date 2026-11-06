@@ -1,5 +1,5 @@
-"""Generated documentation from the catalog, one folder per kind: ``engines/``, ``models/``,
-``presets/<step>/``, ``pipelines/``, ``recipes/``, an index (``README.md``), and the README's tables.
+"""The catalog's generated pages (``linecaster docs``, ``docs/catalog/``), one folder per kind: ``engines/``,
+``models/``, ``presets/<step>/``, ``pipelines/``, ``recipes/``, an index (``README.md``), and the README's tables.
 
 Nothing here is written by hand twice: facts come from the model, preset and recipe entries and from the
 engines' and pipelines' source (``catalog.code``), numbers from the evidence records (each with its source),
@@ -12,6 +12,7 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 
+from ..docs.common import HEADER, Links, table
 from . import code
 from .registry import IN_PROCESS_ONLY, Catalog
 from .schema import STEPS
@@ -36,10 +37,7 @@ def _md(text: str) -> str:
     return text.replace("``", "`")
 
 
-def _table(header: tuple, rows: list[tuple]) -> list[str]:
-    cell = lambda v: str(v).replace("|", "\\|").replace("\n", " ")  # noqa: E731
-    return [f"| {' | '.join(header)} |", f"|{'---|' * len(header)}",
-            *[f"| {' | '.join(cell(v) for v in r)} |" for r in rows], ""]
+_table = table
 
 
 def _model_url(c: Catalog, p) -> str | None:
@@ -115,11 +113,12 @@ def _evidence_table(evs) -> list[str]:
     if not evs:
         return []
     rows = [(e.date, SOURCE_NAMES[e.source], e.dataset + (f" ({e.context})" if e.context else ""),
+             e.hardware or "-", e.software.get("backend") or "-",
              ", ".join(f"{k} {v:g}" for k, v in e.metrics.items())) for e in evs]
-    return ["## Evidence", "", *_table(("Date", "Source", "Dataset", "Result"), rows)]
+    return ["## Evidence", "", *_table(("Date", "Source", "Dataset", "Hardware", "Backend", "Result"), rows)]
 
 
-def model_page(c: Catalog, mid: str, out: Path) -> str:
+def model_page(c: Catalog, mid: str, out: Path, links: Links) -> str:
     d, m = c.models[mid]
     lines = [f"# {mid}", "", f"*Model · {m.version or mid} · {m.license}*", ""]
     body = d.model_bodies[mid].strip()
@@ -135,7 +134,7 @@ def model_page(c: Catalog, mid: str, out: Path) -> str:
             rows.append((label, value))
     lines += _table(("", ""), rows)
     pins = [(f"`{pin.revision}`", pin.pinned, pin.tag or "", len(pin.files),
-             f"[{Path(pin.card).name}]({_rel(d.root / 'models' / mid / pin.card, out / 'models')})") for pin in m.pins]
+             f"[{Path(pin.card).name}]({links.to(d.root / 'models' / mid / pin.card, out / 'models')})") for pin in m.pins]
     lines += ["## Pins", "", "Each with the upstream card as published at that revision, verbatim.", "",
               *_table(("Revision", "Pinned", "Tag", "Files", "Card"), pins)]
     users = sorted(pid for pid, (_, p) in c.presets.items()
@@ -145,9 +144,9 @@ def model_page(c: Catalog, mid: str, out: Path) -> str:
     return "\n".join(lines)
 
 
-def engine_page(c: Catalog, e: code.Engine, out: Path) -> str:
+def engine_page(c: Catalog, e: code.Engine, out: Path, links: Links) -> str:
     lines = [f"# {e.id}", "", f"*Engine · {e.step or '-'} · package `{e.package}`*", "", _md(e.doc), ""]
-    rows = [("Class", f"`{e.target}`"), ("Source", f"[{e.source.name}]({_rel(e.source, out / 'engines')})")]
+    rows = [("Class", f"`{e.target}`"), ("Source", f"[{e.source.name}]({links.to(e.source, out / 'engines')})")]
     if e.capabilities.get("unit"):
         rows.append(("Reads", f"{e.capabilities['unit']}s"))
     if e.capabilities.get("produces"):
@@ -164,7 +163,7 @@ def engine_page(c: Catalog, e: code.Engine, out: Path) -> str:
     if e.adapters:
         lines += ["## Adapters", "", "Each preset names one in `options.adapter`: the request and the parsing of "
                                      "the answer.", "",
-                  *_table(("Adapter", "Source"), [(f"`{a}`", f"[{src.name}]({_rel(src, out / 'engines')})")
+                  *_table(("Adapter", "Source"), [(f"`{a}`", f"[{src.name}]({links.to(src, out / 'engines')})")
                                                   for a, src in sorted(e.adapters.items())])]
     users = sorted(pid for pid, (_, p) in c.presets.items() if p.engine == e.id)
     if users:
@@ -172,8 +171,8 @@ def engine_page(c: Catalog, e: code.Engine, out: Path) -> str:
     return "\n".join(lines)
 
 
-def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path) -> str:
-    lines = [f"# {pl.id}", "", f"*Pipeline · [`{pl.source.name}`]({_rel(pl.source, out / 'pipelines')})*", "",
+def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path, links: Links) -> str:
+    lines = [f"# {pl.id}", "", f"*Pipeline · [`{pl.source.name}`]({links.to(pl.source, out / 'pipelines')})*", "",
              _md(pl.doc), ""]
     if pl.slots:
         lines += ["## Slots", "", "Each slot takes a preset of that step; a recipe fills them all.", "",
@@ -208,7 +207,7 @@ def recipe_page(c: Catalog, rid: str, evs: list) -> str:
 
 
 def index_page(c: Catalog, evs: dict, engines: dict, pipelines: dict) -> str:
-    lines = ["# Catalog", "", "Generated by `linecaster catalog docs` from the catalog's entries and the "
+    lines = ["# Catalog", "", "Generated by `linecaster docs` from the catalog's entries and the "
              "engines' and pipelines' source. CER is the reading-lane character error rate of Linecaster's own "
              "latest run, where there is one.", ""]
     if c.recipes:
@@ -261,44 +260,58 @@ def readme_tables(c: Catalog, docs_rel: str) -> str:
     return "\n".join(lines).rstrip("\n")
 
 
-def _rel(path: Path, frm: Path) -> str:
-    return os.path.relpath(Path(path).resolve(), Path(frm).resolve())
+def pages(c: Catalog, out: str | Path, links: Links | None = None, repo: Path | None = code.REPO) -> dict[str, str]:
+    """Every page of the catalog by its path below ``out`` (the catalog's folder of the docs), each with the generated
+    header. Engine and pipeline pages need the repository checkout (``repo``); ``links`` default to links relative
+    to ``out``."""
+    out = Path(out)
+    links = links or Links(out, repo)
+    evs = _evidence(c)
+    engines = code.engines(repo) if repo is not None and repo.exists() else {}
+    pipelines = code.pipelines(repo) if repo is not None and repo.exists() else {}
+    found = {}
+    for pid in c.presets:
+        found[preset_path(c, pid)] = preset_page(c, pid, evs.get(pid, []))
+    for mid in c.models:
+        found[f"models/{mid}.md"] = model_page(c, mid, out, links)
+    for rid in c.recipes:
+        found[f"recipes/{rid}.md"] = recipe_page(c, rid, evs.get(rid, []))
+    for eid, e in engines.items():
+        found[f"engines/{eid}.md"] = engine_page(c, e, out, links)
+    for pid, pl in pipelines.items():
+        found[f"pipelines/{pid}.md"] = pipeline_page(c, pl, out, links)
+    found["README.md"] = index_page(c, evs, engines, pipelines)
+    return {rel: f"{HEADER}\n{text.rstrip(chr(10))}\n" for rel, text in sorted(found.items())}
+
+
+def readme_section(text: str, start: str, end: str, content: str) -> str:
+    """``text`` with what stands between its markers ``start`` and ``end`` replaced by ``content`` (unchanged
+    without both markers)."""
+    if start not in text or end not in text:
+        return text
+    head, rest = text.split(start, 1)
+    _, tail = rest.split(end, 1)
+    return f"{head}{start}\n{content}\n{end}{tail}"
 
 
 def write(c: Catalog, out: str | Path, readme: str | Path | None = None, repo: Path | None = code.REPO) -> list[Path]:
     """Every page, into ``out``; the folders of the kinds are generated and replaced. Engine and pipeline pages
-    need the repository checkout (``repo``)."""
+    need the repository checkout (``repo``). ``linecaster docs`` writes these with the rest of the docs
+    (``linecaster.docs``)."""
     out = Path(out)
     for comp in KINDS:
         shutil.rmtree(out / comp, ignore_errors=True)
-    evs = _evidence(c)
-    engines = code.engines(repo) if repo is not None and repo.exists() else {}
-    pipelines = code.pipelines(repo) if repo is not None and repo.exists() else {}
-    pages = {}
-    for pid in c.presets:
-        pages[preset_path(c, pid)] = preset_page(c, pid, evs.get(pid, []))
-    for mid in c.models:
-        pages[f"models/{mid}.md"] = model_page(c, mid, out)
-    for rid in c.recipes:
-        pages[f"recipes/{rid}.md"] = recipe_page(c, rid, evs.get(rid, []))
-    for eid, e in engines.items():
-        pages[f"engines/{eid}.md"] = engine_page(c, e, out)
-    for pid, pl in pipelines.items():
-        pages[f"pipelines/{pid}.md"] = pipeline_page(c, pl, out)
-    pages["README.md"] = index_page(c, evs, engines, pipelines)
     written = []
-    for rel, text in sorted(pages.items()):
+    for rel, text in pages(c, out, repo=repo).items():
         path = out / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text.rstrip("\n") + "\n", encoding="utf-8")
+        path.write_text(text, encoding="utf-8")
         written.append(path)
     if readme is not None:
         readme = Path(readme)
         text = readme.read_text(encoding="utf-8")
-        if MARK_START in text and MARK_END in text:
-            head, rest = text.split(MARK_START, 1)
-            _, tail = rest.split(MARK_END, 1)
-            rel = os.path.relpath(out, readme.parent)
-            readme.write_text(f"{head}{MARK_START}\n{readme_tables(c, rel)}\n{MARK_END}{tail}", encoding="utf-8")
+        new = readme_section(text, MARK_START, MARK_END, readme_tables(c, os.path.relpath(out, readme.parent)))
+        if new != text or MARK_START in text:
+            readme.write_text(new, encoding="utf-8")
             written.append(readme)
     return written

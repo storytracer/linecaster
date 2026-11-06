@@ -10,11 +10,17 @@ from .base import RuleEngine
 
 
 class SingleRegionLayoutEngine(RuleEngine):
-    """No layout analysis: the whole page is one region (plain OCR; what squiddleocr's ``--layout none`` does). The
-    transcription's regions are replaced by one region covering the page image, reading order 0, score 1; a line
-    step on the whole page and the ``LineAssigner`` then put every line into it, and no table or formula regions
-    exist. A layout engine like the model ones (``__call__(image, transcription)``, the page image as an RGB array),
-    built in and in the pipeline's process only."""
+    """Makes the whole page one region, without layout analysis.
+
+    Plain OCR (what squiddleocr's ``--layout none`` does): the transcription's regions are replaced by one region
+    covering the page image, reading order 0, score 1; a line step on the whole page and the ``LineAssigner`` then put
+    every line into it, and no table or formula regions exist. A layout engine like the model ones (``__call__(image,
+    transcription)``, the page image as an RGB array), built in and in the pipeline's process only. Records a layout
+    ``StepInfo``.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "layout.single-region.v1"
     step = "layout"

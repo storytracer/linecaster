@@ -31,27 +31,42 @@ FORMAT_PARTS = {"hocr": "lines", "alto": "lines", "page": "lines", "txt": "text"
 
 
 class PageFileWriter(Contracted, PipelineStep):
-    """One file per page and format: ``<output_folder>/<item_id>/<page_id><suffix>.<ext>`` (any fsspec
-    folder: local, ``s3://``, ``hf://buckets/...``). Pages pass through, so writers can be chained.
+    """Writes one file per page and format: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, JSON and more.
+
+    Files go to ``<output_folder>/<item_id>/<page_id><suffix>.<ext>`` (any fsspec folder: local, ``s3://``,
+    ``hf://buckets/...``). It reads the parts its formats are written from (``FORMAT_PARTS``: ``lines`` for hOCR,
+    ALTO and PAGE, ``text`` for md and txt, ``document`` for HTML, DocLang and JSON, ``image`` for plots) and adds
+    nothing; pages pass through, so writers can be chained. A page without the transcription is counted
+    (``no_transcription``) and passed on.
 
     * ``hocr``, ``alto``, ``page``: linecaster's serializers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
     * ``md``, ``txt``, ``html``, ``doclang``, ``json``: the DoclingDocument's exports
-      (``linecaster.formats.docling.export``) when the transcription has one (``Composer``;
-      ``furniture`` keeps page headers and footers in md, txt and html; ``dividers`` puts ``---``
-      between layout regions in md); without one, md and txt fall back to ``Transcription.text`` (lines
-      in reading order, tables as Markdown/HTML) and the others are skipped (counted as ``no_document``);
+      (``linecaster.formats.docling.export``) when the transcription has one (``Composer``); without one, md and
+      txt fall back to ``Transcription.text`` (lines in reading order, tables as Markdown/HTML; counted as
+      ``<format>_from_page_text``) and the others are skipped (counted as ``no_document``);
     * ``transcription``: the ``Transcription`` itself as JSON;
     * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.images.plots``).
 
-    ``bucket_by_item=False`` writes ``<page_id><suffix>.<ext>`` flat, as squiddleocr names its files (with
-    ``suffix=".paddle"``); pages without ``item_id`` are always written flat. With ``text_fallback`` (the
-    default) a page without a document still gets md and txt from ``Transcription.text``; ``text_fallback=False``
-    writes them only from a document, so such a page gets no files of the document formats."""
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the files go to.
+        formats: the formats to write, keys of ``PAGE_FILE_EXTENSIONS``; an unknown one is a
+            ``PipelineConfigError``.
+        transcription: the transcription written.
+        suffix: added to each file's stem, before the extension (squiddleocr's names use ``".paddle"``).
+        furniture: keep page headers and footers in md, txt and html.
+        bucket_by_item: one folder per item; ``False`` writes ``<page_id><suffix>.<ext>`` flat, as squiddleocr
+            names its files. Pages without ``item_id`` are always written flat.
+        detail: ``word`` (lines and words) or ``line`` (text per line) for hOCR, ALTO and PAGE.
+        dividers: put ``---`` between layout regions in md.
+        text_fallback: a page without a document still gets md and txt from ``Transcription.text``; ``False`` writes
+            them only from a document (the block then reads ``document``).
+    """
 
     type = "💽 - WRITER"
     name = "🗂️ page files"
     role = "writer"
+    docs_args = {"output_folder": "out/files"}
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,

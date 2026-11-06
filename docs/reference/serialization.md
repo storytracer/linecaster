@@ -136,6 +136,10 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
 
 ## Working images (`linecaster.images.convert`)
 
+The working format for converted images is lossless WebP at full resolution (the block `ImageConverter`, preset
+`working-image`); lossy output is never produced. Delivered images used as they are (an access derivative) stay as
+delivered. Pages larger than the size limit go to `rejects/`.
+
 - **Size limit** (`check_size`): width ≤ 16,383 and height ≤ 16,383 (WebP) and
   width × height ≤ 2 × `PIL.Image.MAX_IMAGE_PIXELS`, read at call time, never changed. 2× is
   exactly where Pillow's `Image.open` raises `DecompressionBombError`; that error is turned into

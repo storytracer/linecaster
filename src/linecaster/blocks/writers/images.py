@@ -12,19 +12,26 @@ IMAGE_FILE_EXTENSIONS = {"jpeg": "jpg", "png": "png", "webp": "webp", "tiff": "t
 
 
 class ImageFilesWriter(Contracted, PipelineStep):
-    """Each page's image bytes as they came, one file per page: ``<output_folder>/<item_id>/<page_id>.<ext>``
-    (any fsspec folder; ``<page_id>.<ext>`` for pages without an item), the extension from the image's format.
-    The page's ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from,
-    so page records written after this block point at the copy (``PageRecordReader`` fetches it from there), and
-    ``ImageFolderReader(output_folder, item_from_parent=True)`` reads the folder as it is.
+    """Writes each page's image bytes as they came, one file per page.
 
-    With ``ocr_folder``, a library's own OCR that came with the page (a document media, as ``ManifestReader``'s
-    ``existing_ocr`` adds it) is written the same way, ``<ocr_folder>/<item_id>/<page_id>.xml`` (ALTO) or
-    ``.html`` (hOCR), and its transcription's ``source.extra["file"]`` names the copy. Pages pass through."""
+    Files go to ``<output_folder>/<item_id>/<page_id>.<ext>`` (any fsspec folder; ``<page_id>.<ext>`` for pages
+    without an item), the extension from the image's format. It reads ``image``. The page's ``image.uri`` then names
+    the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
+    point at the copy (``PageRecordReader`` fetches it from there), and ``ImageFolderReader(output_folder,
+    item_from_parent=True)`` reads the folder as it is. Pages pass through.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
+        ocr_folder: where a library's own OCR that came with the page (a document media, as ``ManifestReader``'s
+            ``existing_ocr`` adds it) is written the same way, ``<ocr_folder>/<item_id>/<page_id>.xml`` (ALTO) or
+            ``.html`` (hOCR), when the page has its ``ocr_original`` transcription; that transcription's
+            ``source.extra["file"]`` then names the copy. Default: not written.
+    """
 
     type = "💽 - WRITER"
     name = "🖼️ image files"
     role = "writer"
+    docs_args = {"output_folder": "out/images"}
     parts_read = ("image",)
 
     def __init__(self, output_folder: DataFolderLike, ocr_folder: DataFolderLike | None = None):

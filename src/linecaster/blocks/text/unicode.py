@@ -9,6 +9,18 @@ from ..base.page import PageBlock
 
 
 class UnicodeNormalizer(PageBlock):
+    """Normalizes the as-written text of every line and word to one Unicode normalization form, NFC by default.
+
+    Right after recognition (``linecaster.text.unicode`` says why it is a step of its own): canonical equivalence
+    only, never a compatibility form (NFKC folding belongs to the readable text variants). Reads ``text``; adds
+    ``nfc``; replaces ``text`` (in place). A page without the transcription passes unchanged; stat
+    ``strings_changed`` counts the strings that changed.
+
+    Args:
+        transcription: the transcription to normalize; also the datatrove document's ``text``.
+        form: ``NFC`` or ``NFD``; any other form is refused (``PipelineConfigError``).
+    """
+
     name = "unicode normalizer"
     parts_read = ("text",)
     parts_added = ("nfc",)

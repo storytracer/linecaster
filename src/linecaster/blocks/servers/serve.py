@@ -15,9 +15,31 @@ from ..base.contract import Contracted
 
 
 class ModelServer(Contracted, PipelineStep):
+    """Starts ``linecaster serve`` inside the task for its served model blocks, through saturate's ``Engine``.
+
+    The server starts in ``warm_up()`` and is ready when every model is loaded; it stops when the task's pages are
+    through. Its environment carries what the observers ask for (the task's trace file). A server that does not
+    start fails the task (``ServerError``). Its role is ``server`` and its unit ``any``: it touches no part. It goes
+    **last** in the pipeline (after the writer): datatrove chains generators, and only the last one lives until every
+    page is written.
+
+    Args:
+        models: the models to host, one dict each: ``{"name", "preset"}`` (a catalog preset, optional
+            ``"overrides"`` over its options) or ``{"name", "spec", "kwargs"}`` (an engine class ``module:Class``).
+            A served model block asks for its model by ``name``.
+        port: the port the server listens on (loopback).
+        python: the Python that runs ``linecaster serve -m linecaster.cli``; default this interpreter. Ignored with
+            ``script``.
+        boot_timeout: seconds the server may take until every model is loaded.
+        max_queue: requests a model accepts before answering 429.
+        script: a pipeline script whose ``serve`` command starts the server in the script's own environment
+            (``uv run --script <script> serve``); default: ``python``.
+    """
+
     type = "🔠 - LINECASTER"
     name = "🖥️ model server"
     unit, role = "any", "server"
+    docs_args = {"models": []}
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
                  max_queue: int = 16, script: str | None = None):
@@ -52,36 +74,49 @@ class ModelServer(Contracted, PipelineStep):
 
 
 class ChatModelServer(Contracted, PipelineStep):
-    """Start a chat VLM server for a task's ``Chat`` backends, through saturate's ``Engine``. ``spec`` is a chat
-    preset's adapter (``linecaster.adapters.chat_model``) or the preset ref; the command comes from the preset's
-    ``serve`` block (server, flags, environment, packages), and its ``server`` picks it:
+    """Starts a chat VLM server (vLLM or SGLang) inside the task for its ``Chat`` backends, through saturate's ``Engine``.
 
-    * ``"vllm"``: ``vllm serve <spec.model> --host HOST --port PORT <spec.vllm_args(...)>``;
+    The command comes from the chat preset's ``serve`` block (server, flags, environment, packages), whose ``server``
+    picks it:
+
+    * ``"vllm"``: ``vllm serve <spec.model> --host HOST --port PORT <spec.vllm_args(...)>`` (behind ``bash -c`` when
+      the preset has a setup script);
     * ``"sglang"``: ``PYTHON -m sglang.launch_server --model-path <spec.model> --host HOST --port PORT
       --enable-metrics <spec.sglang_args(...)>`` (metrics on: saturate reads SGLang's queue gauges).
 
-    Like ``ModelServer``, put it **last** in the pipeline (after the writer).
+    The server starts in ``warm_up()`` and is ready when it answers a trial chat request (saturate's alive-only
+    gate); it stops when the task's pages are through. Before it starts, the preset's ``server_packages`` are
+    installed into the server's Python (``uv pip install --python <that Python> ...``), and for a preset with
+    ``revision_flag: false`` (the server cannot be given ``--revision`` and loads the default branch) the block
+    refuses to start unless the default branch's files equal the pinned revision's (``check_default_branch``); the
+    preset's ``server_env`` goes into the server's environment. With OTLP configured, vLLM traces too
+    (``tracing_args``). A server that does not start fails the task (``ServerError``).
 
-    ``vllm`` is the vLLM command (default ``vllm`` on PATH, e.g. from the job image or a
-    ``uv run --with vllm==...`` environment); ``python`` the Python that has SGLang (default ``python3``
-    on PATH). ``gpu_memory_utilization`` (for SGLang: ``--mem-fraction-static``) and ``extra_args`` are the
-    deployment's choices on top of the spec's flags. The server is ready when it answers a trial chat
-    request (saturate's alive-only gate).
+    Its role is ``server`` and its unit ``any``: it touches no part. Like ``ModelServer``, it goes **last** in the
+    pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
+    written.
 
-    Before the server starts: the preset's ``server_packages`` are installed into the server's Python
-    (``uv pip install --python <that Python> ...``; e.g. a patched SGLang wheel), and for a preset with
-    ``revision_flag: false`` (the server cannot be given ``--revision`` and loads the default branch) the
-    block refuses to start unless the default branch's files equal the pinned revision's
-    (``check_default_branch``). ``server_env`` goes into the server's environment.
-
-    ``outside_venv``: start the server without this interpreter's virtual environment (``VIRTUAL_ENV``
-    unset, its ``bin`` taken off ``PATH``), for a job image whose own Python has the server while the
-    pipeline runs in a uv environment on top (HF Jobs); the server's helpers (``ninja``, ``python``) then
-    come from the image, and ``python`` is looked up on that ``PATH``."""
+    Args:
+        spec: the chat preset's adapter (``linecaster.adapters.chat_model``) or the preset's ref (``id@edition``).
+        port: the port the server listens on; ``Chat`` without an endpoint asks on 8000.
+        host: the address the server binds to; default loopback only.
+        gpu_memory_utilization: the share of GPU memory the server may take (for SGLang ``--mem-fraction-static``);
+            default the preset's flags alone. The deployment's choice.
+        extra_args: more server flags, after the preset's.
+        vllm: the vLLM command (default ``vllm`` on ``PATH``, e.g. from the job image or a ``uv run --with
+            vllm==...`` environment).
+        boot_timeout: seconds the server may take to answer.
+        outside_venv: start the server without this interpreter's virtual environment (``VIRTUAL_ENV`` unset, its
+            ``bin`` taken off ``PATH``), for a job image whose own Python has the server while the pipeline runs in a
+            uv environment on top (HF Jobs); the server's helpers (``ninja``, ``python``) then come from the image.
+        python: the Python that has SGLang (default ``python3``, looked up on the server's ``PATH``, then in the
+            usual image locations).
+    """
 
     type = "🔠 - LINECASTER"
     name = "🖥️ chat model server"
     unit, role = "any", "server"
+    docs_args = {"spec": "lightonocr-2-1b@1"}
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,

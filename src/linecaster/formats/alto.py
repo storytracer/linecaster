@@ -247,12 +247,30 @@ class _Writer:
 
 def to_alto(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, precision: int | None = None, extensions: bool = True) -> bytes:
-    """Serialize ``t`` as ALTO 4.4 (pixel units).
+    """Serializes a transcription as ALTO 4.4 in pixel units.
 
-    ``image_width``/``image_height`` default to ``t.source``'s. ``precision``: ``None`` writes
-    coordinates exactly as stored (ALTO coordinates are floats), ``0`` writes integers (rounded half
-    up; boxes by their corners). ``extensions=False`` leaves out the linecaster extension tags
-    (the file then only round-trips what ALTO itself holds).
+    Regions become ``TextBlock``s (an ``Illustration`` for a picture or chart region without lines), lines
+    ``TextLine``s with their words as ``String``s, the reading order an ``OrderedGroup``, the steps that made the
+    transcription ``Processing`` entries (the mapping: ``docs/reference/serialization.md``). With ``extensions``
+    what ALTO has no place for (line confidence, detection scores, heading level, ...) goes into linecaster's
+    per-element extension where a reader would infer something else, so ``from_alto`` reads it back.
+
+    Args:
+        t: the transcription.
+        image_width, image_height: the page image's size in pixels; default ``t.source``'s. Without either, a
+            ``ValueError``.
+        image_uri: the image's file name in ``sourceImageInformation``; default ``t.source.uri``.
+        precision: ``None`` writes coordinates exactly as stored (ALTO coordinates are floats), ``0`` writes
+            integers (rounded half up; boxes by their corners).
+        extensions: ``False`` leaves out the linecaster extension tags (the file then only round-trips what ALTO
+            itself holds).
+
+    Example:
+        from linecaster.formats import from_alto, to_alto
+
+        xml = to_alto(page.transcription("ocr_new"), image_width=page.image.width,
+                      image_height=page.image.height)
+        again = from_alto(xml, image_width=page.image.width, image_height=page.image.height)
     """
     width = image_width if image_width is not None else t.source.image_width
     height = image_height if image_height is not None else t.source.image_height
@@ -310,12 +328,25 @@ def _reading_order_refs(ro) -> list[str]:
 
 def from_alto(data: bytes | str, *, image_width: int | None = None, image_height: int | None = None,
               dpi: float | None = None, uri: str | None = None) -> Transcription:
-    """Read ALTO (v1-v4, any namespace or none) into a ``Transcription`` in pixel coordinates.
+    """Reads ALTO (v1 to v4, any namespace or none) into a transcription in pixel coordinates.
 
-    Coordinates are scaled to the image when ``image_width``/``image_height`` are given and the
-    ``Page`` has ``WIDTH``/``HEIGHT`` (this also corrects pixel ALTO made on a master of another
-    resolution). Without the image size, ``pixel`` files are read as they are and ``mm10`` /
-    ``inch1200`` files need ``dpi``; otherwise a ``ValueError`` is raised.
+    Coordinates are scaled to the image when ``image_width``/``image_height`` are given and the ``Page`` has
+    ``WIDTH``/``HEIGHT`` (this also corrects pixel ALTO made on a master of another resolution). Without the image
+    size, ``pixel`` files are read as they are and ``mm10`` / ``inch1200`` files need ``dpi``; otherwise a
+    ``ValueError`` is raised. linecaster's extension tags, where present, restore what ALTO cannot hold.
+
+    Args:
+        data: the ALTO file's content.
+        image_width, image_height: the page image's size in pixels, to scale the file's coordinates to.
+        dpi: the scan resolution, for ``mm10`` and ``inch1200`` files read without the image size.
+        uri: the transcription's ``source.uri``; default the file's ``sourceImageInformation/fileName``.
+
+    Example:
+        from linecaster.formats import from_alto
+
+        with open("0001.alto.xml", "rb") as f:
+            t = from_alto(f.read(), image_width=2480, image_height=3508)
+        print(len(t.lines), t.text[:80])
     """
     root, ns = X.parse_xml(data)
     desc = X.child(root, "Description")

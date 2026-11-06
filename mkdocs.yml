@@ -1,0 +1,72 @@
+# The docs site: uv run --group docs mkdocs build --strict (into site/). The pages are docs/: the hand-written
+# reference (docs/reference/) and what `linecaster docs` generates (index.md from the README, changelog.md,
+# blocks/, catalog/, llms.txt).
+site_name: Linecaster
+site_description: Modular OCR pipelines you can run anywhere
+site_url: https://storytracer.github.io/linecaster/
+repo_url: https://github.com/storytracer/linecaster
+repo_name: storytracer/linecaster
+edit_uri: blob/main/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+exclude_docs: |
+  plan/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+nav:
+  - Home: index.md
+  - Reference:
+      - Architecture: reference/architecture.md
+      - Pipelines: reference/pipelines.md
+      - Data model: reference/data-model.md
+      - Serialization: reference/serialization.md
+      - Catalog: reference/catalog.md
+      - Tracing: reference/tracing.md
+      - Compatibility: reference/compatibility.md
+      - Glossary: reference/glossary.md
+      - Conventions: reference/conventions.md
+  - Blocks: blocks/README.md
+  - Catalog: catalog/README.md
+  - Changelog: changelog.md

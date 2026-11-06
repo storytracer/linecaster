@@ -630,8 +630,34 @@ def describe_recipe(ref: str, c=None) -> dict:
 
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
          pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
-    """The pipeline's command line: ``serve``, ``ray ...`` or a run (see the module docstring). ``pipeline_id``
-    (e.g. ``transcribe_modular.v1``) and ``slots`` (slot -> option name) let a recipe fill the pipeline (``--recipe``)."""
+    """Gives a pipeline script its command line: a run on any executor, ``serve`` for its models, ``ray`` for Ray's.
+
+    ``ray ...`` runs Ray's own command line in the script's environment; ``serve ...`` starts ``linecaster serve``
+    with the script's models; anything else is a run: the options are parsed (a recipe given with ``--recipe``
+    fills the slots), ``build`` makes the blocks, and the run is checked, recorded (``OUT/run.yaml``) and launched on
+    ``--on local|ray|hf-jobs`` (see the module docstring). A ``LinecasterError`` ends the command with its exit
+    code (2: nothing was launched), every problem listed.
+
+    Args:
+        script: the pipeline script's path (its ``__file__``): the run record names it, servers and Jobs run it.
+        description: the command line's help text, usually the script's docstring.
+        options: ``options(ap)`` adds the script's own options to the ``argparse`` parser.
+        models: ``models(a)`` returns the engines the parsed options ask for, as dicts for ``linecaster serve``
+            (``{"name", "preset"}`` or ``{"name", "spec", "kwargs"}``).
+        build: ``build(a, script)`` returns the blocks, or ``(blocks, {"image": ..., "engines": False})`` (the
+            Jobs' container image; whether a Job installs the script's engine packages or linecaster alone).
+        pipeline_id: the script's pipeline id (``PIPELINE``, e.g. ``transcribe_modular.v1``), which recipes name.
+        slots: slot -> option name (``SLOTS``): the options a recipe fills with its presets.
+
+    Example:
+        from linecaster.runtime import run
+
+        PIPELINE = "bind.v1"
+        SLOTS = {"recomposition": "recomposition", "normalization": "normalization", "composition": "composition"}
+
+        if __name__ == "__main__":
+            run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)
+    """
     argv = sys.argv[1:]
     if argv[:1] == ["ray"]:
         os.environ.setdefault(RAY_UV, "0")

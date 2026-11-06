@@ -10,10 +10,16 @@ from .base import RuleEngine
 
 
 class WebpLosslessImageEngine(RuleEngine):
-    """The working image (``linecaster.images.convert.to_working_webp``): any Pillow-supported page image
-    decoded, 8-bit sRGB with its ICC profile applied, encoded as lossless WebP at full resolution (method 0,
-    exact). Pages over WebP's or Pillow's size limit raise ``ImageTooLarge`` before decoding. Takes the page
-    image's bytes and returns the WebP bytes with their record (size, hashes, decoder)."""
+    """Converts a page image into the working image, lossless WebP at full resolution.
+
+    ``linecaster.images.convert.to_working_webp``: any Pillow-supported page image decoded, 8-bit sRGB with its ICC
+    profile applied, encoded as lossless WebP at full resolution (method 0, exact). Pages over WebP's or Pillow's size
+    limit raise ``ImageTooLarge`` before decoding. Takes the page image's bytes and returns the WebP bytes with their
+    record (size, hashes, decoder).
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "image.webp-lossless.v1"
     step = "image"

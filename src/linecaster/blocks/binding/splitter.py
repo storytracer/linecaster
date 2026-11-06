@@ -10,11 +10,19 @@ from ..base.page import set_page
 
 
 class Splitter(Contracted, PipelineStep):
-    """The pages of each item record (``linecaster.blocks.base.item``), in the item's order, each a page document
-    again (``doc.id`` the page id, ``doc.metadata["page"]``, ``doc.text`` the text of ``primary``) carrying what the
-    item-level blocks added to it: the paragraphs of an item-level ``Recomposer`` (continued across pages, the
-    references naming the other page), the normalized texts, the step records. The item's own parts (its
-    document) stay with the item; the pages carry no image bytes (``PageRecordReader`` fetches them again by URI)."""
+    """Splits each item record into its page records again, in the item's order, with what the item-level blocks
+    added.
+
+    Each page is a page document again (``doc.id`` the page id, ``doc.metadata["page"]``, ``doc.text`` the text of
+    ``primary``) carrying what the item-level blocks added to it: the paragraphs of an item-level ``Recomposer``
+    (continued across pages, the references naming the other page), the normalized texts, the step records. It
+    changes the stream's unit from items to pages. The item's own parts (its ``document``) stay with the item; the
+    pages carry no image bytes (``PageRecordReader`` fetches them again by URI). A stream entry that is no item
+    record is counted (``no_item``) and not passed on.
+
+    Args:
+        primary: the transcription whose text becomes each page document's ``text``.
+    """
 
     type = "🔠 - LINECASTER"
     name = "📄 splitter"

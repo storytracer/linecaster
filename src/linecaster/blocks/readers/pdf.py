@@ -39,20 +39,32 @@ def render(page, dpi: float) -> bytes:
 
 
 class PdfReader(Contracted, BaseDiskReader):
-    """One item per PDF file (``item_id``: the file name without ``.pdf``), one page per PDF page in order
-    (``sequence`` from 1, ``page_id`` ``<item_id>_<sequence:04d>``), rendered at ``dpi`` to a lossless WebP image;
-    ``image.uri`` is the PDF's path with ``#page=<n>``, ``metadata["pdf"]`` the page's number, its size in points
-    and the resolution. Files as datatrove reads them: under ``data_folder`` matching ``glob_pattern``, or listed in
-    ``paths_file``, distributed over tasks in turn, so an item stays in one task; ``limit`` and ``skip`` count pages.
+    """Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image.
 
-    A page too large to render (over WebP's or Pillow's size limit at ``dpi``) is logged and counted
-    (``pages_too_large``), and the item goes on. ``text_layer`` (the PDF's own text as ``ocr_original``) is not
-    implemented yet."""
+    ``item_id`` is the file name without ``.pdf``; ``sequence`` counts from 1, ``page_id`` is
+    ``<item_id>_<sequence:04d>``. Each page adds ``image`` (rendered at ``dpi``) and ``metadata``: ``image.uri`` is
+    the PDF's path with ``#page=<n>``, ``metadata["pdf"]`` the page's number, its size in points and the resolution.
+    Files as datatrove reads them: under ``data_folder`` matching ``glob_pattern``, or listed in ``paths_file``,
+    distributed over tasks in turn, so an item stays in one task (``whole_items``); ``limit`` and ``skip`` count
+    pages. A page too large to render (over WebP's or Pillow's size limit at ``dpi``) is logged and counted
+    (``pages_too_large``), and the item goes on. Needs the extra ``[pypdfium2]``.
+
+    Args:
+        data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the PDF files.
+        glob_pattern: the files to read; default every ``.pdf`` at any depth.
+        dpi: the resolution pages are rendered at; positive.
+        text_layer: read the PDF's own text as ``ocr_original``; not implemented (``True`` raises
+            ``NotImplementedError``).
+        default_metadata: goes into every page's metadata.
+        paths_file, recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's
+            ``BaseDiskReader`` arguments.
+    """
 
     name = "📕 pdf"
     role = "reader"
     whole_items = True          # a PDF is one entry, so an item's pages stay in one task
     parts_added = ("image", "metadata")
+    docs_args = {"data_folder": "pdfs/"}
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str = "**/*.pdf", dpi: float = 300, text_layer: bool = False, recursive: bool = True,

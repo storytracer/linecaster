@@ -1,20 +1,5 @@
-"""Media blocks: loading page images by URI, and the working image (lossless WebP).
-
-* ``ImageFetcher`` reads ``page.image.uri`` (any fsspec path) into ``doc.media`` for blocks that need
-  pixels (``PageRecordReader(fetch_images=False)`` plus ``ImageFetcher`` after filtering avoids fetching
-  images of pages that are dropped anyway).
-* ``ImageConverter`` converts the delivered image with an image engine (``preset``: ``working-image@1``,
-  ``image.webp-lossless.v1``: ``linecaster.images.convert.to_working_webp``, 8-bit sRGB, lossless WebP at full
-  resolution, method 0, exact), writes it to
-  ``<output_folder>/<item_id>/<page_id>.webp`` and replaces ``page.image`` with the working image's
-  ``PageImage`` (size, hashes, decoder); the delivered file is only read, its location, format,
-  sha256, size and mode stay under ``page.image.extra["original"]``, the step (engine, preset edition and hash,
-  settings) under ``page.image.extra["step"]`` (a ``StepInfo``: the image belongs to no transcription). A page over
-  the size limit
-  (``check_size``) or that cannot be decoded keeps its image and carries the reason as an error (field ``image``),
-  so later model blocks pass it by and the rejects writer writes it. With ``keep_bytes`` the WebP replaces
-  ``doc.media`` so later blocks need not read it again.
-"""
+"""Image blocks: page images loaded again by their address (``ImageFetcher``), and the working image, lossless
+WebP at full resolution (``ImageConverter``)."""
 from __future__ import annotations
 
 import hashlib
@@ -38,6 +23,14 @@ def read_uri(uri: str) -> bytes:
 
 
 class ImageFetcher(Contracted, PipelineStep):
+    """Loads each page's image again from its address, for the blocks that need pixels.
+
+    It reads ``page.image.uri`` (any fsspec path; a ``#`` fragment is dropped) into ``doc.media``: it replaces
+    ``image``. ``PageRecordReader(fetch_images=False)`` followed by an ``ImageFetcher`` after filtering avoids
+    fetching the images of pages that are dropped anyway. A page without an image address is counted
+    (``no_image``) and passed on as it is.
+    """
+
     type = "🔠 - LINECASTER"
     name = "🖼️ image fetcher"
     parts_read = ("metadata",)
@@ -58,9 +51,32 @@ class ImageFetcher(Contracted, PipelineStep):
 
 
 class ImageConverter(Contracted, PipelineStep):
+    """Converts each page's delivered image into the working image with an image engine and writes it.
+
+    With ``working-image@1`` (engine ``image.webp-lossless.v1``, ``linecaster.images.convert.to_working_webp``)
+    the working image is 8-bit sRGB, lossless WebP at full resolution, method 0, exact. It is written to
+    ``<output_folder>/<item_id>/<page_id>.webp`` (``_/<page_id>.webp`` for a page without item), and
+    ``page.image`` becomes the working image's ``PageImage`` (size, hashes, decoder): it reads and replaces
+    ``metadata``. The delivered file is only read (from ``doc.media`` when the reader brought it, else from its
+    URI); its location, format, sha256, size and mode stay under ``page.image.extra["original"]``, the step
+    (engine, preset edition and hash, settings) under ``page.image.extra["step"]`` (a ``StepInfo``: the image
+    belongs to no transcription). A page without an image address, over the size limit (``check_size``) or that
+    cannot be decoded keeps its image and carries the reason as an error (field ``image``), so later model blocks
+    pass it by and the ``RejectWriter`` writes it. The engine runs in the pipeline's process only.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the working images go to.
+        preset: the image preset (``id@edition``, e.g. ``working-image@1``) or an engine spec
+            (``InProcess("module:Class", **options)``).
+        keep_bytes: the WebP replaces ``doc.media``, so later blocks need not read it again (it then also
+            replaces ``image``); without it the page leaves with no image bytes.
+        options: engine options over the preset's (recorded as the backend's ``overrides``).
+    """
+
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter (lossless WebP)"
     step = "image"
+    docs_args = {"output_folder": "out/images", "preset": "working-image@1"}
     operational = ("keep_bytes",)          # whether the WebP also travels on in memory: the same files
 
     def __init__(self, output_folder: DataFolderLike, preset, keep_bytes: bool = False, options: dict | None = None):

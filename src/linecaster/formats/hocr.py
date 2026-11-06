@@ -257,7 +257,26 @@ class _Writer:
 
 def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, extensions: bool = True) -> bytes:
-    """Serialize ``t`` as hOCR 1.2 (XHTML, UTF-8)."""
+    """Serializes a transcription as hOCR 1.2 (XHTML, UTF-8).
+
+    Regions become ``ocr_carea`` (or their label's class), lines ``ocr_line`` with their words as ``ocrx_word``
+    (boxes, ``x_wconf``, baselines), the steps that made the transcription ``linecaster-step-<n>`` metas. With
+    ``extensions`` what hOCR cannot hold goes into a linecaster data attribute, so ``from_hocr`` reads it back.
+
+    Args:
+        t: the transcription.
+        image_width, image_height: the page image's size in pixels; default ``t.source``'s. Without either, a
+            ``ValueError``.
+        image_uri: the image named in the page's ``title``; default ``t.source.uri``.
+        extensions: ``False`` leaves out the linecaster data attributes (the file then only round-trips what hOCR
+            itself holds).
+
+    Example:
+        from linecaster.formats import to_hocr
+
+        html = to_hocr(page.transcription("ocr_new"), image_width=page.image.width,
+                       image_height=page.image.height, image_uri="0001.webp")
+    """
     width = image_width if image_width is not None else t.source.image_width
     height = image_height if image_height is not None else t.source.image_height
     if width is None or height is None:
@@ -319,8 +338,24 @@ def _parse(data: bytes | str):
 
 
 def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0) -> Transcription:
-    """Read hOCR (XHTML or tag-soup HTML; Tesseract, OCRopus, kraken, ...). ``page`` picks the
-    ``ocr_page`` of a multi-page file."""
+    """Reads hOCR (XHTML or tag-soup HTML: Tesseract, OCRopus, kraken, ...) into a transcription.
+
+    The page's box gives ``source.image_width``/``image_height`` (coordinates stay as written); linecaster's
+    ``linecaster-step-<n>`` metas and data attributes, where present, restore the steps and what hOCR cannot hold.
+    A file without ``ocr_page`` reads as an empty transcription.
+
+    Args:
+        data: the hOCR file's content.
+        uri: the transcription's ``source.uri``; default the image the page's ``title`` names.
+        page: which ``ocr_page`` of a multi-page file to read, from 0.
+
+    Example:
+        from linecaster.formats import from_hocr
+
+        with open("0001.hocr", "rb") as f:
+            t = from_hocr(f.read())
+        print(t.source.image_width, len(t.lines))
+    """
     root, _ = _parse(data)
     pages = [el for el in root.iter() if isinstance(el.tag, str) and "ocr_page" in _classes(el)]
     t = Transcription()

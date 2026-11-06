@@ -480,58 +480,52 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 | [`squiddle`](docs/catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1`, `ratios@1`, `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
 <!-- catalog:end -->
 
-### ✨ Post-processing
+### 🔩 Blocks
 
-These blocks need no model. Except the `UnicodeNormalizer`, each runs a rule-based engine of the catalog, picked by
-its preset (e.g. `Typographer("ratios@1")`).
+A pipeline is a list of blocks, one role each. Model blocks take a preset or a backend; the rule-based blocks take a
+preset of a built-in engine (e.g. `Typographer("ratios@1")`), the `UnicodeNormalizer` none.
+[docs/blocks](docs/blocks/README.md) has a page for each block: its contract, backends, options and where it comes
+in a pipeline.
 
-| Block | What it does |
-|---|---|
-| `UnicodeNormalizer` | the text in one Unicode form, [NFC] by default |
-| `CharacterNormalizer` | the normalized text next to the text as written: long s, ligatures, ... (`latin-historic`) |
-| `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed (`ratios`) |
-| `Recomposer` | running text: lines joined into paragraphs, line-end hyphens removed, continued across regions and pages, each decision recorded (`unicode-recomposition`) |
-| `Composer` | composes a page or an item: a [DoclingDocument], from the paragraphs, or from the lines as laid out (`docling-composition`) |
-| `Binder` | binds an item's pages into one item record, in order; `Recomposer`, `CharacterNormalizer` and `Composer` then work on the whole item (`unit="item"`) |
-| `Splitter` | the pages of an item record again, with what the item-level steps added |
-
-### 📥 Input, output and servers
-
-**Readers**
-
-| Block | What it does |
-|---|---|
-| `ImageFolderReader` | page images from a folder or bucket |
-| `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
-| `ManifestReader` | items' pages from IIIF manifests or collections, or METS, with the library's own OCR on request |
-| `PdfReader` | PDF files as items, each page rendered to an image (extra `pypdfium2`; the text layer not yet) |
-| `PageRecordReader` | page records written by an earlier run |
-
-**Images and checks**
-
-| Block | What it does |
-|---|---|
-| `ImageFetcher` | loads a page's image again by its address |
-| `ImageConverter` | the image as lossless WebP, size checked (`working-image`) |
-| `TranscriptionConverter` | a library's own ALTO, PAGE-XML, hOCR or text, delivered with the page, as `ocr_original` |
-| `PageValidator` | marks invalid pages with the reason, for `rejects/` |
-
-**Writers**
-
-| Block | What it does |
-|---|---|
-| `PageFileWriter` | one file per page and format: ALTO, PAGE-XML, hOCR, Markdown, text, HTML, DocLang, JSON and more |
-| `PageJsonlWriter` | page records as JSON Lines |
-| `PageParquetWriter` | page records as Parquet |
-| `ItemDocumentWriter` | item documents as Markdown, text, HTML, DocLang, JSON |
-| `ItemTextWriter` | an item's text variants as JSON Lines or as files |
-
-**Servers**
-
-| Block | What it does |
-|---|---|
-| `ChatModelServer` | starts vLLM or SGLang inside a task |
-| `ModelServer` | starts `linecaster serve` inside a task |
+<!-- blocks:start -->
+| Family | Block | What it does |
+|---|---|---|
+| Readers | [`ImageFolderReader`](docs/blocks/readers/ImageFolderReader.md) | Reads one page per image file of a folder or bucket. |
+| Readers | [`ImageParquetReader`](docs/blocks/readers/ImageParquetReader.md) | Reads one page per row of Parquet files with an image column. |
+| Readers | [`ManifestReader`](docs/blocks/readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
+| Readers | [`PageRecordReader`](docs/blocks/readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
+| Readers | [`PdfReader`](docs/blocks/readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
+| Layout | [`LayoutDetector`](docs/blocks/layout/LayoutDetector.md) | Detects the layout regions of every page, with their labels and reading order, by a layout engine. |
+| Lines | [`LineAssigner`](docs/blocks/lines/LineAssigner.md) | Assigns the lines detected on the whole page to the layout regions and orders them row by row. |
+| Lines | [`LineDetector`](docs/blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
+| Recognition | [`FormulaRecognizer`](docs/blocks/recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
+| Recognition | [`LineRecognizer`](docs/blocks/recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
+| Recognition | [`PageRecognizer`](docs/blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM, whose completion becomes the page's transcription. |
+| Recognition | [`RegionRecognizer`](docs/blocks/recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
+| Recognition | [`TableRecognizer`](docs/blocks/recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
+| Conversion | [`ImageConverter`](docs/blocks/conversion/ImageConverter.md) | Converts each page's delivered image into the working image with an image engine and writes it. |
+| Conversion | [`ImageFetcher`](docs/blocks/conversion/ImageFetcher.md) | Loads each page's image again from its address, for the blocks that need pixels. |
+| Conversion | [`TranscriptionConverter`](docs/blocks/conversion/TranscriptionConverter.md) | Reads the transcription file that comes with each page (ALTO, PAGE-XML, hOCR or plain text) into a named transcription. |
+| Text | [`CharacterNormalizer`](docs/blocks/text/CharacterNormalizer.md) | Normalizes the texts of every line, paragraph and table cell by a normalization engine, next to the text as written. |
+| Text | [`UnicodeNormalizer`](docs/blocks/text/UnicodeNormalizer.md) | Normalizes the as-written text of every line and word to one Unicode normalization form, NFC by default. |
+| Composition | [`Composer`](docs/blocks/composition/Composer.md) | Composes the DoclingDocument of a page or an item by a composition engine. |
+| Composition | [`Recomposer`](docs/blocks/composition/Recomposer.md) | Recomposes the running text of a page or an item into paragraphs by a recomposition engine. |
+| Composition | [`Typographer`](docs/blocks/composition/Typographer.md) | Determines the typographic hierarchy of every page by a typography engine. |
+| Binding | [`Binder`](docs/blocks/binding/Binder.md) | Binds each item's page records, in order, into one item record. |
+| Binding | [`Splitter`](docs/blocks/binding/Splitter.md) | Splits each item record into its page records again, in the item's order, with what the item-level blocks added. |
+| Validation | [`PageValidator`](docs/blocks/validation/PageValidator.md) | Marks the page records that do not validate against `Page` or lack a required part with an error each. |
+| Validation | [`RecipeStamper`](docs/blocks/validation/RecipeStamper.md) | Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an item record. |
+| Servers | [`ChatModelServer`](docs/blocks/servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
+| Servers | [`ModelServer`](docs/blocks/servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
+| Writers | [`ImageFilesWriter`](docs/blocks/writers/ImageFilesWriter.md) | Writes each page's image bytes as they came, one file per page. |
+| Writers | [`ItemDocumentWriter`](docs/blocks/writers/ItemDocumentWriter.md) | Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON. |
+| Writers | [`ItemTextWriter`](docs/blocks/writers/ItemTextWriter.md) | Writes the text variants of each item record as JSON Lines or as files. |
+| Writers | [`PageFileWriter`](docs/blocks/writers/PageFileWriter.md) | Writes one file per page and format: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, JSON and more. |
+| Writers | [`PageJsonlWriter`](docs/blocks/writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
+| Writers | [`PageParquetWriter`](docs/blocks/writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
+| Writers | [`RejectWriter`](docs/blocks/writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
+| Composites | [`ModularTranscriber`](docs/blocks/composites/ModularTranscriber.md) | Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition. |
+<!-- blocks:end -->
 
 ## 📚 Reference
 
@@ -667,8 +661,8 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `docs/reference/` | reference: glossary, conventions, the data model, serialization, the catalog, pipelines, tracing |
-| `docs/` | the generated catalog pages (`docs/catalog/`, one folder per kind of entry), images for this README |
+| `docs/reference/` | reference: glossary, conventions, architecture, pipelines, the data model, serialization, the catalog, tracing, compatibility |
+| `docs/` | generated by `linecaster docs`: the catalog's pages (`docs/catalog/`, one folder per kind of entry), the block pages (`docs/blocks/`), the site's index and `llms.txt`; images for this README |
 
 </details>
 

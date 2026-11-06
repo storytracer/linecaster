@@ -46,11 +46,32 @@ def chat_backend(backend, block: str, prefer: str) -> Chat:
 
 
 class PageRecognizer(ModelBlock):
-    """Recognize every page with a chat VLM; the result is the page's ``transcription`` (default ``ocr_new``).
+    """Recognizes every page with a chat VLM, whose completion becomes the page's transcription.
 
-    ``backend`` is a ``Chat`` backend (or a chat preset's ref, for one on the task's ``ChatModelServer``).
-    ``prepare_workers`` threads build requests ahead of admission (decode, resize and PNG-encode the image; Pillow
-    releases the GIL)."""
+    A stream transform on the ``Chat`` backend (served only): one request per page, built by the preset's adapter
+    from the page image, the completion parsed into a text-only transcription that replaces ``transcription``.
+    Reads the page image; adds ``text`` and what the preset produces (``markdown``, ``html``, ...). The completion
+    is kept verbatim (``extra["raw"]``); its ``finish_reason`` and token counts go to ``extra`` and the step's
+    measurements, and a completion cut off at ``max_tokens`` is counted (stat ``finish_length``). The
+    ``StepInfo`` records the preset edition and its hash. A failed request is the page's error.
+
+    Args:
+        backend: a ``Chat`` backend, or a chat preset's ref (its page preset) for one on the task's
+            ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
+        transcription: the transcription the completion becomes.
+        primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
+            ``transcription``.
+        skip_on_error: pass pages that carry errors through unprocessed.
+        prepare_workers: threads that build requests ahead of admission (decode, resize and PNG-encode the image;
+            Pillow releases the GIL).
+        name: the block's name in stats and logs; ``None``: ``"page (<model>, served <endpoint>)"``.
+
+    Example:
+        from linecaster.backends import Chat
+
+        PageRecognizer("lightonocr-2-1b@1")
+        PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+    """
 
     step = "recognition"
     route = "/chat/completions"
@@ -58,6 +79,7 @@ class PageRecognizer(ModelBlock):
     #: what it reads besides the page image, and what it adds besides the text and its preset's parts
     regions_read: tuple[str, ...] = ()
     lines_added: tuple[str, ...] = ()
+    docs_args = {"backend": "lightonocr-2-1b@1"}
 
     def __init__(self, backend: Chat | str, transcription: str = "ocr_new", primary: str | None = None,
                  skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
@@ -95,19 +117,38 @@ REGION_LABELS = frozenset({"text", "title", "section_header", "page_header", "pa
 
 
 class RegionRecognizer(PageRecognizer):
-    """Recognize each layout region with a chat VLM: one request per region crop, through the same saturate
-    machinery as ``PageRecognizer``, results collected per page. Any layout step can come before it.
-    ``backend`` is a ``Chat`` backend (or a chat preset's ref: a model's Hugging Face id picks its region preset).
+    """Recognizes each layout region of every page with a chat VLM, one request per region crop.
 
-    Crops are cut at the scale the model expects for a whole page (``page_longest``: the page is
-    scaled so its longest side has that length, and the region is cut from it, ``pad`` px around the
-    region's box at that scale), so a small region is not blown up. Every read region gets one line:
-    the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps ``raw`` and
-    ``finish_reason``); the transcription's earlier lines are replaced. A page whose regions all
-    failed is recorded as an error; a page without readable regions passes through unchanged."""
+    The same saturate machinery as ``PageRecognizer``, results collected per page; any layout step can come
+    before it. Reads the page image and ``regions``; adds ``lines``, ``text`` and what the preset produces.
+    Crops are cut at the scale the model expects for a whole page (the adapter's ``page_longest``: the page is
+    scaled so its longest side has that length, and the region is cut from it, ``pad`` px around the region's box
+    at that scale), so a small region is not blown up; the adapter decides which regions it reads. Every read
+    region gets one line: the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps
+    ``raw`` and ``finish_reason``), in reading order; the transcription's earlier lines are replaced. The
+    ``StepInfo`` records the preset edition, the settings with ``pad``, ``page_scale`` and ``labels``, and the
+    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error; a page without
+    readable regions passes through unchanged (stat ``pages_without_regions``).
+
+    Args:
+        backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
+            one on the task's ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
+        transcription: the transcription it reads the regions of and adds the lines to.
+        labels: the region labels it reads (default: text-like regions and tables, no pictures or formulas).
+        pad: pixels around each region's box at the page scale; an adapter with a ``region_pad`` of its own uses
+            that instead.
+        primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
+            ``transcription``.
+        skip_on_error: pass pages that carry errors through unprocessed.
+        prepare_workers: threads that build the requests (crops, PNG encoding) ahead of admission.
+
+    Example:
+        RegionRecognizer("minicpm-ocr-1.0@1")
+    """
 
     regions_read = ("regions",)
     lines_added = ("lines",)          # one line per region read
+    docs_args = {"backend": "minicpm-ocr-1.0@1"}
 
     results_windows = 8               # a page's regions finish one by one
 

@@ -21,8 +21,16 @@ def has_part(page: Page, part: str) -> bool:
 
 
 class PageValidator(Contracted, PipelineStep):
-    """Mark page records that do not validate against ``Page`` or lack a ``required`` part with an error each
-    (field = the failing location, raw value = the offending input); they go on to the rejects writer."""
+    """Marks the page records that do not validate against ``Page`` or lack a required part with an error each.
+
+    The error entry (``doc.metadata["errors"]``) names the failing location as ``field`` and the offending input as
+    ``raw_value`` (type ``invalid``, or ``missing`` for a required part); later model blocks pass such a page by and
+    the ``RejectWriter`` writes it to ``rejects/``. It reads what it requires. Every page goes on.
+
+    Args:
+        required: what each page must have: a page field (``"image"``, ``"item_id"``, ...: not empty) or a
+            transcription (``"transcriptions.<name>"``); default: nothing beyond a valid page record.
+    """
 
     type = "🔠 - LINECASTER"
     name = "✅ page validator"

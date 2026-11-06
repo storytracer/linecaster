@@ -250,11 +250,29 @@ class _Writer:
 
 def to_page(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
             image_uri: str | None = None, created: str = DEFAULT_CREATED, extensions: bool = True) -> bytes:
-    """Serialize ``t`` as PAGE-XML 2019-07-15.
+    """Serializes a transcription as PAGE-XML 2019-07-15.
 
-    ``created`` fills ``Metadata/Created`` and ``LastChange``; it defaults to a fixed timestamp so
-    the output is byte-reproducible (pass the run's UTC time if wanted). ``extensions=False`` leaves
-    out the ``UserDefined`` extension (the file then only round-trips what PAGE itself holds).
+    Regions become ``TextRegion``s (``ImageRegion``, ``ChartRegion``, ``TableRegion``, ``MathsRegion`` for
+    picture, chart, table and formula regions without lines), lines ``TextLine``s with their words, the reading
+    order an ``OrderedGroup``, the steps that made the transcription ``MetadataItem``s (the mapping:
+    ``docs/reference/serialization.md``). With ``extensions`` what PAGE cannot hold goes into a ``UserDefined``
+    extension, so ``from_page`` reads it back.
+
+    Args:
+        t: the transcription.
+        image_width, image_height: the page image's size in pixels; default ``t.source``'s. Without either, a
+            ``ValueError``.
+        image_uri: the ``Page``'s ``imageFilename``; default ``t.source.uri``.
+        created: fills ``Metadata/Created`` and ``LastChange``; the default is a fixed timestamp so the output is
+            byte-reproducible (pass the run's UTC time if wanted).
+        extensions: ``False`` leaves out the ``UserDefined`` extension (the file then only round-trips what PAGE
+            itself holds).
+
+    Example:
+        from linecaster.formats import to_page
+
+        xml = to_page(page.transcription("ocr_new"), image_width=page.image.width,
+                      image_height=page.image.height, created="2026-11-06T00:00:00Z")
     """
     width = image_width if image_width is not None else t.source.image_width
     height = image_height if image_height is not None else t.source.image_height
@@ -380,7 +398,23 @@ def _metadata_steps(md) -> list[StepInfo]:
 
 
 def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
-    """Read PAGE-XML (2009-2019 namespaces, ``points`` attributes or ``Point`` children)."""
+    """Reads PAGE-XML (the 2009 to 2019 namespaces, ``points`` attributes or ``Point`` children) into a transcription.
+
+    The ``Page``'s size gives ``source.image_width``/``image_height`` (coordinates stay as written); linecaster's
+    ``MetadataItem``s and ``UserDefined`` extension, where present, restore the steps and what PAGE cannot hold. A
+    file without ``Page`` reads as an empty transcription.
+
+    Args:
+        data: the PAGE-XML file's content.
+        uri: the transcription's ``source.uri``; default the ``Page``'s ``imageFilename``.
+
+    Example:
+        from linecaster.formats import from_page
+
+        with open("0001.page.xml", "rb") as f:
+            t = from_page(f.read())
+        print([r.label for r in t.regions])
+    """
     root, ns = X.parse_xml(data)
     page = X.child(root, "Page")
     md = X.child(root, "Metadata")

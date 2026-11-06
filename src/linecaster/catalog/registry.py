@@ -529,8 +529,18 @@ _ACTIVE: list[Catalog] = []
 
 
 def catalog() -> Catalog:
-    """The installed catalog (cached; ``catalog.cache_clear()`` after changing documents), or the one ``active()``
-    puts in its place."""
+    """Returns the installed catalog, or the one ``active()`` puts in its place.
+
+    The installed catalog is ``src/linecaster/catalog/data/``, read once and cached; ``catalog.cache_clear()``
+    reads it again after its files changed.
+
+    Example:
+        from linecaster.catalog import catalog
+
+        c = catalog()
+        r = c.resolve("kraken-ppocrv6-medium@1")
+        print(r.ref, r.sha256, c.preset("kraken-ppocrv6-medium").engine)
+    """
     return _ACTIVE[-1] if _ACTIVE else _installed()
 
 
@@ -573,11 +583,33 @@ def in_process_only(ref: str) -> bool:
 
 
 def engine_ids() -> dict[str, str]:
-    """Engine ids -> ``module:Class``: linecaster's own and the installed ones (``linecaster.engines``)."""
+    """Returns every engine id with its class, ``module:Class``: linecaster's own and the installed engine packages'.
+
+    linecaster's own are ``BUILTIN_ENGINES`` (``chat.v1``, the single-region layout and the rule-based engines);
+    engine packages register theirs as entry points of the group ``linecaster.engines``.
+
+    Example:
+        from linecaster.catalog import engine_ids
+
+        engine_ids()["typography.ratios.v1"]      # 'linecaster.engines:RatiosTypographyEngine'
+    """
     return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
 
 
 def engine_class(engine: str):
+    """Returns the class of an engine id, imported.
+
+    An id that is neither built in nor installed (``engine_ids``) is a ``CatalogError`` naming the installed ones.
+
+    Args:
+        engine: the engine's id, e.g. ``kraken.recognition.v1``.
+
+    Example:
+        from linecaster.catalog import engine_class
+
+        cls = engine_class("layout.single-region.v1")
+        print(cls.step, cls.capabilities)
+    """
     known = engine_ids()
     if engine not in known:
         raise CatalogError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
@@ -586,13 +618,30 @@ def engine_class(engine: str):
 
 
 def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple[str, dict, "Resolved"]:
-    """``module:Class``, keyword arguments and the resolved edition for preset ``ref`` (what ``InProcess``
-    and ``linecaster serve`` take): the engine's options, plus ``weights`` (source, revision and files of the
-    model pin) for presets with a model, plus ``strategies`` (script -> ``linecaster.engines.Strategy`` as a dict:
-    engine, options, preset edition and hash) for a by-script preset. Engines with weights take ``weights`` and fetch
-    exactly that pin. ``installed=False`` (describing a pipeline without its engines): an engine that is not installed
-    here is named by its class in the repository's engine packages (``catalog.code``), else by its id. ``served``: for
-    ``linecaster serve``, which hosts no in-process-only engine."""
+    """Returns what runs a preset edition in-process: its engine class, keyword arguments and resolved edition.
+
+    The keyword arguments are what ``InProcess`` and ``linecaster serve`` construct the engine with: the preset's
+    options, plus ``weights`` (model, source, revision and files of the model pin) for a preset with a model (and
+    ``submodel_weights`` by role), plus ``strategies`` (script -> engine, options, preset edition and hash) for a
+    by-script preset. Engines with weights fetch exactly that pin. A chat preset (``chat.v1``) is a
+    ``CatalogError``: it runs behind a server (``linecaster.adapters.chat_model``); so is a preset whose engine is
+    not installed, unless ``installed=False``.
+
+    Args:
+        ref: the preset, ``id@edition`` (``id`` alone: its current edition).
+        installed: ``False`` (describing a pipeline without its engines): an engine that is not installed here is
+            named by its class in the repository's engine packages (``catalog.code``), else by its id.
+        served: for ``linecaster serve``, which hosts no in-process-only engine: such a preset is a
+            ``CatalogError``.
+
+    Example:
+        from linecaster.backends import InProcess
+        from linecaster.catalog import engine_spec
+
+        spec, kwargs, resolved = engine_spec("ratios@1")
+        backend = InProcess(spec, **kwargs)        # what InProcess.from_preset("ratios@1") builds
+        print(spec, resolved.ref, resolved.sha256)
+    """
     r = catalog().resolve(ref)
     known = engine_ids()
     if r.engine in SERVED_ONLY:

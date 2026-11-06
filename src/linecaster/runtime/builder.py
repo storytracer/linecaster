@@ -627,13 +627,44 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
           observers: list[Observer] | None = None, max_page_errors: float | None = None,
           trace_sample: float | None = None) -> Plan:
-    """The plan for ``blocks`` (blocks and composites, in order) run as ``tasks`` tasks into ``run_folder``.
-    ``recipe`` (ref, sha256) stamps the recipe edition before the first writer (``RecipeStamper``); ``observers``
-    join the taps on every stage; ``max_page_errors`` (a share of a task's pages) is every page block's error
-    budget. Every stage is traced (``linecaster.tracing.Tracing``) into ``<run_folder>/traces`` and, when the
-    ``OTEL_*`` variables ask for it, to an OTLP endpoint; ``trace_sample`` is the share of pages traced (default
-    ``linecaster.tracing.DEFAULT_SAMPLE``). Without a run folder or OTLP nothing is traced. Problems are collected
-    in ``Plan.problems``; ``Plan.check()`` raises them."""
+    """Turns a list of blocks into a checked plan of stages, cut where the stream changes from pages to items.
+
+    The builder expands composites, checks the contracts (every part a block reads is added before it, units fit,
+    servers go last, ...), inserts the blocks a run needs (a ``TranscriptionConverter`` after a reader that brings
+    transcription files, the ``RecipeStamper``, a ``RejectWriter`` into ``<run_folder>/rejects``) and derives the
+    graph. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them as one
+    ``PipelineConfigError``. Every stage is traced (``linecaster.tracing.Tracing``) into ``<run_folder>/traces``
+    and, when the ``OTEL_*`` variables ask for it, to an OTLP endpoint; without a run folder or OTLP nothing is
+    traced (``docs/reference/pipelines.md``, "The builder").
+
+    Args:
+        blocks: the blocks and composites, in order; the builder checks the order and does not change it.
+        tasks: the number of tasks; over 1, the first binder cuts the pipeline into a page stage writing item shards
+            and an item stage reading them, unless the reader gives each task whole items.
+        until: run the blocks up to and including this one (by name, class name or composite name), then write
+            page records into ``<run_folder>/pages``; needs a run folder.
+        after: run the blocks after this one, from the pipeline's ``PageRecordReader``, which then declares what the
+            blocks up to it add.
+        taps: block name -> folder: the page records as they leave that block, written to ``<folder>/<rank>.jsonl.gz``.
+        run_folder: the run folder (``OUT``): rejects, traces, partial runs and item shards go there; default none.
+        recipe: ``(ref, sha256)`` of the recipe edition the run follows, stamped on every step before the first
+            writer (``RecipeStamper``).
+        observers: more observers, on every stage next to the taps and the tracing.
+        max_page_errors: every page block's error budget, a share of a task's pages; default each block's own
+            (0.01).
+        trace_sample: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
+
+    Example:
+        from linecaster.blocks.readers import ImageFolderReader
+        from linecaster.blocks.writers import PageJsonlWriter
+        from linecaster.runtime.builder import build
+
+        plan = build([ImageFolderReader("scans/"), PageJsonlWriter("out/pages")], tasks=4, run_folder="out")
+        plan.check()               # PipelineConfigError listing every problem
+        print(plan.mermaid())      # the graph as a Mermaid flowchart
+        for stage in plan.stages:  # one datatrove pipeline each, run in order
+            print(stage.name, stage.tasks, len(stage.pipeline))
+    """
     return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
                   observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample)
 
@@ -732,9 +763,16 @@ def _pipeline(entries: list[_Entry], hub: Observers | None) -> list:
 
 
 def run_pages(blocks: list, docs=(), *, observers: list[Observer] | None = None) -> list:
-    """Run ``blocks`` on ``docs`` (datatrove documents, e.g. ``new_page_document(...)``) in this process, without an
-    executor, as task 0 of 1; a leading reader reads its own input after ``docs``. The pipeline is checked first
-    (without a reader, the documents may carry any part). Returns the documents that come out."""
+    """Runs blocks on datatrove documents in this process, without an executor, and returns what comes out.
+
+    The pipeline is checked first (without a reader, the documents may carry any part) and run as task 0 of 1; a
+    leading reader reads its own input after ``docs``. A pipeline script's ``--page IMAGE OUT`` runs this way.
+
+    Args:
+        blocks: the blocks and composites, in order.
+        docs: the documents to run, e.g. ``new_page_document(...)`` for a page image; default none (the reader's).
+        observers: observers on the run, as ``build`` takes them.
+    """
     plan = _build(blocks, observers=observers, given=True)
     plan.check()
     return run_plan(plan, docs)
