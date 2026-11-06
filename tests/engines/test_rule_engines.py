@@ -8,7 +8,7 @@ import io
 import pytest
 from PIL import Image
 
-from conftest import make_transcription
+from conftest import sample_transcription
 from linecaster.catalog import code
 from linecaster.catalog.registry import BUILTIN_ENGINES, IN_PROCESS_ONLY, SERVED_ONLY, engine_class
 from linecaster.catalog.schema import RULE_STEPS, STEPS, Capabilities
@@ -157,7 +157,7 @@ def test_normalization_fills_the_normalized_texts():
     from linecaster.engines import LatinHistoricNormalizationEngine
     from linecaster.text.variants import normalize
 
-    t = make_transcription()
+    t = sample_transcription()
     t.lines[0].text = "Vnterſuchung der ﬁſche"
     from conftest import recomposed
 
@@ -192,15 +192,15 @@ def test_composition_from_lines_and_from_paragraphs():
     from conftest import recomposed
     from linecaster.engines import DoclingCompositionEngine
 
-    lines = DoclingCompositionEngine()(make_transcription(), name="p1")
-    flowed = DoclingCompositionEngine()(recomposed(make_transcription()), name="p1")
+    lines = DoclingCompositionEngine()(sample_transcription(), name="p1")
+    flowed = DoclingCompositionEngine()(recomposed(sample_transcription()), name="p1")
     body = lambda t: [x for x in t.docling["texts"] if x["label"] == "text"]       # noqa: E731
     assert body(lines)[0]["text"] == ("The species described here were col-\nlected in the summer of 1887 by the "
                                       "author.\n\n") and len(body(lines)[0]["prov"]) == 1    # two rows without text
     assert body(flowed)[0]["text"] == "The species described here were collected in the summer of 1887 by the author."
     assert [p["charspan"] for p in body(flowed)[0]["prov"]] == [[0, 35], [35, 78]]      # the mark removed
     assert flowed.steps[-1].engine == "composition.docling.v1" and flowed.steps[-1].settings == {"sections": False}
-    sections = DoclingCompositionEngine(sections=True)(recomposed(make_transcription()), name="p1")
+    sections = DoclingCompositionEngine(sections=True)(recomposed(sample_transcription()), name="p1")
     assert [g["name"] for g in sections.docling["groups"]] == ["Flora of the Northern Hills"]
 
 

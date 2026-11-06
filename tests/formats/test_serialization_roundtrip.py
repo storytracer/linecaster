@@ -11,7 +11,7 @@ from linecaster.data import Line, Region, StepInfo, Transcription, Word
 from linecaster.formats import _xml as X, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.formats.hocr import quantize_confidence
 
-from conftest import make_transcription
+from conftest import sample_transcription
 
 SCHEMAS = Path(__file__).parents[1] / "schemas"
 
@@ -112,7 +112,7 @@ def test_roundtrip_is_stable(transcription, fmt):
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_lines_only_page(fmt):
     """A line step's output without any layout regions: every line is region-less."""
-    t = make_transcription()
+    t = sample_transcription()
     t.regions = []
     for ln in t.lines:
         ln.region_id = None
@@ -128,7 +128,7 @@ def test_lines_only_page(fmt):
 def test_irregular_order_survives(fmt):
     """Orders the nesting cannot express (region without order, line ranks not following the
     regions, rows that are not positions) still come back."""
-    t = make_transcription()
+    t = sample_transcription()
     t.regions[3].reading_order = None          # the picture has no order
     t.regions[4].reading_order = 7             # gaps in the region order
     t.lines[3].row = 5                         # row is not the position in the region
@@ -139,7 +139,7 @@ def test_irregular_order_survives(fmt):
 
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_words_edge_cases(fmt):
-    t = make_transcription()
+    t = sample_transcription()
     ln = t.lines[2]
     ln.words[1].hyphen = True                  # a hyphen flag mid-line
     ln.words[2].bbox = None                    # a word without a box
@@ -151,7 +151,7 @@ def test_words_edge_cases(fmt):
 
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_unknown_label_and_raw_label(fmt):
-    t = make_transcription()
+    t = sample_transcription()
     t.regions[2].label = "handwritten_text"
     t.regions[2].raw_label = "aside text; {odd}"
     t.regions[4].raw_label = ""
@@ -179,7 +179,7 @@ def test_alto_and_page_validate(transcription):
 
 
 def test_irregular_output_validates():
-    t = make_transcription()
+    t = sample_transcription()
     t.regions = []
     for ln in t.lines:
         ln.region_id = None
@@ -254,7 +254,7 @@ def test_hocr_structure(transcription):
 
 
 def test_page_clamps_negative_coordinates():
-    t = make_transcription()
+    t = sample_transcription()
     t.regions[0].polygon[0] = [-3.4, -1.0]
     t.lines[0].baseline[0] = [-2.0, 125.0]
     got = from_page(to_page(t))
@@ -266,7 +266,7 @@ def test_page_clamps_negative_coordinates():
 
 def test_output_is_deterministic(transcription):
     for to in (to_alto, to_page, to_hocr):
-        assert to(transcription) == to(make_transcription())
+        assert to(transcription) == to(sample_transcription())
 
 
 def test_transcription_import_stays_light():

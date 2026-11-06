@@ -573,6 +573,8 @@ BUILTIN_ENGINES = {
     "composition.docling.v1": "linecaster.engines:DoclingCompositionEngine",
 }
 SERVED_ONLY = {"chat.v1"}
+#: engines registered in this process, not installed (``linecaster.testing.register_fakes``: the fake engines)
+REGISTERED: dict[str, str] = {}
 #: engines never hosted by ``linecaster serve``: rules are cheaper than a request
 IN_PROCESS_ONLY = set(BUILTIN_ENGINES) - SERVED_ONLY
 
@@ -586,14 +588,15 @@ def engine_ids() -> dict[str, str]:
     """Returns every engine id with its class, ``module:Class``: linecaster's own and the installed engine packages'.
 
     linecaster's own are ``BUILTIN_ENGINES`` (``chat.v1``, the single-region layout and the rule-based engines);
-    engine packages register theirs as entry points of the group ``linecaster.engines``.
+    engine packages register theirs as entry points of the group ``linecaster.engines``; tests may register more in
+    the process (``REGISTERED``, e.g. ``linecaster.testing.register_fakes``).
 
     Example:
         from linecaster.catalog import engine_ids
 
         engine_ids()["typography.ratios.v1"]      # 'linecaster.engines:RatiosTypographyEngine'
     """
-    return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
+    return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}, **REGISTERED}
 
 
 def engine_class(engine: str):

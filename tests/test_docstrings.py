@@ -24,7 +24,7 @@ CATALOG = ("linecaster.catalog:catalog", "linecaster.catalog:engine_class", "lin
 SERIALIZERS = tuple(f"linecaster.formats:{n}" for n in importlib.import_module("linecaster.formats").__all__)
 EXAMPLE_REQUIRED = (*FUNCTIONS[::2], *CATALOG, *SERIALIZERS)          # build and main, not run_pages
 #: modules whose every public name (``__all__``, defined there) follows the standard
-API_MODULES = ("linecaster.engines.api",)
+API_MODULES = ("linecaster.engines.api", "linecaster.testing", "linecaster.testing.markers")
 
 
 def _get(target: str):
@@ -64,7 +64,8 @@ def _tree(path: str) -> ast.Module:
 
 
 def source_doc(obj) -> str | None:
-    """The docstring as written in the source, read with ``ast``."""
+    """The docstring as written in the source, read with ``ast`` (a decorated function's own)."""
+    obj = inspect.unwrap(obj)
     path = inspect.getsourcefile(obj)
     for node in _tree(path).body:
         if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == obj.__name__:

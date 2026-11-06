@@ -8,7 +8,7 @@ import pytest
 from datatrove.data import Media, MediaType
 from PIL import Image
 
-from conftest import make_transcription
+from conftest import sample_transcription
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.conversion import TranscriptionConverter
 from linecaster.blocks.conversion.transcriptions import sniff
@@ -36,7 +36,7 @@ def run(block, *docs):
 def test_the_formats_at_the_page_images_size(fmt, write):
     """A file made on an image half the size is read at the page image's size; the format comes from the media's
     hint or, without one, from the content."""
-    original = make_transcription()
+    original = sample_transcription()
     half = write(original.scaled(0.5), image_width=W // 2, image_height=H // 2)
     for hint in (fmt, None):
         [doc] = run(TranscriptionConverter(), page(half, hint))
@@ -54,7 +54,7 @@ def test_plain_text_a_uri_and_pages_without_a_file(tmp_path):
     [doc] = run(TranscriptionConverter(format="text", transcription="ground_truth"), page("ein\nzwei\n".encode()))
     t = page_of(doc).transcriptions["ground_truth"]
     assert [ln.text for ln in t.lines] == ["ein", "zwei"] and t.lines[0].bbox is None and t.source.format == "text"
-    (tmp_path / "p1.xml").write_bytes(to_alto(make_transcription(), image_width=W, image_height=H))
+    (tmp_path / "p1.xml").write_bytes(to_alto(sample_transcription(), image_width=W, image_height=H))
     by_uri = TranscriptionConverter(source="uri", uri_key="library.ocr")
     [doc] = run(by_uri, page(metadata={"library": {"ocr": str(tmp_path / "p1.xml")}}))
     assert page_of(doc).transcriptions["ocr_original"].source.uri == str(tmp_path / "p1.xml")
