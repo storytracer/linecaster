@@ -2,6 +2,47 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Ray Data instead of an executor: a spike (2026-11-06, spark)
+
+Could a pipeline's per-page blocks run as Ray Data `map_batches` stages (an actor per block, pages streaming
+between them) instead of datatrove's executors? `tests/integration/ray_data_spike.py` builds the `squiddle@1`
+pipeline as a normal run does (the script's `pipeline()`, the builder, one task) and runs its 11 per-page blocks
+(LayoutDetector, LineDetector, LineAssigner, LineRecognizer, UnicodeNormalizer, TableRecognizer, FormulaRecognizer,
+Typographer, Recomposer, Composer, RecipeStamper) as one `map_batches` stage each: `batch_size=1`, one actor per
+block (`ActorPoolStrategy(size=1)`), each `warm_up()` once and then `block.run` per page; the five model blocks
+`num_gpus=0.2` and 3 CPUs each, the rule blocks 0.5 CPU. A page travels between stages as a row (id, text, metadata
+as JSON, the image media's fields as JSON, the image bytes); the round trip is exact for all 60 pages. Ray 2.59.0
+from the `transcribe_modular.py` environment (extra `[ray]`), nothing installed, no lock changed, torch
+2.14.0+cu130 before and after. Pages: `bhl-ocr-eval/sample-60`, one run each, no warm-up run.
+
+| | datatrove, local, 1 task | Ray Data |
+|---|---|---|
+| wall time, end to end | 84.4 s | 59.0 s |
+| model loading | 16.1 s, one after another | in parallel, the longest 12.3 s (formulas) |
+| after loading, to the last page | 65.4 s | 39.0 s |
+
+- Outputs: the `ocr_new` transcription of all 60 pages is identical (every step's `seconds` and `datetime` left
+  out); the whole rows of 59: the one page the normal run sampled for tracing has a `trace_id`.
+- The gain is the blocks overlapping in separate processes: throughput is set by the recognition stage (44.9 s of
+  the normal run's 65.4 s). Not measured: datatrove with two or more tasks on the one GPU, which overlaps the same way
+  at the cost of each task loading its models.
+- Blocks pickle into Ray actors with cloudpickle as they are (0.5 to 2 KB; `InProcess` leaves loaded models out).
+  Five CUDA contexts instead of one; GPU memory not measured (the GB10 reports none). Ray sets `OMP_NUM_THREADS`
+  to an actor's CPUs.
+- Ray listens on every interface by default even with `_node_ip_address="127.0.0.1"`; with
+  `RAY_ENABLE_WINDOWS_OR_OSX_CLUSTER=0` set before `import ray`, every Ray process listened on loopback only (the
+  script checks this while the actors run). Ray writes `~/.ray/auth_token` (token auth is on by default) and session
+  folders under `/tmp/ray`.
+- What the Ray Data path lacks: resume (no completion markers), `OUT/logs` and datatrove's stats (a block's
+  `stat_update`s stay in its actor), stage cutting (item shards, `--until`, `--after`, `--tap-after`), the
+  `RejectWriter` and the error budget (`run()` per page resets it), tracing, the run record, writers per rank.
+  Back pressure was not exercised on 60 pages.
+
+Recommendation: do not adopt it now. The outputs are the same and the time after loading is 1.7x shorter here, but
+all of it comes from overlapping the blocks, and resume, logs, stats, rejects, tracing, the run record and stage
+cutting would each have to be rebuilt on Ray. Revisit when one GPU per task is clearly underused on Jobs and a
+datatrove run with two or more tasks per GPU has been measured and falls short.
+
 ## Readable item texts from the item recomposition (2026-11-06, spark)
 
 The six whole items of the BHL ground truth (2,165 pages), from the squiddle recipe's page records of the parity run
