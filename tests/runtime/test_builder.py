@@ -16,7 +16,7 @@ from linecaster.blocks.base.page import PageBlock, new_page_document, page_of
 from linecaster.blocks.binding import Binder, Splitter
 from linecaster.blocks.composites import ModularTranscriber
 from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.layout import SingleRegionLayout
+from linecaster.blocks.layout import LayoutDetector
 from linecaster.blocks.lines import LineAssigner, LineDetector
 from linecaster.blocks.readers import ImageFolderReader, PageRecordReader
 from linecaster.blocks.recognition import LineRecognizer, TableRecognizer
@@ -123,13 +123,13 @@ def _records(folder: Path) -> dict[str, dict]:
 # ------------------------------------------------------------------------------------------------ checks
 
 def test_a_valid_pipeline_has_no_problems():
-    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(),
+    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region@1"), UnicodeNormalizer(),
                Typographer("ratios@1"), Composer("docling-composition@1"),
                PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
     assert p.problems == []
     p.check()
     assert [type(b).__name__ for b in p.stages[0].blocks] == [
-        "ImageFolderReader", "SingleRegionLayout", "LineDetector", "LineAssigner", "LineRecognizer",
+        "ImageFolderReader", "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer",
         "UnicodeNormalizer", "Typographer", "Composer", "PageFileWriter", "PageJsonlWriter"]
 
 
@@ -143,11 +143,11 @@ def test_a_recognizer_without_lines():
 
 
 def test_a_part_added_twice():
-    problems = _problems([ImageFolderReader("x"), SingleRegionLayout(), _lines(), _lines(), _text()])
+    problems = _problems([ImageFolderReader("x"), LayoutDetector("single-region@1"), _lines(), _lines(), _text()])
     assert problems == ["LineDetector (lines (in-process)) adds ocr_new:lines, which LineDetector adds already (a "
                         "block that rewrites a part declares it in replaces)"]
     # a block that declares the part in replaces may rewrite it
-    assert _problems([ImageFolderReader("x"), SingleRegionLayout(), _lines(), LineAssigner(), _text()]) == []
+    assert _problems([ImageFolderReader("x"), LayoutDetector("single-region@1"), _lines(), LineAssigner(), _text()]) == []
 
 
 def test_parts_belong_to_their_transcription():
@@ -265,10 +265,10 @@ def test_a_page_a_condition_rejects_passes_unchanged():
 def test_group_checks():
     reader = ImageFolderReader("x")
     differing = [reader, branch(Mark("P"), when=MetadataEquals("kind", "print"), group="g"),
-                 branch(SingleRegionLayout(), when=OTHERWISE, group="g")]
+                 branch(LayoutDetector("single-region@1"), when=OTHERWISE, group="g")]
     assert _problems(differing) == [
-        "the alternatives of group 'g' add different parts (Mark (mark P): ocr_new:hierarchy; SingleRegionLayout "
-        "(single region layout): ocr_new:reading_order, ocr_new:regions)"]
+        "the alternatives of group 'g' add different parts (Mark (mark P): ocr_new:hierarchy; LayoutDetector "
+        "(layout (in-process)): ocr_new:reading_order, ocr_new:regions)"]
     misplaced = [reader, branch(Mark("O"), when=OTHERWISE, group="g"),
                  branch(Mark("P"), when=MetadataEquals("kind", "print"), group="g")]
     assert _problems(misplaced) == ["Mark (mark O): OTHERWISE must be the last alternative of group 'g'"]
@@ -296,13 +296,13 @@ def test_conditions_pickle():
 # ------------------------------------------------------------------------------------------------ composites
 
 def test_modular_transcriber_expands_and_keeps_its_group():
-    t = ModularTranscriber(_lines(), _text(), formulas_separately=True)
-    assert [type(b).__name__ for b in t.blocks] == ["SingleRegionLayout", "LineDetector", "LineAssigner",
+    t = ModularTranscriber(_lines(), _text(), "single-region@1", formulas_separately=True)
+    assert [type(b).__name__ for b in t.blocks] == ["LayoutDetector", "LineDetector", "LineAssigner",
                                                     "LineRecognizer"]
     assert t.blocks[2].formulas_separately is True
     c = t.contract()
     assert c.role == "composite" and c.unit == "page" and c.unit_out is None
-    assert c.reads == {Part("image"), Part("metadata")}
+    assert c.reads == {Part("image")}
     assert {str(p) for p in c.adds} == {"ocr_new:regions", "ocr_new:reading_order", "ocr_new:lines",
                                         "ocr_new:line_regions", "ocr_new:text"}
     p = build([ImageFolderReader("x"), t, PageJsonlWriter("o")])
@@ -320,7 +320,7 @@ def test_modular_transcriber_expands_and_keeps_its_group():
 
 def test_nested_composites_and_given_contracts():
     inner = Composite("inner", [_lines(), LineAssigner()])
-    outer = Composite("outer", [SingleRegionLayout(), inner, _text()])
+    outer = Composite("outer", [LayoutDetector("single-region@1"), inner, _text()])
     p = build([ImageFolderReader("x"), outer])
     assert p.problems == []
     assert [b.get("composite") for b in p.describe()["stages"][0]["blocks"]] == [
@@ -333,7 +333,7 @@ def test_nested_composites_and_given_contracts():
 
 
 def test_modular_transcriber_runs_as_its_blocks():
-    out = run_pages([ModularTranscriber(_lines(), _text())], [_doc("p1", 40)])
+    out = run_pages([ModularTranscriber(_lines(), _text(), "single-region@1")], [_doc("p1", 40)])
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(ln.id, ln.region_id, ln.text) for ln in t.lines] == [("page_l0", "page", "page 40x30 line 0"),
                                                                  ("page_l1", "page", "page 40x30 line 1")]
@@ -344,7 +344,7 @@ def test_modular_transcriber_runs_as_its_blocks():
 def _transcribe(a, texts: str):
     """Pages, then the item stage of --item-texts: the parts the page stage added carry across the binder (and the
     stage cut) to the item-level recomposition and normalization."""
-    return [run.reader(a), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(), run.pages(a), Binder(),
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region@1"), UnicodeNormalizer(), run.pages(a), Binder(),
             Recomposer("unicode-recomposition@1", unit="item"), CharacterNormalizer("latin-historic@1", unit="item"),
             ItemTextWriter(texts, format="files"), ItemTextWriter(texts)]
 
@@ -418,7 +418,7 @@ def test_servers_go_with_the_model_stage(tmp_path: Path):
 # ------------------------------------------------------------------------------------------------ partial runs, taps
 
 def _modular(a):
-    return [run.reader(a), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(), Typographer("ratios@1"),
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region@1"), UnicodeNormalizer(), Typographer("ratios@1"),
             Composer("docling-composition@1"), run.pages(a)]
 
 
@@ -428,7 +428,7 @@ def test_until_after_and_taps(items, tmp_path: Path):
     run.run(full, _modular(full), __file__, argv=[])
     first = _args(items, str(tmp_path / "first"), "--item-from-parent", "--until", "LineAssigner")
     p = run.build_plan(first, _modular(first))
-    assert [type(b).__name__ for b in p.blocks] == ["ImageFolderReader", "SingleRegionLayout", "LineDetector",
+    assert [type(b).__name__ for b in p.blocks] == ["ImageFolderReader", "LayoutDetector", "LineDetector",
                                                     "LineAssigner", "RejectWriter", "PageJsonlWriter"]
     run.run(first, _modular(first), __file__, argv=[])
     second = _args(str(tmp_path / "second"), "--pages", str(tmp_path / "first" / "pages"), "--after", "LineAssigner")
@@ -459,7 +459,7 @@ def test_partial_run_problems(tmp_path: Path):
     assert _problems(blocks + [Binder()], taps={"Binder": "t"}) == [
         "--tap-after Binder: page records can only be tapped after a page block"]
     # by datatrove name, and by composite (its last block)
-    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text()), PageJsonlWriter("o")],
+    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region@1"), PageJsonlWriter("o")],
               until="modular transcriber", run_folder=str(tmp_path))
     assert p.problems == [] and [type(b).__name__ for b in p.blocks[-3:]] == ["LineRecognizer", "RejectWriter",
                                                                               "PageJsonlWriter"]
@@ -513,7 +513,7 @@ def test_boundaries_call_the_observers(tmp_path: Path):
 def test_run_pages_checks_first():
     with pytest.raises(PipelineConfigError):
         run_pages([_lines(), Binder(), Composer("docling-composition@1")], [_doc()])
-    out = run_pages([SingleRegionLayout(), _lines(), LineAssigner(), _text()], [_doc("p1"), _doc("p2", 50)])
+    out = run_pages([LayoutDetector("single-region@1"), _lines(), LineAssigner(), _text()], [_doc("p1"), _doc("p2", 50)])
     assert [d.id for d in out] == ["p1", "p2"]
     assert page_of(out[1]).transcriptions["ocr_new"].lines[0].text == "page 50x30 line 0"
 
@@ -586,7 +586,7 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     pytest.importorskip("ray") if on == "ray" else None
     out = f"memory://lc/stages-{on}"
     a = _args("images", out, "--tasks", "2", "--on", on, *(["--commit", "abc"] if on == "hf-jobs" else []))
-    blocks = [run.reader(a), ModularTranscriber(_lines(), _text()), run.pages(a), Binder(),
+    blocks = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region@1"), run.pages(a), Binder(),
               ItemTextWriter("memory://lc/texts", variants=VERBATIM), ModelServer([])]
     p = run.build_plan(a, blocks)
     last = run._executors(a, p, out, None, ["linecaster"])

@@ -100,7 +100,8 @@ uv run pipelines/transcribe_modular.py scans/ out/ \
   --files out/files --formats md,alto
 ```
 
-Without `--layout` the page is one region; `--tables` and `--formulas` add those steps. The rule-based steps are
+`--layout single-region` reads the page as one region (no layout model); `--tables` and `--formulas` add those
+steps. The rule-based steps are
 slots too, each a preset: `--typography` (headings and their levels), `--recomposition` (running text in
 paragraphs; without it the page stays as laid out), `--composition` (the page's document, for Markdown, HTML and
 JSON) and `--normalization` (the readable item texts' normalization, with `--item-texts`); a recipe fills them all.
@@ -214,7 +215,9 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
     rights, identifiers, descriptive metadata (MODS creators, date, language, …), the page's own id and label.
     An item table's other columns go into each of its pages' metadata.
   - `--existing-ocr` also fetches the library's own OCR the manifest links (METS `FULLTEXT`, IIIF
-    `seeAlso`/`rendering`; ALTO or hOCR) and keeps it as the transcription `ocr_original`, next to the new one.
+    `seeAlso`/`rendering`; ALTO or hOCR), and a `TranscriptionConverter` keeps it as the transcription
+    `ocr_original`, next to the new one.
+  - An entry may be a IIIF Collection: its manifests are read as items (one level so far).
 - **http(s):// image URLs** (manifests, or paths in a Parquet column) go through pybookget:
   - retries that honor `Retry-After`, and an honest user agent;
   - the environment's proxy settings (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `NO_PROXY`), as everywhere
@@ -311,7 +314,9 @@ its model was checked with; `--image` names another. `--dry-run` prints the plan
 <summary><b>🧱 What the flags do, for your own pipeline</b></summary>
 
 - **Backends:** `InProcess("module:Class", **kwargs)` loads a model inside the pipeline;
-  `Served(endpoint, name)` sends pages to a server through [saturate].
+  `Served(endpoint, name)` sends pages to a server through [saturate]; `Chat(preset, endpoint)` sends them (or
+  their regions) to a vision-language model behind an OpenAI-compatible server, for `PageRecognizer` and
+  `RegionRecognizer`.
 - **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
   until every page is written: `ChatModelServer(spec)` starts [vLLM] or [SGLang],
   `ModelServer(MODELS, script=...)` a pipeline's `serve`.
@@ -373,6 +378,7 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 |---|---|
 | [`pp-doclayout-plus-l`](docs/catalog/presets/layout/pp-doclayout-plus-l.md) | [PP-DocLayout_plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L_onnx/tree/feb74619326f634e0e883218598096a3733ad9f7) |
 | [`pp-doclayoutv3`](docs/catalog/presets/layout/pp-doclayoutv3.md) | [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx/tree/46bbdf188bb0a772c08aed74882ce7e51a8f1ea6) |
+| [`single-region`](docs/catalog/presets/layout/single-region.md) | - |
 
 ### 📏 Lines
 
@@ -497,6 +503,8 @@ its preset (e.g. `Typographer("ratios@1")`).
 |---|---|
 | `ImageFolderReader` | page images from a folder or bucket |
 | `ImageParquetReader` | page images from Parquet files with an image column (bytes or a path), e.g. a Hub dataset |
+| `ManifestReader` | items' pages from IIIF manifests or collections, or METS, with the library's own OCR on request |
+| `PdfReader` | PDF files as items, each page rendered to an image (extra `pypdfium2`; the text layer not yet) |
 | `PageRecordReader` | page records written by an earlier run |
 
 **Images and checks**
@@ -505,6 +513,7 @@ its preset (e.g. `Typographer("ratios@1")`).
 |---|---|
 | `ImageFetcher` | loads a page's image again by its address |
 | `ImageConverter` | the image as lossless WebP, size checked (`working-image`) |
+| `TranscriptionConverter` | a library's own ALTO, PAGE-XML, hOCR or text, delivered with the page, as `ocr_original` |
 | `PageValidator` | marks invalid pages with the reason, for `rejects/` |
 
 **Writers**

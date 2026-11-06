@@ -45,10 +45,12 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
 ## Architecture: servers host models, the pipeline puts the steps together
 
 - **Model blocks** (`ModelBlock` in `blocks/base/`: `LayoutDetector`, `LineDetector`, `LineRecognizer`,
-  `TableRecognizer`, `FormulaRecognizer`, in their families under `blocks/`) each have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` loads the engine in the
-  worker (in `warm_up()`, before the first page; never pickled), `Served(endpoint, model=name)` streams pages through saturate
+  `TableRecognizer`, `FormulaRecognizer`, `PageRecognizer`, `RegionRecognizer`, in their families under `blocks/`) each
+  have a backend (`backends`): `InProcess("pkg:Class", **kwargs)` (or a preset ref) loads the engine in the
+  worker (in `warm_up()`, before the first page; never pickled), `Served(endpoint, model=name)` and `Chat(preset,
+  endpoint)` (a VLM) stream pages through saturate
   (`AdaptiveClient` + `through()`: a window of pages in flight adapted to the server's queue gauges
-  and 429s; results passed on as they finish; secrets as `EnvVar`). In-process is always available and is the parity
+  and 429s; results passed on as they finish; secrets as `EnvVar`); the streaming exists once, in `ModelBlock`. In-process is always available and is the parity
   reference. A page that failed a step (an exception in-process, a failed request served) carries
   `doc.metadata["errors"]`, bypasses later model steps at once (`skip_on_error`) and goes to `rejects/`; more
   failures than the error budget (`--max-page-errors`) fail the task. Library code raises `linecaster.errors`,
@@ -59,9 +61,10 @@ project pipelines (EBDC, FineBooks) are built on top of it, never the other way 
   (image + the transcription so far → the transcription with its part added), `GET /v1/models`,
   `/health` and vLLM-shaped `/metrics` (the gauges saturate reads).
 - **VLMs** behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` /
-  `RegionRecognizer` (`blocks/recognition/chat.py`) with `chat_model(<preset>)`: a catalog preset (engine `chat.v1`,
-  data: revision, prompt, sampling, serve block) plus an adapter in `linecaster.adapters.ADAPTERS` (code:
-  request, parsing); on `/v1/chat/completions`; served only.
+  `RegionRecognizer` (`blocks/recognition/chat.py`) on the `Chat` backend (`Chat(<preset>, endpoint)`): a catalog
+  preset (engine `chat.v1`, data: revision, prompt, sampling, serve block) plus an adapter in
+  `linecaster.adapters.ADAPTERS` (code: request, parsing; `chat_model(<preset>)`); on `/v1/chat/completions`;
+  served only.
 - **The catalog** (`docs/reference/catalog.md`, `linecaster.catalog`): one catalog, `src/linecaster/catalog/data/`
   (engine packages and derivatives ship none): every entry is a YAML file (its JSON Schema, generated from the
   Pydantic models into `catalog/schemas/`, named in its first line; read with `ruamel.yaml` through
@@ -159,8 +162,10 @@ batch on one executor; resume is datatrove's, per task, so tasks stay small. Rea
 conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`, `limit`/`skip` per task; files, or
 Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files), `ImageParquetReader` (an image
 column: bytes, HF image struct or path), `ManifestReader` (IIIF or METS; a manifest, or a row of a Parquet item
-table, is an entry like a file, so an item stays in one task; pages fetched ahead with pybookget, rate limits per
-task; `existing_ocr` keeps a library's OCR as `ocr_original`). The usual sequence is harvest → transcribe → bind:
+table, is an entry like a file, so an item stays in one task; a IIIF Collection entry is its manifests, one level;
+pages fetched ahead with pybookget, rate limits per task; `existing_ocr` fetches a library's OCR as a document
+media, which a `TranscriptionConverter` reads as `ocr_original`, the builder adding one when missing), `PdfReader`
+(PDF files, pages rendered with pypdfium2, extra `[pypdfium2]`). The usual sequence is harvest → transcribe → bind:
 `pipelines/harvest.py` downloads images (OCR, manifests) once into item folders plus page records, the transcribe
 pipelines read those with `--pages`, `pipelines/bind.py` makes item texts. An item's pages can land in different tasks; item-level steps are a
 second stage over item shards (`--item-shards N` writes `OUT/pages/<shard>/<rank>`, `pipelines/bind.py` reads

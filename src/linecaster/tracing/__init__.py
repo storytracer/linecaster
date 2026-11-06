@@ -256,7 +256,8 @@ def block_attributes(block) -> dict:
     step = getattr(block, "step", None)
     if isinstance(step, str) and step != "model":
         attrs["linecaster.step"] = step
-    backend, spec = getattr(block, "backend", None), getattr(block, "spec", None)
+    backend = getattr(block, "backend", None)
+    spec = getattr(block, "spec", None) or getattr(backend, "adapter", None)      # a chat preset's adapter
     preset = getattr(spec, "preset", None) or getattr(backend, "preset", None)
     if isinstance(preset, str):
         attrs["linecaster.preset"] = preset.split("@", 1)[0]

@@ -429,14 +429,20 @@ def test_served_and_in_process_are_the_same_pipeline():
 
 def test_chat_blocks_record_the_preset_model_and_revision():
     from linecaster.adapters import chat_model
+    from linecaster.backends import Chat
     from linecaster.blocks.recognition import PageRecognizer
 
     spec = chat_model("lightonocr-2-1b")
-    d = PageRecognizer(spec, Served("http://127.0.0.1:8000/v1", model="m")).to_dict()
-    assert d["params"]["spec"] == {"adapter": f"{type(spec).__module__}:{type(spec).__qualname__}",
-                                   "preset": spec.preset, "preset_sha256": spec.preset_sha256, "model": spec.model,
-                                   "revision": spec.revision, "served_name": "m"}
-    assert d["params"]["backend"]["endpoint"] == "http://127.0.0.1:8000/v1"
+    block = PageRecognizer(Chat(spec, "http://127.0.0.1:8000/v1", served_name="m"))
+    adapter = {"adapter": f"{type(spec).__module__}:{type(spec).__qualname__}", "preset": spec.preset,
+               "preset_sha256": spec.preset_sha256, "model": spec.model, "revision": spec.revision}
+    assert block.to_dict()["params"]["backend"] == {
+        "backend": "chat", **adapter, "served_name": "m", "endpoint": "http://127.0.0.1:8000/v1", "max_window": 32,
+        "initial_window": 4, "read_timeout": 600.0}
+    # the hash covers the adapter and the preset, not the server: another endpoint or served name is the same pipeline
+    assert provenance.functional_block(block)["params"]["backend"] == adapter
+    other = PageRecognizer(Chat(chat_model("lightonocr-2-1b"), "http://elsewhere:9000/v1", served_name="n"))
+    assert provenance.functional_block(other) == provenance.functional_block(block)
 
 
 def test_engines_carry_presets(monkeypatch):

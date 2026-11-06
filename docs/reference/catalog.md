@@ -212,10 +212,19 @@ confidences. What depends on the weights belongs to the model or preset: languag
 
 An engine is a class registered under its id in the entry-point group `linecaster.engines`
 (`"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"`), or one of linecaster's own
-(`BUILTIN_ENGINES`): `chat.v1` (VLM presets, served only: `SERVED_ONLY`) and the rule-based engines. It declares
+(`BUILTIN_ENGINES`): `chat.v1` (VLM presets, served only: `SERVED_ONLY`; the `Chat` backend), the single-region
+layout and the rule-based engines. It declares
 `engine_id`, `step`, `Options` (a Pydantic model whose fields have descriptions; the docs come from it) and
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
+
+### The single-region layout
+
+`layout.single-region.v1` (`linecaster.engines:SingleRegionLayoutEngine`, preset `single-region@1`) is a layout
+engine without a model: one region covering the page image (label `text`, id `page`, reading order 0; both options),
+recorded as a layout step. It has the model engines' call (`__call__(image, transcription)`), so
+`LayoutDetector("single-region@1")` runs it, and like the rule-based engines it is built in and runs in the
+pipeline's process only. `pipelines/transcribe_modular.py --layout single-region` reads a page as one region.
 
 ### Rule-based engines
 

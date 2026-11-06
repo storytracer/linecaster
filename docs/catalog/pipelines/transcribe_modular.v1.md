@@ -3,14 +3,15 @@
 *Pipeline · [`transcribe_modular.py`](../../../pipelines/transcribe_modular.py)*
 
 The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
-text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC and the rule-based steps, each a preset too: typography (--typography),
+a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
+optionally table and formula models after; then Unicode NFC and the rule-based steps, each a preset too: typography (--typography),
 recomposition (--recomposition; without one the page stays as laid out) and page composition (--composition). Page
 records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
 `<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant (an
 item stage: the item recomposed as one, normalized by --normalization).
 
-    uv run pipelines/transcribe_modular.py IMAGES OUT --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium
+    uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
+        --recognition kraken-ppocrv6-medium
     uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle     # every slot from the recipe
     ... --typography ratios --recomposition unicode-recomposition --composition docling-composition
     ... --item-texts OUT/texts --recomposition unicode-recomposition --normalization latin-historic
@@ -48,11 +49,11 @@ Besides the options every pipeline shares (`linecaster.runtime.run`).
 
 | Option | Values | Default | Description |
 |---|---|---|---|
-| `--layout` |  |  | layout preset (none: the page is one region) |
+| `--layout` |  |  | layout preset (needed; single-region: the page is one region) |
 | `--lines` |  |  | line detection preset (needed) |
 | `--recognition` |  |  | line recognition preset (needed) |
-| `--tables` |  |  | table preset (needs --layout) |
-| `--formulas` |  |  | formula preset (needs --layout; without, formulas are read as text) |
+| `--tables` |  |  | table preset (reads the layout's table regions) |
+| `--formulas` |  |  | formula preset (reads the layout's formula regions; without, they are read as text) |
 | `--typography` |  |  | typography preset: headings and their levels, initials (e.g. ratios) |
 | `--recomposition` |  |  | recomposition preset: the text regions as running text, in paragraphs (e.g. unicode-recomposition; none: the page stays as laid out) |
 | `--normalization` |  |  | character normalization preset of the readable item texts (--item-texts; e.g. latin-historic) |

@@ -24,7 +24,9 @@ contracts before anything runs (``docs/reference/pipelines.md``).
   page records in item shards (``PageJsonlWriter(item_shards=N)`` into ``<run_folder>/pages``), the next reads
   whole shards (``PageRecordReader(item_shards=True)``). A splitter after it needs no cut: its items are whole.
 * **Rejects**: with a run folder, a ``RejectWriter`` into ``<run_folder>/rejects`` goes before the first writer (or
-  binder) unless the pipeline has one: it writes the pages that carry errors. ``max_page_errors`` sets every page
+  binder) unless the pipeline has one: it writes the pages that carry errors.
+* **Converters**: a reader that brings a library's transcription file (``ManifestReader(existing_ocr=True)``) gets a
+  ``TranscriptionConverter`` right after it, into ``ocr_original``, unless a block reads the file already. ``max_page_errors`` sets every page
   block's error budget.
 * **Partial runs**: ``until`` keeps the blocks up to a block and writes page records; ``after`` starts from page
   records (the pipeline's ``PageRecordReader``) with the blocks after one; ``taps`` write page records after a
@@ -399,6 +401,18 @@ def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
     entries.insert(i, _Entry(RecipeStamper(*recipe)))
 
 
+def _converters(entries: list[_Entry]) -> None:
+    """A ``TranscriptionConverter`` right after a block that brings a transcription file (``ManifestReader(
+    existing_ocr=True)``) when no block after it reads the file."""
+    from ..blocks.conversion.transcriptions import TranscriptionConverter
+
+    file = Part("transcription_file")
+    for i, e in enumerate(entries):
+        if file in e.contract.adds and not any(file in later.contract.reads for later in entries[i + 1:]):
+            entries.insert(i + 1, _Entry(TranscriptionConverter()))
+            return
+
+
 def _rejects(entries: list[_Entry], run_folder: str) -> None:
     """A ``RejectWriter`` into ``<run_folder>/rejects`` before the first writer, binder or server (the stream still
     carries pages there), unless the pipeline has one."""
@@ -643,6 +657,7 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
            observers=None, given: bool = False, max_page_errors=None, trace_sample=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(blocks), problems)
+    _converters(entries)
     if after:
         entries = _after(entries, after, problems)
     if until:

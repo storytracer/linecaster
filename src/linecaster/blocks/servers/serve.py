@@ -1,7 +1,7 @@
 """Blocks that host models for a task's served blocks: ``ModelServer`` starts ``linecaster serve``,
-``ChatModelServer`` starts vLLM or SGLang for a ``PageRecognizer`` (both through saturate's ``Engine``) when the
-task starts, and stops it when all its pages are through. For a pipeline that brings
-its own GPU, e.g. one HF Job per datatrove task.
+``ChatModelServer`` starts vLLM or SGLang for the ``Chat`` backend of a ``PageRecognizer`` or ``RegionRecognizer``
+(both through saturate's ``Engine``) when the task starts, and stops it when all its pages are through. For a
+pipeline that brings its own GPU, e.g. one HF Job per datatrove task.
 
 Put it **last** in the pipeline (after the writer): datatrove chains generators, so the last block's
 generator is the one that lives until every page has passed every block. Placed before the served
@@ -52,7 +52,7 @@ class ModelServer(Contracted, PipelineStep):
 
 
 class ChatModelServer(Contracted, PipelineStep):
-    """Start a chat VLM server for a task's ``PageRecognizer``, through saturate's ``Engine``. ``spec`` is a chat
+    """Start a chat VLM server for a task's ``Chat`` backends, through saturate's ``Engine``. ``spec`` is a chat
     preset's adapter (``linecaster.adapters.chat_model``) or the preset ref; the command comes from the preset's
     ``serve`` block (server, flags, environment, packages), and its ``server`` picks it:
 

@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: single-region
+edition: 1
+step: layout
+engine: layout.single-region.v1
+options:
+  label: text
+  region_id: page
+capabilities:
+  unit: page
+  produces:
+  - regions
+  - reading_order
+provenance:
+  derived_from:
+  - squiddleocr's `--layout none` (the whole page one text region), as linecaster's SingleRegionLayout block did it before phase 4
+  created: 2026-11-06
+support: core

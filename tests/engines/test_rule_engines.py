@@ -15,7 +15,9 @@ from linecaster.catalog.schema import RULE_STEPS, STEPS, Capabilities
 from linecaster.data import Transcription
 from linecaster.engines import scripts
 
-RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY)
+#: built-in engines of model steps: in-process only too
+MODEL_STEP_ENGINES = {"layout.single-region.v1"}
+RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - MODEL_STEP_ENGINES)
 #: engines whose options have no defaults (a by-script engine's strategies come from its preset)
 NEEDS_OPTIONS = {"normalization.by-script.v1", "recomposition.by-script.v1"}
 
@@ -26,7 +28,7 @@ def test_the_rule_based_steps_are_steps():
 
 
 def test_rule_engines_run_in_process_only():
-    assert IN_PROCESS_ONLY == set(RULE_ENGINES) and not IN_PROCESS_ONLY & SERVED_ONLY
+    assert IN_PROCESS_ONLY == set(RULE_ENGINES) | MODEL_STEP_ENGINES and not IN_PROCESS_ONLY & SERVED_ONLY
 
 
 @pytest.mark.parametrize("engine", RULE_ENGINES)
@@ -50,7 +52,7 @@ def test_the_docs_describe_every_builtin_engine():
     """The docs read the engines from the source: the same ids, classes, steps, capabilities, scripts, options."""
     found = {eid: e for eid, e in code.engines().items() if e.package == "linecaster"}
     assert {eid: e.target for eid, e in found.items()} == BUILTIN_ENGINES
-    for eid in RULE_ENGINES:
+    for eid in sorted(IN_PROCESS_ONLY):
         cls, e = engine_class(eid), found[eid]
         assert (e.step, e.capabilities, tuple(e.scripts)) == (cls.step, cls.capabilities, cls.scripts)
         assert [o.name for o in e.options] == list(cls.Options.model_fields)

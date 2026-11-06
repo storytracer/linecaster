@@ -218,7 +218,7 @@ def point_to_gpu(pipeline: list, local: int) -> list:
     (``ModelServer``, ``ChatModelServer``: attribute ``port``) and every served backend on loopback
     moves ``local`` ports up, so each GPU has its own servers and clients (a layout server on 8100 and
     vLLM on 8000 become 8103 and 8003 on GPU 3)."""
-    from ..backends import Served
+    from ..backends import Chat, Served
     from ..blocks.servers.serve import ChatModelServer, ModelServer
 
     pipeline = deepcopy(pipeline)
@@ -226,7 +226,7 @@ def point_to_gpu(pipeline: list, local: int) -> list:
         if isinstance(step, (ModelServer, ChatModelServer)):
             step.port += local
         backend = getattr(step, "backend", None)
-        if isinstance(backend, Served):
+        if isinstance(backend, (Served, Chat)):
             u = urlsplit(backend.endpoint)
             if u.hostname in ("127.0.0.1", "localhost") and u.port:
                 backend.endpoint = urlunsplit(u._replace(netloc=f"{u.hostname}:{u.port + local}"))

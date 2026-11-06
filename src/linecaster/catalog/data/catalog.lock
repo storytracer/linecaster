@@ -1268,6 +1268,16 @@ presets:
         heading_labels:
         - section_header
         - title
+  single-region@1:
+    sha256: sha256:4db404fc27b37a12273d606315b2e3b139f8b959a9ab0c8b00d286fc3b00b630
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: layout
+      engine: layout.single-region.v1
+      options:
+        label: text
+        region_id: page
   slanet-plus@2:
     sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
     released: '2026-11-04'

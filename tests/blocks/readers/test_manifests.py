@@ -15,6 +15,7 @@ from PIL import Image
 pytest.importorskip("pybookget")
 
 from linecaster.blocks.base.page import image_bytes, page_of  # noqa: E402
+from linecaster.blocks.conversion import TranscriptionConverter  # noqa: E402
 from linecaster.blocks.readers.images import ImageFolderReader, ImageParquetReader
 from linecaster.blocks.readers.manifests import OCR_ORIGINAL, ManifestReader, manifest_item_id  # noqa: E402
 from linecaster.blocks.readers.records import PageRecordReader  # noqa: E402
@@ -282,7 +283,11 @@ def test_mets_pages_in_order_with_file_groups_and_existing_alto(server, tmp_path
     base = server["base"]
     url = publish(server, "flora", mets(base, ["f1", "gone", "lost"]))
     (tmp_path / "m.txt").write_text(url)
-    got = pages(ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True, http=FAST))
+    reader = ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True, http=FAST)
+    docs = list(reader.run())
+    assert [m.metadata for d in docs for m in d.media[1:]] == [{"format": "alto"}, {"format": "alto"}]
+    assert all(OCR_ORIGINAL not in page_of(d).transcriptions for d in docs)       # the reader only fetches the file
+    got = [page_of(d) for d in TranscriptionConverter().run(iter(docs))]
     assert [(p.page_id, p.sequence) for p in got] == [("flora_0001", 1), ("flora_0002", 2), ("flora_0003", 3)]
     f1, gone, lost = got
     assert f1.image.uri == f"{base}/max/f1.png"                     # MAX first
@@ -296,6 +301,44 @@ def test_mets_pages_in_order_with_file_groups_and_existing_alto(server, tmp_path
     assert t.text == "Flora" and (t.source.kind, t.source.format) == ("converted", "alto")
     assert t.source.uri == f"{base}/ocr/f1.xml" and t.source.image_sha256 == f1.image.sha256
     assert OCR_ORIGINAL not in lost.transcriptions                  # its ALTO failed; the page stays
+
+
+def needs_read_collection():
+    import pybookget.formats.manifest as m
+
+    if not hasattr(m, "read_collection"):
+        pytest.skip("this pybookget has no read_collection (uv run --with-editable ../pybookget)")
+
+
+def collection(base, name, members):
+    return {"@context": "http://iiif.io/api/presentation/3/context.json", "id": f"{base}/{name}/manifest",
+            "type": "Collection", "label": {"en": [name]},
+            "items": [{"id": url, "type": kind, "label": {"none": [url]}} for kind, url in members]}
+
+
+def test_a_iiif_collection_is_read_as_its_manifests(server, tmp_path):
+    needs_read_collection()
+    base = server["base"]
+    a, b = publish(server, "a1", v3(base, "a1", ["f1"])), publish(server, "b2", v3(base, "b2", ["f1", "f2"]))
+    top = publish(server, "flora", collection(base, "flora", [("Manifest", a), ("Manifest", b)]))
+    (tmp_path / "m.txt").write_text(top)
+    reader = ManifestReader(paths_file=str(tmp_path / "m.txt"), http={**FAST, "iiif_format": "png"},
+                            manifest_folder=str(tmp_path / "manifests"))
+    got = pages(reader)
+    assert [(p.item_id, p.page_id) for p in got] == [("a1", "a1_0001"), ("b2", "b2_0001"), ("b2", "b2_0002")]
+    assert got[1].metadata["manifest"]["url"] == b and reader.stats["collections"].total == 1
+    assert sorted(f.name for f in (tmp_path / "manifests").iterdir()) == ["a1.json", "b2.json"]
+
+
+@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="one level of IIIF Collections so far")
+def test_a_collection_of_collections_is_read_as_their_manifests(server, tmp_path):
+    needs_read_collection()
+    base = server["base"]
+    a = publish(server, "a1", v3(base, "a1", ["f1"]))
+    sub = publish(server, "sub", collection(base, "sub", [("Manifest", a)]))
+    top = publish(server, "top", collection(base, "top", [("Collection", sub)]))
+    (tmp_path / "m.txt").write_text(top)
+    assert [p.item_id for p in pages(ManifestReader(paths_file=str(tmp_path / "m.txt"), http=FAST))] == ["a1"]
 
 
 def test_mets_inside_oai_pmh_and_a_forced_format(server, tmp_path):
@@ -340,8 +383,8 @@ def test_a_mets_package_with_local_files(tmp_path):
 def test_harvest_saves_manifests_and_ocr_files(server, tmp_path):
     url = publish(server, "flora", mets(server["base"], ["f1"]))
     (tmp_path / "m.txt").write_text(url)
-    docs = ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True,
-                          manifest_folder=str(tmp_path / "manifests"), http=FAST).run()
+    docs = TranscriptionConverter().run(ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True,
+                                                       manifest_folder=str(tmp_path / "manifests"), http=FAST).run())
     [doc] = list(ImageFilesWriter(str(tmp_path / "images"), ocr_folder=str(tmp_path / "ocr")).run(docs))
     assert (tmp_path / "manifests" / "flora.xml").read_text().startswith("<?xml")
     assert (tmp_path / "ocr" / "flora" / "flora_0001.xml").read_text() == ALTO

@@ -3,8 +3,8 @@ record. The builder (``linecaster.runtime.builder``) checks a pipeline's contrac
 graph from them (``docs/reference/pipelines.md``).
 
 A part is a name of the ``PARTS`` vocabulary (``linecaster.catalog.schema``) and the transcription it belongs to
-(``ocr_new``, ``ocr_original``, ...), or ``None`` for page-level parts (``image``, ``metadata``) and for the parts of
-an item record. ``*`` stands for every part (``Part("*", "ocr_original")``: whatever the library's OCR holds).
+(``ocr_new``, ``ocr_original``, ...), or ``None`` for page-level parts (``image``, ``metadata``,
+``transcription_file``) and for the parts of an item record. ``*`` stands for every part (``Part("*", "ocr_original")``: whatever the library's OCR holds).
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from ...errors import PipelineConfigError
 from .block import Block
 
 #: page-level parts: they belong to no transcription
-PAGE_PARTS = frozenset({"image", "metadata"})
+PAGE_PARTS = frozenset({"image", "metadata", "transcription_file"})
 #: the units a stream carries; ``any`` is for blocks that pass whatever comes (servers)
 UNITS = ("page", "item", "any")
 ROLES = ("reader", "writer", "server", "model", "transform", "binder", "splitter", "validator", "composite")
