@@ -18,7 +18,8 @@ class ImageFilesWriter(Contracted, PipelineStep):
     without an item), the extension from the image's format. It reads ``image`` and replaces ``metadata``: the page's
     ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
     point at the copy (``PageRecordReader`` fetches it from there), and ``ImageFolderReader(output_folder,
-    item_from_parent=True)`` reads the folder as it is. Pages pass through.
+    item_from_parent=True)`` reads the folder as it is. Pages pass through; a page that carries errors and no image
+    (e.g. its download failed) passes through unchanged, with no file written.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
@@ -47,12 +48,16 @@ class ImageFilesWriter(Contracted, PipelineStep):
         from datatrove.data import MediaType
         from datatrove.io import get_datafolder
 
-        from ..base.page import image_bytes, page_of, set_page
+        from ..base.page import failed, image_bytes, page_of, set_page
         from ..readers.manifests import OCR_EXTENSIONS, OCR_ORIGINAL
 
         out = get_datafolder(self.output_folder)
         ocr_out = get_datafolder(self.ocr_folder) if self.ocr_folder is not None else None
         for doc in data:
+            if failed(doc) and not any(m.type == MediaType.IMAGE and m.media_bytes for m in doc.media):
+                self.stat_update("skipped_after_error")          # nothing to write; its record keeps the error
+                yield doc
+                continue
             page = page_of(doc)
             fmt = (page.image.format if page.image else None) or ""
             path = self._path(page, IMAGE_FILE_EXTENSIONS.get(fmt, fmt or "bin"))

@@ -32,7 +32,8 @@ Files go to `<output_folder>/<item_id>/<page_id>.<ext>` (any fsspec folder; `<pa
 without an item), the extension from the image's format. It reads `image` and replaces `metadata`: the page's
 `image.uri` then names the written file and `image.extra["source_uri"]` where it came from, so page records written after this block
 point at the copy (`PageRecordReader` fetches it from there), and `ImageFolderReader(output_folder,
-item_from_parent=True)` reads the folder as it is. Pages pass through.
+item_from_parent=True)` reads the folder as it is. Pages pass through; a page that carries errors and no image
+(e.g. its download failed) passes through unchanged, with no file written.
 
 ## Contract
 

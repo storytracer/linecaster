@@ -28,7 +28,8 @@ from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
 from ..base.block import reported_file
 from ..base.contract import Contracted
-from ..base.page import new_page_document
+from ...data.page import Page, PageImage
+from ..base.page import NOT_THE_PAGES, ErrorBudget, error_entry, new_page_document, record_error, set_page
 
 IMAGE_EXTENSIONS = ("webp", "jpg", "jpeg", "png", "tif", "tiff", "jp2")
 IMAGE_GLOB = "**/*.{" + ",".join(IMAGE_EXTENSIONS) + "}"
@@ -198,7 +199,14 @@ class ImageParquetReader(Contracted, ParquetReader):
     hold whole items. Each row adds ``image`` and ``metadata`` (the page record). The image column holds the image
     as Hugging Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as
     plain bytes, or as a path: absolute (any fsspec URI, ``http(s)://`` through pybookget) or relative to
-    ``image_folder``. A row with neither bytes nor a path is that page's error (a ``PageError``).
+    ``image_folder``. A row with neither bytes nor a path fails the task (a ``PageError``: the table is wrong).
+
+    An image that cannot be read (an http(s) error after pybookget's retries, a missing file, bytes that are not an
+    image) makes a page without image whose ``doc.metadata["errors"]`` says why (``field`` ``image``, ``raw_value``
+    the image's URI), so the task goes on: later model blocks pass the page by, ``ImageFilesWriter`` writes no file
+    for it, and the page records and rejects keep it. More such pages than ``max_page_errors`` (a share of the task's
+    pages, judged from page 100 on, ``ErrorBudget``) fail the task, so a server that is down does not mark every
+    page failed.
 
     Args:
         data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the Parquet files.
@@ -223,6 +231,8 @@ class ImageParquetReader(Contracted, ParquetReader):
     role = "reader"
     parts_added = ("image", "metadata")
     docs_args = {"data_folder": "pages/"}
+    #: the share of a task's pages whose image may fail to be read (None: no limit; the builder sets it)
+    max_page_errors: float | None = 0.01
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str | None = "**/*.parquet", recursive: bool = True, limit: int = -1, skip: int = 0,
@@ -261,6 +271,10 @@ class ImageParquetReader(Contracted, ParquetReader):
                 return f.read()
         return _future(relative), self.image_folder.resolve_paths(path)
 
+    def run(self, data=None, rank: int = 0, world_size: int = 1):
+        self._budget = ErrorBudget(self, self.max_page_errors)          # one per task, over all its files
+        yield from super().run(data, rank, world_size)
+
     def read_file(self, filepath: str):
         yield from reported_file(self, filepath, self._read_file(filepath))
 
@@ -286,19 +300,44 @@ class ImageParquetReader(Contracted, ParquetReader):
         def submit(entry):
             return (entry, *self._request(entry[3], filepath, entry[0]))
 
+        budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
         for entry, future, uri in prefetched(self._rows(filepath), submit, self.prefetch, lambda s: s[1].cancel()):
             page_id, item, sequence, _, row = entry
+            item_id = None if item is None else str(item)
+            sequence = None if sequence is None else int(sequence)
+            budget.page()
+            failure = None
             with self.track_time():
                 fetches: list = []
-                data = self._opener.result(future, fetches)
                 metadata = {**(self.default_metadata or {}),
                             **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
-                doc = new_page_document(page_id, data, uri=uri, item_id=None if item is None else str(item),
-                                        sequence=None if sequence is None else int(sequence), metadata=metadata)
+                try:
+                    data = self._opener.result(future, fetches)
+                    doc = new_page_document(page_id, data, uri=uri, item_id=item_id, sequence=sequence,
+                                            metadata=metadata)
+                except (*NOT_THE_PAGES, PageError):
+                    raise
+                except Exception as e:  # noqa: BLE001 - the page's error; the task goes on within its budget
+                    doc = _unread_page(page_id, uri, item_id, sequence, metadata)
+                    failure = (doc, record_error(doc, error_entry(self, e, field="image", raw_value=uri)), e)
                 if fetches:
                     doc.metadata["trace"] = {"fetch": fetches}
-            self.stat_update("pages")
-            self.update_media_stats(doc.media[0])
+            if failure is not None:
+                self.stat_update("image_errors")
+                budget.failed(*failure)                 # a PageError (the task fails) once the budget is spent
+            else:
+                self.stat_update("pages")
+                self.update_media_stats(doc.media[0])
             yield doc
+
+
+def _unread_page(page_id: str, uri: str | None, item_id: str | None, sequence: int | None, metadata: dict):
+    """A page whose image could not be read: its record without image media (the error goes into its metadata)."""
+    from datatrove.data import Document
+
+    doc = Document(text="", id=page_id, media=[])
+    set_page(doc, Page(page_id=page_id, item_id=item_id, sequence=sequence, image=PageImage(uri=uri),
+                       metadata=metadata))
+    return doc
 
 

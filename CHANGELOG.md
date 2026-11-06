@@ -45,6 +45,16 @@ the tags; the first is `v0.1.0`.
   every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
   as `dev`; `mike` joins the dependency group `docs`.
 
+### Fixed
+
+- `ImageParquetReader`: an image that cannot be read (an `http(s)` error after the retries, a missing file, bytes
+  that are not an image) no longer fails the task. The page comes without image and with the error in
+  `doc.metadata["errors"]` (`field` `image`, `raw_value` its URI), so the page records and rejects keep it and a
+  rerun of the task does not fail on the same dead link again; the reader has an error budget (`max_page_errors`,
+  set by `--max-page-errors`), so a server that is down still fails the task. `ImageFilesWriter` passes a page that
+  carries errors and no image through without writing a file. A row with neither image bytes nor a path still fails
+  the task.
+
 ## 0.1.0 (2026-11-06)
 
 ### Upgrade notes

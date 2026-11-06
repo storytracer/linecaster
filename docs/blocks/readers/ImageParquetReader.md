@@ -49,7 +49,14 @@ The files are read through datatrove's `ParquetReader` and distributed over task
 hold whole items. Each row adds `image` and `metadata` (the page record). The image column holds the image
 as Hugging Face's `Image` feature stores it (`{"bytes", "path"}`: the bytes when present, else the path), as
 plain bytes, or as a path: absolute (any fsspec URI, `http(s)://` through pybookget) or relative to
-`image_folder`. A row with neither bytes nor a path is that page's error (a `PageError`).
+`image_folder`. A row with neither bytes nor a path fails the task (a `PageError`: the table is wrong).
+
+An image that cannot be read (an http(s) error after pybookget's retries, a missing file, bytes that are not an
+image) makes a page without image whose `doc.metadata["errors"]` says why (`field` `image`, `raw_value`
+the image's URI), so the task goes on: later model blocks pass the page by, `ImageFilesWriter` writes no file
+for it, and the page records and rejects keep it. More such pages than `max_page_errors` (a share of the task's
+pages, judged from page 100 on, `ErrorBudget`) fail the task, so a server that is down does not mark every
+page failed.
 
 ## Contract
 
