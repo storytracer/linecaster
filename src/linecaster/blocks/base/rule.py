@@ -81,9 +81,22 @@ def now() -> tuple[float, str]:
 
 
 class RuleBlock(PageBlock):
-    """A page block on a rule-based engine (``step``): ``preset`` (a preset ref or an ``InProcess`` spec) and
-    ``options`` over it, on the named transcription. Subclasses implement ``apply(page, t)`` (the engine is
-    ``self.engine``); the base stamps every step the call added."""
+    """Runs a rule-based step's built-in engine on every page, in the pipeline's process, as the base of the rule
+    blocks.
+
+    Subclasses state their catalog ``step`` and implement ``apply(page, t)`` (the engine is ``self.engine``); the
+    base stamps every ``StepInfo`` the call added with the preset edition and its hash, ``seconds`` and
+    ``datetime``. A page without the transcription passes unchanged (stat ``no_transcription``). There is no
+    backend choice: a ``Served`` backend is refused.
+
+    Args:
+        preset: the engine: a catalog preset of the block's step (``id@edition``; ``id`` alone is its latest
+            edition) or an engine spec, ``InProcess("module:Class", **options)``; a preset of another step, an
+            engine of another step or options its engine does not have are refused (``PipelineConfigError``).
+        transcription: the transcription it works on.
+        options: engine options over the preset's (recorded as the backend's ``overrides``); ``None``: the
+            preset's as they are.
+    """
 
     step: ClassVar[str] = "rule"           # the catalog step of the subclass's engines
 

@@ -6,12 +6,21 @@ from ..base.rule import RuleBlock
 
 
 class Typographer(RuleBlock):
-    """The hierarchy of the named transcription by a typography engine (``preset``: e.g. ``ratios@1``, or an
-    ``InProcess`` engine spec; ``options`` over it): heading levels from type size, headline splits, drop
-    capitals, uncertain page numbers removed (see ``linecaster.text.typography``)."""
+    """Determines the typographic hierarchy of every page by a typography engine.
+
+    Heading levels from type size, headline splits, drop capitals, uncertain page numbers removed (see
+    ``linecaster.text.typography``). Reads ``regions`` and ``lines``; adds ``hierarchy``; replaces ``regions`` and
+    ``lines`` (heading levels, headline splits, page numbers removed). Stats: ``leveled``, ``demoted``, ``split``,
+    ``drop_capitals``, ``numbers_dropped``. Its constructor is ``RuleBlock``'s (``preset``, ``transcription``,
+    ``options``).
+
+    Example:
+        Typographer("ratios@1")
+    """
 
     name = "typographer"
     step = "typography"
+    docs_args = {"preset": "ratios@1"}
     parts_read = ("regions", "lines")
     parts_added = ("hierarchy",)
     parts_replaced = ("regions", "lines")      # heading levels, headline splits, page numbers removed

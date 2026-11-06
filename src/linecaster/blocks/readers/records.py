@@ -53,34 +53,43 @@ def upgrade(row: dict) -> dict:
 
 
 class PageRecordReader(Contracted, PipelineStep):
-    """Page records written by a previous pipeline (linecaster's page writers: JSONL or Parquet), for the
-    enrichment chain: each pipeline reads the previous one's folder and adds one part. With
-    ``fetch_images`` the image bytes are read again from ``page.image.uri`` (page records never carry them), through
-    datatrove ``DataFolder``s.
+    """Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part.
 
-    Rows of an earlier format are read as today's (``upgrade``): records written before phase 1 (no ``schema``)
-    name linecaster's transcription ``ocr`` (now ``ocr_new``), ``linecaster.page/1`` records a transcription's steps
-    ``model`` (now ``steps``); a folder ``.../pages`` that holds no records but has
-    a sibling ``rows`` (the folder's name before phase 1) is read from there.
+    Each pipeline of a workflow reads the previous one's ``pages/`` folder (linecaster's page writers) and adds its
+    part. The records bring ``metadata`` and, with ``fetch_images``, ``image``: page records never carry the image
+    bytes, so they are read again from ``page.image.uri`` through datatrove ``DataFolder``s (``http(s)://``
+    through pybookget). A page's errors come back as ``doc.metadata["errors"]``, so later model blocks pass it by.
+
+    Rows of an earlier format are read as today's (``upgrade``, by the row's ``schema``): rows without ``schema``
+    name linecaster's transcription ``ocr`` (read as ``ocr_new``), ``linecaster.page/1`` rows a transcription's
+    steps ``model`` (read as ``steps``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
+    (the folder's earlier name) is read from there.
 
     Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards
     (``PageJsonlWriter(item_shards=N)``): the shard folders are distributed instead, each read whole, so a task
-    sees every page of its items.
+    sees every page of its items (``whole_items``). No shard folder is a ``PipelineConfigError``.
 
-    ``provides`` declares the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for
-    the builder's checks; without it the records may carry anything (reads after this reader are not checked). The
-    builder sets it when it starts a stage from the page records of an earlier one."""
+    Args:
+        data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the page records.
+        glob_pattern: the record files to read; default JSON Lines (``**/*.jsonl*``), ``**/*.parquet`` for Parquet.
+        fetch_images: read each page's image again (the part ``image``); without it the pages carry no image.
+        uri_map: image URI prefixes rewritten before reading (e.g. a Hub path to a local copy of the same files).
+        item_shards: the records are item shards (``<shard>/<rank>...``), each read whole by one task.
+        http: pybookget ``Config`` fields for ``http(s)://`` image URIs.
+        provides: the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for the
+            builder's checks; default: anything (``*``; reads after this reader are not checked). The builder sets it
+            when it starts a stage from the page records of an earlier one.
+    """
 
     type = "📖 - READER"
     name = "📄 page records"
     role = "reader"
     live_params = ("provides",)          # the builder declares what an earlier stage wrote
+    docs_args = {"data_folder": "out/pages"}
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
                  uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None,
                  provides=None):
-        """``uri_map`` rewrites image URI prefixes (e.g. a Hub path to a local copy of the same files); ``http``
-        sets pybookget ``Config`` fields for ``http(s)://`` image URIs."""
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
         self.uri_map, self.item_shards = uri_map or {}, item_shards

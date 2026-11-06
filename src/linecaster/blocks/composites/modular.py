@@ -15,14 +15,28 @@ def _block(given, cls, transcription: str):
 
 
 class ModularTranscriber(Composite):
-    """Regions (``layout``: a ``LayoutDetector``, its backend, or a layout preset; ``"single-region@1"`` reads the page
-    as one region), lines on the whole page (``lines``: a ``LineDetector`` or its backend), the lines
-    assigned to the regions and ordered (``LineAssigner``; with ``formulas_separately`` formula regions take no
-    lines, for a formula step after it) and every line recognized (``recognition``: a ``LineRecognizer`` or its
-    backend), in the transcription ``transcription``.
+    """Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition.
 
-    Outward contract: reads the page image and record; adds regions, reading order, lines, their assignment to
-    regions and the recognizer's parts (text, words, confidences: its preset's)."""
+    Expands into a ``LayoutDetector``, a ``LineDetector``, a ``LineAssigner`` and a ``LineRecognizer``, each model
+    step with its own engine and backend, in the transcription ``transcription``. Outward contract: reads the page
+    image; adds regions, reading order, lines, their assignment to regions and the recognizer's parts (text,
+    words, confidences: its preset's).
+
+    Args:
+        lines: a ``LineDetector``, its backend, or a lines preset's ref.
+        recognition: a ``LineRecognizer``, its backend, or a recognition preset's ref.
+        layout: a ``LayoutDetector``, its backend, or a layout preset's ref; ``"single-region@1"`` reads the page as
+            one region.
+        formulas_separately: formula regions take no lines, for a formula step after it.
+        transcription: the transcription every step works on (blocks given as blocks keep their own).
+        name: the composite's name in the graph and the plan.
+
+    Example:
+        ModularTranscriber("pp-ocrv6-medium-det@1", "kraken-ppocrv6-medium@1", layout="pp-doclayoutv3@1")
+    """
+
+    docs_args = {"lines": "pp-ocrv6-medium-det@1", "recognition": "kraken-ppocrv6-medium@1",
+                 "layout": "pp-doclayoutv3@1"}
 
     def __init__(self, lines, recognition, layout, formulas_separately: bool = False,
                  transcription: str = "ocr_new", name: str = "modular transcriber"):

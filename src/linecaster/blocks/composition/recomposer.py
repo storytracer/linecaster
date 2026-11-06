@@ -16,16 +16,31 @@ COUNTED = ("paragraphs", "continuations", "marks_removed", "marks_kept")
 
 
 class Recomposer(RuleBlock):
-    """The paragraphs of the named transcription by a recomposition engine (``preset``: e.g.
-    ``unicode-recomposition@1``, or an ``InProcess`` engine spec; ``options`` over it), with their decisions;
-    paragraphs that already exist are made anew.
+    """Recomposes the running text of a page or an item into paragraphs by a recomposition engine.
+
+    The rows of each text region become ``paragraphs``, each with its decisions; paragraphs that already exist are
+    made anew. Reads ``regions`` and ``lines``; adds ``paragraphs`` and declares them replaced (an item-level
+    recomposition after a page-level one). Stats: ``paragraphs``, ``continuations``, ``marks_removed``,
+    ``marks_kept`` (and ``items``).
 
     ``unit="page"``: each page by itself (a paragraph continues into the next text region of the page).
     ``unit="item"``: the pages of an item record together, in order (``linecaster.blocks.base.item``): the lexicon
-    grows page by page, and a paragraph open at the foot of a page continues on the next one."""
+    grows page by page, and a paragraph open at the foot of a page continues on the next one.
+
+    Args:
+        preset: the recomposition engine: a preset (e.g. ``unicode-recomposition@1``) or an ``InProcess`` engine
+            spec.
+        transcription: the transcription to recompose.
+        unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``Binder``).
+        options: engine options over the preset's; ``None``: the preset's.
+
+    Example:
+        Recomposer("unicode-recomposition@1", unit="item")
+    """
 
     name = "recomposer"
     step = "recomposition"
+    docs_args = {"preset": "unicode-recomposition@1"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

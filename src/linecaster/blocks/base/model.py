@@ -100,8 +100,42 @@ def preset_backend(ref: str, step: str) -> InProcess:
 
 
 class ModelBlock(PageBlock):
-    """Run one model step on every page, adding its part to the page's ``transcription``. In-process it is a
-    per-unit transform; served a stream transform (pages in flight in a window, passed on as they finish)."""
+    """Runs one model step's engine on every page, through its backend, and adds its part to the transcription.
+
+    In-process (``InProcess``) it is a per-unit transform: the engine loads in ``warm_up()``, before the first
+    page, and is called with the page image (an RGB array; none when the step reads only regions of a label the
+    page lacks, ``region_label``) and the transcription so far. Served (``Served``, or ``Chat`` for a VLM) it is a
+    stream transform: up to a window of requests in flight, passed on as they finish. Either way a page's result
+    depends only on the page.
+
+    Contract: reads the page image (recognition also ``lines``, tables and formulas ``regions``) and adds what its
+    preset's ``capabilities.produces`` names, else its engine's declared capabilities, else the step's default
+    (``STEP_PRODUCES``). The engine's ``StepInfo`` gets the engine id, ``seconds``, ``datetime`` and, from a
+    preset, the edition and its hash. A page an earlier block failed on passes through at once (stat
+    ``skipped_after_error``); a failed request is the page's error (type ``ServerError``), counted against the
+    error budget. Served stats: ``pages``, ``model_seconds``, token counts, ``finish_<reason>``,
+    ``served_wall_seconds``.
+
+    Args:
+        backend: where the engine runs: ``InProcess``, ``Served``, or a catalog preset's ref (``id`` or
+            ``id@edition``) for its engine in the pipeline's process; a preset of another step is refused
+            (``PipelineConfigError``).
+        transcription: the transcription the step reads and adds to.
+        params: keyword arguments for every call of the engine (in-process) or sent with every request (served);
+            ``None``: none.
+        primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
+            ``transcription``.
+        skip_on_error: pass pages that carry errors through unprocessed.
+        name: the block's name in stats and logs; ``None``: ``"<step> (<backend>)"``.
+
+    Example:
+        from linecaster.backends import InProcess, Served
+        from linecaster.blocks.lines import LineDetector
+
+        LineDetector("pp-ocrv6-medium-det@1")
+        LineDetector(InProcess("linecaster_paddlex:PaddleLineEngine"))
+        LineDetector(Served("http://127.0.0.1:8100/v1", model="lines"))
+    """
 
     step = "model"
     role = "model"

@@ -68,20 +68,33 @@ class _Opener:
 
 
 class ImageFolderReader(Contracted, BaseDiskReader):
-    """One page per image file, read the way datatrove reads files: the image files under ``data_folder`` matching
-    ``glob_pattern``, or the files listed in ``paths_file`` (one per line, relative to ``data_folder``), distributed
-    over tasks in turn (``[rank::world_size]``, as ``DataFolder.get_shard``).
+    """Reads one page per image file of a folder or bucket.
 
-    ``page_id`` is the file name without extension; with ``item_from_parent`` the parent folder's name is the
-    ``item_id``, with ``item_id`` every page belongs to that one item. ``sequence`` (with ``glob_pattern``) sets
-    ``Page.sequence`` to the file's 1-based position among its item's files in sorted order. ``limit`` and ``skip``
-    count pages per task, as in datatrove; ``default_metadata`` goes into every page's metadata. An item's pages
-    can land in different tasks: item-level steps run in a later stage over item shards
-    (``linecaster.blocks.writers.shards``)."""
+    The image files under ``data_folder`` matching ``glob_pattern``, or the files listed in ``paths_file`` (one per
+    line, relative to ``data_folder``), are distributed over tasks in turn (``[rank::world_size]``, as
+    ``DataFolder.get_shard``). Each page adds ``image`` (the file's bytes) and ``metadata`` (the page record:
+    ``page_id`` is the file name without extension, the image's URI). ``limit`` and ``skip`` count pages per task,
+    as in datatrove. An item's pages can land in different tasks: item-level steps run in a later stage over item
+    shards (``linecaster.blocks.writers.shards``). No matching file fails the task with a ``PipelineConfigError``.
+
+    Args:
+        data_folder: the folder (local path, fsspec URI or ``DataFolder``) the images are read from.
+        paths_file: a file listing the images to read, one path per line relative to ``data_folder``; default: every
+            file matching ``glob_pattern``.
+        glob_pattern: the image files to read; ``{a,b}`` alternatives are expanded. Default: WebP, JPEG, PNG, TIFF and
+            JPEG 2000 files at any depth.
+        item_from_parent: the parent folder's name is each page's ``item_id``; excludes ``item_id``.
+        item_id: every page belongs to this one item; excludes ``item_from_parent``. Default: pages without item.
+        sequence: sets ``Page.sequence`` to the file's 1-based position among its item's files in sorted order;
+            needs ``glob_pattern`` (every file of an item), not ``paths_file``.
+        default_metadata: goes into every page's metadata.
+        recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
+    """
 
     name = "🖼️ image folder"
     role = "reader"
     parts_added = ("image", "metadata")
+    docs_args = {"data_folder": "scans/"}
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str = IMAGE_GLOB, recursive: bool = True, limit: int = -1, skip: int = 0,
@@ -149,18 +162,34 @@ class ImageFolderReader(Contracted, BaseDiskReader):
 
 
 class ImageParquetReader(Contracted, ParquetReader):
-    """One page per row of Parquet files with an image column, read through datatrove's ``ParquetReader`` (files
-    distributed over tasks in turn, so a file should hold whole items). ``image_key`` holds the image as Hugging
-    Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as plain
-    bytes, or as a path: absolute (any fsspec URI) or relative to ``image_folder`` (default ``data_folder``).
-    ``id_key`` gives the page id, ``item_key`` and ``sequence_key`` the item and the page's position in it (a table
-    without the ``id_key`` column names pages ``<item>_<0001>`` from those two). With
-    ``read_metadata`` the other columns go into the page's metadata (datatrove's default adapter keeps them too);
-    without it only the named columns are read. ``http``: pybookget ``Config`` fields for ``http(s)://`` paths."""
+    """Reads one page per row of Parquet files with an image column.
+
+    The files are read through datatrove's ``ParquetReader`` and distributed over tasks in turn, so a file should
+    hold whole items. Each row adds ``image`` and ``metadata`` (the page record). The image column holds the image
+    as Hugging Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as
+    plain bytes, or as a path: absolute (any fsspec URI, ``http(s)://`` through pybookget) or relative to
+    ``image_folder``. A row with neither bytes nor a path is that page's error (a ``PageError``).
+
+    Args:
+        data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the Parquet files.
+        batch_size: the rows read at once from a file.
+        id_key: the column with the page id. A table without it names its pages ``<item>_<0001>`` from ``item_key``
+            and ``sequence_key``, which it then needs.
+        image_key: the column with the image.
+        item_key: the column with the page's ``item_id``; default: pages without item.
+        sequence_key: the column with the page's position in its item (``Page.sequence``).
+        image_folder: the folder relative image paths are read from; default ``data_folder``.
+        read_metadata: the other columns go into the page's metadata; without it only the named columns are read.
+        default_metadata: goes into every page's metadata.
+        http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths.
+        paths_file, glob_pattern, recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's
+            ``ParquetReader`` arguments.
+    """
 
     name = "🖼️ image parquet"
     role = "reader"
     parts_added = ("image", "metadata")
+    docs_args = {"data_folder": "pages/"}
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str | None = "**/*.parquet", recursive: bool = True, limit: int = -1, skip: int = 0,

@@ -29,12 +29,23 @@ def reject(key: str, entry: dict) -> dict:
 
 
 class RejectWriter(Contracted, PipelineStep):
-    """Write every page that carries errors to ``<output_folder>/<prefix><rank:05d>.jsonl`` (one line per error)
-    and pass every page on. ``prefix`` keeps two writers that share a folder apart."""
+    """Writes every page that carries errors to the task's rejects file and passes every page on.
+
+    The file is ``<output_folder>/<prefix><rank:05d>.jsonl``, opened on the first reject (a task without rejects
+    leaves no file), one line per error of ``doc.metadata["errors"]``: ``key`` (the page id), ``field`` (else the
+    step or block that failed), ``error``, ``raw_value``, and the entry's other keys (``block``, ``step``,
+    ``preset``, ``type``). The page records keep the failed pages with their errors. The builder puts one before the
+    first writer of a pipeline with a run folder (``<run_folder>/rejects``) when it has none.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the rejects go to.
+        prefix: put before each file name, so two writers that share a folder stay apart.
+    """
 
     type = "💽 - WRITER"
     name = "🗑 rejects"
     role = "writer"
+    docs_args = {"output_folder": "out/rejects"}
 
     def __init__(self, output_folder: DataFolderLike, prefix: str = ""):
         super().__init__()

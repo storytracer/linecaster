@@ -15,15 +15,28 @@ UNITS = ("page", "item")
 
 
 class CharacterNormalizer(RuleBlock):
-    """The normalized texts of the named transcription's lines, paragraphs and table cells by a normalization
-    engine (``preset``: e.g. ``latin-historic@1``, or an ``InProcess`` engine spec; ``options`` over it). After a
-    ``Recomposer`` the paragraphs are normalized too.
+    """Normalizes the texts of every line, paragraph and table cell by a normalization engine, next to the text as
+    written.
 
-    ``unit="page"``: each page; ``unit="item"``: each page of an item record (``linecaster.blocks.base.item``), after
-    an item-level ``Recomposer``."""
+    Character fidelity *as written* -> *normalized*: each gets its ``normalized`` (``Line.normalized``,
+    ``Paragraph.normalized``, the table cells' ``normalized``); the as-written texts are never touched. After a
+    ``Recomposer`` the paragraphs are normalized too. Reads ``text``; adds ``normalized``; stat ``changed``.
+    ``unit="page"``: each page; ``unit="item"``: each page of an item record (``linecaster.blocks.base.item``),
+    after an item-level ``Recomposer``.
+
+    Args:
+        preset: the normalization engine: a preset (e.g. ``latin-historic@1``) or an ``InProcess`` engine spec.
+        transcription: the transcription to normalize.
+        unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``Binder``).
+        options: engine options over the preset's; ``None``: the preset's.
+
+    Example:
+        CharacterNormalizer("latin-historic@1", unit="item")
+    """
 
     name = "character normalizer"
     step = "normalization"
+    docs_args = {"preset": "latin-historic@1"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

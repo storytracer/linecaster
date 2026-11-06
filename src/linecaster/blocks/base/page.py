@@ -121,7 +121,9 @@ def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id
 
 
 class PageBlock(Contracted, PipelineStep):
-    """A block that works on pages, in one of two shapes:
+    """Processes a stream of pages, one datatrove document per page, as the base of the page blocks.
+
+    A page block has one of two shapes:
 
     * **per-unit transform** (``shape = "unit"``): subclasses implement ``process_page(doc, page) -> page | None``;
       this class owns the loop and the stats;

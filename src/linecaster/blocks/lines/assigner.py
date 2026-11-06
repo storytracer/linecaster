@@ -82,10 +82,23 @@ def order_rows(lines: list[Line]) -> list[Line]:
 
 
 class LineAssigner(PageBlock):
-    """Assign page-level lines to the layout regions and order them (see the module docstring).
+    """Assigns the lines detected on the whole page to the layout regions and orders them row by row.
 
-    Regions labeled in ``skip_labels`` take no lines (pictures); with ``formulas_separately`` formula
-    regions take none either (a formula step reads them as LaTeX), and lines inside them are dropped.
+    Each line goes to the region it overlaps most; lines outside every region (a page number the layout model
+    missed, marginalia) become their own ``text`` regions (``orphan_<n>``), one per visual row, slotted into the
+    reading order; duplicates are dropped. Afterwards the list order of ``lines`` is the order a recognizer
+    follows (regions in the layout step's order, orphan rows last, rows within each region), ``reading_order`` is
+    the reading rank (regions by reading order, then rows), and line ids are ``<region id>_l<n>``.
+
+    Reads ``lines`` and ``regions``; adds ``line_regions``; replaces ``regions`` (the orphan regions),
+    ``reading_order`` and ``lines`` (ids and order). Lines inside skipped regions are dropped (stat
+    ``lines_in_skipped_regions``); stat ``orphan_rows`` counts the rows that became regions.
+
+    Args:
+        transcription: the transcription whose lines and regions it works on.
+        skip_labels: region labels that take no lines (default pictures and charts).
+        formulas_separately: formula regions take no lines either and the lines inside them are dropped, for a
+            formula step that reads them as LaTeX; ``False``: formula regions get lines like text regions.
     """
 
     name = "line assigner"

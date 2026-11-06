@@ -87,10 +87,13 @@ class Contract:
 
 
 class Contracted(Block):
-    """The default ``contract()``: from class attributes (and, from ``Block``, ``warm_up()`` and ``to_dict()``).
-    ``parts_read``, ``parts_added`` and ``parts_replaced`` name parts; page-level ones (``image``, ``metadata``) stay
-    page-level, the others belong to the block's ``transcription`` attribute (default ``ocr_new``). Blocks whose parts
-    depend on their options override ``contract()``."""
+    """Gives a block the default ``contract()``, read from its class attributes.
+
+    ``unit``, ``unit_out``, ``role``, and ``parts_read``, ``parts_added`` and ``parts_replaced``, which name parts:
+    page-level ones (``image``, ``metadata``, ``transcription_file``) stay page-level, the others belong to the
+    block's ``transcription`` attribute (default ``ocr_new``). Blocks whose parts depend on their options override
+    ``contract()``. From ``Block`` it has ``warm_up()`` and ``to_dict()``.
+    """
 
     unit: str = "page"
     unit_out: str | None = None

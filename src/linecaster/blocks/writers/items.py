@@ -18,14 +18,26 @@ from ..base.item import ITEM_KEY, item_pages
 
 
 class ItemDocumentWriter(Contracted, PipelineStep):
-    """Write the item documents of an item-level ``Composer`` as ``<item id><suffix>.<ext>`` (with ``by_format``
-    in a folder per format, ``<format>/<item id><suffix>.<ext>``): ``md``, ``txt``, ``html``, ``doclang``, ``json``
-    (``linecaster.formats.docling.export``). ``furniture`` keeps page headers and footers in md, txt and html;
-    ``dividers`` puts ``---`` between the items of consecutive layout regions in md. Item records pass through."""
+    """Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON.
+
+    It reads the item's ``document`` (an item-level ``Composer``'s) and writes ``<item id><suffix>.<ext>``
+    (``linecaster.formats.docling.export``); an item record without a document is counted (``no_document``). Item
+    records pass through.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the documents go to.
+        formats: the formats to write: ``md``, ``txt``, ``html``, ``doclang``, ``json``; an unknown one is a
+            ``PipelineConfigError``.
+        suffix: added to each file's stem, before the extension.
+        furniture: keep page headers and footers in md, txt and html.
+        dividers: put ``---`` between the items of consecutive layout regions in md.
+        by_format: one folder per format, ``<format>/<item id><suffix>.<ext>``.
+    """
 
     type = "💽 - WRITER"
     name = "📝 item documents"
     unit, role = "item", "writer"
+    docs_args = {"output_folder": "out/documents"}
 
     def contract(self) -> Contract:
         return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
@@ -90,17 +102,30 @@ def item_texts(doc: Document, variants_: tuple[str, ...] = tuple(VARIANTS), tran
 
 
 class ItemTextWriter(Contracted, JsonlWriter):
-    """The text variants of each item record (``linecaster.text.variants``): ``verbatim_txt`` from its pages' lines
-    as laid out (pages joined with a form feed), ``readable_txt`` and ``readable_md`` from the paragraphs of the
-    item's recomposition (``Recomposer(unit="item")``), normalized (``CharacterNormalizer``), body only.
+    """Writes the text variants of each item record as JSON Lines or as files.
 
-    ``format="jsonl"``: JSON Lines, one folder per variant (``<variant>/<rank>.jsonl.gz``; ``output_filename`` and
-    datatrove's ``JsonlWriter`` options apply), a row per item: ``id`` (the item), ``text`` and ``item_id``,
-    ``variant``, ``fidelity``, ``flow``, ``scope``, ``format``, ``page_ids``, ``pages`` (count) and ``token_count``
-    when a ``token_counter`` is given (e.g. a tiktoken encoding's ``encode`` length); ``format="files"``: one file
-    each, ``<output_folder>/<variant>/<item_id>.<txt|md>``. Item records pass through."""
+    The variants (``linecaster.text.variants``): ``verbatim_txt`` from its pages' lines as laid out (pages joined
+    with a form feed; reads ``lines``), ``readable_txt`` and ``readable_md`` from the paragraphs of the item's
+    recomposition (``Recomposer(unit="item")``), normalized (``CharacterNormalizer``), body only (reads
+    ``paragraphs`` and ``normalized``). A JSON Lines row per item and variant holds ``id`` (the item), ``text`` and
+    ``item_id``, ``variant``, ``fidelity``, ``flow``, ``scope``, ``format``, ``page_ids``, ``pages`` (count) and
+    ``token_count`` with a ``token_counter``. A stream entry that is no item record is counted (``no_item``). Item
+    records pass through.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the texts go to.
+        format: ``jsonl`` (one folder per variant, ``<variant>/<rank>.jsonl.gz``) or ``files`` (one file per item
+            and variant, ``<variant>/<item_id>.<txt|md>``).
+        variants: the variants to write, names of ``VARIANTS``; an unknown one is a ``PipelineConfigError``.
+        transcription: the transcription the texts are made from.
+        token_counter: counts a text's tokens for ``token_count`` (e.g. the length of a tiktoken encoding's
+            ``encode``); default: no count.
+        output_filename: the JSON Lines file name (``jsonl``), datatrove's template.
+        **kwargs: datatrove's ``JsonlWriter`` arguments (``compression``, ``max_file_size``, ...).
+    """
 
     unit, role = "item", "writer"
+    docs_args = {"output_folder": "out/texts"}
 
     def contract(self) -> Contract:
         names = {"lines"} if "verbatim_txt" in self.variants else set()

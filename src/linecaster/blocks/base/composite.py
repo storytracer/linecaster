@@ -8,10 +8,19 @@ from .contract import Contract, contract_of
 
 
 class Composite(Block):
-    """A named group of ``blocks`` (blocks or composites, in order). Its contract is ``contract`` when given, else
-    derived from its blocks: what they read that no block inside adds, what they add and replace, the first block's
-    unit and the last one's output unit. It is not a datatrove step: run it through the builder. ``to_dict()`` is
-    the group: its parameters and its blocks' dicts."""
+    """Groups blocks under one name with an outward contract of its own.
+
+    Its contract is ``contract`` when given, else derived from its blocks: what they read that no block inside
+    adds, what they add and replace, the first block's unit and the last one's output unit. It is not a datatrove
+    step: the builder expands it into its blocks (nested composites too), and the graph and the plan keep the
+    group. ``to_dict()`` is the group: its parameters and its blocks' dicts.
+
+    Args:
+        name: the group's name, in the graph and the plan; ``--until``, ``--after`` and ``--tap-after`` name its
+            last block by it.
+        blocks: the blocks or composites, in order; at least one (``PipelineConfigError`` otherwise).
+        contract: the outward contract; ``None``: derived from the blocks.
+    """
 
     role = "composite"
 
