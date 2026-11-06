@@ -9,7 +9,7 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 |---|---|---|
 | block | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `Typographer`, `Composer`, `Binder`, `ManifestReader`, `PageJsonlWriter` |
 | composite block | `<Purpose><RoleNoun>` | `ModularTranscriber` |
-| block base classes | `<Unit>Block` | `PageBlock`, `ItemBlock`, `ModelBlock` |
+| block base classes | `<Kind>Block` | `PageBlock`, `ModelBlock`, `RuleBlock` |
 | engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
 | engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
 | VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
@@ -49,6 +49,30 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
 
 Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored page records name their format in a
 `schema` field of their row (`linecaster.page/2`).
+
+## Docstrings
+
+Google style, checked by `tests/test_docstrings.py` (with `ast`, no extra tool) for every public block, built-in
+engine, backend, serializer, `build`, `run_pages`, `runtime.run.main` and public function of `linecaster.catalog`:
+
+- **Summary line**: what the block or function does, in the present tense, starting with a verb, one sentence:
+  "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The block
+  index and the README's block table show it.
+- **Body**: the contract in words (what it reads, adds and replaces), edge cases, what it records (step infos,
+  stats, errors on the page).
+- **`Args:`** names every parameter of the signature (a class documents its constructor's), and no other: one entry
+  each, `name: meaning, the effect of the default, constraints.`, continuation lines indented. Several parameters
+  may share an entry (`data_folder, paths_file, ...: datatrove's BaseDiskReader arguments.`), as datatrove's
+  inherited reader and writer arguments do; `**kwargs` is an entry too. A class that keeps its base's constructor
+  keeps its base's `Args:`.
+- **`Example:`** (indented Python code) is required for `runtime.run.main`, `build()`, the serializers (`to_alto`,
+  `from_alto`, ...) and the public functions of `linecaster.catalog`; optional for blocks, whose generated pages show
+  it.
+- Inline code in double or single backticks; the generated pages render both as code. Engine options are described
+  in their `Options` model (`Field(description=...)`), not in a docstring.
+
+Reason: the generated block pages and tables come from the docstrings, so the reference is only as good as they
+are, and a test keeps them complete as signatures change.
 
 ## Contracts
 
