@@ -26,10 +26,12 @@ error (``doc.metadata["errors"]``), as for every model block.
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from ...adapters import ENGINE
 from ...backends import Chat
 from ...data.transcription import StepInfo
-from ...errors import PipelineConfigError
+from ...errors import PageError, PipelineConfigError
 from ..base.contract import Contract, parts
 from ..base.model import ModelBlock, Passed, produces
 from ..base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
@@ -132,8 +134,9 @@ class RegionRecognizer(PageRecognizer):
     region gets one line: the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps
     ``raw`` and ``finish_reason``), in reading order; the transcription's earlier lines are replaced. The
     ``StepInfo`` records the preset edition, the settings with ``pad``, ``page_scale`` and ``labels``, and the
-    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error; a page without
-    readable regions passes through unchanged (stat ``pages_without_regions``).
+    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error, and so is a page
+    without image bytes (stat ``errors``); a page without readable regions passes through unchanged (stat
+    ``pages_without_regions``).
 
     Args:
         backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
@@ -199,7 +202,15 @@ class RegionRecognizer(PageRecognizer):
             if not regions:
                 results.put(Passed(doc, "pages_without_regions"))
                 continue
-            with Image.open(io.BytesIO(image_bytes(doc))) as im:
+            try:
+                data = image_bytes(doc)
+            except PageError as e:     # the page's error (as in-process), not the task's
+                entry = record_error(doc, error_entry(self, e))
+                logger.warning("page {page_id} failed in {block}: {error_type}: {error}", page_id=doc.id,
+                               block=entry["block"], error_type=entry["type"], error=entry["error"])
+                results.put(Passed(doc, "errors"))
+                continue
+            with Image.open(io.BytesIO(data)) as im:
                 img = im.convert("RGB")
             longest = self.adapter.page_longest
             scale = longest / max(img.size) if longest else 1.0
