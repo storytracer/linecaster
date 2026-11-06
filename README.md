@@ -12,9 +12,13 @@ Build an OCR pipeline from interchangeable parts: a model that reads the text, e
 model or a line recognizer, combined with layout, table and formula models and post-processing. Run
 the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF Jobs].
 
+**Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/) (the newest release;
+this README, the reference, a page for every block and catalog entry, and
+[llms.txt](https://storytracer.github.io/linecaster/latest/llms.txt) for coding agents).
+
 **Jump to:** [Why](#-why-linecaster) · [Quick start](#-quick-start) · [How it works](#-how-it-works) ·
 [Run anywhere](#-run-it-anywhere) · [Outputs](#-what-you-get) ·
-[Models and blocks](#-models-and-blocks) · [Reference](#-reference)
+[Models and blocks](#-models-and-blocks) · [Reference](#-reference) · [Versions](#%EF%B8%8F-versions-and-changes)
 
 ## 🤔 Why Linecaster
 
@@ -156,14 +160,16 @@ the plan and its graph as a Mermaid flowchart; `--until`, `--after` and `--tap-a
 
 ## 🧩 How it works
 
-Three ideas carry the design:
+Four ideas carry the design:
 
 1. 📋 **One record per page.** Every step reads the page's `Transcription` and adds its part: regions,
    lines, text, tables, a document. Steps never talk to each other, so any step can be replaced.
-2. 🔌 **Each model step has a backend.** `InProcess` loads the model inside the pipeline. `Served` sends
-   pages to a model server through [saturate], which keeps enough pages in flight that the GPU never
-   waits.
-3. 🏗️ **The executor decides where it runs.** Pipelines are [datatrove] pipelines. Executors split the
+2. 📐 **Every block declares its contract**: what it reads, adds, replaces or removes. A pipeline is checked
+   before it starts, and its graph is drawn from the contracts; a recognizer without lines fails at once.
+3. 🔌 **Each model step has a backend.** `InProcess` loads the model inside the pipeline. `Served` sends
+   pages to a model server and `Chat` to a vision-language model behind an OpenAI-compatible server, both
+   through [saturate], which keeps enough pages in flight that the GPU never waits.
+4. 🏗️ **The executor decides where it runs.** Pipelines are [datatrove] pipelines. Executors split the
    pages into tasks, run them locally, on a [Ray] cluster or on [Hugging Face Jobs][HF Jobs], and resume
    where a run stopped.
 
@@ -193,6 +199,7 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
 | Parquet with an image column (pages) | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
 | items' manifests (IIIF, METS) | `--manifests FOLDER`, `--manifests list.txt` (one link per line), or an item table: `--manifests items.parquet --manifest-key manifest_url [--item-key item_id]` |
 | page records of an earlier run | `--pages OUT/pages` (images fetched again from their URIs) |
+| PDF files | the `PdfReader` block (extra `pypdfium2`): one item per PDF, each page rendered to a lossless WebP image; no pipeline flag yet |
 
 - The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
   or relative to `--image-folder`. Without a page-id column, `--item-key` and `--sequence-key` name pages
@@ -537,7 +544,7 @@ in a pipeline.
 | `Item` | a book, issue, manuscript or file |
 | `Page` | one page: its image and named transcriptions |
 | `Transcription` | regions, lines and words with positions, reading order and confidences, plus a [DoclingDocument] |
-| `Text` | a whole item's text in one version |
+| `Text` | a whole item's text in one text variant (below) |
 
 - A page can hold several transcriptions side by side, for example the delivered OCR, a new one and the
   ground truth.
@@ -642,11 +649,29 @@ Spelling is never modernized.
 |---|---|
 | a model | `linecaster catalog pin <id> --hf <repo>` for its model entry and card, then a preset (`presets/<step>/<id>.yaml`, its reasons in `<id>.md`) and `linecaster catalog release <id>` |
 | a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
-| an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`) |
+| an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`); it imports only `linecaster.data` and `linecaster.engines.api`, and `linecaster.testing.check_engine` tests it |
 | a recipe | `recipes/<id>.yaml`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
-| a processing step | a `PageBlock` with `process_page(doc, page)` |
+| a processing step | a `PageBlock` with `process_page(doc, page)` and its `contract()`, a docstring to the [standard](docs/reference/conventions.md), tested with `linecaster.testing.check_block`; `uv run linecaster docs` then writes its page |
 
 An engine runs both inside the pipeline and behind `linecaster serve` without further work.
+
+</details>
+
+<details>
+<summary><b>🧪 Tests and checks</b></summary>
+
+| Check | Command |
+|---|---|
+| the core's tests | `uv run pytest` (tests marked `gpu` or `network` skip where the device or the network is missing) |
+| an engine package's tests | `uv run tests/test_engines_catalog.py engines/<engine>/tests` (in the engines' environment) |
+| the docs are current | `uv run linecaster docs --check` |
+| released catalog editions are unchanged | `uv run linecaster catalog verify` |
+| the docs site builds | `uv run --group docs mkdocs build --strict` |
+| the squiddle recipe against its goldens | `tests/parity/compare_goldens.py RUN GOLDENS` (on a machine that has them) |
+
+The CI workflow runs the first one without the engines, and the three after it, on every push and pull request.
+`linecaster.testing` gives engine packages and the projects built on Linecaster the same tools: sample pages,
+fake CPU engines, a fake chat server, and the conformance checks `check_engine` and `check_block`.
 
 </details>
 
@@ -661,10 +686,22 @@ An engine runs both inside the pipeline and behind `linecaster serve` without fu
 | `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
 | `pipelines/` | self-contained pipelines that run anywhere and serve their models |
 | `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
+| `stubs/` | a stand-in package that gives PaddleX the headless OpenCV build (one `cv2`) |
+| `tests/` | the core's tests; `tests/parity/` compares against the goldens |
+| `.github/workflows/` | the CI workflow, and the docs workflow that publishes the site for every release |
 | `docs/reference/` | reference: glossary, conventions, architecture, pipelines, the data model, serialization, the catalog, tracing, compatibility |
-| `docs/` | generated by `linecaster docs`: the catalog's pages (`docs/catalog/`, one folder per kind of entry), the block pages (`docs/blocks/`), the site's index and `llms.txt`; images for this README |
+| `docs/` | generated by `linecaster docs`: the catalog's pages (`docs/catalog/`, one folder per kind of entry), the block pages (`docs/blocks/`), the site's index and `llms.txt`; images for this README; the site's settings are in `mkdocs.yml` |
+| `CHANGELOG.md`, `NOTES.md` | what changed in each release; measurements and decisions |
 
 </details>
+
+## 🏷️ Versions and changes
+
+The current release is `v0.1.0`. [CHANGELOG.md](CHANGELOG.md) lists every release's changes, upgrade notes first.
+While the version is 0.x, a release may break things without a deprecation period; what counts as breaking is in
+[docs/reference/compatibility.md](docs/reference/compatibility.md). Released catalog editions never change, so a run
+record made with an older release still resolves. The [docs site](https://storytracer.github.io/linecaster/) keeps
+one version per release.
 
 ## 📄 License
 
@@ -706,46 +743,5 @@ commercial purposes. The Apache-2.0 license of the code does not apply to it. Th
 [JSON Lines]: https://jsonlines.org/
 [Parquet]: https://parquet.apache.org/
 [NFC]: https://unicode.org/reports/tr15/
-[bhl-ocr-eval]: https://github.com/finebooks/bhl-ocr-eval
-[PP-DocLayoutV3]: https://huggingface.co/PaddlePaddle/PP-DocLayoutV3
-[PP-DocLayout_plus-L]: https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L
-[PP-OCRv6_tiny_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det
-[PP-OCRv6_small_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det
-[PP-OCRv6_medium_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det
-[kraken-tiny]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny
-[kraken-small]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small
-[kraken-medium]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium
-[SLANet_plus]: https://huggingface.co/PaddlePaddle/SLANet_plus
-[PP-LCNet_x1_0_table_cls]: https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_table_cls
-[RT-DETR-L_wired_table_cell_det]: https://huggingface.co/PaddlePaddle/RT-DETR-L_wired_table_cell_det
-[RT-DETR-L_wireless_table_cell_det]: https://huggingface.co/PaddlePaddle/RT-DETR-L_wireless_table_cell_det
-[PP-FormulaNet_plus-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L
-[PP-FormulaNet-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet-L
-[olmOCR-2-7B-1025-FP8]: https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8
-[OvisOCR2]: https://huggingface.co/ATH-MaaS/OvisOCR2
-[OvisOCR3]: https://huggingface.co/ATH-MaaS/OvisOCR3
-[Qianfan-OCR]: https://huggingface.co/baidu/Qianfan-OCR
-[Unlimited-OCR]: https://huggingface.co/baidu/Unlimited-OCR
-[Unlimited-OCR-2]: https://huggingface.co/baidu/Unlimited-OCR-2
-[chandra-ocr-2]: https://huggingface.co/datalab-to/chandra-ocr-2
-[DeepSeek-OCR]: https://huggingface.co/deepseek-ai/DeepSeek-OCR
-[DeepSeek-OCR-2]: https://huggingface.co/deepseek-ai/DeepSeek-OCR-2
-[SmolDocling-256M-preview]: https://huggingface.co/docling-project/SmolDocling-256M-preview
-[LightOnOCR-2-1B]: https://huggingface.co/lightonai/LightOnOCR-2-1B
-[LightOnOCR-3-0.8B]: https://huggingface.co/lightonai/LightOnOCR-3-0.8B
-[LightOnOCR-3-4B]: https://huggingface.co/lightonai/LightOnOCR-3-4B
-[Nemotron-3.5-Parse]: https://huggingface.co/nvidia/Nemotron-3.5-Parse
-[MiniCPM-OCR-1.0]: https://huggingface.co/openbmb/MiniCPM-OCR-1.0
-[PaddleOCR-VL-1.6]: https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6
-[Qwen3.5-9B]: https://huggingface.co/Qwen/Qwen3.5-9B
-[dots.mocr]: https://huggingface.co/dots-studio/dots.mocr
-[dots.ocr]: https://huggingface.co/dots-studio/dots.ocr
-[GLM-OCR]: https://huggingface.co/zai-org/GLM-OCR
-[PP-OCRv6_tiny_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec
-[PP-OCRv6_small_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec
-[PP-OCRv6_medium_rec]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec
 [Tesseract]: https://github.com/tesseract-ocr/tesseract
-[tesserocr]: https://github.com/sirfz/tesserocr
-[tessdata_best]: https://github.com/tesseract-ocr/tessdata_best
-[tessdata_fast]: https://github.com/tesseract-ocr/tessdata_fast
 [uv scripts]: https://docs.astral.sh/uv/guides/scripts/
