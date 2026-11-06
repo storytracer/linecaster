@@ -615,7 +615,11 @@ def engine_class(engine: str):
     """
     known = engine_ids()
     if engine not in known:
-        raise CatalogError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
+        from .code import install_hint
+
+        hint = install_hint(engine)
+        raise CatalogError(f"engine {engine!r} is not installed" + (f" ({hint})" if hint else "")
+                           + f"; installed: {sorted(known)}")
     module, _, name = known[engine].partition(":")
     return getattr(import_module(module), name)
 
@@ -628,7 +632,8 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
     ``submodel_weights`` by role), plus ``strategies`` (script -> engine, options, preset edition and hash) for a
     by-script preset. Engines with weights fetch exactly that pin. A chat preset (``chat.v1``) is a
     ``CatalogError``: it runs behind a server (``linecaster.adapters.chat_model``); so is a preset whose engine is
-    not installed, unless ``installed=False``.
+    not installed, unless ``installed=False`` (the error names the engine package that provides it and the pipeline
+    scripts that install it).
 
     Args:
         ref: the preset, ``id@edition`` (``id`` alone: its current edition).
@@ -658,7 +663,10 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
         sources = code.engines() if code.REPO is not None else {}
         known = {**known, r.engine: sources[r.engine].target if r.engine in sources else r.engine}
     if r.engine not in known:
-        raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
+        from .code import install_hint
+
+        hint = install_hint(r.engine)
+        raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed" + (f": {hint}" if hint else ""))
     kwargs = dict(r.content.get("options", {}))
 
     def weights(pin: dict) -> dict:

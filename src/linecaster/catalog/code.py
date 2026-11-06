@@ -165,3 +165,39 @@ def pipelines(repo: Path = REPO) -> dict[str, Pipeline]:
         found[values["PIPELINE"]] = Pipeline(values["PIPELINE"], f, _doc(tree), values.get("SLOTS") or {},
                                              _arguments(fn) if fn else [])
     return found
+
+
+def script_dependencies(script: Path) -> list[str]:
+    """The names of the dependencies a pipeline script's PEP 723 block lists (``[]`` without one)."""
+    import re
+
+    block, inside = [], False
+    for line in script.read_text(encoding="utf-8").splitlines():
+        if line.strip() == "# /// script":
+            inside = True
+        elif inside and line.strip() == "# ///":
+            break
+        elif inside:
+            block.append(line[2:] if line.startswith("# ") else line.lstrip("#"))
+    if not block:
+        return []
+    deps = tomllib.loads("\n".join(block)).get("dependencies", [])
+    return [re.split(r"[\[<>=!~; @]", d, maxsplit=1)[0].strip().lower() for d in deps]
+
+
+def install_hint(engine: str, repo: Path = REPO) -> str:
+    """What installs an engine that is not installed, for an error message: the engine package that provides it
+    (``engines/*/pyproject.toml``) and the pipeline scripts whose environments install that package; ``""`` when
+    the repository does not say (an installed linecaster without its checkout, or an unknown engine)."""
+    if repo is None or not (repo / "engines").is_dir():
+        return ""
+    found = engines(repo).get(engine)
+    if found is None or found.package == "linecaster":
+        return ""
+    scripts = [f.relative_to(repo).as_posix() for f in sorted(repo.glob("pipelines/*.py"))
+               if found.package in script_dependencies(f)]
+    where = (f", which {' and '.join(f'`{s}`' for s in scripts)} install{'s' if len(scripts) == 1 else ''}"
+             if scripts else "")
+    return (f"`{engine}` is in the engine package `{found.package}` (engines/{found.source.relative_to(repo / 'engines').parts[0]}, "
+            f"not on PyPI){where}")
+

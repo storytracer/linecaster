@@ -370,3 +370,25 @@ def test_describing_a_recipe_imports_no_engine():
     out = json.loads(subprocess.run([sys.executable, "-c", check], capture_output=True, text=True, check=True).stdout)
     assert out["loaded"] == []
     assert out["sha"] == Catalog().dirs[0].lock.recipes["squiddle@1"].pipeline_sha256
+
+
+def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
+    """Engine packages are not on PyPI: the error says where an engine is and which pipeline scripts install it."""
+    from linecaster.catalog import engine_class, engine_spec
+    from linecaster.catalog.code import install_hint, script_dependencies
+    from linecaster.catalog.registry import engine_ids
+    from linecaster.errors import CatalogError
+
+    if "kraken.recognition.v1" in engine_ids():
+        pytest.skip("the kraken engine is installed here")
+    with pytest.raises(CatalogError, match=r"needs engine 'kraken.recognition.v1', which is not installed: "
+                                           r"`kraken.recognition.v1` is in the engine package `linecaster-kraken` "
+                                           r"\(engines/kraken, not on PyPI\), which `pipelines/transcribe_modular.py` "
+                                           r"installs"):
+        engine_spec("kraken-ppocrv6-medium")
+    with pytest.raises(CatalogError, match=r"`linecaster-paddlex` .*`pipelines/transcribe_modular.py` and "
+                                           r"`pipelines/transcribe_vlm.py` install\); installed: "):
+        engine_class("paddlex.layout.v1")
+    assert install_hint("recomposition.unicode.v1") == "" and install_hint("nowhere.recognition.v1") == ""
+    script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_modular.py"
+    assert {"linecaster", "linecaster-kraken", "kraken"} <= set(script_dependencies(script))
