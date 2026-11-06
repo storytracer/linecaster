@@ -14,8 +14,16 @@ the tags; the first is `v0.1.0`.
   folder needs `--new-pipeline`. No released recipe is affected.
 - `linecaster.testing.check_engine` calls a page engine (recognition, unit `page`) with an empty transcription
   (no regions, no lines), not the sample layout's regions.
+- `ImageParquetReader` requests up to 8 `http(s)://` images ahead (`prefetch=8`, `--prefetch` for `--parquet`), where
+  it requested one at a time. The rate limits (`--rate-limit`) still hold per task, but a server now sees up to 8
+  requests in flight from each task; `prefetch=1` (`--prefetch 1`) keeps the old behavior.
 
 ### Added
+
+- `ImageParquetReader(prefetch=...)`: `http(s)://` images of a page table requested ahead, pages in the files' row
+  order, so one task of `pipelines/harvest.py --parquet` can use its whole rate limit instead of waiting for each
+  image; `--prefetch` now applies to `--parquet` as to `--manifests`. `linecaster.net.prefetched` is the ordered
+  window both readers use (`ManifestReader` unchanged in behavior).
 
 - The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
   60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
@@ -37,6 +45,16 @@ the tags; the first is `v0.1.0`.
 - Versioned docs: the docs workflow publishes the site with mike to the `gh-pages` branch, served by GitHub Pages:
   every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
   as `dev`; `mike` joins the dependency group `docs`.
+
+### Fixed
+
+- `ImageParquetReader`: an image that cannot be read (an `http(s)` error after the retries, a missing file, bytes
+  that are not an image) no longer fails the task. The page comes without image and with the error in
+  `doc.metadata["errors"]` (`field` `image`, `raw_value` its URI), so the page records and rejects keep it and a
+  rerun of the task does not fail on the same dead link again; the reader has an error budget (`max_page_errors`,
+  set by `--max-page-errors`), so a server that is down still fails the task. `ImageFilesWriter` passes a page that
+  carries errors and no image through without writing a file. A row with neither image bytes nor a path still fails
+  the task.
 
 ## 0.1.0 (2026-11-06)
 

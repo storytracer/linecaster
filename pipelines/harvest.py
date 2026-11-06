@@ -27,7 +27,10 @@ OUT/images/<item>/<page>.<ext> as the server sent them; with --existing-ocr OUT/
 manifests as fetched in OUT/manifests/<item>.json|.xml; page records in OUT/pages/<rank>.jsonl.gz (``image.uri`` the
 copy, ``image.extra.source_uri`` the source, ``metadata.manifest`` the item's and page's manifest data, the
 transcription ``ocr_original`` with the existing OCR). Rate limits hold per task: the servers see up to --workers
-times --rate-limit. A task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
+times --rate-limit. Each task keeps --prefetch requests in flight (manifests' pages and http(s) images in a
+--parquet page table alike), so one task can use its whole rate limit; a few tasks are enough. Tasks get whole input
+files (datatrove never splits a file), so a page table needs about one file per task, each holding whole items. A
+task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
 from linecaster.blocks.conversion import TranscriptionConverter

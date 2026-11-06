@@ -15,7 +15,13 @@ import asyncio
 import contextvars
 import threading
 import time
+from collections import deque
+from collections.abc import Callable, Iterable, Iterator
+from typing import TypeVar
 from urllib.parse import urlsplit
+
+T = TypeVar("T")
+S = TypeVar("S")
 
 USER_AGENT = "linecaster (+https://github.com/storytracer/linecaster)"
 #: pybookget ``Config`` settings for bulk work: an honest user agent, reused connections, patient retries
@@ -32,6 +38,31 @@ def _pybookget():
 
 def is_url(path: str) -> bool:
     return path.startswith(("http://", "https://"))
+
+
+def prefetched(entries: Iterable[T], submit: Callable[[T], S], prefetch: int,
+               cancel: Callable[[S], None]) -> Iterator[S]:
+    """``submit(entry)`` for each of ``entries``, up to ``prefetch`` submitted ahead of the one given back, given back
+    in the order of ``entries``. ``submit`` starts the work (e.g. ``HTTPFetcher.submit``) and returns its handle;
+    whatever is still in the window when the consumer stops is passed to ``cancel``, and ``entries`` is closed if it
+    is a generator (its open files closed at once). With ``prefetch=1`` each entry is submitted only when the one
+    before has been taken, as a plain loop would."""
+    if prefetch < 1:
+        raise ValueError("prefetch must be at least 1")
+    window: deque = deque()
+    source = iter(entries)
+    try:
+        for entry in source:
+            window.append(submit(entry))
+            if len(window) >= prefetch:
+                yield window.popleft()
+        while window:
+            yield window.popleft()
+    finally:
+        for handle in window:
+            cancel(handle)
+        if close := getattr(source, "close", None):
+            close()
 
 
 #: the record of the fetch running in this task of the event loop (httpx calls its hooks in the request's task)

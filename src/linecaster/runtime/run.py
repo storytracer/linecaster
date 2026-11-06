@@ -87,7 +87,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--item-id-pattern", default=None,
                    help="--manifests: a regular expression whose first group is the item id in each manifest "
                         "entry (default: its last path segment that is not 'manifest')")
-    g.add_argument("--prefetch", type=int, default=8, help="--manifests: pages requested ahead")
+    g.add_argument("--prefetch", type=int, default=8, help="--manifests, --parquet with http(s) images: pages "
+                                                           "requested ahead (1: one request at a time)")
     g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
                                                         "services (jpg, png, tif, webp; what the server offers)")
     g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
@@ -232,7 +233,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
     if a.parquet:
         return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
-                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a))
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
+                                  prefetch=a.prefetch)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip,
                              sequence=a.item_from_parent and not a.paths_file)
