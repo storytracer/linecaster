@@ -45,6 +45,9 @@ class Contract:
   `any`.
 - **Binders** change the unit: `ItemTexts` reads `text` and adds the item record's `text`, `BindItem` reads
   `regions` and `lines` and adds the item's `document`; item writers read those.
+- **Item-unit blocks** (`Recomposer(unit="item")`, `Composer(unit="item")`) read item records: one datatrove
+  document per item, `doc.metadata["item"]` holding the item id and its page records in order
+  (`linecaster.blocks.base.item`); the item `Composer` adds the item's `document` next to it, as `BindItem` does.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
 | Block | Reads | Adds | Replaces |
@@ -52,8 +55,10 @@ class Contract:
 | `SingleRegionLayout` | `metadata` | `regions`, `reading_order` | |
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
 | `UnicodeNormalizer` | `text` | `nfc` | `text` |
+| `CharacterNormalizer` | `text` | `normalized` | |
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
-| `Composer` | `regions`, `lines` | `document` | |
+| `Recomposer` | `regions`, `lines` | `paragraphs` | |
+| `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`) |
 | `RecipeStamper` | | | |

@@ -101,7 +101,8 @@ Running text recomposed from the rows of one region (the `Recomposer`), with the
 The rows are what a document's provenance needs: an item made from a paragraph has one provenance entry per row,
 whose box is the union of the row's lines' boxes (derived from their polygons, `geometry.bbox_of`) and whose
 `charspan` is `start`, `end`, shifted by the text before it when the item continues a paragraph of an earlier region
-or page. Rows without text belong to no paragraph; text-only transcriptions have rows without boxes.
+or page. Rows without text belong to no paragraph; text-only transcriptions have rows without boxes (each line a row
+of its own, a region one paragraph; a page without regions is one region).
 
 | Decision `kind` | Reasons |
 |---|---|
@@ -147,9 +148,15 @@ The retyper edits regions and lines in place:
 
 ## Documents (`linecaster.formats.docling`)
 
-- **Page composition** (`Composer`): `docling` from regions, lines and tables; page headers and footers always
-  in Docling's furniture layer. Exports choose whether to include them (`furniture=True`).
+- **Page composition** (`Composer`, `DocumentBuilder`): `docling` from regions, paragraphs or lines, and tables;
+  page headers and footers always in Docling's furniture layer. Exports choose whether to include them
+  (`furniture=True`). A text region with paragraphs (a `Recomposer` ran) is one item per paragraph, one provenance
+  entry per row; a paragraph that continues another (`continues_from`) is appended to that one's item, its rows'
+  character spans after the text before it (a division mark removed at the continuation stays in the span of the
+  row it ended, as squiddleocr's builder had it); a region of one paragraph without a letter (a page number) is an
+  item of its own. Without paragraphs a text region is one item, one row per line, with the region's box
+  (diplomatic composition).
 - **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
-  `n`-th page (by sequence, then page id). In `reflow` mode paragraphs continue across page breaks; sections are
-  optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for Markdown
-  dividers. A task must see whole items; the run layout buckets page records by item.
+  `n`-th page (by sequence, then page id). Recomposed as an item (`text="reflow"`), paragraphs continue across page
+  breaks; sections are optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for
+  Markdown dividers. A task must see whole items; the run layout buckets page records by item.

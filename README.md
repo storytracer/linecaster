@@ -111,7 +111,7 @@ A pipeline is a list of blocks. This is the modular pipeline above, cut down:
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
 from linecaster.blocks.composition import (
-    Composer, Typographer)
+    Composer, Recomposer, Typographer)
 from linecaster.blocks.layout import LayoutDetector
 from linecaster.blocks.lines import (
     LineAssigner, LineDetector)
@@ -128,8 +128,9 @@ pipeline = [
     LineRecognizer(
         P("linecaster_kraken:KrakenRecognitionEngine")),
     UnicodeNormalizer(),
-    Typographer(),
-    Composer(),
+    Typographer("ratios@1"),
+    Recomposer("unicode-recomposition@1"),
+    Composer("docling-composition@1"),
     PageFileWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(
@@ -401,6 +402,36 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 | [`pp-formulanet-l`](docs/catalog/presets/formulas/pp-formulanet-l.md) | [PP-FormulaNet-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors/tree/69869f2891cc61347d230ef234bcc8b8d297c43a) |
 | [`pp-formulanet-plus-l`](docs/catalog/presets/formulas/pp-formulanet-plus-l.md) | [PP-FormulaNet_plus-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L_safetensors/tree/6cc004a8e91ea3f3819b05317f40b290cbe99c2b) |
 
+### 🖼️ Image
+
+| Preset | Model |
+|---|---|
+| [`working-image`](docs/catalog/presets/image/working-image.md) | - |
+
+### 🔤 Normalization
+
+| Preset | Model |
+|---|---|
+| [`latin-historic`](docs/catalog/presets/normalization/latin-historic.md) | - |
+
+### 🔠 Typography
+
+| Preset | Model |
+|---|---|
+| [`ratios`](docs/catalog/presets/typography/ratios.md) | - |
+
+### 📝 Recomposition
+
+| Preset | Model |
+|---|---|
+| [`unicode-recomposition`](docs/catalog/presets/recomposition/unicode-recomposition.md) | - |
+
+### 📄 Composition
+
+| Preset | Model |
+|---|---|
+| [`docling-composition`](docs/catalog/presets/composition/docling-composition.md) | - |
+
 ### 🤖 Vision-language models, whole pages
 
 | Preset | Model |
@@ -434,13 +465,16 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 
 ### ✨ Post-processing
 
-These blocks need no model.
+These blocks need no model. Except the `UnicodeNormalizer`, each runs a rule-based engine of the catalog, picked by
+its preset (e.g. `Typographer("ratios@1")`).
 
 | Block | What it does |
 |---|---|
 | `UnicodeNormalizer` | the text in one Unicode form, [NFC] by default |
-| `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed |
-| `Composer` | composes a page: a [DoclingDocument] per page, lines joined into paragraphs, line-end hyphens removed |
+| `CharacterNormalizer` | the normalized text next to the text as written: long s, ligatures, ... (`latin-historic`) |
+| `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed (`ratios`) |
+| `Recomposer` | running text: lines joined into paragraphs, line-end hyphens removed, continued across regions and pages, each decision recorded (`unicode-recomposition`) |
+| `Composer` | composes a page or an item: a [DoclingDocument], from the paragraphs, or from the lines as laid out (`docling-composition`) |
 | `BindItem` | binds an item's pages into one DoclingDocument, paragraphs continued across pages |
 | `ItemTexts` | one text per item in each [text variant](#-reference) |
 
@@ -459,7 +493,7 @@ These blocks need no model.
 | Block | What it does |
 |---|---|
 | `ImageFetcher` | loads a page's image again by its address |
-| `ImageConverter` | the image as lossless WebP, size checked |
+| `ImageConverter` | the image as lossless WebP, size checked (`working-image`) |
 | `PageValidator` | marks invalid pages with the reason, for `rejects/` |
 
 **Writers**

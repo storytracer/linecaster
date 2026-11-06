@@ -226,7 +226,17 @@ The call per unit (`linecaster.engines.base`): page unit `__call__(t: Transcript
 item unit `__call__(pages: list[Transcription], **options) -> list[Transcription]` (an item's pages in order; a page
 is an item of one page); the image step takes and returns the image's bytes (`__call__(data, **options) -> (bytes,
 info)`). Options given to a call override the engine's for that call. Each records a `StepInfo` with its
-`engine` id, its options as `settings` and its counts as `measurements`.
+`engine` id, its options as `settings` and its counts as `measurements`; the block that runs it adds the preset
+edition and its hash, `seconds` and `datetime`. The item unit of the composition is `item_document(pages, name, ...)`:
+an item's document is no transcription.
+
+Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
+over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
+`CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
+unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets that
+reproduce linecaster's behavior before phase 3, squiddleocr's: `working-image@1`, `latin-historic@1`, `ratios@1`,
+`unicode-recomposition@1`, `docling-composition@1`. Running text or the page as laid out is the presence of a
+`Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
 ### Scripts and dispatch
 

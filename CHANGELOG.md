@@ -107,6 +107,25 @@ compatibility aliases: old imports, flags and ids fail.
   hash changes. `engine_spec(ref, installed=True, served=False)` and `preset_models(models, installed=True,
   served=False)`: tests that replace `engine_spec` accept `served`.
 - `regex` is a new core dependency (Unicode scripts).
+- The rule-based blocks take a preset or an engine spec, with `options` over it: `Typographer()` →
+  `Typographer("ratios@1")`; `Composer(text="reflow", sections=..., rtl=...)` → `Recomposer("unicode-recomposition@1",
+  options={"rtl": ...})` + `Composer("docling-composition@1", options={"sections": ...})`, and `text="lines"` is a
+  `Composer` without a `Recomposer` before it (the document is composed from paragraphs when there are, else from
+  lines); `ImageConverter(output_folder, effort=80)` → `ImageConverter(output_folder, "working-image@1",
+  options={"effort": 80})`. New blocks `Recomposer` (composition, `unit="page"|"item"`) and `CharacterNormalizer`
+  (text); `Composer` also takes `unit="item"`. `BindItem` keeps its parameters.
+- `DocumentBuilder(name, text=..., sections=..., rtl=..., stats=...)` → `DocumentBuilder(name, sections=...)`: it no
+  longer recomposes, it composes a page's paragraphs when it has them (`add_page(..., page_id=...)` names the page for
+  paragraphs continued across pages); `build_docling(...)` loses `text`, `rtl` and `stats`; `formats.docling.TEXT_MODES`
+  is gone. In `linecaster.text.recomposition`, `join_paragraphs` → `join` (the joined text, the separator and the
+  decision on the division mark), new `break_reason`, `kept_reason`, `mark_decision`, `Thresholds` (the geometric
+  thresholds and the convention marks, parameters of `reflow_rows`, `Margins.of`, `continues`, ...); `Row.bbox` may
+  be `None` (text only). `text.typography.retype` takes `ratios` (`Ratios`) and records no step (the engine does);
+  `typography.SETTINGS` is gone.
+- Page records and page files: with `--text reflow` the transcription carries its `paragraphs` (with their
+  decisions); the typography step is recorded by its engine (name and engine `typography.ratios.v1`, preset
+  `ratios@1` and its hash, every option as settings, `seconds` and `datetime`), and the recomposition and
+  composition steps have step records of their own. The documents and their exports are unchanged.
 
 ### Added
 
@@ -134,10 +153,20 @@ compatibility aliases: old imports, flags and ids fail.
   `net.http.HTTPFetcher` (`fetch_record`); `trace_id` and `span_id` on log records; `linecaster traces OUT [--by
   block|preset|task] [--slowest N] [--json]`.
 - Rule-based engines (`linecaster.engines`): `image.webp-lossless.v1`, `normalization.latin-historic.v1`,
-  `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.docling.v1` (wrapping today's code), the
-  engine protocol for page and item units, and dispatch by script (`ScriptDispatch`, `linecaster.engines.scripts`,
-  `normalization.by-script.v1`, `recomposition.by-script.v1`, a preset's `by_script`); their pages in
-  `docs/catalog/engines/`.
+  `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.docling.v1`, the engine protocol for page and
+  item units, and dispatch by script (`ScriptDispatch`, `linecaster.engines.scripts`, `normalization.by-script.v1`,
+  `recomposition.by-script.v1`, a preset's `by_script`); their pages in `docs/catalog/engines/`. Every threshold of
+  the typography and the recomposition is an option (today's values the defaults). The recomposition makes
+  `Transcription.paragraphs` with their rows and decisions (division marks removed and hyphens kept with the reason,
+  paragraph breaks, continuations with their separator), continues paragraphs across regions and, recomposing an
+  item, across pages (a page number between them does not close one), grows the item's lexicon page by page, and
+  recomposes text-only transcriptions (a region one paragraph); `CharacterNormalizer` fills `Paragraph.normalized`
+  too.
+- Presets of the rule-based steps, edition 1: `working-image`, `latin-historic`, `ratios`, `unicode-recomposition`,
+  `docling-composition`; `pipelines/transcribe_modular.py` runs `ratios@1`, `unicode-recomposition@1` (with `--text
+  reflow`) and `docling-composition@1`.
+- Item records in a stream (`linecaster.blocks.base.item`: `doc.metadata["item"]`, the pages in order) for the
+  item-unit `Recomposer` and `Composer`.
 
 ### Fixed
 
