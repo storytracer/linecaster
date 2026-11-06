@@ -21,8 +21,7 @@ region type. Here the layout comes from linecaster's layout step and `RegionReco
 - `linecaster.adapters.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
   `linecaster[minicpm-ocr]`); the board row kept `footnote` and `aside_text`.
 
-Measured (NOTES.md, "MiniCPM-OCR 1.0 through RegionRecognizer", forge): CER reading 0.0243 on the 60-page sample
-against 0.0241 for OpenBMB's SDK on the same server and pages; 39 of 60 pages give byte-identical Markdown.
-Not reproduced: the SDK's PaddleX box filtering (`filter_overlap_boxes`) and its merging of aligned text
+Measured against OpenBMB's SDK on the same server and pages (the evidence, from NOTES.md, "MiniCPM-OCR 1.0 through
+RegionRecognizer"). Not reproduced: the SDK's PaddleX box filtering (`filter_overlap_boxes`) and its merging of aligned text
 blocks into one composite crop (`merge_blocks`); linecaster's layout step runs PP-DocLayoutV3's ONNX export
 with its own containment suppression. Experimental: validated against the SDK, not the board.
