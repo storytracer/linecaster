@@ -325,7 +325,9 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | [`deepseek-ocr-2`](docs/catalog/presets/recognition/deepseek-ocr-2.md) | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
 | [`dots-mocr`](docs/catalog/presets/recognition/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
 | [`dots-ocr`](docs/catalog/presets/recognition/dots-ocr.md) | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
+| [`falcon-ocr`](docs/catalog/presets/recognition/falcon-ocr.md) | [Falcon OCR](https://huggingface.co/tiiuae/Falcon-OCR/tree/177110bf36f6fd492428215baf76d0618854bed3) |
 | [`glm-ocr`](docs/catalog/presets/recognition/glm-ocr.md) | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
+| [`indra-ocr`](docs/catalog/presets/recognition/indra-ocr.md) | [Indra OCR](https://huggingface.co/datalab-to/indra-ocr/tree/bd02167fdf2005a19962cc15188f8496a2c87d3b) |
 | [`lightonocr-2-1b`](docs/catalog/presets/recognition/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
 | [`lightonocr-3-0.8b`](docs/catalog/presets/recognition/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
 | [`lightonocr-3-4b`](docs/catalog/presets/recognition/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
@@ -333,10 +335,12 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | [`olmocr-2-7b-1025-fp8`](docs/catalog/presets/recognition/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
 | [`ovisocr2`](docs/catalog/presets/recognition/ovisocr2.md) | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
 | [`ovisocr3`](docs/catalog/presets/recognition/ovisocr3.md) | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
+| [`oxr-1.0`](docs/catalog/presets/recognition/oxr-1.0.md) | [OXR-1.0](https://huggingface.co/SoMarkAI/OXR-1.0/tree/c708407f9d2b4df658f2543d9132b62bb7221df4) |
 | [`paddleocr-vl-1.6`](docs/catalog/presets/recognition/paddleocr-vl-1.6.md) | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
 | [`qianfan-ocr`](docs/catalog/presets/recognition/qianfan-ocr.md) | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
 | [`qwen3.5-9b`](docs/catalog/presets/recognition/qwen3.5-9b.md) | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
 | [`smoldocling-256m-preview`](docs/catalog/presets/recognition/smoldocling-256m-preview.md) | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
+| [`surya-ocr-2.5`](docs/catalog/presets/recognition/surya-ocr-2.5.md) | [Surya OCR 2.5](https://huggingface.co/datalab-to/surya-ocr-2.5/tree/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3) |
 | [`unlimited-ocr`](docs/catalog/presets/recognition/unlimited-ocr.md) | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
 | [`unlimited-ocr-2`](docs/catalog/presets/recognition/unlimited-ocr-2.md) | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
 
@@ -366,7 +370,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Lines | [`LineDetector`](docs/blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
 | Recognition | [`FormulaRecognizer`](docs/blocks/recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
 | Recognition | [`LineRecognizer`](docs/blocks/recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
-| Recognition | [`PageRecognizer`](docs/blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM, whose completion becomes the page's transcription. |
+| Recognition | [`PageRecognizer`](docs/blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription. |
 | Recognition | [`RegionRecognizer`](docs/blocks/recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
 | Recognition | [`TableRecognizer`](docs/blocks/recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
 | Conversion | [`ImageConverter`](docs/blocks/conversion/ImageConverter.md) | Converts each page's delivered image into the working image with an image engine and writes it. |
@@ -383,6 +387,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Validation | [`RecipeStamper`](docs/blocks/validation/RecipeStamper.md) | Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an item record. |
 | Servers | [`ChatModelServer`](docs/blocks/servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
 | Servers | [`ModelServer`](docs/blocks/servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
+| Servers | [`ServiceServer`](docs/blocks/servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
 | Writers | [`ImageFilesWriter`](docs/blocks/writers/ImageFilesWriter.md) | Writes each page's image bytes as they came, one file per page. |
 | Writers | [`ItemDocumentWriter`](docs/blocks/writers/ItemDocumentWriter.md) | Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON. |
 | Writers | [`ItemTextWriter`](docs/blocks/writers/ItemTextWriter.md) | Writes the text variants of each item record as JSON Lines or as files. |
@@ -505,7 +510,8 @@ term is added here before it is used.
 | **executor**, **job**, **task**, **worker**, **shard** | datatrove's terms: the executor runs a pipeline as tasks; a job is one launch (one HF Job, one Slurm job); a task is one unit of work with its own rank; workers are tasks running at once; a shard is the part of the input one task reads. | |
 | **item shard** | A folder of page records holding every page of a set of items, so that a later stage reads whole items. | not a datatrove shard |
 | **backend** | Where a model block's engine runs: `in-process`, `served` (a server reached through saturate), or `chat` (an OpenAI-compatible VLM server). | not the executor |
-| **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs. Started by the server blocks `ModelServer` and `ChatModelServer`, which go last in a pipeline. | |
+| **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs, a service for a page engine. Started by the server blocks `ModelServer`, `ChatModelServer` and `ServiceServer`, which go last in a pipeline. | |
+| **service** | The server a page engine talks to that is neither `linecaster serve` nor a chat server: a vendor's page pipeline behind its own HTTP API, in the vendor's image (Falcon-OCR, OXR-1.0), or the vLLM a vendor's package attaches to (surya-ocr). A page preset's `serve` block names it; `ServiceServer` starts it. | not an operating-system service |
 | **observer** | A callback at block boundaries (before and after a unit): taps, sampling, progress, tracing. | not a Haystack "hook" |
 | **boundary step** | The step the builder puts after a block when a stage has observers: it tells them that each unit left that block and entered the next. It adds no stats. | not a block |
 | **tap** | An observer that writes the page records as they pass a given block (`--tap-after`). | |
@@ -553,7 +559,8 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **script** | A writing system, named by its ISO 15924 code (`Latn`, `Hebr`, `Arab`): Unicode's `Script` property. A by-script engine routes each decision to the strategy for the script around it; `*` stands for every script. | not a pipeline script |
 | **model** | An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim. | not an engine, not a preset, not a VLM adapter |
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as `id@edition`. | |
-| **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM). `launch.py` can run one directly. | not "a model" |
+| **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM, or a page engine). `launch.py` can run one directly. | not "a model" |
+| **page engine** | An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (`indra.recognition.v1`, `surya.recognition.v1`, and the clients of a vendor's service, `falcon.recognition.v1`, `oxr.recognition.v1`). `PageRecognizer` runs it. | not a chat preset (`chat.v1`) |
 | **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options, with whole-run evidence. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
@@ -643,7 +650,7 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 | engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
 | engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
 | VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
-| pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py` |
+| pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `transcribe_page.py`, `bind.py` |
 | pipeline id | the script's file name, `.v<n>` | `transcribe_modular.v1` |
 | slot and its flag | the step's name | `--layout`, `--lines`, `--recognition` |
 | catalog step | a noun for the activity | `layout`, `recognition`, `recomposition` |
@@ -722,8 +729,8 @@ are, and a test keeps them complete as signatures change.
 - A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
   over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
   run skips what a machine cannot run, and CI runs what a CPU can.
-- Tests use the fake engines and the fake chat server of `linecaster.testing`, not copies of their own. Reason: one
-  fake per step behaves the same in every test.
+- Tests use the fake engines, the fake chat server and the fake service of `linecaster.testing`, not copies of their
+  own. Reason: one fake per step behaves the same in every test.
 
 ## Tracing
 
@@ -801,7 +808,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
-| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`), a fake chat server, the conformance checks `check_engine` and `check_block`, the pytest markers |
+| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_block`, the pytest markers |
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
@@ -842,23 +849,32 @@ number of tasks or the backend.
   so far in, the transcription with its part added out), `GET /v1/models`, `/health` and vLLM-shaped `/metrics`
   (the gauges saturate reads). Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
-  `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. A VLM is a catalog preset
+  `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. `PageRecognizer` also runs a
+  **page engine** (an engine whose unit is the page) on the `InProcess` or `Served` backend: a vendor's package in
+  the worker (Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page
+  pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
   `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
 - **Servers inside a task** (one GPU per HF Job): the server blocks `ModelServer` (`linecaster serve`) and
   `ChatModelServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
   task starts its own servers. `ModelServer(script=...)` starts a pipeline script's `serve` with
-  `uv run --script`.
+  `uv run --script`. `ServiceServer` starts the **service** a page preset's `serve` block names: `vllm serve` on the
+  pinned checkpoint (fetched and checked) for an engine package that attaches to vLLM, or a vendor image's entrypoint
+  (with the weights downloaded to the folder it reads first), ready once its health URLs answer; it runs without the
+  pipeline's environment, in the image's own. A vendor's entrypoint listens on the image's fixed ports: one service
+  per machine.
 
 ## Engines
 
 An engine is a class with a versioned id ([catalog](catalog.md#engines)). Engine packages live in
-`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`. An
+`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`, and the
+page engines' `linecaster-indra`, `linecaster-surya` and `linecaster-services` (the clients of Falcon-OCR's and OXR's
+services). An
 engine class (`<Provider><Step>Engine`) has `engine_id` (the entry point's name in `linecaster.engines`), `step`,
 `capabilities` (unit, produces), an `Options` model (its keyword arguments; a preset's `weights` besides), `load()`
-and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array and the
-transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
+and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array, or the image file's
+bytes for an engine whose `image_input` is `"bytes"`, and the transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
@@ -877,7 +893,7 @@ publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
 with `latest` (the site's default) moved to it, and every push to `main` as version `dev`. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
-scripts (`tests/test_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
+scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
 (`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public
 block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
@@ -893,6 +909,7 @@ never one per machine:
 | `harvest.py` | `harvest.v1` | downloads page images (and a library's OCR, manifests) once into item folders, plus page records |
 | `transcribe_modular.py` | `transcribe_modular.v1` | lines and a recognizer, optionally layout, tables, formulas, then post-processing; every step a preset the user picks |
 | `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
+| `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
 
 `linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
@@ -1056,6 +1073,9 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
   `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
+  `PageRecognizer` also takes a page engine's `InProcess` or `Served` backend (or its preset's ref): a stream
+  transform served, a per-unit transform in-process; it reads the page image and adds `text` and what the preset
+  produces. A page engine's `endpoint` option (where its service is) is operational.
 
 The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
 `runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
@@ -1210,9 +1230,9 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 |---|---|
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `prefetch`, `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
-| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
+| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
-| server blocks (`ModelServer`, `ChatModelServer`) as a whole | their models count through the blocks they serve |
+| server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
 | the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
 
 Everything else is functional: block classes and their order, transcription names, engine options, presets and
@@ -1752,7 +1772,7 @@ are written by `linecaster catalog pin`.
 | `settings` | prompts, sampling and other request settings (chat presets) |
 | `labels` | native layout label → DoclingDocument label; unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
-| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding) |
+| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |
@@ -1841,7 +1861,7 @@ Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose e
 rule-based steps (`RULE_STEPS`) `image` (the working image), `normalization` (character fidelity: as written →
 normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs)
 and `composition` (the document). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
-Tesseract), `region` (a VLM per layout region) or `page` (a VLM reads the whole page: a **page preset**, which
+Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
 `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:
 `preprocessing/optimization`, `typography`: `layout/segmentation/classification`, `composition`:
@@ -1860,7 +1880,8 @@ layout and the rule-based engines. It declares
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
 
-**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`) have
+**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
+`linecaster-indra`, `linecaster-surya`, `linecaster-services`) have
 versions of their own and a range of linecaster releases they work with (`linecaster>=0.0.1,<0.2`), and import from
 linecaster only the data model (`linecaster.data`) and the engine API (`linecaster.engines.api`): the `Engine`
 protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `weights`), `hf_file` and
@@ -1869,7 +1890,26 @@ protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `w
 preset whose engine is not installed is a `CatalogError` that names the package that provides it and the pipeline
 scripts whose environments install it (`catalog.code.install_hint`). Each package has its tests in
 `engines/<engine>/tests/` (conformance through `linecaster.testing.check_engine`, and its own units), run in an
-environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`).
+environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`; the page engines'
+packages: `uv run tests/test_page_engines_catalog.py engines/<engine>/tests`, the environment of
+`pipelines/transcribe_page.py`).
+
+### Page engines and their services
+
+A page engine is an engine of the recognition step whose unit is the page (`capabilities.unit: page`): it gets the
+page image and returns the page's transcription, text-only, its raw output verbatim in `extra["raw"]`, as a chat
+preset's completion is kept. `PageRecognizer` runs it like any model block (`InProcess`, or `Served` through
+`linecaster serve`); `pipelines/transcribe_page.py` is its pipeline. Where the engine talks to a **service**, its
+preset's `serve` block names it and `ServiceServer` starts it in the task:
+
+| `serve.server` | The service | Fields |
+|---|---|---|
+| `vllm` | `vllm serve <the model pin, fetched> --host --port <flags> --served-model-name <the Hugging Face id>`, for an engine package that attaches to vLLM (`surya.recognition.v1`) | `version`, `image`, `flags` |
+| `vendor` | a vendor's page pipeline in its own image (`falcon.recognition.v1`, `oxr.recognition.v1`): the image's entrypoint | `image` (by digest), `command` (the entrypoint), `env`, `health` (loopback URLs that must answer 200, in order), `weights_dir` (where the model pin is downloaded first, when the image reads the weights from a folder) |
+
+The engine's `endpoint` option (where its service is) is operational: presets leave it to its default (the service's
+loopback port), a pipeline sets it for a running service (`--recognition-endpoint`), and the pipeline's hash leaves
+it out.
 
 ### The single-region layout
 
@@ -1931,7 +1971,7 @@ strategy is an edition of the same step and covers its script.
 ## Pipelines, recipes and `launch.py`
 
 Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
-`transcribe_modular.v1`, `transcribe_vlm.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
+`transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
 too: `transcribe_modular.v1` has `--typography`, `--recomposition`, `--normalization` (the readable item texts'
 normalization, for `--item-texts`) and `--composition`, `bind.v1` `--recomposition`, `--normalization` and
@@ -1945,7 +1985,8 @@ The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-
 combination).
 
 `uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
-script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for page presets) and runs it in that script's own
+script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for chat page presets, `transcribe_page.v1` for page
+engines' presets) and runs it in that script's own
 environment with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.
 
@@ -2168,7 +2209,7 @@ Every public block, by family: one page each with its contract, backends, option
 |---|---|
 | [`FormulaRecognizer`](recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
 | [`LineRecognizer`](recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
-| [`PageRecognizer`](recognition/PageRecognizer.md) | Recognizes every page with a chat VLM, whose completion becomes the page's transcription. |
+| [`PageRecognizer`](recognition/PageRecognizer.md) | Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription. |
 | [`RegionRecognizer`](recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
 | [`TableRecognizer`](recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
 
@@ -2227,6 +2268,7 @@ Every public block, by family: one page each with its contract, backends, option
 |---|---|
 | [`ChatModelServer`](servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
 | [`ModelServer`](servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
+| [`ServiceServer`](servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
 
 ## Writers
 
@@ -2282,6 +2324,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`bind.v1`](pipelines/bind.v1.md) | recomposition, normalization, composition |
 | [`harvest.v1`](pipelines/harvest.v1.md) |  |
 | [`transcribe_modular.v1`](pipelines/transcribe_modular.v1.md) | layout, lines, recognition, tables, formulas, typography, recomposition, normalization, composition |
+| [`transcribe_page.v1`](pipelines/transcribe_page.v1.md) | recognition |
 | [`transcribe_vlm.v1`](pipelines/transcribe_vlm.v1.md) | recognition, layout |
 
 ## ⚙️ Engines
@@ -2290,11 +2333,14 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 |---|---|---|
 | [`chat.v1`](engines/chat.v1.md) | recognition | `linecaster` |
 | [`composition.docling.v1`](engines/composition.docling.v1.md) | composition | `linecaster` |
+| [`falcon.recognition.v1`](engines/falcon.recognition.v1.md) | recognition | `linecaster-services` |
 | [`image.webp-lossless.v1`](engines/image.webp-lossless.v1.md) | image | `linecaster` |
+| [`indra.recognition.v1`](engines/indra.recognition.v1.md) | recognition | `linecaster-indra` |
 | [`kraken.recognition.v1`](engines/kraken.recognition.v1.md) | recognition | `linecaster-kraken` |
 | [`layout.single-region.v1`](engines/layout.single-region.v1.md) | layout | `linecaster` |
 | [`normalization.by-script.v1`](engines/normalization.by-script.v1.md) | normalization | `linecaster` |
 | [`normalization.latin-historic.v1`](engines/normalization.latin-historic.v1.md) | normalization | `linecaster` |
+| [`oxr.recognition.v1`](engines/oxr.recognition.v1.md) | recognition | `linecaster-services` |
 | [`paddlex.formulas.v1`](engines/paddlex.formulas.v1.md) | formulas | `linecaster-paddlex` |
 | [`paddlex.layout.v1`](engines/paddlex.layout.v1.md) | layout | `linecaster-paddlex` |
 | [`paddlex.lines.v1`](engines/paddlex.lines.v1.md) | lines | `linecaster-paddlex` |
@@ -2302,6 +2348,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`paddlex.tables.v1`](engines/paddlex.tables.v1.md) | tables | `linecaster-paddlex` |
 | [`recomposition.by-script.v1`](engines/recomposition.by-script.v1.md) | recomposition | `linecaster` |
 | [`recomposition.unicode.v1`](engines/recomposition.unicode.v1.md) | recomposition | `linecaster` |
+| [`surya.recognition.v1`](engines/surya.recognition.v1.md) | recognition | `linecaster-surya` |
 | [`tesseract.recognition.v1`](engines/tesseract.recognition.v1.md) | recognition | `linecaster-tesseract` |
 | [`typography.ratios.v1`](engines/typography.ratios.v1.md) | typography | `linecaster` |
 
@@ -2392,7 +2439,9 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`deepseek-ocr-2`](presets/recognition/deepseek-ocr-2.md) | `chat.v1` | Apache-2.0 | 0.0576 |
 | [`dots-mocr`](presets/recognition/dots-mocr.md) | `chat.v1` | MIT |  |
 | [`dots-ocr`](presets/recognition/dots-ocr.md) | `chat.v1` | MIT | 0.0170 |
+| [`falcon-ocr`](presets/recognition/falcon-ocr.md) | `falcon.recognition.v1` | Apache-2.0 | 0.0775 |
 | [`glm-ocr`](presets/recognition/glm-ocr.md) | `chat.v1` | MIT | 0.0368 |
+| [`indra-ocr`](presets/recognition/indra-ocr.md) | `indra.recognition.v1` | AI Pubs Open RAIL-M License (Modified) | 0.0489 |
 | [`lightonocr-2-1b`](presets/recognition/lightonocr-2-1b.md) | `chat.v1` | Apache-2.0 | 0.0372 |
 | [`lightonocr-3-0.8b`](presets/recognition/lightonocr-3-0.8b.md) | `chat.v1` | Apache-2.0 |  |
 | [`lightonocr-3-4b`](presets/recognition/lightonocr-3-4b.md) | `chat.v1` | Apache-2.0 |  |
@@ -2400,10 +2449,12 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`olmocr-2-7b-1025-fp8`](presets/recognition/olmocr-2-7b-1025-fp8.md) | `chat.v1` | Apache-2.0 |  |
 | [`ovisocr2`](presets/recognition/ovisocr2.md) | `chat.v1` | Apache-2.0 | 0.0276 |
 | [`ovisocr3`](presets/recognition/ovisocr3.md) | `chat.v1` | Apache-2.0 | 0.0299 |
+| [`oxr-1.0`](presets/recognition/oxr-1.0.md) | `oxr.recognition.v1` | OXR License (Apache-2.0 with additional terms) | 0.0380 |
 | [`paddleocr-vl-1.6`](presets/recognition/paddleocr-vl-1.6.md) | `chat.v1` | Apache-2.0 | 0.0309 |
 | [`qianfan-ocr`](presets/recognition/qianfan-ocr.md) | `chat.v1` | Apache-2.0 | 0.0482 |
 | [`qwen3.5-9b`](presets/recognition/qwen3.5-9b.md) | `chat.v1` | Apache-2.0 | 0.0358 |
 | [`smoldocling-256m-preview`](presets/recognition/smoldocling-256m-preview.md) | `chat.v1` | CDLA-Permissive-2.0 | 0.0643 |
+| [`surya-ocr-2.5`](presets/recognition/surya-ocr-2.5.md) | `surya.recognition.v1` | AI Pubs Open RAIL-M License (Modified) | 0.0262 |
 | [`unlimited-ocr`](presets/recognition/unlimited-ocr.md) | `chat.v1` | MIT | 0.0429 |
 | [`unlimited-ocr-2`](presets/recognition/unlimited-ocr-2.md) | `chat.v1` | MIT | 0.0251 |
 
@@ -2416,7 +2467,9 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`deepseek-ocr-2`](models/deepseek-ocr-2.md) | DeepSeek-OCR 2 | Apache-2.0 |
 | [`dots-mocr`](models/dots-mocr.md) | dots.mocr | MIT |
 | [`dots-ocr`](models/dots-ocr.md) | dots.ocr | MIT |
+| [`falcon-ocr`](models/falcon-ocr.md) | Falcon OCR | Apache-2.0 |
 | [`glm-ocr`](models/glm-ocr.md) | GLM-OCR | MIT |
+| [`indra-ocr`](models/indra-ocr.md) | Indra OCR | AI Pubs Open RAIL-M License (Modified) |
 | [`kraken-ppocrv6-medium`](models/kraken-ppocrv6-medium.md) | PP-OCRv6 (medium) | Apache-2.0 |
 | [`kraken-ppocrv6-small`](models/kraken-ppocrv6-small.md) | PP-OCRv6 (small) | Apache-2.0 |
 | [`kraken-ppocrv6-tiny`](models/kraken-ppocrv6-tiny.md) | PP-OCRv6 (tiny) | Apache-2.0 |
@@ -2429,6 +2482,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`olmocr-2-7b-1025-fp8`](models/olmocr-2-7b-1025-fp8.md) | olmOCR-2-7B-1025-FP8 | Apache-2.0 |
 | [`ovisocr2`](models/ovisocr2.md) | OvisOCR2 | Apache-2.0 |
 | [`ovisocr3`](models/ovisocr3.md) | OvisOCR3 | Apache-2.0 |
+| [`oxr-1.0`](models/oxr-1.0.md) | OXR-1.0 | OXR License (Apache-2.0 with additional terms) |
 | [`paddleocr-vl-1.6`](models/paddleocr-vl-1.6.md) | PaddleOCR-VL-1.6 | Apache-2.0 |
 | [`pp-doclayout-plus-l-onnx`](models/pp-doclayout-plus-l-onnx.md) | PP-DocLayout_plus-L | Apache-2.0 |
 | [`pp-doclayoutv3-onnx`](models/pp-doclayoutv3-onnx.md) | PP-DocLayoutV3 | Apache-2.0 |
@@ -2447,6 +2501,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`rt-detr-l-wireless-table-cell-det-onnx`](models/rt-detr-l-wireless-table-cell-det-onnx.md) | RT-DETR-L_wireless_table_cell_det | Apache-2.0 |
 | [`slanet-plus-onnx`](models/slanet-plus-onnx.md) | SLANet_plus | Apache-2.0 |
 | [`smoldocling-256m-preview`](models/smoldocling-256m-preview.md) | SmolDocling-256M-preview | CDLA-Permissive-2.0 |
+| [`surya-ocr-2.5`](models/surya-ocr-2.5.md) | Surya OCR 2.5 | AI Pubs Open RAIL-M License (Modified) |
 | [`tessdata-best`](models/tessdata-best.md) | tessdata_best | Apache-2.0 |
 | [`tessdata-fast`](models/tessdata-fast.md) | tessdata_fast | Apache-2.0 |
 | [`unlimited-ocr`](models/unlimited-ocr.md) | Unlimited-OCR | MIT |

@@ -40,7 +40,7 @@ Every public block, by family: one page each with its contract, backends, option
 |---|---|
 | [`FormulaRecognizer`](recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
 | [`LineRecognizer`](recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
-| [`PageRecognizer`](recognition/PageRecognizer.md) | Recognizes every page with a chat VLM, whose completion becomes the page's transcription. |
+| [`PageRecognizer`](recognition/PageRecognizer.md) | Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription. |
 | [`RegionRecognizer`](recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
 | [`TableRecognizer`](recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
 
@@ -99,6 +99,7 @@ Every public block, by family: one page each with its contract, backends, option
 |---|---|
 | [`ChatModelServer`](servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
 | [`ModelServer`](servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
+| [`ServiceServer`](servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
 
 ## Writers
 

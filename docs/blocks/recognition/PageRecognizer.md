@@ -3,7 +3,7 @@
 
 *Block · recognition · `linecaster.blocks.recognition`*
 
-Recognizes every page with a chat VLM, whose completion becomes the page's transcription.
+Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription.
 
 |  |  |
 |---|---|
@@ -12,12 +12,12 @@ Recognizes every page with a chat VLM, whose completion becomes the page's trans
 | Reads | `image` |
 | Adds | `ocr_new:markdown`, `ocr_new:text` |
 | Replaces | - |
-| Backends | chat (`Chat`), a preset ref (`id@edition`) builds one |
+| Backends | chat (`Chat`), in-process (`InProcess`), served (`Served`), a preset ref (`id@edition`) builds one |
 | Catalog step | `recognition` |
 | Presets | [`chandra-ocr-2@1`](../../catalog/presets/recognition/chandra-ocr-2.md), [`deepseek-ocr@1`](../../catalog/presets/recognition/deepseek-ocr.md), [`deepseek-ocr-2@1`](../../catalog/presets/recognition/deepseek-ocr-2.md), [`dots-mocr@1`](../../catalog/presets/recognition/dots-mocr.md), [`dots-ocr@1`](../../catalog/presets/recognition/dots-ocr.md), [`glm-ocr@1`](../../catalog/presets/recognition/glm-ocr.md), [`lightonocr-2-1b@1`](../../catalog/presets/recognition/lightonocr-2-1b.md), [`lightonocr-3-0.8b@1`](../../catalog/presets/recognition/lightonocr-3-0.8b.md), [`lightonocr-3-4b@1`](../../catalog/presets/recognition/lightonocr-3-4b.md), [`nemotron-3.5-parse@1`](../../catalog/presets/recognition/nemotron-3.5-parse.md), [`olmocr-2-7b-1025-fp8@1`](../../catalog/presets/recognition/olmocr-2-7b-1025-fp8.md), [`ovisocr2@1`](../../catalog/presets/recognition/ovisocr2.md), [`ovisocr3@1`](../../catalog/presets/recognition/ovisocr3.md), [`paddleocr-vl-1.6@1`](../../catalog/presets/recognition/paddleocr-vl-1.6.md), [`qianfan-ocr@1`](../../catalog/presets/recognition/qianfan-ocr.md), [`qwen3.5-9b@1`](../../catalog/presets/recognition/qwen3.5-9b.md), [`smoldocling-256m-preview@1`](../../catalog/presets/recognition/smoldocling-256m-preview.md), [`unlimited-ocr@1`](../../catalog/presets/recognition/unlimited-ocr.md), [`unlimited-ocr-2@1`](../../catalog/presets/recognition/unlimited-ocr-2.md) |
 | Comes after | any reader |
 | Comes before | [`CharacterNormalizer`](../text/CharacterNormalizer.md), [`UnicodeNormalizer`](../text/UnicodeNormalizer.md), [`PageFileWriter`](../writers/PageFileWriter.md) |
-| Used in | [`transcribe_vlm.v1`](../../catalog/pipelines/transcribe_vlm.v1.md) |
+| Used in | [`transcribe_page.v1`](../../catalog/pipelines/transcribe_page.v1.md), [`transcribe_vlm.v1`](../../catalog/pipelines/transcribe_vlm.v1.md) |
 | Source | [chat.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/recognition/chat.py) |
 
 The contract is that of `PageRecognizer(backend='lightonocr-2-1b@1')`; the comes-after and comes-before rows are derived from every block's contract.
@@ -26,7 +26,7 @@ The contract is that of `PageRecognizer(backend='lightonocr-2-1b@1')`; the comes
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `backend` | `Chat \| str` | required | a `Chat` backend, or a chat preset's ref (its page preset) for one on the task's `ChatModelServer`; any other backend is refused (`PipelineConfigError`). |
+| `backend` | `Chat \| InProcess \| Served \| str` | required | a `Chat` backend, an `InProcess` or `Served` backend of a page engine, or a preset's ref: a chat preset's (or a model's Hugging Face id: its page preset) for `Chat` on the task's `ChatModelServer`, a page engine's for its engine in the pipeline's process; a preset of another unit or any other backend is refused (`PipelineConfigError`). |
 | `transcription` | `str` | `'ocr_new'` | the transcription the completion becomes. |
 | `primary` | `str \| None` | `None` | the transcription whose text becomes the datatrove document's `text`; `None`: `transcription`. |
 | `skip_on_error` | `bool` | `True` | pass pages that carry errors through unprocessed. |
@@ -35,12 +35,15 @@ The contract is that of `PageRecognizer(backend='lightonocr-2-1b@1')`; the comes
 
 ## Behavior
 
-A stream transform on the `Chat` backend (served only): one request per page, built by the preset's adapter
-from the page image, the completion parsed into a text-only transcription that replaces `transcription`.
-Reads the page image; adds `text` and what the preset produces (`markdown`, `html`, ...). The completion
-is kept verbatim (`extra["raw"]`); its `finish_reason` and token counts go to `extra` and the step's
-measurements, and a completion cut off at `max_tokens` is counted (stat `finish_length`). The
-`StepInfo` records the preset edition and its hash. A failed request is the page's error.
+On the `Chat` backend (served only) a stream transform: one request per page, built by the preset's adapter
+from the page image, the completion parsed into a text-only transcription that replaces `transcription`. The
+completion is kept verbatim (`extra["raw"]`); its `finish_reason` and token counts go to `extra` and the
+step's measurements, and a completion cut off at `max_tokens` is counted (stat `finish_length`). On the
+`InProcess` or `Served` backend it runs a page engine (an engine of the recognition step whose unit is the
+page: a vendor package, or a client of a vendor's service) as every model block runs its engine: the engine
+gets the page image and returns the page's transcription. Either way it reads the page image and adds
+`text` and what the preset produces (`lines`, `markdown`, `html`, ...); the `StepInfo` records the
+preset edition and its hash. A failed request or call is the page's error.
 
 ## Contract
 
@@ -59,4 +62,5 @@ from linecaster.backends import Chat
 
 PageRecognizer("lightonocr-2-1b@1")
 PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+PageRecognizer("indra-ocr@1")             # a page engine, in the pipeline's process
 ```

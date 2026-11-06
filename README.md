@@ -323,7 +323,9 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | [`deepseek-ocr-2`](docs/catalog/presets/recognition/deepseek-ocr-2.md) | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
 | [`dots-mocr`](docs/catalog/presets/recognition/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
 | [`dots-ocr`](docs/catalog/presets/recognition/dots-ocr.md) | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
+| [`falcon-ocr`](docs/catalog/presets/recognition/falcon-ocr.md) | [Falcon OCR](https://huggingface.co/tiiuae/Falcon-OCR/tree/177110bf36f6fd492428215baf76d0618854bed3) |
 | [`glm-ocr`](docs/catalog/presets/recognition/glm-ocr.md) | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
+| [`indra-ocr`](docs/catalog/presets/recognition/indra-ocr.md) | [Indra OCR](https://huggingface.co/datalab-to/indra-ocr/tree/bd02167fdf2005a19962cc15188f8496a2c87d3b) |
 | [`lightonocr-2-1b`](docs/catalog/presets/recognition/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
 | [`lightonocr-3-0.8b`](docs/catalog/presets/recognition/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
 | [`lightonocr-3-4b`](docs/catalog/presets/recognition/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
@@ -331,10 +333,12 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | [`olmocr-2-7b-1025-fp8`](docs/catalog/presets/recognition/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
 | [`ovisocr2`](docs/catalog/presets/recognition/ovisocr2.md) | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
 | [`ovisocr3`](docs/catalog/presets/recognition/ovisocr3.md) | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
+| [`oxr-1.0`](docs/catalog/presets/recognition/oxr-1.0.md) | [OXR-1.0](https://huggingface.co/SoMarkAI/OXR-1.0/tree/c708407f9d2b4df658f2543d9132b62bb7221df4) |
 | [`paddleocr-vl-1.6`](docs/catalog/presets/recognition/paddleocr-vl-1.6.md) | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
 | [`qianfan-ocr`](docs/catalog/presets/recognition/qianfan-ocr.md) | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
 | [`qwen3.5-9b`](docs/catalog/presets/recognition/qwen3.5-9b.md) | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
 | [`smoldocling-256m-preview`](docs/catalog/presets/recognition/smoldocling-256m-preview.md) | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
+| [`surya-ocr-2.5`](docs/catalog/presets/recognition/surya-ocr-2.5.md) | [Surya OCR 2.5](https://huggingface.co/datalab-to/surya-ocr-2.5/tree/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3) |
 | [`unlimited-ocr`](docs/catalog/presets/recognition/unlimited-ocr.md) | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
 | [`unlimited-ocr-2`](docs/catalog/presets/recognition/unlimited-ocr-2.md) | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
 
@@ -364,7 +368,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Lines | [`LineDetector`](docs/blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
 | Recognition | [`FormulaRecognizer`](docs/blocks/recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
 | Recognition | [`LineRecognizer`](docs/blocks/recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
-| Recognition | [`PageRecognizer`](docs/blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM, whose completion becomes the page's transcription. |
+| Recognition | [`PageRecognizer`](docs/blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription. |
 | Recognition | [`RegionRecognizer`](docs/blocks/recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
 | Recognition | [`TableRecognizer`](docs/blocks/recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
 | Conversion | [`ImageConverter`](docs/blocks/conversion/ImageConverter.md) | Converts each page's delivered image into the working image with an image engine and writes it. |
@@ -381,6 +385,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Validation | [`RecipeStamper`](docs/blocks/validation/RecipeStamper.md) | Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an item record. |
 | Servers | [`ChatModelServer`](docs/blocks/servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
 | Servers | [`ModelServer`](docs/blocks/servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
+| Servers | [`ServiceServer`](docs/blocks/servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
 | Writers | [`ImageFilesWriter`](docs/blocks/writers/ImageFilesWriter.md) | Writes each page's image bytes as they came, one file per page. |
 | Writers | [`ItemDocumentWriter`](docs/blocks/writers/ItemDocumentWriter.md) | Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON. |
 | Writers | [`ItemTextWriter`](docs/blocks/writers/ItemTextWriter.md) | Writes the text variants of each item record as JSON Lines or as files. |
