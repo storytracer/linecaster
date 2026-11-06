@@ -12,7 +12,7 @@ from PIL import Image
 from linecaster.adapters import chat_model, text_transcription
 from linecaster.backends import Chat, InProcess
 from linecaster.blocks.base.page import new_page_document, page_of
-from linecaster.blocks.recognition.chat import PageRecognizer
+from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
 from linecaster.errors import PipelineConfigError, ServerError
@@ -113,9 +113,17 @@ def test_text_transcription_round_trips_text():
         assert text_transcription(raw).text == raw
 
 
-def test_chat_step_needs_a_chat_backend():
+def test_region_recognition_needs_a_chat_backend():
     with pytest.raises(PipelineConfigError, match="needs a Chat backend"):
-        PageRecognizer(InProcess("x:y"))
+        RegionRecognizer(InProcess("x:y"))
+
+
+def test_page_recognition_takes_a_page_engine_but_no_other_unit():
+    assert PageRecognizer(InProcess("x:y")).shape == "unit"
+    with pytest.raises(PipelineConfigError, match="needs a Chat, InProcess or Served backend"):
+        PageRecognizer(object())
+    with pytest.raises(PipelineConfigError, match="reads line units, not whole pages"):
+        PageRecognizer("kraken-ppocrv6-medium@1")
 
 
 # ---------------------------------------------------- end to end, fake server

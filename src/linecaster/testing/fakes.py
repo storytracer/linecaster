@@ -1,7 +1,7 @@
 """Fake engines: deterministic, dependency-free CPU engines, one per model step, for tests of blocks, pipelines and
 derivatives. They follow the engine protocol (``linecaster.engines.api.Engine``) and are registered under
-``fake.<step>.v1`` only when ``register_fakes()`` is called (never through entry points), so they never show up in
-an installation."""
+``fake.<step>.v1`` (the page engine ``fake.recognition.page.v1``) only when ``register_fakes()`` is called (never
+through entry points), so they never show up in an installation."""
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -144,6 +144,31 @@ class FakeRecognitionEngine(_Fake):
         return self._done(transcription)
 
 
+class FakePageEngine(_Fake):
+    """Reads the whole page as a text-only transcription: one line per line of a text made from the page's size
+    (``template``), no geometry, the text kept as ``extra["raw"]``, as a page engine returns it.
+
+    Args:
+        **options: the fields of its ``Options`` (``template``)."""
+
+    engine_id: ClassVar[str] = "fake.recognition.page.v1"
+    step: ClassVar[str] = "recognition"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["lines", "text", "markdown"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        template: str = Field("# page\n{width}x{height}", description="the page's text: str.format with width and "
+                                                                       "height (the page image's)")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        w, h = _size(image, transcription)
+        raw = self.options.template.format(width=w, height=h)
+        out = Transcription(lines=[Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(raw.split("\n"))],
+                            extra={"raw": raw})
+        return self._done(out)
+
+
 class FakeTableEngine(_Fake):
     """Gives every table region a one-cell structure holding the region's id.
 
@@ -196,12 +221,13 @@ class FakeFormulaEngine(_Fake):
 
 #: the fake engines by id
 FAKE_ENGINES = {cls.engine_id: f"{cls.__module__.rsplit('.', 1)[0]}:{cls.__name__}"
-                for cls in (FakeLayoutEngine, FakeLineEngine, FakeRecognitionEngine, FakeTableEngine,
+                for cls in (FakeLayoutEngine, FakeLineEngine, FakeRecognitionEngine, FakePageEngine, FakeTableEngine,
                             FakeFormulaEngine)}
 
 
 def register_fakes() -> dict[str, str]:
-    """Registers the fake engines under their ids (``fake.<step>.v1``), for ``engine_class`` and ``engine_ids``.
+    """Registers the fake engines under their ids (``fake.<step>[.<variant>].v1``), for ``engine_class`` and
+    ``engine_ids``.
 
     Idempotent; the registration lasts for the process (the ids cannot clash with real ones). Returns the ids with
     their classes (``module:Class``).

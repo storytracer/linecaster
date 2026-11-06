@@ -410,10 +410,12 @@ def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | 
     import dill
 
     from ..blocks.servers.serve import ChatModelServer, ModelServer
+    from ..blocks.servers.service import ServiceServer
     from ..serve import serve_command
 
     servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
-               else s.launch_command(s.python) for s in pipeline if isinstance(s, (ModelServer, ChatModelServer))]
+               else s.launch_command(getattr(s, "python", None)) for s in pipeline
+               if isinstance(s, (ModelServer, ChatModelServer, ServiceServer))]
     pickled = [s.pipeline for s in stages] if stages else pipeline
     return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
             "image": image,
@@ -441,7 +443,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
     many = len(p.stages) > 1
     for stage in p.stages:
         logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
-        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer") for b in stage.blocks)
+        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.blocks)
         if a.on == "local":
             from datatrove.executor import LocalPipelineExecutor
 

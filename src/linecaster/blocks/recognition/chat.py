@@ -1,4 +1,6 @@
-"""Page and region recognition by a VLM behind an OpenAI-compatible chat server (vLLM, SGLang, a hosted endpoint).
+"""Page and region recognition: by a VLM behind an OpenAI-compatible chat server (vLLM, SGLang, a hosted endpoint),
+or, for ``PageRecognizer``, by a page engine (an engine whose unit is the page) on the ``InProcess`` or ``Served``
+backend.
 
 ``PageRecognizer`` and ``RegionRecognizer`` are ``ModelBlock``s on the ``Chat`` backend: the served streaming of
 ``ModelBlock`` (saturate's ``AdaptiveClient`` + ``through()``: a window of requests in flight, adapted to the
@@ -29,11 +31,11 @@ from __future__ import annotations
 from loguru import logger
 
 from ...adapters import ENGINE
-from ...backends import Chat
+from ...backends import Chat, InProcess, Served
 from ...data.transcription import StepInfo
-from ...errors import PageError, PipelineConfigError
+from ...errors import CatalogError, PageError, PipelineConfigError
 from ..base.contract import Contract, parts
-from ..base.model import ModelBlock, Passed, produces
+from ..base.model import ModelBlock, Passed, preset_backend, produces
 from ..base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
 
 
@@ -47,19 +49,46 @@ def chat_backend(backend, block: str, prefer: str) -> Chat:
     return backend
 
 
-class PageRecognizer(ModelBlock):
-    """Recognizes every page with a chat VLM, whose completion becomes the page's transcription.
+def page_backend(backend, block: str) -> Chat | InProcess | Served:
+    """``backend`` as a page recognizer's backend: a chat preset's ref (or a model's Hugging Face id) becomes a
+    ``Chat`` backend on the task's chat server, a page engine's preset its ``InProcess`` backend; a preset of
+    another unit is refused (``PipelineConfigError``)."""
+    if isinstance(backend, str):
+        from ...catalog.registry import catalog
 
-    A stream transform on the ``Chat`` backend (served only): one request per page, built by the preset's adapter
-    from the page image, the completion parsed into a text-only transcription that replaces ``transcription``.
-    Reads the page image; adds ``text`` and what the preset produces (``markdown``, ``html``, ...). The completion
-    is kept verbatim (``extra["raw"]``); its ``finish_reason`` and token counts go to ``extra`` and the step's
-    measurements, and a completion cut off at ``max_tokens`` is counted (stat ``finish_length``). The
-    ``StepInfo`` records the preset edition and its hash. A failed request is the page's error.
+        try:
+            r = catalog().resolve(backend)
+        except (CatalogError, ValueError):         # a Hugging Face id: its chat preset (chat_model decides)
+            return Chat(backend, prefer="page")
+        if r.engine == Chat.engine:
+            return Chat(backend, prefer="page")
+        unit = (catalog().preset(r.id).capabilities.unit or "")
+        if unit != "page":
+            raise PipelineConfigError(f"{block}: preset {r.ref} reads {unit or 'no'} units, not whole pages")
+        return preset_backend(backend, "recognition")
+    if not isinstance(backend, (Chat, InProcess, Served)):
+        raise PipelineConfigError(f"{block} needs a Chat, InProcess or Served backend, not {type(backend).__name__}")
+    return backend
+
+
+class PageRecognizer(ModelBlock):
+    """Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription.
+
+    On the ``Chat`` backend (served only) a stream transform: one request per page, built by the preset's adapter
+    from the page image, the completion parsed into a text-only transcription that replaces ``transcription``. The
+    completion is kept verbatim (``extra["raw"]``); its ``finish_reason`` and token counts go to ``extra`` and the
+    step's measurements, and a completion cut off at ``max_tokens`` is counted (stat ``finish_length``). On the
+    ``InProcess`` or ``Served`` backend it runs a page engine (an engine of the recognition step whose unit is the
+    page: a vendor package, or a client of a vendor's service) as every model block runs its engine: the engine
+    gets the page image and returns the page's transcription. Either way it reads the page image and adds
+    ``text`` and what the preset produces (``lines``, ``markdown``, ``html``, ...); the ``StepInfo`` records the
+    preset edition and its hash. A failed request or call is the page's error.
 
     Args:
-        backend: a ``Chat`` backend, or a chat preset's ref (its page preset) for one on the task's
-            ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
+        backend: a ``Chat`` backend, an ``InProcess`` or ``Served`` backend of a page engine, or a preset's ref:
+            a chat preset's (or a model's Hugging Face id: its page preset) for ``Chat`` on the task's
+            ``ChatModelServer``, a page engine's for its engine in the pipeline's process; a preset of another
+            unit or any other backend is refused (``PipelineConfigError``).
         transcription: the transcription the completion becomes.
         primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
             ``transcription``.
@@ -73,11 +102,10 @@ class PageRecognizer(ModelBlock):
 
         PageRecognizer("lightonocr-2-1b@1")
         PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+        PageRecognizer("indra-ocr@1")             # a page engine, in the pipeline's process
     """
 
     step = "recognition"
-    route = "/chat/completions"
-    shape = "stream"
     #: what it reads besides the page image, what it adds besides the text and its preset's parts, and what of
     #: that it makes anew where the transcription has it already
     regions_read: tuple[str, ...] = ()
@@ -85,17 +113,29 @@ class PageRecognizer(ModelBlock):
     parts_made_anew: tuple[str, ...] = ()
     docs_args = {"backend": "lightonocr-2-1b@1"}
 
-    def __init__(self, backend: Chat | str, transcription: str = "ocr_new", primary: str | None = None,
-                 skip_on_error: bool = True, prepare_workers: int = 4, name: str | None = None):
-        backend = chat_backend(backend, type(self).__name__, "page")
-        super().__init__(backend, transcription, None, primary, skip_on_error,
-                         name=name or f"page ({backend.adapter.model}, served {backend.endpoint})")
+    def __init__(self, backend: Chat | InProcess | Served | str, transcription: str = "ocr_new",
+                 primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4,
+                 name: str | None = None):
+        backend = page_backend(backend, type(self).__name__)
+        default = (f"page ({backend.adapter.model}, served {backend.endpoint})" if isinstance(backend, Chat)
+                   else f"page ({backend.describe()})")
+        super().__init__(backend, transcription, None, primary, skip_on_error, name=name or default)
         self.prepare_workers = prepare_workers
 
     @property
+    def chat(self) -> bool:
+        """Whether the backend is a chat VLM's (``Chat``), not a page engine's."""
+        return isinstance(self.backend, Chat)
+
+    @property
+    def route(self) -> str | None:
+        """``/chat/completions`` for a chat VLM; a served page engine's is ``linecaster serve``'s."""
+        return "/chat/completions" if self.chat else None
+
+    @property
     def adapter(self):
-        """The chat preset's adapter (the backend's)."""
-        return self.backend.adapter
+        """The chat preset's adapter (the backend's); ``None`` for a page engine."""
+        return getattr(self.backend, "adapter", None)
 
     def contract(self) -> Contract:
         """The completion is the text; the preset's ``capabilities.produces`` say what else (``markdown``, ...)."""
@@ -103,13 +143,19 @@ class PageRecognizer(ModelBlock):
         return Contract(unit="page", role=self.role, reads=parts(("image", *self.regions_read), self.transcription),
                         adds=parts(adds, self.transcription), replaces=parts(self.parts_made_anew, self.transcription))
 
-    def process_page(self, doc, page):  # pragma: no cover - the Chat backend is always served
-        raise PipelineConfigError(f"{type(self).__name__} runs served only")
+    def process_page(self, doc, page):
+        if self.chat:  # pragma: no cover - the Chat backend is always served
+            raise PipelineConfigError(f"{type(self).__name__} on a Chat backend runs served only")
+        return super().process_page(doc, page)
 
     def _request(self, row: dict) -> dict:       # ModelBlock notifies prepare and request around it
+        if not self.chat:
+            return super()._request(row)
         return self.adapter.request(image_bytes(row["doc"]))
 
     def _parse(self, body: dict) -> dict:
+        if not self.chat:
+            return ModelBlock._parse(body)
         t = self.adapter.parse(body, backend=self.backend.describe())
         return {"transcription": t, "usage": body.get("usage") or {}}
 
@@ -153,6 +199,7 @@ class RegionRecognizer(PageRecognizer):
         RegionRecognizer("minicpm-ocr-1.0@1")
     """
 
+    route = "/chat/completions"
     regions_read = ("regions",)
     lines_added = ("lines",)          # one line per region read
     parts_made_anew = ("lines", "text")   # the earlier lines (and their text) are replaced

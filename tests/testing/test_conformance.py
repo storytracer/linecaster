@@ -314,6 +314,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (recognition.TableRecognizer(fake["tables"]), {"docs": tables}),
         (recognition.FormulaRecognizer(fake["formulas"]), {"docs": tables}),
         (recognition.PageRecognizer(Chat("lightonocr-2-1b", chat_url, max_window=2)), {}),
+        (recognition.PageRecognizer(InProcess(f"{FAKES}:FakePageEngine")), {}),
         (recognition.RegionRecognizer(Chat("lightonocr-2-1b-regions", chat_url, max_window=2)), {}),
         (conversion.ImageFetcher(), {"docs": _on_disk(tmp_path)}),
         (conversion.ImageConverter(str(out / "webp"), "working-image@1"), {}),
@@ -333,6 +334,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (validation.RecipeStamper("squiddle@1", catalog().resolve_recipe("squiddle@1").sha256), {}),
         (servers.ModelServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
         (servers.ChatModelServer("lightonocr-2-1b"), {"run": False}),
+        (servers.ServiceServer("falcon-ocr@1"), {"run": False}),
         (writers.PageJsonlWriter(str(out / "jsonl")), {}),
         (writers.PageParquetWriter(str(out / "parquet")), {}),
         (writers.PageFileWriter(str(out / "files"), formats=("hocr", "alto", "page", "txt", "md")), {}),
@@ -354,10 +356,10 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
 #: the labels of ``public_blocks`` (a class built twice: ``+``)
 BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
-          "PageRecognizer", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
+          "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionConverter", "UnicodeNormalizer", "CharacterNormalizer", "CharacterNormalizer+",
           "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
-          "RecipeStamper", "ModelServer", "ChatModelServer", "PageJsonlWriter", "PageParquetWriter",
+          "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
           "PageFileWriter", "ImageFilesWriter", "RejectWriter", "ItemTextWriter", "ItemDocumentWriter",
           "ModularTranscriber")
 
@@ -384,7 +386,8 @@ def chat_url():
 
 #: blocks whose contract is known not to describe what they do
 KNOWN = {"PageRecognizer": "it replaces the whole transcription with a text-only one (lines without geometry; "
-                           "regions gone), which its contract (adds text and the preset's parts) does not declare"}
+                           "regions gone), which its contract (adds text and the preset's parts) does not declare",
+         "PageRecognizer+": "a page engine's transcription replaces the whole transcription too (as PageRecognizer)"}
 
 
 @pytest.mark.parametrize("label", [pytest.param(b, marks=pytest.mark.xfail(strict=True, reason=KNOWN[b]))

@@ -152,8 +152,8 @@ def _engine_input(cls, transcription):
         label = "table" if step == "tables" else "formula"
         t.regions.append(Region(id=f"{label}_1", label=label, raw_label=label, polygon=box(80, 40, 640, 60),
                                 bbox=[80, 40, 640, 60], reading_order=1))
-    elif step == "recognition" and unit == "page":
-        t.lines = []
+    elif step == "recognition" and unit == "page":      # a page engine reads the page itself
+        t.regions, t.lines = [], []
     return t
 
 
@@ -182,7 +182,8 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
         image: the page image, an RGB array (the image step: an image file's bytes); default ``sample_page()``.
         transcription: the transcription it is called with; default a sample layout fit for its step and unit
             (``sample_layout``: recognition gets lines without text, layout an empty transcription, tables and
-            formulas a region of their label, rule-based engines a recognized page).
+            formulas a region of their label, a page engine (recognition, unit page) an empty transcription,
+            rule-based engines a recognized page).
 
     Example:
         from linecaster.testing import check_engine
