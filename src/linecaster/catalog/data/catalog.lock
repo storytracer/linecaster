@@ -255,6 +255,35 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  falcon-ocr@1:
+    sha256: sha256:19766a3bda02eb4730065d7d8f0832572b6c10981167910e38c43aef1dfd64da
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: falcon-ocr
+        revision: 177110bf36f6fd492428215baf76d0618854bed3
+        files:
+          model.safetensors: sha256:6e7f73a508c050f3a4f0b5ce196dba36db896626e44c4f8976d3a3e3c18ceb2a
+      engine: falcon.recognition.v1
+      options:
+        longest_edge: 2048
+        jpeg_quality: 95
+        skip_layout: false
+      serve:
+        server: vendor
+        image: ghcr.io/tiiuae/falcon-ocr@sha256:2ec8025263fbdbfa2523e4fda4b436ca832a7b4b2c8f7eead311634689e4cd4b
+        env:
+          EXPOSED_GPU_IDS: '0'
+          VLLM_GPU: '0'
+          PIPELINE_GPU: '0'
+        command:
+        - /bin/bash
+        - /app/entrypoint_single.sh
+        health:
+        - http://127.0.0.1:8000/health
+        - http://127.0.0.1:5002/health
   glm-ocr@1:
     sha256: sha256:0cb566fbc9ebe3f508412654c086e755052e5e09a81e0488e526d41351605419
     previous_sha256: sha256:471ffdb456eff1a357db305a1b0e0deb1f1dae0c7c0872423236ef0cb4334d2b
@@ -291,6 +320,43 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  indra-ocr@1:
+    sha256: sha256:6d140458e7f699e971ef57b619c2cf83a8318ad57b9c3cf477a23ce6e52f98dd
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: indra-ocr
+        revision: bd02167fdf2005a19962cc15188f8496a2c87d3b
+        files:
+          assets/examples/handwriting_letter.png: sha256:bed634b6df330b040cd52d8d9104433f54e458c16ed87607c406c009b98ecd25
+          assets/examples/korean_letter.png: sha256:973d6e2aca838ba5da72ab691bd8d0d9820e907002ca398eb884a1c87a8efb29
+          assets/speed_score.png: sha256:83e72fbb5369a045cb6038318337d4a9138217fe394b1a11e7cb0760f46fc7b6
+          assets/throughput.png: sha256:76812c7807427c1117a8c2fbd0d9070557e911870736a7921fd8e56d49edfcc3
+          det.onnx: sha256:f2bd4cba23e9c328cf7ec824634e423e191a2c6aacbbf35c62bd79dd70f62f59
+          lm.npz: sha256:6c0fb618a363a0acdd05d4f5b0edd9e8146d2d990541b87f6130bbfe17cea58d
+          lm_cjk.npz: sha256:6d64f13f4f90f4e529bd63340c6df76238d007feaef2abb903d8cd28d92bc2f3
+          lm_world.npz: sha256:34df5e74a2fcbb9cf5e7f360a559375ffa2e04d2d2943a42308c177bcb444d5d
+          math_dec_init.onnx: sha256:919417fde9962c3318aeb478c1fe3955dd2bb8cd34476c68debed2ba39e5dcd6
+          math_dec_step.onnx: sha256:5ff6e6cbaf0dea70314f66222a1469736a8c5e7994fab06a5b4e53c90469239f
+          math_enc.onnx: sha256:d4e4a6c40dad1ee988d32c6403b1590ca42864d4483bbe1e671c5dbb999a5a97
+          mathcls.onnx: sha256:818b1556e9ef337958db6be0c9791299d3f74a4575586b0cd469aaae9534ff96
+          model.safetensors: sha256:e9b0b74c12176516548664a46429758ac7c1088dd43524534fc7272e221a6762
+          order.onnx: sha256:a42db2e8b536ad3d84045a4b7f9b0a72667cf8be4aa02d63f7b38004719fb180
+          orient.onnx: sha256:20eaf670f55a7cf9facfe1bdd6c7b8e40be75bbf4d48a3df43f66aa3bbd874fd
+          rec.onnx: sha256:475972a2710be4a3cbfeb2bc7f3624ffd563de07de42476fc7a290d4e1ece484
+          rec_cjk.onnx: sha256:4a035516a17e62cdf33a4fe2d88077654cb8841cff024685cdef4e351694ef50
+          rec_rtl.onnx: sha256:468796bd684486a8388c30c8b4ed2a26e3eeb1f8ff02831c24c2e12c79a2a834
+          rec_world.onnx: sha256:c8d1e59f21b04966f179d2d2d8e22b230d22110b3f89855bbbf2624a58c40043
+          script.onnx: sha256:b6ce4e926e19c243faaf37bd46880398bf2cb4ae56a29e1177a3b017c1280e36
+      engine: indra.recognition.v1
+      options:
+        mode: auto
+        furniture: false
+        math: false
+        dpi: 200.0
+        threads: 1
   kraken-ppocrv6-medium@1:
     sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
     released: '2026-11-04'
@@ -852,6 +918,37 @@ presets:
         - '{"image": 1}'
         - --mm-processor-kwargs
         - '{"images_kwargs": {"min_pixels": 200704, "max_pixels": 8294400}}'
+  oxr-1.0@1:
+    sha256: sha256:dbebc51c8a5eb9a6287b809882d48f810dc0ff3192b3916ea196593eca704cd5
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: oxr-1.0
+        revision: c708407f9d2b4df658f2543d9132b62bb7221df4
+        files:
+          layout_analysis/last.pth: sha256:dff78ccf18439955362ca44a69eb28fb0b40222a7d278860589682de0176dc17
+          model.safetensors: sha256:795bb2f1faac579f58829913f2c606202531a96c1203e19ef7a70b103fb7ea51
+          tokenizer.json: sha256:aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4
+      engine: oxr.recognition.v1
+      options:
+        output_formats:
+        - markdown
+        - json
+      serve:
+        server: vendor
+        version: 0.25.1
+        image: cr.hf.co/davanstrien/oxr@sha256:aa6a4fb538bd58e19d0d032d6ed7e6ddb53bc524b64361ecb554b72ffdab233d
+        env:
+          MODEL_PATH: /models/oxr-model
+          OXR_API_HOST: 127.0.0.1
+        command:
+        - /opt/oxr-venv/bin/python
+        - /app/docker/allinone_entrypoint.py
+        health:
+        - http://127.0.0.1:8000/docs
+        weights_dir: /models/oxr-model
   paddleocr-vl-1.6@1:
     sha256: sha256:324a17e2640fd5d1fa8cb082527926a036e876938284dc7daa14b70e4cdd9e52
     previous_sha256: sha256:8914e1d024aff906f4acf11fdff1529f6eb913268437a1177e5187a90d25e4bf
@@ -1372,6 +1469,68 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  surya-ocr-2.5@1:
+    sha256: sha256:ea7c5c82de9b2ef6e3d9e01b1d8c652444ceafc3631f77f96175ac5e7ce6ca5a
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: surya-ocr-2.5
+        revision: 00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3
+        files:
+          model.safetensors: sha256:6940baca2d16a20b15b7302cac7253246c78c95469920fcdb064963f48b5cb17
+          static/images/corporate.png: sha256:6ae900a07a709d28576d04cc3688f66fbb89ddbc2b6e38d61d9cc468603c9ebf
+          static/images/corporate_layout.png: sha256:7cc6fdc5421b50e47f92eb77d70a42459bf48919abe5fb8b2eb99b9337df8897
+          static/images/corporate_reading.png: sha256:81492fdce5a18d65045e5d8c123d185770f6af4fee141498b784986062a0b3c6
+          static/images/corporate_text.png: sha256:9efea9e0c167dad80f37356276a3cd5613540c64d2cf64002dd377044737d442
+          static/images/form.png: sha256:4ca5ae30a2233efc9a0177460ff6affbe1ae972e52ab00b67fc44ef752cbb21f
+          static/images/form_layout.png: sha256:18b66cf842f38f04573a07d4f87e7310916673f3f5558813bb921ba4bddee7a0
+          static/images/form_reading.png: sha256:6f79b8f4d4564178b6c8abdc9c750901f15e30ab60c8eac82bf70dec5a97eb98
+          static/images/form_text.png: sha256:6b8d3a0444a735d06f06d9a3c697c541c888ecf4d51fdfa6ea68d1fc108fc125
+          static/images/handwritten.png: sha256:05e03c947351ac33077c288cb71058c4f8c6fb3bd2bcbdc7db130094e2a1e42a
+          static/images/handwritten_layout.png: sha256:082b3c6529b20db0ef749554c5d8e70e58031c485f7d8cb92260c739df70c652
+          static/images/handwritten_reading.png: sha256:b25c6f5f8e777086c9faa8ceba85321d071b539cfd232a79dda84068a57eaf2d
+          static/images/japanese.png: sha256:728510026418a8cf99b76c54e433d71fffae2d5f0929edf3ced65eaf9969196f
+          static/images/japanese_layout.png: sha256:30189df8221a95e6631572277aec671031460fc897a2b33059e438c4a2150e35
+          static/images/japanese_reading.png: sha256:8d47d3b2987ad36b6eb762390f23d9c6b1e8ffae8e0aeea92c7cdcb36935c208
+          static/images/japanese_text.png: sha256:dabb5dcd24fe038cf21681c3a9a052b9d71c9cfbb2ff7c6037ef4dcc14f5c5e5
+          static/images/math.png: sha256:922c588de3e1b8cc2f01a6c63cd9856ecf032be7df5e321e20bf29b6038cace1
+          static/images/math_layout.png: sha256:ec2c835c44b1a14a3e0a09067f68ecc806bc1ea4286933acd4f186da60eb1a12
+          static/images/math_reading.png: sha256:fc5fe72f8a4372b6857a913995c59a27278055b77a05721a71bbc73cac4864db
+          static/images/math_text.png: sha256:30284efcddced07dfe2d2a954d55e3b061632f3163f0b64064274342aef93b28
+          static/images/newspaper.png: sha256:2d908b6f72a08fbb14adea01b2fb684407414cb1bb9af8360a2e929a3df4ad83
+          static/images/newspaper_layout.png: sha256:2fc821add30c94c1a76f9cda6d0f68916f77dcbc68fb627ddf4b767458954795
+          static/images/newspaper_reading.png: sha256:47a8e06b80319913415d8ddb7fc0a33d18d1797f9b834ac29037e34e89390a55
+          static/images/newspaper_text.png: sha256:1abc4e81ec3c7e89d8cf17e2a1b5039f0f7221ebb69e1f8305a42f0afcc8d2bf
+          static/images/opb_size_chart.png: sha256:a94a4f5492275f842b140f0f5e0e8ece91c7470d4a0c59e078db0529943a9eee
+          static/images/reference.png: sha256:7a25b3c50f90b5381998ea9340c2843a19d691fd3b08677f49d30ab8331eae9b
+          static/images/reference_layout.png: sha256:de15396f2322b017fc1f0f23fbc37a4428908caea53b704b63696705095f19ae
+          static/images/reference_reading.png: sha256:41a77baf4fa8441ae3dad74c3646be76908e2bdeac90d4426ea4f6ac0868d975
+          static/images/reference_text.png: sha256:be26b80e2450a16b530b7eb2a664e66989fde00c281a11e1d453b2c60a0be096
+      engine: surya.recognition.v1
+      options:
+        gpu_type: a100-80
+        fullpage_regen: false
+      serve:
+        server: vllm
+        version: 0.25.1
+        image: vllm/vllm-openai:v0.25.1@sha256:e4f88a835143cd22aee2397a26ec6bb80b3a4a6fe0c882bcbc63822904766089
+        flags:
+        - --no-enforce-eager
+        - --max-num-seqs
+        - '104'
+        - --dtype
+        - bfloat16
+        - --max-model-len
+        - '24576'
+        - --max-num-batched-tokens
+        - '16384'
+        - --gpu-memory-utilization
+        - '0.85'
+        - --enable-prefix-caching
+        - --mm-processor-kwargs
+        - '{"min_pixels": 3136, "max_pixels": 6291456}'
   tesseract-best-eng@1:
     sha256: sha256:88f0184bf11a1db40471ebfb94dec6bbabd8b3cd28050c931591a462f8877ef9
     released: '2026-11-04'
