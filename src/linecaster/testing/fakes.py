@@ -30,10 +30,14 @@ class _Fake:
         """Nothing to load; records that it was called."""
         self.loaded = True
 
-    def _done(self, t: Transcription, **measurements) -> Transcription:
-        t.steps.append(StepInfo(step=self.step, name=f"fake-{self.step}", engine=self.engine_id,
-                                backend="fake (cpu)", settings=self.options.model_dump(mode="json"),
-                                measurements=measurements))
+    def _done(self, t: Transcription, counted: dict | None = None) -> Transcription:
+        """``t`` with the step's record; ``counted``: the table or formula count (``tables``, ``formulas``)."""
+        info = StepInfo(step=self.step, name=f"fake-{self.step}", engine=self.engine_id, backend="fake (cpu)",
+                        settings=self.options.model_dump(mode="json"))
+        if counted is not None:
+            info.measurements = {"tables": counted["tables"]} if "tables" in counted else {
+                "formulas": counted["formulas"]}
+        t.steps.append(info)
         return t
 
     def __repr__(self) -> str:
@@ -163,7 +167,7 @@ class FakeTableEngine(_Fake):
                                     "cells": [{"text": r.id, "row": 0, "col": 0, "row_span": 1, "col_span": 1,
                                                "bbox": list(r.bbox), "header": False}]}
                 n += 1
-        return self._done(transcription, tables=n)
+        return self._done(transcription, {"tables": n})
 
 
 class FakeFormulaEngine(_Fake):
@@ -187,7 +191,7 @@ class FakeFormulaEngine(_Fake):
             if r.label == self.options.label:
                 r.extra["formula"] = f"x_{{{r.id.replace('_', '')}}}"
                 n += 1
-        return self._done(transcription, formulas=n)
+        return self._done(transcription, {"formulas": n})
 
 
 #: the fake engines by id
