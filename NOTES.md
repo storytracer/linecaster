@@ -82,6 +82,59 @@ of funding, never for a competing product or service; the packages' code is Apac
 License" (Apache-2.0 with additional terms: commercial use without a separate license below USD 2 million of funding
 and of revenue, never for a competing hosted API); Falcon OCR Apache-2.0.
 
+## olmOCR-2-7B-1025-FP8 on native FP8 (2026-11-06, RTX 4000 SFF Ada)
+
+The preset `olmocr-2-7b-1025-fp8@1` (board row 5) on the 60-page sample, on an RTX 4000 SFF Ada 20 GB (x86_64,
+compute capability 8.9), which runs FP8 natively. The board's run was one HF Jobs `a10g-small` job (A10G, Ampere: no
+FP8 tensor cores, so vLLM dequantizes the weights; the driver's docstring calls it the Marlin path).
+
+Setup:
+- linecaster at 2b26d5d (a fresh clone): `pipelines/transcribe_vlm.py OUT --parquet <sample>/data --id-key PageID
+  --recognition olmocr-2-7b-1025-fp8@1 --window 12 --initial-window 4`. `ChatModelServer` started `vllm serve
+  allenai/olmOCR-2-7B-1025-FP8 --revision 40bd720... --max-model-len 16384 --no-enable-prefix-caching
+  --mm-processor-cache-gb 0 --limit-mm-per-prompt {"image": 1} --gpu-memory-utilization 0.8`, on loopback: the
+  board driver's flags exactly. At most 12 pages in flight, 4 at the start, as the driver's saturate window
+  (`Auto(initial=4, target_waiting=4, max_limit=12)`).
+- vLLM 0.26.0 (the board's version) from PyPI in its own venv: `uv venv --python 3.12`, then `uv pip install
+  --exclude-newer 2026-07-26T00:00:00Z vllm==0.26.0` (the day after the release, to approximate the image's
+  resolve): torch 2.11.0+cu130, transformers 5.14.1, flashinfer-python 0.6.14, compressed-tensors 0.17.0. Its
+  `bin` goes first on `PATH` (`vllm` and `ninja`). Not the board's image `vllm/vllm-openai:v0.26.0` (no Docker
+  here), whose package versions were not compared. The venv of the MiniCPM-OCR run (a vLLM nightly, 0.32.1rc1, with
+  a transformers dev build) was not used: it is not the board's version.
+- vLLM picked `CutlassFP8ScaledMMLinearKernel` for the FP8 layers (W8A8) and FlashAttention 2.
+- Memory: no change needed. Weights 9.56 GiB, KV cache 5.72 GiB (107,040 tokens, 6.5 times one full context),
+  17.5 of 20 GB in use.
+
+Scored the board's way with a fresh clone of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs` postproc 3 →
+`score_dataset`), next to the board's raw completions for the same pages (`rows/olmocr2/normalized.parquet`, column
+`raw_verbatim`) put through the same three steps:
+
+| run | CER dip | CER reading | recall | loops |
+|---|---:|---:|---:|---:|
+| linecaster, RTX 4000 SFF Ada (FP8 W8A8) | 0.0350 | 0.0204 | 0.9431 | 0 of 60 |
+| board, A10G, same 60 pages | 0.0345 | 0.0196 | 0.9436 | 0 of 60 |
+| board, 2,165 pages (RESULTS.md) | 0.0576 | 0.0279 | 0.9573 | 0.55 % |
+
+- The board's published `markdown` column for this row predates its front-matter fix of 2026-10-30 (made without a
+  postproc bump): on 9 of these pages, all blank, it holds the YAML front matter alone, which scores 0.0461 / 0.0304
+  / 0.9436. Compare against the raw completions re-normalized, not against that column.
+- 34 of the 60 completions are byte-identical to the board's. linecaster's image encoding gives the driver's PNG
+  bytes on all 60 pages (same Pillow), and the prompt tokens equal the board's (96,718 in all; 1,372 to 1,786 per
+  page). Completion tokens 27,163 against 27,153.
+- Page CER reading: worse than the board's on 16 pages, better on 5, equal on the rest. The largest difference is
+  one Conchologia plate (8966788), where this run also read the two engraver lines (page CER 0.79 against 0.38);
+  without that page 0.0198 against 0.0193. The others are small (at most 0.064 page CER, on a 61-character page), across all six volumes.
+- No page reached its token cap (longest completion 1,325 of 8,192 tokens), no errors.
+- Time: 291 s for the whole process (the uv environment, vLLM's start of 120 s with 19 s of torch.compile, then the
+  pages); the 60 pages took 167 s, 2.8 s per page with up to 12 in flight. The board's job ran 3,527 s for 2,165
+  pages on the A10G (1.6 s per page, its start included).
+- Scoring: `normalize_outputs` needs `uv run --no-project --no-config <clone>/runners/normalize_outputs.py`; with uv
+  0.13.6, `--no-project` alone still applied the clone's `exclude-newer` (2026-07-05), under which `docling-core>=2.89`
+  does not resolve.
+
+Not checked: the board's image itself (its own vLLM build, transformers and Pillow); a second run (sampling at
+temperature 0.1, so run-to-run variation on these pages is not measured).
+
 ## The refactoring of November 2026 (2026-11-06)
 
 Six phases, each merged into main after the suite and the goldens (sample-60, 60/60 pages exact): the decisions on

@@ -40,6 +40,12 @@ uv run launch.py olmocr-2-7b-1025-fp8 IMAGES OUT
 |---|---|
 | adapter | `olmocr` |
 
+## Evidence
+
+| Date | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|
+| 2026-11-06 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | RTX 4000 SFF Ada 20 GB (x86_64, compute capability 8.9, native FP8), one GPU | served | cer_diplomatic 0.035, cer_reading 0.0204, recall 0.9431 |
+
 ## Provenance
 
 - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/olmocr2-port.py
