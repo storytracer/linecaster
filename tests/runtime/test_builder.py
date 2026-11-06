@@ -157,6 +157,21 @@ def test_parts_belong_to_their_transcription():
                         "the pipeline adds"]
 
 
+def test_a_removed_part_is_gone_for_later_blocks(tmp_path: Path):
+    """``ImageConverter`` without ``keep_bytes`` passes the page on without image bytes: a later block that reads the
+    image is a problem, even after a reader that provides anything; ``keep_bytes`` or an ``ImageFetcher`` fixes it."""
+    from linecaster.blocks.conversion import ImageConverter, ImageFetcher
+
+    convert = ImageConverter(str(tmp_path / "webp"), "working-image@1")
+    problems = _problems([ImageFolderReader("x"), convert, _lines(), PageJsonlWriter("o")])
+    assert problems == ["LineDetector (lines (in-process)) reads image, which ImageConverter (🖼️ image converter "
+                        "(lossless WebP)) removes before it"]
+    assert _problems([PageRecordReader("p"), convert, _lines()]) == problems[:1]
+    assert _problems([ImageFolderReader("x"), convert, ImageFetcher(), _lines(), PageJsonlWriter("o")]) == []
+    kept = ImageConverter(str(tmp_path / "webp"), "working-image@1", keep_bytes=True)
+    assert _problems([ImageFolderReader("x"), kept, _lines(), PageJsonlWriter("o")]) == []
+
+
 def test_a_page_block_after_an_item_stream():
     problems = _problems([ImageFolderReader("x"), _lines(), _text(), Binder(), Composer("docling-composition@1")])
     assert "Composer (composer) works on pages, but the stream carries items here" in problems

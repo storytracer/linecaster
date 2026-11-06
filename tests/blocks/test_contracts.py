@@ -162,6 +162,14 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert ModelServer([]).contract().unit == "any" and ModelServer([]).contract().role == "server"
     assert names(ImageConverter(str(tmp_path), "working-image@1", keep_bytes=True).contract().replaces) == [
         "image", "metadata"]
+    assert ImageConverter(str(tmp_path), "working-image@1", keep_bytes=True).contract().removes == frozenset()
+    without = ImageConverter(str(tmp_path), "working-image@1").contract()      # the page leaves without its bytes
+    assert names(without.replaces) == ["metadata"] and names(without.removes) == ["image"]
+    assert without.describe()["removes"] == ["image"]
+    from linecaster.blocks.writers import ImageFilesWriter
+
+    files = ImageFilesWriter(str(tmp_path)).contract()           # image.uri and extra name the copy
+    assert names(files.reads) == ["image"] and names(files.replaces) == ["metadata"]
     assert contract_of(object()) == Contract(unit="page", role="transform")
 
 

@@ -57,7 +57,8 @@ class ImageConverter(Contracted, PipelineStep):
     the working image is 8-bit sRGB, lossless WebP at full resolution, method 0, exact. It is written to
     ``<output_folder>/<item_id>/<page_id>.webp`` (``_/<page_id>.webp`` for a page without item), and
     ``page.image`` becomes the working image's ``PageImage`` (size, hashes, decoder): it reads and replaces
-    ``metadata``. The delivered file is only read (from ``doc.media`` when the reader brought it, else from its
+    ``metadata``, and with ``keep_bytes`` replaces ``image``; without it, it removes ``image`` (the page leaves with
+    no image bytes, so a later block that reads the image needs an ``ImageFetcher`` first). The delivered file is only read (from ``doc.media`` when the reader brought it, else from its
     URI); its location, format, sha256, size and mode stay under ``page.image.extra["original"]``, the step
     (engine, preset edition and hash, settings) under ``page.image.extra["step"]`` (a ``StepInfo``: the image
     belongs to no transcription). A page without an image address, over the size limit (``check_size``) or that
@@ -94,9 +95,11 @@ class ImageConverter(Contracted, PipelineStep):
         self.backend.warm_up()
 
     def contract(self) -> Contract:
-        """The working image replaces the page image (its bytes travel on only with ``keep_bytes``)."""
+        """The working image replaces the page image with ``keep_bytes``; without it the page leaves with no image
+        bytes (it removes ``image``)."""
         return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
-                        replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None))
+                        replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None),
+                        removes=parts(() if self.keep_bytes else ("image",), None))
 
     def _reject(self, doc, stat: str, error: str, error_type: str, raw_value=None, **extra):
         record_error(doc, error_entry(self, error, error_type, field="image", raw_value=raw_value, **extra))

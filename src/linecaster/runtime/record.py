@@ -32,6 +32,7 @@ class Contract(_Record):
     reads: list[str] | None = None
     adds: list[str] | None = None
     replaces: list[str] | None = None
+    removes: list[str] | None = None
 
 
 class BlockEntry(_Record):
