@@ -3,7 +3,8 @@
 
 A manifest lists an item's pages and their files, in order: an IIIF Presentation manifest (2 or 3) or a METS
 document with MODS (also inside an OAI-PMH response), read by pybookget's ``read_manifest`` and told apart by their
-content. ``ManifestReader`` turns each into one page per image. Its entries are manifests the way a file is an entry
+content. ``ManifestReader`` turns each into one page per image. An entry may also be a IIIF Collection: its manifests
+are read as items, one level deep (pybookget's ``read_collection``). Its entries are manifests the way a file is an entry
 for datatrove's readers (manifest files under a folder, a ``paths_file`` of manifest URLs or paths), or Parquet item
 tables with one manifest link per row (``manifest_key``); entries are distributed over tasks in turn, so an item's
 pages stay in one task.
@@ -95,6 +96,10 @@ class ManifestReader(Contracted, BaseDiskReader):
       listing them), one item per row: its manifest link in ``manifest_key`` (a URL, an absolute fsspec path, or a
       path relative to ``data_folder``), its id in ``item_key`` (optional), and, with ``read_metadata`` (the
       default), every other column in the metadata of each of its pages.
+
+    An entry that is a IIIF Collection stands for its manifests, each an item named by its own link (a table's
+    ``item_key`` does not apply to them); a collection listed in it, or a paged one, raises ``NotImplementedError``
+    for now (one level).
 
     Pages: ``item_id`` from ``item_key``, else from the manifest entry (``manifest_item_id``;
     ``item_id_pattern`` overrides the rule); ``sequence`` the page's 1-based position among the manifest's pages
@@ -203,37 +208,72 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     def _pages(self, fetcher: HTTPFetcher, entries: list[str]):
         """(item_id, item metadata, table metadata, ManifestPage) for each page of the entries' items, in order."""
-        from pybookget.formats.manifest import read_manifest
-
         saved = get_datafolder(self.manifest_folder) if self.manifest_folder is not None else None
         for item_id, ref, extra in self._items(entries):
-            start, t = time.time_ns(), time.perf_counter()
-            try:
+            yield from self._manifest_pages(fetcher, saved, item_id, ref, extra)
+
+    def _members(self, data: bytes) -> list | None:
+        """The members of a IIIF Collection (pybookget's ``read_collection``), or None for a manifest."""
+        from pybookget.formats.manifest import detect_format
+
+        if self.manifest_format == "mets":
+            return None
+        try:
+            if detect_format(data) != "iiif-collection":
+                return None
+        except ValueError:             # read_manifest says what is wrong with it
+            return None
+        from pybookget.formats.manifest import read_collection
+
+        return read_collection(data)
+
+    def _manifest_pages(self, fetcher: HTTPFetcher, saved, item_id: str | None, ref: str, extra: dict,
+                        in_collection: bool = False):
+        """The pages of the manifest ``ref`` (as ``_pages`` yields them); a IIIF Collection's manifests, each an item
+        named by its own link (one level: a collection in a collection raises ``NotImplementedError``)."""
+        from pybookget.formats.manifest import read_manifest
+
+        start, t = time.time_ns(), time.perf_counter()
+        try:
+            data, uri = self._read(fetcher, ref)
+            members = None if in_collection else self._members(data)
+            if members is None:
                 item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
-                data, uri = self._read(fetcher, ref)
                 manifest = read_manifest(data, fetcher.config, format=self.manifest_format)
-            except Exception as e:  # noqa: BLE001 - a broken manifest must not stop the task
-                logger.warning("manifest {ref}: {error_type}: {error}", ref=ref, error_type=type(e).__name__,
-                               error=str(e))
-                self.stat_update("manifests_failed")
-                self.report("file", start, file=ref, pages=0, seconds_own=round(time.perf_counter() - t, 4),
-                            error_type=type(e).__name__)
-                continue
-            self.report("file", start, file=ref, pages=len(manifest.pages),
-                        seconds_own=round(time.perf_counter() - t, 4))
-            self.stat_update(f"manifests_{manifest.format}")
-            if saved is not None:
-                with saved.open(f"{item_id}.{MANIFEST_EXTENSIONS.get(manifest.format, 'bin')}", "wb") as f:
-                    f.write(data)
-            if not manifest.pages:
-                self.stat_update("manifests_without_images")
-                continue
-            item = {"format": manifest.format, "url": uri, "id": manifest.id, "label": manifest.label,
-                    "rights": manifest.rights, "required_statement": manifest.required_statement,
-                    "identifiers": dict(manifest.identifiers), "metadata": dict(manifest.metadata)}
-            self.stat_update("manifest_pages", value=len(manifest.pages), unit="input_file")
-            for page in manifest.pages:
-                yield item_id, item, extra, page
+        except NotImplementedError:
+            raise
+        except Exception as e:  # noqa: BLE001 - a broken manifest must not stop the task
+            logger.warning("manifest {ref}: {error_type}: {error}", ref=ref, error_type=type(e).__name__,
+                           error=str(e))
+            self.stat_update("manifests_failed")
+            self.report("file", start, file=ref, pages=0, seconds_own=round(time.perf_counter() - t, 4),
+                        error_type=type(e).__name__)
+            return
+        if members is not None:
+            self.report("file", start, file=ref, pages=0, seconds_own=round(time.perf_counter() - t, 4),
+                        manifests=len(members))
+            self.stat_update("collections")
+            nested = [m.id for m in members if m.kind != "manifest"]
+            if nested:
+                raise NotImplementedError(f"IIIF Collection {ref} lists collections ({', '.join(nested[:3])}); "
+                                          "ManifestReader reads one level of manifests so far")
+            for m in members:
+                yield from self._manifest_pages(fetcher, saved, None, resolve(m.id, uri), extra, in_collection=True)
+            return
+        self.report("file", start, file=ref, pages=len(manifest.pages), seconds_own=round(time.perf_counter() - t, 4))
+        self.stat_update(f"manifests_{manifest.format}")
+        if saved is not None:
+            with saved.open(f"{item_id}.{MANIFEST_EXTENSIONS.get(manifest.format, 'bin')}", "wb") as f:
+                f.write(data)
+        if not manifest.pages:
+            self.stat_update("manifests_without_images")
+            return
+        item = {"format": manifest.format, "url": uri, "id": manifest.id, "label": manifest.label,
+                "rights": manifest.rights, "required_statement": manifest.required_statement,
+                "identifiers": dict(manifest.identifiers), "metadata": dict(manifest.metadata)}
+        self.stat_update("manifest_pages", value=len(manifest.pages), unit="input_file")
+        for page in manifest.pages:
+            yield item_id, item, extra, page
 
     # ------------------------------------------------------------------ pages
 

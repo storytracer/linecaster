@@ -303,6 +303,44 @@ def test_mets_pages_in_order_with_file_groups_and_existing_alto(server, tmp_path
     assert OCR_ORIGINAL not in lost.transcriptions                  # its ALTO failed; the page stays
 
 
+def needs_read_collection():
+    import pybookget.formats.manifest as m
+
+    if not hasattr(m, "read_collection"):
+        pytest.skip("this pybookget has no read_collection (uv run --with-editable ../pybookget)")
+
+
+def collection(base, name, members):
+    return {"@context": "http://iiif.io/api/presentation/3/context.json", "id": f"{base}/{name}/manifest",
+            "type": "Collection", "label": {"en": [name]},
+            "items": [{"id": url, "type": kind, "label": {"none": [url]}} for kind, url in members]}
+
+
+def test_a_iiif_collection_is_read_as_its_manifests(server, tmp_path):
+    needs_read_collection()
+    base = server["base"]
+    a, b = publish(server, "a1", v3(base, "a1", ["f1"])), publish(server, "b2", v3(base, "b2", ["f1", "f2"]))
+    top = publish(server, "flora", collection(base, "flora", [("Manifest", a), ("Manifest", b)]))
+    (tmp_path / "m.txt").write_text(top)
+    reader = ManifestReader(paths_file=str(tmp_path / "m.txt"), http={**FAST, "iiif_format": "png"},
+                            manifest_folder=str(tmp_path / "manifests"))
+    got = pages(reader)
+    assert [(p.item_id, p.page_id) for p in got] == [("a1", "a1_0001"), ("b2", "b2_0001"), ("b2", "b2_0002")]
+    assert got[1].metadata["manifest"]["url"] == b and reader.stats["collections"].total == 1
+    assert sorted(f.name for f in (tmp_path / "manifests").iterdir()) == ["a1.json", "b2.json"]
+
+
+@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="one level of IIIF Collections so far")
+def test_a_collection_of_collections_is_read_as_their_manifests(server, tmp_path):
+    needs_read_collection()
+    base = server["base"]
+    a = publish(server, "a1", v3(base, "a1", ["f1"]))
+    sub = publish(server, "sub", collection(base, "sub", [("Manifest", a)]))
+    top = publish(server, "top", collection(base, "top", [("Collection", sub)]))
+    (tmp_path / "m.txt").write_text(top)
+    assert [p.item_id for p in pages(ManifestReader(paths_file=str(tmp_path / "m.txt"), http=FAST))] == ["a1"]
+
+
 def test_mets_inside_oai_pmh_and_a_forced_format(server, tmp_path):
     url = publish(server, "rec", oai(mets(server["base"], ["f1"], groups=("DEFAULT",))))
     (tmp_path / "m.txt").write_text(url)
