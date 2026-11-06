@@ -22,7 +22,8 @@ jobs:
           # the project's [tool.uv] required-version
           version: "0.13.6"
           python-version: "3.12"
-      - run: uv sync --locked
+      # every extra: the readers and adapters they serve are tested and documented (pybookget, PDFium, Ray)
+      - run: uv sync --locked --all-extras
       - run: uv run pytest -m "not gpu and not network and not parity"
       - run: uv run linecaster docs --check
       - run: uv run linecaster catalog verify

@@ -248,7 +248,7 @@ compatibility aliases: old imports, flags and ids fail.
   and test commands.
 - A missing engine's `CatalogError` names the engine package that provides it and the pipeline scripts that install
   it (`catalog.code.install_hint`).
-- The CI workflow `.github/workflows/ci.yml` (CPU, no secrets): `uv sync --locked`, the tests without `gpu`,
+- The CI workflow `.github/workflows/ci.yml` (CPU, no secrets): `uv sync --locked --all-extras`, the tests without `gpu`,
   `network` and `parity`, `linecaster docs --check`, `linecaster catalog verify`, the strict site build.
 - `tests/integration/ray_data_spike.py`: the squiddle blocks through Ray Data (NOTES.md, 2026-11-06).
 
