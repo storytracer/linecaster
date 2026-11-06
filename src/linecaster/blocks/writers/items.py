@@ -69,6 +69,26 @@ def item_text_row(self, doc) -> dict:
     return {"id": doc.id, "text": doc.text, **doc.metadata}
 
 
+def item_texts(doc: Document, variants_: tuple[str, ...] = tuple(VARIANTS), transcription: str = "ocr_new",
+               token_counter=None) -> list[Document]:
+    """One datatrove document per text variant of the item record ``doc``: ``text`` the variant, the metadata the
+    columns ``ItemTextWriter`` writes (item id, variant, its dimensions and format, page ids, page count, and the
+    token count with a ``token_counter``). For a derivative writing the texts in a format of its own."""
+    pages = item_pages(doc)
+    item = doc.metadata[ITEM_KEY]["item_id"]
+    ids = [p.page_id for p in pages]
+    texts = variants([p.transcription(transcription) for p in pages], ids)
+    out = []
+    for variant in variants_:
+        fidelity, flow, scope, fmt = VARIANTS[variant]
+        meta = {"item_id": item, "variant": variant, "fidelity": fidelity, "flow": flow, "scope": scope,
+                "format": fmt, "page_ids": ids, "pages": len(pages)}
+        if token_counter is not None:
+            meta["token_count"] = token_counter(texts[variant])
+        out.append(Document(text=texts[variant], id=item, metadata=meta))
+    return out
+
+
 class ItemTextWriter(Contracted, JsonlWriter):
     """The text variants of each item record (``linecaster.text.variants``): ``verbatim_txt`` from its pages' lines
     as laid out (pages joined with a form feed), ``readable_txt`` and ``readable_md`` from the paragraphs of the
@@ -103,21 +123,8 @@ class ItemTextWriter(Contracted, JsonlWriter):
             format, tuple(variants), transcription, token_counter
 
     def texts(self, doc: Document) -> list[Document]:
-        """One datatrove document per variant of the item record ``doc``: ``text`` the variant, the metadata the
-        row's columns."""
-        pages = item_pages(doc)
-        item = doc.metadata[ITEM_KEY]["item_id"]
-        ids = [p.page_id for p in pages]
-        texts = variants([p.transcription(self.transcription) for p in pages], ids)
-        out = []
-        for variant in self.variants:
-            fidelity, flow, scope, fmt = VARIANTS[variant]
-            meta = {"item_id": item, "variant": variant, "fidelity": fidelity, "flow": flow, "scope": scope,
-                    "format": fmt, "page_ids": ids, "pages": len(pages)}
-            if self.token_counter is not None:
-                meta["token_count"] = self.token_counter(texts[variant])
-            out.append(Document(text=texts[variant], id=item, metadata=meta))
-        return out
+        """One datatrove document per variant of the item record ``doc`` (``item_texts``)."""
+        return item_texts(doc, self.variants, self.transcription, self.token_counter)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         with self:

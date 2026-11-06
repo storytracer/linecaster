@@ -91,6 +91,13 @@ compatibility aliases: old imports, flags and ids fail.
 
 **Phase 3: rule-based steps, recomposition, binding**
 
+- Text without geometry (lines without boxes, e.g. a delivered plain text): a paragraph now continues across a page
+  break only after a division mark; before, the simple line flow joined such pages whenever the text did not end a
+  sentence.
+- `linecaster.blocks.writers.item_texts(doc, variants, transcription, token_counter)` renders an item record's text
+  variants as datatrove documents, for derivatives writing them in a format of their own; `ItemTextWriter` uses it.
+- `linecaster.catalog.schema.RULE_STEPS` lists the rule-based steps, to tell a recipe's rule-based slots from its
+  model slots.
 - Data model: `ModelInfo` → `StepInfo` (new field `engine`, the engine's code id, filled by the model blocks,
   `linecaster serve` and the chat adapters), `Transcription.model` → `Transcription.steps`, `ChatAdapter.model_info()`
   → `step_info()`. New: `Transcription.paragraphs` (`Paragraph`, `ParagraphRow`, `ParagraphRef`, `Decision`),
