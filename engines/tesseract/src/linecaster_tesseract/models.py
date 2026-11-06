@@ -43,12 +43,9 @@ class Tessdata:
 
 def tessdata(data: str = "best") -> Tessdata:
     """The newest pin of ``data``'s model document (``best``, ``fast``)."""
-    from linecaster.catalog.registry import catalog
+    from linecaster.engines.api import weights_of
 
-    m = catalog().model(MODEL_IDS[data])
-    pin = m.pins[-1]
-    return Tessdata.of({"model": m.id, "source": m.source.model_dump(), "revision": pin.revision,
-                        "files": dict(pin.files)})
+    return Tessdata.of(weights_of(MODEL_IDS[data]))
 
 
 def __getattr__(name):   # TESSDATA: kind -> Tessdata, read from the catalog when asked for
