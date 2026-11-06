@@ -10,16 +10,21 @@ from .base import RuleEngine
 
 
 class DoclingCompositionEngine(RuleEngine):
-    """A DoclingDocument from a page's regions, paragraphs or lines, and tables
-    (``linecaster.formats.docling.DocumentBuilder``): titles and section headers at their heading levels, text
-    items with Docling's labels, page headers and footers in the furniture layer, tables with their cells,
-    formulas, pictures with the text read inside them, optionally one section group per heading; the map of items
-    to regions in ``extra["docling_region_of"]``. A text region is composed from its paragraphs when a
-    recomposition made them (one item per paragraph, continued paragraphs in one item), else from its lines as laid
-    out (one item per region, one row per line: diplomatic composition).
+    """Composes a page's DoclingDocument from its regions, paragraphs or lines, and tables.
 
-    The page unit is the call; an item's document (all its pages, in order, paragraphs continued across pages) is
-    ``item_document``."""
+    The document is built by ``linecaster.formats.docling.DocumentBuilder``: titles and section headers at their heading
+    levels, text items with Docling's labels, page headers and footers in the furniture layer, tables with their cells,
+    formulas, pictures with the text read inside them, optionally one section group per heading; the map of items to
+    regions in ``extra["docling_region_of"]``. A text region is composed from its paragraphs when a recomposition made
+    them (one item per paragraph, continued paragraphs in one item), else from its lines as laid out (one item per
+    region, one row per line: diplomatic composition).
+
+    The page unit is the call (the document in ``Transcription.docling``); an item's document (all its pages, in
+    order, paragraphs continued across pages) is ``item_document``. Each call records a ``StepInfo``.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "composition.docling.v1"
     step = "composition"

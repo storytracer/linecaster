@@ -11,11 +11,17 @@ from .base import RuleEngine
 
 
 class RatiosTypographyEngine(RuleEngine):
-    """squiddleocr's retyper (``linecaster.text.typography``): every rule a ratio to the page's own body type.
-    Heading levels from the type size, section headers in body type made text, headlines split off the text
-    region they were merged into, drop capitals joined to their line, uncertain page numbers removed. The rules
-    cover every script that is set in lines of type sizes. Every threshold is an option, squiddleocr's values the
-    defaults."""
+    """Determines a page's hierarchy from its type sizes, every rule a ratio to the page's own body type.
+
+    squiddleocr's retyper (``linecaster.text.typography``). Heading levels from the type size, section headers in body
+    type made text, headlines split off the text region they were merged into, drop capitals joined to their line,
+    uncertain page numbers removed. The rules cover every script that is set in lines of type sizes. Every threshold is
+    an option, squiddleocr's values the defaults. The step records its counts (``leveled``, ``demoted``, ``split``,
+    ``drop_capitals``, ``numbers_dropped``).
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "typography.ratios.v1"
     step = "typography"

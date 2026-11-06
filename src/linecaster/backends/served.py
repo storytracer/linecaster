@@ -28,11 +28,35 @@ def request_headers(api_key: EnvVar | None, headers: dict | None) -> dict[str, s
 
 @dataclass
 class Served:
-    """The engine runs behind ``linecaster serve`` (or any server speaking its routes), reached through
-    saturate: ``endpoint`` is the server's ``.../v1`` base, ``model`` the name it hosts the model under.
+    """Runs a model block's engine behind ``linecaster serve`` (or any server speaking its routes), reached through
+    saturate.
 
-    ``api_key`` (an ``EnvVar``, never the key itself) is sent as ``Authorization: Bearer <key>``; ``headers`` go
-    with every request (values plain or ``EnvVar``). Both are read in the task, when the block's client opens."""
+    The block streams its pages to ``POST <endpoint>/linecaster/{step}``: a window of requests in flight, adapted
+    to the server's queue gauges and 429s, results passed on as they finish. Secrets are read in the task, when the
+    block's client opens (``warm_up()`` reads them first, so a missing one fails the task before its first page);
+    a key given as text is refused (``PipelineConfigError``).
+
+    Args:
+        endpoint: the server's ``.../v1`` base URL.
+        model: the name the server hosts the model under (what each request names).
+        max_window: the most requests in flight.
+        initial_window: the requests in flight at the start; saturate adapts the window between it and
+            ``max_window``.
+        read_timeout: seconds per request before it fails (the page's error).
+        preset: the catalog preset (``id@edition``) the server hosts under ``model``, when known: the block's
+            contract takes its parts from it.
+        engine: the engine (``module:Class``) the server hosts under ``model``, when known: the contract's parts
+            from its capabilities when there is no preset.
+        api_key: an ``EnvVar`` naming the key (never the key itself), sent as ``Authorization: Bearer <key>``;
+            ``None``: no authorization header.
+        headers: headers sent with every request, values plain or ``EnvVar``.
+
+    Example:
+        from linecaster.backends import Served
+        from linecaster.blocks.recognition import LineRecognizer
+
+        LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition"))
+    """
 
     endpoint: str
     model: str

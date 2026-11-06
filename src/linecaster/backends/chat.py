@@ -12,16 +12,34 @@ CHAT_PORT = 8000
 
 
 class Chat:
-    """A VLM read through a chat preset (engine ``chat.v1``): ``preset`` is the preset (``id``, ``id@edition``, or a
-    model's Hugging Face id: its preset with unit ``prefer``, ``page`` or ``region``) or its configured adapter
-    (``linecaster.adapters.chat_model``). The adapter builds each request and parses each completion; the server
-    hosts the model under ``served_name`` (default: the preset's, else the Hub id).
+    """Runs a chat preset's VLM (engine ``chat.v1``) behind an OpenAI-compatible server, reached through saturate.
 
-    ``endpoint`` is the server's ``.../v1`` base (default: the ``ChatModelServer`` of the task, on loopback port
-    ``CHAT_PORT``); ``max_window`` / ``initial_window`` bound the requests in flight (saturate adapts the window in
-    between to the server's queue gauges and 429s); ``read_timeout`` is the seconds per request. ``api_key`` (an
-    ``EnvVar``, never the key itself) is sent as ``Authorization: Bearer <key>``, ``headers`` with every request;
-    both are read in the task, when the block's client opens."""
+    The server is vLLM, SGLang or a hosted endpoint, on ``/chat/completions``. The preset's adapter
+    (``linecaster.adapters``) builds each request and parses each completion; saturate keeps a window of requests
+    in flight, adapted to the server's queue gauges and 429s. Secrets are read in the task, when the block's client
+    opens (``warm_up()`` reads them first); a key given as text is refused (``PipelineConfigError``).
+
+    Args:
+        preset: the chat preset (``id``, ``id@edition``, or a model's Hugging Face id: its preset with unit
+            ``prefer``) or a configured adapter (``linecaster.adapters.chat_model``).
+        endpoint: the server's ``.../v1`` base URL; ``None``: the task's ``ChatModelServer`` on loopback port
+            ``CHAT_PORT`` (8000).
+        served_name: the name the server hosts the model under; ``None``: the preset's, else the Hub id.
+        max_window: the most requests in flight.
+        initial_window: the requests in flight at the start; saturate adapts the window between it and
+            ``max_window``.
+        read_timeout: seconds per request before it fails (the page's error).
+        api_key: an ``EnvVar`` naming the key (never the key itself), sent as ``Authorization: Bearer <key>``;
+            ``None``: no authorization header.
+        headers: headers sent with every request, values plain or ``EnvVar``.
+        prefer: the unit of the preset a Hugging Face id picks when the model has several: ``page`` or ``region``.
+
+    Example:
+        from linecaster.backends import Chat
+        from linecaster.blocks.recognition import PageRecognizer
+
+        PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+    """
 
     served = True
     #: the engine of chat presets

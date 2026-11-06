@@ -36,9 +36,15 @@ class TextNormalization(RuleEngine):
 
 
 class LatinHistoricNormalizationEngine(TextNormalization):
-    """The explicit mapping table of ``linecaster.text.variants`` for historic Latin print: long s, ligatures, r
-    rotunda and superscript e over a, o, u folded; æ, œ, ø, å and ß stay; NFC, never NFKC; spelling is never
-    modernized."""
+    """Normalizes historic Latin print by the explicit mapping table of ``linecaster.text.variants``.
+
+    Long s, ligatures, r rotunda and superscript e over a, o, u are folded; æ, œ, ø, å and ß stay; NFC, never
+    NFKC; spelling is never modernized. Every recognized line, paragraph and table cell gets its ``normalized``
+    next to its ``text``; the step records how many changed (``changed``).
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "normalization.latin-historic.v1"
     step = "normalization"
@@ -53,9 +59,14 @@ class LatinHistoricNormalizationEngine(TextNormalization):
 
 
 class ByScriptNormalizationEngine(TextNormalization):
-    """Normalization by script: each run of a text (characters of one script, with the Common and Inherited ones
-    after them) normalized by the strategy for its script, the rest by the default strategy (``"*"``). A preset
-    names the strategies in ``by_script``."""
+    """Normalizes each run of a text by the strategy for its script.
+
+    A run is the characters of one script with the Common and Inherited ones after them; a script without a
+    strategy of its own goes to the default strategy (``"*"``). A preset names the strategies in ``by_script``.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "normalization.by-script.v1"
     step = "normalization"

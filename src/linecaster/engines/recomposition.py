@@ -47,7 +47,9 @@ class _Open:
 
 
 class UnicodeRecompositionEngine(RuleEngine):
-    """squiddleocr's recomposition (``linecaster.text.recomposition``): the rows of each text region joined into
+    """Recomposes the rows of each text region into paragraphs from geometry and Unicode's character properties.
+
+    squiddleocr's recomposition (``linecaster.text.recomposition``): the rows of each text region joined into
     paragraphs, the typesetter's division marks removed, from geometry and Unicode's character properties (line,
     word and sentence breaks), never from a language name; the document's own words decide the one ambiguous case
     (a hyphen that may belong to the word). A paragraph left open at the end of a text region continues in the next
@@ -57,7 +59,11 @@ class UnicodeRecompositionEngine(RuleEngine):
     every script whose text runs in horizontal lines.
 
     Each decision is recorded on its paragraph (``Paragraph.decisions``); a continuation links the two paragraphs
-    (``continues``, ``continues_from``) and removes the division mark it decided on from the first one's text."""
+    (``continues``, ``continues_from``) and removes the division mark it decided on from the first one's text.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "recomposition.unicode.v1"
     step = "recomposition"
@@ -192,9 +198,15 @@ class UnicodeRecompositionEngine(RuleEngine):
 
 
 class ByScriptRecompositionEngine(RuleEngine):
-    """Recomposition by script: each decision at a row end (a division mark, the separator between two rows) made
-    by the strategy for the script around it (the characters before the row end, else after it), the rest by the
-    default strategy (``"*"``), which also recomposes the item. A preset names the strategies in ``by_script``."""
+    """Recomposes an item with each decision at a row end made by the strategy for the script around it.
+
+    A decision (a division mark, the separator between two rows) goes to the strategy for the script of the
+    characters before the row end, else after it; a script without a strategy of its own goes to the default
+    strategy (``"*"``), which also recomposes the item. A preset names the strategies in ``by_script``.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
 
     engine_id: ClassVar[str] = "recomposition.by-script.v1"
     step = "recomposition"
