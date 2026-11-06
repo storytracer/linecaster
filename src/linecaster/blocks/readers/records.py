@@ -7,9 +7,11 @@ from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
 from ...data.page import PAGE_KEY, PAGE_SCHEMA
-from ...errors import PipelineConfigError
+from ...errors import PageError, PipelineConfigError
 from ..base.block import reported_file
 from ..base.contract import Contract, Contracted, Part
+from ..base.page import error_entry, record_error
+from .fragments import read_image
 from .images import _Opener
 
 #: the folder page records had before phase 1 (``OUT/rows``; today ``OUT/pages``)
@@ -58,7 +60,10 @@ class PageRecordReader(Contracted, PipelineStep):
     Each pipeline of a workflow reads the previous one's ``pages/`` folder (linecaster's page writers) and adds its
     part. The records bring ``metadata`` and, with ``fetch_images``, ``image``: page records never carry the image
     bytes, so they are read again from ``page.image.uri`` through datatrove ``DataFolder``s (``http(s)://``
-    through pybookget). A page's errors come back as ``doc.metadata["errors"]``, so later model blocks pass it by.
+    through pybookget); a URI with a fragment names a part of its file (``file.pdf#page=<n>``: that page rendered,
+    ``file.parquet#<page_id>``: that row's image, ``linecaster.blocks.readers.fragments``), and one that cannot be
+    resolved is the page's error (field ``image``, stat ``image_errors``), never the whole file. A page's errors
+    come back as ``doc.metadata["errors"]``, so later model blocks pass it by.
 
     Rows of an earlier format are read as today's (``upgrade``, by the row's ``schema``): rows without ``schema``
     name linecaster's transcription ``ocr`` (read as ``ocr_new``), ``linecaster.page/1`` rows a transcription's
@@ -160,24 +165,35 @@ class PageRecordReader(Contracted, PipelineStep):
         for path in files:
             yield from reported_file(self, path, self._documents(path))
 
+    def _mapped(self, src: str) -> str:
+        """``src`` with the first matching prefix of ``uri_map`` rewritten."""
+        for prefix, repl in self.uri_map.items():
+            if src.startswith(prefix):
+                return repl + src[len(prefix):]
+        return src
+
     def _documents(self, path: str):
         from datatrove.data import Document, Media, MediaType
 
         for row in self._records(path):
             row = upgrade(row)
             page = row["page"]
-            media, fetches = [], []
+            media, fetches, failure = [], [], None
             uri = (page.get("image") or {}).get("uri")
             if self.fetch_images and uri:
-                src = uri.split("#", 1)[0]
-                for prefix, repl in self.uri_map.items():
-                    if src.startswith(prefix):
-                        src = repl + src[len(prefix):]
-                media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri,
-                               media_bytes=self._opener.read(src, fetches))]
+                try:
+                    data = read_image(uri, lambda src: self._opener.read(self._mapped(src), fetches), row["id"],
+                                      page.get("metadata"))
+                except PageError as e:          # a fragment that names nothing it can fetch: the page's error
+                    failure = e
+                else:
+                    media = [Media(id=row["id"], type=MediaType.IMAGE, url=uri, media_bytes=data)]
             doc = Document(text=row.get("text") or "", id=row["id"], media=media, metadata={"page": page})
             if row.get("errors"):
                 doc.metadata["errors"] = row["errors"]
+            if failure is not None:
+                record_error(doc, error_entry(self, failure, field="image", raw_value=uri))
+                self.stat_update("image_errors")
             if fetches:
                 doc.metadata["trace"] = {"fetch": fetches}
             self.stat_update("pages")

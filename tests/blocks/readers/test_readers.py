@@ -232,3 +232,78 @@ def test_pdf_text_layer_becomes_ocr_original(tmp_path):
     _pdf(tmp_path / "in" / "a.pdf", [(200, 300)])
     [doc] = PdfReader(str(tmp_path / "in"), text_layer=True).run()
     assert "ocr_original" in page_of(doc).transcriptions
+
+
+# ------------------------------------------------------------------------------------- images by URI fragment
+def _records(tmp_path, docs) -> str:
+    from linecaster.blocks.writers import PageJsonlWriter
+
+    list(PageJsonlWriter(str(tmp_path / "pages")).run(iter(docs)))
+    return str(tmp_path / "pages")
+
+
+def test_records_of_pdf_pages_fetch_the_page_not_the_file(tmp_path):
+    """``file.pdf#page=n`` is fetched as page n rendered as ``PdfReader`` renders it, by ``PageRecordReader``,
+    ``ImageFetcher`` and ``ImageConverter`` alike, never as the whole PDF."""
+    pytest.importorskip("pypdfium2")
+    from linecaster.blocks.conversion import ImageConverter, ImageFetcher
+    from linecaster.blocks.readers import PdfReader
+
+    (tmp_path / "in").mkdir()
+    _pdf(tmp_path / "in" / "a.pdf", [(200, 300), (300, 200)])
+    docs = list(PdfReader(str(tmp_path / "in"), dpi=144).run())
+    rendered = {d.id: image_bytes(d) for d in docs}
+    folder = _records(tmp_path, docs)
+    again = {d.id: d for d in PageRecordReader(folder).run()}
+    assert {k: image_bytes(d) for k, d in again.items()} == rendered
+    assert all("errors" not in d.metadata for d in again.values())
+    bare = list(PageRecordReader(folder, fetch_images=False).run())
+    assert {d.id: image_bytes(d) for d in ImageFetcher().run(iter(bare))} == rendered
+    bare = list(PageRecordReader(folder, fetch_images=False).run())
+    converted = list(ImageConverter(str(tmp_path / "webp"), "working-image@1").run(iter(bare)))
+    assert [page_of(d).image.extra["original"]["sha256"] for d in converted] == [
+        page_of(d).image.sha256 for d in docs]
+
+
+def test_records_of_parquet_rows_fetch_the_row_and_unknown_fragments_fail_the_page(tmp_path):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from linecaster.blocks.conversion import ImageFetcher
+
+    (tmp_path / "data").mkdir()
+    pq.write_table(pa.table({"id": ["p1", "p2"], "image": [{"bytes": png("green"), "path": None},
+                                                           {"bytes": png("red"), "path": None}]}),
+                   tmp_path / "data" / "part-0.parquet")
+    docs = list(ImageParquetReader(str(tmp_path / "data")).run())
+    assert page_of(docs[1]).image.uri.endswith("part-0.parquet#p2")
+    folder = _records(tmp_path, docs)
+    again = {d.id: image_bytes(d) for d in PageRecordReader(folder).run()}
+    assert again == {"p1": png("green"), "p2": png("red")}
+
+    # a fragment that names nothing: the page's error, without image bytes (never the whole file)
+    (tmp_path / "x.tif").write_bytes(png())
+    odd = new_page_document("odd", png(), uri=str(tmp_path / "x.tif") + "#page=2")
+    gone = new_page_document("gone", png(), uri=str(tmp_path / "data" / "part-0.parquet") + "#p9")
+    folder = _records(tmp_path / "second", [odd, gone])
+    out = {d.id: d for d in PageRecordReader(folder).run()}
+    assert [m for d in out.values() for m in d.media] == []
+    assert "fragment #page=2 names no PDF page" in out["odd"].metadata["errors"][0]["error"]
+    assert "no row with id 'p9'" in out["gone"].metadata["errors"][0]["error"]
+    assert out["gone"].metadata["errors"][0]["field"] == "image"
+    bare = list(PageRecordReader(folder, fetch_images=False).run())
+    fetched = list(ImageFetcher().run(iter(bare)))
+    assert [d.metadata["errors"][0]["type"] for d in fetched] == ["PageError", "PageError"]
+    assert all(not d.media for d in fetched)
+
+
+def test_image_bytes_of_a_page_without_image_media_is_a_page_error():
+    """A page without image media (or with only a document media) has no image bytes: a ``PageError``, never
+    another object in their place."""
+    from datatrove.data import Document, Media, MediaType
+
+    with pytest.raises(PageError, match="carries no image bytes"):
+        image_bytes(Document(text="", id="p", media=[]))
+    ocr = Media(id="p", type=MediaType.DOCUMENT, url="p.xml", media_bytes=b"<alto/>")
+    with pytest.raises(PageError, match="page p failed: it carries no image bytes"):
+        image_bytes(Document(text="", id="p", media=[ocr]))
