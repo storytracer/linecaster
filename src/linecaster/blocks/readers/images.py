@@ -17,12 +17,15 @@ rate limits per task, retries that honor ``Retry-After``. Manifests (IIIF, METS)
 from __future__ import annotations
 
 import posixpath
+from collections.abc import Callable
+from concurrent.futures import Future
 
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
 from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
+from ...net.http import prefetched
 from ..base.block import reported_file
 from ..base.contract import Contracted
 from ..base.page import new_page_document
@@ -50,21 +53,48 @@ class _Opener:
     def read(self, uri: str, fetches: list | None = None) -> bytes:
         """The bytes at ``uri``; an http(s) fetch's record (``linecaster.net.http.fetch_record``) is appended to
         ``fetches``."""
+        return self.result(self.submit(uri), fetches)
+
+    def submit(self, uri: str) -> Future:
+        """A future of what ``uri`` holds, for ``result``: an http(s) request starts at once (``HTTPFetcher.submit``,
+        within its rate limits), anything else is read now."""
         if uri.startswith(("http://", "https://")):
-            from ...net.http import HTTPFetcher, fetch_record
+            from ...net.http import HTTPFetcher
 
             if self._fetcher is None:
                 self._fetcher = HTTPFetcher(**self.http)
-            response = self._fetcher.get(uri)
-            if fetches is not None and (record := fetch_record(response)) is not None:
-                fetches.append({**record, "what": "image"})
-            return response.content
+            return self._fetcher.submit(uri)
+        return _future(lambda: self._read_local(uri))
+
+    @staticmethod
+    def result(future: Future, fetches: list | None = None) -> bytes:
+        """The bytes of a ``submit`` future (waiting for it); an http(s) fetch's record is appended to ``fetches``."""
+        value = future.result()
+        if isinstance(value, bytes):
+            return value
+        from ...net.http import fetch_record
+
+        if fetches is not None and (record := fetch_record(value)) is not None:
+            fetches.append({**record, "what": "image"})
+        return value.content
+
+    def _read_local(self, uri: str) -> bytes:
         folder, name = uri.rsplit("/", 1) if "/" in uri else (".", uri)
         df = self._folders.get(folder)
         if df is None:
             df = self._folders[folder] = get_datafolder(folder)
         with df.open(name, "rb") as f:
             return f.read()
+
+
+def _future(read: Callable[[], bytes]) -> Future:
+    """A finished future of ``read()``, or of the exception it raised (reported when the page is taken)."""
+    future: Future = Future()
+    try:
+        future.set_result(read())
+    except Exception as e:  # noqa: BLE001 - raised by Future.result() for that page, in order
+        future.set_exception(e)
+    return future
 
 
 class ImageFolderReader(Contracted, BaseDiskReader):
@@ -182,6 +212,9 @@ class ImageParquetReader(Contracted, ParquetReader):
         read_metadata: the other columns go into the page's metadata; without it only the named columns are read.
         default_metadata: goes into every page's metadata.
         http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths.
+        prefetch: ``http(s)://`` images requested ahead of the page being given on, at least 1 (1: one request at a
+            time). Pages keep the files' row order; the rate limits in ``http`` hold for all of them together, so one
+            task can use its whole rate limit instead of waiting for each image in turn.
         paths_file, glob_pattern, recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's
             ``ParquetReader`` arguments.
     """
@@ -196,32 +229,43 @@ class ImageParquetReader(Contracted, ParquetReader):
                  batch_size: int = 64, id_key: str = "id", image_key: str = "image", item_key: str | None = None,
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
+                 prefetch: int = 8):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
+        if prefetch < 1:
+            raise PipelineConfigError("prefetch must be at least 1")
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
+        self.prefetch = prefetch
         self._opener = _Opener(http)
 
-    def _image(self, value, filepath: str, page_id: str, fetches: list | None = None) -> tuple[bytes, str]:
+    def _request(self, value, filepath: str, page_id: str) -> tuple[Future, str | None]:
+        """A future of the page's image (``_Opener.submit``: an http(s) request starts now) and the image's URI."""
         data, path = value, None
         if isinstance(value, dict):
             data, path = value.get("bytes"), value.get("path")
         elif isinstance(value, str):
             data, path = None, value
         if data is not None:
-            return bytes(data), f"{self.data_folder.resolve_paths(filepath)}#{page_id}"
+            return _future(lambda: bytes(data)), f"{self.data_folder.resolve_paths(filepath)}#{page_id}"
         if not path:
-            raise PageError(page_id, "ImageParquetReader", f"{filepath}: neither image bytes nor an image path")
+            def missing() -> bytes:
+                raise PageError(page_id, "ImageParquetReader", f"{filepath}: neither image bytes nor an image path")
+            return _future(missing), None
         if "://" in path or path.startswith("/"):
-            return self._opener.read(path, fetches), path
-        with self.image_folder.open(path, "rb") as f:
-            return f.read(), self.image_folder.resolve_paths(path)
+            return self._opener.submit(path), path
+
+        def relative() -> bytes:
+            with self.image_folder.open(path, "rb") as f:
+                return f.read()
+        return _future(relative), self.image_folder.resolve_paths(path)
 
     def read_file(self, filepath: str):
         yield from reported_file(self, filepath, self._read_file(filepath))
 
-    def _read_file(self, filepath: str):
+    def _rows(self, filepath: str):
+        """``(page_id, item, sequence, image value, other columns)`` for each row of the file, in order."""
         import pyarrow.parquet as pq
 
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
@@ -233,20 +277,28 @@ class ImageParquetReader(Contracted, ParquetReader):
                     if k]
             for batch in pqf.iter_batches(batch_size=self.batch_size, columns=None if self.read_metadata else keys):
                 for row in batch.to_pylist():
-                    with self.track_time():
-                        item = row.pop(self.item_key) if self.item_key else None
-                        sequence = row.pop(self.sequence_key) if self.sequence_key else None
-                        page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
-                        fetches: list = []
-                        data, uri = self._image(row.pop(self.image_key), filepath, page_id, fetches)
-                        metadata = {**(self.default_metadata or {}),
-                                    **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
-                        doc = new_page_document(page_id, data, uri=uri, item_id=None if item is None else str(item),
-                                                sequence=None if sequence is None else int(sequence), metadata=metadata)
-                        if fetches:
-                            doc.metadata["trace"] = {"fetch": fetches}
-                    self.stat_update("pages")
-                    self.update_media_stats(doc.media[0])
-                    yield doc
+                    item = row.pop(self.item_key) if self.item_key else None
+                    sequence = row.pop(self.sequence_key) if self.sequence_key else None
+                    page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
+                    yield page_id, item, sequence, row.pop(self.image_key), row
+
+    def _read_file(self, filepath: str):
+        def submit(entry):
+            return (entry, *self._request(entry[3], filepath, entry[0]))
+
+        for entry, future, uri in prefetched(self._rows(filepath), submit, self.prefetch, lambda s: s[1].cancel()):
+            page_id, item, sequence, _, row = entry
+            with self.track_time():
+                fetches: list = []
+                data = self._opener.result(future, fetches)
+                metadata = {**(self.default_metadata or {}),
+                            **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
+                doc = new_page_document(page_id, data, uri=uri, item_id=None if item is None else str(item),
+                                        sequence=None if sequence is None else int(sequence), metadata=metadata)
+                if fetches:
+                    doc.metadata["trace"] = {"fetch": fetches}
+            self.stat_update("pages")
+            self.update_media_stats(doc.media[0])
+            yield doc
 
 

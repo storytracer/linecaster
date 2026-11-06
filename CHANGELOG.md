@@ -13,8 +13,16 @@ the tags; the first is `v0.1.0`.
   folder needs `--new-pipeline`. No released recipe is affected.
 - `linecaster.testing.check_engine` calls a page engine (recognition, unit `page`) with an empty transcription
   (no regions, no lines), not the sample layout's regions.
+- `ImageParquetReader` requests up to 8 `http(s)://` images ahead (`prefetch=8`, `--prefetch` for `--parquet`), where
+  it requested one at a time. The rate limits (`--rate-limit`) still hold per task, but a server now sees up to 8
+  requests in flight from each task; `prefetch=1` (`--prefetch 1`) keeps the old behavior.
 
 ### Added
+
+- `ImageParquetReader(prefetch=...)`: `http(s)://` images of a page table requested ahead, pages in the files' row
+  order, so one task of `pipelines/harvest.py --parquet` can use its whole rate limit instead of waiting for each
+  image; `--prefetch` now applies to `--parquet` as to `--manifests`. `linecaster.net.prefetched` is the ordered
+  window both readers use (`ManifestReader` unchanged in behavior).
 
 - The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
   60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
