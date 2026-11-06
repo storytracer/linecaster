@@ -214,7 +214,43 @@ compatibility aliases: old imports, flags and ids fail.
 - `CLAUDE.md` holds rules only; what it described is in `docs/reference/architecture.md`, the data model and
   serialization pages.
 
+**Phase 6: tests and engine hygiene**
+
+- Contracts name the parts a block removes (`Contract.removes`, `parts_removed`; the run record's contracts and
+  `schemas/run-record-1.json` have `removes`). `ImageConverter` without `keep_bytes` removes `image`: a pipeline in
+  which a later block reads the image (without an `ImageFetcher` in between) no longer passes the builder's check;
+  it failed on its first page before.
+- `RegionRecognizer(pad=None)`: an explicit `pad` wins over the adapter's `region_pad`, which is the default (else
+  8). Callers that passed `pad` with a preset that has a `region_pad` (`minicpm-ocr-1.0`: 0,
+  `lightonocr-2-1b-regions`: 8) now get their `pad`. The run record names `pad: null` when none is given, so
+  `pipeline_sha256` of a pipeline with a `RegionRecognizer` changes (no released recipe has one): resuming into an
+  older run folder needs `--new-pipeline`.
+- Engine packages are version 0.1.0 and depend on `linecaster>=0.0.1,<0.2`; they import from linecaster only
+  `linecaster.data` and `linecaster.engines.api`. A derivative's own engine package should do the same.
+- Tests: pytest runs with `--strict-markers`; `tests/conftest.py`'s `make_transcription` is
+  `linecaster.testing.sample_transcription`.
+
 ### Added
+
+- `linecaster.testing`: sample pages (`sample_page`, `sample_boxes`, `sample_png`, `sample_layout`,
+  `sample_document`, `sample_documents`, `sample_transcription`); fake CPU engines (`FakeLayoutEngine`,
+  `FakeLineEngine`, `FakeRecognitionEngine`, `FakeTableEngine`, `FakeFormulaEngine`), registered as
+  `fake.<step>.v1` by `register_fakes()` (`catalog.registry.REGISTERED`); `fake_chat_server()` and `completion()`;
+  the conformance checks `check_engine` and `check_block` (with `transcription_changes` and `page_changes`); the
+  pytest markers and hooks (`linecaster.testing.markers`). Every built-in engine and every public block has a
+  conformance test.
+- `linecaster.engines.api`: the `Engine` protocol, `Capabilities`, `weights_of`, `hf_file`, `hf_snapshot`,
+  `model_entry`.
+- Markers `gpu`, `network`, `slow`, `parity`; `gpu` and `network` tests skip where the device or the network is
+  missing.
+- Tests of each engine package in `engines/<engine>/tests/` (conformance on the CPU, and on CUDA for kraken, and
+  units), run with `uv run tests/test_engines_catalog.py engines/<engine>/tests`; the engine READMEs give the install
+  and test commands.
+- A missing engine's `CatalogError` names the engine package that provides it and the pipeline scripts that install
+  it (`catalog.code.install_hint`).
+- The CI workflow `.github/workflows/ci.yml` (CPU, no secrets): `uv sync --locked`, the tests without `gpu`,
+  `network` and `parity`, `linecaster docs --check`, `linecaster catalog verify`, the strict site build.
+- `tests/integration/ray_data_spike.py`: the squiddle blocks through Ray Data (NOTES.md, 2026-11-06).
 
 - The block pages (`docs/blocks/`): an index by family and a page per block with its contract, backends, catalog
   step and presets, where it comes in a pipeline, the pipeline scripts that use it, its options, behavior and
@@ -279,6 +315,21 @@ compatibility aliases: old imports, flags and ids fail.
   records → pages, with what the item-level steps added); the recipe `item-texts@1` (`bind.v1`).
 
 ### Fixed
+
+- `PageRecordReader(fetch_images=True)`, `ImageFetcher` and `ImageConverter` dropped the fragment of
+  `page.image.uri` and fetched the whole file: for a `PdfReader` page (`file.pdf#page=n`) the PDF, for an
+  `ImageParquetReader` row with embedded bytes the Parquet file. A PDF page is now rendered as `PdfReader` renders it
+  (at the record's `metadata["pdf"]["dpi"]`), a Parquet row's image read (columns `id` and `image`), and any other
+  fragment is the page's error (field `image`), never the wrong bytes (`linecaster.blocks.readers.fragments`).
+- `ImageConverter` without `keep_bytes` declared only `metadata` replaced although the page leaves without its image
+  bytes: its contract now removes `image`, so the builder no longer treats the image as available after it.
+- `ImageFilesWriter` rewrites `page.image.uri` and `extra` (to name the copy) without declaring it: its contract now
+  replaces `metadata`.
+- `RegionRecognizer` replaces the transcription's earlier lines but declared `lines` only as added: its contract now
+  replaces `lines` and `text`, so it may follow a line step.
+- `RegionRecognizer` ignored an explicit `pad` when the adapter has a `region_pad`.
+- `RegionRecognizer` failed the task on a page without image bytes; the page now carries the error (found by
+  `check_block`).
 
 - `PageParquetWriter` writes a fixed schema: datatrove took a file's columns from its first row, so a page's
   `errors` were dropped when the first page of a file had none. Page records in Parquet now always have an `errors`
