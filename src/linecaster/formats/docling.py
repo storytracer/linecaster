@@ -2,10 +2,10 @@
 ``DoclingDocument``; ``Composer``), an item's pages bound into one (``BindItem``), and the Markdown and
 text exports of them.
 
-Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). ``text="lines"``
-(squiddleocr's ``--text lines``): one Docling item per region, in reading order (regions without an order last, in list order),
-its text one visual row per line (the region's lines with the same ``Line.row`` joined with a space,
-rows joined with ``\\n``), one provenance entry with the region's box:
+Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). Without paragraphs
+(diplomatic composition, squiddleocr's ``--text lines``): one Docling item per region, in reading order (regions
+without an order last, in list order), its text one visual row per line (the region's lines with the same
+``Line.row`` joined with a space, rows joined with ``\\n``), one provenance entry with the region's box:
 
 - ``title`` -> title, ``section_header`` -> heading at ``Region.heading_level`` (retyper; 1 when unset),
   ``text``/``caption``/``footnote``/``list_item``/... -> text items with Docling's label;
@@ -22,10 +22,10 @@ optional sections and the region map for Markdown dividers (squiddleocr's ``--pe
 ``--sections``, ``--dividers``). Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
 docling-core's own serializers.
 
-``text="reflow"`` is squiddleocr's default document mode (``linecaster.text.recomposition``): the rows of a text
-region joined into paragraphs, the typesetter's division marks removed (the page's own words as the
-lexicon for the ambiguous case), one item per paragraph with a provenance entry per row, and a
-paragraph that runs on continued into the next text region of the page.
+With paragraphs (a recomposition ran, squiddleocr's default ``--text reflow``; ``linecaster.engines.
+recomposition``): one item per paragraph of a text region with a provenance entry per row, and a paragraph that
+continues another (in an earlier region, or on an earlier page of the item) appended to that one's item. The
+recomposition decides; the builder only composes.
 """
 from __future__ import annotations
 
@@ -97,9 +97,20 @@ def region_rows(lines: list[Line]):
     return out
 
 
-TEXT_MODES = ("lines", "reflow")
 #: ``Transcription.extra`` key of the Docling item -> ``"<page_no>:<region id>"`` map (``Composer``)
 REGION_MAP_KEY = "docling_region_of"
+
+
+def paragraph_box(row, lines_by_id: dict[str, Line]) -> BBox | None:
+    """The box of one row of a paragraph (``ParagraphRow``): the union of its lines' boxes (``line_bbox``), as
+    ``region_rows`` makes it; None without geometry."""
+    from ..text.typography import line_bbox
+
+    lines = [lines_by_id[i] for i in row.lines if i in lines_by_id]
+    if not lines or not all(ln.polygon or ln.bbox for ln in lines):
+        return None
+    boxes = [line_bbox(ln) for ln in lines]
+    return BBox(min(x.x0 for x in boxes), min(x.y0 for x in boxes), max(x.x1 for x in boxes), max(x.y1 for x in boxes))
 
 
 class DocumentBuilder:
@@ -107,9 +118,11 @@ class DocumentBuilder:
     ``DocumentBuilder``; ``add_page`` once per page). Page ``n`` of the document is the ``n``-th page added
     (``page_no`` in every provenance entry).
 
-    ``text``: ``lines`` or ``reflow`` (see the module docstring). In ``reflow`` mode the lexicon grows with
-    every page added and a paragraph left open at the foot of a page continues on the next page (an
-    item of digits only, a page number, between them does not close it).
+    A page's text regions are composed from its **paragraphs** when it has them (a recomposition ran:
+    ``Transcription.paragraphs``): one item per paragraph with a provenance entry per row (its box and character
+    span), a paragraph that continues another (``continues_from``, in an earlier region or on an earlier page)
+    appended to that one's item. Without paragraphs (diplomatic composition, squiddleocr's ``--text lines``) one
+    item per region, its text one visual row per line, one provenance entry with the region's box.
 
     ``sections``: every heading (title or section header) opens a Docling ``section`` group, named after
     it, that holds it and everything after it up to the next heading, across pages; items before the
@@ -120,26 +133,21 @@ class DocumentBuilder:
     ``region_of`` maps each item's ``self_ref`` to ``"<page_no>:<region id>"``, for the Markdown
     dividers (``to_markdown(..., region_of=...)``)."""
 
-    def __init__(self, name: str = "document", text: str = "lines", sections: bool = False, rtl: bool = False,
-                 stats=None):
+    def __init__(self, name: str = "document", sections: bool = False):
         from docling_core.types.doc import DoclingDocument
 
-        from ..text.recomposition import Lexicon, Stats
-
-        if text not in TEXT_MODES:
-            raise ValueError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
         self.doc = DoclingDocument(name=name)
-        self.text_mode, self.sections, self.rtl = text, sections, rtl
-        self.lexicon, self.stats = Lexicon(), stats if stats is not None else Stats()
+        self.sections = sections
         self._section = None      # the open section GroupItem, or None for the body
-        self._open = None         # (TextItem, Paragraph, Margins) of a paragraph that may continue
         self._level = 1
+        self._items: dict[tuple[str, str], Any] = {}     # (page key, paragraph id) -> the item it is in
         self.pages = 0
         self.region_of: dict[str, str] = {}
 
     # ------------------------------------------------------------------ pages
     def add_page(self, t: Transcription, width: int | None = None, height: int | None = None,
-                 page_no: int | None = None) -> int:
+                 page_no: int | None = None, page_id: str | None = None) -> int:
+        """Add one page; ``page_id`` names it for paragraphs continued from it (``ParagraphRef.page_id``)."""
         from docling_core.types.doc import Size
 
         self.pages += 1
@@ -150,17 +158,20 @@ class DocumentBuilder:
         by_region: dict[str, list[Line]] = {}
         for ln in t.lines:
             by_region.setdefault(ln.region_id, []).append(ln)
+        paragraphs: dict[str | None, list] = {}
+        for p in t.paragraphs:
+            paragraphs.setdefault(p.region_id, []).append(p)
+        page = _PageContext(page_no, page_id if page_id is not None else f"#{page_no}", t)
         regions = sorted(t.regions, key=lambda r: r.reading_order if r.reading_order is not None else 1 << 30)
-        if self.text_mode == "reflow":
-            for r in regions:
-                self.lexicon.add(region_text(by_region.get(r.id, [])))
         for r in regions:
             before = (len(self.doc.texts), len(self.doc.pictures), len(self.doc.tables))
-            self._add_region(page_no, r, by_region.get(r.id, []))
+            self._add_region(page, r, by_region.get(r.id, []), paragraphs.get(r.id) if t.paragraphs else None)
             key = f"{page_no}:{r.id}"
             for items, n in zip((self.doc.texts, self.doc.pictures, self.doc.tables), before):
                 for it in items[n:]:
                     self.region_of[it.self_ref] = key
+        if None in paragraphs and not t.regions:          # a text-only page: its paragraphs without a region
+            self._add_paragraphs(page, None, "text", paragraphs[None])
         return page_no
 
     def build(self):
@@ -175,16 +186,18 @@ class DocumentBuilder:
         return self.doc
 
     # ---------------------------------------------------------------- regions
-    def _add_region(self, page_no: int, r: Region, lines: list[Line]) -> None:
+    def _add_region(self, page: "_PageContext", r: Region, lines: list[Line], paragraphs: list | None) -> None:
         from docling_core.types.doc import DocItemLabel
 
+        page_no = page.page_no
         b = bbox_of(r.polygon)
         self._level = r.heading_level or 1
         formula, table = r.extra.get("formula"), r.extra.get("table")
-        if self.text_mode == "reflow" and formula is None and table is None and r.label in TEXT_LABELS:
-            self._add_reflowed(page_no, r, region_rows(lines))
+        if paragraphs is not None and formula is None and table is None and r.label in TEXT_LABELS:
+            self._add_paragraphs(page, r, TEXT_LABELS[r.label], paragraphs)
             return
-        self._open = None
+        if page.recomposed and formula is None and table is None and r.label in TEXT_LABELS:
+            return                    # recomposed, no paragraphs: the region has no text
         content = region_text(lines)
         if formula is not None:
             if formula.strip():
@@ -217,55 +230,72 @@ class DocumentBuilder:
             return self.doc.add_heading(text=text, prov=prov, parent=self._section, level=self._level)
         return self.doc.add_text(label=label, text=text, prov=prov, parent=self._section, content_layer=_layer(label))
 
-    def _add_reflowed(self, page_no: int, r: Region, rows) -> None:
+    def _add_paragraphs(self, page: "_PageContext", r: Region | None, label_name: str, paragraphs: list) -> None:
+        """A text region's paragraphs: one item each (headings through ``_add_text``, so they open their
+        sections); a region of one paragraph without a letter (a page number) as a plain item of its label; a
+        paragraph that continues another appended to that one's item, its rows' character spans after the text
+        before it."""
         from docling_core.types.doc import DocItemLabel
 
-        from ..text.recomposition import Margins, continues, join_paragraphs, reflow_rows
-
-        label = DocItemLabel(TEXT_LABELS[r.label])
+        label = DocItemLabel(label_name)
         single = label in (DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER)
-        paragraphs = reflow_rows(rows, self.rtl, self.lexicon, single, self.stats)
-        if not paragraphs:
-            return
-        m = Margins.of([row for row in rows if row.text.strip()], self.rtl)
-        if len(paragraphs) == 1 and not any(ch.isalpha() for ch in paragraphs[0].text):
-            # furniture (a page number, whatever the layout called it): added; an open paragraph stays open,
-            # so a sentence continues over the page break
-            provs = _row_provs(rows, paragraphs[0], page_no=page_no)
-            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section,
-                                     content_layer=_layer(label))
-            item.prov.extend(provs[1:])
-            return
-        if self._open is not None and label == DocItemLabel.TEXT and continues(self._open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
-            item, prev = self._open[0], self._open[1]
-            first = paragraphs.pop(0)
-            joined = join_paragraphs(prev, first, self.lexicon, self.stats)
-            offset = len(joined) - len(first.text)
-            item.text = item.orig = joined
-            item.prov.extend(_row_provs(rows, first, offset, page_no))
-            prev.text, prev.open_end = joined, first.open_end
-            self.stats.continuations += 1
-            self.stats.paragraphs -= 1
-            if not paragraphs and first.open_end:
-                self._open = (item, prev, m)
-                return
-        self._open = None
-        for para in paragraphs:
-            provs = _row_provs(rows, para, page_no=page_no)
-            if single:
-                item = self._add_text(label, para.text, provs[0])
+        standalone = len(paragraphs) == 1 and not any(ch.isalpha() for ch in paragraphs[0].text)
+        for p in paragraphs:
+            provs = self._row_provs(page, r, p)
+            continued = None if standalone or p.continues_from is None else self._items.get((page.key, p.id))
+            if continued is not None:
+                item, sep = continued
+                joined = item.text + sep + p.text
+                offset = len(joined) - len(p.text)
+                item.text = item.orig = joined
+                item.prov.extend(self._row_provs(page, r, p, offset))
+            elif standalone or not single:
+                item = self.doc.add_text(label=label, text=p.text, prov=provs[0] if provs else None,
+                                         parent=self._section, content_layer=_layer(label))
+                item.prov.extend(provs[1:])
             else:
-                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], parent=self._section,
-                                         content_layer=_layer(label))
-            item.prov.extend(provs[1:])
-            if para.open_end and label == DocItemLabel.TEXT:
-                self._open = (item, para, m)
+                item = self._add_text(label, p.text, provs[0] if provs else None)
+                item.prov.extend(provs[1:])
+            if p.continues is not None:
+                sep = next((d.separator for d in reversed(p.decisions) if d.kind == "continuation"), None) or ""
+                self._items[(p.continues.page_id or page.key, p.continues.id)] = (item, sep)
+
+    def _row_provs(self, page: "_PageContext", r: Region | None, p, offset: int = 0) -> list:
+        """One provenance entry per row of paragraph ``p`` that has a box, its character span shifted by
+        ``offset``. squiddleocr's builder kept a division mark removed at a continuation in its row's span (the
+        row's span as recognized, the mark included), so the last row's span ends one character later then."""
+        from docling_core.types.doc import ProvenanceItem
+
+        last = len(p.rows) - 1
+        removed_at_end = p.continues is not None and any(
+            d.kind == "mark_removed" and d.row == last for d in p.decisions)
+        out = []
+        for k, row in enumerate(p.rows):
+            b = paragraph_box(row, page.lines)
+            if b is None:
+                continue
+            end = row.end + (1 if removed_at_end and k == last else 0)
+            out.append(ProvenanceItem(page_no=page.page_no, bbox=_box(b), charspan=(row.start + offset, end + offset)))
+        if not out and r is not None:            # text-only rows: the region's box
+            b = bbox_of(r.polygon)
+            out.append(ProvenanceItem(page_no=page.page_no, bbox=_box(b), charspan=(offset, offset + len(p.text))))
+        return out
+
+
+class _PageContext:
+    """The page being added: its number, its key for references (its id), its lines by id, whether it was
+    recomposed."""
+
+    def __init__(self, page_no: int, key: str, t: Transcription):
+        self.page_no, self.key = page_no, key
+        self.lines = {ln.id: ln for ln in t.lines}
+        self.recomposed = bool(t.paragraphs)
 
 
 def build_docling(t: Transcription, name: str = "page", width: int | None = None, height: int | None = None,
-                  text: str = "lines", rtl: bool = False, stats=None, sections: bool = False):
+                  sections: bool = False):
     """The ``DoclingDocument`` of one page (``DocumentBuilder`` with one page)."""
-    b = DocumentBuilder(name, text=text, sections=sections, rtl=rtl, stats=stats)
+    b = DocumentBuilder(name, sections=sections)
     b.add_page(t, width, height)
     return b.build()
 
@@ -274,14 +304,6 @@ def _layer(label):
     from docling_core.types.doc import ContentLayer, DocItemLabel
 
     return ContentLayer.FURNITURE if label in (DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER) else None
-
-
-def _row_provs(rows, para, offset: int = 0, page_no: int = 1):
-    from docling_core.types.doc import ProvenanceItem
-
-    by_index = {row.index: row for row in rows}
-    return [ProvenanceItem(page_no=page_no, bbox=_box(by_index[s.row].bbox), charspan=(s.start + offset, s.end + offset))
-            for s in para.spans if s.row in by_index]
 
 
 def docling_dict(doc) -> dict[str, Any]:

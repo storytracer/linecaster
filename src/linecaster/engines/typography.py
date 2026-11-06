@@ -14,10 +14,8 @@ class RatiosTypographyEngine(RuleEngine):
     """squiddleocr's retyper (``linecaster.text.typography``): every rule a ratio to the page's own body type.
     Heading levels from the type size, section headers in body type made text, headlines split off the text
     region they were merged into, drop capitals joined to their line, uncertain page numbers removed. The rules
-    cover every script that is set in lines of type sizes.
-
-    Runs today's code with today's thresholds: options other than the defaults are refused until the thresholds
-    are its parameters."""
+    cover every script that is set in lines of type sizes. Every threshold is an option, squiddleocr's values the
+    defaults."""
 
     engine_id: ClassVar[str] = "typography.ratios.v1"
     step = "typography"
@@ -39,11 +37,14 @@ class RatiosTypographyEngine(RuleEngine):
         max_headline_rows: int = Field(3, description="at most this many leading rows split off as a headline")
         heading_labels: list[str] = Field(["section_header", "title"], description="the region labels of headings")
 
+    @staticmethod
+    def ratios(o: BaseModel) -> T.Ratios:
+        return T.Ratios(page_number_min_conf=o.page_number_min_conf, demote=o.demote, split=o.split,
+                        levels=tuple((float(r), int(n)) for r, n in o.levels), max_headline_rows=o.max_headline_rows,
+                        heading_labels=tuple(o.heading_labels))
+
     def __call__(self, t: Transcription, **options) -> Transcription:
         o = self.configured(options)
-        if o != self.Options():
-            raise ValueError(f"{self.engine_id}: options other than the defaults are not supported yet: "
-                             f"{o.model_dump(exclude_defaults=True)}")
-        T.retype(t)
-        t.steps[-1].engine = self.engine_id
+        stats = T.retype(t, ratios=self.ratios(o))
+        t.steps.append(self.step_info(o, measurements=stats.counts()))
         return t

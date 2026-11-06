@@ -12,6 +12,7 @@ from linecaster.blocks.binding.item import BindItem
 from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Line, Transcription, Word
+from linecaster.engines import UnicodeRecompositionEngine
 from linecaster.formats.docling import DocumentBuilder, to_markdown, to_text
 from linecaster.text.unicode import normalize_transcription
 
@@ -53,20 +54,30 @@ def two_pages():
             page_t(2, ["the north, where the ice waited.", "Nobody spoke."])]
 
 
+def recomposed_item(pages, ids=("b1-1", "b1-2")):
+    """The pages recomposed as one item (``recomposition.unicode.v1``), with their page ids."""
+    return UnicodeRecompositionEngine()(pages, page_ids=list(ids))
+
+
 def test_paragraph_continues_across_the_page_break_with_page_provenance():
-    b = DocumentBuilder("book", text="reflow")
-    for t in two_pages():
-        b.add_page(t, 1000, 1000)
+    pages = recomposed_item(two_pages())
+    b = DocumentBuilder("book")
+    for t, pid in zip(pages, ("b1-1", "b1-2")):
+        b.add_page(t, 1000, 1000, page_id=pid)
     doc = b.build()
     para = [x for x in doc.texts if x.text.startswith("It was")][0]
     assert "turned to the north, where the ice waited." in para.text
     assert sorted({p.page_no for p in para.prov}) == [1, 2]
-    assert b.stats.continuations == 1 and sorted(doc.pages) == [1, 2]
+    assert [t.steps[-1].measurements["continuations"] for t in pages] == [0, 1] and sorted(doc.pages) == [1, 2]
+    first, second = (next(p for p in t.paragraphs if p.region_id == "text_1") for t in pages)   # the page number
+    assert [d.kind for d in first.decisions] == ["continuation"]                          # between them stays apart
+    assert first.continues.model_dump() == {"id": second.id, "page_id": "b1-2"}
+    assert second.continues_from.model_dump() == {"id": first.id, "page_id": "b1-1"}
     assert "1" not in to_text(doc).split("\n") and "1" in to_text(doc, furniture=True).split("\n")
 
 
 def test_sections_and_dividers():
-    b = DocumentBuilder("book", text="lines", sections=True)
+    b = DocumentBuilder("book", sections=True)
     for t in two_pages():
         b.add_page(t, 1000, 1000)
     doc = b.build()
@@ -103,9 +114,9 @@ def test_reflow_with_sections_and_a_title_keeps_a_consistent_tree():
     # the title into a new section without detaching it; here the section opens first, the title inside
     pages = two_pages()
     pages[0].regions[0].label = "title"
-    b = DocumentBuilder("book", text="reflow", sections=True)
-    for t in pages:
-        b.add_page(t, 1000, 1000)
+    b = DocumentBuilder("book", sections=True)
+    for t, pid in zip(recomposed_item(pages), ("b1-1", "b1-2")):
+        b.add_page(t, 1000, 1000, page_id=pid)
     doc = b.build()
     title = [x for x in doc.texts if x.label == "title"][0]
     assert title.parent.cref == doc.groups[0].self_ref and doc.groups[0].children[0].cref == title.self_ref

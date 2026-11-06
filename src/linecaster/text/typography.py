@@ -1,9 +1,10 @@
 """Retyper: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
 
-Ported from squiddleocr's ``retyper.py`` (main ``7c8a052``) with the arithmetic unchanged. It runs
-after recognition (and tables), before page composition. All rules are ratios to the page's own body
-type, measured from the row heights the line step delivered (a row = the lines of one region with the
-same ``Line.row``; its box = the union of their boxes, derived from the polygons):
+Ported from squiddleocr's ``retyper.py`` (main ``7c8a052``) with the arithmetic unchanged; the engine
+``typography.ratios.v1`` (``linecaster.engines.typography``) runs it, every threshold a field of ``Ratios`` (the
+constants below are their defaults). It runs after recognition (and tables), before page composition. All rules
+are ratios to the page's own body type, measured from the row heights the line step delivered (a row = the lines
+of one region with the same ``Line.row``; its box = the union of their boxes, derived from the polygons):
 
 - **Type-size ladder** (``Region.heading_level``): the body size is the median row height of the
   page's ``text`` regions (all their non-empty rows). A ``section_header`` whose rows are body-sized
@@ -44,7 +45,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..data.geometry import BBox, bbox_of, xywh
-from ..data.transcription import Line, Region, StepInfo, Transcription
+from ..data.transcription import Line, Region, Transcription
 
 PAGE_NUMBER_MIN_CONF = 0.75
 DEMOTE = 1.2
@@ -52,8 +53,22 @@ SPLIT = 1.6
 LEVELS = ((2.5, 1), (1.7, 2), (0.0, 3))
 HEADING_LABELS = ("section_header", "title")
 MAX_HEADLINE_ROWS = 3
-SETTINGS = {"page_number_min_conf": PAGE_NUMBER_MIN_CONF, "demote": DEMOTE, "split": SPLIT,
-            "levels": [list(x) for x in LEVELS], "max_headline_rows": MAX_HEADLINE_ROWS}
+
+
+@dataclass(frozen=True)
+class Ratios:
+    """The rules' thresholds (ratios to the page's body size) and the labels they read; the defaults are
+    squiddleocr's."""
+
+    page_number_min_conf: float = PAGE_NUMBER_MIN_CONF
+    demote: float = DEMOTE
+    split: float = SPLIT
+    levels: tuple[tuple[float, int], ...] = LEVELS
+    max_headline_rows: int = MAX_HEADLINE_ROWS
+    heading_labels: tuple[str, ...] = HEADING_LABELS
+
+
+DEFAULT_RATIOS = Ratios()
 
 
 @dataclass
@@ -115,11 +130,11 @@ class Content:
         return "\n".join(r.text for r in self.rows())
 
 
-def heading_level(ratio: float) -> int:
-    for threshold, level in LEVELS:
+def heading_level(ratio: float, levels: tuple[tuple[float, int], ...] = LEVELS) -> int:
+    for threshold, level in levels:
         if ratio >= threshold:
             return level
-    return LEVELS[-1][1]
+    return levels[-1][1]
 
 
 def row_heights(c: Content) -> list[float]:
@@ -144,33 +159,33 @@ def _set_polygon(region: Region, b: BBox) -> None:
 
 
 # ------------------------------------------------------------------------------------------ rules
-def level_headings(contents: list[Content], body: float, stats: RetypeStats) -> None:
+def level_headings(contents: list[Content], body: float, stats: RetypeStats, r: Ratios = DEFAULT_RATIOS) -> None:
     for c in contents:
-        if c.region.label not in HEADING_LABELS or body <= 0:
+        if c.region.label not in r.heading_labels or body <= 0:
             continue
         size = region_size(c)
         if size <= 0:
             continue
         ratio = size / body
-        if ratio < DEMOTE and c.region.label == "section_header":
+        if ratio < r.demote and c.region.label == "section_header":
             c.region.label = "text"
             c.region.heading_level = None
             stats.demoted += 1
             stats.note("demoted", c.text)
         else:
-            c.region.heading_level = heading_level(ratio)
+            c.region.heading_level = heading_level(ratio, r.levels)
             stats.leveled += 1
 
 
-def split_leading_heading(c: Content, body: float, stats: RetypeStats) -> Content | None:
+def split_leading_heading(c: Content, body: float, stats: RetypeStats, r: Ratios = DEFAULT_RATIOS) -> Content | None:
     rows = [r for r in c.rows() if r.text.strip()]
     if c.region.label != "text" or len(rows) < 2:
         return None
     heights = [r.bbox.height for r in rows]
     tall = 0
-    while tall < min(MAX_HEADLINE_ROWS, len(rows) - 1):
+    while tall < min(r.max_headline_rows, len(rows) - 1):
         rest = heights[tall + 1:]
-        if heights[tall] >= SPLIT * float(np.median(rest)) and heights[tall] >= SPLIT * body:
+        if heights[tall] >= r.split * float(np.median(rest)) and heights[tall] >= r.split * body:
             tall += 1
         else:
             break
@@ -231,12 +246,13 @@ def mean_confidence(c: Content) -> float:
     return num / den if den else 0.0
 
 
-def drop_uncertain_numbers(contents: list[Content], stats: RetypeStats, dropped: list[dict]) -> list[Content]:
+def drop_uncertain_numbers(contents: list[Content], stats: RetypeStats, dropped: list[dict],
+                           r: Ratios = DEFAULT_RATIOS) -> list[Content]:
     out = []
     for c in contents:
         if c.region.label in ("page_header", "page_footer") and c.region.raw_label.endswith("number"):
             conf = mean_confidence(c)
-            if not c.text.strip() or conf < PAGE_NUMBER_MIN_CONF:
+            if not c.text.strip() or conf < r.page_number_min_conf:
                 stats.numbers_dropped += 1
                 stats.note("number dropped", f"{c.text.strip()!r} at {conf:.2f}")
                 dropped.append(_dropped(c, "uncertain page number", conf))
@@ -250,8 +266,9 @@ def _dropped(c: Content, reason: str, confidence: float | None = None) -> dict:
             "lines": [ln.id for ln in c.lines], "reason": reason, "confidence": confidence}
 
 
-def retype(t: Transcription, stats: RetypeStats | None = None) -> RetypeStats:
-    """Apply the rules to a transcription in place (regions may be added or removed); returns the stats."""
+def retype(t: Transcription, stats: RetypeStats | None = None, ratios: Ratios = DEFAULT_RATIOS) -> RetypeStats:
+    """Apply the rules to a transcription in place (regions may be added or removed); returns the stats (the
+    engine records them as the step's measurements)."""
     stats = stats if stats is not None else RetypeStats()
     by_region: dict[str, list[Line]] = {}
     for ln in t.lines:
@@ -262,14 +279,14 @@ def retype(t: Transcription, stats: RetypeStats | None = None) -> RetypeStats:
     stats.body_size = body
     out: list[Content] = []
     for c in contents:
-        head = split_leading_heading(c, body, stats) if body > 0 else None
+        head = split_leading_heading(c, body, stats, ratios) if body > 0 else None
         if head is not None:
             out.append(head)
         out.append(c)
-    level_headings(out, body, stats)
+    level_headings(out, body, stats, ratios)
     dropped: list[dict] = []
     out = merge_drop_capitals(out, stats, dropped)
-    out = drop_uncertain_numbers(out, stats, dropped)
+    out = drop_uncertain_numbers(out, stats, dropped, ratios)
     ordered = [c for c in out if c.region.reading_order is not None]
     ordered.sort(key=lambda c: (c.region.reading_order, 0 if c.region.id.endswith("_head") else 1))
     for rank, c in enumerate(ordered):
@@ -284,5 +301,4 @@ def retype(t: Transcription, stats: RetypeStats | None = None) -> RetypeStats:
         ln.reading_order = k
     if dropped:
         t.extra.setdefault("retyper_dropped", []).extend(dropped)
-    t.steps.append(StepInfo(step="typography", name="retyper", settings=dict(SETTINGS), measurements=stats.counts()))
     return stats

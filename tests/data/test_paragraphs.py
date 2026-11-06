@@ -1,6 +1,6 @@
 """Paragraphs and their decisions in the data model: the vocabulary is enforced, JSON round-trips exactly, and a
-paragraph's rows hold what a document's provenance needs (the rows' boxes and character spans, exactly as
-``DocumentBuilder`` makes them from the lines in ``reflow`` mode today)."""
+paragraph's rows hold what a document's provenance needs (the rows' boxes and character spans: ``DocumentBuilder``
+makes a document's provenance from them)."""
 import pytest
 from pydantic import ValidationError
 
@@ -62,7 +62,7 @@ def test_paragraph_rows_give_the_documents_provenance():
                     max(b.y1 for b in boxes))
 
     ours = [(p.text, [((b := box(r)).x0, b.y0, b.x1, b.y1, r.start, r.end) for r in p.rows]) for p in t.paragraphs]
-    doc = build_docling(t, text="reflow")
+    doc = build_docling(t)
     theirs = [(it.text, [(pv.bbox.l, pv.bbox.t, pv.bbox.r, pv.bbox.b, *pv.charspan) for pv in it.prov])
               for it in doc.texts]
     assert ours == theirs

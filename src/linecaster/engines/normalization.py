@@ -25,7 +25,7 @@ class TextNormalization(RuleEngine):
                 continue
             item.normalized = self.normalize(item.text)
             changed += item.normalized != item.text
-        t.steps.append(self.step_info(o, {"changed": changed}))
+        t.steps.append(self.step_info(o, measurements={"changed": changed}))
         return t
 
 

@@ -153,3 +153,11 @@ def page_doc(page_id="p1", item="book1", t: Transcription | None = None, seq=1):
     page.transcriptions["ocr_new"] = t if t is not None else page_to_compose()
     set_page(doc, page, "ocr_new")
     return doc
+
+
+def recomposed(t: Transcription, **options) -> Transcription:
+    """``t`` with its paragraphs (the recomposition engine on the page alone), for composing it as running text."""
+    from linecaster.engines import UnicodeRecompositionEngine
+
+    UnicodeRecompositionEngine(**options)([t])
+    return t

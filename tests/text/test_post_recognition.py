@@ -11,7 +11,7 @@ from linecaster.data.page import Page
 from linecaster.formats.docling import build_docling, load_docling, to_markdown, to_text
 from linecaster.text.typography import retype
 
-from conftest import body_region, line, page_to_compose, page_with, region
+from conftest import body_region, line, page_to_compose, page_with, recomposed, region
 
 
 # ------------------------------------------------------------------ retyper
@@ -29,7 +29,6 @@ def test_heading_levels_and_demotion():
     assert sub.label == "text" and sub.heading_level is None    # 1.1x: demoted
     assert mid.label == "section_header" and mid.heading_level == 2   # 1.8x
     assert (stats.leveled, stats.demoted) == (2, 1)
-    assert t.steps[-1].step == "typography" and t.steps[-1].measurements["demoted"] == 1
 
 
 def test_headline_split_off_a_body_region():
@@ -140,9 +139,12 @@ def test_blocks_run_and_write_files(tmp_path):
     set_page(doc, page, "ocr_new")
     out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                               bucket_by_item=False).run(
-        Composer().run(Typographer().run(iter([doc])))))
+        Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr_new"]
-    assert t.docling["name"] == "p1" and t.steps[-1].step == "typography"
+    assert t.docling["name"] == "p1" and [s.step for s in t.steps[-2:]] == ["typography", "composition"]
+    assert [(s.engine, s.preset) for s in t.steps[-2:]] == [("typography.ratios.v1", "ratios@1"),
+                                                            ("composition.docling.v1", "docling-composition@1")]
+    assert t.steps[-2].measurements["leveled"] == 2 and {"seconds", "datetime"} <= set(t.steps[-1].measurements)
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()
     assert Page.model_validate_json(Page.model_dump_json(page_of(out[0]))) == page_of(out[0])
@@ -150,8 +152,6 @@ def test_blocks_run_and_write_files(tmp_path):
 
 # -------------------------------------------------------- recomposition
 def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
-    from linecaster.text.recomposition import Stats
-
     rid, rid2 = "text_0", "text_1"
     t = page_with([region(rid, "text", 100, 100, 800, 200, 0), region(rid2, "text", 100, 400, 800, 100, 1),
                    region("number_2", "page_footer", 450, 900, 40, 20, 2, raw="number")], [
@@ -161,11 +161,12 @@ def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
         line(rid, 3, 100, 190, 800, 20, "runs to the end of the column with"),
         line(rid2, 0, 100, 400, 800, 20, "its last words here."),
         line("number_2", 0, 450, 900, 40, 20, "12")])
-    stats = Stats()
-    doc = build_docling(t, "p", 1000, 1000, text="reflow", stats=stats)
+    recomposed(t)
+    doc = build_docling(t, "p", 1000, 1000)
     texts = [x.text for x in doc.texts]
     assert texts[0] == "The nest is built of dead grasses and bents, and the lining"
     assert texts[1] == "A new paragraph starts indented and runs to the end of the column with its last words here."
     assert texts[2] == "12" and len(texts) == 3
-    assert (stats.marks_removed, stats.continuations) == (1, 1)
+    m = t.steps[-1].measurements
+    assert (m["marks_removed"], m["continuations"], m["paragraphs"]) == (1, 1, 3)
     assert [p.charspan for p in doc.texts[1].prov] == [(0, 35), (36, 70), (71, 91)]   # one entry per row, across regions

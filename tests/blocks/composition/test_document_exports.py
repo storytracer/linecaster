@@ -23,11 +23,11 @@ from linecaster.formats import from_alto, from_hocr, from_page
 from linecaster.formats.docling import (EXPORT_FORMATS, REGION_MAP_KEY, build_docling, export, load_docling, to_doclang,
                                         to_html, to_json)
 
-from conftest import line, page_doc, page_t, page_to_compose, region
+from conftest import line, page_doc, page_t, page_to_compose, recomposed, region
 
 
-def _composed_doc(**kw):
-    return list(Composer(**kw).run(Typographer().run(iter([page_doc()]))))
+def _composed_doc(**options):
+    return list(Composer("docling-composition@1", options=options).run(Typographer("ratios@1").run(iter([page_doc()]))))
 
 
 def test_html_and_doclang_follow_docling_and_the_furniture_layer():
@@ -172,7 +172,7 @@ def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
 def test_doclang_export_leaves_the_document_alone():
     t = page_to_compose()
     t.lines[1].text = "a longer first row"
-    doc = build_docling(t, name="p1", width=1000, height=1000, text="reflow")
+    doc = build_docling(recomposed(t), name="p1", width=1000, height=1000)
     before = doc.export_to_dict()
     to_doclang(doc)
     assert doc.export_to_dict() == before

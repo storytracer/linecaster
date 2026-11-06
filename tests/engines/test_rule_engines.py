@@ -1,6 +1,7 @@
 """The built-in engines of the rule-based steps (``linecaster.engines``): registered in-process only under their
-ids, described by the docs, options with today's constants as defaults, and, while they wrap today's code, the same
-results as that code (step 3.2 of the plan makes them real)."""
+ids, described by the docs, options with today's constants as defaults, every option in effect, and the decisions
+the recomposition records. (The recomposition and composition against squiddleocr's builder:
+``tests/blocks/composition/test_recomposition_parity.py``.)"""
 import inspect
 import io
 
@@ -56,7 +57,6 @@ def test_the_docs_describe_every_builtin_engine():
 
 
 def test_options_default_to_todays_constants():
-    from linecaster.blocks.composition.composer import Composer
     from linecaster.engines import (DoclingCompositionEngine, RatiosTypographyEngine, UnicodeRecompositionEngine,
                                     WebpLosslessImageEngine)
     from linecaster.images.convert import to_working_webp
@@ -67,27 +67,89 @@ def test_options_default_to_todays_constants():
     assert (o.page_number_min_conf, o.demote, o.split, o.max_headline_rows) == (
         T.PAGE_NUMBER_MIN_CONF, T.DEMOTE, T.SPLIT, T.MAX_HEADLINE_ROWS)
     assert o.levels == [tuple(x) for x in T.LEVELS] and tuple(o.heading_labels) == T.HEADING_LABELS
-    assert UnicodeRecompositionEngine.Options().convention_marks == R.CONVENTION_MARKS
+    assert RatiosTypographyEngine.ratios(o) == T.Ratios()
+    r = UnicodeRecompositionEngine.Options()
+    assert r.convention_marks == R.CONVENTION_MARKS and not r.rtl
+    assert UnicodeRecompositionEngine.thresholds(r) == R.Thresholds()
     assert WebpLosslessImageEngine.Options().effort == inspect.signature(to_working_webp).parameters["effort"].default
-    composer = {k: p.default for k, p in inspect.signature(Composer.__init__).parameters.items()}
-    assert DoclingCompositionEngine.Options().model_dump() == {k: composer[k] for k in ("text", "sections", "rtl")}
+    assert DoclingCompositionEngine.Options().model_dump() == {"sections": False}
 
 
-# ------------------------------------------------------------------------------------- today's code, wrapped
+@pytest.mark.parametrize("step,preset", [("image", "working-image"), ("normalization", "latin-historic"),
+                                         ("typography", "ratios"), ("recomposition", "unicode-recomposition"),
+                                         ("composition", "docling-composition")])
+def test_the_presets_are_the_engines_defaults(step, preset):
+    """Each rule-based preset names every option of its engine, with the engine's defaults: today's behavior."""
+    from linecaster.catalog.registry import catalog
 
-def test_typography_is_the_retyper():
+    r = catalog().resolve(f"{preset}@1")
+    cls = engine_class(r.engine)
+    assert r.content["step"] == step == cls.step and r.released
+    assert cls.Options(**r.content.get("options", {})) == cls.Options()
+    assert set(r.content.get("options", {})) == set(cls.Options.model_fields)
+
+
+# ------------------------------------------------------------------------------------------------- typography
+
+def _typography_page():
+    from conftest import body_region, line, page_with, region
+
+    b, bl = body_region("text_1", 1, 300)                         # body rows 20 high
+    rid = "text_5"
+    head = region(rid, "text", 100, 800, 800, 200, 5)
+    hl = [line(rid, 0, 100, 800, 800, 34, "HEADLINE"), line(rid, 1, 100, 840, 800, 20, "after a"),
+          line(rid, 2, 100, 870, 800, 20, "after b")]
+    return page_with([
+        region("doc_title_0", "title", 100, 100, 800, 60, 0), b,
+        region("section_header_2", "section_header", 100, 600, 800, 22, 2),
+        region("section_header_3", "section_header", 100, 700, 800, 36, 3),
+        region("number_4", "page_footer", 450, 1000, 40, 20, 4, raw="number"), head,
+    ], [line("doc_title_0", 0, 100, 100, 800, 60, "TITLE"), *bl,
+        line("section_header_2", 0, 100, 600, 800, 22, "kicker"),
+        line("section_header_3", 0, 100, 700, 800, 36, "Chapter"),
+        line("number_4", 0, 450, 1000, 40, 20, "12", conf=0.7), *hl])
+
+
+def test_typography_is_the_retyper_and_records_its_step():
     from linecaster.engines import RatiosTypographyEngine
     from linecaster.text.typography import retype
 
-    want, got = make_transcription(), make_transcription()
-    retype(want)
+    want, got = _typography_page(), _typography_page()
+    stats = retype(want)
     RatiosTypographyEngine()(got)
-    assert got.steps[-1].engine == "typography.ratios.v1"
-    got.steps[-1].engine = None
+    m = got.steps[-1]
+    assert (m.step, m.name, m.engine) == ("typography", "typography.ratios.v1", "typography.ratios.v1")
+    assert m.measurements == stats.counts() and m.settings == RatiosTypographyEngine.Options().model_dump(mode="json")
+    got.steps = []
     assert got == want
-    with pytest.raises(ValueError, match="not supported yet"):
-        RatiosTypographyEngine(demote=1.5)(make_transcription())
 
+
+def test_every_typography_threshold_is_an_option():
+    from linecaster.engines import RatiosTypographyEngine
+
+    def run(**options):
+        t = _typography_page()
+        RatiosTypographyEngine(**options)(t)
+        return {r.id: (r.label, r.heading_level) for r in t.regions}, t.steps[-1].measurements
+
+    regions, m = run()
+    assert regions["doc_title_0"] == ("title", 1) and regions["section_header_3"] == ("section_header", 2)
+    assert regions["section_header_2"] == ("text", None) and "number_4" not in regions      # 1.1x; 0.7 < 0.75
+    assert regions["text_5_head"] == ("section_header", 2) and m["split"] == 1               # 34 / 20 = 1.7
+    assert run(demote=1.0)[0]["section_header_2"] == ("section_header", 3)                  # no longer demoted
+    assert run(levels=[(4.0, 1), (0.0, 2)])[0]["doc_title_0"] == ("title", 2)
+    assert "number_4" in run(page_number_min_conf=0.5)[0]
+    assert "text_5_head" not in run(split=1.8)[0]
+    assert "text_5_head" not in run(max_headline_rows=0)[0]
+    assert run(heading_labels=["title"])[0]["section_header_2"] == ("section_header", None)  # not a heading: untouched
+    assert run(demote=1.0)[1]["demoted"] == 0
+    e = RatiosTypographyEngine(demote=1.0)
+    assert e(_typography_page(), demote=1.2).steps[-1].settings["demote"] == 1.2           # a call's options win
+    with pytest.raises(ValueError):
+        RatiosTypographyEngine(no_such=1)
+
+
+# ------------------------------------------------------------------------------------- the others
 
 def test_normalization_fills_the_normalized_texts():
     from linecaster.engines import LatinHistoricNormalizationEngine
@@ -95,15 +157,20 @@ def test_normalization_fills_the_normalized_texts():
 
     t = make_transcription()
     t.lines[0].text = "Vnterſuchung der ﬁſche"
+    from conftest import recomposed
+
+    recomposed(t)
     before = t.model_copy(deep=True)
     LatinHistoricNormalizationEngine()(t)
     assert t.lines[0].normalized == "Vntersuchung der fische"
     assert [ln.normalized for ln in t.lines] == [None if ln.text is None else normalize(ln.text) for ln in t.lines]
     assert [ln.text for ln in t.lines] == [ln.text for ln in before.lines]      # as written stays
+    assert [p.normalized for p in t.paragraphs] == [normalize(p.text) for p in t.paragraphs]
+    assert t.paragraphs[0].normalized == "Vntersuchung der fische" and t.paragraphs[0].text == "Vnterſuchung der ﬁſche"
     m = t.steps[-1]
     assert (m.step, m.engine, m.name) == ("normalization", "normalization.latin-historic.v1",
                                           "normalization.latin-historic.v1")
-    assert m.measurements["changed"] >= 1
+    assert m.measurements["changed"] == 2
 
 
 def test_image_is_the_working_webp():
@@ -114,53 +181,43 @@ def test_image_is_the_working_webp():
     Image.new("RGB", (32, 24), "white").save(buf, format="PNG")
     assert WebpLosslessImageEngine()(buf.getvalue()) == to_working_webp(buf.getvalue())
     assert WebpLosslessImageEngine()(buf.getvalue(), effort=0)[1]["webp_settings"]["quality"] == 0
+    assert WebpLosslessImageEngine(effort=10)(buf.getvalue())[1]["webp_settings"]["quality"] == 10
 
 
-@pytest.mark.parametrize("text", ["lines", "reflow"])
-def test_composition_is_the_composer(text):
+def test_composition_from_lines_and_from_paragraphs():
+    """Without paragraphs a text region is one item, its rows as laid out; with them one item per paragraph, one
+    provenance entry per row."""
+    from conftest import recomposed
     from linecaster.engines import DoclingCompositionEngine
-    from linecaster.formats.docling import REGION_MAP_KEY, DocumentBuilder, docling_dict
 
-    want, got = make_transcription(), make_transcription()
-    b = DocumentBuilder("p1", text=text)
-    b.add_page(want)
-    DoclingCompositionEngine(text=text)(got, name="p1")
-    assert got.docling == docling_dict(b.build()) and got.extra[REGION_MAP_KEY] == b.region_of
-    assert got.steps[-1].engine == "composition.docling.v1" and got.steps[-1].settings["text"] == text
-
-
-def test_recomposition_paragraphs_are_the_reflowed_documents():
-    """The paragraphs the recomposition engine makes hold, row by row, the provenance of the reflowed document:
-    the same texts, boxes and character spans."""
-    from linecaster.data.geometry import BBox
-    from linecaster.engines import UnicodeRecompositionEngine
-    from linecaster.formats.docling import build_docling
-    from linecaster.text.typography import line_bbox
-
-    t = make_transcription()
-    (got,) = UnicodeRecompositionEngine()([t])
-    assert got is t and t.paragraphs and t.steps[-1].engine == "recomposition.unicode.v1"
-    assert set(t.steps[-1].measurements) == {"paragraphs", "continuations", "marks_removed", "marks_kept"}
-    by_id = {ln.id: ln for ln in t.lines}
-
-    def box(row):
-        bs = [line_bbox(by_id[i]) for i in row.lines]
-        return BBox(min(b.x0 for b in bs), min(b.y0 for b in bs), max(b.x1 for b in bs), max(b.y1 for b in bs))
-
-    doc = build_docling(make_transcription(), text="reflow")
-    texts = [it for it in doc.texts if it.text.strip()]
-    clamp = lambda v, hi: min(max(v, 0.0), hi)            # noqa: E731 - docling-core clamps boxes to the page
-    w, h = doc.pages[1].size.width, doc.pages[1].size.height
-    ours = [(p.text, [(clamp((b := box(r)).x0, w), clamp(b.y0, h), clamp(b.x1, w), clamp(b.y1, h), r.start, r.end)
-                      for r in p.rows]) for p in t.paragraphs]
-    theirs = [(it.text, [(pv.bbox.l, pv.bbox.t, pv.bbox.r, pv.bbox.b, *pv.charspan) for pv in it.prov]) for it in texts]
-    assert ours == theirs
+    lines = DoclingCompositionEngine()(make_transcription(), name="p1")
+    flowed = DoclingCompositionEngine()(recomposed(make_transcription()), name="p1")
+    body = lambda t: [x for x in t.docling["texts"] if x["label"] == "text"]       # noqa: E731
+    assert body(lines)[0]["text"] == ("The species described here were col-\nlected in the summer of 1887 by the "
+                                      "author.\n\n") and len(body(lines)[0]["prov"]) == 1    # two rows without text
+    assert body(flowed)[0]["text"] == "The species described here were collected in the summer of 1887 by the author."
+    assert [p["charspan"] for p in body(flowed)[0]["prov"]] == [[0, 35], [35, 78]]      # the mark removed
+    assert flowed.steps[-1].engine == "composition.docling.v1" and flowed.steps[-1].settings == {"sections": False}
+    sections = DoclingCompositionEngine(sections=True)(recomposed(make_transcription()), name="p1")
+    assert [g["name"] for g in sections.docling["groups"]] == ["Flora of the Northern Hills"]
 
 
 def test_pages_of_an_item_share_the_lexicon():
+    """The item's lexicon grows page by page in page order: a word attested hyphenated on page 1 keeps the hyphen
+    on page 2, not on page 1 (the lexicon of a page holds that page and the pages before it)."""
+    from conftest import line, page_with, region
+
     from linecaster.engines import UnicodeRecompositionEngine
 
-    pages = [make_transcription(), make_transcription()]
-    UnicodeRecompositionEngine()(pages)
-    assert all(p.paragraphs for p in pages) and all(len(p.steps) == 1 for p in pages)
+    def page(rows):
+        return page_with([region("text_0", "text", 100, 100, 800, 30 * len(rows), 0)],
+                         [line("text_0", k, 100, 100 + 30 * k, 800, 20, s) for k, s in enumerate(rows)])
+
+    first = page(["Die Nord-", "see liegt kalt.", "Die Nord-See ist kalt."])
+    second = page(["Die Nord-", "see liegt kalt."])
+    pages = UnicodeRecompositionEngine()([first.model_copy(deep=True), second.model_copy(deep=True)])
+    assert [p.paragraphs[0].text[:12] for p in pages] == ["Die Nord-see"] * 2
+    alone = UnicodeRecompositionEngine()([second.model_copy(deep=True)])
+    assert alone[0].paragraphs[0].text.startswith("Die Nordsee")
+    assert all(len(p.steps) == 1 for p in pages)
     assert Transcription.model_validate_json(pages[1].model_dump_json()) == pages[1]

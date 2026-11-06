@@ -12,7 +12,7 @@ from linecaster.data.measurements import unknown_measurements
 REPO = Path(__file__).resolve().parents[2]
 SOURCES = [REPO / "src" / "linecaster", *sorted((REPO / "engines").glob("*/src"))]
 #: places whose keys are computed (file relative to the repository, the expression), each checked below
-COMPUTED = {("src/linecaster/text/typography.py", "stats.counts()")}
+COMPUTED = {("src/linecaster/engines/typography.py", "stats.counts()")}
 
 
 def _dict_keys(node: ast.Dict, local: dict[str, ast.AST]) -> tuple[set[str], list[str]]:
