@@ -1,19 +1,26 @@
-"""``BindItem``: an item's pages bound into one ``DoclingDocument`` (``linecaster.formats.docling``)."""
+"""``BindItem``: an item's pages bound into one ``DoclingDocument``: the item-level recomposition and composition
+(``recomposition.unicode.v1``, ``composition.docling.v1``) on whole items."""
 from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import Page
+from ...data.transcription import Transcription
 from ...errors import PipelineConfigError
-from ...formats.docling import DocumentBuilder, docling_dict, to_text
+from ...formats.docling import docling_dict, to_text
 from ..base.contract import Contract, Contracted, Part, parts
-from ..base.page import page_of
+from ..base.item import gather
+
+#: ``text``: the pages recomposed into paragraphs across their page breaks (``reflow``), or as laid out (``lines``)
+TEXT_MODES = ("lines", "reflow")
 
 
 class BindItem(Contracted, PipelineStep):
-    """One ``DoclingDocument`` per item from its pages (``linecaster.formats.docling.DocumentBuilder``):
-    paragraphs continued across page breaks (``text="reflow"``), optional ``sections``, page ``n`` of the
-    document = the item's ``n``-th page in order (``Page.sequence``, then page id).
+    """One ``DoclingDocument`` per item from its pages: with ``text="reflow"`` recomposed as one item
+    (``recomposition.unicode.v1`` on all its pages in order: paragraphs continued across page breaks, the lexicon
+    the item's), with ``text="lines"`` each text region as laid out; composed by ``composition.docling.v1``
+    (optional ``sections``); page ``n`` of the document = the item's ``n``-th page in order (``Page.sequence``,
+    then page id). Paragraphs the pages carry from a page-level recomposition are made anew for the item.
 
     **A task must see whole items**: linecaster's run layout buckets page records by item (one item in one
     file), and the pages of an item must arrive in one task. An item is emitted once all its pages have
@@ -35,8 +42,6 @@ class BindItem(Contracted, PipelineStep):
     def __init__(self, transcription: str = "ocr_new", text: str = "reflow", sections: bool = False, rtl: bool = False,
                  count_key: str = "item_page_count"):
         super().__init__()
-        from ...formats.docling import TEXT_MODES
-
         if text not in TEXT_MODES:
             raise PipelineConfigError(f"unknown text mode {text!r}; choose {', '.join(TEXT_MODES)}")
         self.transcription, self.text, self.sections, self.rtl, self.count_key = transcription, text, sections, rtl, count_key
@@ -44,36 +49,29 @@ class BindItem(Contracted, PipelineStep):
     def _emit(self, item: str, pages: list[Page]):
         from datatrove.data import Document
 
-        from ...data.transcription import Transcription
-        from ...text.recomposition import Stats
+        from ...engines import DoclingCompositionEngine, UnicodeRecompositionEngine
 
-        pages = sorted(pages, key=lambda p: (p.sequence is None, p.sequence or 0, p.page_id))
-        stats = Stats()
+        ids = [p.page_id for p in pages]
+        ts = [(p.transcriptions.get(self.transcription) or Transcription()).model_copy(deep=True) for p in pages]
         with self.track_time():
-            b = DocumentBuilder(item, text=self.text, sections=self.sections, rtl=self.rtl, stats=stats)
-            for p in pages:
-                t = p.transcriptions.get(self.transcription) or Transcription()
-                b.add_page(t, p.image.width if p.image else None, p.image.height if p.image else None)
-            doc = b.build()
+            if self.text == "reflow":
+                UnicodeRecompositionEngine(rtl=self.rtl)(ts, page_ids=ids)
+            else:
+                for t in ts:
+                    t.paragraphs = []
+            doc, region_of = DoclingCompositionEngine(sections=self.sections).item_document(
+                ts, item, page_ids=ids, sizes=[(p.image.width, p.image.height) if p.image else (None, None)
+                                               for p in pages])
         self.stat_update("items")
-        for key in ("continuations", "marks_removed"):
-            if getattr(stats, key):
-                self.stat_update(key, value=getattr(stats, key))
+        if self.text == "reflow":
+            for key in ("continuations", "marks_removed"):
+                total = sum(t.steps[-2].measurements.get(key, 0) for t in ts)
+                if total:
+                    self.stat_update(key, value=total)
         yield Document(text=to_text(doc, furniture=True), id=item, metadata={
-            "item_id": item, "page_ids": [p.page_id for p in pages], "pages": len(pages), "text_mode": self.text,
-            "sections": self.sections, "docling": docling_dict(doc), "region_of": dict(b.region_of)})
+            "item_id": item, "page_ids": ids, "pages": len(pages), "text_mode": self.text,
+            "sections": self.sections, "docling": docling_dict(doc), "region_of": region_of})
 
     def run(self, data, rank: int = 0, world_size: int = 1):
-        items: dict[str, list[Page]] = {}
-        for doc in data:
-            page = page_of(doc)
-            self.stat_update("pages")
-            item = page.item_id or doc.id
-            items.setdefault(item, []).append(page)
-            expected = page.metadata.get(self.count_key)
-            if expected and len(items[item]) >= expected:
-                yield from self._emit(item, items.pop(item))
-        for item, pages in items.items():
-            if any(p.metadata.get(self.count_key) for p in pages):
-                self.stat_update("incomplete_items")
+        for item, pages in gather(data, self, self.count_key):
             yield from self._emit(item, pages)

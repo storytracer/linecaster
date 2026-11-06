@@ -103,10 +103,15 @@ def _problems(blocks, **kw) -> list[str]:
 
 
 def _records(folder: Path) -> dict[str, dict]:
+    """The page records by id, without what varies from run to run (a step's ``seconds`` and ``datetime``)."""
     out = {}
     for f in sorted(folder.rglob("*.jsonl.gz")):
         for line in gzip.open(f, "rt"):
             row = json.loads(line)
+            for t in row["page"]["transcriptions"].values():
+                for step in t["steps"]:
+                    step["measurements"].pop("seconds", None)
+                    step["measurements"].pop("datetime", None)
             out[row["id"]] = row
     return out
 
@@ -114,8 +119,9 @@ def _records(folder: Path) -> dict[str, dict]:
 # ------------------------------------------------------------------------------------------------ checks
 
 def test_a_valid_pipeline_has_no_problems():
-    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(), Typographer(),
-               Composer(), PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
+    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(),
+               Typographer("ratios@1"), Composer("docling-composition@1"),
+               PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
     assert p.problems == []
     p.check()
     assert [type(b).__name__ for b in p.stages[0].blocks] == [
@@ -148,7 +154,7 @@ def test_parts_belong_to_their_transcription():
 
 
 def test_a_page_block_after_an_item_stream():
-    problems = _problems([ImageFolderReader("x"), _lines(), _text(), ItemTexts(), Composer()])
+    problems = _problems([ImageFolderReader("x"), _lines(), _text(), ItemTexts(), Composer("docling-composition@1")])
     assert "Composer (composer) works on pages, but the stream carries items here" in problems
     # and an item writer before any binder
     assert _problems([ImageFolderReader("x"), _lines(), _text(), ItemTextWriter("t")]) == [
@@ -185,7 +191,8 @@ def test_a_pipeline_starts_with_a_reader():
 
 
 def test_every_problem_is_listed():
-    problems = _problems([ImageFolderReader("x"), _text(), ModelServer([]), Composer(), ItemTextWriter("t")],
+    problems = _problems([ImageFolderReader("x"), _text(), ModelServer([]), Composer("docling-composition@1"),
+                          ItemTextWriter("t")],
                          until="Nothing")
     assert len(problems) == 8
     assert problems[0].startswith("--until Nothing: no block of that name")
@@ -264,7 +271,8 @@ def test_group_checks():
     no_condition.group = "g"
     assert _problems([reader, no_condition, branch(Mark("P"), when=OTHERWISE, group="g")]) == [
         "Mark (mark N) is an alternative of group 'g' without a condition (when=)"]
-    apart = [reader, branch(Mark("P"), when=OTHERWISE, group="g"), Composer(), branch(Mark("Q"), when=OTHERWISE, group="g")]
+    apart = [reader, branch(Mark("P"), when=OTHERWISE, group="g"), Composer("docling-composition@1"),
+             branch(Mark("Q"), when=OTHERWISE, group="g")]
     assert "the pipeline: the alternatives of group 'g' are not next to each other" in _problems(apart)
     with pytest.raises(PipelineConfigError):
         branch(Mark("X"), when=lambda page: True)
@@ -402,8 +410,8 @@ def test_servers_go_with_the_model_stage(tmp_path: Path):
 # ------------------------------------------------------------------------------------------------ partial runs, taps
 
 def _modular(a):
-    return [run.reader(a), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(), Typographer(), Composer(),
-            run.pages(a)]
+    return [run.reader(a), ModularTranscriber(_lines(), _text()), UnicodeNormalizer(), Typographer("ratios@1"),
+            Composer("docling-composition@1"), run.pages(a)]
 
 
 def test_until_after_and_taps(items, tmp_path: Path):
@@ -496,7 +504,7 @@ def test_boundaries_call_the_observers(tmp_path: Path):
 
 def test_run_pages_checks_first():
     with pytest.raises(PipelineConfigError):
-        run_pages([_lines(), ItemTexts(), Composer()], [_doc()])
+        run_pages([_lines(), ItemTexts(), Composer("docling-composition@1")], [_doc()])
     out = run_pages([SingleRegionLayout(), _lines(), LineAssigner(), _text()], [_doc("p1"), _doc("p2", 50)])
     assert [d.id for d in out] == ["p1", "p2"]
     assert page_of(out[1]).transcriptions["ocr_new"].lines[0].text == "page 50x30 line 0"
@@ -519,7 +527,8 @@ def test_a_broken_pipeline_fails_before_anything_is_written(tmp_path: Path):
     _png(tmp_path / "images" / "p1.png", 40)
     a = _args(str(tmp_path / "images"), str(tmp_path / "out"))
     with pytest.raises(PipelineConfigError) as e:
-        run.run(a, [run.reader(a), _text(), ItemTexts(), Composer(), run.pages(a)], __file__, argv=[])
+        run.run(a, [run.reader(a), _text(), ItemTexts(), Composer("docling-composition@1"), run.pages(a)], __file__,
+                argv=[])
     assert len(e.value.problems) == 5 and not (tmp_path / "out").exists()
 
 

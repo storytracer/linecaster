@@ -1,30 +1,21 @@
-"""``Typographer``: squiddleocr's retyper (``linecaster.text.typography``) on a page's transcription."""
+"""``Typographer``: the typographic hierarchy of a page (``typography.*`` engines; ``typography.ratios.v1`` is
+squiddleocr's retyper, ``linecaster.text.typography``)."""
 from __future__ import annotations
 
-from ...data.page import Page
-from ...text.typography import retype
-from ..base.page import PageBlock
+from ..base.rule import RuleBlock
 
 
-class Typographer(PageBlock):
-    """squiddleocr's retyper on the named transcription: heading levels from type size, headline
-    splits, drop capitals, uncertain page numbers removed (see ``linecaster.text.typography``)."""
+class Typographer(RuleBlock):
+    """The hierarchy of the named transcription by a typography engine (``preset``: e.g. ``ratios@1``, or an
+    ``InProcess`` engine spec; ``options`` over it): heading levels from type size, headline splits, drop
+    capitals, uncertain page numbers removed (see ``linecaster.text.typography``)."""
 
     name = "typographer"
+    step = "typography"
     parts_read = ("regions", "lines")
     parts_added = ("hierarchy",)
     parts_replaced = ("regions", "lines")      # heading levels, headline splits, page numbers removed
 
-    def __init__(self, transcription: str = "ocr_new"):
-        super().__init__()
-        self.transcription = transcription
-
-    def process_page(self, doc, page: Page) -> Page:
-        t = page.transcriptions.get(self.transcription)
-        if t is None:
-            return page
-        stats = retype(t)
-        for key in ("leveled", "demoted", "split", "drop_capitals", "numbers_dropped"):
-            if getattr(stats, key):
-                self.stat_update(key, value=getattr(stats, key))
-        return page
+    def apply(self, page, t) -> None:
+        self.engine(t)
+        self.count(t.steps[-1].measurements, ("leveled", "demoted", "split", "drop_capitals", "numbers_dropped"))

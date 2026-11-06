@@ -90,7 +90,7 @@ def test_working_images_and_attach(tmp_path: Path):
     pages = [Page(page_id="b_1", item_id="b", image=PageImage(uri=str(tmp_path / "a.tif"))),
              Page(page_id="b_2", item_id="b", image=PageImage(uri=str(tmp_path / "big.png"))),
              Page(page_id="b_3", item_id="b")]
-    converted = list(ImageConverter(str(tmp_path / "webp")).run(iter(map(_doc, pages))))
+    converted = list(ImageConverter(str(tmp_path / "webp"), "working-image@1").run(iter(map(_doc, pages))))
     list(RejectWriter(str(tmp_path / "rejects")).run(iter(converted)))
     assert [d.id for d in converted] == ["b_1", "b_2", "b_3"]          # the rejected pages carry why
     out = [d for d in converted if not d.metadata.get("errors")]

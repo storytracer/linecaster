@@ -3,11 +3,14 @@
 * ``ImageFetcher`` reads ``page.image.uri`` (any fsspec path) into ``doc.media`` for blocks that need
   pixels (``PageRecordReader(fetch_images=False)`` plus ``ImageFetcher`` after filtering avoids fetching
   images of pages that are dropped anyway).
-* ``ImageConverter`` converts the delivered image with ``linecaster.images.convert.to_working_webp`` (8-bit
-  sRGB, lossless WebP at full resolution, method 0, exact), writes it to
+* ``ImageConverter`` converts the delivered image with an image engine (``preset``: ``working-image@1``,
+  ``image.webp-lossless.v1``: ``linecaster.images.convert.to_working_webp``, 8-bit sRGB, lossless WebP at full
+  resolution, method 0, exact), writes it to
   ``<output_folder>/<item_id>/<page_id>.webp`` and replaces ``page.image`` with the working image's
   ``PageImage`` (size, hashes, decoder); the delivered file is only read, its location, format,
-  sha256, size and mode stay under ``page.image.extra["original"]``. A page over the size limit
+  sha256, size and mode stay under ``page.image.extra["original"]``, the step (engine, preset edition and hash,
+  settings) under ``page.image.extra["step"]`` (a ``StepInfo``: the image belongs to no transcription). A page over
+  the size limit
   (``check_size``) or that cannot be decoded keeps its image and carries the reason as an error (field ``image``),
   so later model blocks pass it by and the rejects writer writes it. With ``keep_bytes`` the WebP replaces
   ``doc.media`` so later blocks need not read it again.
@@ -21,9 +24,10 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import PageImage
-from ...images.convert import ImageTooLarge, to_working_webp
+from ...images.convert import ImageTooLarge
 from ..base.contract import Contract, Contracted, parts
 from ..base.page import error_entry, page_of, record_error, set_page
+from ..base.rule import now, rule_backend, stamp
 
 
 def read_uri(uri: str) -> bytes:
@@ -56,11 +60,22 @@ class ImageFetcher(Contracted, PipelineStep):
 class ImageConverter(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter (lossless WebP)"
+    step = "image"
     operational = ("keep_bytes",)          # whether the WebP also travels on in memory: the same files
 
-    def __init__(self, output_folder: DataFolderLike, effort: int = 80, keep_bytes: bool = False):
+    def __init__(self, output_folder: DataFolderLike, preset, keep_bytes: bool = False, options: dict | None = None):
         super().__init__()
-        self.output_folder, self.effort, self.keep_bytes = output_folder, effort, keep_bytes
+        self.output_folder, self.keep_bytes = output_folder, keep_bytes
+        self.backend = rule_backend(preset, self.step, options)
+        self.options = dict(options or {})
+
+    def init_params(self) -> dict:
+        out = super().init_params()
+        out["preset"] = self.backend
+        return out
+
+    def warm_up(self) -> None:
+        self.backend.warm_up()
 
     def contract(self) -> Contract:
         """The working image replaces the page image (its bytes travel on only with ``keep_bytes``)."""
@@ -85,7 +100,10 @@ class ImageConverter(Contracted, PipelineStep):
                 with self.track_time("read"):
                     raw = next((m.media_bytes for m in doc.media if m.media_bytes is not None), None) or read_uri(src)
                 with self.track_time("convert"):
-                    webp, info = to_working_webp(raw, effort=self.effort)
+                    start, began = now()
+                    engine = self.backend.model()
+                    webp, info = engine(raw)
+                    step = stamp(engine.step_info(), self.backend, start, began)
             except ImageTooLarge as e:
                 yield self._reject(doc, "rejected_too_large", e.reason, "ImageTooLarge", src, width=e.width,
                                    height=e.height)
@@ -102,7 +120,8 @@ class ImageConverter(Contracted, PipelineStep):
                         "width": page.image.width if page.image else None,
                         "height": page.image.height if page.image else None}
             extra = {"original": original, "webp_settings": info["webp_settings"],
-                     "icc_applied": info["icc_applied"], "alpha_flattened": info["alpha_flattened"]}
+                     "icc_applied": info["icc_applied"], "alpha_flattened": info["alpha_flattened"],
+                     "step": step.model_dump(mode="json", exclude_none=True)}
             for k in ("exif_orientation", "icc_error"):
                 if k in info:
                     extra[k] = info[k]

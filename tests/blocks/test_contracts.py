@@ -115,12 +115,12 @@ def test_chat_recognizers():
 
 def test_contracts_of_the_blocks_without_a_model(tmp_path):
     from linecaster.blocks.binding import BindItem, ItemTexts
-    from linecaster.blocks.composition import Composer, Typographer
+    from linecaster.blocks.composition import Composer, Recomposer, Typographer
     from linecaster.blocks.conversion import ImageConverter
     from linecaster.blocks.lines import LineAssigner
     from linecaster.blocks.readers import ImageFolderReader, ManifestReader, PageRecordReader
     from linecaster.blocks.servers import ModelServer
-    from linecaster.blocks.text import UnicodeNormalizer
+    from linecaster.blocks.text import CharacterNormalizer, UnicodeNormalizer
     from linecaster.blocks.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
 
     def names(ps):
@@ -136,8 +136,15 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     a = LineAssigner().contract()
     assert names(a.adds) == ["ocr_new:line_regions"] and Part("lines", "ocr_new") in a.replaces
     assert names(UnicodeNormalizer().contract().adds) == ["ocr_new:nfc"]
-    assert names(Typographer().contract().adds) == ["ocr_new:hierarchy"]
-    assert names(Composer().contract().adds) == ["ocr_new:document"]
+    assert names(Typographer("ratios@1").contract().adds) == ["ocr_new:hierarchy"]
+    assert names(Composer("docling-composition@1").contract().adds) == ["ocr_new:document"]
+    assert names(Composer("docling-composition@1").contract().reads) == ["ocr_new:lines", "ocr_new:regions"]
+    assert Composer("docling-composition@1", unit="item").contract().adds == {Part("document")}
+    assert Composer("docling-composition@1", unit="item").contract().unit == "item"
+    r = Recomposer("unicode-recomposition@1").contract()
+    assert names(r.adds) == ["ocr_new:paragraphs"] and names(r.reads) == ["ocr_new:lines", "ocr_new:regions"]
+    assert Recomposer("unicode-recomposition@1", unit="item").contract().unit == "item"
+    assert names(CharacterNormalizer("latin-historic@1").contract().adds) == ["ocr_new:normalized"]
     assert (ItemTexts().contract().unit, ItemTexts().contract().unit_out) == ("page", "item")
     assert BindItem().contract().adds == {Part("document")} and BindItem().contract().role == "binder"
     assert ItemTextWriter(str(tmp_path)).contract().reads == {Part("text")}
@@ -147,7 +154,7 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert names(files.reads) == ["image", "ocr_new:document", "ocr_new:lines", "ocr_new:text"]
     assert PageJsonlWriter(str(tmp_path)).contract() == Contract(unit="page", role="writer")
     assert ModelServer([]).contract().unit == "any" and ModelServer([]).contract().role == "server"
-    assert names(ImageConverter(str(tmp_path), keep_bytes=True).contract().replaces) == [
+    assert names(ImageConverter(str(tmp_path), "working-image@1", keep_bytes=True).contract().replaces) == [
         "image", "metadata"]
     assert contract_of(object()) == Contract(unit="page", role="transform")
 
@@ -229,6 +236,11 @@ def _one_of_each(tmp_path) -> list:
         "ModelServer": {"models": [{"name": "lines", "spec": "pkg:Lines", "kwargs": {"x": 1}}]},
         "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
         "ManifestReader": {"data_folder": str(tmp_path)},
+        "RuleBlock": {"preset": InProcess("pkg:Rules", x=1)}, "Typographer": {"preset": "ratios@1"},
+        "Recomposer": {"preset": "unicode-recomposition@1", "unit": "item"},
+        "Composer": {"preset": "docling-composition@1", "options": {"sections": True}},
+        "CharacterNormalizer": {"preset": "latin-historic@1"},
+        "ImageConverter": {"output_folder": str(tmp_path / "webp"), "preset": "working-image@1"},
     }
     out = []
     for cls in block_classes():
@@ -279,6 +291,16 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
     assert by_name["ModelBlock"]["params"]["backend"] == {"backend": "in-process", "engine": "pkg:Engine",
                                                           "options": {"size": 3}}
     assert by_name["PageRecognizer"]["params"]["spec"]["preset"].startswith("lightonocr-2-1b@")
+    from linecaster.catalog.registry import catalog
+
+    composer = by_name["Composer"]["params"]
+    assert composer["preset"] == {"backend": "in-process", "engine": "linecaster.engines:DoclingCompositionEngine",
+                                  "options": {"sections": True}, "preset": "docling-composition@1",
+                                  "preset_sha256": catalog().resolve("docling-composition@1").sha256,
+                                  "overrides": {"sections": True}}
+    assert composer["unit"] == "page" and by_name["Recomposer"]["params"]["unit"] == "item"
+    assert by_name["RuleBlock"]["params"]["preset"] == {"backend": "in-process", "engine": "pkg:Rules",
+                                                        "options": {"x": 1}}
     assert by_name["ImageFolderReader"]["params"]["data_folder"] == str(tmp_path / "in")
     # composites as groups: their blocks carry the group in the record, and the composite's own dict lists them
     assert [e.get("composite") for e in entries[-4:]] == ["modular transcriber"] * 4

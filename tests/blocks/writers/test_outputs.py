@@ -26,7 +26,7 @@ SCHEMAS = Path(__file__).parents[2] / "schemas"
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(Composer().run(Typographer().run(iter([page_doc()]))))
+    docs = list(Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFileWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -49,7 +49,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 def test_page_files_flat_are_the_document_exports(tmp_path: Path):
     """Flat names with a suffix (squiddleocr's): each file is the document's export byte for byte, as the
     export writer this one replaces wrote them (flat, suffix, furniture)."""
-    docs = list(Composer().run(Typographer().run(iter([page_doc()]))))
+    docs = list(Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                         bucket_by_item=False).run(iter(docs)))
     t = page_of(docs[0]).transcriptions["ocr_new"]
@@ -73,7 +73,8 @@ def test_page_files_without_text_fallback_write_only_documents(tmp_path: Path):
     writer's behavior), and a page with one gets them all."""
     t = Transcription(lines=[Line(id="l0", reading_order=0, bbox=[10, 10, 100, 20], text="nur Zeilen")])
     fmts = ("md", "txt", "html", "doclang", "json")
-    composed = list(Composer().run(Typographer().run(iter([page_doc(page_id="p2", item=None)]))))
+    composed = list(Composer("docling-composition@1").run(
+        Typographer("ratios@1").run(iter([page_doc(page_id="p2", item=None)]))))
     out = list(PageFileWriter(str(tmp_path), formats=fmts, bucket_by_item=False, text_fallback=False).run(
         iter([page_doc(t=t, item=None), *composed])))
     assert len(out) == 2
