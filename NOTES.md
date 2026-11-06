@@ -2,6 +2,86 @@
 
 Measurements, decisions and open questions, newest first.
 
+## dots.mocr and LightOnOCR-3 on an RTX 4000 SFF Ada (2026-11-06)
+
+The presets `dots-mocr@1` (board row 1), `lightonocr-3-4b@1` (row 4) and `lightonocr-3-0.8b@1` (row 11), first
+runs through linecaster, on the 60-page sample, one after another on one RTX 4000 SFF Ada 20 GB (x86_64, compute
+capability 8.9). One run each.
+
+Setup:
+- linecaster at 2b26d5d (a fresh clone), as the olmOCR-2 run of the same day: `pipelines/transcribe_vlm.py OUT
+  --parquet <sample>/data --id-key PageID --recognition <preset>`, the vLLM venv's `bin` first on `PATH` (`vllm`,
+  `ninja`).
+  `ChatModelServer` started `vllm serve` on loopback with the preset's flags, the revision pinned; it stopped vLLM
+  at the end of each run, before the next.
+- dots.mocr: vLLM 0.26.0 (the board's), the venv of the olmOCR-2 run (`uv pip install --exclude-newer
+  2026-07-26T00:00:00Z vllm==0.26.0`: torch 2.11.0+cu130, transformers 5.14.1). `--window 4 --initial-window 4
+  --gpu-memory-utilization 0.6` and `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: the board's scored run
+  (`--max-window 4 --gpu-memory-utilization 0.6` on an L40S, the job's environment), not the driver's defaults (12
+  and 0.9), which its docstring says ran out of memory in the vision encoder. The driver's transformers-v5 boot
+  hazard did not occur (vLLM 0.26.0 itself needs transformers 5.5.3 or later).
+- LightOnOCR-3-4B and -0.8B: vLLM 0.30.0 (the board's exception for these rows), a new venv made the same way
+  (`--exclude-newer 2026-09-23T00:00:00Z vllm==0.30.0`, the day after the release: torch 2.13.0+cu130, transformers
+  5.17.0, flashinfer-python 0.6.18.post1). `--window 12 --initial-window 4` (the driver's `Auto(initial=4,
+  max_limit=12)`) and `--gpu-memory-utilization 0.8` (the driver's).
+- Memory: no change to `--max-model-len`, and none to the memory share beyond the board's own. dots.mocr: weights
+  5.69 GiB, KV cache 5.86 GiB (219,536 tokens, 6.7 full contexts), but 15.6 of 20 GB in use at the peak, about 3 GB
+  above vLLM's 12 GB budget: the vision encoder's activations on full-size pages, which is why the board lowered the
+  share. At the pipeline's default 0.8 (a 16 GB budget) that would have left well under 1 GB free.
+  LightOnOCR-3-4B: weights 8.61 GiB, KV cache 4.56 GiB (132,476 tokens, 8.1 full contexts), 15.7 GB peak.
+  LightOnOCR-3-0.8B: weights 1.72 GiB, KV cache 11.98 GiB, 15.6 GB peak.
+- Kernels: FlashAttention 2 for the language model and the vision tower; LightOnOCR-3's linear-attention layers on
+  the Triton/FLA GDN prefill kernel and the CUDA decode kernel.
+
+Scored the board's way with the bhl-ocr-eval clone at 76bc19d (consolidate → `normalize_outputs` postproc 3 →
+`score_dataset`), next to the board's raw completions for the same pages (`rows/<row>/raw.parquet`, column
+`raw_verbatim`) put through the same three steps. For these three rows the board's published `normalized.parquet`
+scores the same as its raw completions re-normalized (both postproc 3, after the front-matter fix).
+
+| run | CER dip | CER reading | recall | loops |
+|---|---:|---:|---:|---:|
+| dots.mocr, linecaster, RTX 4000 SFF Ada | 0.0299 | 0.0178 | 0.9589 | 0 of 60 |
+| dots.mocr, board, L40S, same 60 pages | 0.0264 | 0.0141 | 0.9633 | 0 of 60 |
+| dots.mocr, board, 2,165 pages | 0.0503 | 0.0211 | 0.9836 | 0.88 % |
+| LightOnOCR-3-4B, linecaster | 0.0324 | 0.0199 | 0.9553 | 0 of 60 |
+| LightOnOCR-3-4B, board, A10G, same 60 pages | 0.0331 | 0.0207 | 0.9544 | 0 of 60 |
+| LightOnOCR-3-4B, board, 2,165 pages | 0.0546 | 0.0247 | 0.9711 | 0.42 % |
+| LightOnOCR-3-0.8B, linecaster | 0.0549 | 0.0307 | 0.9526 | 0 of 60 |
+| LightOnOCR-3-0.8B, board, A10G, same 60 pages | 0.0633 | 0.0393 | 0.9521 | 0 of 60 |
+| LightOnOCR-3-0.8B, board, 2,165 pages | 0.0896 | 0.0363 | 0.9659 | 0.88 % |
+
+The 2,165-page rows: CER reading, recall and loop rate from RESULTS.md, CER diplomatic from the leaderboard page's
+data (RESULTS.md gives the reading lane only).
+
+- The request is the board's on every page: prompt tokens equal the board's on all 60 pages for all three models
+  (dots.mocr 550,085 in all, the full-resolution passthrough; LightOnOCR-3 172,552, the 2048-px thumbnail).
+  Byte-identical completions: dots.mocr 47 of 60, LightOnOCR-3-4B 34, LightOnOCR-3-0.8B 28 (sampling at
+  temperature 0.1 and 0.2, no seed, on the board as here).
+- dots.mocr: the whole difference is one Piscium plate (9684345), for which this run's completion is empty (one
+  token, finish `stop`; the board's has the plate's captions, page CER 0.31). Without it, 0.0125 against 0.0125
+  (reading) and 0.0247 against 0.0248 (diplomatic). Otherwise 4 pages worse and 4 better, all small.
+- LightOnOCR-3-4B: better than the board's on 12 pages, worse on 6, all small (at most 0.018 page CER).
+- LightOnOCR-3-0.8B: most of the difference is one Conchologia text page (8967173), where the board's completion
+  moves one species' block (synonymy and description) to the end of the page (page CER 0.230 against 0.018 here).
+  Without it, 0.0312 against 0.0312 (reading).
+- No page reached its token cap (longest completions 1,320 of 16,384, 1,283 and 1,323 of 4,096), no errors, every
+  finish reason `stop`, on the board's 60 as on these.
+- Time (whole process: uv environment, vLLM's start, the pages; the pages alone from the first request to the
+  last, with the window's pages in flight):
+
+| model | process | before the first page | pages | s per page | board job, 2,165 pages |
+|---|---:|---:|---:|---:|---:|
+| dots.mocr (4 in flight) | 807 s | 75 s | 732 s | 12.2 | 8,406 s on an L40S, 3.9 s per page |
+| LightOnOCR-3-4B (up to 12) | 433 s | 191 s | 242 s | 4.0 | 5,252 s on an A10G, 2.4 s per page |
+| LightOnOCR-3-0.8B (up to 12) | 155 s | 106 s | 49 s | 0.82 | 2,302 s on an A10G, 1.1 s per page |
+
+  The board's times include its jobs' start. dots.mocr is prefill-bound here (about 9,200 image tokens a page, some
+  880 prompt tokens per second). LightOnOCR-3's start includes vLLM's CUDA graph capture and the first Triton
+  compile of the GDN kernels (148 s of engine init for the 4B).
+
+Not checked: the board's images themselves (their vLLM builds, transformers, Pillow); a second run of each (no
+run-to-run variation measured, so the empty dots.mocr page may or may not recur).
+
 ## The four board models the catalog lacked: Surya OCR 2.5, Indra OCR, Falcon-OCR, OXR-1.0 (2026-11-06, spark and an x86_64 A6000 machine)
 
 The BHL OCR board's rows 10 (`datalab-to/surya-ocr-2.5`), 22 (`datalab-to/indra-ocr`), 25 (`SoMarkAI/OXR-1.0`) and 26
