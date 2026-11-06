@@ -1,0 +1,1841 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.1/changelog/">
+      
+      
+        <link rel="prev" href="../catalog/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Changelog - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0 (2026-11-06)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0 (2026-11-06)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-11-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0 (2026-11-06)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0 (2026-11-06)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- Generated by `linecaster docs`: edit the code, the docstrings or the catalog, not this file. -->
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to linecaster. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>;
+each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
+the tags; the first is <code>v0.1.0</code>.</p>
+<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Versioned docs: the docs workflow publishes the site with mike on every release tag (version <code>&lt;major&gt;.&lt;minor&gt;</code>,
+  <code>latest</code> the newest) to the <code>gh-pages</code> branch, served by GitHub Pages; <code>mike</code> joins the dependency group <code>docs</code>.</li>
+</ul>
+<h2 id="010-2026-11-06">0.1.0 (2026-11-06)<a class="headerlink" href="#010-2026-11-06" title="Permanent link">&para;</a></h2>
+<h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
+<p>The first release, after the refactoring of November 2026 in six phases; each phase's renames are listed
+here, and all of them in one table at the end of these notes. There are no compatibility aliases: old imports, flags
+and ids fail.</p>
+<p><strong>Phase 1: layout and names</strong></p>
+<ul>
+<li>Packages: <code>linecaster.transcription</code>, <code>linecaster.page</code> → <code>linecaster.data</code> (data model) and <code>linecaster.formats</code>
+  (ALTO, PAGE, hOCR; <code>formats.docling</code> was <code>linecaster.document</code>); <code>text.py</code>, <code>unicode.py</code>, <code>reflow.py</code>,
+  <code>retyper.py</code> → <code>linecaster.text.variants</code>, <code>.unicode</code>, <code>.recomposition</code>, <code>.typography</code>; <code>images.py</code>, <code>plots.py</code> →
+  <code>linecaster.images</code>; <code>run</code>, <code>jobs</code>, <code>ray_executor</code>, <code>provenance</code> → <code>linecaster.runtime.*</code> (<code>run.rows()</code> →
+  <code>run.pages()</code>); <code>linecaster.models</code> → <code>linecaster.adapters</code>; <code>blocks/http.py</code> → <code>linecaster.net</code>; blocks by
+  family under <code>linecaster.blocks.&lt;family&gt;</code> (old modules <code>filters</code>, <code>media</code>, <code>models</code>, <code>serve</code>, <code>texts</code>,
+  <code>document</code>, <code>readers</code>, <code>writers</code> are gone); <code>specs/</code> → <code>docs/reference/</code>.</li>
+<li>Blocks: <code>PageStep</code> → <code>PageBlock</code>, <code>ModelStep</code> → <code>ModelBlock</code>, <code>WorkingImages</code> → <code>ImageConverter</code>, <code>AttachImage</code>
+  → <code>ImageFetcher</code>, <code>LayoutStep</code> → <code>LayoutDetector</code>, <code>LinesStep</code> → <code>LineDetector</code>, <code>AssignLinesToRegions</code> →
+  <code>LineAssigner</code>, <code>RecognitionStep</code> → <code>LineRecognizer</code>, <code>ChatRegionStep</code> → <code>RegionRecognizer</code>, <code>ChatPageStep</code> →
+  <code>PageRecognizer</code>, <code>TablesStep</code> → <code>TableRecognizer</code>, <code>FormulasStep</code> → <code>FormulaRecognizer</code>, <code>NormalizeUnicode</code> →
+  <code>UnicodeNormalizer</code>, <code>Typography</code> → <code>Typographer</code>, <code>ComposePage</code> → <code>Composer</code>, <code>ValidatePages</code> → <code>PageValidator</code>,
+  <code>RejectSink</code> → <code>RejectWriter</code>, <code>RecipeStamp</code> → <code>RecipeStamper</code>, <code>ServeModels</code> → <code>ModelServer</code>, <code>ServeChatModel</code>
+  → <code>ChatModelServer</code>, <code>PageRowReader</code> → <code>PageRecordReader</code>; writers: <code>PageFilesWriter</code> + <code>PageExportsWriter</code> →
+  <code>PageFileWriter</code> (<code>text_fallback=False</code> is the old <code>PageExportsWriter</code>), <code>ItemExportsWriter</code> →
+  <code>ItemDocumentWriter</code>, <code>ItemTextJsonlWriter</code> + <code>ItemTextFilesWriter</code> → <code>ItemTextWriter(format=...)</code>. Datatrove
+  display names changed with them (stats and logs).</li>
+<li>Engines: <code>…Model</code> → <code>…Engine</code> (<code>KrakenRecognitionEngine</code>, <code>PaddleLayoutEngine</code>, ...); ids unchanged. Adapters:
+  <code>ChatModel</code> → <code>ChatAdapter</code>, each VLM adapter <code>X</code> → <code>XAdapter</code>.</li>
+<li>Pipeline scripts: <code>transcribe_chain.py</code> → <code>transcribe_modular.py</code>; ids <code>chain.v1</code> → <code>transcribe_modular.v1</code>,
+  <code>vlm.v1</code> → <code>transcribe_vlm.v1</code>, new <code>harvest.v1</code>, <code>bind.v1</code>.</li>
+<li>Flags: <code>--recognizer</code> → <code>--recognition</code>; <code>--vlm</code>, <code>--vlm-endpoint</code> → <code>--recognition</code>, <code>--recognition-endpoint</code>;
+  <code>--texts</code> → <code>--item-texts</code>; <code>--exports DIR</code> → <code>--files DIR --formats md,txt,json --naming squiddleocr
+  --furniture</code>; <code>--rows</code> → <code>--pages</code>.</li>
+<li>Stored output: the default transcription <code>ocr</code> → <code>ocr_new</code>; page records in <code>OUT/rows/</code> → <code>OUT/pages/</code>; item text
+  fidelity <code>normalised</code> → <code>normalized</code>; typography measurement <code>levelled</code> → <code>leveled</code>. Page records written before
+  phase 1 keep <code>ocr</code>; read them with <code>transcription="ocr"</code>.</li>
+<li>Catalog: no step <code>page</code> (page presets are step <code>recognition</code>, unit <code>page</code>, under <code>presets/recognition/</code>); entries
+  are <code>&lt;id&gt;.yaml</code> with prose in <code>&lt;id&gt;.md</code>; YAML is read as YAML 1.2 with <code>ruamel.yaml</code> (replaces PyYAML); lock format
+  <code>linecaster.lock/2</code>. Edition numbers are unchanged; 20 hashes were recomputed (the page presets and <code>squiddle@1</code>),
+  so files stamped by a recipe carry the new hash; old hashes still resolve (<code>previous_sha256</code>).</li>
+<li>American spelling throughout (e.g. <code>normalize</code>, <code>NORMALIZE_MAP</code>, <code>quantize_confidence</code>, <code>COLORS</code>).</li>
+</ul>
+<p><strong>Phase 2: contracts and the builder</strong></p>
+<ul>
+<li>Pipeline scripts check their pipeline before they launch: a pipeline whose contracts do not fit exits with code 2
+  and lists every problem. Own blocks without a <code>contract()</code> pass unchecked.</li>
+<li>With <code>--tasks</code> over 1, a binder after the page blocks (<code>--item-texts</code>) cuts the run into two stages: page records
+  in item shards (<code>OUT/pages/&lt;shard&gt;/</code>), then the item stage; their logs are <code>OUT/logs/pages/</code> and
+  <code>OUT/logs/items/</code>. One stage logs to <code>OUT/logs/</code> as before.</li>
+<li><code>--dry-run</code> prints the plan under <code>plan</code> and the Mermaid graph after the JSON.</li>
+<li>A page an in-process block fails on no longer fails the task: it carries the error (<code>doc.metadata["errors"]</code>:
+  <code>block</code>, <code>step</code>, <code>preset</code>, <code>type</code>, <code>error</code>; served failures in the same shape, no longer <code>{step, error}</code>), later
+  model blocks pass it on at once, and it is written to <code>OUT/rejects/&lt;rank&gt;.jsonl</code> and kept in the page records.
+  More failures than <code>--max-page-errors</code> (1 % of a task's pages, counting at least 100) fail the task.</li>
+<li><code>ImageConverter(output_folder, rejects_folder, ...)</code> → <code>ImageConverter(output_folder, ...)</code> and
+  <code>PageValidator(rejects_folder, required, prefix)</code> → <code>PageValidator(required)</code>: they record why on the page and
+  pass it on (no longer dropped); the <code>RejectWriter</code> (now a writer block, <code>RejectWriter(output_folder, prefix="")</code>,
+  which the builder puts before the first writer of a run) writes the rejects. A derivative that used either adds
+  a <code>RejectWriter</code> where it wants the file, or lets the builder add one.</li>
+<li>Library code raises <code>linecaster.errors</code> (<code>PipelineConfigError</code>, <code>CatalogError</code>, <code>PageError</code>, <code>ServerError</code>)
+  instead of <code>SystemExit</code>, <code>ValueError</code>, <code>KeyError</code>, <code>RuntimeError</code> and <code>TypeError</code> for configuration, catalog,
+  page and server errors (e.g. an unknown preset is a <code>CatalogError</code>, an unknown block option a
+  <code>PipelineConfigError</code>); pipeline scripts raise <code>PipelineConfigError</code> from <code>pipeline()</code>.</li>
+<li><code>runtime.jobs.dependencies(commit)</code> without a script raises; give the pipeline's script,
+  <code>runtime.jobs.ENGINE_SCRIPT</code> (the modular pipeline's engines) or <code>engines=False</code> (linecaster alone).</li>
+<li>The run record's schema is <code>linecaster.run-record/1</code> (was <code>linecaster.run/1</code>): <code>pipeline</code> lists the stages with
+  every block's <code>to_dict()</code> and contract (was a list of block entries; the separate <code>stages</code> is gone), and
+  <code>pipeline_sha256</code> is new. A run into an OUT whose record has another <code>pipeline_sha256</code> (or none: a record from
+  before) is refused unless <code>--new-pipeline</code>; another <code>--tasks</code> always is.</li>
+<li>Page records carry <code>schema: linecaster.page/1</code> in their row. Records without one (written before phase 1) are read
+  with <code>ocr</code> as <code>ocr_new</code>, and a <code>pages/</code> folder without records is read from its sibling <code>rows/</code>: no
+  <code>transcription="ocr"</code> needed any more.</li>
+<li>Engines load in <code>warm_up()</code> before the first page, not on it: a page's measured <code>seconds</code> no longer include
+  loading; the load time is the block's <code>warm_up_seconds</code> stat. <code>ModelServer</code> and <code>ChatModelServer</code> start their
+  servers in <code>warm_up()</code> (stat <code>warm_up_seconds</code>, was the <code>boot</code> time stat).</li>
+<li><code>engine_spec(ref)</code> and <code>preset_models(models)</code> take <code>installed=True</code>; tests that replace <code>engine_spec</code> accept it.</li>
+<li>On HF Jobs the tasks log JSON lines (<code>LINECASTER_LOG_JSON=1</code>, <code>runtime.jobs.JobsExecutor</code>; the run record's
+  executor is <code>JobsExecutor</code>).</li>
+<li>Every run is traced (OpenTelemetry, a new required dependency: <code>opentelemetry-api</code>, <code>-sdk</code>,
+  <code>-exporter-otlp-proto-http</code>): <code>OUT/traces/</code> appears in every run folder, and a sampled page's record carries
+  <code>metadata.trace_id</code>. Every stage with a run folder now has observers, so its pipeline has boundary steps.</li>
+<li>Observers: <code>on_task_end(error=None)</code> (was <code>on_task_end()</code>; an own observer adds the parameter), and new hooks
+  <code>on_task_event</code>, <code>on_leave</code>, <code>environment()</code>. Stream blocks notify <code>request</code> (with a <code>carrier</code>) after <code>prepare</code>,
+  and <code>done</code> with tokens and <code>finish_reason</code>; <code>PageRecognizer</code> notifies <code>prepare</code> once (was twice).</li>
+</ul>
+<p><strong>Phase 3: rule-based steps, recomposition, binding</strong></p>
+<ul>
+<li>Text without geometry (lines without boxes, e.g. a delivered plain text): a paragraph now continues across a page
+  break only after a division mark; before, the simple line flow joined such pages whenever the text did not end a
+  sentence.</li>
+<li><code>linecaster.blocks.writers.item_texts(doc, variants, transcription, token_counter)</code> renders an item record's text
+  variants as datatrove documents, for derivatives writing them in a format of their own; <code>ItemTextWriter</code> uses it.</li>
+<li><code>linecaster.catalog.schema.RULE_STEPS</code> lists the rule-based steps, to tell a recipe's rule-based slots from its
+  model slots.</li>
+<li>Data model: <code>ModelInfo</code> → <code>StepInfo</code> (new field <code>engine</code>, the engine's code id, filled by the model blocks,
+  <code>linecaster serve</code> and the chat adapters), <code>Transcription.model</code> → <code>Transcription.steps</code>, <code>ChatAdapter.model_info()</code>
+  → <code>step_info()</code>. New: <code>Transcription.paragraphs</code> (<code>Paragraph</code>, <code>ParagraphRow</code>, <code>ParagraphRef</code>, <code>Decision</code>),
+  <code>Line.normalized</code>, and the measurements vocabulary <code>linecaster.data.MEASUREMENTS</code> (the keys a step writes; an
+  engine package in this repository adds a new key there first, a test checks it).</li>
+<li>Page records are <code>linecaster.page/2</code> (<code>steps</code> instead of <code>model</code>, <code>paragraphs</code>, <code>normalized</code>). <code>PageRecordReader</code>
+  reads <code>linecaster.page/1</code> records and those from before phase 1 as <code>/2</code>; code that reads the JSON itself reads
+  <code>steps</code>.</li>
+<li>The page files' step records (ALTO <code>processingStepSettings</code>, PAGE <code>Labels</code>, hOCR <code>linecaster-step-&lt;n&gt;</code>, METS agents)
+  carry <code>engine</code> for steps an engine ran.</li>
+<li>Catalog: the steps <code>image</code>, <code>normalization</code>, <code>typography</code>, <code>recomposition</code>, <code>composition</code> with built-in engines in
+  <code>linecaster.engines</code>, in-process only (<code>linecaster serve</code> refuses them); presets may name <code>by_script</code> strategies;
+  <code>capabilities.unit</code> may be <code>item</code> and <code>produces</code> names parts (<code>PARTS</code>). <code>preset-1.json</code> gains them; no released
+  hash changes. <code>engine_spec(ref, installed=True, served=False)</code> and <code>preset_models(models, installed=True,
+  served=False)</code>: tests that replace <code>engine_spec</code> accept <code>served</code>.</li>
+<li><code>regex</code> is a new core dependency (Unicode scripts).</li>
+<li>The rule-based blocks take a preset or an engine spec, with <code>options</code> over it: <code>Typographer()</code> →
+  <code>Typographer("ratios@1")</code>; <code>Composer(text="reflow", sections=..., rtl=...)</code> → <code>Recomposer("unicode-recomposition@1",
+  options={"rtl": ...})</code> + <code>Composer("docling-composition@1", options={"sections": ...})</code>, and <code>text="lines"</code> is a
+  <code>Composer</code> without a <code>Recomposer</code> before it (the document is composed from paragraphs when there are, else from
+  lines); <code>ImageConverter(output_folder, effort=80)</code> → <code>ImageConverter(output_folder, "working-image@1",
+  options={"effort": 80})</code>. New blocks <code>Recomposer</code> (composition, <code>unit="page"|"item"</code>) and <code>CharacterNormalizer</code>
+  (text); <code>Composer</code> also takes <code>unit="item"</code>.</li>
+<li><code>DocumentBuilder(name, text=..., sections=..., rtl=..., stats=...)</code> → <code>DocumentBuilder(name, sections=...)</code>: it no
+  longer recomposes, it composes a page's paragraphs when it has them (<code>add_page(..., page_id=...)</code> names the page for
+  paragraphs continued across pages); <code>build_docling(...)</code> loses <code>text</code>, <code>rtl</code> and <code>stats</code>; <code>formats.docling.TEXT_MODES</code>
+  is gone. In <code>linecaster.text.recomposition</code>, <code>join_paragraphs</code> → <code>join</code> (the joined text, the separator and the
+  decision on the division mark), new <code>break_reason</code>, <code>kept_reason</code>, <code>mark_decision</code>, <code>Thresholds</code> (the geometric
+  thresholds and the convention marks, parameters of <code>reflow_rows</code>, <code>Margins.of</code>, <code>continues</code>, ...); <code>Row.bbox</code> may
+  be <code>None</code> (text only). <code>text.typography.retype</code> takes <code>ratios</code> (<code>Ratios</code>) and records no step (the engine does);
+  <code>typography.SETTINGS</code> is gone.</li>
+<li>Page records and page files: with a recomposition (<code>--recomposition</code>, the squiddle recipe) the transcription
+  carries its <code>paragraphs</code> (with their decisions); the typography step is recorded by its engine (name and engine <code>typography.ratios.v1</code>, preset
+  <code>ratios@1</code> and its hash, every option as settings, <code>seconds</code> and <code>datetime</code>), and the recomposition and
+  composition steps have step records of their own. The documents and their exports are unchanged.</li>
+<li>Binding: <code>BindItem</code> and <code>ItemTexts</code> are removed. <code>BindItem(text="reflow", sections=S)</code> → <code>Binder()</code> +
+  <code>Recomposer("unicode-recomposition@1", unit="item")</code> + <code>Composer("docling-composition@1", unit="item",
+  options={"sections": S})</code> (<code>text="lines"</code>: without the <code>Recomposer</code>); the item documents are the same, the item
+  document's <code>metadata</code> is the item record plus <code>docling</code>, <code>region_of</code>, <code>item_id</code> (no <code>page_ids</code>, <code>pages</code>,
+  <code>text_mode</code>, <code>sections</code>). <code>ItemTexts(variants=V, token_counter=F)</code> → <code>Binder()</code> + <code>Recomposer(...,
+  unit="item")</code> + <code>CharacterNormalizer("latin-historic@1", unit="item")</code> + <code>ItemTextWriter(DIR, variants=V,
+  token_counter=F)</code>: the writer renders the variants from the item record (one row per item and variant, the same
+  columns). <code>ItemDocumentWriter</code> gains <code>by_format</code> (<code>&lt;format&gt;/&lt;item&gt;.&lt;ext&gt;</code>).</li>
+<li>The readable variants (<code>readable_txt</code>, <code>readable_md</code>) are made from the item's recomposition and normalization
+  (<code>Paragraph.normalized</code>) instead of <code>text.variants</code>' own line flow, so they change (paragraph breaks, kept hyphens;
+  NOTES.md has the comparison). <code>linecaster.text.variants</code>: <code>join_lines</code>, <code>page_blocks</code>, <code>item_blocks</code>, <code>continues</code>,
+  <code>HYPHENS</code> and <code>SENTENCE_END</code> are gone; <code>variants(pages, page_ids=None)</code> needs recomposed, normalized pages;
+  <code>body_blocks</code> and <code>Block.normalized</code> are new. The normalization engines also set each table cell's <code>normalized</code>.</li>
+<li><code>pipelines/transcribe_modular.py</code>: <code>--text lines|reflow</code> → the slots <code>--typography</code>, <code>--recomposition</code>,
+  <code>--normalization</code> and <code>--composition</code> (presets; an empty slot leaves the step out: <code>--text lines</code> is no
+  <code>--recomposition</code>). Without a recipe the rule-based steps run only when picked (before: typography and
+  composition always). <code>--item-texts</code> needs <code>--recomposition</code> and <code>--normalization</code> (the recipe <code>squiddle</code> has them).
+  <code>--set</code> takes the rule-based steps too (<code>--set composition.sections=true</code>).</li>
+<li><code>pipelines/bind.py</code> (<code>bind.v1</code>, now with recipes): Binder → item recomposition → normalization → item composition,
+  texts in <code>OUT/texts/&lt;variant&gt;/</code> (JSONL; <code>--files</code> also one file per item there, was <code>OUT/files/&lt;variant&gt;/</code>) and
+  item documents in <code>OUT/documents/&lt;format&gt;/</code>; slots <code>--recomposition</code>, <code>--normalization</code>, <code>--composition</code> (the new
+  recipe <code>item-texts@1</code> fills them), <code>--variants</code>, <code>--formats</code>, <code>--furniture</code>, <code>--dividers</code>, <code>--no-texts</code>,
+  <code>--no-documents</code>, <code>--set</code>.</li>
+<li><code>squiddle@1</code> names the rule-based presets (<code>ratios@1</code>, <code>unicode-recomposition@1</code>, <code>latin-historic@1</code>,
+  <code>docling-composition@1</code>) instead of the option <code>text: reflow</code>: a catalog migration, so its hash changed (files
+  stamped by it carry the new one) and the lock's <code>previous_sha256</code> lists both earlier hashes (<code>previous_sha256</code> may
+  now be a list, oldest first; <code>Resolved.previous_sha256</code> is a tuple).</li>
+<li>The builder carries the parts across a binder and a splitter (an item record holds its pages), apart from <code>image</code>
+  and the item's <code>document</code>; the role <code>splitter</code> is new. <code>Recomposer</code>'s contract replaces <code>paragraphs</code> too (it makes
+  them anew). <code>RecipeStamper</code> has unit <code>any</code> (it stamps the pages of item records).</li>
+</ul>
+<p><strong>Phase 4: backends and families</strong></p>
+<ul>
+<li>VLMs are the <code>Chat</code> backend (<code>linecaster.backends.Chat(preset, endpoint=None, served_name=None, max_window=32,
+  initial_window=4, read_timeout=600.0, api_key=None, headers=None, prefer="page")</code>): <code>PageRecognizer(spec,
+  Served(endpoint, model=name, max_window=W, ...))</code> → <code>PageRecognizer(Chat(spec, endpoint, served_name=name,
+  max_window=W, ...))</code>, the same for <code>RegionRecognizer(spec, backend, labels=..., pad=...)</code> →
+  <code>RegionRecognizer(Chat(...), labels=..., pad=...)</code>; either also takes a chat preset's ref (<code>PageRecognizer(
+  "dots-ocr")</code>: on the task's <code>ChatModelServer</code>, port 8000). The adapter is <code>block.adapter</code> (was <code>block.spec</code>), the
+  served name <code>Chat.served_name</code> (was the <code>Served</code> backend's <code>model</code>). Without an endpoint <code>Chat</code> asks
+  <code>http://127.0.0.1:8000/v1</code>. The page records are unchanged.</li>
+<li>The run record: a chat block's parameters are <code>backend</code> (<code>{"backend": "chat", "adapter", "preset",
+  "preset_sha256", "model", "revision", "served_name", "endpoint", ...}</code>) instead of <code>spec</code> and a served <code>backend</code>;
+  <code>pipeline_sha256</code> covers the adapter, preset edition and hash, model and revision (no longer the served name), so
+  a run of <code>transcribe_vlm.py</code> into an OUT of before is refused unless <code>--new-pipeline</code>.</li>
+<li><code>ModelBlock</code> streams for every served block, and a block names its requests with <code>_rows</code>, <code>_unit</code>, <code>_request</code>,
+  <code>_parse</code> and <code>_done</code> (an own served block that overrode <code>_run_served</code> or <code>RegionRecognizer._run_regions</code> uses
+  them). Model blocks also take a preset ref as their backend (<code>LayoutDetector("pp-doclayoutv3@1")</code>: in-process).</li>
+<li><code>SingleRegionLayout</code> is removed: <code>SingleRegionLayout()</code> → <code>LayoutDetector("single-region@1")</code> (the built-in engine
+  <code>layout.single-region.v1</code>; <code>label</code> and <code>region_id</code> are its options). The region is the same; the page now
+  records a layout step for it (engine, preset, settings, <code>seconds</code>, <code>datetime</code>), which page files list too, and the
+  block reads the page image instead of the record's size. <code>ModularTranscriber(lines, recognition)</code> needs its
+  layout: <code>ModularTranscriber(lines, recognition, "single-region@1")</code>.</li>
+<li><code>pipelines/transcribe_modular.py</code> needs <code>--layout</code> like <code>--lines</code> and <code>--recognition</code>: a run without one is
+  <code>--layout single-region</code>. Presets of built-in engines stay in-process with <code>--backend served</code>
+  (<code>runtime.run.engines</code>), and the pipelines' <code>serve</code> leaves them out.</li>
+<li><code>ManifestReader(existing_ocr=True)</code> only fetches the library's OCR, as a document media with
+  <code>metadata["format"]</code> (<code>alto</code>, <code>hocr</code>); its contract adds <code>transcription_file</code> (a new page-level part) instead of
+  <code>ocr_original:*</code>. The <code>TranscriptionConverter</code> reads it into <code>ocr_original</code>: the builder puts one right after
+  such a reader when no block reads the file, and <code>pipelines/harvest.py</code> has its own, so <code>OUT/ocr/</code> and the page
+  records are as before. Its hash changes (a new block), so a harvest into an OUT of before needs <code>--new-pipeline</code>.
+  A file that cannot be read is now the page's error (it goes to <code>rejects/</code>; before, the page went on without it
+  and <code>ocr_failed</code> counted it); a failed download is still counted as <code>ocr_failed</code>. hOCR files that state another
+  image size are scaled to the page image (before: read as they were).</li>
+<li><code>PARTS</code> gains <code>transcription_file</code> (no released hash changes).</li>
+<li>A new extra, <code>[pypdfium2]</code>, for the <code>PdfReader</code>; the locks list it.</li>
+</ul>
+<p><strong>Phase 5: docs</strong></p>
+<ul>
+<li><code>linecaster catalog docs [--out docs/catalog] [--readme README.md]</code> → <code>linecaster docs [--out docs] [--readme
+  README.md] [--check]</code>: <code>--out</code> is now the docs folder (the catalog's pages go to <code>&lt;out&gt;/catalog/</code>). It also writes
+  the block pages, the README's block table (between <code>&lt;!-- blocks:start --&gt;</code> / <code>&lt;!-- blocks:end --&gt;</code>), the site's
+  <code>docs/index.md</code> and <code>docs/changelog.md</code>, and <code>docs/llms.txt</code> / <code>docs/llms-full.txt</code>; <code>--check</code> writes nothing and
+  exits with 1, naming each file that differs. <code>linecaster catalog</code> no longer has the action <code>docs</code>.</li>
+<li>Generated pages start with a comment saying so; their links to files outside <code>docs/</code> (sources, pipeline scripts,
+  model cards) go to GitHub. The evidence tables have two more columns, Hardware and Backend.</li>
+<li>A new dependency group, <code>docs</code> (MkDocs and Material), not an extra: <code>uv run --group docs mkdocs build --strict</code>.</li>
+<li><code>CLAUDE.md</code> holds rules only; what it described is in <code>docs/reference/architecture.md</code>, the data model and
+  serialization pages.</li>
+</ul>
+<p><strong>Phase 6: tests and engine hygiene</strong></p>
+<ul>
+<li>Contracts name the parts a block removes (<code>Contract.removes</code>, <code>parts_removed</code>; the run record's contracts and
+  <code>schemas/run-record-1.json</code> have <code>removes</code>). <code>ImageConverter</code> without <code>keep_bytes</code> removes <code>image</code>: a pipeline in
+  which a later block reads the image (without an <code>ImageFetcher</code> in between) no longer passes the builder's check;
+  it failed on its first page before.</li>
+<li><code>RegionRecognizer(pad=None)</code>: an explicit <code>pad</code> wins over the adapter's <code>region_pad</code>, which is the default (else
+  8). Callers that passed <code>pad</code> with a preset that has a <code>region_pad</code> (<code>minicpm-ocr-1.0</code>: 0,
+  <code>lightonocr-2-1b-regions</code>: 8) now get their <code>pad</code>. The run record names <code>pad: null</code> when none is given, so
+  <code>pipeline_sha256</code> of a pipeline with a <code>RegionRecognizer</code> changes (no released recipe has one): resuming into an
+  older run folder needs <code>--new-pipeline</code>.</li>
+<li>Engine packages are version 0.1.0 and depend on <code>linecaster&gt;=0.0.1,&lt;0.2</code>; they import from linecaster only
+  <code>linecaster.data</code> and <code>linecaster.engines.api</code>. A derivative's own engine package should do the same.</li>
+<li>Tests: pytest runs with <code>--strict-markers</code>; <code>tests/conftest.py</code>'s <code>make_transcription</code> is
+  <code>linecaster.testing.sample_transcription</code>.</li>
+</ul>
+<p><strong>Every rename, old → new</strong></p>
+<p><strong>Blocks</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+<th>Family</th>
+<th>Phase</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PageStep</code></td>
+<td><code>PageBlock</code></td>
+<td>base</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ModelStep</code></td>
+<td><code>ModelBlock</code></td>
+<td>base</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>WorkingImages</code></td>
+<td><code>ImageConverter</code> (preset <code>working-image@1</code> in phase 3)</td>
+<td>conversion</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>AttachImage</code></td>
+<td><code>ImageFetcher</code></td>
+<td>conversion</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>LayoutStep</code></td>
+<td><code>LayoutDetector</code></td>
+<td>layout</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>SingleRegionLayout</code></td>
+<td><code>LayoutDetector</code> with the engine <code>layout.single-region.v1</code></td>
+<td>layout</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>LinesStep</code></td>
+<td><code>LineDetector</code></td>
+<td>lines</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>AssignLinesToRegions</code></td>
+<td><code>LineAssigner</code></td>
+<td>lines</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>RecognitionStep</code></td>
+<td><code>LineRecognizer</code></td>
+<td>recognition</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ChatRegionStep</code></td>
+<td><code>RegionRecognizer</code> (backend <code>chat</code> in phase 4)</td>
+<td>recognition</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ChatPageStep</code></td>
+<td><code>PageRecognizer</code> (backend <code>chat</code> in phase 4)</td>
+<td>recognition</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>TablesStep</code></td>
+<td><code>TableRecognizer</code></td>
+<td>recognition</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>FormulasStep</code></td>
+<td><code>FormulaRecognizer</code></td>
+<td>recognition</td>
+<td>1</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>TranscriptionConverter</code></td>
+<td>conversion</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>NormalizeUnicode</code></td>
+<td><code>UnicodeNormalizer</code></td>
+<td>text</td>
+<td>1</td>
+</tr>
+<tr>
+<td>(inside <code>text.py</code>)</td>
+<td><code>CharacterNormalizer</code></td>
+<td>text</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>Typography</code></td>
+<td><code>Typographer</code></td>
+<td>composition</td>
+<td>1</td>
+</tr>
+<tr>
+<td>(inside <code>document.py</code>, <code>text.py</code>)</td>
+<td><code>Recomposer</code></td>
+<td>composition</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>ComposePage</code></td>
+<td><code>Composer</code></td>
+<td>composition</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>BindItem</code>, <code>ItemTexts</code></td>
+<td><code>Binder</code> (+ <code>Recomposer</code>, <code>Composer</code> at the item level, + item writers)</td>
+<td>binding</td>
+<td>3</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>Splitter</code></td>
+<td>binding</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>ValidatePages</code></td>
+<td><code>PageValidator</code></td>
+<td>validation</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>RejectSink</code></td>
+<td><code>RejectWriter</code></td>
+<td>writers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>RecipeStamp</code></td>
+<td><code>RecipeStamper</code></td>
+<td>validation</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ServeModels</code></td>
+<td><code>ModelServer</code></td>
+<td>servers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ServeChatModel</code></td>
+<td><code>ChatModelServer</code></td>
+<td>servers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>PageFilesWriter</code>, <code>PageExportsWriter</code></td>
+<td><code>PageFileWriter</code></td>
+<td>writers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ItemExportsWriter</code></td>
+<td><code>ItemDocumentWriter</code></td>
+<td>writers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>ItemTextJsonlWriter</code>, <code>ItemTextFilesWriter</code></td>
+<td><code>ItemTextWriter</code></td>
+<td>writers</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>PageRowReader</code></td>
+<td><code>PageRecordReader</code></td>
+<td>readers</td>
+<td>1</td>
+</tr>
+<tr>
+<td>other readers, <code>PageJsonlWriter</code>, <code>PageParquetWriter</code>, <code>ImageFilesWriter</code></td>
+<td>unchanged</td>
+<td>readers, writers</td>
+<td></td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>ModularTranscriber</code> (composite)</td>
+<td>composites</td>
+<td>2</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>PdfReader</code> (skeleton)</td>
+<td>readers</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Engines, adapters</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KrakenRecognitionModel</code>, <code>PaddleLayoutModel</code>, <code>PaddleLineModel</code>, <code>PaddleRecognitionModel</code>, <code>PaddleTableModel</code>, <code>PaddleFormulaModel</code>, <code>TesseractRecognitionModel</code></td>
+<td><code>…Engine</code> (ids unchanged)</td>
+</tr>
+<tr>
+<td><code>linecaster.models</code></td>
+<td><code>linecaster.adapters</code></td>
+</tr>
+<tr>
+<td><code>ChatModel</code>, <code>ChatPreset</code></td>
+<td><code>ChatAdapter</code>, <code>ChatPreset</code></td>
+</tr>
+<tr>
+<td><code>ChandraOCR</code>, <code>DeepSeekOCR</code>, <code>Dots</code>, … (<code>ADAPTERS</code>)</td>
+<td><code>…Adapter</code>; <code>ADAPTERS</code> stays the one registry</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pipeline scripts, ids, slots, flags</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pipelines/transcribe_chain.py</code>, id <code>chain.v1</code></td>
+<td><code>pipelines/transcribe_modular.py</code>, id <code>transcribe_modular.v1</code></td>
+</tr>
+<tr>
+<td><code>pipelines/transcribe_vlm.py</code>, id <code>vlm.v1</code></td>
+<td>id <code>transcribe_vlm.v1</code>; slot <code>vlm</code> → <code>recognition</code></td>
+</tr>
+<tr>
+<td><code>pipelines/harvest.py</code>, no id</td>
+<td>id <code>harvest.v1</code></td>
+</tr>
+<tr>
+<td><code>pipelines/bind.py</code>, no id</td>
+<td>id <code>bind.v1</code></td>
+</tr>
+<tr>
+<td><code>--recognizer</code></td>
+<td><code>--recognition</code></td>
+</tr>
+<tr>
+<td><code>--vlm</code>, <code>--vlm-endpoint</code></td>
+<td><code>--recognition</code>, <code>--recognition-endpoint</code></td>
+</tr>
+<tr>
+<td><code>--text lines\|reflow</code></td>
+<td><code>--recomposition PRESET</code></td>
+</tr>
+<tr>
+<td><code>--texts DIR</code></td>
+<td><code>--item-texts DIR</code></td>
+</tr>
+<tr>
+<td><code>--files</code>, <code>--exports</code></td>
+<td><code>--files</code> with every per-page format</td>
+</tr>
+<tr>
+<td><code>--rows DIR</code>, <code>OUT/rows/</code></td>
+<td><code>--pages DIR</code>, <code>OUT/pages/</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Catalog</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STEPS = layout, lines, recognition, tables, formulas, page</code></td>
+<td><code>layout, lines, recognition, tables, formulas, image, normalization, typography, recomposition, composition</code></td>
+</tr>
+<tr>
+<td><code>presets/page/</code></td>
+<td><code>presets/recognition/</code></td>
+</tr>
+<tr>
+<td><code>&lt;id&gt;.md</code> with YAML front matter</td>
+<td><code>&lt;id&gt;.yaml</code> + <code>&lt;id&gt;.md</code></td>
+</tr>
+<tr>
+<td><code>models/&lt;id&gt;/model.md</code></td>
+<td><code>models/&lt;id&gt;/model.yaml</code> + <code>model.md</code></td>
+</tr>
+<tr>
+<td><code>catalog.lock</code></td>
+<td>lock format <code>linecaster.lock/2</code></td>
+</tr>
+<tr>
+<td>"component" (the umbrella word)</td>
+<td>"catalog entry"</td>
+</tr>
+<tr>
+<td>"catalog"</td>
+<td>"catalog"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data model</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+<th>Phase</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ModelInfo</code></td>
+<td><code>StepInfo</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>Transcription.model</code></td>
+<td><code>Transcription.steps</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>Transcription.paragraphs</code> (<code>Paragraph</code>)</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>measurements</code> (free keys)</td>
+<td>a fixed vocabulary</td>
+<td>3</td>
+</tr>
+<tr>
+<td>transcription name <code>ocr</code></td>
+<td><code>ocr_new</code></td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Modules</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transcription/model.py</code>, <code>page.py</code>, <code>geometry/</code></td>
+<td><code>data/transcription.py</code>, <code>data/page.py</code>, <code>data/geometry/</code></td>
+</tr>
+<tr>
+<td><code>transcription/alto.py</code>, <code>pagexml.py</code>, <code>hocr.py</code>, <code>_xml.py</code>, <code>_provenance.py</code></td>
+<td><code>formats/</code></td>
+</tr>
+<tr>
+<td><code>document.py</code> (DoclingDocument building and exports)</td>
+<td><code>formats/docling.py</code> (exports); the building moves to <code>engines/composition.py</code> (phase 3)</td>
+</tr>
+<tr>
+<td><code>text.py</code>, <code>unicode.py</code>, <code>reflow.py</code>, <code>retyper.py</code></td>
+<td><code>text/variants.py</code>, <code>text/unicode.py</code>, <code>text/recomposition.py</code>, <code>text/typography.py</code></td>
+</tr>
+<tr>
+<td><code>images.py</code>, <code>plots.py</code></td>
+<td><code>images/convert.py</code>, <code>images/plots.py</code></td>
+</tr>
+<tr>
+<td><code>blocks/*.py</code> (17 flat modules)</td>
+<td><code>blocks/&lt;family&gt;/</code></td>
+</tr>
+<tr>
+<td><code>blocks/http.py</code></td>
+<td><code>net/http.py</code></td>
+</tr>
+<tr>
+<td><code>backends/</code></td>
+<td><code>backends/in_process.py</code>, <code>served.py</code>, <code>chat.py</code></td>
+</tr>
+<tr>
+<td><code>models/</code></td>
+<td><code>adapters/</code></td>
+</tr>
+<tr>
+<td><code>run.py</code>, <code>jobs.py</code>, <code>ray_executor.py</code>, <code>provenance.py</code></td>
+<td><code>runtime/</code></td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>engines/</code> (built-in), <code>tracing/</code>, <code>testing/</code>, <code>runtime/builder.py</code></td>
+</tr>
+<tr>
+<td><code>specs/</code></td>
+<td><code>docs/reference/</code></td>
+</tr>
+<tr>
+<td><code>tests/test_*.py</code> (flat)</td>
+<td><code>tests/</code> mirroring <code>src/linecaster/</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Terms in prose</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chain, the chain pipeline</td>
+<td>the modular pipeline (<code>transcribe_modular</code>)</td>
+</tr>
+<tr>
+<td>document assembly, reflow</td>
+<td>composition, recomposition</td>
+</tr>
+<tr>
+<td>text version</td>
+<td>text variant</td>
+</tr>
+<tr>
+<td>axes</td>
+<td>dimensions</td>
+</tr>
+<tr>
+<td>book (generic)</td>
+<td>item</td>
+</tr>
+<tr>
+<td>page row, record</td>
+<td>page record</td>
+</tr>
+<tr>
+<td>model (for a page preset, an engine class or an adapter)</td>
+<td>page preset, engine, adapter</td>
+</tr>
+<tr>
+<td>connector</td>
+<td>reader</td>
+</tr>
+<tr>
+<td>British spelling</td>
+<td>American spelling</td>
+</tr>
+</tbody>
+</table>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>linecaster.testing</code>: sample pages (<code>sample_page</code>, <code>sample_boxes</code>, <code>sample_png</code>, <code>sample_layout</code>,
+  <code>sample_document</code>, <code>sample_documents</code>, <code>sample_transcription</code>); fake CPU engines (<code>FakeLayoutEngine</code>,
+  <code>FakeLineEngine</code>, <code>FakeRecognitionEngine</code>, <code>FakeTableEngine</code>, <code>FakeFormulaEngine</code>), registered as
+  <code>fake.&lt;step&gt;.v1</code> by <code>register_fakes()</code> (<code>catalog.registry.REGISTERED</code>); <code>fake_chat_server()</code> and <code>completion()</code>;
+  the conformance checks <code>check_engine</code> and <code>check_block</code> (with <code>transcription_changes</code> and <code>page_changes</code>); the
+  pytest markers and hooks (<code>linecaster.testing.markers</code>). Every built-in engine and every public block has a
+  conformance test.</li>
+<li><code>linecaster.engines.api</code>: the <code>Engine</code> protocol, <code>Capabilities</code>, <code>weights_of</code>, <code>hf_file</code>, <code>hf_snapshot</code>,
+  <code>model_entry</code>.</li>
+<li>Markers <code>gpu</code>, <code>network</code>, <code>slow</code>, <code>parity</code>; <code>gpu</code> and <code>network</code> tests skip where the device or the network is
+  missing.</li>
+<li>Tests of each engine package in <code>engines/&lt;engine&gt;/tests/</code> (conformance on the CPU, and on CUDA for kraken, and
+  units), run with <code>uv run tests/test_engines_catalog.py engines/&lt;engine&gt;/tests</code>; the engine READMEs give the install
+  and test commands.</li>
+<li>A missing engine's <code>CatalogError</code> names the engine package that provides it and the pipeline scripts that install
+  it (<code>catalog.code.install_hint</code>).</li>
+<li>The CI workflow <code>.github/workflows/ci.yml</code> (CPU, no secrets): <code>uv sync --locked --all-extras</code>, the tests without <code>gpu</code>,
+  <code>network</code> and <code>parity</code>, <code>linecaster docs --check</code>, <code>linecaster catalog verify</code>, the strict site build.</li>
+<li>
+<p><code>tests/integration/ray_data_spike.py</code>: the squiddle blocks through Ray Data (NOTES.md, 2026-11-06).</p>
+</li>
+<li>
+<p>The block pages (<code>docs/blocks/</code>): an index by family and a page per block with its contract, backends, catalog
+  step and presets, where it comes in a pipeline, the pipeline scripts that use it, its options, behavior and
+  example, all from code; blocks whose constructor needs arguments declare <code>docs_args</code> for them.</p>
+</li>
+<li>The docstring standard (<code>docs/reference/conventions.md</code>, "Docstrings") and <code>tests/test_docstrings.py</code>: every
+  public block, built-in engine, backend, serializer, <code>build</code>, <code>run_pages</code>, <code>runtime.run.main</code> and public catalog
+  function has a summary line and <code>Args:</code> for its whole signature; examples for the serializers, <code>build</code>, <code>main</code> and
+  the catalog functions.</li>
+<li><code>docs/reference/architecture.md</code>, <code>docs/reference/compatibility.md</code> (what counts as a breaking change), READMEs
+  for the engine packages, and the docs site (<code>mkdocs.yml</code>).</li>
+<li>
+<p>Tests: the generated docs are current, and the README's "Your own pipeline" builds and checks.</p>
+</li>
+<li>
+<p>The <code>Chat</code> backend (<code>linecaster.backends.Chat</code>) for <code>PageRecognizer</code> and <code>RegionRecognizer</code>.</p>
+</li>
+<li><code>TranscriptionConverter(format="auto"|"alto"|"page"|"hocr"|"text", source="media"|"uri",
+  transcription="ocr_original", uri_key=None)</code> (conversion): a library's own transcription delivered with the page,
+  or named by a URI in its metadata, read at the page image's size.</li>
+<li>The engine <code>layout.single-region.v1</code> and its preset <code>single-region@1</code>.</li>
+<li>IIIF Collections (a skeleton): <code>ManifestReader</code> reads a collection entry as its manifests, one item each, one level
+  deep (a collection in a collection raises <code>NotImplementedError</code>), with pybookget's <code>read_collection</code> (a pybookget
+  that has it).</li>
+<li><code>PdfReader(data_folder, paths_file=None, glob_pattern="**/*.pdf", dpi=300, ...)</code> (a skeleton, extra
+  <code>[pypdfium2]</code>): one item per PDF, its pages rendered as lossless WebP; the text layer (<code>text_layer=True</code>) raises
+  <code>NotImplementedError</code>.</li>
+<li>Block contracts (<code>contract()</code>, <code>Part</code>, <code>Contract</code>, <code>PARTS</code>), the builder (<code>linecaster.runtime.builder</code>: <code>build</code>,
+  <code>Plan</code>, checks, branches with <code>when=</code>/<code>group=</code>, composites, stages, <code>run_pages</code>), observers
+  (<code>linecaster.runtime.observers</code>), the composite <code>ModularTranscriber</code>, the error classes (<code>linecaster.errors</code>),
+  partial runs (<code>--until</code>, <code>--after</code>, <code>--tap-after</code>), <code>--page IMAGE</code> and <code>linecaster page</code>;
+  <code>docs/reference/pipelines.md</code>.</li>
+<li><code>docs/reference/glossary.md</code> and <code>docs/reference/conventions.md</code>.</li>
+<li><code>warm_up()</code> on every block and backend, with the observers' <code>on_warm_up(block, seconds)</code>; per-page failures,
+  <code>RejectWriter</code> as a block, the error budget (<code>--max-page-errors</code>, <code>build(max_page_errors=...)</code>).</li>
+<li><code>to_dict()</code> on every block, backend and chat adapter; the run record's pydantic model
+  (<code>linecaster.runtime.record.RunRecord</code>, <code>schemas/run-record-1.json</code>); <code>provenance.functional_pipeline</code> and
+  <code>pipeline_sha256</code>; <code>--new-pipeline</code>.</li>
+<li>The describe mode (<code>runtime.run.describe_script</code>, <code>describe_recipe</code>, <code>load_script</code>, <code>parse</code>); a recipe edition's
+  expanded pipeline in the lock (<code>pipeline</code>, <code>pipeline_sha256</code>), checked by <code>catalog verify</code>; <code>catalog release
+  --migrate-pipeline</code>. <code>squiddle@1</code> has its pipeline recorded.</li>
+<li>Secrets as references: <code>linecaster.runtime.secrets.EnvVar</code>; <code>Served(api_key=..., headers=...)</code>.</li>
+<li><code>linecaster.runtime.logs</code> (JSON-lines task logs), <code>runtime.jobs.JobsExecutor</code>.</li>
+<li>Tracing (<code>linecaster.tracing</code>, <code>docs/reference/tracing.md</code>): task spans, page traces sampled by page id
+  (<code>--trace-sample</code>, <code>build(trace_sample=...)</code>, default 0.01) plus every failed page, <code>OUT/traces/&lt;rank&gt;.jsonl.gz</code>
+  (OTLP JSON lines) and OTLP/HTTP when the <code>OTEL_*</code> variables say so; served blocks send the page's <code>traceparent</code>
+  in the request body and <code>linecaster serve</code> continues it (<code>--traces FILE</code>, <code>LINECASTER_TRACES</code>);
+  <code>ChatModelServer</code> starts vLLM with <code>--otlp-traces-endpoint</code> when OTLP is configured; fetch spans from
+  <code>net.http.HTTPFetcher</code> (<code>fetch_record</code>); <code>trace_id</code> and <code>span_id</code> on log records; <code>linecaster traces OUT [--by
+  block|preset|task] [--slowest N] [--json]</code>.</li>
+<li>Rule-based engines (<code>linecaster.engines</code>): <code>image.webp-lossless.v1</code>, <code>normalization.latin-historic.v1</code>,
+  <code>typography.ratios.v1</code>, <code>recomposition.unicode.v1</code>, <code>composition.docling.v1</code>, the engine protocol for page and
+  item units, and dispatch by script (<code>ScriptDispatch</code>, <code>linecaster.engines.scripts</code>, <code>normalization.by-script.v1</code>,
+  <code>recomposition.by-script.v1</code>, a preset's <code>by_script</code>); their pages in <code>docs/catalog/engines/</code>. Every threshold of
+  the typography and the recomposition is an option (today's values the defaults). The recomposition makes
+  <code>Transcription.paragraphs</code> with their rows and decisions (division marks removed and hyphens kept with the reason,
+  paragraph breaks, continuations with their separator), continues paragraphs across regions and, recomposing an
+  item, across pages (a page number between them does not close one), grows the item's lexicon page by page, and
+  recomposes text-only transcriptions (a region one paragraph); <code>CharacterNormalizer</code> fills <code>Paragraph.normalized</code>
+  too.</li>
+<li>Presets of the rule-based steps, edition 1: <code>working-image</code>, <code>latin-historic</code>, <code>ratios</code>, <code>unicode-recomposition</code>,
+  <code>docling-composition</code>; <code>pipelines/transcribe_modular.py</code> runs <code>ratios@1</code>, <code>unicode-recomposition@1</code> (with <code>--text
+  reflow</code>) and <code>docling-composition@1</code>.</li>
+<li>Item records in a stream (<code>linecaster.blocks.base.item</code>: <code>doc.metadata["item"]</code>, the pages in order) for the
+  item-unit <code>Recomposer</code>, <code>CharacterNormalizer</code> and <code>Composer</code>; <code>Binder</code> (pages → item records) and <code>Splitter</code> (item
+  records → pages, with what the item-level steps added); the recipe <code>item-texts@1</code> (<code>bind.v1</code>).</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>PageRecordReader(fetch_images=True)</code>, <code>ImageFetcher</code> and <code>ImageConverter</code> dropped the fragment of
+  <code>page.image.uri</code> and fetched the whole file: for a <code>PdfReader</code> page (<code>file.pdf#page=n</code>) the PDF, for an
+  <code>ImageParquetReader</code> row with embedded bytes the Parquet file. A PDF page is now rendered as <code>PdfReader</code> renders it
+  (at the record's <code>metadata["pdf"]["dpi"]</code>), a Parquet row's image read (columns <code>id</code> and <code>image</code>), and any other
+  fragment is the page's error (field <code>image</code>), never the wrong bytes (<code>linecaster.blocks.readers.fragments</code>).</li>
+<li><code>ImageConverter</code> without <code>keep_bytes</code> declared only <code>metadata</code> replaced although the page leaves without its image
+  bytes: its contract now removes <code>image</code>, so the builder no longer treats the image as available after it.</li>
+<li><code>ImageFilesWriter</code> rewrites <code>page.image.uri</code> and <code>extra</code> (to name the copy) without declaring it: its contract now
+  replaces <code>metadata</code>.</li>
+<li><code>RegionRecognizer</code> replaces the transcription's earlier lines but declared <code>lines</code> only as added: its contract now
+  replaces <code>lines</code> and <code>text</code>, so it may follow a line step.</li>
+<li><code>RegionRecognizer</code> ignored an explicit <code>pad</code> when the adapter has a <code>region_pad</code>.</li>
+<li><code>RegionRecognizer</code> failed the task on a page without image bytes; the page now carries the error (found by
+  <code>check_block</code>).</li>
+<li>
+<p><code>PageValidator(required=("image",))</code> declared that it reads the image bytes, although it checks the page record's
+  <code>image</code> entry: a page field is now read as <code>metadata</code>, so the validator may follow an <code>ImageConverter</code> that
+  removes the bytes.</p>
+</li>
+<li>
+<p><code>PageParquetWriter</code> writes a fixed schema: datatrove took a file's columns from its first row, so a page's
+  <code>errors</code> were dropped when the first page of a file had none. Page records in Parquet now always have an <code>errors</code>
+  column (null without errors).</p>
+</li>
+<li>Tracing holds no page documents: a page a block drops no longer stays in memory, with its image, until the task
+  ends; its trace ends when the next page enters that block.</li>
+<li>A sampled page's <code>metadata.trace_id</code> is derived from the run and the page id, so a rerun of a run writes the same
+  page records.</li>
+<li><code>runtime.jobs.dependencies()</code> reads the pipeline script and its lock as they are at the commit the Jobs install,
+  not as the checkout holds them (with a warning when the commit is not in the checkout).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
