@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: surya-ocr-2.5
+edition: 1
+step: recognition
+model:
+  id: surya-ocr-2.5
+  revision: 00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3
+engine: surya.recognition.v1
+options:
+  gpu_type: a100-80
+  fullpage_regen: false
+serve:
+  server: vllm
+  version: 0.25.1
+  image: vllm/vllm-openai:v0.25.1@sha256:e4f88a835143cd22aee2397a26ec6bb80b3a4a6fe0c882bcbc63822904766089
+  flags:
+  - --no-enforce-eager
+  - --max-num-seqs
+  - '104'
+  - --dtype
+  - bfloat16
+  - --max-model-len
+  - '24576'
+  - --max-num-batched-tokens
+  - '16384'
+  - --gpu-memory-utilization
+  - '0.85'
+  - --enable-prefix-caching
+  - --mm-processor-kwargs
+  - '{"min_pixels": 3136, "max_pixels": 6291456}'
+capabilities:
+  unit: page
+  produces:
+  - lines
+  - text
+  - html
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/surya-ocr25-port.py
+  - pypi.org/project/surya-ocr/0.23.0:surya/inference/backends/vllm.py
+  - datalab-to/surya-ocr-2.5@00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3:README.md
+  created: 2026-11-06
+support: experimental

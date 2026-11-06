@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: oxr-1.0
+edition: 1
+step: recognition
+model:
+  id: oxr-1.0
+  revision: c708407f9d2b4df658f2543d9132b62bb7221df4
+engine: oxr.recognition.v1
+options:
+  output_formats:
+  - markdown
+  - json
+serve:
+  server: vendor
+  version: 0.25.1
+  image: cr.hf.co/davanstrien/oxr@sha256:aa6a4fb538bd58e19d0d032d6ed7e6ddb53bc524b64361ecb554b72ffdab233d
+  command:
+  - /opt/oxr-venv/bin/python
+  - /app/docker/allinone_entrypoint.py
+  env:
+    MODEL_PATH: /models/oxr-model
+    OXR_API_HOST: 127.0.0.1
+  weights_dir: /models/oxr-model
+  health:
+  - http://127.0.0.1:8000/docs
+capabilities:
+  unit: page
+  produces:
+  - lines
+  - text
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/oxr-port.py
+  - github.com/SoMarkAI/OXR@c1a1dcb312ee9f691404f127785510453c0d9350:docker/allinone_entrypoint.py
+  created: 2026-11-06
+support: experimental
