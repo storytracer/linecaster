@@ -872,6 +872,7 @@ provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
 docs = [
+    { name = "mike", specifier = ">=2.1,<3" },
     { name = "mkdocs", specifier = ">=1.6,<2" },
     { name = "mkdocs-material", specifier = ">=9.6,<10" },
 ]

@@ -4,6 +4,13 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- Versioned docs: the docs workflow publishes the site with mike on every release tag (version `<major>.<minor>`,
+  `latest` the newest) to the `gh-pages` branch, served by GitHub Pages; `mike` joins the dependency group `docs`.
+
 ## 0.1.0 (2026-11-06)
 
 ### Upgrade notes

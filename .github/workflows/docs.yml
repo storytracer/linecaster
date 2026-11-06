@@ -1,0 +1,38 @@
+# linecaster's docs workflow: on a release tag (v<major>.<minor>.<patch>), the site is built and published with mike
+# as version <major>.<minor> on the gh-pages branch, "latest" moved to it. GitHub Pages serves that branch. No secrets.
+name: Docs
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          # the project's [tool.uv] required-version
+          version: "0.13.6"
+          python-version: "3.12"
+      - run: git fetch origin gh-pages --depth=1 || true
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Publish the tag's version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%.*}"
+          uv run --only-group docs mike deploy --push --update-aliases "$version" latest
+          uv run --only-group docs mike set-default --push latest

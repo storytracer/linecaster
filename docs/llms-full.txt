@@ -1150,7 +1150,10 @@ with a range of linecaster releases, and their tests in `engines/<engine>/tests/
 `network`, `slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
 (`.github/workflows/ci.yml`, CPU only, no secrets) runs `uv sync --locked --all-extras` (the extras' readers are
 tested and documented too), `uv run pytest -m "not gpu and not network and not parity"`, `linecaster docs
---check`, `linecaster catalog verify` and the site's strict build. The engines' environments are too large for it
+--check`, `linecaster catalog verify` and the site's strict build. The docs workflow (`.github/workflows/docs.yml`)
+publishes the site on a release tag `v<major>.<minor>.<patch>` with mike as version `<major>.<minor>` on the
+`gh-pages` branch, which GitHub Pages serves (`https://storytracer.github.io/linecaster/`); `latest` points to the
+newest release. There are docs for releases only, none for `main`. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
 scripts (`tests/test_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
 (`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public

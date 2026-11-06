@@ -68,3 +68,9 @@ nav:
   - Blocks: blocks/README.md
   - Catalog: catalog/README.md
   - Changelog: changelog.md
+
+# versioned docs (mike): one folder per release on the gh-pages branch, "latest" the newest
+extra:
+  version:
+    provider: mike
+    default: latest
