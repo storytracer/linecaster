@@ -1081,7 +1081,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io"] },
@@ -1148,7 +1148,7 @@ dependencies = [
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", specifier = ">=7.1.0" },
-    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.2" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
     { name = "torch", specifier = "==2.14.0" },
@@ -1178,7 +1178,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.2" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
@@ -1206,7 +1206,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.2" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },

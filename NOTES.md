@@ -2,6 +2,14 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The refactoring of November 2026 (2026-11-06)
+
+Six phases, each merged into main after the suite and the goldens (sample-60, 60/60 pages exact): the decisions on
+paper (glossary, conventions); renames, layout and the catalog format; tracing, contracts and the builder; rule-based
+steps as catalog engines, recomposition and binding; backends and families (the chat backend, converters,
+skeletons); docs; tests and engine hygiene. The plan and the per-phase designs were working documents under
+`docs/plan/`, removed at `v0.1.0`; they are in the history at 9c7fe4e. Every rename is in `CHANGELOG.md` (0.1.0).
+
 ## Ray Data instead of an executor: a spike (2026-11-06, spark)
 
 Could a pipeline's per-page blocks run as Ray Data `map_batches` stages (an actor per block, pages streaming

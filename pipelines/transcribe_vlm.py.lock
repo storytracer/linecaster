@@ -992,7 +992,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io"] },
@@ -1072,7 +1072,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.2" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },

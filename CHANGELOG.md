@@ -4,12 +4,13 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.1.0 (2026-11-06)
 
 ### Upgrade notes
 
-The refactoring in `docs/plan/refactoring.md` lands in phases; each phase's renames are listed here. There are no
-compatibility aliases: old imports, flags and ids fail.
+The first release, after the refactoring of November 2026 in six phases; each phase's renames are listed
+here, and all of them in one table at the end of these notes. There are no compatibility aliases: old imports, flags
+and ids fail.
 
 **Phase 1: layout and names**
 
@@ -228,6 +229,124 @@ compatibility aliases: old imports, flags and ids fail.
   `linecaster.data` and `linecaster.engines.api`. A derivative's own engine package should do the same.
 - Tests: pytest runs with `--strict-markers`; `tests/conftest.py`'s `make_transcription` is
   `linecaster.testing.sample_transcription`.
+
+**Every rename, old → new**
+
+**Blocks**
+
+| Old | New | Family | Phase |
+|---|---|---|---|
+| `PageStep` | `PageBlock` | base | 1 |
+| `ModelStep` | `ModelBlock` | base | 1 |
+| `WorkingImages` | `ImageConverter` (preset `working-image@1` in phase 3) | conversion | 1 |
+| `AttachImage` | `ImageFetcher` | conversion | 1 |
+| `LayoutStep` | `LayoutDetector` | layout | 1 |
+| `SingleRegionLayout` | `LayoutDetector` with the engine `layout.single-region.v1` | layout | 4 |
+| `LinesStep` | `LineDetector` | lines | 1 |
+| `AssignLinesToRegions` | `LineAssigner` | lines | 1 |
+| `RecognitionStep` | `LineRecognizer` | recognition | 1 |
+| `ChatRegionStep` | `RegionRecognizer` (backend `chat` in phase 4) | recognition | 1 |
+| `ChatPageStep` | `PageRecognizer` (backend `chat` in phase 4) | recognition | 1 |
+| `TablesStep` | `TableRecognizer` | recognition | 1 |
+| `FormulasStep` | `FormulaRecognizer` | recognition | 1 |
+| — | `TranscriptionConverter` | conversion | 4 |
+| `NormalizeUnicode` | `UnicodeNormalizer` | text | 1 |
+| (inside `text.py`) | `CharacterNormalizer` | text | 3 |
+| `Typography` | `Typographer` | composition | 1 |
+| (inside `document.py`, `text.py`) | `Recomposer` | composition | 3 |
+| `ComposePage` | `Composer` | composition | 1 |
+| `BindItem`, `ItemTexts` | `Binder` (+ `Recomposer`, `Composer` at the item level, + item writers) | binding | 3 |
+| — | `Splitter` | binding | 3 |
+| `ValidatePages` | `PageValidator` | validation | 1 |
+| `RejectSink` | `RejectWriter` | writers | 1 |
+| `RecipeStamp` | `RecipeStamper` | validation | 1 |
+| `ServeModels` | `ModelServer` | servers | 1 |
+| `ServeChatModel` | `ChatModelServer` | servers | 1 |
+| `PageFilesWriter`, `PageExportsWriter` | `PageFileWriter` | writers | 1 |
+| `ItemExportsWriter` | `ItemDocumentWriter` | writers | 1 |
+| `ItemTextJsonlWriter`, `ItemTextFilesWriter` | `ItemTextWriter` | writers | 1 |
+| `PageRowReader` | `PageRecordReader` | readers | 1 |
+| other readers, `PageJsonlWriter`, `PageParquetWriter`, `ImageFilesWriter` | unchanged | readers, writers | |
+| — | `ModularTranscriber` (composite) | composites | 2 |
+| — | `PdfReader` (skeleton) | readers | 4 |
+
+**Engines, adapters**
+
+| Old | New |
+|---|---|
+| `KrakenRecognitionModel`, `PaddleLayoutModel`, `PaddleLineModel`, `PaddleRecognitionModel`, `PaddleTableModel`, `PaddleFormulaModel`, `TesseractRecognitionModel` | `…Engine` (ids unchanged) |
+| `linecaster.models` | `linecaster.adapters` |
+| `ChatModel`, `ChatPreset` | `ChatAdapter`, `ChatPreset` |
+| `ChandraOCR`, `DeepSeekOCR`, `Dots`, … (`ADAPTERS`) | `…Adapter`; `ADAPTERS` stays the one registry |
+
+**Pipeline scripts, ids, slots, flags**
+
+| Old | New |
+|---|---|
+| `pipelines/transcribe_chain.py`, id `chain.v1` | `pipelines/transcribe_modular.py`, id `transcribe_modular.v1` |
+| `pipelines/transcribe_vlm.py`, id `vlm.v1` | id `transcribe_vlm.v1`; slot `vlm` → `recognition` |
+| `pipelines/harvest.py`, no id | id `harvest.v1` |
+| `pipelines/bind.py`, no id | id `bind.v1` |
+| `--recognizer` | `--recognition` |
+| `--vlm`, `--vlm-endpoint` | `--recognition`, `--recognition-endpoint` |
+| `--text lines\|reflow` | `--recomposition PRESET` |
+| `--texts DIR` | `--item-texts DIR` |
+| `--files`, `--exports` | `--files` with every per-page format |
+| `--rows DIR`, `OUT/rows/` | `--pages DIR`, `OUT/pages/` |
+
+**Catalog**
+
+| Old | New |
+|---|---|
+| `STEPS = layout, lines, recognition, tables, formulas, page` | `layout, lines, recognition, tables, formulas, image, normalization, typography, recomposition, composition` |
+| `presets/page/` | `presets/recognition/` |
+| `<id>.md` with YAML front matter | `<id>.yaml` + `<id>.md` |
+| `models/<id>/model.md` | `models/<id>/model.yaml` + `model.md` |
+| `catalog.lock` | lock format `linecaster.lock/2` |
+| "component" (the umbrella word) | "catalog entry" |
+| "catalog" | "catalog" |
+
+**Data model**
+
+| Old | New | Phase |
+|---|---|---|
+| `ModelInfo` | `StepInfo` | 3 |
+| `Transcription.model` | `Transcription.steps` | 3 |
+| — | `Transcription.paragraphs` (`Paragraph`) | 3 |
+| `measurements` (free keys) | a fixed vocabulary | 3 |
+| transcription name `ocr` | `ocr_new` | 1 |
+
+**Modules**
+
+| Old | New |
+|---|---|
+| `transcription/model.py`, `page.py`, `geometry/` | `data/transcription.py`, `data/page.py`, `data/geometry/` |
+| `transcription/alto.py`, `pagexml.py`, `hocr.py`, `_xml.py`, `_provenance.py` | `formats/` |
+| `document.py` (DoclingDocument building and exports) | `formats/docling.py` (exports); the building moves to `engines/composition.py` (phase 3) |
+| `text.py`, `unicode.py`, `reflow.py`, `retyper.py` | `text/variants.py`, `text/unicode.py`, `text/recomposition.py`, `text/typography.py` |
+| `images.py`, `plots.py` | `images/convert.py`, `images/plots.py` |
+| `blocks/*.py` (17 flat modules) | `blocks/<family>/` |
+| `blocks/http.py` | `net/http.py` |
+| `backends/` | `backends/in_process.py`, `served.py`, `chat.py` |
+| `models/` | `adapters/` |
+| `run.py`, `jobs.py`, `ray_executor.py`, `provenance.py` | `runtime/` |
+| — | `engines/` (built-in), `tracing/`, `testing/`, `runtime/builder.py` |
+| `specs/` | `docs/reference/` |
+| `tests/test_*.py` (flat) | `tests/` mirroring `src/linecaster/` |
+
+**Terms in prose**
+
+| Old | New |
+|---|---|
+| chain, the chain pipeline | the modular pipeline (`transcribe_modular`) |
+| document assembly, reflow | composition, recomposition |
+| text version | text variant |
+| axes | dimensions |
+| book (generic) | item |
+| page row, record | page record |
+| model (for a page preset, an engine class or an adapter) | page preset, engine, adapter |
+| connector | reader |
+| British spelling | American spelling |
 
 ### Added
 

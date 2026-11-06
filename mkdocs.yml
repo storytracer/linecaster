@@ -10,8 +10,6 @@ edit_uri: blob/main/docs/
 docs_dir: docs
 site_dir: site
 strict: true
-exclude_docs: |
-  plan/
 
 theme:
   name: material
