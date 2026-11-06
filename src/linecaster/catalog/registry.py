@@ -215,13 +215,13 @@ class Catalog:
             content = self.recipe_functional(rc)
             entry = d.lock.recipes.get(rc.ref)
             r = Resolved(rid, rc.edition, content, canonical_sha256(content), released=entry is not None,
-                         previous_sha256=entry.previous_sha256 if entry else None)
+                         previous_sha256=entry.previous if entry else ())
         else:
             entry = d.lock.recipes.get(f"{rid}@{edition}")
             if entry is None:
                 raise CatalogError(f"{rid}@{edition} is neither the current edition ({rc.edition}) nor released")
             r = Resolved(rid, edition, entry.resolved, entry.sha256, released=True,
-                         previous_sha256=entry.previous_sha256)
+                         previous_sha256=entry.previous)
         return r.checked(sha256)
 
     def body(self, pid: str) -> str:
@@ -281,13 +281,13 @@ class Catalog:
             content = self.functional(p)
             entry = d.lock.presets.get(p.ref)
             r = Resolved(pid, p.edition, content, canonical_sha256(content), released=entry is not None,
-                         previous_sha256=entry.previous_sha256 if entry else None)
+                         previous_sha256=entry.previous if entry else ())
         else:
             entry = d.lock.presets.get(f"{pid}@{edition}")
             if entry is None:
                 raise CatalogError(f"{pid}@{edition} is neither the current edition ({p.edition}) nor released")
             r = Resolved(pid, edition, entry.resolved, entry.sha256, released=True,
-                         previous_sha256=entry.previous_sha256)
+                         previous_sha256=entry.previous)
         return r.checked(sha256)
 
     def by_sha256(self, sha256: str) -> "Resolved":
@@ -296,7 +296,7 @@ class Catalog:
         for d in self.dirs:
             for table, resolve in ((d.lock.presets, self.resolve), (d.lock.recipes, self.resolve_recipe)):
                 for key, entry in table.items():
-                    if sha256 in (entry.sha256, entry.previous_sha256):
+                    if sha256 in (entry.sha256, *entry.previous):
                         return resolve(key)
         raise CatalogError(f"no released edition has the hash {sha256}")
 
@@ -501,8 +501,8 @@ class Resolved:
     content: dict
     sha256: str
     released: bool
-    #: its hash before a catalog migration, if that changed it
-    previous_sha256: str | None = None
+    #: its hashes before catalog migrations that changed it, oldest first
+    previous_sha256: tuple[str, ...] = ()
 
     @property
     def ref(self) -> str:
@@ -510,7 +510,7 @@ class Resolved:
 
     def checked(self, sha256: str | None) -> "Resolved":
         """Itself, if ``sha256`` is ``None``, its hash or its previous hash; else a ``ValueError``."""
-        if sha256 is not None and sha256 not in (self.sha256, self.previous_sha256):
+        if sha256 is not None and sha256 not in (self.sha256, *self.previous_sha256):
             raise CatalogError(f"{self.ref} has the hash {self.sha256}, not {sha256}")
         return self
 

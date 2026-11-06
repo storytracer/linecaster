@@ -327,8 +327,9 @@ class Evidence(_Doc):
 
 class LockEntry(_Doc):
     sha256: str
-    previous_sha256: str | None = Field(None, description="the edition's hash before a catalog migration (changes "
-                                                          "that keep behavior); run records may name it")
+    previous_sha256: str | list[str] | None = Field(
+        None, description="the edition's hash before a catalog migration (changes that keep behavior), or its hashes "
+                          "before several, oldest first; run records may name them")
     released: dt.date
     linecaster: str | None = Field(None, description="the linecaster commit it was released in")
     resolved: dict[str, Any]
@@ -336,6 +337,12 @@ class LockEntry(_Doc):
                                                                     "block with its functional parameters")
     pipeline_sha256: str | None = Field(None, description="a recipe edition: the hash of its expanded pipeline, as "
                                                           "run records name it")
+
+    @property
+    def previous(self) -> tuple[str, ...]:
+        """The edition's earlier hashes, oldest first."""
+        p = self.previous_sha256
+        return () if p is None else (p,) if isinstance(p, str) else tuple(p)
 
 
 class Lock(_Doc):

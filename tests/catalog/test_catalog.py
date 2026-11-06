@@ -331,10 +331,10 @@ def test_old_hashes_still_resolve():
     c = Catalog()
     lock = c.dirs[0].lock
     squiddle = lock.recipes["squiddle@1"]
-    assert squiddle.previous_sha256 and squiddle.resolved["pipeline"] == "transcribe_modular.v1"
+    assert squiddle.previous and squiddle.resolved["pipeline"] == "transcribe_modular.v1"
     for ref, entry in [*lock.presets.items(), *lock.recipes.items()]:
         resolve = c.resolve_recipe if ref in lock.recipes else c.resolve
-        for sha in filter(None, (entry.sha256, entry.previous_sha256)):
+        for sha in (entry.sha256, *entry.previous):
             assert resolve(ref, sha256=sha).sha256 == entry.sha256
             assert c.by_sha256(sha).ref == ref
     with pytest.raises(CatalogError, match="not sha256:0"):

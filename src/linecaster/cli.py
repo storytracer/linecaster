@@ -86,7 +86,7 @@ def _catalog(a) -> None:
         kind = "recipe" if (r.id if r else a.ref.split("@", 1)[0]) in c.recipes else "preset"
         if r is None:
             r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
-        previous = {"previous_sha256": r.previous_sha256} if r.previous_sha256 else {}
+        previous = {"previous_sha256": list(r.previous_sha256)} if r.previous_sha256 else {}
         print(yamlio.dump({kind: r.ref, "sha256": r.sha256, **previous, "released": r.released, **r.content}))
     elif a.action == "docs":
         from .catalog import docs
