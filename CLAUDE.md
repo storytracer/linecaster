@@ -137,7 +137,7 @@ round-trip: structure, text, geometry, confidences, ids, reading order; `linecas
 `docs/reference/serialization.md`).
 No glyph level: words are the finest level.
 
-Text (`linecaster.text.variants`, block `ItemTexts`): era-neutral vocabulary, three independent dimensions:
+Text (`linecaster.text.variants`; the blocks `Recomposer`, `CharacterNormalizer` and `ItemTextWriter`): era-neutral vocabulary, three independent dimensions:
 character fidelity (as written, normalized, expanded, regularized), flow (as laid out, flowed),
 scope (full page, body only). Each transform moves one step on one dimension; the as-written layer
 is never overwritten. Named variants: `verbatim_txt` (as written, as laid out, full page; pages
