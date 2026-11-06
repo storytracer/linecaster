@@ -75,7 +75,7 @@ class FalconRecognitionEngine:
                         backend=f"Falcon-OCR pipeline service ({o.endpoint})",
                         settings={"route": self.route, "skip_layout": o.skip_layout, "longest_edge": o.longest_edge,
                                   "jpeg_quality": o.jpeg_quality},
-                        measurements={"completion_tokens": tokens} if isinstance(tokens, int) else {})
+                        measurements={"completion_tokens": tokens if isinstance(tokens, int) else None})
         return text_transcription(raw, step, regions_json=body.get("json_result"),
                                   processing_ms=body.get("processing_time_ms"))
 

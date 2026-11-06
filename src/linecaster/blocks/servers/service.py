@@ -53,7 +53,7 @@ class ServiceServer(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖥️ service server"
     unit, role = "any", "server"
-    docs_args = {"preset": "falcon-ocr@1"}
+    docs_args = {"preset": "falcon-ocr"}
 
     def __init__(self, preset: str, port: int = 8000, host: str = "127.0.0.1", vllm: str = "vllm",
                  boot_timeout: int = 1800):
