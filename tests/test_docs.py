@@ -36,7 +36,7 @@ def test_check_names_each_differing_file_and_writes_nothing(tmp_path, monkeypatc
 
 def _own_pipeline_snippet() -> str:
     text = README.read_text(encoding="utf-8")
-    section = text.split("### ✍️ Your own pipeline", 1)[1].split("\n## ", 1)[0]
+    section = re.split(r"^#+ .*Your own pipeline.*$", text, maxsplit=1, flags=re.M)[1].split("\n## ", 1)[0]
     return re.search(r"```python\n(.*?)```", section, re.S).group(1)
 
 

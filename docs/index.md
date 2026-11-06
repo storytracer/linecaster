@@ -6,40 +6,22 @@
 <p align="center">
   <img src="linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
 </p>
-<p align="center"><sub>An Intertype C4 linecaster (1961). Drawing after a photograph in the Science
-Museum Group Collection, CC BY-NC-SA 4.0. <a href="#license">Credit</a></sub></p>
+<p align="center"><sub>An Intertype C4 linecaster (1961), after a photograph in the Science Museum Group
+Collection, CC BY-NC-SA 4.0. <a href="#license">Credit</a></sub></p>
 
-Build an OCR pipeline from interchangeable parts: a model that reads the text, either a vision-language
-model or a line recognizer, combined with layout, table and formula models and post-processing. Run
-the same pipeline on a laptop, a GPU server, a cluster or [Hugging Face Jobs][HF Jobs].
+Linecaster turns page images into text. You build an OCR pipeline from interchangeable steps (a model that
+reads the text, layout, tables, formulas, post-processing) and run it unchanged on a laptop, a GPU server, a
+Ray cluster or [Hugging Face Jobs][HF Jobs].
 
-**Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/) (the newest release;
-this README, the reference, a page for every block and catalog entry, and
-[llms.txt](https://storytracer.github.io/linecaster/latest/llms.txt) for coding agents).
+- 🧩 **Any step is replaceable.** A vision-language model or a line recognizer reads the text; layout, table
+  and formula models and rule-based post-processing are separate steps.
+- 🌍 **Any machine.** Only the command line changes, never the pipeline.
+- 🎯 **The same result everywhere.** A page's text depends only on that page and the pinned models.
+- 🔁 **Built for long runs.** Interrupted runs resume; failed pages are set aside with the reason.
 
-**Jump to:** [Why](#why-linecaster) · [Quick start](#quick-start) · [How it works](#how-it-works) ·
-[Run anywhere](#run-it-anywhere) · [Outputs](#what-you-get) ·
-[Models and blocks](#models-and-blocks) · [Reference](#reference) · [Versions](#versions-and-changes)
-
-## 🤔 Why Linecaster
-
-Turning a scan into usable text takes more than one model. The text has to be read, by a
-vision-language model or by a line recognizer. Around that, the layout has to be found, tables and
-formulas rebuilt, and the text cleaned, recomposed and written in the formats people use. Every model
-comes with its own software, and every machine has its own way of starting and scaling work. Swapping
-a model or moving to bigger hardware usually means starting over.
-
-Linecaster keeps the parts and the machines apart:
-
-- 🧩 **Any step.** Reading, layout, lines, tables, formulas and post-processing are separate
-  steps. Use a [vision-language model](#vision-language-models-whole-pages) on whole pages or on layout regions,
-  or a [line recognizer](#recognition) with a line detector, and add any of the other steps.
-- 🌍 **Any machine.** Define the pipeline once. Only the line that starts the run changes.
-- 🖥️ **No serving stack to build.** Models load inside the pipeline, or each task starts its own model
-  server on its GPU.
-- 🎯 **The same result everywhere.** A page's text depends only on that page, never on how many
-  machines share the work.
-- 🔁 **Built for long runs.** Interrupted runs resume. Damaged pages are set aside with the reason.
+📖 **Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/): the reference, a page
+for every block and catalog entry, and [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt) for
+coding agents.
 
 ## 🚀 Quick start
 
@@ -48,75 +30,153 @@ You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
 ```bash
 git clone https://github.com/storytracer/linecaster
 cd linecaster
+uv run launch.py                               # list the recipes and models
+uv run launch.py squiddle scans/ out/          # run a recipe
+uv run launch.py lightonocr-2-1b scans/ out/   # run a vision-language model (needs vLLM and a GPU)
 ```
 
-The quickest start is `launch.py` with a name: a **recipe** (a tested combination of models) or a
-**model** that reads whole pages. It knows which pipeline that needs. For your own combination, fill a
-pipeline's slots yourself, one preset per step. Either way you get a page record per page in `out/pages`, and
-`--files` adds ALTO, PAGE-XML, hOCR, text and Markdown.
-
-```bash
-uv run launch.py squiddle scans/ out/          # a recipe
-uv run launch.py lightonocr-2-1b scans/ out/   # a model
-uv run launch.py                               # lists the recipes and models
-```
-
-Every pipeline option works after the name, e.g. `--on hf-jobs` or `--files out/files`.
+You get one page record per page in `out/pages/`. Add `--files out/files --formats md,alto` for per-page files.
 
 !!! note
 
-    Each pipeline is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
-    what it needs, with pinned versions, and a `.lock` file sits next to it. `uv run` installs it on the
-    first run; the models download on first use.
+    Every pipeline is a self-contained [uv script][uv scripts] with pinned dependencies and a lock file next to it.
+    `uv run` installs what it needs on the first run; models download on first use.
 
-### 🍳 A recipe
+## 🧭 Three ways to transcribe
 
-A recipe is a named combination: a pipeline, a preset edition for each step, and its options, with its own
-edition, provenance and evidence. SquiddleOCR's is `squiddle`:
+**1. A recipe**: a tested combination of presets, one per step, with its own edition and evidence.
 
 ```bash
 uv run launch.py squiddle scans/ out/
 ```
 
-Options after the name change single steps or settings; the run record lists them as overrides.
-
-### 🤖 A vision-language model reads each page
-
-Needs an NVIDIA GPU and the `vllm` command of [vLLM] on the PATH.
+**2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
+needs an NVIDIA GPU and the `vllm` command on the PATH.
 
 ```bash
 uv run launch.py lightonocr-2-1b scans/ out/
+uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
 ```
 
-Any [model for whole pages](#models-and-blocks) works. A region model reads each layout region instead,
-in the VLM pipeline with a layout preset:
-`uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0`.
-
-### 🧱 The modular pipeline: smaller models, step by step
-
-Layout, line detection and a line recognizer, then post-processing into a document. You pick each
-step's preset; `linecaster models` lists them.
+**3. The modular pipeline**: layout, lines and a line recognizer, then post-processing. You choose a preset for
+every step; `linecaster models` lists them.
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognition kraken-ppocrv6-medium \
-  --typography ratios --recomposition unicode-recomposition --composition docling-composition \
-  --files out/files --formats md,alto
+  --typography ratios --recomposition unicode-recomposition --composition docling-composition
 ```
 
-`--layout single-region` reads the page as one region (no layout model); `--tables` and `--formulas` add those
-steps. The rule-based steps are
-slots too, each a preset: `--typography` (headings and their levels), `--recomposition` (running text in
-paragraphs; without it the page stays as laid out), `--composition` (the page's document, for Markdown, HTML and
-JSON) and `--normalization` (the readable item texts' normalization, with `--item-texts`); a recipe fills them all.
-`--set recognition.batch_size=4` changes one option of a preset. `--files` writes any per-page format of
-`PageFileWriter` (`--formats`); `--naming squiddleocr --furniture` writes them as squiddleocr does.
+| Flag | Effect |
+|---|---|
+| `--layout single-region` | the whole page as one region, no layout model |
+| `--tables`, `--formulas` | add table and formula recognition |
+| `--typography` | headings and their levels |
+| `--recomposition` | running text in paragraphs (without it, the page stays as laid out) |
+| `--composition` | the page's document, for Markdown, HTML and JSON |
+| `--set recognition.batch_size=4` | change one option of a preset |
+| `--files DIR --formats md,alto` | per-page files: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, JSON |
+| `--dry-run` | print the plan and its graph, run nothing |
 
-### ✍️ Your own pipeline
+Options after a recipe's name override single steps; the run record lists them.
 
-A pipeline is a list of blocks. This is the modular pipeline above, cut down:
+## 📥 Input
+
+| Pages from | Flags |
+|---|---|
+| a folder of images | `IMAGES` (`--item-from-parent`: each subfolder is an item) |
+| a list of images | `IMAGES --paths-file pages.txt` |
+| Parquet with an image column | `--parquet PATH` (`--image-key`, `--item-key`, `--sequence-key`) |
+| IIIF or METS manifests | `--manifests FOLDER`, `--manifests list.txt`, or `--manifests items.parquet --manifest-key url` |
+| an earlier run | `--pages OUT/pages` |
+
+Any fsspec path works: local, `s3://`, `hf://`. Manifests need the `pybookget` extra
+([pybookget](https://github.com/storytracer/pybookget)); `--existing-ocr` also keeps the library's own OCR as
+`ocr_original`. PDF files are read by the `PdfReader` block (extra `pypdfium2`).
+
+For large collections, fetch the images once, then transcribe, then bind the pages into items:
+
+```bash
+uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --tasks 16 --rate-limit 5/1
+uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe squiddle --item-shards 64
+uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
+```
+
+## 📦 Output
+
+| Output | For |
+|---|---|
+| 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
+| 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
+| 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
+| 📜 `verbatim_txt` per item | the text as printed, for checking against a transcription |
+| 📖 `readable_txt`, `readable_md` per item | reading and training: letterforms folded, hyphens joined, paragraphs flowed |
+
+The text as written is always kept; readable text is derived from it. All text is Unicode [NFC]; spelling is never
+modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into
+`OUT/traces/` (nothing is sent anywhere unless you set the `OTEL_*` variables), and `linecaster traces OUT` shows
+where the time went.
+
+## 🌍 Run anywhere
+
+| Where | Flags |
+|---|---|
+| 💻 this machine | none: models load inside the pipeline |
+| 🖥️ this machine, with a model server | `--backend served` |
+| 🧮 a Ray cluster | `--on ray --tasks 64` |
+| ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
+
+On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
+runs only the tasks that didn't finish.
+
+<details markdown="1">
+<summary><b>A model server that stays up</b></summary>
+
+```bash
+P="--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium"
+uv run pipelines/transcribe_modular.py serve $P
+uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
+```
+
+For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
+Servers listen on loopback only.
+
+</details>
+
+<details markdown="1">
+<summary><b>Ray</b></summary>
+
+`ray` runs Ray's own command line with the pipeline's packages, so every machine has the same versions:
+
+```bash
+uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8
+uv run pipelines/transcribe_modular.py scans/ out/ $P --on ray --tasks 64
+```
+
+Images and output must be on storage every machine can reach.
+
+</details>
+
+<details markdown="1">
+<summary><b>Hugging Face Jobs</b></summary>
+
+One GPU per Job; each Job installs Linecaster at a pushed commit with the pipeline's pinned dependencies.
+
+```bash
+uv run pipelines/transcribe_modular.py s3://bhl-open-data/images hf://buckets/<ns>/<bucket>/<run> $P \
+  --paths-file hf://buckets/<ns>/<bucket>/pages.txt --env FSSPEC_S3_ANON=true \
+  --on hf-jobs --commit <sha> --tasks 4000 --workers 64
+```
+
+`--workers` Jobs run at once. `--flavor l4x4 --gpus 4` runs four tasks per Job. `--dry-run` launches nothing.
+
+</details>
+
+## ✍️ Your own pipeline
+
+A pipeline is a list of blocks; [datatrove] runs it. This is the modular pipeline, cut down:
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
@@ -148,238 +208,36 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
-Save it in `pipelines/` with the `# /// script` block of `pipelines/transcribe_modular.py` at the top, which brings the
-engines, and `uv run` it. Built with `linecaster.runtime.run.main`, as the pipelines are, it gets their command
-line for every machine, and a check before anything starts: every block declares what it reads and adds, so a
-recognizer without lines or a writer after a server fails at once, with every problem listed. `--dry-run` prints
-the plan and its graph as a Mermaid flowchart; `--until`, `--after` and `--tap-after` run or tap a part of it.
-`ModularTranscriber` puts layout, lines, line assignment and line recognition together in one block
-([docs/reference/pipelines.md](reference/pipelines.md)).
-
-!!! tip
-
-    The two kinds mix: a `LayoutDetector` followed by `RegionRecognizer` has a vision-language model read
-    each layout region, which is what `pipelines/transcribe_vlm.py --layout …` does.
+Every block declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
+lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
+`pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.runtime.run.main` to get
+the pipelines' command line on every machine. The [pipelines reference](reference/pipelines.md) covers
+backends, partial runs (`--until`, `--after`) and the builder.
 
 ## 🧩 How it works
 
-Four ideas carry the design:
-
-1. 📋 **One record per page.** Every step reads the page's `Transcription` and adds its part: regions,
-   lines, text, tables, a document. Steps never talk to each other, so any step can be replaced.
-2. 📐 **Every block declares its contract**: what it reads, adds, replaces or removes. A pipeline is checked
-   before it starts, and its graph is drawn from the contracts; a recognizer without lines fails at once.
-3. 🔌 **Each model step has a backend.** `InProcess` loads the model inside the pipeline. `Served` sends
-   pages to a model server and `Chat` to a vision-language model behind an OpenAI-compatible server, both
-   through [saturate], which keeps enough pages in flight that the GPU never waits.
-4. 🏗️ **The executor decides where it runs.** Pipelines are [datatrove] pipelines. Executors split the
-   pages into tasks, run them locally, on a [Ray] cluster or on [Hugging Face Jobs][HF Jobs], and resume
+1. **One record per page.** Every step reads the page's `Transcription` and adds its part: regions, lines, text,
+   tables, a document. Steps share the data model and nothing else.
+2. **Contracts.** Each block declares what it reads, adds, replaces or removes; the builder checks the pipeline
+   and draws its graph from them.
+3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
+   the GPU busy) or `Chat` (a vision-language model behind an OpenAI-compatible server).
+4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray] or on HF Jobs, and resumes
    where a run stopped.
 
-## 🌍 Run it anywhere
-
-A pipeline runs on every machine with the same steps. Only its flags change:
-
-| Where | Flags |
-|---|---|
-| 💻 This machine | none: the models load inside the pipeline |
-| 🖥️ This machine, with a server | `--backend served` |
-| 🧮 A Ray cluster | `--on ray --tasks 64` |
-| ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
-
-On Ray and HF Jobs every task gets one GPU and starts its own model server on it.
-
-<details markdown="1">
-<summary><b>📥 Where the pages come from</b></summary>
-
-The readers follow [datatrove]'s conventions: files found by a glob or listed in a `paths_file`, distributed
-over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path works: local, `s3://`, `hf://`.
-
-| Input | Flags |
-|---|---|
-| a folder of images | `IMAGES` (`--glob-pattern` to choose files; `--item-from-parent`: the subfolder is the item) |
-| a list of images | `IMAGES --paths-file pages.txt` (one image per line, relative to `IMAGES`) |
-| Parquet with an image column (pages) | `--parquet PATH` (`--id-key`, `--image-key`, `--item-key`, `--sequence-key`) |
-| items' manifests (IIIF, METS) | `--manifests FOLDER`, `--manifests list.txt` (one link per line), or an item table: `--manifests items.parquet --manifest-key manifest_url [--item-key item_id]` |
-| page records of an earlier run | `--pages OUT/pages` (images fetched again from their URIs) |
-| PDF files | the `PdfReader` block (extra `pypdfium2`): one item per PDF, each page rendered to a lossless WebP image; no pipeline flag yet |
-
-- The image column can hold the bytes, a Hugging Face image struct (`{bytes, path}`), or a path: absolute,
-  or relative to `--image-folder`. Without a page-id column, `--item-key` and `--sequence-key` name pages
-  `<item>_<0001>`.
-- A Hub image dataset is just Parquet: `--parquet hf://datasets/<repo>@<revision>/data`.
-- A public bucket needs no credentials with `FSSPEC_S3_ANON=true`.
-- **Manifests** (the `pybookget` extra, which brings [pybookget](https://github.com/storytracer/pybookget)):
-  a manifest lists an item's pages and their files, in order. Two formats are read, told apart by their
-  content (or `--manifest-format`):
-  - **IIIF Presentation 2 and 3**: images at full size through the image service (`--iiif-format`), the
-    image's own URL after a 404.
-  - **METS with MODS**, also inside an OAI-PMH `GetRecord` response (the DFG viewer's profile; Kitodo, Goobi,
-    Visual Library): pages from the physical structure map in `ORDER`, images from the first file group of
-    `MAX`, `ORIGINAL`, `MASTER`, `DEFAULT` (the next one after a 404). Relative file links are read next to the
-    METS file, so a package with local files works too.
-  - Each manifest is one item: one reader entry (or one row of an item table), so an item's pages stay in one
-    task. Every page with an image becomes `<item>_<0001>`. The item id comes from `--item-key`, else from the
-    manifest link's last segment that isn't `manifest`/`mets`; `--item-id-pattern` overrides it.
-  - Each page record keeps the item's and the page's data in `metadata.manifest`: format, link, id, label,
-    rights, identifiers, descriptive metadata (MODS creators, date, language, …), the page's own id and label.
-    An item table's other columns go into each of its pages' metadata.
-  - `--existing-ocr` also fetches the library's own OCR the manifest links (METS `FULLTEXT`, IIIF
-    `seeAlso`/`rendering`; ALTO or hOCR), and a `TranscriptionConverter` keeps it as the transcription
-    `ocr_original`, next to the new one.
-  - An entry may be a IIIF Collection: its manifests are read as items (one level so far).
-- **http(s):// image URLs** (manifests, or paths in a Parquet column) go through pybookget:
-  - retries that honor `Retry-After`, and an honest user agent;
-  - the environment's proxy settings (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `NO_PROXY`), as everywhere
-    else in Linecaster;
-  - `--rate-limit 5/1` (repeatable) per task, so the server sees up to `--workers` times that.
-- **Harvest, transcribe, bind.** Harvesting first is the usual path, and it keeps the GPUs off the network:
-  - `uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url OUT --tasks 16 --workers 4
-    --rate-limit 5/1 --existing-ocr` writes `OUT/images/<item>/<page>.<ext>`, `OUT/ocr/…`, the manifests as
-    fetched in `OUT/manifests/`, and page records;
-  - `uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
-    adds the new transcription; `OUT/images --item-from-parent` reads the plain folder instead;
-  - `uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts` binds each item (below).
-  - For small runs, `--manifests` also works directly in the transcribe pipelines.
-- **Item-level outputs** (per book, issue or manuscript): `pipelines/bind.py` binds each item's pages into one,
-  recomposes it as one (paragraphs continued across page breaks), normalizes it and composes the item's document,
-  each step a preset (`--recomposition`, `--normalization`, `--composition`; the recipe `item-texts` fills them). It
-  writes:
-  - `OUT2/texts/<variant>/<rank>.jsonl.gz`, one row per item and [text variant](#reference) (`--files` also
-    `OUT2/texts/<variant>/<item>.txt|.md`; `--variants` picks them; `--no-texts`);
-  - `OUT2/documents/<format>/<item>.<ext>`, the item document in md, txt and json (`--formats` adds html and
-    doclang; `--furniture`, `--dividers`; `--no-documents`).
-  - With several tasks, an item's pages can land in different tasks: the first run writes its page records into
-    item shards (`--item-shards 64`: `OUT/pages/<shard>/<rank>.jsonl.gz`, every item in one shard), and `bind.py`
-    reads whole shards, one or more per task.
-  - `--item-texts DIR` in a transcribe run does the same for the texts in a second stage of that run.
-
-</details>
-
-<details markdown="1">
-<summary><b>🖥️ A model server that stays up</b></summary>
-
-`serve` starts `linecaster serve` with the presets you name and keeps them loaded; `--endpoint` points
-runs at it:
-
-```bash
-P="--layout pp-doclayoutv3
-   --lines pp-ocrv6-medium-det
-   --recognition kraken-ppocrv6-medium"
-uv run pipelines/transcribe_modular.py serve $P
-uv run pipelines/transcribe_modular.py scans/ out/ $P \
-  --endpoint http://127.0.0.1:8100/v1
-```
-
-For a vision-language model, `--recognition-endpoint` points `pipelines/transcribe_vlm.py` at a running vLLM or SGLang. The
-servers listen on loopback only.
-
-</details>
-
-<details markdown="1">
-<summary><b>🧮 On every GPU, with Ray</b></summary>
-
-`ray` runs Ray's own command line with the pipeline's packages, so every machine has the same Ray and
-Linecaster (`$P`: the presets, as above):
-
-```bash
-R=pipelines/transcribe_modular.py
-uv run $R ray start --head --num-gpus 8
-# on each other machine:
-# uv run $R ray start --address=<head>:6379
-uv run $R scans/ out/ $P --on ray --tasks 64
-```
-
-Images and output must be on storage every machine can reach.
-
-</details>
-
-<details markdown="1">
-<summary><b>☁️ On Hugging Face Jobs</b></summary>
-
-One GPU per Job. Each Job installs Linecaster at a pushed commit, with the engines, sources and pins of
-the pipeline's `# /// script` block:
-
-```bash
-uv run pipelines/transcribe_modular.py \
-  s3://bhl-open-data/images \
-  hf://buckets/<ns>/<bucket>/<run> $P \
-  --paths-file hf://buckets/<ns>/<bucket>/pages.txt \
-  --on hf-jobs --commit <sha> \
-  --tasks 4000 --workers 64 --item-shards 64 \
-  --env FSSPEC_S3_ANON=true
-```
-
-- **Tasks and workers:** datatrove hands out the pages over the tasks in turn, and `--workers` Jobs run at the same
-  time; the next starts when one finishes.
-- **A rerun into the same output** runs only the tasks that didn't finish.
-- **`--tasks-per-job`** (datatrove's) lets a single-GPU Job run several tasks one after the other; each task
-  starts its own model server.
-- **Multi-GPU Jobs:** `--flavor l4x4 --gpus 4` runs four tasks per Job, one per GPU. `pipelines/transcribe_vlm.py` picks the server image
-its model was checked with; `--image` names another. `--dry-run` prints the plan and launches nothing.
-
-</details>
-
-<details markdown="1">
-<summary><b>🧱 What the flags do, for your own pipeline</b></summary>
-
-- **Backends:** `InProcess("module:Class", **kwargs)` loads a model inside the pipeline;
-  `Served(endpoint, name)` sends pages to a server through [saturate]; `Chat(preset, endpoint)` sends them (or
-  their regions) to a vision-language model behind an OpenAI-compatible server, for `PageRecognizer` and
-  `RegionRecognizer`.
-- **Server blocks** start a server inside each task and go last in the pipeline, so the server lives
-  until every page is written: `ChatModelServer(spec)` starts [vLLM] or [SGLang],
-  `ModelServer(MODELS, script=...)` a pipeline's `serve`.
-- **Executors:** `LocalPipelineExecutor`, `RayGPUExecutor`, and on HF Jobs `JobsExecutor` (datatrove's
-  `JobsPipelineExecutor`, logging JSON lines) or `GPUJobsExecutor` with `dependencies(commit, script)`, which turns
-  a script's `# /// script` block into what each Job installs.
-
-`MODELS` names the models a server hosts:
-
-```python
-MODELS = [
-    {"name": "layout",
-     "spec": "linecaster_paddlex:PaddleLayoutEngine"},
-    {"name": "recognition",
-     "spec": "linecaster_kraken:KrakenRecognitionEngine",
-     "kwargs": {"model": "medium"}},
-]
-```
-
-`linecaster.runtime.run` puts these together for the pipelines.
-
-</details>
-
-## 📦 What you get
-
-| Output | What it is for |
-|---|---|
-| 📜 Text as printed | checking against a hand-made transcription |
-| 📖 Readable text | reading and training: old letterforms folded, hyphens joined, paragraphs flowed |
-| 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
-| 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
-| 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
-
-Files come per page or, for an item, one per text variant. Word positions need a model that gives them,
-such as a line recognizer.
-
-Every run is also traced with [OpenTelemetry]: each task, and one page in a hundred (chosen by page id, so the same
-ones every time) plus every page that failed, block by block and into the servers. The traces land in
-`OUT/traces/`, and in your own tracing backend when the standard `OTEL_*` variables point to one; nothing is sent
-anywhere else. `linecaster traces OUT` says where the time went: per block the time per page, for served blocks
-how much of it was the queue and how much the model, the slowest pages, and each task's warm-up
-(`--trace-sample 1` traces every page; [docs/reference/tracing.md](reference/tracing.md)).
+Models batch only the lines of one page, and model revisions and numerically relevant libraries are pinned, so
+a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
+single characters.
 
 ## 🧰 Models and blocks
 
-Every configuration is a **preset** in Linecaster's catalog: one engine, one model at a pinned revision, and its
-settings. The original model card is copied next to it, unchanged, at exactly that revision.
-`linecaster models` lists the presets; [docs/catalog](catalog/README.md) has a page for each
-engine, model, preset, pipeline and recipe, with the results and where every number comes from.
+Every configuration is a **preset** in Linecaster's catalog: an engine, a model at a pinned revision with its
+original model card, and settings. Released editions never change. Vision-language models run behind vLLM or
+SGLang; the other models run inside the pipeline or behind `linecaster serve`, one package per engine:
+`linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
 
-Vision-language models run behind [vLLM] or [SGLang]. The other models run inside the pipeline or behind
-`linecaster serve`, one package per engine: `linecaster-kraken` ([kraken]), `linecaster-paddlex`
-([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
+<details markdown="1">
+<summary><b>The presets and recipes</b></summary>
 
 <!-- catalog:start -->
 ### 🗺️ Layout
@@ -490,12 +348,10 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 | [`squiddle`](catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1`, `ratios@1`, `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
 <!-- catalog:end -->
 
-### 🔩 Blocks
+</details>
 
-A pipeline is a list of blocks, one role each. Model blocks take a preset or a backend; the rule-based blocks take a
-preset of a built-in engine (e.g. `Typographer("ratios@1")`), the `UnicodeNormalizer` none.
-[docs/blocks](blocks/README.md) has a page for each block: its contract, backends, options and where it comes
-in a pipeline.
+<details markdown="1">
+<summary><b>The blocks</b></summary>
 
 <!-- blocks:start -->
 | Family | Block | What it does |
@@ -537,193 +393,63 @@ in a pipeline.
 | Composites | [`ModularTranscriber`](blocks/composites/ModularTranscriber.md) | Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition. |
 <!-- blocks:end -->
 
+</details>
+
 ## 📚 Reference
 
-<details markdown="1">
-<summary><b>📋 The data model</b></summary>
-
-| Class | Holds |
+| Topic | Page |
 |---|---|
-| `Item` | a book, issue, manuscript or file |
-| `Page` | one page: its image and named transcriptions |
-| `Transcription` | regions, lines and words with positions, reading order and confidences, plus a [DoclingDocument] |
-| `Text` | a whole item's text in one text variant (below) |
+| terms | [glossary](reference/glossary.md) |
+| how the parts fit together | [architecture](reference/architecture.md) |
+| blocks, contracts, the builder, runs | [pipelines](reference/pipelines.md) |
+| `Item`, `Page`, `Transcription`, text variants | [data model](reference/data-model.md) |
+| ALTO, PAGE-XML, hOCR | [serialization](reference/serialization.md) |
+| presets, recipes, editions, evidence | [catalog](reference/catalog.md) |
+| traces | [tracing](reference/tracing.md) |
+| what counts as a breaking change | [compatibility](reference/compatibility.md) |
+| names, spelling, docstrings | [conventions](reference/conventions.md) |
+| every block, engine, model, preset and recipe | [blocks](blocks/README.md), [catalog](catalog/README.md) |
 
-- A page can hold several transcriptions side by side, for example the delivered OCR, a new one and the
-  ground truth.
-- Positions are pixels of the page image; boxes are `[x, y, width, height]`.
-- A `Transcription` survives a round trip through JSON exactly, and through ALTO, PAGE-XML and hOCR
-  without losing structure, text, positions or confidences.
-- [docs/reference/data-model.md](reference/data-model.md) and
-  [docs/reference/serialization.md](reference/serialization.md) are the reference.
+## 🛠️ Development
 
-</details>
-
-<details markdown="1">
-<summary><b>📖 Text variants</b></summary>
-
-Text moves along three independent dimensions, one step at a time:
-
-| Dimension | From | To |
-|---|---|---|
-| Characters | as written | normalized, expanded, regularized |
-| Flow | as laid out | flowed |
-| Scope | full page | body text only |
-
-Named variants:
-
-- `verbatim_txt`: as written, as laid out, full page.
-- `readable_txt`, `readable_md`: normalized characters, flowed paragraphs, hyphens joined, body text; made from
-  the item's recomposition, so a paragraph runs on across a page break.
-
-All text is Unicode [NFC]. Normalization folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
-Spelling is never modernized.
-
-</details>
-
-<details markdown="1">
-<summary><b>🎯 Why results are the same everywhere</b></summary>
-
-- Models batch only the lines of one page, in a fixed order. Pages are never mixed.
-- Model revisions are pinned. Numerically relevant library versions are pinned in each pipeline script.
-- So a page's output depends on the page and the models, not on the machine, the number of GPUs or what
-  else is running.
-- Different GPU types can still differ in the last digits of their arithmetic, which causes rare
-  one-character differences.
-
-</details>
-
-<details markdown="1">
-<summary><b>🔁 Long runs in stages</b></summary>
-
-- Each stage reads the page records the last one wrote (`PageRecordReader`), adds one part and writes
-  complete page records again.
-- Originals are never changed.
-- A page that fails a check or a step carries the reason; the `RejectWriter` writes it to `rejects/`, later model
-  steps pass it by, and too many failures fail the task.
-- datatrove keeps logs and completion markers in `logs/`, so finished tasks are skipped on a rerun.
-
-</details>
-
-<details markdown="1">
-<summary><b>🧭 Design principles</b></summary>
-
-- **Every step is replaceable.** Steps share a data model and nothing else.
-- **Deployment is not part of the pipeline.** Executors and backends change; steps do not.
-- **The text as written is kept.** Readable variants are derived from it and stored next to it.
-- **The core stays light.** No machine-learning libraries in the core; engines are separate packages
-  that a pipeline installs when it needs them.
-- **Readers stay generic.** Folders, buckets, Hugging Face datasets, and the standards for manifests (IIIF,
-  METS/MODS). Adapters for one collection or institution belong in the projects that use Linecaster.
-- **Open formats out.** ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, DoclingDocument.
-
-</details>
-
-<details markdown="1">
-<summary><b>📚 The catalog</b></summary>
-
-- **One catalog**, in `src/linecaster/catalog/data/`: models (`models/<id>/model.yaml`, with the upstream
-  card in `upstream/<revision>/`), presets by step (`presets/<step>/<id>.yaml`), recipes (`recipes/<id>.yaml`)
-  and evidence records (`evidence/*.yaml`). The data is YAML, checked against JSON Schemas generated from the
-  code (`src/linecaster/catalog/schemas/`); the reasons are in a Markdown file next to it (`<id>.md`,
-  `model.md`).
-- **Code has versioned ids.** A preset names its engine (`engine: kraken.recognition.v1`), a recipe its
-  pipeline (`pipeline: transcribe_modular.v1`). An incompatible change of options is a new id (`.v2`).
-- **Versions:** `version` and `revision` are upstream's, verbatim and exact. A preset or recipe has its
-  own integer `edition`, referred to as `id@edition`.
-- **Released editions don't change.** `catalog.lock` keeps each released edition's functional content
-  and its hash, and `linecaster catalog verify` fails when a released edition changes. Old editions stay
-  resolvable.
-- **Provenance:** each page file names the presets and revisions that made it (ALTO `Processing`,
-  PAGE-XML `MetadataItem`, hOCR metas). Each run writes `OUT/run.yaml` with every block's parameters, preset,
-  edition, hash and override, and the pipeline's hash; a run into a folder of another pipeline is refused.
-- **Recipes** (`recipes/<id>.yaml`): a pipeline, a preset edition per slot, options. A recipe's hash covers
-  its presets' hashes, so one recipe edition pins everything down to the weights.
-- **Evidence** records name their source: a Linecaster run, the BHL board, a model card's claim. A whole
-  pipeline's results belong to a recipe; a preset's to the preset, with the rest of the pipeline as context.
-- [docs/reference/catalog.md](reference/catalog.md) is the full reference.
-
-</details>
-
-<details markdown="1">
-<summary><b>🛠️ Extending Linecaster</b></summary>
-
-| To add | Write |
+| To | Run or write |
 |---|---|
-| a model | `linecaster catalog pin <id> --hf <repo>` for its model entry and card, then a preset (`presets/<step>/<id>.yaml`, its reasons in `<id>.md`) and `linecaster catalog release <id>` |
-| a vision-language model | the same, with `engine: chat.v1` and an adapter in `linecaster.adapters.ADAPTERS` if no existing one fits |
-| an engine | a class with `engine_id`, `step`, `Options`, `capabilities`, `load()` and `__call__(image, transcription)`, packaged under `engines/` and registered as an entry point (`linecaster.engines`); it imports only `linecaster.data` and `linecaster.engines.api`, and `linecaster.testing.check_engine` tests it |
-| a recipe | `recipes/<id>.yaml`: a pipeline id, a preset edition per slot, options; then `linecaster catalog release <id>` |
-| a processing step | a `PageBlock` with `process_page(doc, page)` and its `contract()`, a docstring to the [standard](reference/conventions.md), tested with `linecaster.testing.check_block`; `uv run linecaster docs` then writes its page |
+| test the core | `uv run pytest` (GPU and network tests skip where those are missing) |
+| test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
+| regenerate the docs | `uv run linecaster docs` (`--check` in CI) |
+| check released catalog editions | `uv run linecaster catalog verify` |
+| build the docs site | `uv run --group docs mkdocs build --strict` |
+| add a model | `linecaster catalog pin <id> --hf <repo>`, a preset in `presets/<step>/`, `linecaster catalog release <id>` |
+| add an engine | a package under `engines/` that imports only `linecaster.data` and `linecaster.engines.api`; test it with `linecaster.testing.check_engine` |
+| add a block | a `PageBlock` with `process_page(doc, page)` and a `contract()`; test it with `linecaster.testing.check_block` |
 
-An engine runs both inside the pipeline and behind `linecaster serve` without further work.
+The code lives in `src/linecaster/`, the catalog in `src/linecaster/catalog/data/`, the engine packages in
+`engines/`, the pipeline scripts in `pipelines/`. Measurements and decisions are in [NOTES.md](https://github.com/storytracer/linecaster/blob/main/NOTES.md).
 
-</details>
+## 🏷️ Versions
 
-<details markdown="1">
-<summary><b>🧪 Tests and checks</b></summary>
-
-| Check | Command |
-|---|---|
-| the core's tests | `uv run pytest` (tests marked `gpu` or `network` skip where the device or the network is missing) |
-| an engine package's tests | `uv run tests/test_engines_catalog.py engines/<engine>/tests` (in the engines' environment) |
-| the docs are current | `uv run linecaster docs --check` |
-| released catalog editions are unchanged | `uv run linecaster catalog verify` |
-| the docs site builds | `uv run --group docs mkdocs build --strict` |
-| the squiddle recipe against its goldens | `tests/parity/compare_goldens.py RUN GOLDENS` (on a machine that has them) |
-
-The CI workflow runs the first one without the engines, and the three after it, on every push and pull request.
-`linecaster.testing` gives engine packages and the projects built on Linecaster the same tools: sample pages,
-fake CPU engines, a fake chat server, and the conformance checks `check_engine` and `check_block`.
-
-</details>
-
-<details markdown="1">
-<summary><b>🗂️ Repository layout</b></summary>
-
-| Folder | Contents |
-|---|---|
-| `src/linecaster/` | the data model (`data/`), `formats/`, `text/`, `images/`, the blocks by family (`blocks/`), `backends/`, the server (`serve/`), the catalog, chat `adapters/`, `runtime/` (command line, executors, run record), `tracing/` |
-| `src/linecaster/catalog/data/` | the catalog: models with their cards, presets by step, recipes, evidence, `catalog.lock` |
-| `engines/` | engine packages: [kraken], [PaddleX], [Tesseract] (code only; their presets are in the catalog) |
-| `launch.py` | launches a recipe or a page preset by its name, in the pipeline it needs |
-| `pipelines/` | self-contained pipelines that run anywhere and serve their models |
-| `tools/` | small utilities, e.g. a GPU probe for HF Jobs |
-| `stubs/` | a stand-in package that gives PaddleX the headless OpenCV build (one `cv2`) |
-| `tests/` | the core's tests; `tests/parity/` compares against the goldens |
-| `.github/workflows/` | the CI workflow, and the docs workflow that publishes the site for every release |
-| `docs/reference/` | reference: glossary, conventions, architecture, pipelines, the data model, serialization, the catalog, tracing, compatibility |
-| `docs/` | generated by `linecaster docs`: the catalog's pages (`docs/catalog/`, one folder per kind of entry), the block pages (`docs/blocks/`), the site's index and `llms.txt`; images for this README; the site's settings are in `mkdocs.yml` |
-| `CHANGELOG.md`, `NOTES.md` | what changed in each release; measurements and decisions |
-
-</details>
-
-## 🏷️ Versions and changes
-
-The current release is `v0.1.0`. [CHANGELOG.md](https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md) lists every release's changes, upgrade notes first.
-While the version is 0.x, a release may break things without a deprecation period; what counts as breaking is in
-[docs/reference/compatibility.md](reference/compatibility.md). Released catalog editions never change, so a run
-record made with an older release still resolves. The [docs site](https://storytracer.github.io/linecaster/) keeps
-one version per release, `latest` the newest, and `dev` for `main`.
+The current release is `v0.1.0`; [CHANGELOG.md](https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md) lists each release's changes, upgrade notes first.
+While the version is 0.x, a release may break things without a deprecation period. The
+[docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest, and
+`dev` for `main`.
 
 ## 📄 License
 
 The code is Apache-2.0, see [LICENSE](https://github.com/storytracer/linecaster/blob/main/LICENSE).
 
 <details markdown="1">
-<summary><b>🖼️ Image credit</b></summary>
+<summary><b>Image credit</b></summary>
 
-The drawing of the linecaster is by Sebastian Majstorovic, made with Adobe Illustrator and Google
-Gemini. It is based on a photograph of the
+The drawing of the linecaster is by Sebastian Majstorovic, made with Adobe Illustrator and Google Gemini. It is
+based on a photograph of the
 [Intertype C4 Linecaster](https://collection.sciencemuseumgroup.org.uk/objects/co8407592/intertype-c4-linecaster)
-(Intertype Ltd, Slough, 1961; object Y1990.104.12, gift of M.H. Whittaker & Son) in the Science
-Museum Group Collection. Photograph © The Board of Trustees of the Science Museum, released under
-[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). The photograph was redrawn as a
-black-and-white line drawing.
+(Intertype Ltd, Slough, 1961; object Y1990.104.12, gift of M.H. Whittaker & Son) in the Science Museum Group
+Collection. Photograph © The Board of Trustees of the Science Museum, released under
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), redrawn as a black-and-white line drawing.
 
 The drawing is an adaptation of that photograph and is licensed under the same terms,
-[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It may not be used for
-commercial purposes. The Apache-2.0 license of the code does not apply to it. The same credit is in
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It may not be used for commercial
+purposes. The Apache-2.0 license of the code does not apply to it. The same credit is in
 [docs/LICENSE-linecaster-image.md](LICENSE-linecaster-image.md).
 
 </details>
@@ -731,6 +457,7 @@ commercial purposes. The Apache-2.0 license of the code does not apply to it. Th
 <!-- links -->
 [kraken]: https://github.com/mittagessen/kraken
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
+[Tesseract]: https://github.com/tesseract-ocr/tesseract
 [datatrove]: https://github.com/huggingface/datatrove
 [saturate]: https://github.com/davanstrien/saturate
 [OpenTelemetry]: https://opentelemetry.io/
@@ -739,12 +466,10 @@ commercial purposes. The Apache-2.0 license of the code does not apply to it. Th
 [vLLM]: https://github.com/vllm-project/vllm
 [SGLang]: https://github.com/sgl-project/sglang
 [Docling]: https://github.com/docling-project/docling
-[DoclingDocument]: https://docling-project.github.io/docling/concepts/docling_document/
 [ALTO]: https://www.loc.gov/standards/alto/
 [PAGE-XML]: https://github.com/PRImA-Research-Lab/PAGE-XML
 [hOCR]: https://kba.github.io/hocr-spec/1.2/
 [JSON Lines]: https://jsonlines.org/
 [Parquet]: https://parquet.apache.org/
 [NFC]: https://unicode.org/reports/tr15/
-[Tesseract]: https://github.com/tesseract-ocr/tesseract
 [uv scripts]: https://docs.astral.sh/uv/guides/scripts/
