@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: falcon-ocr
+version: Falcon OCR
+source:
+  kind: hf
+  ref: tiiuae/Falcon-OCR
+pins:
+- revision: 0bc28f89c90fbe8bdb063097fab144d4ce4c19b5
+  tag: main
+  pinned: 2026-11-06
+  files:
+    assets/image (1).png: sha256:ad417a5ce0365d9f78fb74210362519535ee688cad9685da0eede4dc77d135a8
+    assets/image.png: sha256:beecfa073dfb36a6a146e5092f7509a7e4d332e3fe21aa5b03f02e0e4b8d73a0
+    model.safetensors: sha256:3df91e403dc48794bf1c48511e75c3508b1cc52df599dcc15f1080d46101ab16
+  card: upstream/0bc28f89c90fbe8bdb063097fab144d4ce4c19b5/README.md
+  card_sha256: sha256:11fa4ebec55db088366e488cd05d24c7a43481b19cb0317c61f1d0a39d9c8645
+license: Apache-2.0
+languages: []
+scripts: []
+params: 270M
+derived_from: []

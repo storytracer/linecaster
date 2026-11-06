@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: oxr-1.0
+version: OXR-1.0
+source:
+  kind: hf
+  ref: SoMarkAI/OXR-1.0
+pins:
+- revision: c708407f9d2b4df658f2543d9132b62bb7221df4
+  pinned: 2026-11-06
+  files:
+    layout_analysis/last.pth: sha256:dff78ccf18439955362ca44a69eb28fb0b40222a7d278860589682de0176dc17
+    model.safetensors: sha256:795bb2f1faac579f58829913f2c606202531a96c1203e19ef7a70b103fb7ea51
+    tokenizer.json: sha256:aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4
+  card: upstream/c708407f9d2b4df658f2543d9132b62bb7221df4/README.md
+  card_sha256: sha256:a3241e175099ea57a4491be25cce8e965945889e41ed25c3c01911fd17a2236f
+  license_file: upstream/c708407f9d2b4df658f2543d9132b62bb7221df4/LICENSE
+license: OXR License (Apache-2.0 with additional terms)
+languages: []
+scripts: []
+params: 1.3B
+derived_from: []
