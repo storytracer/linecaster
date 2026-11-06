@@ -872,6 +872,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
 
+## Docs and changes
+
+| Term | Meaning | Not |
+|---|---|---|
+| **derivative** | A project built on linecaster: its own pipelines, blocks or engines (squiddleocr, the EBDC pilot pipeline, the FineBooks pipelines). | not a fork |
+| **generated docs** | The files `linecaster docs` writes from code, docstrings and the catalog: the catalog's and the blocks' pages, the README's tables between their markers, the site's index and `llms.txt`. Never edited by hand; `--check` fails when one is not current. | not the reference docs (`docs/reference/`, hand-written) |
+| **block page** | The generated page of one block (`docs/blocks/<family>/<Block>.md`): its contract, backends, catalog step and presets, position, options, behavior and example. | |
+| **breaking change** | A change after which code, a command line, a stored file or a catalog reference that worked before stops working or means something else ([compatibility](compatibility.md)). | |
+| **upgrade note** | The entry in `CHANGELOG.md` for a breaking change: what changed, who is affected, what to do. | |
+
 ## The print shop
 
 The block names follow the roles of a hot-metal print shop, in the order they work. linecaster makes a new,
@@ -1012,6 +1022,172 @@ task. Reason: datatrove pickles the pipeline for every executor, and the run rec
 
 `CHANGELOG.md` in the Keep a Changelog format, with upgrade notes first. `NOTES.md` is the log of measurements and
 decisions; reference documents (`docs/reference/`) describe what is, without history.
+
+<!-- docs/reference/architecture.md -->
+
+# Architecture
+
+What linecaster is made of and how a run fits together. Terms are the [glossary](glossary.md)'s; contracts, the
+builder, failures and the run record are in [pipelines](pipelines.md), models, presets, recipes and engines in the
+[catalog](catalog.md), the page record in the [data model](data-model.md).
+
+## What linecaster is
+
+An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
+combines layout, line, text, table and formula recognizers with post-processing (dehyphenation, recomposition,
+normalization) into reproducible datatrove pipelines that turn page images into text: the text as written, readable
+variants next to it, ALTO, PAGE-XML and hOCR on request. Everything that produces text from images lives here;
+evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are built on top of it.
+
+## Packages
+
+| Package | Holds |
+|---|---|
+| `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, `Transcription`, `Text`, `StepInfo`, the measurements vocabulary |
+| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; the DoclingDocument exports |
+| `linecaster.text` | the text transforms: Unicode, typography, recomposition, the text variants |
+| `linecaster.images` | the working image, plots |
+| `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
+| `linecaster.blocks` | the blocks by family ([blocks](../blocks/README.md)) |
+| `linecaster.backends` | `InProcess`, `Served`, `Chat` |
+| `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
+| `linecaster.serve` | `linecaster serve` |
+| `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
+| `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
+| `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
+| `linecaster.docs` | `linecaster docs`: the generated pages |
+
+The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
+so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
+required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).
+
+## Blocks and backends
+
+A block is a datatrove `PipelineStep` with a contract; a pipeline is a list of blocks run by a datatrove executor.
+Each family is a subpackage of `linecaster.blocks` ([blocks](../blocks/README.md) has a page per block).
+
+**Model blocks** (`ModelBlock`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`,
+`FormulaRecognizer`, `PageRecognizer`, `RegionRecognizer`) each have a backend:
+
+- `InProcess("pkg:Class", **kwargs)` (or a preset ref) loads the engine in the worker, in `warm_up()` before the
+  first page; a loaded engine is never pickled. In-process is always available and is the parity reference.
+- `Served(endpoint, model=name)` and `Chat(preset, endpoint)` (a VLM) stream pages through saturate
+  (`AdaptiveClient` and `through()`): a window of pages in flight, adapted to the server's queue gauges and 429s;
+  results passed on as they finish; secrets as `EnvVar`. The streaming exists once, in `ModelBlock`.
+
+A page that failed a step carries `doc.metadata["errors"]`, passes later model steps at once and goes to
+`rejects/`; more failures than the error budget fail the task ([pipelines](pipelines.md#failures)). Library code
+raises `linecaster.errors`, never `SystemExit`.
+
+**Rule blocks** (`RuleBlock`: `Typographer`, `Recomposer`, `Composer`, `CharacterNormalizer`; and `ImageConverter`)
+run a built-in engine of a rule-based step in the pipeline's process, picked by a preset.
+
+## One page per request
+
+A request carries one page; engines batch only within a page (kraken batches a page's lines). A page's result
+depends only on the page, never on what else is in flight, so runs are deterministic whatever the executor, the
+number of tasks or the backend.
+
+## Servers
+
+- **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per model (several
+  replicas per model were measured at +7–10 % and removed; NOTES.md), each with a bounded queue (`--max-queue`; a
+  full queue answers 429 with `Retry-After`). Routes: `POST /v1/linecaster/{step}` (the image and the transcription
+  so far in, the transcription with its part added out), `GET /v1/models`, `/health` and vLLM-shaped `/metrics`
+  (the gauges saturate reads). Built-in engines are not served: they run in the pipeline's process.
+- **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
+  `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. A VLM is a catalog preset
+  (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
+  `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
+- **Servers inside a task** (one GPU per HF Job): the server blocks `ModelServer` (`linecaster serve`) and
+  `ChatModelServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
+  after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
+  task starts its own servers. `ModelServer(script=...)` starts a pipeline script's `serve` with
+  `uv run --script`.
+
+## Engines
+
+An engine is a class with a versioned id ([catalog](catalog.md#engines)). Engine packages live in
+`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`. An
+engine class (`<Provider><Step>Engine`) has `engine_id` (the entry point's name in `linecaster.engines`), `step`,
+`capabilities` (unit, produces), an `Options` model (its keyword arguments; a preset's `weights` besides), `load()`
+and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array and the
+transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
+`linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
+`small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
+`linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
+linecaster's catalog.
+
+## Pipeline scripts
+
+There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
+`<script>.py.lock` next to it, `uv run <script>`) that builds one pipeline shape with slots, one script per shape,
+never one per machine:
+
+| Script | Pipeline id | Does |
+|---|---|---|
+| `harvest.py` | `harvest.v1` | downloads page images (and a library's OCR, manifests) once into item folders, plus page records |
+| `transcribe_modular.py` | `transcribe_modular.v1` | lines and a recognizer, optionally layout, tables, formulas, then post-processing; every step a preset the user picks |
+| `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
+| `bind.py` | `bind.v1` | item texts and item documents from page records |
+
+`linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
+in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve` with the script's models), `ray`
+(Ray's CLI from the script's environment). Slots have no default presets: every slot is picked, or a recipe fills
+them (`--recipe`); `launch.py` runs a recipe or a page preset by name ([catalog](catalog.md#pipelines-recipes-and-launchpy)).
+Each script's page in the [catalog's docs](../catalog/README.md) lists its slots and options.
+
+Script environments: the repository is not a uv workspace (engine pins conflict). Sources apply only to a script's
+direct dependencies, so scripts with kraken list the fork directly; the numerically relevant versions are pinned with
+`constraint-dependencies`, the same list in every engine script. `tests/test_scripts.py` checks pins, sources, locks
+and wheels for both machines (uv's `required-environments` does not work in scripts). PaddleX's GUI OpenCV pin is
+satisfied by `stubs/opencv-contrib-python` (the headless build of the same version; one cv2).
+
+## Executors and Jobs
+
+| `--on` | Executor |
+|---|---|
+| `local` | datatrove's `LocalPipelineExecutor` |
+| `ray` | `RayGPUExecutor` for stages with servers (one task per GPU), datatrove's `RayPipelineExecutor` otherwise (extra `[ray]`) |
+| `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
+
+datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
+Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.sources]`:
+`linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies, sources (as URLs; the
+commit must be pushed) and pins ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
+a wheel mounted from a bucket folder (`WheelJobsExecutor`, `wheel_volume`).
+
+## The run layout
+
+One job is one pipeline for one batch on one executor; resume is datatrove's, per task, so tasks stay small. A
+pipeline reads the previous folder and writes complete page records with one more part filled in:
+
+| Folder | Holds |
+|---|---|
+| `originals/` | the delivered images and files; never modified |
+| `OUT/pages/` | page records (`PageJsonlWriter`, `PageParquetWriter`), bucketed by item id: a whole item in one file, so no joins |
+| `OUT/rejects/` | every page that carries errors (`RejectWriter`, put before the first writer by the builder): key, field, error, raw value |
+| `OUT/logs/` | datatrove's completion markers, logs and stats |
+| `OUT/traces/` | the traces ([tracing](tracing.md)) |
+| `OUT/run.yaml` | the run record ([pipelines](pipelines.md#the-run-record)) |
+
+`PageRecordReader` reads page records of linecaster's writers, fetching images again by URI (`uri_map` for local
+copies). Checks like `PageValidator` record on the page why it failed.
+
+**Readers** follow datatrove's conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`,
+`limit`/`skip` per task; files, or Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files),
+`ImageParquetReader` (an image column: bytes, an HF image struct or a path), `ManifestReader` (IIIF or METS, parsed
+by pybookget, extra `[pybookget]`, which also fetches `http(s)://` images through `linecaster.net.http`; a manifest,
+or a row of a Parquet item table, is an entry like a file, so an item stays in one task; a IIIF Collection entry is
+its manifests, one level; pages fetched ahead, rate limits per task; `existing_ocr` fetches a library's OCR as a
+document media, which a `TranscriptionConverter` reads as `ocr_original`, the builder adding one when missing),
+`PdfReader` (PDF files as items, pages rendered with pypdfium2, extra `[pypdfium2]`) and `PageRecordReader`.
+
+**The workflow** is harvest → transcribe → bind: `pipelines/harvest.py` downloads images (and OCR, manifests) once
+into item folders plus page records, the transcribe pipelines read those with `--pages`, `pipelines/bind.py` makes
+item texts and documents. An item's pages can land in different tasks; item-level steps are a second stage over item
+shards (`--item-shards N` writes `OUT/pages/<shard>/<rank>`, `pipelines/bind.py` reads whole shards), as datatrove's
+own multi-stage pipelines read per-bucket folders ([pipelines](pipelines.md#the-item-stage)).
 
 <!-- docs/reference/pipelines.md -->
 
@@ -1321,9 +1497,8 @@ the paragraphs of the item recomposition.
 Stored page records are rows `{"schema": "linecaster.page/2", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`). `PageRecordReader` brings older rows to today's format
 (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/1` row names a transcription's
-steps `model` (read as `steps`); a row without `schema` was written before phase 1, its transcription `ocr` is read
-as `ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's name before
-phase 1).
+steps `model` (read as `steps`); a row without `schema` (the oldest format) names its transcription `ocr`, read as
+`ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's earlier name).
 
 ## HF Jobs helpers
 
@@ -1514,7 +1689,13 @@ each with what the item-level blocks added.
 
 ## Text variants (`linecaster.text.variants`)
 
-Three per item, on the three dimensions (character fidelity, flow, scope):
+The vocabulary is era-neutral, on three independent dimensions: character fidelity (as written, normalized,
+expanded, regularized), flow (as laid out, flowed) and scope (full page, body only). Each transform moves one step
+on one dimension; the as-written layer is never overwritten. All text is NFC; the normalization folds ſ, ligatures,
+r rotunda and superscript e over a, o, u by an explicit mapping table, and keeps æ, œ, ø, å and ß; never NFKC;
+spelling is never modernized.
+
+Three variants per item:
 
 | Variant | Made from |
 |---|---|
@@ -1664,6 +1845,10 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
 `<strong>`/`<em>`; `image "..."` may contain `;`.
 
 ## Working images (`linecaster.images.convert`)
+
+The working format for converted images is lossless WebP at full resolution (the block `ImageConverter`, preset
+`working-image`); lossy output is never produced. Delivered images used as they are (an access derivative) stay as
+delivered. Pages larger than the size limit go to `rejects/`.
 
 - **Size limit** (`check_size`): width ≤ 16,383 and height ≤ 16,383 (WebP) and
   width × height ≤ 2 × `PIL.Image.MAX_IMAGE_PIXELS`, read at call time, never changed. 2× is
@@ -1936,7 +2121,7 @@ Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:
 over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
 `CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets that
-reproduce linecaster's behavior before phase 3, squiddleocr's: `working-image@1`, `latin-historic@1`, `ratios@1`,
+reproduce squiddleocr's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
 `unicode-recomposition@1`, `docling-composition@1`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
@@ -2119,6 +2304,46 @@ reads `OUT/traces/**/*.jsonl.gz` (a task still running: what its file has so far
   (pages, seconds reading) and the writers' flush.
 
 `--json` gives the same as data.
+
+<!-- docs/reference/compatibility.md -->
+
+# Compatibility
+
+What linecaster keeps stable for derivatives, pipelines and stored outputs, and how a change that breaks it is
+announced. Terms are the [glossary](glossary.md)'s.
+
+## What counts as a breaking change
+
+A change is breaking when code, a command line, a stored file or a catalog reference that worked before stops
+working or starts to mean something else:
+
+| Surface | Breaking | Not breaking |
+|---|---|---|
+| blocks | a block renamed or removed; a constructor argument renamed, removed or made required; a default that changes what a run writes | a new block; a new argument whose default keeps the old behavior |
+| backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for blocks | a new argument with a default that keeps the old behavior |
+| commands and flags | a `linecaster` command or a pipeline script's option renamed, removed, or given another meaning or default | a new command or option |
+| pipeline ids and slots | a pipeline id or a slot renamed or removed, a slot's step changed | a new pipeline script; a new slot that can stay empty |
+| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/2`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
+| the run layout | a folder or file name under `OUT` (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) or its format changed | a new file or folder |
+| the catalog | a catalog id (model, preset, recipe) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
+| engines | an engine id removed; an option renamed or removed, or a default changed (a new code id, `.v2`, instead) | a new engine; a new option whose default keeps the old behavior (the same id) |
+
+Internal modules and names with a leading underscore, log messages, stats and the generated docs are not part of
+it.
+
+## While the version is 0.x
+
+There is no deprecation period and there are no aliases: a breaking change takes effect in the release that makes
+it, and every breaking change is an upgrade note in `CHANGELOG.md` (what changed, who is affected, what to do),
+listed first.
+
+## Released catalog editions
+
+A released edition never changes ([catalog](catalog.md#released-editions-are-immutable)): a change that can change
+outputs is a new edition, and the old one stays resolvable from the lock. A catalog migration (a change of the
+catalog's vocabulary or format that keeps every output) recomputes an edition's hash and keeps the old one as
+`previous_sha256`, so run records written before it still resolve. Engine and pipeline code ids follow the same
+rule: an incompatible change of options or slots is a new id, and the old one stays registered.
 
 <!-- docs/blocks/README.md -->
 
