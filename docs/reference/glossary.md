@@ -27,7 +27,8 @@ term is added here before it is used.
 | **executor**, **job**, **task**, **worker**, **shard** | datatrove's terms: the executor runs a pipeline as tasks; a job is one launch (one HF Job, one Slurm job); a task is one unit of work with its own rank; workers are tasks running at once; a shard is the part of the input one task reads. | |
 | **item shard** | A folder of page records holding every page of a set of items, so that a later stage reads whole items. | not a datatrove shard |
 | **backend** | Where a model block's engine runs: `in-process`, `served` (a server reached through saturate), or `chat` (an OpenAI-compatible VLM server). | not the executor |
-| **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs. Started by the server blocks `ModelServer` and `ChatModelServer`, which go last in a pipeline. | |
+| **server** | A process that hosts models: `linecaster serve` for engines, vLLM or SGLang for VLMs, a service for a page engine. Started by the server blocks `ModelServer`, `ChatModelServer` and `ServiceServer`, which go last in a pipeline. | |
+| **service** | The server a page engine talks to that is neither `linecaster serve` nor a chat server: a vendor's page pipeline behind its own HTTP API, in the vendor's image (Falcon-OCR, OXR-1.0), or the vLLM a vendor's package attaches to (surya-ocr). A page preset's `serve` block names it; `ServiceServer` starts it. | not an operating-system service |
 | **observer** | A callback at block boundaries (before and after a unit): taps, sampling, progress, tracing. | not a Haystack "hook" |
 | **boundary step** | The step the builder puts after a block when a stage has observers: it tells them that each unit left that block and entered the next. It adds no stats. | not a block |
 | **tap** | An observer that writes the page records as they pass a given block (`--tap-after`). | |
@@ -75,7 +76,8 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **script** | A writing system, named by its ISO 15924 code (`Latn`, `Hebr`, `Arab`): Unicode's `Script` property. A by-script engine routes each decision to the strategy for the script around it; `*` stands for every script. | not a pipeline script |
 | **model** | An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim. | not an engine, not a preset, not a VLM adapter |
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as `id@edition`. | |
-| **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM). `launch.py` can run one directly. | not "a model" |
+| **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM, or a page engine). `launch.py` can run one directly. | not "a model" |
+| **page engine** | An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (`indra.recognition.v1`, `surya.recognition.v1`, and the clients of a vendor's service, `falcon.recognition.v1`, `oxr.recognition.v1`). `PageRecognizer` runs it. | not a chat preset (`chat.v1`) |
 | **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options, with whole-run evidence. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |

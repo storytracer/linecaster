@@ -99,6 +99,9 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
   `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
+  `PageRecognizer` also takes a page engine's `InProcess` or `Served` backend (or its preset's ref): a stream
+  transform served, a per-unit transform in-process; it reads the page image and adds `text` and what the preset
+  produces. A page engine's `endpoint` option (where its service is) is operational.
 
 The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
 `runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
@@ -253,9 +256,9 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 |---|---|
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `prefetch`, `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
-| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
+| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
-| server blocks (`ModelServer`, `ChatModelServer`) as a whole | their models count through the blocks they serve |
+| server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
 | the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
 
 Everything else is functional: block classes and their order, transcription names, engine options, presets and

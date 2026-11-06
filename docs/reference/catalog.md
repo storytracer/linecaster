@@ -110,7 +110,7 @@ are written by `linecaster catalog pin`.
 | `settings` | prompts, sampling and other request settings (chat presets) |
 | `labels` | native layout label → DoclingDocument label; unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
-| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding) |
+| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |
@@ -199,7 +199,7 @@ Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose e
 rule-based steps (`RULE_STEPS`) `image` (the working image), `normalization` (character fidelity: as written →
 normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs)
 and `composition` (the document). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
-Tesseract), `region` (a VLM per layout region) or `page` (a VLM reads the whole page: a **page preset**, which
+Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
 `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:
 `preprocessing/optimization`, `typography`: `layout/segmentation/classification`, `composition`:
@@ -218,7 +218,8 @@ layout and the rule-based engines. It declares
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
 
-**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`) have
+**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
+`linecaster-indra`, `linecaster-surya`, `linecaster-services`) have
 versions of their own and a range of linecaster releases they work with (`linecaster>=0.0.1,<0.2`), and import from
 linecaster only the data model (`linecaster.data`) and the engine API (`linecaster.engines.api`): the `Engine`
 protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `weights`), `hf_file` and
@@ -227,7 +228,26 @@ protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `w
 preset whose engine is not installed is a `CatalogError` that names the package that provides it and the pipeline
 scripts whose environments install it (`catalog.code.install_hint`). Each package has its tests in
 `engines/<engine>/tests/` (conformance through `linecaster.testing.check_engine`, and its own units), run in an
-environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`).
+environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`; the page engines'
+packages: `uv run tests/test_page_engines_catalog.py engines/<engine>/tests`, the environment of
+`pipelines/transcribe_page.py`).
+
+### Page engines and their services
+
+A page engine is an engine of the recognition step whose unit is the page (`capabilities.unit: page`): it gets the
+page image and returns the page's transcription, text-only, its raw output verbatim in `extra["raw"]`, as a chat
+preset's completion is kept. `PageRecognizer` runs it like any model block (`InProcess`, or `Served` through
+`linecaster serve`); `pipelines/transcribe_page.py` is its pipeline. Where the engine talks to a **service**, its
+preset's `serve` block names it and `ServiceServer` starts it in the task:
+
+| `serve.server` | The service | Fields |
+|---|---|---|
+| `vllm` | `vllm serve <the model pin, fetched> --host --port <flags> --served-model-name <the Hugging Face id>`, for an engine package that attaches to vLLM (`surya.recognition.v1`) | `version`, `image`, `flags` |
+| `vendor` | a vendor's page pipeline in its own image (`falcon.recognition.v1`, `oxr.recognition.v1`): the image's entrypoint | `image` (by digest), `command` (the entrypoint), `env`, `health` (loopback URLs that must answer 200, in order), `weights_dir` (where the model pin is downloaded first, when the image reads the weights from a folder) |
+
+The engine's `endpoint` option (where its service is) is operational: presets leave it to its default (the service's
+loopback port), a pipeline sets it for a running service (`--recognition-endpoint`), and the pipeline's hash leaves
+it out.
 
 ### The single-region layout
 
@@ -289,7 +309,7 @@ strategy is an edition of the same step and covers its script.
 ## Pipelines, recipes and `launch.py`
 
 Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
-`transcribe_modular.v1`, `transcribe_vlm.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
+`transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
 too: `transcribe_modular.v1` has `--typography`, `--recomposition`, `--normalization` (the readable item texts'
 normalization, for `--item-texts`) and `--composition`, `bind.v1` `--recomposition`, `--normalization` and
@@ -303,7 +323,8 @@ The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-
 combination).
 
 `uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
-script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for page presets) and runs it in that script's own
+script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for chat page presets, `transcribe_page.v1` for page
+engines' presets) and runs it in that script's own
 environment with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.
 

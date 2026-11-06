@@ -29,7 +29,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
-| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`), a fake chat server, the conformance checks `check_engine` and `check_block`, the pytest markers |
+| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_block`, the pytest markers |
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
@@ -70,23 +70,32 @@ number of tasks or the backend.
   so far in, the transcription with its part added out), `GET /v1/models`, `/health` and vLLM-shaped `/metrics`
   (the gauges saturate reads). Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
-  `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. A VLM is a catalog preset
+  `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. `PageRecognizer` also runs a
+  **page engine** (an engine whose unit is the page) on the `InProcess` or `Served` backend: a vendor's package in
+  the worker (Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page
+  pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
   `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
 - **Servers inside a task** (one GPU per HF Job): the server blocks `ModelServer` (`linecaster serve`) and
   `ChatModelServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
   task starts its own servers. `ModelServer(script=...)` starts a pipeline script's `serve` with
-  `uv run --script`.
+  `uv run --script`. `ServiceServer` starts the **service** a page preset's `serve` block names: `vllm serve` on the
+  pinned checkpoint (fetched and checked) for an engine package that attaches to vLLM, or a vendor image's entrypoint
+  (with the weights downloaded to the folder it reads first), ready once its health URLs answer; it runs without the
+  pipeline's environment, in the image's own. A vendor's entrypoint listens on the image's fixed ports: one service
+  per machine.
 
 ## Engines
 
 An engine is a class with a versioned id ([catalog](catalog.md#engines)). Engine packages live in
-`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`. An
+`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`, and the
+page engines' `linecaster-indra`, `linecaster-surya` and `linecaster-services` (the clients of Falcon-OCR's and OXR's
+services). An
 engine class (`<Provider><Step>Engine`) has `engine_id` (the entry point's name in `linecaster.engines`), `step`,
 `capabilities` (unit, produces), an `Options` model (its keyword arguments; a preset's `weights` besides), `load()`
-and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array and the
-transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
+and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array, or the image file's
+bytes for an engine whose `image_input` is `"bytes"`, and the transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
@@ -105,7 +114,7 @@ publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
 with `latest` (the site's default) moved to it, and every push to `main` as version `dev`. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
-scripts (`tests/test_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
+scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
 (`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public
 block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
@@ -121,6 +130,7 @@ never one per machine:
 | `harvest.py` | `harvest.v1` | downloads page images (and a library's OCR, manifests) once into item folders, plus page records |
 | `transcribe_modular.py` | `transcribe_modular.v1` | lines and a recognizer, optionally layout, tables, formulas, then post-processing; every step a preset the user picks |
 | `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
+| `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
 
 `linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
