@@ -1,0 +1,27 @@
+# item-texts
+
+*Recipe · edition 1 · pipeline [`bind.v1`](../pipelines/bind.v1.md) · core*
+
+The item stage's default combination: each item's pages recomposed as one item (`unicode-recomposition`: paragraphs
+continued across page breaks, the item's own words as the lexicon), normalized for reading (`latin-historic`: long
+s, ligatures, r rotunda and superscript e folded) and composed into the item's document (`docling-composition`). It
+writes the text variants `verbatim_txt`, `readable_txt` and `readable_md` and the item document in md, txt and json.
+
+- The readable texts come from the recomposition since phase 3 of the refactoring; before, a simpler flow joined each
+  region's lines (NOTES.md has the comparison on the BHL ground truth's whole items).
+- For historic print in Latin script; other scripts are recomposed by the same Unicode rules, and the normalization
+  leaves their characters as they are.
+
+```bash
+uv run launch.py item-texts IMAGES OUT
+```
+
+| Slot | Preset |
+|---|---|
+| recomposition | [`unicode-recomposition@1`](../presets/recomposition/unicode-recomposition.md) |
+| normalization | [`latin-historic@1`](../presets/normalization/latin-historic.md) |
+| composition | [`docling-composition@1`](../presets/composition/docling-composition.md) |
+
+## Provenance
+
+- storytracer/squiddleocr 0.3, the item texts and the per-item document (`--per-document`)

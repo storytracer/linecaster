@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/recipe-1.json
+schema: linecaster.recipe/1
+id: item-texts
+edition: 1
+pipeline: bind.v1
+presets:
+  recomposition: unicode-recomposition@1
+  normalization: latin-historic@1
+  composition: docling-composition@1
+provenance:
+  derived_from:
+  - storytracer/squiddleocr 0.3, the item texts and the per-item document (`--per-document`)
+  authored_by:
+  - Sebastian Majstorovic
+  created: 2026-11-06
+support: core

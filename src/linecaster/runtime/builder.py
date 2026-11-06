@@ -9,9 +9,10 @@ contracts before anything runs (``docs/reference/pipelines.md``).
 
 * **Checks** (all problems collected): the stage starts with a reader; every part a block reads is added earlier
   in its stage (or by the stage's reader); a part is added by one block only unless a later block declares it in
-  ``replaces``; units fit (a page block cannot follow an item stream); server blocks go last; a served model block
-  whose endpoint is a server block of its stage finds its model there; a ``group`` of alternatives (``when=``)
-  adds the same parts in every alternative.
+  ``replaces``; units fit (a page block cannot follow an item stream); the parts carry across a binder and a
+  splitter (an item record holds its pages), apart from the image bytes and the item's document; server blocks go
+  last; a served model block whose endpoint is a server block of its stage finds its model there; a ``group`` of
+  alternatives (``when=``) adds the same parts in every alternative.
 * **Order** is the given one: the builder checks it and never reorders, except that the server blocks at the end
   go with the stage of the model blocks.
 * **Branches**: a block with a ``when`` condition (``branch(block, when=..., group=...)``) processes the pages the
@@ -21,7 +22,7 @@ contracts before anything runs (``docs/reference/pipelines.md``).
   group.
 * **Stages**: with ``tasks > 1``, the stream's change to items (a binder) cuts the pipeline: the first stage writes
   page records in item shards (``PageJsonlWriter(item_shards=N)`` into ``<run_folder>/pages``), the next reads
-  whole shards (``PageRecordReader(item_shards=True)``).
+  whole shards (``PageRecordReader(item_shards=True)``). A splitter after it needs no cut: its items are whole.
 * **Rejects**: with a run folder, a ``RejectWriter`` into ``<run_folder>/rejects`` goes before the first writer (or
   binder) unless the pipeline has one: it writes the pages that carry errors. ``max_page_errors`` sets every page
   block's error budget.
@@ -462,6 +463,19 @@ def _provider(p: Part, available: dict[Part, str]) -> str | None:
     return None
 
 
+#: what does not cross a change of unit: an item record holds no page image bytes, its pages not the item's document
+LEFT_BEHIND = {"binder": frozenset({Part("image")}), "splitter": frozenset({Part("document")})}
+
+
+def _across(c: Contract, available: dict[Part, str]) -> dict[Part, str]:
+    """The parts after a block that changes the stream's unit: a binder's item record holds its pages, and a
+    splitter's pages what the item record held, so the parts carry across (apart from ``LEFT_BEHIND``); after any
+    other such block only what it adds."""
+    if c.role not in LEFT_BEHIND:
+        return {p: v for p, v in available.items() if p in c.adds}
+    return {p: v for p, v in available.items() if p not in LEFT_BEHIND[c.role]}
+
+
 class _Analysis:
     """Walks one stage: checks, nodes and edges."""
 
@@ -536,7 +550,7 @@ class _Analysis:
                 added_by.append(c.adds | c.replaces)
                 if c.unit_out:
                     unit = c.unit_out
-                    available = {p: n.id for p in c.adds}
+                    available = _across(c, available)
                 elif k == 0:
                     unit = c.output_unit if c.unit != "any" else unit
             if group is not None and len({frozenset(x) for x in added_by}) > 1:

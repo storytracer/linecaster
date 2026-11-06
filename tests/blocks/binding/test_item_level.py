@@ -8,7 +8,8 @@ import pytest
 from PIL import Image
 
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.blocks.binding.item import BindItem
+from linecaster.blocks.binding import Binder
+from linecaster.blocks.composition import Composer, Recomposer
 from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Line, Transcription, Word
@@ -101,9 +102,14 @@ def test_item_blocks_group_pages_and_write(tmp_path):
         p.metadata["item_page_count"] = 2
         set_page(d, p)
         docs.append(d)
-    out = list(ItemDocumentWriter(str(tmp_path), formats=("md", "txt", "json"), dividers=True).run(
-        BindItem(text="reflow", sections=True).run(iter(docs))))
-    assert len(out) == 1 and out[0].id == "b1" and out[0].metadata["page_ids"] == ["b1-1", "b1-2"]
+    stream = iter(docs)
+    for block in (Binder(), Recomposer("unicode-recomposition@1", unit="item"),
+                  Composer("docling-composition@1", unit="item", options={"sections": True}),
+                  ItemDocumentWriter(str(tmp_path), formats=("md", "txt", "json"), dividers=True)):
+        stream = block.run(stream)
+    out = list(stream)
+    assert len(out) == 1 and out[0].id == "b1"
+    assert [p["page_id"] for p in out[0].metadata["item"]["pages"]] == ["b1-1", "b1-2"]
     md = (tmp_path / "b1.md").read_text()
     assert md.startswith("### CHAPTER I") and "turned to the north" in md   # docling nests the heading one level in its section
     assert (tmp_path / "b1.txt").exists() and (tmp_path / "b1.json").exists()

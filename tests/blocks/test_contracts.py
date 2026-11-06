@@ -114,7 +114,7 @@ def test_chat_recognizers():
 
 
 def test_contracts_of_the_blocks_without_a_model(tmp_path):
-    from linecaster.blocks.binding import BindItem, ItemTexts
+    from linecaster.blocks.binding import Binder, Splitter
     from linecaster.blocks.composition import Composer, Recomposer, Typographer
     from linecaster.blocks.conversion import ImageConverter
     from linecaster.blocks.lines import LineAssigner
@@ -143,11 +143,14 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert Composer("docling-composition@1", unit="item").contract().unit == "item"
     r = Recomposer("unicode-recomposition@1").contract()
     assert names(r.adds) == ["ocr_new:paragraphs"] and names(r.reads) == ["ocr_new:lines", "ocr_new:regions"]
+    assert r.replaces == r.adds                    # paragraphs made anew where they exist
     assert Recomposer("unicode-recomposition@1", unit="item").contract().unit == "item"
     assert names(CharacterNormalizer("latin-historic@1").contract().adds) == ["ocr_new:normalized"]
-    assert (ItemTexts().contract().unit, ItemTexts().contract().unit_out) == ("page", "item")
-    assert BindItem().contract().adds == {Part("document")} and BindItem().contract().role == "binder"
-    assert ItemTextWriter(str(tmp_path)).contract().reads == {Part("text")}
+    assert CharacterNormalizer("latin-historic@1", unit="item").contract().unit == "item"
+    assert Binder().contract() == Contract(unit="page", unit_out="item", role="binder")
+    assert Splitter().contract() == Contract(unit="item", unit_out="page", role="splitter")
+    assert names(ItemTextWriter(str(tmp_path)).contract().reads) == [
+        "ocr_new:lines", "ocr_new:normalized", "ocr_new:paragraphs"]
     assert ItemDocumentWriter(str(tmp_path)).contract() == Contract(unit="item", role="writer",
                                                                    reads=frozenset({Part("document")}))
     files = PageFileWriter(str(tmp_path), formats=("hocr", "md", "json", "plot", "transcription")).contract()

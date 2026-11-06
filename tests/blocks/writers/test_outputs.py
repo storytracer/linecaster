@@ -9,10 +9,12 @@ import pytest
 from lxml import etree
 
 from linecaster.blocks.base.page import page_of
-from linecaster.blocks.binding.texts import ItemTexts
+from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition.composer import Composer
+from linecaster.blocks.composition.recomposer import Recomposer
 from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageFileWriter
+from linecaster.blocks.text import CharacterNormalizer
 from linecaster.blocks.writers.items import ItemTextWriter
 from linecaster.data.transcription import Line, Region, Transcription
 from linecaster.errors import PipelineConfigError
@@ -20,7 +22,7 @@ from linecaster.formats import from_alto, from_hocr, from_page
 from linecaster.formats.docling import EXPORT_FORMATS, export, load_docling
 from linecaster.text import variants as T
 
-from conftest import page_doc
+from conftest import item_variants, page_doc
 
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 
@@ -95,14 +97,14 @@ def test_variants_render_tables_and_nfc_input():
                Line(id="a0", region_id="a", reading_order=1, text=decomposed + " ſind"),
                Line(id="t0", region_id="t", reading_order=2, text="Ort Weſen"),
                Line(id="t1", region_id="t", reading_order=3, text="Köln 2")])
-    v = T.variants([t])
+    v = item_variants([t])
     assert v["verbatim_txt"] == "KOPF\nÜber die Käfer ſind\n| Ort | Weſen |\n|---|---|\n| Koͤln | 2 |"
     assert unicodedata.is_normalized("NFC", v["verbatim_txt"])
     assert v["readable_md"] == "Über die Käfer sind\n\n| Ort | Wesen |\n|---|---|\n| Köln | 2 |"
     assert v["readable_txt"] == "Über die Käfer sind\n\nOrt\tWesen\nKöln\t2"
     # a table never joins a paragraph across a page break
     t2 = Transcription(regions=[_region("a", "text", 0)], lines=[Line(id="x", region_id="a", reading_order=0, text="weiter")])
-    assert T.variants([t, t2])["readable_txt"].endswith("Köln\t2\n\nweiter")
+    assert item_variants([t, t2])["readable_txt"].endswith("Köln\t2\n\nweiter")
 
 
 def test_item_text_writers(tmp_path: Path):
@@ -110,9 +112,15 @@ def test_item_text_writers(tmp_path: Path):
     for s, txt in ((1, "Die Unter-"), (2, "ſuchung.")):
         t = Transcription(regions=[_region("a", "text", 0)], lines=[Line(id="l", region_id="a", reading_order=0, text=txt)])
         pages.append(page_doc(f"b_{s}", "b", t, seq=s))
-    docs = list(ItemTexts().run(iter(pages)))
-    list(ItemTextWriter(str(tmp_path / "jsonl"), compression=None, output_filename="${variant}/${rank}.jsonl").run(
-        ItemTextWriter(str(tmp_path / "files"), format="files").run(iter(docs))))
+    stream = iter(pages)
+    for block in (Binder(), Recomposer("unicode-recomposition@1", unit="item"),
+                  CharacterNormalizer("latin-historic@1", unit="item"),
+                  ItemTextWriter(str(tmp_path / "files"), format="files"),
+                  ItemTextWriter(str(tmp_path / "jsonl"), compression=None, output_filename="${variant}/${rank}.jsonl",
+                                 token_counter=len)):
+        stream = block.run(stream)
+    (item,) = list(stream)
+    assert item.id == "b" and "item" in item.metadata                 # the item record passes through
     assert (tmp_path / "files" / "verbatim_txt" / "b.txt").read_text() == "Die Unter-\fſuchung."
     assert (tmp_path / "files" / "readable_txt" / "b.txt").read_text() == "Die Untersuchung."
     assert (tmp_path / "files" / "readable_md" / "b.md").read_text() == "Die Untersuchung."
@@ -120,3 +128,11 @@ def test_item_text_writers(tmp_path: Path):
         ItemTextWriter(str(tmp_path), format="csv")
     row = json.loads((tmp_path / "jsonl" / "readable_md" / "00000.jsonl").read_text())
     assert row["id"] == "b" and row["format"] == "text/markdown" and row["page_ids"] == ["b_1", "b_2"]
+    assert row["text"] == "Die Untersuchung." and row["token_count"] == len(row["text"])
+    assert row["fidelity"] == "normalized" and row["pages"] == 2
+    verbatim = ItemTextWriter(str(tmp_path), variants=("verbatim_txt",)).contract()
+    assert {str(p) for p in verbatim.reads} == {"ocr_new:lines"}
+    assert {str(p) for p in ItemTextWriter(str(tmp_path)).contract().reads} == {
+        "ocr_new:lines", "ocr_new:paragraphs", "ocr_new:normalized"}
+    with pytest.raises(PipelineConfigError):
+        ItemTextWriter(str(tmp_path), variants=("nope",))

@@ -1,5 +1,6 @@
-"""Normalization step engines: character fidelity *as written* -> *normalized*, on ``Line.normalized`` and
-``Paragraph.normalized`` (the as-written texts are never touched)."""
+"""Normalization step engines: character fidelity *as written* -> *normalized*, on ``Line.normalized``,
+``Paragraph.normalized`` and each table cell's ``normalized`` (``Region.extra["table"]``; the as-written texts are
+never touched)."""
 from __future__ import annotations
 
 from typing import ClassVar
@@ -12,7 +13,8 @@ from .base import RuleEngine, ScriptDispatch, Strategy
 
 
 class TextNormalization(RuleEngine):
-    """A page-unit normalization: ``normalize(text)`` on every recognized line and every paragraph."""
+    """A page-unit normalization: ``normalize(text)`` on every recognized line, every paragraph and every table
+    cell (its ``normalized`` next to its ``text``)."""
 
     def normalize(self, text: str) -> str:
         raise NotImplementedError
@@ -25,6 +27,10 @@ class TextNormalization(RuleEngine):
                 continue
             item.normalized = self.normalize(item.text)
             changed += item.normalized != item.text
+        for r in t.regions:
+            for cell in (r.extra.get("table") or {}).get("cells") or []:
+                cell["normalized"] = self.normalize(cell.get("text") or "")
+                changed += cell["normalized"] != (cell.get("text") or "")
         t.steps.append(self.step_info(o, measurements={"changed": changed}))
         return t
 

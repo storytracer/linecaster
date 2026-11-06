@@ -42,8 +42,11 @@ def test_launch_finds_the_pipeline():
     launch = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(launch)
     modular, vlm = str(ROOT / "pipelines" / "transcribe_modular.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
-    assert launch.command("squiddle", ["IN", "OUT", "--text", "lines"]) == [
-        "uv", "run", "--script", modular, "IN", "OUT", "--text", "lines", "--recipe", "squiddle"]
+    assert launch.command("squiddle", ["IN", "OUT", "--furniture"]) == [
+        "uv", "run", "--script", modular, "IN", "OUT", "--furniture", "--recipe", "squiddle"]
+    bind = str(ROOT / "pipelines" / "bind.py")
+    assert launch.command("item-texts", ["P", "OUT"]) == ["uv", "run", "--script", bind, "P", "OUT", "--recipe",
+                                                          "item-texts"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
         "uv", "run", "--script", vlm, "IN", "OUT", "--recognition", "chandra-ocr-2@1"]
     assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [

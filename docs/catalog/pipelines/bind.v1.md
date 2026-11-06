@@ -2,16 +2,34 @@
 
 *Pipeline · [`bind.py`](../../../pipelines/bind.py)*
 
-The item stage (binding): one text per item (book, issue, manuscript) and text variant, from the page records of a first
-stage written in item shards (`--item-shards N`). Each task reads whole shard folders, so it sees every page of
-its items; no engine or GPU is needed.
+The item stage (binding): an item's pages (book, issue, manuscript) bound into one item record, recomposed as one
+(paragraphs continued across page breaks), normalized and composed into the item's document; one text per item and
+text variant, and the item document in each format. It reads the page records of a transcribe run; written in item
+shards (`--item-shards N`), each task reads whole shard folders, so it sees every page of its items. No engine or
+GPU is needed: the steps are rule-based, each a preset (`--recipe item-texts` fills them).
 
+    uv run pipelines/bind.py OUT1/pages OUT2 --recipe item-texts
+    uv run pipelines/bind.py OUT1/pages OUT2 --recomposition unicode-recomposition --normalization latin-historic \
+        --composition docling-composition
     uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
-    uv run pipelines/bind.py OUT1/pages OUT2 --tasks 64
+    uv run pipelines/bind.py OUT1/pages OUT2 --recipe item-texts --tasks 64
+    ... --set composition.sections=true          # an option over the preset's
+    ... --no-documents                           # texts only (then --composition is not needed)
     ... --on hf-jobs --commit <sha> --flavor cpu-upgrade --tasks 64
 
-Texts in OUT2/texts/<version>/<rank>.jsonl.gz; with --files also OUT2/files/<version>/<item>.txt|.md.
-`linecaster.runtime.run` has the options every pipeline shares (IMAGES is the first stage's page records folder here).
+Texts in OUT2/texts/<variant>/<rank>.jsonl.gz (with --files also OUT2/texts/<variant>/<item>.txt|.md), item
+documents in OUT2/documents/<format>/<item>.<ext>. `linecaster.runtime.run` has the options every pipeline shares
+(IMAGES is the page records folder here).
+
+## Slots
+
+Each slot takes a preset of that step; a recipe fills them all.
+
+| Slot | Option |
+|---|---|
+| recomposition | `--recomposition` |
+| normalization | `--normalization` |
+| composition | `--composition` |
 
 ## Options
 
@@ -19,4 +37,18 @@ Besides the options every pipeline shares (`linecaster.runtime.run`).
 
 | Option | Values | Default | Description |
 |---|---|---|---|
-| `--files` | flag |  | also one file per item and version: OUT/files/... |
+| `--recomposition` |  |  | recomposition preset: the item's pages as running text, paragraphs continued across page breaks (e.g. unicode-recomposition) |
+| `--normalization` |  |  | character normalization preset of the readable texts (e.g. latin-historic) |
+| `--composition` |  |  | composition preset: the item's document (e.g. docling-composition) |
+| `--set` |  | `[]` | an engine option over the preset's, e.g. composition.sections=true; repeatable |
+| `--variants` |  | `'verbatim_txt,readable_txt,readable_md'` | text variants, comma-separated: verbatim_txt, readable_txt, readable_md |
+| `--files` | flag |  | also one file per item and variant: OUT/texts/<variant>/ |
+| `--no-texts` | flag |  | no item texts |
+| `--formats` |  | `'md,txt,json'` | item document formats, comma-separated: md, txt, html, doclang, json |
+| `--furniture` | flag |  | item documents: keep page headers and footers in md, txt and html |
+| `--dividers` | flag |  | item documents: --- between the items of consecutive layout regions in md |
+| `--no-documents` | flag |  | no item documents |
+
+## Recipes
+
+- [`item-texts`](../recipes/item-texts.md)

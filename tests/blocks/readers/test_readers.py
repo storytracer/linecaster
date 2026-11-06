@@ -82,8 +82,8 @@ def test_parquet_with_bytes_structs_and_paths(tmp_path):
 
 def test_item_shards_bring_an_items_pages_together(tmp_path):
     """Stage 1: four tasks each read some pages of three items and write them into item shards. Stage 2: two
-    tasks read whole shards, so each item's pages all arrive in one task, and ItemTexts emits it whole."""
-    from linecaster.blocks.binding.texts import ItemTexts
+    tasks read whole shards, so each item's pages all arrive in one task, and the Binder emits it whole."""
+    from linecaster.blocks.binding import Binder
     from linecaster.blocks.writers.records import PageJsonlWriter
     from linecaster.blocks.writers.shards import item_shard
 
@@ -100,9 +100,8 @@ def test_item_shards_bring_an_items_pages_together(tmp_path):
                                                                                                      world_size=2):
             seen.setdefault(page_of(doc).item_id, set()).add(rank)
     assert set(seen) == {"a", "b", "c"} and all(len(ranks) == 1 for ranks in seen.values())
-    texts = list(ItemTexts(variants=("verbatim_txt",)).run(
-        PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
-    assert sorted((d.id, d.metadata["pages"]) for d in texts) == [("a", 4), ("b", 4), ("c", 4)]
+    items = list(Binder().run(PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
+    assert sorted((d.id, len(d.metadata["item"]["pages"])) for d in items) == [("a", 4), ("b", 4), ("c", 4)]
 
 
 OLD_RECORD = Path(__file__).with_name("records-before-phase-1.jsonl")

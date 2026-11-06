@@ -1,15 +1,14 @@
 """The blocks of the rule-based steps on their engines: a preset or an engine spec with options over it, in-process
-only, a step record per call (engine, preset edition and hash, seconds, datetime), the page and the item unit, and
-``BindItem`` on the same engines."""
+only, a step record per call (engine, preset edition and hash, seconds, datetime), the page and the item unit."""
 from __future__ import annotations
 
 import pytest
 
 from conftest import page_doc, page_t
 from linecaster.backends import InProcess, Served
-from linecaster.blocks.base.item import ITEM_KEY, gather, item_pages, new_item_document
+from linecaster.blocks.base.item import ITEM_KEY, item_pages
 from linecaster.blocks.base.page import page_of
-from linecaster.blocks.binding import BindItem
+from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition import Composer, Recomposer, Typographer
 from linecaster.blocks.text import CharacterNormalizer
 from linecaster.blocks.writers import ItemDocumentWriter
@@ -67,41 +66,46 @@ def _item_docs():
     return docs
 
 
-@pytest.mark.parametrize("text", ["lines", "reflow"])
+@pytest.mark.parametrize("recomposed", [False, True])
 @pytest.mark.parametrize("sections", [False, True])
-def test_item_blocks_bind_as_bind_item_does(text, sections, tmp_path):
-    """Item records through ``Recomposer(unit="item")`` and ``Composer(unit="item")``: the document ``BindItem``
-    makes, written by the same writer."""
-    (bound,) = list(BindItem(text=text, sections=sections).run(iter(reversed(_item_docs()))))
-    items = [new_item_document(item, pages) for item, pages in gather(reversed(_item_docs()), Typographer("ratios@1"))]
-    blocks = [*([Recomposer("unicode-recomposition@1", unit="item")] if text == "reflow" else []),
+def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
+    """Item records (``Binder``) through ``Recomposer(unit="item")`` and ``Composer(unit="item")``: one document per
+    item, page ``n`` its ``n``-th page, paragraphs continued across the page break; without a recomposition as laid
+    out."""
+    blocks = [Binder(), *([Recomposer("unicode-recomposition@1", unit="item")] if recomposed else []),
               Composer("docling-composition@1", unit="item", options={"sections": sections})]
-    (item,) = run(blocks, items)
-    assert item.id == "b1" and item.metadata["docling"] == bound.metadata["docling"]
-    assert item.metadata["region_of"] == bound.metadata["region_of"] and item.text == bound.text
+    (item,) = run(blocks, list(reversed(_item_docs())))
+    assert item.id == "b1" and item.metadata["item_id"] == "b1" and item.metadata["region_of"]
+    assert ("turned to the north" in item.text) is recomposed
+    assert bool(item.metadata["docling"]["groups"]) is sections
     pages = item_pages(item)
     assert [p.page_id for p in pages] == ["b1-1", "b1-2"] and item.metadata[ITEM_KEY]["item_id"] == "b1"
     steps = [[s.step for s in p.transcriptions["ocr_new"].steps] for p in pages]
-    assert steps == [(["recomposition"] if text == "reflow" else []) + ["composition"]] * 2
-    if text == "reflow":
+    assert steps == [(["recomposition"] if recomposed else []) + ["composition"]] * 2
+    if recomposed:
         first, second = (p.transcriptions["ocr_new"] for p in pages)
         assert first.paragraphs[1].continues.page_id == "b1-2" and second.paragraphs[0].continues_from.page_id == "b1-1"
-    list(ItemDocumentWriter(str(tmp_path / "a"), formats=("md", "json")).run(iter([item])))
-    list(ItemDocumentWriter(str(tmp_path / "b"), formats=("md", "json")).run(iter([bound])))
-    for name in ("b1.md", "b1.json"):
-        assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes()
+    list(ItemDocumentWriter(str(tmp_path), formats=("md", "json"), by_format=True).run(iter([item])))
+    assert (tmp_path / "md" / "b1.md").read_text().startswith("#") and (tmp_path / "json" / "b1.json").exists()
 
 
-def test_bind_item_recomposes_the_item_anew():
-    """Pages recomposed one by one carry their own paragraphs; BindItem recomposes the item (continued across the
-    page break) and, in lines mode, composes from the lines."""
+def test_the_item_recomposition_makes_the_paragraphs_anew():
+    """Pages recomposed one by one carry their own paragraphs; the item-level recomposition makes them anew
+    (continued across the page break), as from pages without any."""
     docs = run([Recomposer("unicode-recomposition@1")], _item_docs())
     assert all(page_of(d).transcriptions["ocr_new"].paragraphs for d in docs)
-    (flowed,) = list(BindItem(text="reflow").run(iter(docs)))
-    (fresh,) = list(BindItem(text="reflow").run(iter(_item_docs())))
-    assert flowed.metadata["docling"] == fresh.metadata["docling"]
-    assert "turned to the north" in flowed.text
-    (laid_out,) = list(BindItem(text="lines").run(iter(docs)))
-    (fresh,) = list(BindItem(text="lines").run(iter(_item_docs())))
-    assert laid_out.metadata["docling"] == fresh.metadata["docling"] and "turned to\nthe north" not in laid_out.text
+    item = [Binder(), Recomposer("unicode-recomposition@1", unit="item"), Composer("docling-composition@1", unit="item")]
+    (flowed,) = run(item, docs)
+    (fresh,) = run(item, _item_docs())
+    assert flowed.metadata["docling"] == fresh.metadata["docling"] and "turned to the north" in flowed.text
     assert all(page_of(d).transcriptions["ocr_new"].steps[-1].step == "recomposition" for d in docs)   # untouched
+
+
+def test_the_normalizer_on_item_records():
+    (item,) = run([Binder(), Recomposer("unicode-recomposition@1", unit="item"),
+                   CharacterNormalizer("latin-historic@1", unit="item")], _item_docs())
+    for p in item_pages(item):
+        t = p.transcriptions["ocr_new"]
+        assert t.steps[-1].preset == "latin-historic@1" and all(x.normalized is not None for x in t.paragraphs)
+    with pytest.raises(PipelineConfigError):
+        CharacterNormalizer("latin-historic@1", unit="book")

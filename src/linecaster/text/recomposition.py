@@ -1,9 +1,9 @@
 """Recomposition: running text from the visual rows of a region (the reading transcription).
 
 Ported from squiddleocr's ``reflow.py`` (main ``7c8a052``) with the arithmetic unchanged; the engine
-``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds documents from what
-it makes. (``linecaster.text.variants`` keeps its own, simpler flow for the readable item texts.) Every threshold below
-is a field of ``Thresholds`` (today's values its defaults), the engine's options.
+``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds documents and
+``linecaster.text.variants`` the readable item texts from what it makes. Every threshold below is a field of
+``Thresholds`` (today's values its defaults), the engine's options.
 
 Typesetting turned the text into lines: it broke it at line ends, sometimes inside a word with a
 division mark, justified it, indented paragraph starts and continued it across columns and pages.

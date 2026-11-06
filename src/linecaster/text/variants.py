@@ -4,11 +4,15 @@ each transform moving one step on one of them.
 * **character fidelity**: *as written* (NFC only: ſ, ligatures, r rotunda, superscript e kept) or
   *normalized* (``normalize``: the explicit mapping table below, then NFC; never NFKC, spelling
   never modernized);
-* **flow**: *as laid out* (one line per printed line, pages separated by a form feed) or *flowed*
-  (``join_lines``: lines of a region joined into a paragraph with line-end hyphens resolved;
-  paragraphs joined across page breaks where they continue);
+* **flow**: *as laid out* (one line per printed line, pages separated by a form feed) or *flowed* (the
+  recomposition's paragraphs, ``Transcription.paragraphs``: rows joined, division marks removed, paragraphs
+  continued across regions and page breaks where the recomposition of the item continued them);
 * **scope**: *full page* or *body only* (``FURNITURE`` regions, running heads and page numbers, and
   pictures left out).
+
+The readable variants are made from an item recomposed as one (``Recomposer(unit="item")``) and normalized
+(``CharacterNormalizer``: ``Paragraph.normalized`` and the table cells'); ``normalize`` is the mapping table the
+``normalization.latin-historic.v1`` engine applies.
 
 The named variants are points on these dimensions:
 
@@ -42,9 +46,6 @@ NORMALIZE_MAP = str.maketrans({
 })
 _SUPERSCRIPT_E = re.compile("([aouAOU])ͤ")
 _UMLAUT = {"a": "ä", "o": "ö", "u": "ü", "A": "Ä", "O": "Ö", "U": "Ü"}
-#: line-end hyphens: hyphen-minus, not sign (Fraktur), double oblique hyphen, hyphen, double hyphen
-HYPHENS = ("-", "¬", "⸗", "‐", "=")
-SENTENCE_END = (".", "!", "?", ":", ";", "“", "”", "»", "«", '"', ")")
 FURNITURE = frozenset({"page_header", "page_footer"})
 NO_TEXT = frozenset({"picture", "chart"})
 #: variant -> (fidelity, flow, scope, format)
@@ -66,27 +67,16 @@ def normalize(s: str) -> str:
     return nfc(s.translate(NORMALIZE_MAP))
 
 
-def join_lines(a: str, b: str) -> str:
-    """Flow two pieces of text across a line break: a line-end hyphen before a lower-case letter is
-    removed (``Entwicklungs-``/``geschichte``), before anything else kept as ``-`` (``Nord-``/
-    ``Amerika``); otherwise the pieces are joined with a space."""
-    if not a:
-        return b
-    if not b:
-        return a
-    if a.endswith(HYPHENS) and len(a) > 1 and not a[-2].isspace():
-        return a[:-1] + b if b[0].islower() else a[:-1] + "-" + b
-    return a + " " + b
-
-
 @dataclass
 class Block:
-    """A flowed region: ``kind`` is title, heading, list_item, paragraph or table (``table`` holds the
-    region's table structure from a tables step; it is rendered, never flowed)."""
+    """A flowed piece of an item's body: ``kind`` is title, heading, list_item, paragraph or table (``table``
+    holds the region's table structure from a tables step; it is rendered, never flowed); ``text`` as written,
+    ``normalized`` its normalized text (``None``: not normalized)."""
 
     kind: str
     label: str
     text: str
+    normalized: str | None = None
     level: int | None = None
     table: dict | None = None
 
@@ -103,65 +93,67 @@ def table_plain(table: dict) -> str:
     return "\n".join("\t".join(row).rstrip("\t") for row in grid)
 
 
-def _map_table(table: dict, f) -> dict:
-    return {**table, "cells": [{**c, "text": f(c["text"])} for c in table.get("cells") or []]}
+def _table(table: dict, normalized: bool) -> dict:
+    """A table structure with each cell's text NFC, or its normalized text (``CharacterNormalizer``; as written
+    where a cell has none)."""
+    def text(c):
+        return nfc(c["normalized"] if normalized and c.get("normalized") is not None else c.get("text") or "")
+    return {**table, "cells": [{**c, "text": text(c)} for c in table.get("cells") or []]}
 
 
-def page_blocks(t: Transcription, skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
-    """The page's regions in reading order (regions without an order last), each region's recognized
-    lines flowed into one block (NFC first, whatever the producer delivered); a region with a table
-    structure (``region.extra["table"]``) becomes a ``table`` block; regions labeled in
-    ``skip_labels`` are left out (body only). Lines without a known region form one paragraph at the
-    end."""
-    order = {r.id: (r.reading_order is None, r.reading_order or 0, i) for i, r in enumerate(t.regions)}
-    regions = {r.id: r for r in t.regions}
-    by_region: dict[str | None, list] = {}
-    for ln in sorted(t.lines, key=lambda ln: ln.reading_order):
-        if ln.text is None or not ln.text.strip():
-            continue
-        by_region.setdefault(ln.region_id if ln.region_id in regions else None, []).append(ln)
-    keys: list[str | None] = sorted((k for k in by_region if k is not None), key=lambda k: order[k])
-    if None in by_region:
-        keys.append(None)
-    blocks = []
-    for k in keys:
-        r = regions.get(k) if k is not None else None
-        label = r.label if r is not None else "text"
-        if label in skip_labels:
-            continue
-        table = (r.extra.get("table") or {}) if r is not None else {}
-        if table.get("cells"):
-            blocks.append(Block("table", label, "", table=_map_table(table, nfc)))
-            continue
-        text = ""
-        for ln in by_region[k]:
-            text = join_lines(text, nfc(ln.text.strip()))
-        kind = {"title": "title", "section_header": "heading", "list_item": "list_item"}.get(label, "paragraph")
-        blocks.append(Block(kind, label, text, r.heading_level if r is not None else None))
-    return blocks
+#: region label -> block kind (every other text label is a paragraph)
+KINDS = {"title": "title", "section_header": "heading", "list_item": "list_item"}
 
 
-def continues(prev: Block, nxt: Block) -> bool:
-    """Whether a text paragraph at the foot of a page continues in the first one of the next page:
-    it ends in a hyphen or without sentence-final punctuation (the case of the next word is no
-    signal: German nouns are capitalized)."""
-    if prev.kind != "paragraph" or nxt.kind != "paragraph" or prev.label != "text" or nxt.label != "text":
-        return False
-    if prev.text.endswith(HYPHENS):
-        return True
-    return bool(nxt.text) and not prev.text.rstrip().endswith(SENTENCE_END)
-
-
-def item_blocks(pages: list[Transcription], skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
-    """The blocks of consecutive pages, paragraphs joined across page breaks where they continue. Only
-    a page's final block may continue (a footnote or caption after the text blocks a join)."""
+def body_blocks(pages: list[Transcription], page_ids: list[str] | None = None,
+                skip_labels: frozenset[str] = FURNITURE | NO_TEXT) -> list[Block]:
+    """The body of consecutive pages (an item) from their recomposition: each page's regions in reading order
+    (regions without an order last), each paragraph a block (``Transcription.paragraphs``; a paragraph that
+    continues another, in an earlier region or on an earlier page, is appended to that one's block with the
+    continuation's separator), a region with a table structure a ``table`` block, a formula region's LaTeX a
+    paragraph; regions labeled in ``skip_labels`` are left out (body only). ``page_ids`` name the pages as the
+    recomposition named them (``ParagraphRef.page_id``; default ``#1``, ``#2``, ...). A page without paragraphs
+    contributes only its tables and formulas."""
+    ids = list(page_ids) if page_ids is not None else [f"#{k + 1}" for k in range(len(pages))]
     out: list[Block] = []
-    for t in pages:
-        blocks = page_blocks(t, skip_labels)
-        if out and blocks and continues(out[-1], blocks[0]):
-            out[-1] = Block("paragraph", "text", join_lines(out[-1].text, blocks[0].text))
-            blocks = blocks[1:]
-        out.extend(blocks)
+    open_: dict[tuple[str, str], tuple[Block, str]] = {}     # (page id, paragraph id) -> the block it goes on in
+    for key, t in zip(ids, pages):
+        paragraphs: dict[str | None, list] = {}
+        for p in t.paragraphs:
+            paragraphs.setdefault(p.region_id, []).append(p)
+        regions = sorted(t.regions, key=lambda r: r.reading_order if r.reading_order is not None else 1 << 30)
+        units = [(r.id, r.label, r) for r in regions]
+        if None in paragraphs and not t.regions:          # a text-only page: its paragraphs without a region
+            units = [(None, "text", None)]
+        for rid, label, r in units:
+            if label in skip_labels:
+                continue
+            extra = r.extra if r is not None else {}
+            if (extra.get("table") or {}).get("cells"):
+                out.append(Block("table", label, "", table=extra["table"]))
+                continue
+            if extra.get("formula"):
+                out.append(Block("paragraph", label, nfc(extra["formula"]), nfc(extra["formula"])))
+                continue
+            own = paragraphs.get(rid, [])
+            standalone = len(own) == 1 and not any(ch.isalpha() for ch in own[0].text)      # a page number
+            for p in own:
+                text, normalized = nfc(p.text), None if p.normalized is None else nfc(p.normalized)
+                continued = None if standalone or p.continues_from is None else open_.pop((key, p.id), None)
+                if continued is not None:
+                    b, sep = continued
+                    b.text += sep + text
+                    if b.normalized is not None and normalized is not None:
+                        b.normalized += sep + normalized
+                    else:
+                        b.normalized = None
+                else:
+                    b = Block(KINDS.get(label, "paragraph"), label, text, normalized,
+                              r.heading_level if r is not None else None)
+                    out.append(b)
+                if p.continues is not None:
+                    sep = next((d.separator for d in reversed(p.decisions) if d.kind == "continuation"), None) or ""
+                    open_[(p.continues.page_id or key, p.continues.id)] = (b, sep)
     return out
 
 
@@ -169,17 +161,18 @@ _MD_START = re.compile(r"^([#>*+\-]|\d+[.)])(\s|$)")
 
 
 def render(blocks: list[Block], markdown: bool = False, normalized: bool = True) -> str:
-    """Blocks -> text, paragraphs separated by a blank line. Markdown: ``#`` title, ``##`` section header
-    (``#`` x (heading_level + 1) when the layout gives a level), ``- `` list item, tables as Markdown
-    pipe tables (HTML when a cell spans); a paragraph that would read as Markdown syntax is escaped.
-    Plain text: tables one row per line, cells separated by tabs."""
+    """Blocks -> text, paragraphs separated by a blank line: their normalized text (as written where a block has
+    none), or as written with ``normalized=False``. Markdown: ``#`` title, ``##`` section header (``#`` x
+    (heading_level + 1) when the layout gives a level), ``- `` list item, tables as Markdown pipe tables (HTML when
+    a cell spans); a paragraph that would read as Markdown syntax is escaped. Plain text: tables one row per line,
+    cells separated by tabs. NFC."""
     parts = []
     for b in blocks:
         if b.kind == "table":
-            table = _map_table(b.table, normalize if normalized else nfc)
+            table = _table(b.table, normalized)
             parts.append(render_table(table) if markdown else table_plain(table))
             continue
-        text = normalize(b.text) if normalized else nfc(b.text)
+        text = nfc(b.normalized if normalized and b.normalized is not None else b.text)
         if not markdown:
             parts.append(text)
         elif b.kind == "title":
@@ -200,7 +193,8 @@ def verbatim(pages: list[Transcription]) -> str:
     return "\f".join(nfc(t.text) for t in pages)
 
 
-def variants(pages: list[Transcription]) -> dict[str, str]:
-    """The three named variants of consecutive pages (an item)."""
-    blocks = item_blocks(pages)
+def variants(pages: list[Transcription], page_ids: list[str] | None = None) -> dict[str, str]:
+    """The three named variants of consecutive pages (an item): ``verbatim_txt`` from the lines as laid out, the
+    readable ones from the recomposition's paragraphs, normalized (``body_blocks``; ``page_ids`` as there)."""
+    blocks = body_blocks(pages, page_ids)
     return {"verbatim_txt": verbatim(pages), "readable_txt": render(blocks), "readable_md": render(blocks, markdown=True)}

@@ -9,8 +9,10 @@ presets:
   recognition: kraken-ppocrv6-medium@1
   tables: slanet-plus@2
   formulas: pp-formulanet-plus-l@1
-options:
-  text: reflow
+  typography: ratios@1
+  recomposition: unicode-recomposition@1
+  normalization: latin-historic@1
+  composition: docling-composition@1
 provenance:
   derived_from:
   - storytracer/squiddleocr 0.3, the paddle pipeline's defaults (`squiddle legacy ocr --pipeline paddle`)

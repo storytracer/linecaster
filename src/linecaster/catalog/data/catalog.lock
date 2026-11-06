@@ -1598,16 +1598,118 @@ presets:
       options:
         effort: 80
 recipes:
+  item-texts@1:
+    sha256: sha256:3494db0036c1671208196919d7b753025a6c54fdd44a96fa2566e7dab007b47d
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      pipeline: bind.v1
+      presets:
+        composition:
+          ref: docling-composition@1
+          sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
+        normalization:
+          ref: latin-historic@1
+          sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
+        recomposition:
+          ref: unicode-recomposition@1
+          sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
+    pipeline:
+    - block: PageRecordReader
+      class: linecaster.blocks.readers.records:PageRecordReader
+      params:
+        fetch_images: false
+        item_shards: true
+        provides: null
+    - block: RejectWriter
+      class: linecaster.blocks.writers.rejects:RejectWriter
+    - block: Binder
+      class: linecaster.blocks.binding.binder:Binder
+      params:
+        count_key: item_page_count
+    - block: Recomposer
+      class: linecaster.blocks.composition.recomposer:Recomposer
+      params:
+        preset:
+          engine: linecaster.engines:UnicodeRecompositionEngine
+          options:
+            rtl: false
+            convention_marks: ¬
+            indent: 0.8
+            gap_leading: 0.6
+            gap_height: 0.5
+            short_row: 1.5
+            short_row_width: 0.25
+            end_margin: 0.6
+            justified_rows: 3
+            justified_share: 0.6
+          preset: unicode-recomposition@1
+          preset_sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
+        transcription: ocr_new
+        unit: item
+        options: null
+    - block: CharacterNormalizer
+      class: linecaster.blocks.text.normalizer:CharacterNormalizer
+      params:
+        preset:
+          engine: linecaster.engines:LatinHistoricNormalizationEngine
+          options: {}
+          preset: latin-historic@1
+          preset_sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
+        transcription: ocr_new
+        unit: item
+        options: null
+    - block: Composer
+      class: linecaster.blocks.composition.composer:Composer
+      params:
+        preset:
+          engine: linecaster.engines:DoclingCompositionEngine
+          options:
+            sections: false
+          preset: docling-composition@1
+          preset_sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
+        transcription: ocr_new
+        unit: item
+        options: null
+    - block: RecipeStamper
+      class: linecaster.blocks.validation.recipe:RecipeStamper
+      params:
+        recipe: item-texts@1
+        recipe_sha256: sha256:3494db0036c1671208196919d7b753025a6c54fdd44a96fa2566e7dab007b47d
+    - block: ItemTextWriter
+      class: linecaster.blocks.writers.items:ItemTextWriter
+      params:
+        format: jsonl
+        variants:
+        - verbatim_txt
+        - readable_txt
+        - readable_md
+        transcription: ocr_new
+        token_counter: null
+    - block: ItemDocumentWriter
+      class: linecaster.blocks.writers.items:ItemDocumentWriter
+      params:
+        formats:
+        - md
+        - txt
+        - json
+        furniture: false
+        dividers: false
+        by_format: true
+    pipeline_sha256: sha256:d27db23a364013cfa8ddde9f667c080c4e476bc7c18c87b0eae28b39b1ebe0f6
   squiddle@1:
-    sha256: sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
-    previous_sha256: sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
+    sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
+    previous_sha256:
+    - sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
+    - sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
     released: '2026-11-04'
     linecaster: null
     resolved:
       pipeline: transcribe_modular.v1
-      options:
-        text: reflow
       presets:
+        composition:
+          ref: docling-composition@1
+          sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
         formulas:
           ref: pp-formulanet-plus-l@1
           sha256: sha256:15cd51d26ee7f253e4bdd4b1da5d56516e2af01c06ac680a622cdcb6c519a4bf
@@ -1617,12 +1719,21 @@ recipes:
         lines:
           ref: pp-ocrv6-medium-det@1
           sha256: sha256:a8ab13d76b42f9b5b69dbb0d48e1da4135fd5e84a106f3df6d5dac613f05852e
+        normalization:
+          ref: latin-historic@1
+          sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
         recognition:
           ref: kraken-ppocrv6-medium@1
           sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
+        recomposition:
+          ref: unicode-recomposition@1
+          sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
         tables:
           ref: slanet-plus@2
           sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
+        typography:
+          ref: ratios@1
+          sha256: sha256:86acd41378b04aaa14cad1b15b55cc089cc8909d2b7323dfda2b9b5dd752b60f
     pipeline:
     - block: ImageFolderReader
       class: linecaster.blocks.readers.images:ImageFolderReader
@@ -1877,11 +1988,11 @@ recipes:
       class: linecaster.blocks.validation.recipe:RecipeStamper
       params:
         recipe: squiddle@1
-        recipe_sha256: sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
+        recipe_sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
     - block: RejectWriter
       class: linecaster.blocks.writers.rejects:RejectWriter
     - block: PageJsonlWriter
       class: linecaster.blocks.writers.records:PageJsonlWriter
       params:
         item_shards: null
-    pipeline_sha256: sha256:47455c8ad7ba7d9828b007da17322afdf32d2853bfabd31ad77d934052bea6ed
+    pipeline_sha256: sha256:9ffdb240e2c40d49d4d6a60ff06364fcd2178497d3ab43eb4ec396d008a53d31

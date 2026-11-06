@@ -13,7 +13,6 @@ from datatrove.data import Document, Media, MediaType
 from PIL import Image
 
 from linecaster.blocks.base.page import page_of, set_page
-from linecaster.blocks.binding.texts import ItemTexts
 from linecaster.blocks.conversion.images import ImageFetcher, ImageConverter
 from linecaster.blocks.readers.records import PageRecordReader
 from linecaster.blocks.validation.pages import PageValidator
@@ -23,6 +22,8 @@ from linecaster.data import Line, Region, Source, Transcription, Word
 from linecaster.data.page import PAGE_KEY, Page, PageImage
 from linecaster.errors import PipelineConfigError
 from linecaster.text import variants as T
+
+from conftest import item_variants
 
 
 def _doc(page: Page, media: bytes | None = None) -> Document:
@@ -116,13 +117,6 @@ def test_normalize_never_nfkc():
     assert T.normalize("é") == "é"
 
 
-def test_join_lines():
-    assert T.join_lines("Entwicklungs-", "geschichte") == "Entwicklungsgeschichte"
-    assert T.join_lines("Nord-", "Amerika") == "Nord-Amerika"
-    assert T.join_lines("rufe¬", "scentibus") == "rufescentibus"
-    assert T.join_lines("a -", "b") == "a - b" and T.join_lines("", "b") == "b"
-
-
 def _page(regions, start=0) -> Transcription:
     t, n = Transcription(), 0
     for i, (rid, label, lines) in enumerate(regions):
@@ -140,33 +134,20 @@ def test_variants():
                 ("f", "page_footer", ["12"])])
     p2 = _page([("h", "page_header", ["KAPITEL 13"]), ("a", "text", ["Kaͤfer zeigt.", "# Neuer Satz"]),
                 ("l", "list_item", ["erſtens"]), ("p", "picture", [])])
-    v = T.variants([p1, p2])
+    v = item_variants([p1, p2])
     assert v["verbatim_txt"] == ("12 KAPITEL\nVom Weſen\nErſter Theil\nDie Unter-\nſuchung der\n12\f"
                                  "KAPITEL 13\nKaͤfer zeigt.\n# Neuer Satz\nerſtens")
-    assert v["readable_txt"] == "Vom Wesen\n\nErster Theil\n\nDie Untersuchung der Käfer zeigt. # Neuer Satz\n\nerstens"
-    assert v["readable_md"] == ("# Vom Wesen\n\n## Erster Theil\n\nDie Untersuchung der Käfer zeigt. # Neuer Satz\n\n"
-                                "- erstens")
-    assert T.variants([_page([("a", "text", ["Ende."])]), _page([("a", "text", ["neu"])])])["readable_txt"] == "Ende.\n\nneu"
-    assert T.variants([_page([("a", "text", ["# kein Titel"])])])["readable_md"] == "\\# kein Titel"
+    # text only: a paragraph runs on over the page break only after a division mark (no margins to read)
+    assert v["readable_txt"] == ("Vom Wesen\n\nErster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\n"
+                                 "erstens")
+    assert v["readable_md"] == ("# Vom Wesen\n\n## Erster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz"
+                                "\n\n- erstens")
+    over = item_variants([_page([("a", "text", ["Die Unter-"])]), _page([("a", "text", ["ſuchung."])])])
+    assert over["readable_txt"] == "Die Untersuchung."
+    assert item_variants([_page([("a", "text", ["Ende."])]), _page([("a", "text", ["neu"])])])["readable_txt"] == \
+        "Ende.\n\nneu"
+    assert item_variants([_page([("a", "text", ["# kein Titel"])])])["readable_md"] == "\\# kein Titel"
     assert T.verbatim([Transcription(), p2]).startswith("\fKAPITEL")
-
-
-def test_item_texts_block():
-    docs = []
-    for item, seqs in (("b1", [2, 1]), ("b2", [1])):
-        for s in seqs:
-            p = Page(page_id=f"{item}_{s}", item_id=item, sequence=s, metadata={"item_page_count": len(seqs)})
-            p.transcriptions["ocr_new"] = _page([("a", "text", [f"Seite {s}"])])
-            docs.append(_doc(p))
-    out = list(ItemTexts(token_counter=len).run(iter(docs)))
-    assert [(d.id, d.metadata["variant"]) for d in out] == [
-        ("b1", "verbatim_txt"), ("b1", "readable_txt"), ("b1", "readable_md"),
-        ("b2", "verbatim_txt"), ("b2", "readable_txt"), ("b2", "readable_md")]
-    assert out[0].text == "Seite 1\fSeite 2" and out[1].text == "Seite 1 Seite 2"
-    assert out[0].metadata["page_ids"] == ["b1_1", "b1_2"] and out[0].metadata["token_count"] == len(out[0].text)
-    assert out[2].metadata["format"] == "text/markdown" and out[1].metadata["fidelity"] == "normalized"
-    with pytest.raises(PipelineConfigError):
-        ItemTexts(variants=("nope",))
 
 
 # ------------------------------------------------------------------ readers

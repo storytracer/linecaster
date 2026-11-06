@@ -1,6 +1,6 @@
-"""Page composition and binding: a ``Transcription``'s regions, lines and tables -> its ``docling`` part (a
-``DoclingDocument``; ``Composer``), an item's pages bound into one (``BindItem``), and the Markdown and
-text exports of them.
+"""Page and item composition: a ``Transcription``'s regions, lines and tables -> its ``docling`` part (a
+``DoclingDocument``; ``Composer``), an item's pages composed into one (``Composer(unit="item")``), and the Markdown
+and text exports of them.
 
 Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). Without paragraphs
 (diplomatic composition, squiddleocr's ``--text lines``): one Docling item per region, in reading order (regions

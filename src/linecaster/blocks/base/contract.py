@@ -19,7 +19,7 @@ from .block import Block
 PAGE_PARTS = frozenset({"image", "metadata"})
 #: the units a stream carries; ``any`` is for blocks that pass whatever comes (servers)
 UNITS = ("page", "item", "any")
-ROLES = ("reader", "writer", "server", "model", "transform", "binder", "validator", "composite")
+ROLES = ("reader", "writer", "server", "model", "transform", "binder", "splitter", "validator", "composite")
 
 
 @dataclass(frozen=True, order=True)
@@ -61,7 +61,7 @@ def parts(names: Iterable[str], transcription: str | None) -> frozenset[Part]:
 @dataclass(frozen=True)
 class Contract:
     unit: str                                   # "page" or "item": what the block's input stream carries ("any")
-    unit_out: str | None = None                 # set when the block changes the stream's unit (page -> item)
+    unit_out: str | None = None                 # set when the block changes the stream's unit (page <-> item)
     reads: frozenset[Part] = field(default_factory=frozenset)
     adds: frozenset[Part] = field(default_factory=frozenset)
     replaces: frozenset[Part] = field(default_factory=frozenset)

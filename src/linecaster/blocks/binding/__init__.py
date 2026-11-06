@@ -1,5 +1,5 @@
-"""Binding: an item's pages gathered in order, into one document or one text per variant."""
-from .item import BindItem
-from .texts import ItemTexts
+"""Binding: an item's pages gathered in order into one item record (``Binder``), and back (``Splitter``)."""
+from .binder import Binder
+from .splitter import Splitter
 
-__all__ = ["BindItem", "ItemTexts"]
+__all__ = ["Binder", "Splitter"]

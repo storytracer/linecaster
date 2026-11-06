@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 
 from linecaster.blocks.base.page import page_of
-from linecaster.blocks.binding.item import BindItem
+from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.layout.single_region import SingleRegionLayout
@@ -145,7 +145,7 @@ def test_item_exports_html_doclang_json(tmp_path: Path):
         t = page_t(n, [f"Page {n} text."], heading="Chapter" if n == 1 else None)
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
-    items = list(BindItem(text="lines", sections=True).run(iter(docs)))
+    items = list(Composer("docling-composition@1", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
     list(ItemDocumentWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())

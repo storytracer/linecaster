@@ -161,3 +161,15 @@ def recomposed(t: Transcription, **options) -> Transcription:
 
     UnicodeRecompositionEngine(**options)([t])
     return t
+
+
+def item_variants(pages: list[Transcription]) -> dict[str, str]:
+    """The text variants of consecutive pages (an item) as the item stage makes them: recomposed as one item,
+    normalized (``latin-historic``), rendered (``linecaster.text.variants.variants``)."""
+    from linecaster.engines import LatinHistoricNormalizationEngine, UnicodeRecompositionEngine
+    from linecaster.text.variants import variants
+
+    UnicodeRecompositionEngine()(pages)
+    for t in pages:
+        LatinHistoricNormalizationEngine()(t)
+    return variants(pages)
