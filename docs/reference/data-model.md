@@ -178,7 +178,13 @@ each with what the item-level blocks added.
 
 ## Text variants (`linecaster.text.variants`)
 
-Three per item, on the three dimensions (character fidelity, flow, scope):
+The vocabulary is era-neutral, on three independent dimensions: character fidelity (as written, normalized,
+expanded, regularized), flow (as laid out, flowed) and scope (full page, body only). Each transform moves one step
+on one dimension; the as-written layer is never overwritten. All text is NFC; the normalization folds ſ, ligatures,
+r rotunda and superscript e over a, o, u by an explicit mapping table, and keeps æ, œ, ø, å and ß; never NFKC;
+spelling is never modernized.
+
+Three variants per item:
 
 | Variant | Made from |
 |---|---|

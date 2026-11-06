@@ -304,9 +304,8 @@ the paragraphs of the item recomposition.
 Stored page records are rows `{"schema": "linecaster.page/2", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`). `PageRecordReader` brings older rows to today's format
 (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/1` row names a transcription's
-steps `model` (read as `steps`); a row without `schema` was written before phase 1, its transcription `ocr` is read
-as `ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's name before
-phase 1).
+steps `model` (read as `steps`); a row without `schema` (the oldest format) names its transcription `ocr`, read as
+`ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's earlier name).
 
 ## HF Jobs helpers
 

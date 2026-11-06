@@ -248,7 +248,7 @@ Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:
 over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
 `CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets that
-reproduce linecaster's behavior before phase 3, squiddleocr's: `working-image@1`, `latin-historic@1`, `ratios@1`,
+reproduce squiddleocr's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
 `unicode-recomposition@1`, `docling-composition@1`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
