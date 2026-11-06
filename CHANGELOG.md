@@ -200,7 +200,31 @@ compatibility aliases: old imports, flags and ids fail.
 - `PARTS` gains `transcription_file` (no released hash changes).
 - A new extra, `[pypdfium2]`, for the `PdfReader`; the locks list it.
 
+**Phase 5: docs**
+
+- `linecaster catalog docs [--out docs/catalog] [--readme README.md]` → `linecaster docs [--out docs] [--readme
+  README.md] [--check]`: `--out` is now the docs folder (the catalog's pages go to `<out>/catalog/`). It also writes
+  the block pages, the README's block table (between `<!-- blocks:start -->` / `<!-- blocks:end -->`), the site's
+  `docs/index.md` and `docs/changelog.md`, and `docs/llms.txt` / `docs/llms-full.txt`; `--check` writes nothing and
+  exits with 1, naming each file that differs. `linecaster catalog` no longer has the action `docs`.
+- Generated pages start with a comment saying so; their links to files outside `docs/` (sources, pipeline scripts,
+  model cards) go to GitHub. The evidence tables have two more columns, Hardware and Backend.
+- A new dependency group, `docs` (MkDocs and Material), not an extra: `uv run --group docs mkdocs build --strict`.
+- `CLAUDE.md` holds rules only; what it described is in `docs/reference/architecture.md`, the data model and
+  serialization pages.
+
 ### Added
+
+- The block pages (`docs/blocks/`): an index by family and a page per block with its contract, backends, catalog
+  step and presets, where it comes in a pipeline, the pipeline scripts that use it, its options, behavior and
+  example, all from code; blocks whose constructor needs arguments declare `docs_args` for them.
+- The docstring standard (`docs/reference/conventions.md`, "Docstrings") and `tests/test_docstrings.py`: every
+  public block, built-in engine, backend, serializer, `build`, `run_pages`, `runtime.run.main` and public catalog
+  function has a summary line and `Args:` for its whole signature; examples for the serializers, `build`, `main` and
+  the catalog functions.
+- `docs/reference/architecture.md`, `docs/reference/compatibility.md` (what counts as a breaking change), READMEs
+  for the engine packages, and the docs site (`mkdocs.yml`).
+- Tests: the generated docs are current, and the README's "Your own pipeline" builds and checks.
 
 - The `Chat` backend (`linecaster.backends.Chat`) for `PageRecognizer` and `RegionRecognizer`.
 - `TranscriptionConverter(format="auto"|"alto"|"page"|"hocr"|"text", source="media"|"uri",
