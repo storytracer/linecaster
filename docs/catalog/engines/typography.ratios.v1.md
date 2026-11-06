@@ -5,10 +5,8 @@
 squiddleocr's retyper (`linecaster.text.typography`): every rule a ratio to the page's own body type.
 Heading levels from the type size, section headers in body type made text, headlines split off the text
 region they were merged into, drop capitals joined to their line, uncertain page numbers removed. The rules
-cover every script that is set in lines of type sizes.
-
-Runs today's code with today's thresholds: options other than the defaults are refused until the thresholds
-are its parameters.
+cover every script that is set in lines of type sizes. Every threshold is an option, squiddleocr's values the
+defaults.
 
 |  |  |
 |---|---|
@@ -29,3 +27,7 @@ are its parameters.
 | `levels` | `list[tuple[float, int]]` | `[(2.5, 1), (1.7, 2), (0.0, 3)]` | (ratio to the body size, heading level), highest first: a heading gets the first level whose ratio it reaches |
 | `max_headline_rows` | `int` | `3` | at most this many leading rows split off as a headline |
 | `heading_labels` | `list[str]` | `['section_header', 'title']` | the region labels of headings |
+
+## Presets
+
+- [`ratios`](../presets/typography/ratios.md)

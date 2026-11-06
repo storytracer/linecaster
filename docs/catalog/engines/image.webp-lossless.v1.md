@@ -21,3 +21,7 @@ image's bytes and returns the WebP bytes with their record (size, hashes, decode
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `effort` | `int` | `80` | libwebp's lossless compression effort (Pillow's quality): size and speed, never pixels |
+
+## Presets
+
+- [`working-image`](../presets/image/working-image.md)

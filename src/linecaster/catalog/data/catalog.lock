@@ -174,6 +174,15 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  docling-composition@1:
+    sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: composition
+      engine: composition.docling.v1
+      options:
+        sections: false
   dots-mocr@1:
     sha256: sha256:4d546d415897490a316903dcb73bbfb93483e52299c442ee551931feab24f0f4
     previous_sha256: sha256:782102a1f0543279fbcf13de3e83c8295fed174b8f6a27ef42136da6efe7d4a7
@@ -333,6 +342,13 @@ presets:
         batch_size: 8
         precision: auto
         text_direction: horizontal-lr
+  latin-historic@1:
+    sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: normalization
+      engine: normalization.latin-historic.v1
   lightonocr-2-1b-regions@1:
     sha256: sha256:230c8b9cd87a8fe68ca59de09be4a0a5d46e70a4301417b3d233630a7cb03aa3
     released: '2026-11-04'
@@ -1230,6 +1246,28 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1, "video": 0}'
+  ratios@1:
+    sha256: sha256:86acd41378b04aaa14cad1b15b55cc089cc8909d2b7323dfda2b9b5dd752b60f
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: typography
+      engine: typography.ratios.v1
+      options:
+        page_number_min_conf: 0.75
+        demote: 1.2
+        split: 1.6
+        levels:
+        - - 2.5
+          - 1
+        - - 1.7
+          - 2
+        - - 0.0
+          - 3
+        max_headline_rows: 3
+        heading_labels:
+        - section_header
+        - title
   slanet-plus@2:
     sha256: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
     released: '2026-11-04'
@@ -1396,6 +1434,24 @@ presets:
         data: fast
         pad: 4
         dpi: 300
+  unicode-recomposition@1:
+    sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: recomposition
+      engine: recomposition.unicode.v1
+      options:
+        rtl: false
+        convention_marks: ¬
+        indent: 0.8
+        gap_leading: 0.6
+        gap_height: 0.5
+        short_row: 1.5
+        short_row_width: 0.25
+        end_margin: 0.6
+        justified_rows: 3
+        justified_share: 0.6
   unlimited-ocr-2@1:
     sha256: sha256:41a97a318601c18afb211385b727c8f123cf9cd2c506c15a64b71aa46613f1e5
     previous_sha256: sha256:f02362df29626c66202bb336f75a603e53f5ffb4f6e28955aad1ba1dd9077faf
@@ -1532,6 +1588,15 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  working-image@1:
+    sha256: sha256:a73383d8253ccb53c65b1497a432afe7dcfc6fb3ae789baf1d4452eacdb3d970
+    released: '2026-11-06'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.webp-lossless.v1
+      options:
+        effort: 80
 recipes:
   squiddle@1:
     sha256: sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447

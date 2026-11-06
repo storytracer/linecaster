@@ -5,12 +5,14 @@
 squiddleocr's recomposition (`linecaster.text.recomposition`): the rows of each text region joined into
 paragraphs, the typesetter's division marks removed, from geometry and Unicode's character properties (line,
 word and sentence breaks), never from a language name; the document's own words decide the one ambiguous case
-(a hyphen that may belong to the word). The pages of an item share that lexicon, in order. Covers every
-script whose text runs in horizontal lines.
+(a hyphen that may belong to the word). A paragraph left open at the end of a text region continues in the next
+one, and at the foot of a page on the next page of the item (a region of digits only between them, a page
+number, does not close it); the pages of an item share the lexicon, growing page by page in order. Without
+geometry (a text-only transcription) a region is one paragraph, decided by the character rules alone. Covers
+every script whose text runs in horizontal lines.
 
-Makes the paragraphs of each region; the decisions, the continuation across regions and pages and the
-text-only fallback come with the Recomposer. Options other than the defaults are refused until the rules take
-them as parameters.
+Each decision is recorded on its paragraph (`Paragraph.decisions`); a continuation links the two paragraphs
+(`continues`, `continues_from`) and removes the division mark it decided on from the first one's text.
 
 |  |  |
 |---|---|
@@ -27,3 +29,15 @@ them as parameters.
 |---|---|---|---|
 | `rtl` | `bool` | `False` | the writing direction is right to left (start and end margins) |
 | `convention_marks` | `str` | `'¬'` | characters a transcription convention writes for a line-end hyphen, besides Unicode's hyphens |
+| `indent` | `float` | `0.8` | a row indented this many ems from the start margin starts a paragraph; a region whose first row is, continues none |
+| `gap_leading` | `float` | `0.6` | a gap above a row larger than this share of the leading ... |
+| `gap_height` | `float` | `0.5` | ... and than this share of the taller row's height is a blank line: a paragraph break |
+| `short_row` | `float` | `1.5` | in justified text a row ending this many ems short of the end margin ... |
+| `short_row_width` | `float` | `0.25` | ... and this share of the region's width ends its paragraph |
+| `end_margin` | `float` | `0.6` | a row ending within this many ems of the end margin reaches it (justification; a paragraph that reaches it may run on) |
+| `justified_rows` | `int` | `3` | a region of at least this many rows ... |
+| `justified_share` | `float` | `0.6` | ... of which this share reach the end margin is justified |
+
+## Presets
+
+- [`unicode-recomposition`](../presets/recomposition/unicode-recomposition.md)

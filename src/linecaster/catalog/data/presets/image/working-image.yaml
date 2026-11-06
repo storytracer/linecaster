@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: working-image
+edition: 1
+step: image
+engine: image.webp-lossless.v1
+options:
+  effort: 80
+capabilities:
+  unit: page
+  produces:
+  - image
+provenance:
+  derived_from:
+  - linecaster's working image (lossless WebP at full resolution, 8-bit sRGB), as the ImageConverter made it before phase 3
+  created: 2026-11-06
+support: core

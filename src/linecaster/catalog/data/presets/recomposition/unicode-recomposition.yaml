@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: unicode-recomposition
+edition: 1
+step: recomposition
+engine: recomposition.unicode.v1
+options:
+  rtl: false
+  convention_marks: ¬
+  indent: 0.8
+  gap_leading: 0.6
+  gap_height: 0.5
+  short_row: 1.5
+  short_row_width: 0.25
+  end_margin: 0.6
+  justified_rows: 3
+  justified_share: 0.6
+capabilities:
+  unit: item
+  produces:
+  - paragraphs
+provenance:
+  derived_from:
+  - 'storytracer/squiddleocr@7c8a052 (the rules its goldens were recorded with: sample-60, tables-7)'
+  created: 2026-11-06
+support: core

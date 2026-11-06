@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: docling-composition
+edition: 1
+step: composition
+engine: composition.docling.v1
+options:
+  sections: false
+capabilities:
+  unit: page
+  produces:
+  - document
+provenance:
+  derived_from:
+  - 'storytracer/squiddleocr@7c8a052 (the rules its goldens were recorded with: sample-60, tables-7)'
+  created: 2026-11-06
+support: core

@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: latin-historic
+edition: 1
+step: normalization
+engine: normalization.latin-historic.v1
+capabilities:
+  unit: page
+  produces:
+  - normalized
+provenance:
+  derived_from:
+  - linecaster's readable item texts (the mapping table of linecaster.text.variants)
+  created: 2026-11-06
+support: core

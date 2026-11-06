@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: ratios
+edition: 1
+step: typography
+engine: typography.ratios.v1
+options:
+  page_number_min_conf: 0.75
+  demote: 1.2
+  split: 1.6
+  levels:
+  - [2.5, 1]
+  - [1.7, 2]
+  - [0.0, 3]
+  max_headline_rows: 3
+  heading_labels:
+  - section_header
+  - title
+capabilities:
+  unit: page
+  produces:
+  - hierarchy
+provenance:
+  derived_from:
+  - 'storytracer/squiddleocr@7c8a052 (the rules its goldens were recorded with: sample-60, tables-7)'
+  created: 2026-11-06
+support: core

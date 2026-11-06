@@ -1,0 +1,38 @@
+# ratios
+
+*Preset · edition 1 · typography · core*
+
+squiddleocr's retyper: the hierarchy of a page from its own type sizes, every rule a ratio to the body size (the
+median row height of the page's text regions); the squiddle combination's typography.
+
+- `levels`: a heading whose rows are at least 2.5 times the body size is level 1, 1.7 times level 2, else level 3.
+- `demote` 1.2: a section header set in about the body size is text (layout models often call a bold run-in
+  heading a section header).
+- `split` 1.6, `max_headline_rows` 3: up to three leading rows of a text region this much taller than the rows after
+  them and the body size are a headline the layout model merged into the text; they become a section header of
+  their own.
+- `page_number_min_conf` 0.75: a page-number region read with a lower mean character confidence (or empty) is an
+  ornament or a blob, and is removed (recorded in `extra["retyper_dropped"]`).
+- Drop capitals (a layout model's `drop-capital` class) are joined to the first line of the text region they
+  belong to.
+
+|  |  |
+|---|---|
+| Step | typography (reads pages) |
+| Engine | [`typography.ratios.v1`](../../engines/typography.ratios.v1.md) |
+| Produces | hierarchy |
+
+## Options
+
+| Option | Value |
+|---|---|
+| page_number_min_conf | `0.75` |
+| demote | `1.2` |
+| split | `1.6` |
+| levels | `[[2.5, 1], [1.7, 2], [0.0, 3]]` |
+| max_headline_rows | `3` |
+| heading_labels | `['section_header', 'title']` |
+
+## Provenance
+
+- storytracer/squiddleocr@7c8a052 (the rules its goldens were recorded with: sample-60, tables-7)

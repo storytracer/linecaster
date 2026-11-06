@@ -14,3 +14,7 @@ modernized.
 | Produces | normalized |
 | Scripts | Latn |
 | Runs | in the pipeline's process |
+
+## Presets
+
+- [`latin-historic`](../presets/normalization/latin-historic.md)
