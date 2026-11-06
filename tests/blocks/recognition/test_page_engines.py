@@ -114,3 +114,16 @@ def test_the_page_pipeline_takes_page_engines_only():
         _blocks(["--recognition", "lightonocr-2-1b"])
     with pytest.raises(PipelineConfigError, match="does not read whole pages"):
         _blocks(["--recognition", "kraken-ppocrv6-medium"])
+
+
+def test_an_engine_can_take_the_image_file_s_bytes():
+    """An engine whose ``image_input`` is ``"bytes"`` (a vendor's package that decodes the file itself) gets the page
+    image as the reader brought it; every other engine an RGB array."""
+    from types import SimpleNamespace
+
+    from linecaster.blocks.base.model import page_image
+    from linecaster.testing import sample_png
+
+    data = sample_png(fmt="WEBP")
+    assert page_image(SimpleNamespace(image_input="bytes"), data) is data
+    assert page_image(FakePageEngine(), data).shape == (400, 800, 3)

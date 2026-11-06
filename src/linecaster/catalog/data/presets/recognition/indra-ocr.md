@@ -8,9 +8,9 @@ package's. The engine is `indra.recognition.v1` (package `linecaster-indra`).
   task (the package's own workers are single-threaded, one per core: run as many tasks as cores).
 - The models: the pin of `datalab-to/indra-ocr` at the tag `v1.1.0`, the model set `indra-ocr` 1.1.2 is built
   against (`indra_ocr/models.py: HF_REVISION`), every pinned file checked.
-- The page goes to the package as a lossless RGB PNG (the board's driver wrote the dataset's own bytes); the package
-  reads it in grayscale with OpenCV. The pipeline script resolves OpenCV 4.11 (surya-ocr's pin, in the same
-  environment); the board's run resolved the newest release of its day.
+- The page goes to the package as its file's bytes, as the reader brought them (the engine's `image_input` is
+  `bytes`), the board driver's way; the package decodes it in grayscale with OpenCV. The pipeline script resolves
+  OpenCV 4.11 (surya-ocr's pin, in the same environment); the board's run resolved the newest release of its day.
 - Kept verbatim: the package's Markdown (`extra["raw"]`, the text), with its layout blocks, rotation and skew. A page
   the package reports as failed is the page's error; an empty Markdown (a blank leaf) is a transcription without
   text. The board strips the outer whitespace only.

@@ -165,7 +165,8 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     against the vocabulary and produce something; ``Options`` is a pydantic model whose fields all have a
     description, and the engine constructs with ``options``. Then it is loaded and called on the input, twice:
 
-    * a model engine (the steps that are not rule-based) as ``engine(image, transcription)``: it returns a
+    * a model engine (the steps that are not rule-based) as ``engine(image, transcription)`` (the image as an RGB
+      array, or as a PNG file's bytes for an engine whose ``image_input`` is ``"bytes"``): it returns a
       ``Transcription`` in which only the parts its ``capabilities.produces`` declares changed
       (``transcription_changes``), with one more ``StepInfo``, and leaves the image array as it was;
     * a rule-based engine by its unit: ``engine(transcription)`` (page), ``engine([t1, t2])`` (item, the
@@ -179,7 +180,8 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     Args:
         engine_cls: the engine class.
         options: keyword arguments that construct it (a preset's options and ``weights``); ``None``: none.
-        image: the page image, an RGB array (the image step: an image file's bytes); default ``sample_page()``.
+        image: the page image, an RGB array (the image step and an engine whose ``image_input`` is ``"bytes"``: an
+            image file's bytes); default ``sample_page()`` (``sample_png()``).
         transcription: the transcription it is called with; default a sample layout fit for its step and unit
             (``sample_layout``: recognition gets lines without text, layout an empty transcription, tables and
             formulas a region of their label, a page engine (recognition, unit page) an empty transcription,
@@ -246,6 +248,9 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
             if rule:
                 out = engine(inputs) if caps.unit == "item" else engine(t)
                 outs = out if caps.unit == "item" else [out]
+            elif getattr(engine_cls, "image_input", "rgb") == "bytes":       # the image file, as a reader brings it
+                out = engine(image if image is not None else sample_png(), t)
+                outs = [out]
             else:
                 array = np.array(image if image is not None else sample_page())      # a writable copy
                 kept = array.copy()

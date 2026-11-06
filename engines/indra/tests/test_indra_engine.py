@@ -2,11 +2,10 @@
 handling of the package's page. Run in an environment with the package (README: the test command)."""
 from types import SimpleNamespace
 
-import numpy as np
 import pytest
 
 from linecaster.engines.api import weights_of
-from linecaster.testing import check_engine, sample_page
+from linecaster.testing import check_engine, sample_png
 from linecaster_indra import IndraRecognitionEngine
 
 
@@ -37,14 +36,14 @@ def _engine(page) -> IndraRecognitionEngine:
     return engine
 
 
-def test_the_page_goes_through_a_temporary_file():
+def test_the_page_s_file_goes_through_a_temporary_file():
     page = SimpleNamespace(source="ocr", note="", markdown="# Title\nbody", blocks=[{"label": "text",
                            "bbox": [1, 2, 3, 4], "text": "body"}], rotation=0, skew=0.0)
     engine = _engine(page)
-    image = np.asarray(sample_page().convert("RGB"))
+    image = sample_png(fmt="WEBP")
     out = engine(image, None)
     assert out.text == "# Title\nbody" and out.extra["blocks"][0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
-    assert engine.converter.size == (800, 400) and engine.converter.paths[0].endswith(".png")
+    assert engine.converter.size == (800, 400) and engine.converter.paths[0].endswith(".webp")   # the file as given
     import os
 
     assert not os.path.exists(engine.converter.paths[0])                  # removed after the read
@@ -56,4 +55,4 @@ def test_a_failed_page_is_the_page_s_error():
     engine = _engine(SimpleNamespace(source="error", note="unreadable", markdown=None, blocks=[], rotation=0,
                                      skew=0.0))
     with pytest.raises(RuntimeError, match="unreadable"):
-        engine(np.asarray(sample_page().convert("RGB")), None)
+        engine(sample_png(), None)
