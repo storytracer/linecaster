@@ -1,0 +1,29 @@
+# linecaster's CI workflow: the core's tests and checks on a CPU, without the engines' environments (torch is too
+# large; the engines' conformance runs locally, engines/<engine>/README.md). No secrets.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          # the project's [tool.uv] required-version
+          version: "0.13.6"
+          python-version: "3.12"
+      - run: uv sync --locked
+      - run: uv run pytest -m "not gpu and not network and not parity"
+      - run: uv run linecaster docs --check
+      - run: uv run linecaster catalog verify
+      - run: uv run --group docs mkdocs build --strict
