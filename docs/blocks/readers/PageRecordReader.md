@@ -36,7 +36,10 @@ The contract is that of `PageRecordReader(data_folder='out/pages')`; the comes-a
 Each pipeline of a workflow reads the previous one's `pages/` folder (linecaster's page writers) and adds its
 part. The records bring `metadata` and, with `fetch_images`, `image`: page records never carry the image
 bytes, so they are read again from `page.image.uri` through datatrove `DataFolder`s (`http(s)://`
-through pybookget). A page's errors come back as `doc.metadata["errors"]`, so later model blocks pass it by.
+through pybookget); a URI with a fragment names a part of its file (`file.pdf#page=<n>`: that page rendered,
+`file.parquet#<page_id>`: that row's image, `linecaster.blocks.readers.fragments`), and one that cannot be
+resolved is the page's error (field `image`, stat `image_errors`), never the whole file. A page's errors
+come back as `doc.metadata["errors"]`, so later model blocks pass it by.
 
 Rows of an earlier format are read as today's (`upgrade`, by the row's `schema`): rows without `schema`
 name linecaster's transcription `ocr` (read as `ocr_new`), `linecaster.page/1` rows a transcription's

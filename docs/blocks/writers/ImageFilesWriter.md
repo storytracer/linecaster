@@ -11,7 +11,7 @@ Writes each page's image bytes as they came, one file per page.
 | Role | writer |
 | Reads | `image` |
 | Adds | - |
-| Replaces | - |
+| Replaces | `metadata` |
 | Comes after | any reader |
 | Comes before | - |
 | Used in | [`harvest.v1`](../../catalog/pipelines/harvest.v1.md) |
@@ -29,8 +29,8 @@ The contract is that of `ImageFilesWriter(output_folder='out/images')`; the come
 ## Behavior
 
 Files go to `<output_folder>/<item_id>/<page_id>.<ext>` (any fsspec folder; `<page_id>.<ext>` for pages
-without an item), the extension from the image's format. It reads `image`. The page's `image.uri` then names
-the written file and `image.extra["source_uri"]` where it came from, so page records written after this block
+without an item), the extension from the image's format. It reads `image` and replaces `metadata`: the page's
+`image.uri` then names the written file and `image.extra["source_uri"]` where it came from, so page records written after this block
 point at the copy (`PageRecordReader` fetches it from there), and `ImageFolderReader(output_folder,
 item_from_parent=True)` reads the folder as it is. Pages pass through.
 
@@ -41,4 +41,5 @@ flowchart LR
     B["ImageFilesWriter"]
     r0["image"] --> B
     B --> a0["page stream"]
+    B -. replaces .-> x0["metadata"]
 ```

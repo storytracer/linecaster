@@ -53,7 +53,8 @@ Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored p
 ## Docstrings
 
 Google style, checked by `tests/test_docstrings.py` (with `ast`, no extra tool) for every public block, built-in
-engine, backend, serializer, `build`, `run_pages`, `runtime.run.main` and public function of `linecaster.catalog`:
+engine, backend, serializer, `build`, `run_pages`, `runtime.run.main`, public function of `linecaster.catalog` and
+public name of `linecaster.engines.api` and `linecaster.testing`:
 
 - **Summary line**: what the block or function does, in the present tense, starting with a verb, one sentence:
   "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The block
@@ -81,6 +82,18 @@ are, and a test keeps them complete as signatures change.
   check a pipeline before it runs and derive its graph.
 - Blocks are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
   the same blocks run on any executor and in `run_pages()`.
+
+## Tests
+
+- Every built-in engine passes `linecaster.testing.check_engine` and every public block `check_block`
+  (`tests/testing/test_conformance.py`); an engine package checks its engines the same way in
+  `engines/<engine>/tests/`. Reason: the protocol and the contracts hold for every implementation, not only the
+  ones a pipeline happens to run.
+- A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
+  over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
+  run skips what a machine cannot run, and CI runs what a CPU can.
+- Tests use the fake engines and the fake chat server of `linecaster.testing`, not copies of their own. Reason: one
+  fake per step behaves the same in every test.
 
 ## Tracing
 

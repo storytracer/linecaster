@@ -22,6 +22,7 @@ class Contract:
     reads: frozenset[Part]
     adds: frozenset[Part]
     replaces: frozenset[Part]
+    removes: frozenset[Part]   # parts the block does not pass on (gone for every later block)
     role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
@@ -30,19 +31,22 @@ class Contract:
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
   `line_regions`, `hierarchy`, `nfc`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
-- **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`) that
+- **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
+  `parts_removed`) that
   the default `contract()` of `Contracted` reads; page-level names stay page-level, the others belong to the
   block's `transcription`. Blocks whose parts depend on their options compute `contract()`.
 - **Model blocks** read the page image (recognition also `lines`, tables and formulas `regions`) and add their
   preset's `capabilities.produces`: the preset of the `InProcess` backend (`preset`), of the `Served` backend
   (`preset`, set by `runtime.run.engines`) or of the `Chat` backend; without a preset the engine class's
   `capabilities` (read from its source in the repository, else from the class); without either the step's default.
-  The chat recognizers add `text` too, `RegionRecognizer` also `lines`.
+  The chat recognizers add `text` too, `RegionRecognizer` also `lines` (and replaces `lines` and `text`: the
+  transcription's earlier lines are replaced).
 - **Readers** add `image` and `metadata`; `ManifestReader(existing_ocr=True)` also `transcription_file`, which the
   `TranscriptionConverter` reads (adding `ocr_original:*`);
   `PageRecordReader` what `provides=` declares (`["ocr_new:lines", ...]`), or anything (`*`, reads after it are
   not checked) when it declares nothing. With `fetch_images=False` it brings no `image`.
-- **Writers** read what they write and add nothing (`PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
+- **Writers** read what they write and add nothing (`ImageFilesWriter` replaces `metadata`: the image's URI then
+  names its copy; `PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
   md and txt, `document` for HTML, DocLang and JSON, `image` for plots). **Servers** have role `server` and unit
   `any`.
 - **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
@@ -56,7 +60,7 @@ class Contract:
   `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
-| Block | Reads | Adds | Replaces |
+| Block | Reads | Adds | Replaces, removes |
 |---|---|---|---|
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
 | `UnicodeNormalizer` | `text` | `nfc` | `text` |
@@ -65,7 +69,7 @@ class Contract:
 | `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
 | `ImageFetcher` | `metadata` | | `image` |
-| `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`) |
+| `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`; without it removes `image`) |
 | `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
 | `RecipeStamper` | | | |
 
@@ -94,7 +98,7 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
-  `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=8)` take it (or a chat preset's ref).
+  `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
 
 The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
 `runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
@@ -113,7 +117,8 @@ plan.describe()       # stages with each block's contract, the edges, the proble
 ```
 
 **Checks**, all collected: a stage starts with a reader; every part a block reads is added earlier in its stage
-(or by the stage's reader); a part is added by one block only, unless a later block declares it in `replaces`;
+(or by the stage's reader) and not removed since (`removes`, even after a reader that provides anything); a part
+is added by one block only, unless a later block declares it in `replaces`;
 units fit (a page block cannot follow an item stream, an item block needs a binder before it); the parts carry
 across a binder and a splitter (apart from `image` and the item's `document`); server blocks go last; a served model
 block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,

@@ -28,10 +28,12 @@ The comes-after and comes-before rows are derived from every block's contract.
 
 ## Behavior
 
-It reads `page.image.uri` (any fsspec path; a `#` fragment is dropped) into `doc.media`: it replaces
-`image`. `PageRecordReader(fetch_images=False)` followed by an `ImageFetcher` after filtering avoids
-fetching the images of pages that are dropped anyway. A page without an image address is counted
-(`no_image`) and passed on as it is.
+It reads `page.image.uri` (any fsspec path) into `doc.media`: it replaces `image`. A URI with a fragment
+names a part of its file (`file.pdf#page=<n>`: that page rendered as `PdfReader` renders it,
+`file.parquet#<page_id>`: that row's image); one that cannot be resolved is the page's error (field
+`image`, stat `image_errors`), and the page passes on without image bytes. `PageRecordReader(
+fetch_images=False)` followed by an `ImageFetcher` after filtering avoids fetching the images of pages that
+are dropped anyway. A page without an image address is counted (`no_image`) and passed on as it is.
 
 ## Contract
 
