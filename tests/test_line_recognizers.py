@@ -85,5 +85,7 @@ def test_tessdata_languages_and_commits():
     assert all(len(td.commit) == 40 for td in models.TESSDATA.values())
 
 
-if __name__ == "__main__":
-    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
+if __name__ == "__main__":     # with arguments: those tests instead (an engine package's: engines/<engine>/tests)
+    import sys
+
+    raise SystemExit(pytest.main([*(sys.argv[1:] or [__file__]), "-q", "-p", "no:cacheprovider"]))

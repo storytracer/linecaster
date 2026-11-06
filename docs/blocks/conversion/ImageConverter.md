@@ -12,6 +12,7 @@ Converts each page's delivered image into the working image with an image engine
 | Reads | `metadata` |
 | Adds | - |
 | Replaces | `metadata` |
+| Removes | `image` |
 | Backends | in-process only (a built-in engine) |
 | Catalog step | `image` |
 | Presets | [`working-image@1`](../../catalog/presets/image/working-image.md) |
@@ -37,7 +38,8 @@ With `working-image@1` (engine `image.webp-lossless.v1`, `linecaster.images.conv
 the working image is 8-bit sRGB, lossless WebP at full resolution, method 0, exact. It is written to
 `<output_folder>/<item_id>/<page_id>.webp` (`_/<page_id>.webp` for a page without item), and
 `page.image` becomes the working image's `PageImage` (size, hashes, decoder): it reads and replaces
-`metadata`. The delivered file is only read (from `doc.media` when the reader brought it, else from its
+`metadata`, and with `keep_bytes` replaces `image`; without it, it removes `image` (the page leaves with
+no image bytes, so a later block that reads the image needs an `ImageFetcher` first). The delivered file is only read (from `doc.media` when the reader brought it, else from its
 URI); its location, format, sha256, size and mode stay under `page.image.extra["original"]`, the step
 (engine, preset edition and hash, settings) under `page.image.extra["step"]` (a `StepInfo`: the image
 belongs to no transcription). A page without an image address, over the size limit (`check_size`) or that
@@ -52,4 +54,5 @@ flowchart LR
     r0["metadata"] --> B
     B --> a0["page stream"]
     B -. replaces .-> x0["metadata"]
+    B -. removes .-> d0["image"]
 ```

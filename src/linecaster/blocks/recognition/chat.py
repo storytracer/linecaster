@@ -26,10 +26,12 @@ error (``doc.metadata["errors"]``), as for every model block.
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from ...adapters import ENGINE
 from ...backends import Chat
 from ...data.transcription import StepInfo
-from ...errors import PipelineConfigError
+from ...errors import PageError, PipelineConfigError
 from ..base.contract import Contract, parts
 from ..base.model import ModelBlock, Passed, produces
 from ..base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
@@ -76,9 +78,11 @@ class PageRecognizer(ModelBlock):
     step = "recognition"
     route = "/chat/completions"
     shape = "stream"
-    #: what it reads besides the page image, and what it adds besides the text and its preset's parts
+    #: what it reads besides the page image, what it adds besides the text and its preset's parts, and what of
+    #: that it makes anew where the transcription has it already
     regions_read: tuple[str, ...] = ()
     lines_added: tuple[str, ...] = ()
+    parts_made_anew: tuple[str, ...] = ()
     docs_args = {"backend": "lightonocr-2-1b@1"}
 
     def __init__(self, backend: Chat | str, transcription: str = "ocr_new", primary: str | None = None,
@@ -97,7 +101,7 @@ class PageRecognizer(ModelBlock):
         """The completion is the text; the preset's ``capabilities.produces`` say what else (``markdown``, ...)."""
         adds = {*self.lines_added, "text", *produces(self.backend, self.step)}
         return Contract(unit="page", role=self.role, reads=parts(("image", *self.regions_read), self.transcription),
-                        adds=parts(adds, self.transcription))
+                        adds=parts(adds, self.transcription), replaces=parts(self.parts_made_anew, self.transcription))
 
     def process_page(self, doc, page):  # pragma: no cover - the Chat backend is always served
         raise PipelineConfigError(f"{type(self).__name__} runs served only")
@@ -112,6 +116,8 @@ class PageRecognizer(ModelBlock):
 
 #: Region labels a region-recognition step reads by default (pictures and formulas excluded: a picture has
 #: no text and a formula step reads formulas as LaTeX).
+#: pixels around a region's box when neither the block nor the adapter says (``region_pad``)
+DEFAULT_PAD = 8
 REGION_LABELS = frozenset({"text", "title", "section_header", "page_header", "page_footer", "caption", "footnote",
                            "list_item", "reference", "code", "table"})
 
@@ -120,23 +126,24 @@ class RegionRecognizer(PageRecognizer):
     """Recognizes each layout region of every page with a chat VLM, one request per region crop.
 
     The same saturate machinery as ``PageRecognizer``, results collected per page; any layout step can come
-    before it. Reads the page image and ``regions``; adds ``lines``, ``text`` and what the preset produces.
+    before it. Reads the page image and ``regions``; adds ``lines``, ``text`` and what the preset produces, and
+    replaces ``lines`` and ``text`` (the transcription's earlier lines, with their text, are replaced).
     Crops are cut at the scale the model expects for a whole page (the adapter's ``page_longest``: the page is
     scaled so its longest side has that length, and the region is cut from it, ``pad`` px around the region's box
     at that scale), so a small region is not blown up; the adapter decides which regions it reads. Every read
     region gets one line: the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps
     ``raw`` and ``finish_reason``), in reading order; the transcription's earlier lines are replaced. The
     ``StepInfo`` records the preset edition, the settings with ``pad``, ``page_scale`` and ``labels``, and the
-    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error; a page without
-    readable regions passes through unchanged (stat ``pages_without_regions``).
+    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error, and so is a page
+    without image bytes (stat ``errors``); a page without readable regions passes through unchanged (stat
+    ``pages_without_regions``).
 
     Args:
         backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
             one on the task's ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
         transcription: the transcription it reads the regions of and adds the lines to.
         labels: the region labels it reads (default: text-like regions and tables, no pictures or formulas).
-        pad: pixels around each region's box at the page scale; an adapter with a ``region_pad`` of its own uses
-            that instead.
+        pad: pixels around each region's box at the page scale; ``None``: the adapter's ``region_pad``, else 8.
         primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
             ``transcription``.
         skip_on_error: pass pages that carry errors through unprocessed.
@@ -148,17 +155,20 @@ class RegionRecognizer(PageRecognizer):
 
     regions_read = ("regions",)
     lines_added = ("lines",)          # one line per region read
+    parts_made_anew = ("lines", "text")   # the earlier lines (and their text) are replaced
     docs_args = {"backend": "minicpm-ocr-1.0@1"}
 
     results_windows = 8               # a page's regions finish one by one
 
-    def __init__(self, backend: Chat | str, transcription: str = "ocr_new", labels=REGION_LABELS, pad: int = 8,
+    def __init__(self, backend: Chat | str, transcription: str = "ocr_new", labels=REGION_LABELS, pad: int | None = None,
                  primary: str | None = None, skip_on_error: bool = True, prepare_workers: int = 4):
         backend = chat_backend(backend, type(self).__name__, "region")
         super().__init__(backend, transcription, primary, skip_on_error, prepare_workers,
                          name=f"regions ({backend.adapter.model}, served {backend.endpoint})")
         self.labels = frozenset(labels)
-        self.pad = self.adapter.region_pad if self.adapter.region_pad is not None else pad
+        # an explicit pad wins; the adapter's region_pad is the default
+        self.pad = pad if pad is not None else (self.adapter.region_pad if self.adapter.region_pad is not None
+                                                else DEFAULT_PAD)
 
     def _unit(self, row: dict) -> dict:
         return {"region": row["region"].id}
@@ -192,7 +202,15 @@ class RegionRecognizer(PageRecognizer):
             if not regions:
                 results.put(Passed(doc, "pages_without_regions"))
                 continue
-            with Image.open(io.BytesIO(image_bytes(doc))) as im:
+            try:
+                data = image_bytes(doc)
+            except PageError as e:     # the page's error (as in-process), not the task's
+                entry = record_error(doc, error_entry(self, e))
+                logger.warning("page {page_id} failed in {block}: {error_type}: {error}", page_id=doc.id,
+                               block=entry["block"], error_type=entry["type"], error=entry["error"])
+                results.put(Passed(doc, "errors"))
+                continue
+            with Image.open(io.BytesIO(data)) as im:
                 img = im.convert("RGB")
             longest = self.adapter.page_longest
             scale = longest / max(img.size) if longest else 1.0

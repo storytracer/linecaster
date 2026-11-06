@@ -8,8 +8,8 @@ contracts before anything runs (``docs/reference/pipelines.md``).
         LocalPipelineExecutor(stage.pipeline, tasks=stage.tasks, ...)
 
 * **Checks** (all problems collected): the stage starts with a reader; every part a block reads is added earlier
-  in its stage (or by the stage's reader); a part is added by one block only unless a later block declares it in
-  ``replaces``; units fit (a page block cannot follow an item stream); the parts carry across a binder and a
+  in its stage (or by the stage's reader) and not removed since (``removes``); a part is added by one block only
+  unless a later block declares it in ``replaces``; units fit (a page block cannot follow an item stream); the parts carry across a binder and a
   splitter (an item record holds its pages), apart from the image bytes and the item's document; server blocks go
   last; a served model block whose endpoint is a server block of its stage finds its model there; a ``group`` of
   alternatives (``when=``) adds the same parts in every alternative.
@@ -509,6 +509,7 @@ class _Analysis:
     def stage(self, entries: list[_Entry], index: int, where: str, given: bool = False) -> tuple[dict, list[Node]]:
         problems = self.problems
         available: dict[Part, str] = {}
+        gone: dict[Part, str] = {}                  # removed parts -> the block that removed them
         nodes = [self.node(e, index) for e in entries]
         edges: dict[tuple[str, str], set[str]] = {}
         unit = "page"
@@ -549,7 +550,9 @@ class _Analysis:
                 base = before if group is not None else available
                 for p in sorted(c.reads):
                     src = _provider(p, base)
-                    if src is None:
+                    if p in gone:
+                        problems.append(f"{e.label} reads {p}, which {gone[p]} removes before it")
+                    elif src is None:
                         problems.append(f"{e.label} reads {p}, which no block before it in {where} adds")
                     elif src != "input":
                         edges.setdefault((src, n.id), set()).add(str(p))
@@ -559,8 +562,13 @@ class _Analysis:
                         problems.append(f"{e.label} adds {p}, which {owner.block} adds already (a block that "
                                         f"rewrites a part declares it in replaces)")
                     available[p] = n.id
+                    gone.pop(p, None)
                 for p in c.replaces:
                     available[p] = n.id
+                    gone.pop(p, None)
+                for p in c.removes:              # gone after the block: a later read of it is a problem
+                    available.pop(p, None)
+                    gone[p] = e.label
                 added_by.append(c.adds | c.replaces)
                 if c.unit_out:
                     unit = c.unit_out

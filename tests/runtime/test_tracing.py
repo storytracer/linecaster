@@ -22,7 +22,6 @@ from linecaster.blocks.lines import LineDetector
 from linecaster.blocks.readers import ImageFolderReader, PageRecordReader
 from linecaster.blocks.servers import ChatModelServer, ModelServer
 from linecaster.blocks.writers import PageJsonlWriter
-from linecaster.data import Line
 from linecaster.errors import ServerError
 from linecaster.runtime.builder import build, run_plan
 from linecaster.tracing import (DEFAULT_SAMPLE, PAGE_ID, TRACE_KEY, Tracing, otlp_configured, sampled,
@@ -36,24 +35,6 @@ OTEL_VARS = ("OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 def no_otlp(monkeypatch):
     for k in OTEL_VARS:
         monkeypatch.delenv(k, raising=False)
-
-
-class FakeLines:
-    """Two lines over the page."""
-
-    step, name = "lines", "fake-lines"
-
-    def __init__(self, **kwargs):
-        pass
-
-    def load(self):
-        pass
-
-    def __call__(self, image, t, **params):
-        h, w = image.shape[:2]
-        t.lines = [Line(id=f"l{i}", bbox=[0, y, w, h // 2], polygon=[[0, y], [w, y], [w, y + h // 2], [0, y + h // 2]])
-                   for i, y in enumerate((0, h // 2))]
-        return t
 
 
 class FailsOn(PageBlock):
@@ -219,7 +200,7 @@ def test_the_trace_context_reaches_linecaster_serve_and_its_spans_join(tmp_path:
     out = tmp_path / "out"
     port = _free_port()
     endpoint = f"http://127.0.0.1:{port}/v1"
-    server = ModelServer([{"name": "lines", "spec": "test_tracing:FakeLines", "kwargs": {}}], port=port,
+    server = ModelServer([{"name": "lines", "spec": "linecaster.testing:FakeLineEngine", "kwargs": {}}], port=port,
                          python=sys.executable, boot_timeout=120)
     plan = build([ImageFolderReader(src), LineDetector(Served(endpoint, model="lines", max_window=4)),
                   PageJsonlWriter(str(out / "pages")), server], run_folder=str(out), trace_sample=1)
@@ -407,7 +388,7 @@ def test_the_traces_command(tmp_path: Path, capsys):
 
     src = images(tmp_path / "images", 8)
     out = tmp_path / "out"
-    run_plan(build([ImageFolderReader(src), FailsOn({"p003"}), LineDetector(InProcess("test_tracing:FakeLines")),
+    run_plan(build([ImageFolderReader(src), FailsOn({"p003"}), LineDetector(InProcess("linecaster.testing:FakeLineEngine")),
                     PageJsonlWriter(str(out / "pages"))], run_folder=str(out), trace_sample=1))
     main(["traces", str(out), "--slowest", "3"])
     text = capsys.readouterr().out

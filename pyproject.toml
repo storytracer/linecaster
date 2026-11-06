@@ -67,3 +67,12 @@ pybookget = { url = "https://github.com/storytracer/pybookget/archive/470b2aaed8
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# the markers (linecaster.testing.markers): gpu and network tests are skipped where they cannot run (the conftest
+# hook); CI runs -m "not gpu and not network and not parity"
+addopts = ["--strict-markers"]
+markers = [
+    "gpu: needs a CUDA device; skipped without one",
+    "network: downloads model weights or reaches the internet; skipped without the network",
+    "slow: takes over about 10 s",
+    "parity: compares outputs against the goldens",
+]

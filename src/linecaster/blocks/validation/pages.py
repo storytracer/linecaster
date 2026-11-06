@@ -43,9 +43,9 @@ class PageValidator(Contracted, PipelineStep):
 
     def contract(self) -> Contract:
         """It reads what it requires: a transcription (``transcriptions.<name>``: any part of it) or a page
-        field (the page record)."""
-        reads = frozenset(Part("*", p.split(".", 1)[1]) if p.startswith("transcriptions.")
-                          else Part("image" if p == "image" else "metadata") for p in self.required)
+        field (the page record, ``metadata``; ``"image"`` is the page record's image entry, not its bytes)."""
+        reads = frozenset(Part("*", p.split(".", 1)[1]) if p.startswith("transcriptions.") else Part("metadata")
+                          for p in self.required)
         return Contract(unit="page", role=self.role, reads=reads)
 
     def run(self, data, rank: int = 0, world_size: int = 1):

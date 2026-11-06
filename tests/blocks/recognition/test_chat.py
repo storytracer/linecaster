@@ -5,8 +5,6 @@ from __future__ import annotations
 import base64
 import io
 import json
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from PIL import Image
@@ -18,6 +16,7 @@ from linecaster.blocks.recognition.chat import PageRecognizer
 from linecaster.blocks.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
 from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.testing import fake_chat_server
 
 
 def image(w: int, h: int, fmt: str = "WEBP") -> bytes:
@@ -120,45 +119,30 @@ def test_chat_step_needs_a_chat_backend():
 
 
 # ---------------------------------------------------- end to end, fake server
-class FakeChat(BaseHTTPRequestHandler):
-    seen: list = []
-
-    def log_message(self, *a):
-        pass
-
-    def do_GET(self):  # saturate's engine probe: no gauges here (blind mode)
-        self.send_response(404); self.end_headers()
-
-    def do_POST(self):
-        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        if self.path != "/v1/chat/completions":
-            self.send_response(404); self.end_headers(); return
-        im = sent_image(body)
-        FakeChat.seen.append((body["model"], im.size))
-        out = json.dumps(completion(f"\npage {im.size[0]}x{im.size[1]}\n", usage={"prompt_tokens": 10,
-                                                                                "completion_tokens": 3})).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(out)))
-        self.end_headers(); self.wfile.write(out)
+def _answer(body: dict) -> dict:
+    im = sent_image(body)
+    return completion(f"\npage {im.size[0]}x{im.size[1]}\n", usage={"prompt_tokens": 10, "completion_tokens": 3})
 
 
 @pytest.fixture()
-def fake_server():
-    FakeChat.seen = []
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), FakeChat)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{srv.server_address[1]}/v1"
-    srv.shutdown()
+def chat():
+    with fake_chat_server(_answer) as server:
+        yield server
 
 
-def test_chat_page_step_end_to_end(fake_server):
+def seen(server) -> list[tuple[str, tuple[int, int]]]:
+    """The model and image size of every request the server got."""
+    return [(body["model"], sent_image(body).size) for body in server.requests]
+
+
+def test_chat_page_step_end_to_end(chat):
     docs = [new_page_document(str(i), image(1000 + 100 * i, 2000)) for i in range(5)]
     errored = new_page_document("bad", image(10, 10))
     errored.metadata["errors"] = [{"step": "earlier", "error": "x"}]
-    step = PageRecognizer(Chat("lightonocr-2-1b", fake_server, max_window=4))
+    step = PageRecognizer(Chat("lightonocr-2-1b", chat.url, max_window=4))
     out = {d.id: d for d in step.run(iter([*docs, errored]))}
     assert set(out) == {"0", "1", "2", "3", "4", "bad"}
-    assert len(FakeChat.seen) == 5 and {m for m, _ in FakeChat.seen} == {"lightonai/LightOnOCR-2-1B"}
+    assert len(seen(chat)) == 5 and {m for m, _ in seen(chat)} == {"lightonai/LightOnOCR-2-1B"}
     for i in range(5):
         d = out[str(i)]
         t = page_of(d).transcriptions["ocr_new"]
@@ -169,7 +153,7 @@ def test_chat_page_step_end_to_end(fake_server):
     assert "ocr_new" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
 
 
-def test_chat_region_step_end_to_end(fake_server):
+def test_chat_region_step_end_to_end(chat):
     from linecaster.blocks.base.page import set_page
     from linecaster.blocks.recognition.chat import RegionRecognizer
     from linecaster.data.transcription import Region
@@ -186,9 +170,9 @@ def test_chat_region_step_end_to_end(fake_server):
     docs = [with_regions("a", [("r1", "text", (100, 100, 800, 400)), ("pic", "picture", (0, 0, 10, 10)),
                                ("r2", "title", (100, 600, 1000, 200))]),
             with_regions("none", [("pic", "picture", (0, 0, 10, 10))])]
-    step = RegionRecognizer(Chat("lightonocr-2-1b-regions", fake_server, max_window=4))
+    step = RegionRecognizer(Chat("lightonocr-2-1b-regions", chat.url, max_window=4))
     out = {d.id: d for d in step.run(iter(docs))}
-    assert set(out) == {"a", "none"} and len(FakeChat.seen) == 2          # the picture is not read
+    assert set(out) == {"a", "none"} and len(seen(chat)) == 2          # the picture is not read
     t = page_of(out["a"]).transcriptions["ocr_new"]
     assert [ln.region_id for ln in t.lines] == ["r1", "r2"] and all(ln.text.startswith("\npage ") for ln in t.lines)
     m = t.steps[-1]
@@ -197,9 +181,9 @@ def test_chat_region_step_end_to_end(fake_server):
     assert page_of(out["none"]).transcriptions["ocr_new"].lines == []     # passed through unchanged
 
 
-def test_chat_page_step_records_server_errors(fake_server):
+def test_chat_page_step_records_server_errors(chat):
     # a route the server does not have: the page comes out with the error recorded, no transcription
-    step = PageRecognizer(Chat("lightonocr-2-1b", fake_server.replace("/v1", "/nope"), served_name="m", max_window=2))
+    step = PageRecognizer(Chat("lightonocr-2-1b", chat.url.replace("/v1", "/nope"), served_name="m", max_window=2))
     out = list(step.run(iter([new_page_document("p", image(100, 200))])))
     assert len(out) == 1 and out[0].metadata["errors"][0]["step"] == "recognition"
     assert "404" in out[0].metadata["errors"][0]["error"]
@@ -237,3 +221,31 @@ def test_job_dependencies_without_kraken():
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
     assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "pipelines/transcribe_modular.py"))
+
+
+def test_region_recognizer_pad_explicit_wins_over_the_adapter():
+    from linecaster.blocks.recognition.chat import DEFAULT_PAD, RegionRecognizer
+
+    assert chat_model("minicpm-ocr-1.0").region_pad == 0
+    assert RegionRecognizer("minicpm-ocr-1.0@1").pad == 0                 # the adapter's region_pad is the default
+    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=4).pad == 4          # an explicit pad wins
+    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=0).pad == 0
+    backend = Chat("minicpm-ocr-1.0@1")
+    backend.adapter.region_pad = None
+    assert RegionRecognizer(backend).pad == DEFAULT_PAD == 8              # neither says
+
+
+def test_region_recognizer_declares_the_lines_it_replaces():
+    from linecaster.blocks.layout import LayoutDetector
+    from linecaster.blocks.lines import LineDetector
+    from linecaster.blocks.readers import ImageFolderReader
+    from linecaster.blocks.recognition.chat import RegionRecognizer
+    from linecaster.runtime.builder import build
+
+    c = RegionRecognizer("minicpm-ocr-1.0@1").contract()
+    assert {str(p) for p in c.replaces} == {"ocr_new:lines", "ocr_new:text"}
+    assert {"ocr_new:lines", "ocr_new:text"} <= {str(p) for p in c.adds}
+    # after a line step, the earlier lines are replaced: not a part added twice
+    plan = build([ImageFolderReader("x"), LayoutDetector("single-region@1"), LineDetector(InProcess("x:Y")),
+                  RegionRecognizer("minicpm-ocr-1.0@1")])
+    assert plan.problems == []

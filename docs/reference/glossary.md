@@ -11,7 +11,7 @@ term is added here before it is used.
 | **block** | One processing unit of a pipeline: a datatrove `PipelineStep`. Blocks are named as role nouns (`LineRecognizer`, `Composer`, `PageJsonlWriter`). | not a "step" (that is a catalog term), not a "component", not a "module" |
 | **role** | What a block does, defined by its contract; implementations and strategies of one role are interchangeable. | |
 | **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers, composites. One subpackage of `linecaster.blocks` each. | |
-| **contract** | What a block reads, adds and replaces in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
+| **contract** | What a block reads, adds, replaces and removes in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
 | **part** | One named piece of the page record (or item record) a contract names: page-level (`image`, `metadata`), or of one transcription (`ocr_new:lines`); the vocabulary is `PARTS` (below). | not a datatrove `Document` field |
 | **unit** | What one call of a block or engine processes: `line`, `region`, `page` or `item`. | |
 | **per-unit transform**, **stream transform** | The two shapes of a block: a per-unit transform processes one unit per call and its base class owns the loop; a stream transform takes the whole stream and passes each unit on when it is done, possibly out of order (served model blocks). | |
@@ -115,6 +115,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **splitting** | Passing an item record's pages on as pages again, with what the item-level steps added (the `Splitter`). | |
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
+
+## Tests
+
+| Term | Meaning | Not |
+|---|---|---|
+| **engine API** | What an engine package may import from linecaster besides the data model: `linecaster.engines.api` (the `Engine` protocol, `Capabilities`, the weight helpers). | not the HTTP routes of `linecaster serve` |
+| **fake engine** | A deterministic CPU engine of `linecaster.testing` for tests, one per model step, registered under `fake.<step>.v1` by `register_fakes()` only. | never in a catalog preset |
+| **conformance check** | `check_engine` (the engine protocol) or `check_block` (a block's contract against what it does, its `to_dict()`, pickling, `warm_up()` and failed pages), from `linecaster.testing`. | not a parity check |
+| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`, `parity`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
+| **CI workflow** | `.github/workflows/ci.yml`: the core's tests and checks on a CPU, on every push and pull request to main. | not a workflow |
 
 ## Docs and changes
 

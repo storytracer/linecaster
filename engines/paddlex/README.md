@@ -11,3 +11,28 @@ linecaster engines for [PaddleX](https://github.com/PaddlePaddle/PaddleX)'s layo
 | [`paddlex.formulas.v1`](../../docs/catalog/engines/paddlex.formulas.v1.md) | `linecaster_paddlex:PaddleFormulaEngine` | formulas: formula regions as LaTeX |
 
 Each engine is registered under its id in the entry-point group `linecaster.engines` and runs in a pipeline's process (`InProcess`) or behind `linecaster serve` (`Served`). A pipeline script installs the package with its pinned dependencies (see `pipelines/transcribe_modular.py`); the engine pages list its options and presets.
+
+## Install
+
+The package is not on PyPI: install it from the repository, with linecaster from the same commit (it depends on
+`linecaster>=0.0.1,<0.2`, the releases whose engine API, `linecaster.engines.api`, and data model it uses):
+
+```bash
+uv add "linecaster @ git+https://github.com/storytracer/linecaster@<commit>" \
+       "linecaster-paddlex @ git+https://github.com/storytracer/linecaster@<commit>#subdirectory=engines/paddlex"
+```
+
+PaddleX pins OpenCV's GUI build; `stubs/opencv-contrib-python` swaps in the headless build of the same version
+(list it as a direct dependency with that path as its source, as the pipeline scripts do).
+
+## Tests
+
+The engine's conformance (`linecaster.testing.check_engine`) and its own unit tests are in `engines/paddlex/tests/`.
+They run in an environment that has the package; `tests/test_engines_catalog.py` installs every engine package
+with the pipelines' pins (its PEP 723 block and lock), and runs other tests when given them:
+
+```bash
+uv run tests/test_engines_catalog.py engines/paddlex/tests
+```
+
+Tests marked `network` and `gpu` skip where the network or a CUDA device is missing: the conformance needs the network (the pinned `PaddlePaddle/<name>_onnx` and `_safetensors` snapshots); the formula engine's is `slow`.

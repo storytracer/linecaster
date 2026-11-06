@@ -28,11 +28,10 @@ def model_id(name: str, package: str = "onnx") -> str:
 def catalog_weights(name: str, package: str = "onnx", revision: str | None = None) -> dict | None:
     """``weights`` for PaddleX model ``name`` from its model document: the pin with ``revision``, else the newest
     pin; ``None`` when the catalog has no document for it."""
-    from linecaster.catalog.fetch import weights_of
-    from linecaster.catalog.registry import catalog
+    from linecaster.engines.api import model_entry, weights_of
 
     mid = model_id(name, package)
-    if mid not in catalog().models:
+    if model_entry(mid) is None:
         if revision is not None:
             raise KeyError(f"{name}: revision {revision} requested, but the catalog has no model {mid!r}")
         return None
@@ -42,7 +41,7 @@ def catalog_weights(name: str, package: str = "onnx", revision: str | None = Non
 def model_dir(weights: dict) -> str:
     """The snapshot of a pin (``weights``: model, source, revision, files) in the Hugging Face cache, downloaded
     on first use, every pinned file checked against its sha256."""
-    from linecaster.catalog.fetch import hf_snapshot
+    from linecaster.engines.api import hf_snapshot
 
     return str(hf_snapshot(weights))
 

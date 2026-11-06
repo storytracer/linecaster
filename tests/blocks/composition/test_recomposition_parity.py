@@ -8,7 +8,7 @@ import random
 
 import pytest
 
-from conftest import make_transcription, page_t, page_to_compose
+from conftest import sample_transcription, page_t, page_to_compose
 from legacy_builder import LegacyDocumentBuilder
 from linecaster.data import Line, Region, Transcription
 from linecaster.engines import DoclingCompositionEngine, UnicodeRecompositionEngine
@@ -110,7 +110,7 @@ def two_pages():
             page_t(2, ["the north, where the ice waited.", "Nobody spoke."])]
 
 
-FIXTURES = {"make_transcription": lambda: [make_transcription()], "page_to_compose": lambda: [page_to_compose()],
+FIXTURES = {"sample_transcription": lambda: [sample_transcription()], "page_to_compose": lambda: [page_to_compose()],
             "two_pages": two_pages}
 
 

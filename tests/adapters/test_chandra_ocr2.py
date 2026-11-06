@@ -49,7 +49,7 @@ def test_request_body_is_the_drivers():
     assert text_part == {"type": "text", "text": OCR_LAYOUT_PROMPT}
 
 
-@pytest.mark.parametrize("size", [(2400, 3600), (3600, 2400), (5000, 7000)])
+@pytest.mark.parametrize("size", [(2400, 3600), (3600, 2400), pytest.param((5000, 7000), marks=pytest.mark.slow)])
 def test_large_pages_scale_to_the_grid_under_the_pixel_cap(size):
     im = sent(chat_model("chandra-ocr-2").request(image(*size)))
     w, h = im.size

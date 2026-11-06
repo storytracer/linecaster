@@ -9,26 +9,37 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
 from ...data.page import PageImage
+from ...errors import PageError
 from ...images.convert import ImageTooLarge
 from ..base.contract import Contract, Contracted, parts
 from ..base.page import error_entry, page_of, record_error, set_page
 from ..base.rule import now, rule_backend, stamp
 
 
-def read_uri(uri: str) -> bytes:
+def _read(uri: str) -> bytes:
     import fsspec
 
-    with fsspec.open(uri.split("#", 1)[0], "rb") as f:
+    with fsspec.open(uri, "rb") as f:
         return f.read()
+
+
+def read_uri(uri: str, page_id: str = "", metadata: dict | None = None) -> bytes:
+    """The image bytes at ``uri`` (any fsspec path); a fragment names a PDF page or a Parquet row
+    (``linecaster.blocks.readers.fragments.read_image``), and one that names neither is a ``PageError``."""
+    from ..readers.fragments import read_image
+
+    return read_image(uri, _read, page_id, metadata)
 
 
 class ImageFetcher(Contracted, PipelineStep):
     """Loads each page's image again from its address, for the blocks that need pixels.
 
-    It reads ``page.image.uri`` (any fsspec path; a ``#`` fragment is dropped) into ``doc.media``: it replaces
-    ``image``. ``PageRecordReader(fetch_images=False)`` followed by an ``ImageFetcher`` after filtering avoids
-    fetching the images of pages that are dropped anyway. A page without an image address is counted
-    (``no_image``) and passed on as it is.
+    It reads ``page.image.uri`` (any fsspec path) into ``doc.media``: it replaces ``image``. A URI with a fragment
+    names a part of its file (``file.pdf#page=<n>``: that page rendered as ``PdfReader`` renders it,
+    ``file.parquet#<page_id>``: that row's image); one that cannot be resolved is the page's error (field
+    ``image``, stat ``image_errors``), and the page passes on without image bytes. ``PageRecordReader(
+    fetch_images=False)`` followed by an ``ImageFetcher`` after filtering avoids fetching the images of pages that
+    are dropped anyway. A page without an image address is counted (``no_image``) and passed on as it is.
     """
 
     type = "🔠 - LINECASTER"
@@ -43,8 +54,15 @@ class ImageFetcher(Contracted, PipelineStep):
                 self.stat_update("no_image")
                 yield doc
                 continue
-            with self.track_time():
-                raw = read_uri(page.image.uri)
+            try:
+                with self.track_time():
+                    raw = read_uri(page.image.uri, doc.id, page.metadata)
+            except PageError as e:          # a fragment that names nothing it can fetch
+                record_error(doc, error_entry(self, e, field="image", raw_value=page.image.uri))
+                self.stat_update("image_errors")
+                doc.media = [m for m in doc.media if m.type != MediaType.IMAGE]
+                yield doc
+                continue
             doc.media = [Media(id=doc.id, type=MediaType.IMAGE, url=page.image.uri, media_bytes=raw)]
             self.update_media_stats(doc.media[0])
             yield doc
@@ -57,7 +75,8 @@ class ImageConverter(Contracted, PipelineStep):
     the working image is 8-bit sRGB, lossless WebP at full resolution, method 0, exact. It is written to
     ``<output_folder>/<item_id>/<page_id>.webp`` (``_/<page_id>.webp`` for a page without item), and
     ``page.image`` becomes the working image's ``PageImage`` (size, hashes, decoder): it reads and replaces
-    ``metadata``. The delivered file is only read (from ``doc.media`` when the reader brought it, else from its
+    ``metadata``, and with ``keep_bytes`` replaces ``image``; without it, it removes ``image`` (the page leaves with
+    no image bytes, so a later block that reads the image needs an ``ImageFetcher`` first). The delivered file is only read (from ``doc.media`` when the reader brought it, else from its
     URI); its location, format, sha256, size and mode stay under ``page.image.extra["original"]``, the step
     (engine, preset edition and hash, settings) under ``page.image.extra["step"]`` (a ``StepInfo``: the image
     belongs to no transcription). A page without an image address, over the size limit (``check_size``) or that
@@ -94,9 +113,11 @@ class ImageConverter(Contracted, PipelineStep):
         self.backend.warm_up()
 
     def contract(self) -> Contract:
-        """The working image replaces the page image (its bytes travel on only with ``keep_bytes``)."""
+        """The working image replaces the page image with ``keep_bytes``; without it the page leaves with no image
+        bytes (it removes ``image``)."""
         return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
-                        replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None))
+                        replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None),
+                        removes=parts(() if self.keep_bytes else ("image",), None))
 
     def _reject(self, doc, stat: str, error: str, error_type: str, raw_value=None, **extra):
         record_error(doc, error_entry(self, error, error_type, field="image", raw_value=raw_value, **extra))
@@ -114,7 +135,8 @@ class ImageConverter(Contracted, PipelineStep):
                 continue
             try:
                 with self.track_time("read"):
-                    raw = next((m.media_bytes for m in doc.media if m.media_bytes is not None), None) or read_uri(src)
+                    raw = (next((m.media_bytes for m in doc.media if m.media_bytes is not None), None)
+                           or read_uri(src, doc.id, page.metadata))
                 with self.track_time("convert"):
                     start, began = now()
                     engine = self.backend.model()

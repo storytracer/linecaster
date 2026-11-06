@@ -767,7 +767,7 @@ term is added here before it is used.
 | **block** | One processing unit of a pipeline: a datatrove `PipelineStep`. Blocks are named as role nouns (`LineRecognizer`, `Composer`, `PageJsonlWriter`). | not a "step" (that is a catalog term), not a "component", not a "module" |
 | **role** | What a block does, defined by its contract; implementations and strategies of one role are interchangeable. | |
 | **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers, composites. One subpackage of `linecaster.blocks` each. | |
-| **contract** | What a block reads, adds and replaces in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
+| **contract** | What a block reads, adds, replaces and removes in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
 | **part** | One named piece of the page record (or item record) a contract names: page-level (`image`, `metadata`), or of one transcription (`ocr_new:lines`); the vocabulary is `PARTS` (below). | not a datatrove `Document` field |
 | **unit** | What one call of a block or engine processes: `line`, `region`, `page` or `item`. | |
 | **per-unit transform**, **stream transform** | The two shapes of a block: a per-unit transform processes one unit per call and its base class owns the loop; a stream transform takes the whole stream and passes each unit on when it is done, possibly out of order (served model blocks). | |
@@ -872,6 +872,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
 
+## Tests
+
+| Term | Meaning | Not |
+|---|---|---|
+| **engine API** | What an engine package may import from linecaster besides the data model: `linecaster.engines.api` (the `Engine` protocol, `Capabilities`, the weight helpers). | not the HTTP routes of `linecaster serve` |
+| **fake engine** | A deterministic CPU engine of `linecaster.testing` for tests, one per model step, registered under `fake.<step>.v1` by `register_fakes()` only. | never in a catalog preset |
+| **conformance check** | `check_engine` (the engine protocol) or `check_block` (a block's contract against what it does, its `to_dict()`, pickling, `warm_up()` and failed pages), from `linecaster.testing`. | not a parity check |
+| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`, `parity`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
+| **CI workflow** | `.github/workflows/ci.yml`: the core's tests and checks on a CPU, on every push and pull request to main. | not a workflow |
+
 ## Docs and changes
 
 | Term | Meaning | Not |
@@ -951,7 +961,8 @@ Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored p
 ## Docstrings
 
 Google style, checked by `tests/test_docstrings.py` (with `ast`, no extra tool) for every public block, built-in
-engine, backend, serializer, `build`, `run_pages`, `runtime.run.main` and public function of `linecaster.catalog`:
+engine, backend, serializer, `build`, `run_pages`, `runtime.run.main`, public function of `linecaster.catalog` and
+public name of `linecaster.engines.api` and `linecaster.testing`:
 
 - **Summary line**: what the block or function does, in the present tense, starting with a verb, one sentence:
   "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The block
@@ -979,6 +990,18 @@ are, and a test keeps them complete as signatures change.
   check a pipeline before it runs and derive its graph.
 - Blocks are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
   the same blocks run on any executor and in `run_pages()`.
+
+## Tests
+
+- Every built-in engine passes `linecaster.testing.check_engine` and every public block `check_block`
+  (`tests/testing/test_conformance.py`); an engine package checks its engines the same way in
+  `engines/<engine>/tests/`. Reason: the protocol and the contracts hold for every implementation, not only the
+  ones a pipeline happens to run.
+- A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
+  over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
+  run skips what a machine cannot run, and CI runs what a CPU can.
+- Tests use the fake engines and the fake chat server of `linecaster.testing`, not copies of their own. Reason: one
+  fake per step behaves the same in every test.
 
 ## Tracing
 
@@ -1056,6 +1079,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
+| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`), a fake chat server, the conformance checks `check_engine` and `check_block`, the pytest markers |
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
@@ -1116,7 +1140,22 @@ transcription so far, returned with its part added). Engines with weights load e
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
-linecaster's catalog.
+linecaster's catalog. They import from linecaster only `linecaster.data` and the engine API
+(`linecaster.engines.api`: the `Engine` protocol, `Capabilities`, the weight helpers), have versions of their own
+with a range of linecaster releases, and their tests in `engines/<engine>/tests/` ([catalog](catalog.md#engines)).
+
+## Tests
+
+`uv run pytest` runs the core's tests; tests marked `gpu` or `network` (`linecaster.testing.markers`: `gpu`,
+`network`, `slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
+(`.github/workflows/ci.yml`, CPU only, no secrets) runs `uv sync --locked --all-extras` (the extras' readers are
+tested and documented too), `uv run pytest -m "not gpu and not network and not parity"`, `linecaster docs
+--check`, `linecaster catalog verify` and the site's strict build. The engines' environments are too large for it
+(torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
+scripts (`tests/test_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
+(`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public
+block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
+the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 ## Pipeline scripts
 
@@ -1215,6 +1254,7 @@ class Contract:
     reads: frozenset[Part]
     adds: frozenset[Part]
     replaces: frozenset[Part]
+    removes: frozenset[Part]   # parts the block does not pass on (gone for every later block)
     role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
@@ -1223,19 +1263,22 @@ class Contract:
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
   `line_regions`, `hierarchy`, `nfc`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
-- **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`) that
+- **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
+  `parts_removed`) that
   the default `contract()` of `Contracted` reads; page-level names stay page-level, the others belong to the
   block's `transcription`. Blocks whose parts depend on their options compute `contract()`.
 - **Model blocks** read the page image (recognition also `lines`, tables and formulas `regions`) and add their
   preset's `capabilities.produces`: the preset of the `InProcess` backend (`preset`), of the `Served` backend
   (`preset`, set by `runtime.run.engines`) or of the `Chat` backend; without a preset the engine class's
   `capabilities` (read from its source in the repository, else from the class); without either the step's default.
-  The chat recognizers add `text` too, `RegionRecognizer` also `lines`.
+  The chat recognizers add `text` too, `RegionRecognizer` also `lines` (and replaces `lines` and `text`: the
+  transcription's earlier lines are replaced).
 - **Readers** add `image` and `metadata`; `ManifestReader(existing_ocr=True)` also `transcription_file`, which the
   `TranscriptionConverter` reads (adding `ocr_original:*`);
   `PageRecordReader` what `provides=` declares (`["ocr_new:lines", ...]`), or anything (`*`, reads after it are
   not checked) when it declares nothing. With `fetch_images=False` it brings no `image`.
-- **Writers** read what they write and add nothing (`PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
+- **Writers** read what they write and add nothing (`ImageFilesWriter` replaces `metadata`: the image's URI then
+  names its copy; `PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
   md and txt, `document` for HTML, DocLang and JSON, `image` for plots). **Servers** have role `server` and unit
   `any`.
 - **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
@@ -1249,7 +1292,7 @@ class Contract:
   `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
-| Block | Reads | Adds | Replaces |
+| Block | Reads | Adds | Replaces, removes |
 |---|---|---|---|
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
 | `UnicodeNormalizer` | `text` | `nfc` | `text` |
@@ -1258,7 +1301,7 @@ class Contract:
 | `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
 | `ImageFetcher` | `metadata` | | `image` |
-| `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`) |
+| `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`; without it removes `image`) |
 | `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
 | `RecipeStamper` | | | |
 
@@ -1287,7 +1330,7 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
-  `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=8)` take it (or a chat preset's ref).
+  `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
 
 The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
 `runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
@@ -1306,7 +1349,8 @@ plan.describe()       # stages with each block's contract, the edges, the proble
 ```
 
 **Checks**, all collected: a stage starts with a reader; every part a block reads is added earlier in its stage
-(or by the stage's reader); a part is added by one block only, unless a later block declares it in `replaces`;
+(or by the stage's reader) and not removed since (`removes`, even after a reader that provides anything); a part
+is added by one block only, unless a later block declares it in `replaces`;
 units fit (a page block cannot follow an item stream, an item block needs a binder before it); the parts carry
 across a binder and a splitter (apart from `image` and the item's `document`); server blocks go last; a served model
 block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
@@ -2090,6 +2134,17 @@ layout and the rule-based engines. It declares
 `engine_id`, `step`, `Options` (a Pydantic model whose fields have descriptions; the docs come from it) and
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
+
+**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`) have
+versions of their own and a range of linecaster releases they work with (`linecaster>=0.0.1,<0.2`), and import from
+linecaster only the data model (`linecaster.data`) and the engine API (`linecaster.engines.api`): the `Engine`
+protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `weights`), `hf_file` and
+`hf_snapshot` (a Hugging Face pin's files, checked) and `model_entry` (a model's catalog entry);
+`tests/test_import_rule.py` reads the packages with `ast` and fails on any other import. They are not on PyPI: a
+preset whose engine is not installed is a `CatalogError` that names the package that provides it and the pipeline
+scripts whose environments install it (`catalog.code.install_hint`). Each package has its tests in
+`engines/<engine>/tests/` (conformance through `linecaster.testing.check_engine`, and its own units), run in an
+environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`).
 
 ### The single-region layout
 

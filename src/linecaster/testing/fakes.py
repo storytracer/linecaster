@@ -1,0 +1,212 @@
+"""Fake engines: deterministic, dependency-free CPU engines, one per model step, for tests of blocks, pipelines and
+derivatives. They follow the engine protocol (``linecaster.engines.api.Engine``) and are registered under
+``fake.<step>.v1`` only when ``register_fakes()`` is called (never through entry points), so they never show up in
+an installation."""
+from __future__ import annotations
+
+from typing import Any, ClassVar
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from ..data import Line, Region, StepInfo, Transcription
+from .samples import box
+
+
+class _Fake:
+    """Options, ``load()`` and the step record of a fake engine."""
+
+    engine_id: ClassVar[str]
+    step: ClassVar[str]
+    capabilities: ClassVar[dict]
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+    def __init__(self, **options):
+        self.options = self.Options(**options)
+        self.loaded = False
+
+    def load(self) -> None:
+        """Nothing to load; records that it was called."""
+        self.loaded = True
+
+    def _done(self, t: Transcription, counted: dict | None = None) -> Transcription:
+        """``t`` with the step's record; ``counted``: the table or formula count (``tables``, ``formulas``)."""
+        info = StepInfo(step=self.step, name=f"fake-{self.step}", engine=self.engine_id, backend="fake (cpu)",
+                        settings=self.options.model_dump(mode="json"))
+        if counted is not None:
+            info.measurements = {"tables": counted["tables"]} if "tables" in counted else {
+                "formulas": counted["formulas"]}
+        t.steps.append(info)
+        return t
+
+    def __repr__(self) -> str:
+        return f"<{type(self).__name__} {self.engine_id}>"
+
+
+def _size(image, t: Transcription) -> tuple[int, int]:
+    if image is not None:
+        h, w = image.shape[:2]
+        return int(w), int(h)
+    return int(t.source.image_width or 0), int(t.source.image_height or 0)
+
+
+class FakeLayoutEngine(_Fake):
+    """Lays the page out as a fixed grid of text regions (one region by default), in reading order row by row.
+
+    Args:
+        **options: the fields of its ``Options`` (``rows``, ``cols``, ``label``)."""
+
+    engine_id: ClassVar[str] = "fake.layout.v1"
+    step: ClassVar[str] = "layout"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        rows: int = Field(1, ge=1, description="rows of the grid of regions")
+        cols: int = Field(1, ge=1, description="columns of the grid of regions")
+        label: str = Field("text", description="the regions' label")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        w, h = _size(image, transcription)
+        o = self.options
+        cw, rh = w / o.cols, h / o.rows
+        transcription.regions = [
+            Region(id=f"{o.label}_{k}", label=o.label, raw_label=o.label, score=1.0, reading_order=k,
+                   polygon=box(c * cw, r * rh, cw, rh), bbox=[c * cw, r * rh, cw, rh])
+            for k, (r, c) in enumerate((r, c) for r in range(o.rows) for c in range(o.cols))]
+        return self._done(transcription)
+
+
+class FakeLineEngine(_Fake):
+    """Finds lines: each region (or the whole page, without regions) split into equal horizontal bands, or the boxes
+    it is given (a sample page's known boxes, ``linecaster.testing.sample_boxes``).
+
+    Lines of a region are ``<region id>_l<k>``, lines of a page without regions ``l<k>``, with box, polygon, row
+    and reading order.
+
+    Args:
+        **options: the fields of its ``Options`` (``split``, ``boxes``)."""
+
+    engine_id: ClassVar[str] = "fake.lines.v1"
+    step: ClassVar[str] = "lines"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["lines"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        split: int = Field(2, ge=1, description="bands per region (or per page without regions)")
+        boxes: list[list[float]] | None = Field(None, description="line boxes [x, y, width, height] to return "
+                                                                  "instead (lines l<k>, no region)")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        o = self.options
+        if o.boxes is not None:
+            transcription.lines = [Line(id=f"l{k}", reading_order=k, row=k, bbox=list(b), polygon=box(*b))
+                                   for k, b in enumerate(o.boxes)]
+            return self._done(transcription)
+        w, h = _size(image, transcription)
+        areas = [(r.id, r.bbox) for r in transcription.regions] or [(None, [0, 0, w, h])]
+        lines = []
+        for rid, (x, y, bw, bh) in areas:
+            step = int(bh) // o.split
+            for k in range(o.split):
+                b = [x, y + k * step, bw, step]
+                lines.append(Line(id=f"{rid}_l{k}" if rid else f"l{k}", region_id=rid, reading_order=len(lines),
+                                  row=k, bbox=b, polygon=box(*b)))
+        transcription.lines = lines
+        return self._done(transcription)
+
+
+class FakeRecognitionEngine(_Fake):
+    """Recognizes every line as a text made from the line's id (``template``), with a confidence.
+
+    Args:
+        **options: the fields of its ``Options`` (``template``, ``confidence``)."""
+
+    engine_id: ClassVar[str] = "fake.recognition.v1"
+    step: ClassVar[str] = "recognition"
+    capabilities: ClassVar[dict] = {"unit": "line", "produces": ["text", "line_confidences"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        template: str = Field("text of {line}", description="the text of a line: str.format with line (its id), "
+                                                             "index (its position), width and height (the page's)")
+        confidence: float = Field(0.99, description="every line's confidence")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        w, h = _size(image, transcription)
+        for i, ln in enumerate(transcription.lines):
+            ln.text = self.options.template.format(line=ln.id, index=i, width=w, height=h)
+            ln.confidence = self.options.confidence
+        return self._done(transcription)
+
+
+class FakeTableEngine(_Fake):
+    """Gives every table region a one-cell structure holding the region's id.
+
+    Args:
+        **options: the fields of its ``Options`` (``label``)."""
+
+    engine_id: ClassVar[str] = "fake.tables.v1"
+    step: ClassVar[str] = "tables"
+    capabilities: ClassVar[dict] = {"unit": "region", "produces": ["tables", "html"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        label: str = Field("table", description="the label of the regions it reads")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        n = 0
+        for r in transcription.regions:
+            if r.label == self.options.label:
+                r.extra["table"] = {"num_rows": 1, "num_cols": 1, "html": f"<table><tr><td>{r.id}</td></tr></table>",
+                                    "cells": [{"text": r.id, "row": 0, "col": 0, "row_span": 1, "col_span": 1,
+                                               "bbox": list(r.bbox), "header": False}]}
+                n += 1
+        return self._done(transcription, {"tables": n})
+
+
+class FakeFormulaEngine(_Fake):
+    """Reads every formula region as LaTeX naming the region.
+
+    Args:
+        **options: the fields of its ``Options`` (``label``)."""
+
+    engine_id: ClassVar[str] = "fake.formulas.v1"
+    step: ClassVar[str] = "formulas"
+    capabilities: ClassVar[dict] = {"unit": "region", "produces": ["formulas", "latex"]}
+
+    class Options(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        label: str = Field("formula", description="the label of the regions it reads")
+
+    def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
+        n = 0
+        for r in transcription.regions:
+            if r.label == self.options.label:
+                r.extra["formula"] = f"x_{{{r.id.replace('_', '')}}}"
+                n += 1
+        return self._done(transcription, {"formulas": n})
+
+
+#: the fake engines by id
+FAKE_ENGINES = {cls.engine_id: f"{cls.__module__.rsplit('.', 1)[0]}:{cls.__name__}"
+                for cls in (FakeLayoutEngine, FakeLineEngine, FakeRecognitionEngine, FakeTableEngine,
+                            FakeFormulaEngine)}
+
+
+def register_fakes() -> dict[str, str]:
+    """Registers the fake engines under their ids (``fake.<step>.v1``), for ``engine_class`` and ``engine_ids``.
+
+    Idempotent; the registration lasts for the process (the ids cannot clash with real ones). Returns the ids with
+    their classes (``module:Class``).
+    """
+    from ..catalog import registry
+
+    registry.REGISTERED.update(FAKE_ENGINES)
+    return dict(FAKE_ENGINES)

@@ -1,5 +1,6 @@
 """The docstring standard (``docs/reference/conventions.md``, "Docstrings"): every public block, built-in engine,
-backend, serializer, ``build``, ``run_pages``, ``runtime.run.main`` and public catalog function has a summary line,
+backend, serializer, ``build``, ``run_pages``, ``runtime.run.main``, public catalog function and public name of the
+engine API and the test helpers (``API_MODULES``) has a summary line,
 and its ``Args:`` names every parameter of its signature (a class's constructor) and no other; the serializers,
 ``build``, ``main`` and the catalog functions have an ``Example:``. The docstrings are read from the source with
 ``ast`` (a dataclass's generated ``__doc__`` does not count); signatures with ``inspect``."""
@@ -22,6 +23,8 @@ CATALOG = ("linecaster.catalog:catalog", "linecaster.catalog:engine_class", "lin
            "linecaster.catalog:engine_spec")
 SERIALIZERS = tuple(f"linecaster.formats:{n}" for n in importlib.import_module("linecaster.formats").__all__)
 EXAMPLE_REQUIRED = (*FUNCTIONS[::2], *CATALOG, *SERIALIZERS)          # build and main, not run_pages
+#: modules whose every public name (``__all__``, defined there) follows the standard
+API_MODULES = ("linecaster.engines.api", "linecaster.testing", "linecaster.testing.markers")
 
 
 def _get(target: str):
@@ -42,6 +45,12 @@ def targets() -> dict[str, object]:
         obj = getattr(engines, name)
         if inspect.isclass(obj) and hasattr(obj, "engine_id"):
             out[f"{obj.__module__}:{name}"] = obj
+    for module in API_MODULES:
+        m = importlib.import_module(module)
+        for name in m.__all__:
+            obj = getattr(m, name)
+            if (inspect.isfunction(obj) or inspect.isclass(obj)) and obj.__module__.startswith(module):
+                out[f"{obj.__module__}:{name}"] = obj
     for t in (*BACKENDS, *FUNCTIONS, *CATALOG, *SERIALIZERS):
         obj = _get(t)
         out[f"{obj.__module__}:{obj.__qualname__}"] = obj
@@ -55,7 +64,8 @@ def _tree(path: str) -> ast.Module:
 
 
 def source_doc(obj) -> str | None:
-    """The docstring as written in the source, read with ``ast``."""
+    """The docstring as written in the source, read with ``ast`` (a decorated function's own)."""
+    obj = inspect.unwrap(obj)
     path = inspect.getsourcefile(obj)
     for node in _tree(path).body:
         if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == obj.__name__:
@@ -72,6 +82,8 @@ def constructs(obj) -> bool:
     class whose constructor is datatrove's, as ``PageBlock``, documents none)."""
     if not inspect.isclass(obj):
         return True
+    if getattr(obj, "_is_protocol", False):         # a protocol is not constructed
+        return False
     for c in obj.__mro__:
         if not c.__module__.startswith("linecaster."):
             return False

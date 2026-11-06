@@ -253,6 +253,8 @@ def _mermaid(b: BlockDoc) -> list[str]:
         lines.append(f"    B --> {node('a', i, a)}")
     for i, x in enumerate(_parts(c, "replaces")):
         lines.append(f"    B -. replaces .-> {node('x', i, x)}")
+    for i, x in enumerate(_parts(c, "removes")):
+        lines.append(f"    B -. removes .-> {node('d', i, x)}")
     return [*lines, "```", ""]
 
 
@@ -267,6 +269,8 @@ def block_page(b: BlockDoc, blocks: dict[str, BlockDoc], position: tuple[list[st
         rows.append(("Role", c.role))
         for key, label in (("reads", "Reads"), ("adds", "Adds"), ("replaces", "Replaces")):
             rows.append((label, ", ".join(f"`{p}`" for p in _parts(c, key)) or "-"))
+        if c.removes:
+            rows.append(("Removes", ", ".join(f"`{p}`" for p in _parts(c, "removes"))))
     else:
         rows.append(("Contract", f"not built: {b.error}"))
     if backends := _backends(b.cls):

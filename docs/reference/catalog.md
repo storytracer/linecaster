@@ -218,6 +218,17 @@ layout and the rule-based engines. It declares
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
 
+**Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`) have
+versions of their own and a range of linecaster releases they work with (`linecaster>=0.0.1,<0.2`), and import from
+linecaster only the data model (`linecaster.data`) and the engine API (`linecaster.engines.api`): the `Engine`
+protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `weights`), `hf_file` and
+`hf_snapshot` (a Hugging Face pin's files, checked) and `model_entry` (a model's catalog entry);
+`tests/test_import_rule.py` reads the packages with `ast` and fails on any other import. They are not on PyPI: a
+preset whose engine is not installed is a `CatalogError` that names the package that provides it and the pipeline
+scripts whose environments install it (`catalog.code.install_hint`). Each package has its tests in
+`engines/<engine>/tests/` (conformance through `linecaster.testing.check_engine`, and its own units), run in an
+environment that has it (`uv run tests/test_engines_catalog.py engines/<engine>/tests`).
+
 ### The single-region layout
 
 `layout.single-region.v1` (`linecaster.engines:SingleRegionLayoutEngine`, preset `single-region@1`) is a layout

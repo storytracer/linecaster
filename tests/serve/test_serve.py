@@ -11,20 +11,16 @@ from PIL import Image
 from linecaster.backends import Served
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.recognition.recognizers import TableRecognizer
-from linecaster.data import Region, StepInfo, Transcription
+from linecaster.data import Region, Transcription
 from linecaster.data.page import Page
+from linecaster.testing import FakeTableEngine
 
 SEEN: dict = {}
 
 
-class FakeTables:
-    """A tables engine that notes whether it got an image; for a page whose region is labeled ``bad``
-    it answers something that is not a transcription."""
-
-    engine_id, step, name = "fake.tables.v1", "tables", "fake-tables"
-
-    def load(self):
-        pass
+class FakeTables(FakeTableEngine):
+    """The fake tables engine, noting whether it got an image; for a page whose region is labeled ``bad`` it
+    answers something that is not a transcription."""
 
     def __call__(self, image, transcription, **params):
         SEEN[transcription.regions[0].id] = image is not None
@@ -35,8 +31,7 @@ class FakeTables:
                 def model_dump(self, mode="json"):
                     return {"lines": "not a list"}
             return Bad()
-        transcription.steps.append(StepInfo(step=self.step, name=self.name))
-        return transcription
+        return super().__call__(image, transcription, **params)
 
 
 def png() -> bytes:

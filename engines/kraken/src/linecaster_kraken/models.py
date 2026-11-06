@@ -46,7 +46,7 @@ Log = Callable[[str], None]
 def size_weights(size: str) -> dict:
     """``weights`` (as ``linecaster.catalog.registry.engine_spec`` passes them) for a PP-OCRv6 size: the newest
     pin of its model document in the catalog."""
-    from linecaster.catalog.fetch import weights_of
+    from linecaster.engines.api import weights_of
 
     return weights_of(MODEL_IDS[size])
 
@@ -54,7 +54,7 @@ def size_weights(size: str) -> dict:
 def fetch_weights(weights: dict, log: Log = logger.info, download: bool = True) -> Path:
     """The model file of a pin (``weights``: model, source, revision, files), from the Hugging Face cache or
     downloaded, checked against its pinned sha256."""
-    from linecaster.catalog.fetch import hf_file
+    from linecaster.engines.api import hf_file
 
     files = [k for k in weights["files"] if k.endswith((".safetensors", ".mlmodel"))]
     if len(files) != 1:

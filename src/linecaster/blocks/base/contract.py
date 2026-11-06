@@ -1,5 +1,5 @@
-"""Block contracts: what one call of a block processes (its unit) and what it reads, adds and replaces in the
-record. The builder (``linecaster.runtime.builder``) checks a pipeline's contracts before it runs and derives its
+"""Block contracts: what one call of a block processes (its unit) and what it reads, adds, replaces and removes in
+the record. The builder (``linecaster.runtime.builder``) checks a pipeline's contracts before it runs and derives its
 graph from them (``docs/reference/pipelines.md``).
 
 A part is a name of the ``PARTS`` vocabulary (``linecaster.catalog.schema``) and the transcription it belongs to
@@ -65,6 +65,7 @@ class Contract:
     reads: frozenset[Part] = field(default_factory=frozenset)
     adds: frozenset[Part] = field(default_factory=frozenset)
     replaces: frozenset[Part] = field(default_factory=frozenset)
+    removes: frozenset[Part] = field(default_factory=frozenset)   # parts gone after the block (not passed on)
     role: str = ""                              # "reader", "writer", "server", "model", "transform", "binder", ...
 
     def __post_init__(self):
@@ -80,7 +81,7 @@ class Contract:
         out: dict = {"role": self.role, "unit": self.unit}
         if self.unit_out:
             out["unit_out"] = self.unit_out
-        for key in ("reads", "adds", "replaces"):
+        for key in ("reads", "adds", "replaces", "removes"):
             if getattr(self, key):
                 out[key] = sorted(map(str, getattr(self, key)))
         return out
@@ -89,7 +90,8 @@ class Contract:
 class Contracted(Block):
     """Gives a block the default ``contract()``, read from its class attributes.
 
-    ``unit``, ``unit_out``, ``role``, and ``parts_read``, ``parts_added`` and ``parts_replaced``, which name parts:
+    ``unit``, ``unit_out``, ``role``, and ``parts_read``, ``parts_added``, ``parts_replaced`` and ``parts_removed``,
+    which name parts:
     page-level ones (``image``, ``metadata``, ``transcription_file``) stay page-level, the others belong to the
     block's ``transcription`` attribute (default ``ocr_new``). Blocks whose parts depend on their options override
     ``contract()``. From ``Block`` it has ``warm_up()`` and ``to_dict()``.
@@ -101,6 +103,7 @@ class Contracted(Block):
     parts_read: tuple[str, ...] = ()
     parts_added: tuple[str, ...] = ()
     parts_replaced: tuple[str, ...] = ()
+    parts_removed: tuple[str, ...] = ()
 
     def _transcription(self) -> str:
         return getattr(self, "transcription", None) or "ocr_new"
@@ -108,7 +111,8 @@ class Contracted(Block):
     def contract(self) -> Contract:
         t = self._transcription()
         return Contract(unit=self.unit, unit_out=self.unit_out, role=self.role, reads=parts(self.parts_read, t),
-                        adds=parts(self.parts_added, t), replaces=parts(self.parts_replaced, t))
+                        adds=parts(self.parts_added, t), replaces=parts(self.parts_replaced, t),
+                        removes=parts(self.parts_removed, t))
 
 
 def contract_of(block) -> Contract:

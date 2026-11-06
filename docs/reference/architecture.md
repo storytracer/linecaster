@@ -29,6 +29,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
+| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`), a fake chat server, the conformance checks `check_engine` and `check_block`, the pytest markers |
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
@@ -89,7 +90,22 @@ transcription so far, returned with its part added). Engines with weights load e
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
-linecaster's catalog.
+linecaster's catalog. They import from linecaster only `linecaster.data` and the engine API
+(`linecaster.engines.api`: the `Engine` protocol, `Capabilities`, the weight helpers), have versions of their own
+with a range of linecaster releases, and their tests in `engines/<engine>/tests/` ([catalog](catalog.md#engines)).
+
+## Tests
+
+`uv run pytest` runs the core's tests; tests marked `gpu` or `network` (`linecaster.testing.markers`: `gpu`,
+`network`, `slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
+(`.github/workflows/ci.yml`, CPU only, no secrets) runs `uv sync --locked --all-extras` (the extras' readers are
+tested and documented too), `uv run pytest -m "not gpu and not network and not parity"`, `linecaster docs
+--check`, `linecaster catalog verify` and the site's strict build. The engines' environments are too large for it
+(torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
+scripts (`tests/test_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
+(`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public
+block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
+the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 ## Pipeline scripts
 

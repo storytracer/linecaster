@@ -573,6 +573,8 @@ BUILTIN_ENGINES = {
     "composition.docling.v1": "linecaster.engines:DoclingCompositionEngine",
 }
 SERVED_ONLY = {"chat.v1"}
+#: engines registered in this process, not installed (``linecaster.testing.register_fakes``: the fake engines)
+REGISTERED: dict[str, str] = {}
 #: engines never hosted by ``linecaster serve``: rules are cheaper than a request
 IN_PROCESS_ONLY = set(BUILTIN_ENGINES) - SERVED_ONLY
 
@@ -586,14 +588,15 @@ def engine_ids() -> dict[str, str]:
     """Returns every engine id with its class, ``module:Class``: linecaster's own and the installed engine packages'.
 
     linecaster's own are ``BUILTIN_ENGINES`` (``chat.v1``, the single-region layout and the rule-based engines);
-    engine packages register theirs as entry points of the group ``linecaster.engines``.
+    engine packages register theirs as entry points of the group ``linecaster.engines``; tests may register more in
+    the process (``REGISTERED``, e.g. ``linecaster.testing.register_fakes``).
 
     Example:
         from linecaster.catalog import engine_ids
 
         engine_ids()["typography.ratios.v1"]      # 'linecaster.engines:RatiosTypographyEngine'
     """
-    return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}}
+    return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}, **REGISTERED}
 
 
 def engine_class(engine: str):
@@ -612,7 +615,11 @@ def engine_class(engine: str):
     """
     known = engine_ids()
     if engine not in known:
-        raise CatalogError(f"engine {engine!r} is not installed; installed: {sorted(known)}")
+        from .code import install_hint
+
+        hint = install_hint(engine)
+        raise CatalogError(f"engine {engine!r} is not installed" + (f" ({hint})" if hint else "")
+                           + f"; installed: {sorted(known)}")
     module, _, name = known[engine].partition(":")
     return getattr(import_module(module), name)
 
@@ -625,7 +632,8 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
     ``submodel_weights`` by role), plus ``strategies`` (script -> engine, options, preset edition and hash) for a
     by-script preset. Engines with weights fetch exactly that pin. A chat preset (``chat.v1``) is a
     ``CatalogError``: it runs behind a server (``linecaster.adapters.chat_model``); so is a preset whose engine is
-    not installed, unless ``installed=False``.
+    not installed, unless ``installed=False`` (the error names the engine package that provides it and the pipeline
+    scripts that install it).
 
     Args:
         ref: the preset, ``id@edition`` (``id`` alone: its current edition).
@@ -655,7 +663,10 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
         sources = code.engines() if code.REPO is not None else {}
         known = {**known, r.engine: sources[r.engine].target if r.engine in sources else r.engine}
     if r.engine not in known:
-        raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed")
+        from .code import install_hint
+
+        hint = install_hint(r.engine)
+        raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed" + (f": {hint}" if hint else ""))
     kwargs = dict(r.content.get("options", {}))
 
     def weights(pin: dict) -> dict:

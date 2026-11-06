@@ -17,7 +17,7 @@ from linecaster.formats import _provenance as P, from_alto, from_hocr, from_page
 from linecaster.runtime import provenance, run
 from linecaster.runtime.record import RunRecord
 
-from conftest import make_transcription
+from conftest import sample_transcription
 
 SCHEMAS = Path(__file__).parents[1] / "schemas"
 SHA = "sha256:" + "ab" * 32
@@ -35,7 +35,7 @@ def _schema(name):
 
 
 def _t():
-    t = make_transcription()
+    t = sample_transcription()
     t.steps = [m.model_copy(deep=True) for m in STEPS]
     return t
 
@@ -77,7 +77,7 @@ def test_alto_processing_per_step():
 
 
 def test_alto_without_steps_has_no_processing():
-    t = make_transcription()
+    t = sample_transcription()
     data = to_alto(t)
     assert b"Processing" not in data and b"PROCESSINGREFS" not in data
     assert from_alto(data).steps == []
@@ -184,7 +184,7 @@ def test_hocr_metadata_and_steps():
 
 
 def test_hocr_capabilities_follow_the_content():
-    t = make_transcription()
+    t = sample_transcription()
     t.regions = []
     for ln in t.lines:
         ln.region_id, ln.words, ln.polygon, ln.confidence = None, [], None, None

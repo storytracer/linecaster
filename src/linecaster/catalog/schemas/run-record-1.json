@@ -189,6 +189,21 @@
           ],
           "default": null,
           "title": "Replaces"
+        },
+        "removes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Removes"
         }
       },
       "required": [

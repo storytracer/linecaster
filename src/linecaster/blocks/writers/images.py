@@ -15,8 +15,8 @@ class ImageFilesWriter(Contracted, PipelineStep):
     """Writes each page's image bytes as they came, one file per page.
 
     Files go to ``<output_folder>/<item_id>/<page_id>.<ext>`` (any fsspec folder; ``<page_id>.<ext>`` for pages
-    without an item), the extension from the image's format. It reads ``image``. The page's ``image.uri`` then names
-    the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
+    without an item), the extension from the image's format. It reads ``image`` and replaces ``metadata``: the page's
+    ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
     point at the copy (``PageRecordReader`` fetches it from there), and ``ImageFolderReader(output_folder,
     item_from_parent=True)`` reads the folder as it is. Pages pass through.
 
@@ -33,6 +33,7 @@ class ImageFilesWriter(Contracted, PipelineStep):
     role = "writer"
     docs_args = {"output_folder": "out/images"}
     parts_read = ("image",)
+    parts_replaced = ("metadata",)          # image.uri and image.extra name the copy
 
     def __init__(self, output_folder: DataFolderLike, ocr_folder: DataFolderLike | None = None):
         super().__init__()

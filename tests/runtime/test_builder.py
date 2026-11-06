@@ -33,40 +33,11 @@ from linecaster.runtime.observers import Observer
 
 # ------------------------------------------------------------------------------------------------ fake engines
 
-class FakeLines:
-    """Two lines over the page: top half and bottom half."""
-
-    step, name = "lines", "fake-lines"
-
-    def __init__(self, **kwargs):
-        pass
-
-    def load(self):
-        pass
-
-    def __call__(self, image, t, **params):
-        h, w = image.shape[:2]
-        t.lines = [Line(id=f"l{i}", bbox=[0, y, w, h // 2], polygon=[[0, y], [w, y], [w, y + h // 2], [0, y + h // 2]])
-                   for i, y in enumerate((0, h // 2))]
-        return t
-
-
-class FakeText:
-    """Every line's text from the page size and the line's position."""
-
-    step, name = "recognition", "fake-text"
-
-    def __init__(self, **kwargs):
-        pass
-
-    def load(self):
-        pass
-
-    def __call__(self, image, t, **params):
-        h, w = image.shape[:2]
-        for i, ln in enumerate(t.lines):
-            ln.text = f"page {w}x{h} line {i}"
-        return t
+#: the fake engines (linecaster.testing): two lines per region (or page), and every line's text from the page size
+#: and the line's position
+LINES = "linecaster.testing:FakeLineEngine"
+TEXT = "linecaster.testing:FakeRecognitionEngine"
+TEMPLATE = "page {width}x{height} line {index}"
 
 
 #: the variant the fake engines' pages make (no recomposition here)
@@ -74,11 +45,11 @@ VERBATIM = ("verbatim_txt",)
 
 
 def _lines():
-    return LineDetector(InProcess("test_builder:FakeLines"))
+    return LineDetector(InProcess(LINES))
 
 
 def _text():
-    return LineRecognizer(InProcess("test_builder:FakeText"))
+    return LineRecognizer(InProcess(TEXT, template=TEMPLATE))
 
 
 def _png(path: Path, w: int, h: int = 30) -> None:
@@ -151,10 +122,25 @@ def test_a_part_added_twice():
 
 
 def test_parts_belong_to_their_transcription():
-    problems = _problems([ImageFolderReader("x"), _lines(), LineRecognizer(InProcess("test_builder:FakeText"),
+    problems = _problems([ImageFolderReader("x"), _lines(), LineRecognizer(InProcess(TEXT, template=TEMPLATE),
                                                                           transcription="other")])
     assert problems == ["LineRecognizer (recognition (in-process)) reads other:lines, which no block before it in "
                         "the pipeline adds"]
+
+
+def test_a_removed_part_is_gone_for_later_blocks(tmp_path: Path):
+    """``ImageConverter`` without ``keep_bytes`` passes the page on without image bytes: a later block that reads the
+    image is a problem, even after a reader that provides anything; ``keep_bytes`` or an ``ImageFetcher`` fixes it."""
+    from linecaster.blocks.conversion import ImageConverter, ImageFetcher
+
+    convert = ImageConverter(str(tmp_path / "webp"), "working-image@1")
+    problems = _problems([ImageFolderReader("x"), convert, _lines(), PageJsonlWriter("o")])
+    assert problems == ["LineDetector (lines (in-process)) reads image, which ImageConverter (🖼️ image converter "
+                        "(lossless WebP)) removes before it"]
+    assert _problems([PageRecordReader("p"), convert, _lines()]) == problems[:1]
+    assert _problems([ImageFolderReader("x"), convert, ImageFetcher(), _lines(), PageJsonlWriter("o")]) == []
+    kept = ImageConverter(str(tmp_path / "webp"), "working-image@1", keep_bytes=True)
+    assert _problems([ImageFolderReader("x"), kept, _lines(), PageJsonlWriter("o")]) == []
 
 
 def test_a_page_block_after_an_item_stream():
@@ -304,7 +290,7 @@ def test_modular_transcriber_expands_and_keeps_its_group():
     assert c.role == "composite" and c.unit == "page" and c.unit_out is None
     assert c.reads == {Part("image")}
     assert {str(p) for p in c.adds} == {"ocr_new:regions", "ocr_new:reading_order", "ocr_new:lines",
-                                        "ocr_new:line_regions", "ocr_new:text"}
+                                        "ocr_new:line_regions", "ocr_new:text", "ocr_new:line_confidences"}
     p = build([ImageFolderReader("x"), t, PageJsonlWriter("o")])
     blocks = p.describe()["stages"][0]["blocks"]
     assert [b.get("composite") for b in blocks] == [None, *["modular transcriber"] * 4, None]
@@ -312,7 +298,7 @@ def test_modular_transcriber_expands_and_keeps_its_group():
     assert 'subgraph c1_modular_transcriber["modular transcriber"]' in mermaid
     assert '-->|"ocr_new:lines"|' in mermaid
     # backends are wrapped into their blocks
-    t = ModularTranscriber(InProcess("test_builder:FakeLines"), InProcess("test_builder:FakeText"),
+    t = ModularTranscriber(InProcess(LINES), InProcess(TEXT, template=TEMPLATE),
                            layout=InProcess("x:Layout"), transcription="mine")
     assert [type(b).__name__ for b in t.blocks] == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
     assert {b.transcription for b in t.blocks} == {"mine"}
@@ -444,7 +430,7 @@ def test_until_after_and_taps(items, tmp_path: Path):
     tapped = _records(tmp_path / "tap")
     assert sorted(tapped) == sorted(whole)
     lines = tapped["a1"]["page"]["transcriptions"]["ocr_new"]["lines"]
-    assert [ln["id"] for ln in lines] == ["l0", "l1"] and not any(ln.get("text") for ln in lines)
+    assert [ln["id"] for ln in lines] == ["page_l0", "page_l1"] and not any(ln.get("text") for ln in lines)
 
 
 def test_partial_run_problems(tmp_path: Path):
@@ -525,6 +511,10 @@ def test_contracts_with_tables_and_validation():
     assert p.problems == ["PageValidator (✅ page validator) reads ocr_new:*, which no block before it in the "
                           "pipeline adds"]
     assert build([ImageFolderReader("x"), _lines(), PageValidator(required=("transcriptions.ocr_new",))]).problems == []
+    # "image" is the page record's image entry (metadata), still there after the bytes are removed
+    from linecaster.blocks.conversion import ImageConverter
+    assert build([ImageFolderReader("x"), ImageConverter("out", "working-image@1"),
+                  PageValidator(required=("image",))]).problems == []
     assert build([ImageFolderReader("x"), TableRecognizer(InProcess("x:T"))]).problems == [
         "TableRecognizer (tables (in-process)) reads ocr_new:regions, which no block before it in the pipeline adds"]
 
