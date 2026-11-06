@@ -195,5 +195,7 @@ def test_the_engine_packages_ship_no_catalog():
         assert not (Path(importlib.import_module(pkg).__file__).parent / "catalog").exists()
 
 
-if __name__ == "__main__":
-    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
+if __name__ == "__main__":     # with arguments: those tests instead (an engine package's: engines/<engine>/tests)
+    import sys
+
+    raise SystemExit(pytest.main([*(sys.argv[1:] or [__file__]), "-q", "-p", "no:cacheprovider"]))

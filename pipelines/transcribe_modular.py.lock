@@ -1299,10 +1299,14 @@ provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
+docs = [
+    { name = "mkdocs", specifier = ">=1.6,<2" },
+    { name = "mkdocs-material", specifier = ">=9.6,<10" },
+]
 
 [[package]]
 name = "linecaster-kraken"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "../engines/kraken" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1318,7 +1322,7 @@ dependencies = [
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", specifier = ">=7.1.0" },
-    { name = "linecaster" },
+    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
     { name = "torch", specifier = "==2.14.0" },
@@ -1327,7 +1331,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1348,7 +1352,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster" },
+    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
@@ -1364,7 +1368,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-tesseract"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "../engines/tesseract" }
 dependencies = [
     { name = "linecaster" },
@@ -1376,7 +1380,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster" },
+    { name = "linecaster", specifier = ">=0.0.1,<0.2" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
