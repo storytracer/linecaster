@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../schemas/evidence-1.json
+schema: linecaster.evidence/1
+preset: oxr-1.0@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_diplomatic: 0.0504
+  cer_reading: 0.038
+  recall: 0.9377
+date: '2026-11-06'
+hardware: RTX A6000 48 GB (x86_64), one GPU
+software:
+  linecaster: c743780
+  image: cr.hf.co/davanstrien/oxr@sha256:aa6a4fb538bd58e19d0d032d6ed7e6ddb53bc524b64361ecb554b72ffdab233d
+  vllm: 0.25.1
+  backend: in-process
+run: "pipelines/transcribe_page.py --recognition oxr-1.0@1 inside the board's image (ServiceServer: the pin downloaded to /models/oxr-model, then the image's all-in-one entrypoint; PageRecognizer, the engine a client in-process, one page in flight)"
+notes: "NOTES.md, \"The four board models the catalog lacked\". Scored the board's way: consolidate, normalize_outputs postproc 3 (strip, oxr_drop_image_links), score_dataset (bhl-ocr-eval at 76bc19d, a fresh clone). The board's own outputs for these pages are not published (hf://buckets/finebooks/bhl-ocr-outputs has no OXR row), so there is no same-page comparison; the board's full-benchmark CER reading is 0.1104 (bhl-ocr-eval RESULTS.md), much of it from text read twice on Conchologia pages and runaway leader dots on three Trudy index pages. Per volume here: Conchologia 0.118, Piscium 0.116, the others 0.006 to 0.014."

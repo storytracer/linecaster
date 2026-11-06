@@ -1,0 +1,22 @@
+[project]
+name = "linecaster-services"
+version = "0.1.0"
+description = "Page engines for linecaster that call a vendor's page pipeline behind its own HTTP API: Falcon-OCR and OXR"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
+    "linecaster>=0.1,<0.2",
+    "numpy",
+    "Pillow>=11",
+]
+
+# the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalog
+[project.entry-points."linecaster.engines"]
+"falcon.recognition.v1" = "linecaster_services:FalconRecognitionEngine"
+"oxr.recognition.v1" = "linecaster_services:OxrRecognitionEngine"
+
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

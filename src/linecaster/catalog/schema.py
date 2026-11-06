@@ -142,9 +142,10 @@ class ModelRef(_Doc):
 
 
 class Serve(_Doc):
-    """The server a served preset was validated with."""
+    """The server a served preset was validated with: a chat server, ``linecaster serve``, or the service a page
+    engine talks to (vLLM for an engine package that attaches to it, a vendor's own image entrypoint)."""
 
-    server: Literal["vllm", "sglang", "linecaster"]
+    server: Literal["vllm", "sglang", "linecaster", "vendor"]
     version: str | None = None
     image: str | None = Field(None, description="container image with digest, for HF Jobs")
     flags: list[str] = Field(default_factory=list)
@@ -157,6 +158,12 @@ class Serve(_Doc):
                                                          "first; {repo} and {revision} are the model's")
     draft: dict[str, Any] | None = Field(None, description="speculative decoding: {model: <model id>, revision, "
                                                          "speculative: {...}}")
+    command: list[str] = Field(default_factory=list, description="vendor: the image's entrypoint, the command that "
+                                                                  "starts the service")
+    health: list[str] = Field(default_factory=list, description="vendor: loopback URLs that each answer 200 once the "
+                                                                "service is ready, in order")
+    weights_dir: str | None = Field(None, description="vendor: the folder the entrypoint reads the weights from; the "
+                                                      "model pin is downloaded there first")
 
 
 class Capabilities(_Doc):

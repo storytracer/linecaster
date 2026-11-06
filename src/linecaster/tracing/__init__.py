@@ -290,6 +290,9 @@ def server_attributes(block) -> dict:
         attrs["linecaster.model"] = getattr(block.spec, "model", "")
         if getattr(block.spec, "preset", None):
             attrs["linecaster.preset"] = block.spec.preset
+    elif hasattr(block, "serve"):                     # ServiceServer: the service a page preset names
+        attrs["linecaster.server"] = block.server
+        attrs["linecaster.preset"] = block.ref
     if isinstance(getattr(block, "port", None), int):
         attrs["linecaster.port"] = block.port
     return attrs
@@ -418,7 +421,8 @@ class Tracing(Observer):
         if self.tracer is None:
             return
         end = _ns()
-        server = getattr(block, "role", None) == "server" or type(block).__name__ in ("ModelServer", "ChatModelServer")
+        server = getattr(block, "role", None) == "server" or type(block).__name__ in (
+            "ModelServer", "ChatModelServer", "ServiceServer")
         name = "linecaster.server.start" if server else "linecaster.warm_up"
         attrs = server_attributes(block) if server else dict(self._attributes(block))
         span = self._child(name, self.task_context, end - int(seconds * 1e9), attrs)

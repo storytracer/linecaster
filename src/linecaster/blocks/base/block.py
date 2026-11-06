@@ -38,6 +38,9 @@ OPERATIONAL = frozenset({
     # writers' file handling
     "compression", "max_file_size",
 })
+#: engine options that only say where an engine's service is (a vendor's API, the vLLM an engine package attaches
+#: to), never what it reads: an in-process backend's functional options leave them out
+ENGINE_OPERATIONAL = frozenset({"endpoint", "timeout"})
 
 
 def _qualified(obj) -> str:

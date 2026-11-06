@@ -195,7 +195,9 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
             decoding = tracer.start_span("linecaster.serve.decode", context=parent, attributes=attrs)
             try:
                 data = body["image"]
-                image = None if data is None else await loop.run_in_executor(pool, decode_rgb, base64.b64decode(data))
+                raw = None if data is None else base64.b64decode(data)
+                image = (raw if raw is None or getattr(h.model, "image_input", "rgb") == "bytes"
+                         else await loop.run_in_executor(pool, decode_rgb, raw))
                 t = Transcription.model_validate(body.get("transcription") or {})
             except Exception as e:
                 decoding.set_status(StatusCode.ERROR)

@@ -20,7 +20,8 @@ def lock_of(script: Path) -> dict:
 
 
 def test_there_are_scripts():
-    assert {"launch.py", "pipelines/transcribe_modular.py", "pipelines/transcribe_vlm.py"} <= set(IDS)
+    assert {"launch.py", "pipelines/transcribe_modular.py", "pipelines/transcribe_vlm.py",
+            "pipelines/transcribe_page.py"} <= set(IDS)
 
 
 def test_every_pipeline_script_has_its_id():
@@ -49,6 +50,10 @@ def test_launch_finds_the_pipeline():
                                                           "item-texts"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
         "uv", "run", "--script", vlm, "IN", "OUT", "--recognition", "chandra-ocr-2@1"]
+    page = str(ROOT / "pipelines" / "transcribe_page.py")
+    assert launch.command("indra-ocr@1", ["IN", "OUT"]) == [
+        "uv", "run", "--script", page, "IN", "OUT", "--recognition", "indra-ocr@1"]
+    assert launch.command("falcon-ocr", ["serve"])[4:6] == ["serve", "--recognition"]   # a page engine can be served
     assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
         "uv", "run", "--script", modular, "serve", "--recipe", "squiddle@1", "--port", "8101"]
     assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]

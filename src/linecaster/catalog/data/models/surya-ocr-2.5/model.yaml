@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: surya-ocr-2.5
+version: Surya OCR 2.5
+source:
+  kind: hf
+  ref: datalab-to/surya-ocr-2.5
+pins:
+- revision: 00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3
+  pinned: 2026-11-06
+  files:
+    model.safetensors: sha256:6940baca2d16a20b15b7302cac7253246c78c95469920fcdb064963f48b5cb17
+    static/images/corporate.png: sha256:6ae900a07a709d28576d04cc3688f66fbb89ddbc2b6e38d61d9cc468603c9ebf
+    static/images/corporate_layout.png: sha256:7cc6fdc5421b50e47f92eb77d70a42459bf48919abe5fb8b2eb99b9337df8897
+    static/images/corporate_reading.png: sha256:81492fdce5a18d65045e5d8c123d185770f6af4fee141498b784986062a0b3c6
+    static/images/corporate_text.png: sha256:9efea9e0c167dad80f37356276a3cd5613540c64d2cf64002dd377044737d442
+    static/images/form.png: sha256:4ca5ae30a2233efc9a0177460ff6affbe1ae972e52ab00b67fc44ef752cbb21f
+    static/images/form_layout.png: sha256:18b66cf842f38f04573a07d4f87e7310916673f3f5558813bb921ba4bddee7a0
+    static/images/form_reading.png: sha256:6f79b8f4d4564178b6c8abdc9c750901f15e30ab60c8eac82bf70dec5a97eb98
+    static/images/form_text.png: sha256:6b8d3a0444a735d06f06d9a3c697c541c888ecf4d51fdfa6ea68d1fc108fc125
+    static/images/handwritten.png: sha256:05e03c947351ac33077c288cb71058c4f8c6fb3bd2bcbdc7db130094e2a1e42a
+    static/images/handwritten_layout.png: sha256:082b3c6529b20db0ef749554c5d8e70e58031c485f7d8cb92260c739df70c652
+    static/images/handwritten_reading.png: sha256:b25c6f5f8e777086c9faa8ceba85321d071b539cfd232a79dda84068a57eaf2d
+    static/images/japanese.png: sha256:728510026418a8cf99b76c54e433d71fffae2d5f0929edf3ced65eaf9969196f
+    static/images/japanese_layout.png: sha256:30189df8221a95e6631572277aec671031460fc897a2b33059e438c4a2150e35
+    static/images/japanese_reading.png: sha256:8d47d3b2987ad36b6eb762390f23d9c6b1e8ffae8e0aeea92c7cdcb36935c208
+    static/images/japanese_text.png: sha256:dabb5dcd24fe038cf21681c3a9a052b9d71c9cfbb2ff7c6037ef4dcc14f5c5e5
+    static/images/math.png: sha256:922c588de3e1b8cc2f01a6c63cd9856ecf032be7df5e321e20bf29b6038cace1
+    static/images/math_layout.png: sha256:ec2c835c44b1a14a3e0a09067f68ecc806bc1ea4286933acd4f186da60eb1a12
+    static/images/math_reading.png: sha256:fc5fe72f8a4372b6857a913995c59a27278055b77a05721a71bbc73cac4864db
+    static/images/math_text.png: sha256:30284efcddced07dfe2d2a954d55e3b061632f3163f0b64064274342aef93b28
+    static/images/newspaper.png: sha256:2d908b6f72a08fbb14adea01b2fb684407414cb1bb9af8360a2e929a3df4ad83
+    static/images/newspaper_layout.png: sha256:2fc821add30c94c1a76f9cda6d0f68916f77dcbc68fb627ddf4b767458954795
+    static/images/newspaper_reading.png: sha256:47a8e06b80319913415d8ddb7fc0a33d18d1797f9b834ac29037e34e89390a55
+    static/images/newspaper_text.png: sha256:1abc4e81ec3c7e89d8cf17e2a1b5039f0f7221ebb69e1f8305a42f0afcc8d2bf
+    static/images/opb_size_chart.png: sha256:a94a4f5492275f842b140f0f5e0e8ece91c7470d4a0c59e078db0529943a9eee
+    static/images/reference.png: sha256:7a25b3c50f90b5381998ea9340c2843a19d691fd3b08677f49d30ab8331eae9b
+    static/images/reference_layout.png: sha256:de15396f2322b017fc1f0f23fbc37a4428908caea53b704b63696705095f19ae
+    static/images/reference_reading.png: sha256:41a77baf4fa8441ae3dad74c3646be76908e2bdeac90d4426ea4f6ac0868d975
+    static/images/reference_text.png: sha256:be26b80e2450a16b530b7eb2a664e66989fde00c281a11e1d453b2c60a0be096
+  card: upstream/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3/README.md
+  card_sha256: sha256:ba8c3eda9c7c7823a2d2a2a2abd26a8a9ce32be7f46948566b966caae0a2a154
+  license_file: upstream/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3/LICENSE
+license: AI Pubs Open RAIL-M License (Modified)
+languages:
+- mul
+scripts: []
+params: 689M
+derived_from: []

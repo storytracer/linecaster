@@ -13,7 +13,7 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 | engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
 | engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
 | VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
-| pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py` |
+| pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `transcribe_page.py`, `bind.py` |
 | pipeline id | the script's file name, `.v<n>` | `transcribe_modular.v1` |
 | slot and its flag | the step's name | `--layout`, `--lines`, `--recognition` |
 | catalog step | a noun for the activity | `layout`, `recognition`, `recomposition` |
@@ -92,8 +92,8 @@ are, and a test keeps them complete as signatures change.
 - A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
   over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
   run skips what a machine cannot run, and CI runs what a CPU can.
-- Tests use the fake engines and the fake chat server of `linecaster.testing`, not copies of their own. Reason: one
-  fake per step behaves the same in every test.
+- Tests use the fake engines, the fake chat server and the fake service of `linecaster.testing`, not copies of their
+  own. Reason: one fake per step behaves the same in every test.
 
 ## Tracing
 

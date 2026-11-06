@@ -13,6 +13,7 @@ runs in and starts that pipeline's script, in the script's own environment.
     uv run launch.py                                   # the recipes and page presets
     uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle
     uv run launch.py chandra-ocr-2 IMAGES OUT          # a page preset: = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
+    uv run launch.py indra-ocr IMAGES OUT              # a page engine's: = pipelines/transcribe_page.py IMAGES OUT --recognition indra-ocr
     uv run launch.py squiddle@1 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
     uv run launch.py squiddle IMAGES OUT --recognition kraken-ppocrv6-small   # a slot on top: recorded as an override
     uv run launch.py item-texts OUT/pages OUT2         # the item stage: = pipelines/bind.py OUT/pages OUT2 --recipe item-texts
@@ -29,8 +30,8 @@ from linecaster.catalog import code
 from linecaster.catalog.registry import catalog, split_ref
 
 ROOT = Path(__file__).resolve().parent
-#: the pipeline a page preset runs in, and its slot
-PAGE_PIPELINE, PAGE_SLOT = "transcribe_vlm.v1", "recognition"
+#: the pipelines page presets run in (a chat VLM's, a page engine's), and their slot
+CHAT_PIPELINE, PAGE_PIPELINE, PAGE_SLOT = "transcribe_vlm.v1", "transcribe_page.v1", "recognition"
 #: the pipeline whose slots the other presets fill
 MODULAR_PIPELINE = "transcribe_modular.v1"
 
@@ -72,9 +73,10 @@ def command(name: str, args: list[str]) -> list[str]:
     if rid in c.recipes:
         pipeline, flag = c.resolve_recipe(name).content["pipeline"], "--recipe"
     elif rid in c.presets and c.preset(rid).page_preset:
-        pipeline = PAGE_PIPELINE
-        flag = f"--{code.pipelines(ROOT)[PAGE_PIPELINE].slots[PAGE_SLOT]}"
-        if args[:1] == ["serve"]:
+        chat = c.preset(rid).engine == "chat.v1"
+        pipeline = CHAT_PIPELINE if chat else PAGE_PIPELINE
+        flag = f"--{code.pipelines(ROOT)[pipeline].slots[PAGE_SLOT]}"
+        if chat and args[:1] == ["serve"]:
             raise SystemExit(f"{name}: a run starts the model's server itself (vLLM or SGLang, from the preset)")
     else:
         raise SystemExit(not_runnable(rid))

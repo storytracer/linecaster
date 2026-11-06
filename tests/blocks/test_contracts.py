@@ -113,7 +113,9 @@ def test_chat_recognizers():
     assert {p.name for p in regions.adds} == {"lines", "text", "markdown"}
     assert PageRecognizer("lightonocr-2-1b").shape == "stream"
     with pytest.raises(PipelineConfigError, match="needs a Chat backend"):
-        PageRecognizer(Served("http://127.0.0.1:8000/v1", model="m"))
+        RegionRecognizer(Served("http://127.0.0.1:8000/v1", model="m"))
+    engine = PageRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition", preset="indra-ocr@1")).contract()
+    assert engine.reads == {Part("image")} and {p.name for p in engine.adds} == {"lines", "text", "markdown"}
 
 
 def test_contracts_of_the_blocks_without_a_model(tmp_path):
@@ -247,7 +249,7 @@ def _one_of_each(tmp_path) -> list:
         "FormulaRecognizer": {"backend": InProcess("pkg:Formulas")},
         "PageRecognizer": {"backend": Chat(chat_model("lightonocr-2-1b"), api_key=EnvVar("LC_TEST_KEY"))},
         "RegionRecognizer": {"backend": "lightonocr-2-1b-regions"},
-        "ChatModelServer": {"spec": "lightonocr-2-1b"},
+        "ChatModelServer": {"spec": "lightonocr-2-1b"}, "ServiceServer": {"preset": "falcon-ocr@1"},
         "ModelServer": {"models": [{"name": "lines", "spec": "pkg:Lines", "kwargs": {"x": 1}}]},
         "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
         "ManifestReader": {"data_folder": str(tmp_path)},

@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../../schemas/model-1.json
+schema: linecaster.model/1
+id: indra-ocr
+version: Indra OCR
+source:
+  kind: hf
+  ref: datalab-to/indra-ocr
+pins:
+- revision: bd02167fdf2005a19962cc15188f8496a2c87d3b
+  tag: v1.1.0
+  pinned: 2026-11-06
+  files:
+    assets/examples/handwriting_letter.png: sha256:bed634b6df330b040cd52d8d9104433f54e458c16ed87607c406c009b98ecd25
+    assets/examples/korean_letter.png: sha256:973d6e2aca838ba5da72ab691bd8d0d9820e907002ca398eb884a1c87a8efb29
+    assets/speed_score.png: sha256:83e72fbb5369a045cb6038318337d4a9138217fe394b1a11e7cb0760f46fc7b6
+    assets/throughput.png: sha256:76812c7807427c1117a8c2fbd0d9070557e911870736a7921fd8e56d49edfcc3
+    det.onnx: sha256:f2bd4cba23e9c328cf7ec824634e423e191a2c6aacbbf35c62bd79dd70f62f59
+    lm.npz: sha256:6c0fb618a363a0acdd05d4f5b0edd9e8146d2d990541b87f6130bbfe17cea58d
+    lm_cjk.npz: sha256:6d64f13f4f90f4e529bd63340c6df76238d007feaef2abb903d8cd28d92bc2f3
+    lm_world.npz: sha256:34df5e74a2fcbb9cf5e7f360a559375ffa2e04d2d2943a42308c177bcb444d5d
+    math_dec_init.onnx: sha256:919417fde9962c3318aeb478c1fe3955dd2bb8cd34476c68debed2ba39e5dcd6
+    math_dec_step.onnx: sha256:5ff6e6cbaf0dea70314f66222a1469736a8c5e7994fab06a5b4e53c90469239f
+    math_enc.onnx: sha256:d4e4a6c40dad1ee988d32c6403b1590ca42864d4483bbe1e671c5dbb999a5a97
+    mathcls.onnx: sha256:818b1556e9ef337958db6be0c9791299d3f74a4575586b0cd469aaae9534ff96
+    model.safetensors: sha256:e9b0b74c12176516548664a46429758ac7c1088dd43524534fc7272e221a6762
+    order.onnx: sha256:a42db2e8b536ad3d84045a4b7f9b0a72667cf8be4aa02d63f7b38004719fb180
+    orient.onnx: sha256:20eaf670f55a7cf9facfe1bdd6c7b8e40be75bbf4d48a3df43f66aa3bbd874fd
+    rec.onnx: sha256:475972a2710be4a3cbfeb2bc7f3624ffd563de07de42476fc7a290d4e1ece484
+    rec_cjk.onnx: sha256:4a035516a17e62cdf33a4fe2d88077654cb8841cff024685cdef4e351694ef50
+    rec_rtl.onnx: sha256:468796bd684486a8388c30c8b4ed2a26e3eeb1f8ff02831c24c2e12c79a2a834
+    rec_world.onnx: sha256:c8d1e59f21b04966f179d2d2d8e22b230d22110b3f89855bbbf2624a58c40043
+    script.onnx: sha256:b6ce4e926e19c243faaf37bd46880398bf2cb4ae56a29e1177a3b017c1280e36
+  card: upstream/bd02167fdf2005a19962cc15188f8496a2c87d3b/README.md
+  card_sha256: sha256:3c4940ddedbd61b948bfa2a91fa4ae95f014554cd82fda89cc7f37234ce515d0
+  license_file: upstream/bd02167fdf2005a19962cc15188f8496a2c87d3b/LICENSE
+license: AI Pubs Open RAIL-M License (Modified)
+languages:
+- mul
+scripts: []
+params: 7.3M
+derived_from: []

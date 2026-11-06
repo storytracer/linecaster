@@ -35,8 +35,10 @@ class Engine(Protocol):
     ``linecaster.engines``), ``step`` one of the catalog's steps, ``capabilities`` ``{"unit": ..., "produces":
     [...]}`` in the parts vocabulary, ``Options`` a pydantic model of its keyword arguments, each field with a
     description (a preset's ``weights`` besides). ``load()`` loads the weights (exactly the pin it was given);
-    ``__call__`` takes the page image as an RGB array (``None`` when the step needs no pixels for the page) and the
-    transcription so far, and returns the transcription with its part added and one ``StepInfo`` appended.
+    ``__call__`` takes the page image as an RGB array (``None`` when the step needs no pixels for the page; the
+    image file's bytes, as the reader brought them, for an engine whose optional ``image_input`` is ``"bytes"``: a
+    vendor's package that decodes the file itself) and the transcription so far, and returns the transcription with
+    its part added and one ``StepInfo`` appended.
     ``linecaster.testing.check_engine`` checks an engine class against it.
     """
 

@@ -350,7 +350,9 @@ def test_whole_page_vlms_are_recognition_presets():
     c = Catalog()
     assert "page" not in STEPS
     pages = [pid for pid, (_, p) in c.presets.items() if p.page_preset]
-    assert len(pages) >= 19 and all(c.preset(pid).engine == "chat.v1" for pid in pages)
+    engines = {"surya-ocr-2.5": "surya.recognition.v1", "indra-ocr": "indra.recognition.v1",
+               "falcon-ocr": "falcon.recognition.v1", "oxr-1.0": "oxr.recognition.v1"}     # page engines
+    assert len(pages) >= 23 and all(c.preset(pid).engine == engines.get(pid, "chat.v1") for pid in pages)
     assert all(c.resolve(pid).content["step"] == "recognition" for pid in pages)
 
 

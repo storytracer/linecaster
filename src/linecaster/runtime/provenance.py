@@ -197,10 +197,11 @@ def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any
     edition with its hash, wherever the engine runs (in-process, or the server model a served backend names);
     for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
     for a chat backend its adapter, preset edition and hash, model and revision."""
-    from ..blocks.base.block import plain
+    from ..blocks.base.block import ENGINE_OPERATIONAL, plain
 
-    if backend.get("backend") == "in-process":
-        out = {"engine": backend.get("engine"), "options": backend.get("options") or {},
+    if backend.get("backend") == "in-process":       # where the engine's service is (an endpoint) does not count
+        options = {k: v for k, v in (backend.get("options") or {}).items() if k not in ENGINE_OPERATIONAL}
+        out = {"engine": backend.get("engine"), "options": options,
                "preset": backend.get("preset"), "preset_sha256": backend.get("preset_sha256")}
     elif backend.get("backend") == "chat":         # the adapter and the preset, not where the server is
         out = {k: backend.get(k) for k in ("adapter", "preset", "preset_sha256", "model", "revision")}

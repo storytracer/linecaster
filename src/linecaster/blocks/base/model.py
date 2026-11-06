@@ -99,12 +99,19 @@ def preset_backend(ref: str, step: str) -> InProcess:
     return InProcess.from_preset(ref)
 
 
+def page_image(engine, data: bytes):
+    """The page image as ``engine`` takes it: an RGB array, or the image file's bytes as the reader brought them for
+    an engine whose ``image_input`` is ``"bytes"`` (a vendor's package that decodes the file itself)."""
+    return data if getattr(engine, "image_input", "rgb") == "bytes" else decode_rgb(data)
+
+
 class ModelBlock(PageBlock):
     """Runs one model step's engine on every page, through its backend, and adds its part to the transcription.
 
     In-process (``InProcess``) it is a per-unit transform: the engine loads in ``warm_up()``, before the first
-    page, and is called with the page image (an RGB array; none when the step reads only regions of a label the
-    page lacks, ``region_label``) and the transcription so far. Served (``Served``, or ``Chat`` for a VLM) it is a
+    page, and is called with the page image (an RGB array, or the image file's bytes for an engine whose
+    ``image_input`` is ``"bytes"``; none when the step reads only regions of a label the page lacks,
+    ``region_label``) and the transcription so far. Served (``Served``, or ``Chat`` for a VLM) it is a
     stream transform: up to a window of requests in flight, passed on as they finish. Either way a page's result
     depends only on the page.
 
@@ -181,8 +188,8 @@ class ModelBlock(PageBlock):
     def process_page(self, doc, page: Page) -> Page:
         t = page.transcription(self.transcription)
         start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        image = decode_rgb(image_bytes(doc)) if self.needs_image(t) else None
         engine = self.backend.model()
+        image = page_image(engine, image_bytes(doc)) if self.needs_image(t) else None
         out = engine(image, t, **self.params)
         if out.steps:
             out.steps[-1].engine = out.steps[-1].engine or getattr(engine, "engine_id", None)

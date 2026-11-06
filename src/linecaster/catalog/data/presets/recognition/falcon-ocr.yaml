@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: falcon-ocr
+edition: 1
+step: recognition
+model:
+  id: falcon-ocr
+  revision: 177110bf36f6fd492428215baf76d0618854bed3
+engine: falcon.recognition.v1
+options:
+  longest_edge: 2048
+  jpeg_quality: 95
+  skip_layout: false
+serve:
+  server: vendor
+  image: ghcr.io/tiiuae/falcon-ocr@sha256:2ec8025263fbdbfa2523e4fda4b436ca832a7b4b2c8f7eead311634689e4cd4b
+  command:
+  - /bin/bash
+  - /app/entrypoint_single.sh
+  env:
+    EXPOSED_GPU_IDS: '0'
+    VLLM_GPU: '0'
+    PIPELINE_GPU: '0'
+  health:
+  - http://127.0.0.1:8000/health
+  - http://127.0.0.1:5002/health
+capabilities:
+  unit: page
+  produces:
+  - lines
+  - text
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/falcon-ocr-port.py
+  - ghcr.io/tiiuae/falcon-ocr@sha256:2ec8025263fbdbfa2523e4fda4b436ca832a7b4b2c8f7eead311634689e4cd4b:/app/entrypoint_single.sh
+  created: 2026-11-06
+support: experimental

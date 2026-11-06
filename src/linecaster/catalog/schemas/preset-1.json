@@ -90,13 +90,14 @@
     },
     "Serve": {
       "additionalProperties": false,
-      "description": "The server a served preset was validated with.",
+      "description": "The server a served preset was validated with: a chat server, ``linecaster serve``, or the service a page\nengine talks to (vLLM for an engine package that attaches to it, a vendor's own image entrypoint).",
       "properties": {
         "server": {
           "enum": [
             "vllm",
             "sglang",
-            "linecaster"
+            "linecaster",
+            "vendor"
           ],
           "title": "Server",
           "type": "string"
@@ -178,6 +179,35 @@
           "default": null,
           "description": "speculative decoding: {model: <model id>, revision, speculative: {...}}",
           "title": "Draft"
+        },
+        "command": {
+          "description": "vendor: the image's entrypoint, the command that starts the service",
+          "items": {
+            "type": "string"
+          },
+          "title": "Command",
+          "type": "array"
+        },
+        "health": {
+          "description": "vendor: loopback URLs that each answer 200 once the service is ready, in order",
+          "items": {
+            "type": "string"
+          },
+          "title": "Health",
+          "type": "array"
+        },
+        "weights_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "vendor: the folder the entrypoint reads the weights from; the model pin is downloaded there first",
+          "title": "Weights Dir"
         }
       },
       "required": [

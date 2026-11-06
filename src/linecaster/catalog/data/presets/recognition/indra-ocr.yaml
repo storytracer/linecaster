@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: indra-ocr
+edition: 1
+step: recognition
+model:
+  id: indra-ocr
+  revision: bd02167fdf2005a19962cc15188f8496a2c87d3b
+engine: indra.recognition.v1
+options:
+  mode: auto
+  furniture: false
+  math: false
+  dpi: 200.0
+  threads: 1
+capabilities:
+  unit: page
+  produces:
+  - lines
+  - text
+  - markdown
+provenance:
+  derived_from:
+  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/indra-ocr-port.py
+  - pypi.org/project/indra-ocr/1.1.2:indra_ocr/__init__.py
+  - datalab-to/indra-ocr@bd02167fdf2005a19962cc15188f8496a2c87d3b:README.md
+  created: 2026-11-06
+support: experimental
