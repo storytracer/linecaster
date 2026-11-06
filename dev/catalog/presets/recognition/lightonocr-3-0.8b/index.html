@@ -730,6 +730,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#provenance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -834,6 +845,29 @@ following the model card; the two presets differ only in the checkpoint).</p>
 <tr>
 <td>adapter</td>
 <td><code>lighton-ocr-3</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="evidence">Evidence<a class="headerlink" href="#evidence" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Source</th>
+<th>Dataset</th>
+<th>Hardware</th>
+<th>Backend</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-11-06</td>
+<td>Linecaster run</td>
+<td>finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7</td>
+<td>RTX 4000 SFF Ada 20 GB (x86_64, compute capability 8.9), one GPU</td>
+<td>served</td>
+<td>cer_diplomatic 0.0549, cer_reading 0.0307, recall 0.9526</td>
 </tr>
 </tbody>
 </table>
