@@ -12,7 +12,7 @@ from linecaster.blocks.base.page import page_of
 from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composition.typographer import Typographer
-from linecaster.blocks.layout.single_region import SingleRegionLayout
+from linecaster.blocks.layout import LayoutDetector
 from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.readers.images import ImageFolderReader
 from linecaster.blocks.writers.files import PageFileWriter
@@ -115,10 +115,33 @@ def test_layout_plot(tmp_path: Path):
 def test_single_region_layout_takes_every_line():
     t = Transcription(lines=[Line(id="d0", polygon=[[10, 10], [200, 10], [200, 30], [10, 30]], bbox=[10, 10, 190, 20]),
                              Line(id="d1", polygon=[[10, 50], [200, 50], [200, 70], [10, 70]], bbox=[10, 50, 190, 20])])
-    out = list(LineAssigner().run(SingleRegionLayout().run(iter([page_doc(t=t, item=None)]))))
+    out = list(LineAssigner().run(LayoutDetector("single-region@1").run(iter([page_doc(t=t, item=None)]))))
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(r.id, r.label, r.bbox, r.reading_order) for r in t.regions] == [("page", "text", [0, 0, 1000, 1000], 0)]
     assert [(ln.id, ln.region_id, ln.row) for ln in t.lines] == [("page_l0", "page", 0), ("page_l1", "page", 1)]
+    step = t.steps[-1]
+    assert (step.step, step.engine, step.preset) == ("layout", "layout.single-region.v1", "single-region@1")
+    assert step.settings == {"label": "text", "region_id": "page"}
+
+
+def test_single_region_layout_runs_in_process_only():
+    from linecaster.backends import InProcess
+    from linecaster.catalog.registry import engine_spec
+    from linecaster.errors import CatalogError
+    from linecaster.runtime import run
+
+    with pytest.raises(CatalogError, match="in the pipeline's process only"):
+        engine_spec("single-region@1", served=True)              # linecaster serve refuses it
+    with pytest.raises(PipelineConfigError, match="is a layout preset"):
+        from linecaster.blocks.lines import LineDetector
+
+        LineDetector("single-region@1")
+    # a served run keeps it in the pipeline's process, and starts no model server for it alone
+    ap = run.parser(None)
+    a = run.check(ap, ap.parse_args(["images", "out", "--backend", "served"]))
+    backends, servers = run.engines(a, [{"name": "layout", "preset": "single-region"}], "x.py")
+    assert isinstance(backends["layout"], InProcess) and backends["layout"].preset == "single-region@1"
+    assert servers == []
 
 
 def _png(path: Path):

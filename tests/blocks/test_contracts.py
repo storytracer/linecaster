@@ -275,7 +275,7 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
     blocks = _one_of_each(tmp_path)
     assert {family(type(b)) for b in blocks} >= {"base", "binding", "composition", "conversion", "layout", "lines",
                                                  "readers", "recognition", "servers", "text", "validation", "writers"}
-    composite = ModularTranscriber(InProcess("pkg:Lines"), InProcess("pkg:Text"))
+    composite = ModularTranscriber(InProcess("pkg:Lines"), InProcess("pkg:Text"), "single-region@1")
     plan = build([*blocks, composite])            # contracts need not fit: every block is described
     rec = provenance.run_record({"on": "local", "tasks": 1}, plan)
     back = yamlio.load(yamlio.dump(rec))
@@ -316,5 +316,5 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
     assert [e.get("composite") for e in entries[-4:]] == ["modular transcriber"] * 4
     group = composite.to_dict()
     assert group["composite"] == "modular transcriber" and [b["block"] for b in group["blocks"]] == [
-        "SingleRegionLayout", "LineDetector", "LineAssigner", "LineRecognizer"]
+        "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
     assert group["params"]["lines"] == {"backend": "in-process", "engine": "pkg:Lines", "options": {}}

@@ -47,14 +47,15 @@
 # opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
-text lines and a line recognizer, optionally a layout model first (without one the page is one region) and table
-and formula models after; then Unicode NFC and the rule-based steps, each a preset too: typography (--typography),
+a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
+optionally table and formula models after; then Unicode NFC and the rule-based steps, each a preset too: typography (--typography),
 recomposition (--recomposition; without one the page stays as laid out) and page composition (--composition). Page
 records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
 `<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant (an
 item stage: the item recomposed as one, normalized by --normalization).
 
-    uv run pipelines/transcribe_modular.py IMAGES OUT --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium
+    uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
+        --recognition kraken-ppocrv6-medium
     uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle     # every slot from the recipe
     ... --typography ratios --recomposition unicode-recomposition --composition docling-composition
     ... --item-texts OUT/texts --recomposition unicode-recomposition --normalization latin-historic
@@ -90,11 +91,12 @@ NAMING = {"item": {}, "squiddleocr": {"suffix": ".paddle", "bucket_by_item": Fal
 
 
 def options(ap):
-    ap.add_argument("--layout", help="layout preset (none: the page is one region)")
+    ap.add_argument("--layout", help="layout preset (needed; single-region: the page is one region)")
     ap.add_argument("--lines", help="line detection preset (needed)")
     ap.add_argument("--recognition", help="line recognition preset (needed)")
-    ap.add_argument("--tables", help="table preset (needs --layout)")
-    ap.add_argument("--formulas", help="formula preset (needs --layout; without, formulas are read as text)")
+    ap.add_argument("--tables", help="table preset (reads the layout's table regions)")
+    ap.add_argument("--formulas", help="formula preset (reads the layout's formula regions; without, they are read "
+                                       "as text)")
     ap.add_argument("--typography", help="typography preset: headings and their levels, initials (e.g. ratios)")
     ap.add_argument("--recomposition", help="recomposition preset: the text regions as running text, in paragraphs "
                                             "(e.g. unicode-recomposition; none: the page stays as laid out)")
@@ -140,11 +142,10 @@ def pipeline(a, script: str) -> list:
     from linecaster.backends import Served
 
     picks = chosen(a)
-    missing = [f"--{s}" for s in ("lines", "recognition") if s not in picks]
+    missing = [f"--{s}" for s in ("layout", "lines", "recognition") if s not in picks]
     if missing:
-        raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets)")
-    if not a.layout and (a.tables or a.formulas):
-        raise PipelineConfigError("modular: --tables and --formulas work on layout regions; pick --layout too")
+        raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets; "
+                                  "--layout single-region reads the page as one region)")
     if a.item_texts and not (a.recomposition and a.normalization):
         raise PipelineConfigError("modular: --item-texts makes the readable texts from the item's recomposition and "
                                   "normalization; pick --recomposition and --normalization")
@@ -162,8 +163,7 @@ def pipeline(a, script: str) -> list:
         run.reader(a),
         # layout (or the page as one region) -> lines -> line assignment -> line recognition
         ModularTranscriber(lines=LineDetector(b["lines"]), recognition=LineRecognizer(b["recognition"]),
-                           layout=LayoutDetector(b["layout"]) if "layout" in b else None,
-                           formulas_separately="formulas" in b),
+                           layout=LayoutDetector(b["layout"]), formulas_separately="formulas" in b),
         UnicodeNormalizer(),                       # kraken writes decomposed text; the as-written layer is NFC
         *([TableRecognizer(b["tables"])] if "tables" in b else []),
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),

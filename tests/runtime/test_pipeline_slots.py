@@ -9,7 +9,7 @@ from linecaster.runtime import run
 
 PIPELINES = Path(__file__).resolve().parents[2] / "pipelines"
 MODULAR, BIND = PIPELINES / "transcribe_modular.py", PIPELINES / "bind.py"
-MODELS = ["--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
+MODELS = ["--layout", "single-region@1", "--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
 
 
 def _stages(script, argv):
@@ -31,6 +31,8 @@ def test_the_modular_slots():
                                       "unicode-recomposition"])
     with pytest.raises(PipelineConfigError, match="no step 'composition'"):
         run.describe_script(MODULAR, ["IN", "OUT", *MODELS, "--set", "composition.sections=true"])
+    with pytest.raises(PipelineConfigError, match="pick --layout"):        # single-region@1 is a slot like any
+        run.describe_script(MODULAR, ["IN", "OUT", *MODELS[2:]])
 
 
 def test_the_squiddle_recipe_fills_the_rule_based_slots():

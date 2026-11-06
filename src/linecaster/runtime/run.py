@@ -240,21 +240,26 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
     """Backends for the engine ``models`` by name, and the server block that goes last (none in-process or
-    with ``--endpoint``)."""
+    with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way."""
     from ..backends import InProcess, Served
     from ..blocks.servers.serve import ModelServer
+    from ..catalog.registry import in_process_only
 
-    models = preset_models(models, installed=not getattr(a, "describe_only", False), served=a.backend != "in-process")
-    if a.backend == "in-process":
-        backends = {}
-        for m in models:
-            b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
-            b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
-            b.overrides = m.get("overrides")
+    installed = not getattr(a, "describe_only", False)
+    # built-in engines (the single-region layout) run in the pipeline's process with either backend
+    local = [m for m in models if a.backend == "in-process" or (m.get("preset") and not m.get("spec")
+                                                               and in_process_only(m["preset"]))]
+    backends = {}
+    for m in preset_models(local, installed=installed):
+        b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
+        b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
+        b.overrides = m.get("overrides")
+    models = preset_models([m for m in models if m not in local], installed=installed, served=True)
+    if not models:
         return backends, []
     endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
-    backends = {m["name"]: Served(endpoint, model=m["name"], max_window=window, preset=m.get("preset"),
-                                  engine=m.get("spec")) for m in models}
+    backends.update({m["name"]: Served(endpoint, model=m["name"], max_window=window, preset=m.get("preset"),
+                                       engine=m.get("spec")) for m in models})
     if a.endpoint:
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
@@ -308,7 +313,8 @@ from ..serve import model_args  # noqa: E402 - one place builds linecaster serve
 def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
           slots: dict[str, str] | None = None) -> None:
     """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
-    names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them."""
+    names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them; presets of built-in engines
+    (in the pipeline's process only) are left out."""
     from ..cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
@@ -319,7 +325,10 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
     if pipeline_id:
         apply_recipe(ap, a, pipeline_id, slots or {}, argv)
     if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
-        rest = model_args(models(a)) + rest
+        from ..catalog.registry import in_process_only
+
+        hosted = [m for m in models(a) if not (m.get("preset") and in_process_only(m["preset"]))]
+        rest = model_args(hosted) + rest
     cli(["serve", *rest])
 
 

@@ -549,11 +549,12 @@ def active(c: Catalog):
 
 # ----------------------------------------------------------------------------------------------- engines
 
-#: engines linecaster itself provides: the chat presets' (behind an OpenAI-compatible server only) and the rule-based
-#: steps' (``linecaster.engines``: in the pipeline's process only)
+#: engines linecaster itself provides: the chat presets' (behind an OpenAI-compatible server only), the rule-based
+#: steps' and the single-region layout (``linecaster.engines``: in the pipeline's process only)
 BUILTIN_ENGINES = {
     "chat.v1": "linecaster.adapters:ChatAdapter",
     "image.webp-lossless.v1": "linecaster.engines:WebpLosslessImageEngine",
+    "layout.single-region.v1": "linecaster.engines:SingleRegionLayoutEngine",
     "normalization.latin-historic.v1": "linecaster.engines:LatinHistoricNormalizationEngine",
     "normalization.by-script.v1": "linecaster.engines:ByScriptNormalizationEngine",
     "typography.ratios.v1": "linecaster.engines:RatiosTypographyEngine",
@@ -564,6 +565,11 @@ BUILTIN_ENGINES = {
 SERVED_ONLY = {"chat.v1"}
 #: engines never hosted by ``linecaster serve``: rules are cheaper than a request
 IN_PROCESS_ONLY = set(BUILTIN_ENGINES) - SERVED_ONLY
+
+
+def in_process_only(ref: str) -> bool:
+    """Whether preset ``ref`` runs on a built-in engine that runs in the pipeline's process only."""
+    return catalog().resolve(ref).engine in IN_PROCESS_ONLY
 
 
 def engine_ids() -> dict[str, str]:
@@ -592,7 +598,7 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
     if r.engine in SERVED_ONLY:
         raise CatalogError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.adapters.chat_model")
     if served and r.engine in IN_PROCESS_ONLY:
-        raise CatalogError(f"preset {r.ref} ({r.engine}) is rule-based and runs in the pipeline's process only; "
+        raise CatalogError(f"preset {r.ref} ({r.engine}) is built in and runs in the pipeline's process only; "
                            "linecaster serve hosts models")
     if r.engine not in known and not installed:
         from . import code

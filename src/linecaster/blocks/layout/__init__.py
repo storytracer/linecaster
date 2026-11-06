@@ -1,5 +1,4 @@
-"""Layout: regions with labels and reading order, from an engine or without one."""
+"""Layout: regions with labels and reading order, from an engine (a model's, or the built-in single region)."""
 from .detector import LayoutDetector
-from .single_region import SingleRegionLayout
 
-__all__ = ["LayoutDetector", "SingleRegionLayout"]
+__all__ = ["LayoutDetector"]
