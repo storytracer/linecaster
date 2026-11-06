@@ -164,8 +164,55 @@ compatibility aliases: old imports, flags and ids fail.
   and the item's `document`; the role `splitter` is new. `Recomposer`'s contract replaces `paragraphs` too (it makes
   them anew). `RecipeStamper` has unit `any` (it stamps the pages of item records).
 
+**Phase 4: backends and families**
+
+- VLMs are the `Chat` backend (`linecaster.backends.Chat(preset, endpoint=None, served_name=None, max_window=32,
+  initial_window=4, read_timeout=600.0, api_key=None, headers=None, prefer="page")`): `PageRecognizer(spec,
+  Served(endpoint, model=name, max_window=W, ...))` → `PageRecognizer(Chat(spec, endpoint, served_name=name,
+  max_window=W, ...))`, the same for `RegionRecognizer(spec, backend, labels=..., pad=...)` →
+  `RegionRecognizer(Chat(...), labels=..., pad=...)`; either also takes a chat preset's ref (`PageRecognizer(
+  "dots-ocr")`: on the task's `ChatModelServer`, port 8000). The adapter is `block.adapter` (was `block.spec`), the
+  served name `Chat.served_name` (was the `Served` backend's `model`). Without an endpoint `Chat` asks
+  `http://127.0.0.1:8000/v1`. The page records are unchanged.
+- The run record: a chat block's parameters are `backend` (`{"backend": "chat", "adapter", "preset",
+  "preset_sha256", "model", "revision", "served_name", "endpoint", ...}`) instead of `spec` and a served `backend`;
+  `pipeline_sha256` covers the adapter, preset edition and hash, model and revision (no longer the served name), so
+  a run of `transcribe_vlm.py` into an OUT of before is refused unless `--new-pipeline`.
+- `ModelBlock` streams for every served block, and a block names its requests with `_rows`, `_unit`, `_request`,
+  `_parse` and `_done` (an own served block that overrode `_run_served` or `RegionRecognizer._run_regions` uses
+  them). Model blocks also take a preset ref as their backend (`LayoutDetector("pp-doclayoutv3@1")`: in-process).
+- `SingleRegionLayout` is removed: `SingleRegionLayout()` → `LayoutDetector("single-region@1")` (the built-in engine
+  `layout.single-region.v1`; `label` and `region_id` are its options). The region is the same; the page now
+  records a layout step for it (engine, preset, settings, `seconds`, `datetime`), which page files list too, and the
+  block reads the page image instead of the record's size. `ModularTranscriber(lines, recognition)` needs its
+  layout: `ModularTranscriber(lines, recognition, "single-region@1")`.
+- `pipelines/transcribe_modular.py` needs `--layout` like `--lines` and `--recognition`: a run without one is
+  `--layout single-region`. Presets of built-in engines stay in-process with `--backend served`
+  (`runtime.run.engines`), and the pipelines' `serve` leaves them out.
+- `ManifestReader(existing_ocr=True)` only fetches the library's OCR, as a document media with
+  `metadata["format"]` (`alto`, `hocr`); its contract adds `transcription_file` (a new page-level part) instead of
+  `ocr_original:*`. The `TranscriptionConverter` reads it into `ocr_original`: the builder puts one right after
+  such a reader when no block reads the file, and `pipelines/harvest.py` has its own, so `OUT/ocr/` and the page
+  records are as before. Its hash changes (a new block), so a harvest into an OUT of before needs `--new-pipeline`.
+  A file that cannot be read is now the page's error (it goes to `rejects/`; before, the page went on without it
+  and `ocr_failed` counted it); a failed download is still counted as `ocr_failed`. hOCR files that state another
+  image size are scaled to the page image (before: read as they were).
+- `PARTS` gains `transcription_file` (no released hash changes).
+- A new extra, `[pypdfium2]`, for the `PdfReader`; the locks list it.
+
 ### Added
 
+- The `Chat` backend (`linecaster.backends.Chat`) for `PageRecognizer` and `RegionRecognizer`.
+- `TranscriptionConverter(format="auto"|"alto"|"page"|"hocr"|"text", source="media"|"uri",
+  transcription="ocr_original", uri_key=None)` (conversion): a library's own transcription delivered with the page,
+  or named by a URI in its metadata, read at the page image's size.
+- The engine `layout.single-region.v1` and its preset `single-region@1`.
+- IIIF Collections (a skeleton): `ManifestReader` reads a collection entry as its manifests, one item each, one level
+  deep (a collection in a collection raises `NotImplementedError`), with pybookget's `read_collection` (a pybookget
+  that has it).
+- `PdfReader(data_folder, paths_file=None, glob_pattern="**/*.pdf", dpi=300, ...)` (a skeleton, extra
+  `[pypdfium2]`): one item per PDF, its pages rendered as lossless WebP; the text layer (`text_layer=True`) raises
+  `NotImplementedError`.
 - Block contracts (`contract()`, `Part`, `Contract`, `PARTS`), the builder (`linecaster.runtime.builder`: `build`,
   `Plan`, checks, branches with `when=`/`group=`, composites, stages, `run_pages`), observers
   (`linecaster.runtime.observers`), the composite `ModularTranscriber`, the error classes (`linecaster.errors`),

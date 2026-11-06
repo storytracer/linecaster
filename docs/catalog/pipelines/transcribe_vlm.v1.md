@@ -3,7 +3,7 @@
 *Pipeline · [`transcribe_vlm.py`](../../../pipelines/transcribe_vlm.py)*
 
 A vision-language model reads the page: the whole page (`PageRecognizer`) or, with a --layout preset, each
-region it finds (`RegionRecognizer`, a region preset). Each task starts vLLM or SGLang for the model itself
+region it finds (`RegionRecognizer`, a region preset), on the `Chat` backend. Each task starts vLLM or SGLang for the model itself
 (`ChatModelServer`, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (`--backend`, `--endpoint` as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.

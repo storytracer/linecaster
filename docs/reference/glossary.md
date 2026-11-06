@@ -55,6 +55,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 |---|---|
 | `image` | The page image's bytes, as the reader brought them (page-level). |
 | `metadata` | The page record's own fields: ids, sequence, the image's record, the metadata (page-level). |
+| `transcription_file` | A library's own transcription delivered with the page, as a file's bytes (a document media: ALTO, PAGE-XML, hOCR or text; page-level); the `TranscriptionConverter` reads it into a transcription. |
 | `line_regions` | Lines assigned to the layout regions and ordered within them (the `LineAssigner`). |
 | `hierarchy` | Heading levels, headline splits and drop capitals (the `Typographer`). |
 | `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |

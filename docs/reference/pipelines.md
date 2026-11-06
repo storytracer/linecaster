@@ -12,7 +12,8 @@ Every block returns its contract from `contract()` (`linecaster.blocks.base.cont
 @dataclass(frozen=True)
 class Part:
     name: str                  # a name of PARTS, or "*" (every part)
-    transcription: str | None  # ocr_new, ocr_original, ...; None: page-level (image, metadata) or the item record's
+    transcription: str | None  # ocr_new, ocr_original, ...; None: page-level (image, metadata, transcription_file)
+                               # or the item record's
 
 @dataclass(frozen=True)
 class Contract:
@@ -24,8 +25,8 @@ class Contract:
     role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
-- **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image` and `metadata` (page-level), what presets
-  produce (`PRODUCES`: `regions`, `reading_order`, `lines`, `baselines`, `text`, `words`, `word_confidences`,
+- **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image`, `metadata` and `transcription_file` (a
+  library's own transcription delivered with the page, as a document media) (page-level), what presets produce (`PRODUCES`: `regions`, `reading_order`, `lines`, `baselines`, `text`, `words`, `word_confidences`,
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
   `line_regions`, `hierarchy`, `nfc`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
@@ -34,10 +35,11 @@ class Contract:
   block's `transcription`. Blocks whose parts depend on their options compute `contract()`.
 - **Model blocks** read the page image (recognition also `lines`, tables and formulas `regions`) and add their
   preset's `capabilities.produces`: the preset of the `InProcess` backend (`preset`), of the `Served` backend
-  (`preset`, set by `runtime.run.engines`) or of the chat adapter; without a preset the engine class's
+  (`preset`, set by `runtime.run.engines`) or of the `Chat` backend; without a preset the engine class's
   `capabilities` (read from its source in the repository, else from the class); without either the step's default.
   The chat recognizers add `text` too, `RegionRecognizer` also `lines`.
-- **Readers** add `image` and `metadata`; `ManifestReader(existing_ocr=True)` also `ocr_original:*`;
+- **Readers** add `image` and `metadata`; `ManifestReader(existing_ocr=True)` also `transcription_file`, which the
+  `TranscriptionConverter` reads (adding `ocr_original:*`);
   `PageRecordReader` what `provides=` declares (`["ocr_new:lines", ...]`), or anything (`*`, reads after it are
   not checked) when it declares nothing. With `fetch_images=False` it brings no `image`.
 - **Writers** read what they write and add nothing (`PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
@@ -56,7 +58,6 @@ class Contract:
 
 | Block | Reads | Adds | Replaces |
 |---|---|---|---|
-| `SingleRegionLayout` | `metadata` | `regions`, `reading_order` | |
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
 | `UnicodeNormalizer` | `text` | `nfc` | `text` |
 | `CharacterNormalizer` | `text` | `normalized` | |
@@ -65,6 +66,7 @@ class Contract:
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`) |
+| `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
 | `RecipeStamper` | | | |
 
 ## Block shapes
@@ -73,9 +75,30 @@ class Contract:
   and the stats. In-process model blocks have this shape.
 - **Stream transform** (`shape = "stream"`): overrides `run(data)` and yields each page when it is done, possibly
   out of order (served model blocks, `PageRecognizer`, `RegionRecognizer`). It reports what happens to each page
-  inside it with `notify(doc, event)`: `prepare` when a request is built, `done` when its result came back.
+  inside it with `notify(doc, event)`: `prepare` when a request is built, `done` when its result came back. The
+  served model blocks share one streaming loop (`ModelBlock`): a block names its requests (`_rows`: one per page, one
+  per region for `RegionRecognizer`), builds and parses each (`_request`, `_parse`) and says which pages a finished
+  one completes (`_done`).
 - Only readers and writers see `rank`, `world_size` and files (a test walks every block class, with no exceptions):
   a block that rejects a page records why on the page, and the `RejectWriter` names the task's file.
+
+## Backends
+
+A model block's backend (`linecaster.backends`) says where its engine runs:
+
+- `InProcess("pkg:Class", **options)` (or `InProcess.from_preset(ref)`; a model block given a preset ref,
+  `LayoutDetector("single-region@1")`, builds one): the engine loads in the worker;
+- `Served(endpoint, model=name, ...)`: `linecaster serve` (or a server speaking its routes) hosts it, reached through
+  saturate on `/v1/linecaster/{step}`;
+- `Chat(preset, endpoint=None, served_name=None, max_window=32, initial_window=4, read_timeout=600.0, api_key=None,
+  headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
+  endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
+  `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
+  `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=8)` take it (or a chat preset's ref).
+
+The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
+`runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
+refuses them.
 
 ## The builder
 
@@ -96,9 +119,10 @@ across a binder and a splitter (apart from `image` and the item's `document`); s
 block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
 `OTHERWISE` last; names given to `until`, `after` and `taps` fit exactly one block.
 
-**Order** is the given one; the builder checks it and does not reorder. It inserts the `RecipeStamper` before the
-first writer when the run follows a recipe, a `RejectWriter` into `<run_folder>/rejects` before the first writer
-(or binder) when there is a run folder and the pipeline has none, and moves the server blocks at the end into the
+**Order** is the given one; the builder checks it and does not reorder. It inserts a `TranscriptionConverter` (into
+`ocr_original`) right after a block that adds `transcription_file` when no later block reads it, the
+`RecipeStamper` before the first writer when the run follows a recipe, a `RejectWriter` into
+`<run_folder>/rejects` before the first writer (or binder) when there is a run folder and the pipeline has none, and moves the server blocks at the end into the
 stage of the model blocks when it cuts. `build(..., max_page_errors=SHARE)` sets every page block's error budget.
 
 **Branches**: `branch(block, when=Condition, group=None)` gives a block a condition, a picklable predicate on the
@@ -109,8 +133,9 @@ them, the pages it does not take passed on as it yields.
 
 **Composites**: `Composite(name, blocks, contract=None)` expands into its blocks (nested composites too); its
 outward contract is derived (what its blocks read that none of them adds, what they add and replace) unless given.
-`ModularTranscriber(lines, recognition, layout=None, formulas_separately=False, transcription="ocr_new")` is layout
-(or the page as one region) → lines → line assignment → line recognition; each step a block or a backend.
+`ModularTranscriber(lines, recognition, layout, formulas_separately=False, transcription="ocr_new")` is layout
+(`"single-region@1"`: the page as one region) → lines → line assignment → line recognition; each step a block, a
+backend or a preset.
 
 **Stages**: with `tasks > 1`, the first binder (a block whose stream changes from pages to items) cuts the
 pipeline, unless the reader already gives each task whole items (`ManifestReader`, `PageRecordReader(item_shards=
@@ -207,9 +232,10 @@ ran and the software, and:
 
 **`to_dict()`** gives a block as it was built: `{"block": class name, "class": "module:Class", "params": {...}}`,
 every constructor parameter with the value it was given or its default (`**kwargs` flattened), JSON-compatible:
-backends as `{"backend": "in-process", "engine", "options", "preset", "preset_sha256"}` or `{"backend": "served",
-"endpoint", "model", "max_window", ..., "preset", "engine"}`, chat adapters with their preset, model and revision,
-nested blocks as their dicts, secrets as `{"env": NAME}`, folders as paths, callables as `module:name`. A block
+backends as `{"backend": "in-process", "engine", "options", "preset", "preset_sha256"}`, `{"backend": "served",
+"endpoint", "model", "max_window", ..., "preset", "engine"}` or `{"backend": "chat", "adapter", "preset",
+"preset_sha256", "model", "revision", "served_name", "endpoint", "max_window", ...}` (a chat adapter's dict plus where
+its server is), nested blocks as their dicts, secrets as `{"env": NAME}`, folders as paths, callables as `module:name`. A block
 keeps the arguments it was constructed with; `live_params` names those the builder may change afterwards (a page
 record reader's `provides`). A composite's dict is its group: its parameters and its blocks' dicts.
 
@@ -222,7 +248,7 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 |---|---|
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `prefetch`, `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
-| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers` | how a server is started and reached |
+| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
 | server blocks (`ModelServer`, `ChatModelServer`) as a whole | their models count through the blocks they serve |
 | the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
@@ -250,8 +276,9 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 
 `linecaster.runtime.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
 (`resolve()`), never stored: an `EnvVar` pickles by name, `to_dict()` writes `{"env": "NAME"}`.
-`Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` sends
-`Authorization: Bearer <key>` and the headers with every request through saturate's `AdaptiveClient(headers=...)`;
+`Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` (and
+`Chat(preset, endpoint, api_key=..., headers=...)` alike) sends `Authorization: Bearer <key>` and the headers with
+every request through saturate's `AdaptiveClient(headers=...)`;
 a key given as text is refused. A missing variable fails the block's warm-up.
 
 ## The item stage
