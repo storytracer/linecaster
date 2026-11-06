@@ -195,3 +195,40 @@ def test_page_records_from_before_phase_1(tmp_path):
     assert page_of(same) == page
     with pytest.raises(PipelineConfigError, match="unknown format 'linecaster.page/9'"):
         upgrade({"schema": "linecaster.page/9", "id": "x", "page": {}})
+
+
+# ------------------------------------------------------------------------------------------------ PdfReader
+def _pdf(path, sizes):
+    from PIL import Image
+
+    pages = [Image.new("RGB", size, color) for size, color in zip(sizes, ("red", "blue", "green"))]
+    pages[0].save(path, format="PDF", save_all=True, append_images=pages[1:], resolution=72.0)
+
+
+def test_pdf_pages_are_rendered_as_items(tmp_path):
+    pytest.importorskip("pypdfium2")
+    from linecaster.blocks.readers import PdfReader
+
+    (tmp_path / "in").mkdir()
+    _pdf(tmp_path / "in" / "flora 1.pdf", [(200, 300), (300, 200)])
+    docs = list(PdfReader(str(tmp_path / "in"), dpi=144).run())
+    got = [page_of(d) for d in docs]
+    assert [(p.item_id, p.page_id, p.sequence) for p in got] == [("flora_1", "flora_1_0001", 1),
+                                                                  ("flora_1", "flora_1_0002", 2)]
+    assert [(p.image.format, p.image.width, p.image.height) for p in got] == [("webp", 400, 600), ("webp", 600, 400)]
+    assert got[1].image.uri.endswith("flora 1.pdf#page=2")
+    assert got[0].metadata["pdf"] == {"page": 1, "width_pt": 200.0, "height_pt": 300.0, "dpi": 144}
+    with Image.open(io.BytesIO(image_bytes(docs[0]))) as im:
+        r, g, b = im.getpixel((10, 10))
+        assert r > 240 and g < 15 and b < 15                      # red (Pillow's PDF holds the page as JPEG)
+    assert [page_of(d).page_id for d in PdfReader(str(tmp_path / "in"), skip=1).run()] == ["flora_1_0002"]
+
+
+@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="the PDF's text layer is not read yet")
+def test_pdf_text_layer_becomes_ocr_original(tmp_path):
+    from linecaster.blocks.readers import PdfReader
+
+    (tmp_path / "in").mkdir()
+    _pdf(tmp_path / "in" / "a.pdf", [(200, 300)])
+    [doc] = PdfReader(str(tmp_path / "in"), text_layer=True).run()
+    assert "ocr_original" in page_of(doc).transcriptions
