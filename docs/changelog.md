@@ -330,6 +330,9 @@ compatibility aliases: old imports, flags and ids fail.
 - `RegionRecognizer` ignored an explicit `pad` when the adapter has a `region_pad`.
 - `RegionRecognizer` failed the task on a page without image bytes; the page now carries the error (found by
   `check_block`).
+- `PageValidator(required=("image",))` declared that it reads the image bytes, although it checks the page record's
+  `image` entry: a page field is now read as `metadata`, so the validator may follow an `ImageConverter` that
+  removes the bytes.
 
 - `PageParquetWriter` writes a fixed schema: datatrove took a file's columns from its first row, so a page's
   `errors` were dropped when the first page of a file had none. Page records in Parquet now always have an `errors`

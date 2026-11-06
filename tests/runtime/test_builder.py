@@ -511,6 +511,10 @@ def test_contracts_with_tables_and_validation():
     assert p.problems == ["PageValidator (✅ page validator) reads ocr_new:*, which no block before it in the "
                           "pipeline adds"]
     assert build([ImageFolderReader("x"), _lines(), PageValidator(required=("transcriptions.ocr_new",))]).problems == []
+    # "image" is the page record's image entry (metadata), still there after the bytes are removed
+    from linecaster.blocks.conversion import ImageConverter
+    assert build([ImageFolderReader("x"), ImageConverter("out", "working-image@1"),
+                  PageValidator(required=("image",))]).problems == []
     assert build([ImageFolderReader("x"), TableRecognizer(InProcess("x:T"))]).problems == [
         "TableRecognizer (tables (in-process)) reads ocr_new:regions, which no block before it in the pipeline adds"]
 
