@@ -6,8 +6,33 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Upgrade notes
+
+- `pipeline_sha256` leaves an in-process engine's `endpoint` and `timeout` options out (`ENGINE_OPERATIONAL`: where
+  its service is). A derivative's run whose engine has an option of either name gets another hash: a resume into its
+  folder needs `--new-pipeline`. No released recipe is affected.
+- `linecaster.testing.check_engine` calls a page engine (recognition, unit `page`) with an empty transcription
+  (no regions, no lines), not the sample layout's regions.
+
 ### Added
 
+- The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
+  60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
+  the revision its vendor image ships) and their presets `surya-ocr-2.5@1`, `indra-ocr@1`, `oxr-1.0@1`,
+  `falcon-ocr@1` (step `recognition`, unit `page`), with evidence records where they ran.
+- Page engines: `PageRecognizer` runs an engine whose unit is the page on the `InProcess` or `Served` backend (or a
+  page engine's preset by name), besides a chat VLM on `Chat`. Engine packages `linecaster-indra`
+  (`indra.recognition.v1`: the `indra-ocr` package on the CPU), `linecaster-surya` (`surya.recognition.v1`: the
+  `surya-ocr` package's full-page path attached to vLLM) and `linecaster-services` (`falcon.recognition.v1`,
+  `oxr.recognition.v1`: clients of Falcon-OCR's and OXR's page pipelines behind their own HTTP APIs).
+- `ServiceServer` (servers): starts the service a page preset's `serve` block names, last in the pipeline: `vllm
+  serve` on the fetched model pin, or a vendor image's entrypoint (`serve.server: vendor` with `command`, `health`,
+  `weights_dir`, new optional fields of the preset schema), ready once its health URLs answer.
+- `pipelines/transcribe_page.py` (`transcribe_page.v1`): a page engine per page, with the service its preset names
+  unless `--recognition-endpoint` names a running one; `launch.py` runs a page engine's preset there.
+- `linecaster.testing`: `FakePageEngine` (`fake.recognition.page.v1`) and `fake_service()`, an HTTP service on
+  loopback answering given routes. `tests/test_page_engines_catalog.py` checks the page engines in the environment
+  of `pipelines/transcribe_page.py`.
 - Versioned docs: the docs workflow publishes the site with mike to the `gh-pages` branch, served by GitHub Pages:
   every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
   as `dev`; `mike` joins the dependency group `docs`.

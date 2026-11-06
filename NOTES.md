@@ -2,6 +2,86 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The four board models the catalog lacked: Surya OCR 2.5, Indra OCR, Falcon-OCR, OXR-1.0 (2026-11-06, spark and an x86_64 A6000 machine)
+
+The BHL OCR board's rows 10 (`datalab-to/surya-ocr-2.5`), 22 (`datalab-to/indra-ocr`), 25 (`SoMarkAI/OXR-1.0`) and 26
+(`tiiuae/Falcon-OCR`) as presets that run them the way the board's drivers do (`drivers/{surya-ocr25,indra-ocr,oxr,
+falcon-ocr}-port.py` of finebooks/bhl-ocr-eval at 76bc19d). None of them is a chat model, so none fits `chat.v1`.
+
+Decisions:
+
+- **Page engines.** An engine whose unit is the page, run by `PageRecognizer` like any model block (`InProcess`, or
+  `Served` behind `linecaster serve`), next to the `Chat` backend; its raw output verbatim in `extra["raw"]`, as for
+  chat presets, and the board's post-processing left to the harness. One pipeline shape for all four:
+  `pipelines/transcribe_page.py` (reader → `PageRecognizer` → writer → the service), a new script rather than
+  `transcribe_vlm.py` because its environment differs (surya-ocr brings torch; `transcribe_vlm.py`'s lock stays as
+  it was).
+- **Engine packages**: `linecaster-indra` (`indra-ocr==1.1.2`), `linecaster-surya` (`surya-ocr==0.23.0`) and
+  `linecaster-services` (Falcon-OCR's and OXR's clients, standard library HTTP, no dependency of their own). The
+  vendor services' clients are in-process engines, not a new backend: one page per request, one request in flight
+  per task (the board's drivers had up to 8 and 16 in flight). More tasks share one running service with
+  `--recognition-endpoint`; the engine's `endpoint` is operational (left out of `pipeline_sha256`).
+- **`ServiceServer`** starts what a page preset's `serve` block names: `vllm serve` on the fetched pin (Surya) or the
+  vendor image's entrypoint (`serve.server: vendor`: `command`, `health`, `weights_dir`, new optional schema
+  fields), without the pipeline's environment. The pipeline runs inside the vendor's image (on HF Jobs the preset's
+  `serve.image`; here `docker run` of the same image digest, with uv mounted).
+- **One environment for both packages**: surya-ocr pins OpenCV 4.11.0.86, indra-ocr takes any, so both get 4.11
+  (the board's Indra job resolved the newest of its day). surya-ocr declares `pillow<11`, linecaster `Pillow>=11`:
+  the script overrides Pillow with the shared pin (12.3.0; the board's Surya run had 10.4.0) and keeps torch at the
+  2.14.0 build every other script has (surya-ocr would resolve 2.15.0; with the vLLM backend surya uses torch only to
+  detect the device). No existing script or lock changed.
+- **An engine may take the image file's bytes** (`image_input = "bytes"`): the board's Indra driver gave the package
+  the dataset's own file. On the sample, Indra from the file reproduced the board's Markdown on 54 of 60 pages;
+  from a PNG of the decoded RGB pixels on 26 (CER reading 0.0486 against 0.0489; spark and the x86_64 machine
+  agreed on all 60 pages).
+- **Falcon OCR is pinned at `177110bf`**, not the repository's head: every file of `/models/Falcon-OCR` in the
+  board's image (`ghcr.io/tiiuae/falcon-ocr@sha256:2ec80252...`) has the git blob of that revision (2026-03-09),
+  `model.safetensors` its sha256 (`6e7f73a5...`); head (Falcon OCR v1.5, 2026-09-11) has other weights.
+- **OXR's form**: `output_formats` goes as one field per format, as httpx (the board's saturate 0.2.0) encodes a
+  list. saturate 0.3.0's multipart sends `str(value)` (`"['markdown', 'json']"`), so OXR is not streamed through
+  saturate. `OXR_API_HOST` is set to 127.0.0.1 (the entrypoint's vLLM and layout services bind loopback anyway);
+  Falcon's entrypoint binds both its services to every address of the container and has no setting for it.
+- **Surya's server flags** are the package launcher's for `VLLM_GPU_TYPE=a100-80` (the board's A100 80 GB), checked
+  against the installed package (`linecaster_surya.package_flags`, a test); vLLM serves the fetched pin under the
+  package's model name, and the package attaches through `SURYA_INFERENCE_URL`.
+
+Runs on the 60-page sample (`finebooks/bhl-ocr-eval-sample-60@41ff3475`), scored the board's way with a fresh clone
+of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs` postproc 3 → `score_dataset`; the normalizer run from
+outside the project, as its run note says), next to the board's own outputs for the same pages
+(`hf://buckets/finebooks/bhl-ocr-outputs/rows/<row>/normalized.parquet`). CER reading:
+
+| Model | Where | linecaster | board, same 60 pages | identical to the board | board, 2,165 pages |
+|---|---|---|---|---|---|
+| Surya OCR 2.5 | RTX A6000, vLLM 0.25.1 image | 0.0262 | 0.0251 | HTML of 52 pages, full-page completion of 30 | 0.0351 |
+| Indra OCR | spark CPU, one task | 0.0489 | 0.0489 | 54 pages | 0.0621 |
+| OXR-1.0 | RTX A6000, the board's image | 0.0380 | not published | - | 0.1104 |
+| Falcon-OCR | RTX A6000, the vendor image | 0.0775 | 0.1301 | 47 pages | 0.1384 |
+
+- Falcon-OCR: the gap is one plate page (8966788) on which the board's run looped (a numbered list from 101. to 791.,
+  5,466 characters, page CER 66.5) and this run did not (114 characters). Of the other 59 pages, 12 differ, by up to
+  0.07 page CER either way. The service reports no finish reason.
+- OXR-1.0: the board's outputs for these pages are not published (its bucket has no OXR row), so there is no
+  same-page comparison. Per volume here: Conchologia 0.118 and Piscium 0.116, the other four 0.006 to 0.014; the
+  board's full-benchmark number carries text read twice on Conchologia pages and runaway leader dots on three Trudy
+  index pages (bhl-ocr-eval RESULTS.md).
+- Surya: the blocks' confidences differ in the last digits on every page, so the raw JSON is never identical; no page
+  fell back to block mode (the board's run: one).
+- Time per page, one page in flight: Indra 0.3 s (one GB10 core), Falcon-OCR 2.3 s, Surya 4.8 s, OXR 2.6 s. The
+  services took 68 s (Falcon-OCR), 336 s (vLLM for Surya, with torch.compile) and 185 s (OXR, the weights
+  downloaded) to start.
+
+Not verified: any of them on HF Jobs (the Falcon-OCR image has Python 3.10 and no uv, so the pipeline cannot run in
+it there as it is); `GPUJobsExecutor` and Ray with these services (a vendor entrypoint's ports are fixed, so
+`point_to_gpu` cannot move them); the page engines behind `linecaster serve`; on forge. The engines return text-only
+transcriptions; the geometry the vendors return (Surya's and Indra's blocks with boxes, Falcon's regions, OXR's
+blocks) is kept in `extra`, not made into regions and lines.
+
+Licenses: Surya OCR 2.5 and Indra OCR weights under modified OpenRAIL-M licenses (the "AI Pubs Open RAIL-M License
+(Modified)": free for research and personal use and below USD 5 million (Surya) or 20 million (Indra) of revenue and
+of funding, never for a competing product or service; the packages' code is Apache-2.0); OXR-1.0 under the "OXR
+License" (Apache-2.0 with additional terms: commercial use without a separate license below USD 2 million of funding
+and of revenue, never for a competing hosted API); Falcon OCR Apache-2.0.
+
 ## The refactoring of November 2026 (2026-11-06)
 
 Six phases, each merged into main after the suite and the goldens (sample-60, 60/60 pages exact): the decisions on
