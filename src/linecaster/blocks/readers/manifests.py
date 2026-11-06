@@ -14,14 +14,13 @@ from __future__ import annotations
 import posixpath
 import re
 import time
-from collections import deque
 
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
 from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
 from ...errors import PipelineConfigError
-from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url
+from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url, prefetched
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
 
@@ -371,23 +370,16 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     def _fetched(self, fetcher: HTTPFetcher, pages):
         """The documents of ``pages`` in order, ``prefetch`` pages requested ahead."""
-        window: deque = deque()
-        try:
-            for entry in pages:
-                window.append(self._submit(fetcher, entry))
-                if len(window) >= self.prefetch:
-                    doc = self._page(*window.popleft())
-                    if doc is not None:
-                        yield doc
-            while window:
-                doc = self._page(*window.popleft())
-                if doc is not None:
-                    yield doc
-        finally:
-            for _, image, ocr in window:
-                image.cancel()
-                if ocr is not None:
-                    ocr.cancel()
+        def cancel(submitted) -> None:
+            _, image, ocr = submitted
+            image.cancel()
+            if ocr is not None:
+                ocr.cancel()
+
+        for submitted in prefetched(pages, lambda entry: self._submit(fetcher, entry), self.prefetch, cancel):
+            doc = self._page(*submitted)
+            if doc is not None:
+                yield doc
 
     def read_file(self, filepath: str):
         """The pages of one entry (a manifest, or an item table); ``run`` reads a task's entries in one stream."""
