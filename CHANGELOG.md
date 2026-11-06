@@ -113,7 +113,7 @@ compatibility aliases: old imports, flags and ids fail.
   `Composer` without a `Recomposer` before it (the document is composed from paragraphs when there are, else from
   lines); `ImageConverter(output_folder, effort=80)` → `ImageConverter(output_folder, "working-image@1",
   options={"effort": 80})`. New blocks `Recomposer` (composition, `unit="page"|"item"`) and `CharacterNormalizer`
-  (text); `Composer` also takes `unit="item"`. `BindItem` keeps its parameters.
+  (text); `Composer` also takes `unit="item"`.
 - `DocumentBuilder(name, text=..., sections=..., rtl=..., stats=...)` → `DocumentBuilder(name, sections=...)`: it no
   longer recomposes, it composes a page's paragraphs when it has them (`add_page(..., page_id=...)` names the page for
   paragraphs continued across pages); `build_docling(...)` loses `text`, `rtl` and `stats`; `formats.docling.TEXT_MODES`
@@ -122,10 +122,40 @@ compatibility aliases: old imports, flags and ids fail.
   thresholds and the convention marks, parameters of `reflow_rows`, `Margins.of`, `continues`, ...); `Row.bbox` may
   be `None` (text only). `text.typography.retype` takes `ratios` (`Ratios`) and records no step (the engine does);
   `typography.SETTINGS` is gone.
-- Page records and page files: with `--text reflow` the transcription carries its `paragraphs` (with their
-  decisions); the typography step is recorded by its engine (name and engine `typography.ratios.v1`, preset
+- Page records and page files: with a recomposition (`--recomposition`, the squiddle recipe) the transcription
+  carries its `paragraphs` (with their decisions); the typography step is recorded by its engine (name and engine `typography.ratios.v1`, preset
   `ratios@1` and its hash, every option as settings, `seconds` and `datetime`), and the recomposition and
   composition steps have step records of their own. The documents and their exports are unchanged.
+- Binding: `BindItem` and `ItemTexts` are removed. `BindItem(text="reflow", sections=S)` → `Binder()` +
+  `Recomposer("unicode-recomposition@1", unit="item")` + `Composer("docling-composition@1", unit="item",
+  options={"sections": S})` (`text="lines"`: without the `Recomposer`); the item documents are the same, the item
+  document's `metadata` is the item record plus `docling`, `region_of`, `item_id` (no `page_ids`, `pages`,
+  `text_mode`, `sections`). `ItemTexts(variants=V, token_counter=F)` → `Binder()` + `Recomposer(...,
+  unit="item")` + `CharacterNormalizer("latin-historic@1", unit="item")` + `ItemTextWriter(DIR, variants=V,
+  token_counter=F)`: the writer renders the variants from the item record (one row per item and variant, the same
+  columns). `ItemDocumentWriter` gains `by_format` (`<format>/<item>.<ext>`).
+- The readable variants (`readable_txt`, `readable_md`) are made from the item's recomposition and normalization
+  (`Paragraph.normalized`) instead of `text.variants`' own line flow, so they change (paragraph breaks, kept hyphens;
+  NOTES.md has the comparison). `linecaster.text.variants`: `join_lines`, `page_blocks`, `item_blocks`, `continues`,
+  `HYPHENS` and `SENTENCE_END` are gone; `variants(pages, page_ids=None)` needs recomposed, normalized pages;
+  `body_blocks` and `Block.normalized` are new. The normalization engines also set each table cell's `normalized`.
+- `pipelines/transcribe_modular.py`: `--text lines|reflow` → the slots `--typography`, `--recomposition`,
+  `--normalization` and `--composition` (presets; an empty slot leaves the step out: `--text lines` is no
+  `--recomposition`). Without a recipe the rule-based steps run only when picked (before: typography and
+  composition always). `--item-texts` needs `--recomposition` and `--normalization` (the recipe `squiddle` has them).
+  `--set` takes the rule-based steps too (`--set composition.sections=true`).
+- `pipelines/bind.py` (`bind.v1`, now with recipes): Binder → item recomposition → normalization → item composition,
+  texts in `OUT/texts/<variant>/` (JSONL; `--files` also one file per item there, was `OUT/files/<variant>/`) and
+  item documents in `OUT/documents/<format>/`; slots `--recomposition`, `--normalization`, `--composition` (the new
+  recipe `item-texts@1` fills them), `--variants`, `--formats`, `--furniture`, `--dividers`, `--no-texts`,
+  `--no-documents`, `--set`.
+- `squiddle@1` names the rule-based presets (`ratios@1`, `unicode-recomposition@1`, `latin-historic@1`,
+  `docling-composition@1`) instead of the option `text: reflow`: a catalog migration, so its hash changed (files
+  stamped by it carry the new one) and the lock's `previous_sha256` lists both earlier hashes (`previous_sha256` may
+  now be a list, oldest first; `Resolved.previous_sha256` is a tuple).
+- The builder carries the parts across a binder and a splitter (an item record holds its pages), apart from `image`
+  and the item's `document`; the role `splitter` is new. `Recomposer`'s contract replaces `paragraphs` too (it makes
+  them anew). `RecipeStamper` has unit `any` (it stamps the pages of item records).
 
 ### Added
 
@@ -166,7 +196,8 @@ compatibility aliases: old imports, flags and ids fail.
   `docling-composition`; `pipelines/transcribe_modular.py` runs `ratios@1`, `unicode-recomposition@1` (with `--text
   reflow`) and `docling-composition@1`.
 - Item records in a stream (`linecaster.blocks.base.item`: `doc.metadata["item"]`, the pages in order) for the
-  item-unit `Recomposer` and `Composer`.
+  item-unit `Recomposer`, `CharacterNormalizer` and `Composer`; `Binder` (pages → item records) and `Splitter` (item
+  records → pages, with what the item-level steps added); the recipe `item-texts@1` (`bind.v1`).
 
 ### Fixed
 

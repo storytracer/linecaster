@@ -156,7 +156,35 @@ The retyper edits regions and lines in place:
   row it ended, as squiddleocr's builder had it); a region of one paragraph without a letter (a page number) is an
   item of its own. Without paragraphs a text region is one item, one row per line, with the region's box
   (diplomatic composition).
-- **Binding** (`BindItem`, `DocumentBuilder`): an item's pages bound into one DoclingDocument whose page `n` is the item's
-  `n`-th page (by sequence, then page id). Recomposed as an item (`text="reflow"`), paragraphs continue across page
-  breaks; sections are optional; `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for
-  Markdown dividers. A task must see whole items; the run layout buckets page records by item.
+- **Item composition** (`Composer(unit="item")`, `DocumentBuilder`): an item's pages composed into one
+  DoclingDocument whose page `n` is the item's `n`-th page (by sequence, then page id). Recomposed as an item (a
+  `Recomposer(unit="item")` before it), paragraphs continue across page breaks; sections are optional
+  (`options={"sections": True}`); `region_of` (item ref → `"<page_no>:<region id>"`) travels with the document for
+  Markdown dividers.
+
+## Item records (`linecaster.blocks.base.item`)
+
+An item travels as one datatrove `Document`: `id` is the item id, `metadata["item"]` the item record, `{"item_id":
+..., "pages": [...]}`, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the
+image bytes. The `Binder` makes it from a page stream (`gather`: an item is complete when its
+`metadata["item_page_count"]` pages have arrived, or when the input ends; a task must see whole items, so the run
+layout buckets page records by item, and with several tasks the builder writes them in item shards first). The
+item-unit blocks change the page records inside it: `Recomposer(unit="item")` (the paragraphs of the whole item, a
+`ParagraphRef.page_id` naming the other page of a continuation), `CharacterNormalizer(unit="item")` (`normalized`),
+`Composer(unit="item")` (the item's document next to the record: `metadata["docling"]`, `["region_of"]`,
+`["item_id"]`; `text` its plain text). The `ItemTextWriter` renders the text variants from it, the
+`ItemDocumentWriter` writes the document's exports, and the `Splitter` passes its pages on as page documents again,
+each with what the item-level blocks added.
+
+## Text variants (`linecaster.text.variants`)
+
+Three per item, on the three dimensions (character fidelity, flow, scope):
+
+| Variant | Made from |
+|---|---|
+| `verbatim_txt` | as written, as laid out, full page: each page's `Transcription.text` (lines in reading order, tables as Markdown or HTML tables), pages joined with a form feed |
+| `readable_txt` | normalized, flowed, body only: the item recomposition's paragraphs (`Paragraph.normalized`; a paragraph continued from another, also across a page break, appended to it with the continuation's separator), tables one row per line with tab-separated cells (each cell's `normalized`), a formula region's LaTeX; page headers, page footers, pictures and charts left out |
+| `readable_md` | the same as Markdown: `#` title, `##` section header (by heading level), `- ` list item, tables as pipe tables (HTML when a cell spans) |
+
+The normalization engine (`normalization.latin-historic.v1`) sets `normalized` on every line, paragraph and table
+cell (`Region.extra["table"]["cells"][i]["normalized"]`); the as-written texts stay.

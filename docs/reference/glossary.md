@@ -60,7 +60,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |
 | `paragraphs` | The running text recomposed from the rows, with its decisions (the `Recomposer`). |
 | `normalized` | The normalized texts of lines and paragraphs (the `CharacterNormalizer`). |
-| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`BindItem`). |
+| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`Composer(unit="item")`). |
 
 ## The catalog
 
@@ -93,7 +93,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **item** | Any multi-page unit: a book, an issue, a manuscript, a file. Key `item_id`. | not "book" in generic code, flags or docs |
 | **page** | One page of an item, with its image and its named transcriptions. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
 | **page record** | A page with its image reference, its transcriptions and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
-| **item record** | An item with its pages in order, as the `Binder` passes it on (`doc.metadata["item"]`, `linecaster.blocks.base.item`); the item-unit `Recomposer` and `Composer` read it. | |
+| **item record** | An item with its pages in order, as the `Binder` passes it on (`doc.metadata["item"]`, `linecaster.blocks.base.item`); the item-unit `Recomposer`, `CharacterNormalizer` and `Composer` read it, the item writers write from it, the `Splitter` turns it back into pages. | |
 | **manifest** | An item's list of its pages and their files, in order: an IIIF Presentation manifest or a METS document (also inside OAI-PMH). | not a BagIt checksum manifest |
 | **page image** | The image a page's coordinates refer to (`PageImage`): its URI, format, size, hash. | |
 | **working image** | The `working-image` preset of the `ImageConverter`: lossless WebP at full resolution, 8-bit sRGB. | not a role |
@@ -111,6 +111,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **composition** | Building a document from regions and paragraphs (the `Composer`). | not "assembly" |
 | **recomposition** | Turning lines back into running text: paragraphs, removed division marks, separators, continuation (the `Recomposer`). | not "reflow" (the old name) |
 | **binding** | Gathering an item's pages in order into one item (the `Binder`). | |
+| **splitting** | Passing an item record's pages on as pages again, with what the item-level steps added (the `Splitter`). | |
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
 
@@ -124,4 +125,4 @@ digital edition of a printed item:
 | the linecaster (casts whole lines) | `LineRecognizer` | casts the lines anew, as text |
 | typographer | `Typographer` | determines the hierarchy: headings and their levels, initials, what is text at all |
 | compositor | `Recomposer`, `Composer` | recomposes the running text; makes up the page or item document |
-| binder | `Binder` | binds the pages into the item |
+| binder | `Binder` | binds the pages into the item (the `Splitter` takes them apart again) |

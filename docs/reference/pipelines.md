@@ -17,11 +17,11 @@ class Part:
 @dataclass(frozen=True)
 class Contract:
     unit: str                  # "page", "item" (what the input stream carries) or "any" (servers)
-    unit_out: str | None       # set when the block changes the stream's unit (a binder: page -> item)
+    unit_out: str | None       # set when the block changes the stream's unit (binder: page -> item, splitter: back)
     reads: frozenset[Part]
     adds: frozenset[Part]
     replaces: frozenset[Part]
-    role: str                  # reader, writer, server, model, transform, binder, validator, composite
+    role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
 - **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image` and `metadata` (page-level), what presets
@@ -43,11 +43,15 @@ class Contract:
 - **Writers** read what they write and add nothing (`PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
   md and txt, `document` for HTML, DocLang and JSON, `image` for plots). **Servers** have role `server` and unit
   `any`.
-- **Binders** change the unit: `ItemTexts` reads `text` and adds the item record's `text`, `BindItem` reads
-  `regions` and `lines` and adds the item's `document`; item writers read those.
-- **Item-unit blocks** (`Recomposer(unit="item")`, `Composer(unit="item")`) read item records: one datatrove
-  document per item, `doc.metadata["item"]` holding the item id and its page records in order
-  (`linecaster.blocks.base.item`); the item `Composer` adds the item's `document` next to it, as `BindItem` does.
+- **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
+  records, so what the pages carried stays available across either (the checks carry the parts over), apart from
+  the page image's bytes (`image`: an item record has none) at the binder and the item's `document` at the splitter.
+- **Item-unit blocks** (`Recomposer(unit="item")`, `CharacterNormalizer(unit="item")`, `Composer(unit="item")`)
+  read item records: one datatrove document per item, `doc.metadata["item"]` holding the item id and its page records
+  in order (`linecaster.blocks.base.item`); they read and add the parts of the pages' transcriptions, the item
+  `Composer` adds the item's `document` next to the record. **Item writers**: `ItemTextWriter` reads `lines` for
+  `verbatim_txt` and `paragraphs` and `normalized` for the readable variants, `ItemDocumentWriter` the `document`.
+  `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
 | Block | Reads | Adds | Replaces |
@@ -57,7 +61,7 @@ class Contract:
 | `UnicodeNormalizer` | `text` | `nfc` | `text` |
 | `CharacterNormalizer` | `text` | `normalized` | |
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
-| `Recomposer` | `regions`, `lines` | `paragraphs` | |
+| `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`) |
@@ -87,9 +91,9 @@ plan.describe()       # stages with each block's contract, the edges, the proble
 
 **Checks**, all collected: a stage starts with a reader; every part a block reads is added earlier in its stage
 (or by the stage's reader); a part is added by one block only, unless a later block declares it in `replaces`;
-units fit (a page block cannot follow an item stream, an item block needs a binder before it); server blocks go
-last; a served model block whose endpoint is a server block of its stage (same loopback port) finds its model in
-that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
+units fit (a page block cannot follow an item stream, an item block needs a binder before it); the parts carry
+across a binder and a splitter (apart from `image` and the item's `document`); server blocks go last; a served model
+block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
 `OTHERWISE` last; names given to `until`, `after` and `taps` fit exactly one block.
 
 **Order** is the given one; the builder checks it and does not reorder. It inserts the `RecipeStamper` before the
@@ -113,7 +117,8 @@ pipeline, unless the reader already gives each task whole items (`ManifestReader
 True)`). The first stage writes its page records in item shards into `<run_folder>/pages/` (the pipeline's own
 `PageJsonlWriter` there, now with `item_shards=N`, N = `tasks` unless it set its own); the second starts with
 `PageRecordReader(item_shards=True, fetch_images=False)` declaring the parts the first stage added, runs the binder
-and what follows, as N tasks. One stage logs to `OUT/logs/`, two to `OUT/logs/pages/` and `OUT/logs/items/`; the run
+and what follows, as N tasks. A `Splitter` after the binder needs no cut of its own: the items are whole in the
+task, so its pages are too. One stage logs to `OUT/logs/`, two to `OUT/logs/pages/` and `OUT/logs/items/`; the run
 record lists the stages. Each stage gets its own executor, and the later one `depends=` on the earlier one:
 
 | `--on` | Executors | Stages |
@@ -248,6 +253,24 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 `Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` sends
 `Authorization: Bearer <key>` and the headers with every request through saturate's `AdaptiveClient(headers=...)`;
 a key given as text is refused. A missing variable fails the block's warm-up.
+
+## The item stage
+
+The item-level steps follow a `Binder`; the usual shape (`pipelines/bind.py`, and `--item-texts` of
+`pipelines/transcribe_modular.py`):
+
+```python
+[PageRecordReader(pages, fetch_images=False, item_shards=True),
+ Binder(),                                                  # page records -> item records
+ Recomposer("unicode-recomposition@1", unit="item"),        # paragraphs continued across page breaks
+ CharacterNormalizer("latin-historic@1", unit="item"),      # normalized lines, paragraphs, table cells
+ Composer("docling-composition@1", unit="item"),            # the item's document
+ ItemTextWriter(f"{out}/texts"),                            # texts/<variant>/<rank>.jsonl.gz (format="files": <item>.txt|md)
+ ItemDocumentWriter(f"{out}/documents", formats=("md", "txt", "json"), by_format=True)]   # documents/<format>/<item>.<ext>
+```
+
+A `Splitter` after the item-level blocks passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
+the paragraphs of the item recomposition.
 
 ## Page records
 

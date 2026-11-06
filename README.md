@@ -56,7 +56,7 @@ uv run launch.py lightonocr-2-1b scans/ out/   # a model
 uv run launch.py                               # lists the recipes and models
 ```
 
-Every pipeline option works after the name, e.g. `--on hf-jobs` or `--text lines`.
+Every pipeline option works after the name, e.g. `--on hf-jobs` or `--files out/files`.
 
 > [!NOTE]
 > Each pipeline is a self-contained [uv script][uv scripts]: a `# /// script` block at the top lists
@@ -96,10 +96,14 @@ uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognition kraken-ppocrv6-medium \
+  --typography ratios --recomposition unicode-recomposition --composition docling-composition \
   --files out/files --formats md,alto
 ```
 
-Without `--layout` the page is one region; `--tables` and `--formulas` add those steps.
+Without `--layout` the page is one region; `--tables` and `--formulas` add those steps. The rule-based steps are
+slots too, each a preset: `--typography` (headings and their levels), `--recomposition` (running text in
+paragraphs; without it the page stays as laid out), `--composition` (the page's document, for Markdown, HTML and
+JSON) and `--normalization` (the readable item texts' normalization, with `--item-texts`); a recipe fills them all.
 `--set recognition.batch_size=4` changes one option of a preset. `--files` writes any per-page format of
 `PageFileWriter` (`--formats`); `--naming squiddleocr --furniture` writes them as squiddleocr does.
 
@@ -222,14 +226,20 @@ over the tasks in turn, with `--limit` and `--skip` per task. Any fsspec path wo
     fetched in `OUT/manifests/`, and page records;
   - `uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 ...` (or `transcribe_vlm.py`) keeps all of it and
     adds the new transcription; `OUT/images --item-from-parent` reads the plain folder instead;
-  - `uv run pipelines/bind.py` makes the item texts (below).
+  - `uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts` binds each item (below).
   - For small runs, `--manifests` also works directly in the transcribe pipelines.
-- **Item-level outputs** (texts per book, issue or manuscript): with several tasks, an item's pages can land in
-  different tasks. Item texts are then a second stage:
-  - the first run writes its page records into item shards (`--item-shards 64`: `OUT/pages/<shard>/<rank>.jsonl.gz`,
-    every item in one shard);
-  - `uv run pipelines/bind.py OUT/pages OUT2` reads whole shards, one or more per task, and writes the texts.
-  - `--item-texts` in the same run needs a single task.
+- **Item-level outputs** (per book, issue or manuscript): `pipelines/bind.py` binds each item's pages into one,
+  recomposes it as one (paragraphs continued across page breaks), normalizes it and composes the item's document,
+  each step a preset (`--recomposition`, `--normalization`, `--composition`; the recipe `item-texts` fills them). It
+  writes:
+  - `OUT2/texts/<variant>/<rank>.jsonl.gz`, one row per item and [text variant](#-reference) (`--files` also
+    `OUT2/texts/<variant>/<item>.txt|.md`; `--variants` picks them; `--no-texts`);
+  - `OUT2/documents/<format>/<item>.<ext>`, the item document in md, txt and json (`--formats` adds html and
+    doclang; `--furniture`, `--dividers`; `--no-documents`).
+  - With several tasks, an item's pages can land in different tasks: the first run writes its page records into
+    item shards (`--item-shards 64`: `OUT/pages/<shard>/<rank>.jsonl.gz`, every item in one shard), and `bind.py`
+    reads whole shards, one or more per task.
+  - `--item-texts DIR` in a transcribe run does the same for the texts in a second stage of that run.
 
 </details>
 
@@ -460,7 +470,8 @@ Vision-language models run behind [vLLM] or [SGLang]. The other models run insid
 
 | Recipe | Pipeline | Presets |
 |---|---|---|
-| [`squiddle`](docs/catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1` |
+| [`item-texts`](docs/catalog/recipes/item-texts.md) | `bind.v1` | `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
+| [`squiddle`](docs/catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1`, `ratios@1`, `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
 <!-- catalog:end -->
 
 ### ✨ Post-processing
@@ -475,8 +486,8 @@ its preset (e.g. `Typographer("ratios@1")`).
 | `Typographer` | heading levels from type size, headlines, drop capitals, uncertain page numbers removed (`ratios`) |
 | `Recomposer` | running text: lines joined into paragraphs, line-end hyphens removed, continued across regions and pages, each decision recorded (`unicode-recomposition`) |
 | `Composer` | composes a page or an item: a [DoclingDocument], from the paragraphs, or from the lines as laid out (`docling-composition`) |
-| `BindItem` | binds an item's pages into one DoclingDocument, paragraphs continued across pages |
-| `ItemTexts` | one text per item in each [text variant](#-reference) |
+| `Binder` | binds an item's pages into one item record, in order; `Recomposer`, `CharacterNormalizer` and `Composer` then work on the whole item (`unit="item"`) |
+| `Splitter` | the pages of an item record again, with what the item-level steps added |
 
 ### 📥 Input, output and servers
 
@@ -504,7 +515,7 @@ its preset (e.g. `Typographer("ratios@1")`).
 | `PageJsonlWriter` | page records as JSON Lines |
 | `PageParquetWriter` | page records as Parquet |
 | `ItemDocumentWriter` | item documents as Markdown, text, HTML, DocLang, JSON |
-| `ItemTextWriter` | item texts as JSON Lines or as files |
+| `ItemTextWriter` | an item's text variants as JSON Lines or as files |
 
 **Servers**
 
@@ -549,7 +560,8 @@ Text moves along three independent dimensions, one step at a time:
 Named variants:
 
 - `verbatim_txt`: as written, as laid out, full page.
-- `readable_txt`, `readable_md`: normalized characters, flowed paragraphs, hyphens joined, body text.
+- `readable_txt`, `readable_md`: normalized characters, flowed paragraphs, hyphens joined, body text; made from
+  the item's recomposition, so a paragraph runs on across a page break.
 
 All text is Unicode [NFC]. Normalization folds long s, ligatures and r rotunda; it keeps æ, œ, ø and ß.
 Spelling is never modernized.

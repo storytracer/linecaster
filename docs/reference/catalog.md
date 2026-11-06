@@ -139,7 +139,8 @@ every number.
 ## Released editions are immutable
 
 `linecaster catalog release <id>` writes the current edition's resolved functional content and its sha256 into
-`catalog.lock` (per entry: `sha256`, `previous_sha256` where a catalog migration changed it, `released`,
+`catalog.lock` (per entry: `sha256`, `previous_sha256` where a catalog migration changed it (a list, oldest first,
+after several), `released`,
 `linecaster` commit, `resolved`; a recipe edition also `pipeline` and `pipeline_sha256`, below).
 
 - **A preset's functional content** is what can change outputs: `step`, the model pin and every submodel pin
@@ -184,9 +185,13 @@ them.
 A change of the catalog's own vocabulary or format that keeps every output as it was (a renamed step, a renamed
 pipeline id, a new file format) is a **catalog migration**: every released edition keeps its number, its
 `resolved` content is rewritten in the new terms and its hash recomputed, and the hash it had before stays in
-the lock as `previous_sha256`. A run record names `id@edition` and that edition's hash at the time; it resolves
+the lock as `previous_sha256` (after a second migration a list of both, oldest first). A run record names `id@edition` and that edition's hash at the time; it resolves
 by either hash (`Catalog.resolve(ref, sha256=...)`, `resolve_recipe`, `by_sha256`, `linecaster catalog show
-sha256:<hex>`). A change that can change outputs is never a migration: it is a new edition.
+sha256:<hex>`). A change that can change outputs is never a migration: it is a new edition. A recipe that comes to
+name, as presets, what its pipeline already ran (`squiddle@1` naming the rule-based presets its pipeline ran through
+the option `text: reflow`) is a migration too: the pipeline it expands to is the same blocks with the same
+parameters, so the edition keeps its number, and `catalog release --migrate-pipeline` records the expanded pipeline
+again (the recipe stamp carries the new hash).
 
 ## Steps, capabilities, labels
 
@@ -265,9 +270,17 @@ strategy is an edition of the same step and covers its script.
 
 Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
 `transcribe_modular.v1`, `transcribe_vlm.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
-option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...). It has no default presets:
+option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
+too: `transcribe_modular.v1` has `--typography`, `--recomposition`, `--normalization` (the readable item texts'
+normalization, for `--item-texts`) and `--composition`, `bind.v1` `--recomposition`, `--normalization` and
+`--composition`; a slot left empty leaves its step out, e.g. no recomposition: the page stays as laid out). It has
+no default presets:
 the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
+
+The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-based steps) and `item-texts`
+(`bind.v1`: `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1`, the item stage's default
+combination).
 
 `uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
 script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for page presets) and runs it in that script's own
