@@ -704,7 +704,7 @@ The current release is `v0.1.0`. [CHANGELOG.md](https://github.com/storytracer/l
 While the version is 0.x, a release may break things without a deprecation period; what counts as breaking is in
 [docs/reference/compatibility.md](reference/compatibility.md). Released catalog editions never change, so a run
 record made with an older release still resolves. The [docs site](https://storytracer.github.io/linecaster/) keeps
-one version per release.
+one version per release, `latest` the newest, and `dev` for `main`.
 
 ## 📄 License
 

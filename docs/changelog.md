@@ -9,8 +9,9 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
-- Versioned docs: the docs workflow publishes the site with mike on every release tag (version `<major>.<minor>`,
-  `latest` the newest) to the `gh-pages` branch, served by GitHub Pages; `mike` joins the dependency group `docs`.
+- Versioned docs: the docs workflow publishes the site with mike to the `gh-pages` branch, served by GitHub Pages:
+  every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
+  as `dev`; `mike` joins the dependency group `docs`.
 
 ## 0.1.0 (2026-11-06)
 
