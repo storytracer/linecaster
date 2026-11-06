@@ -68,6 +68,23 @@ def _models(a) -> None:
             print(f"{rc.ref}  {rc.pipeline}  " + " ".join(f"{k}={v}" for k, v in rc.presets.items()))
 
 
+def _docs(a) -> None:
+    from . import docs
+
+    files = docs.generate(a.out, a.readme)
+    if a.check:
+        differ = docs.check(files, a.out)
+        for path in differ:
+            print(f"differs: {path}")
+        if differ:
+            print("linecaster docs: the docs are not current; run `linecaster docs`", file=sys.stderr)
+            sys.exit(1)
+        print("docs current")
+        return
+    for path in docs.write(files, a.out):
+        print(path)
+
+
 def _catalog(a) -> None:
     from .catalog import registry
 
@@ -88,11 +105,6 @@ def _catalog(a) -> None:
             r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
         previous = {"previous_sha256": list(r.previous_sha256)} if r.previous_sha256 else {}
         print(yamlio.dump({kind: r.ref, "sha256": r.sha256, **previous, "released": r.released, **r.content}))
-    elif a.action == "docs":
-        from .catalog import docs
-
-        for path in docs.write(registry.Catalog(), a.out or "docs/catalog", readme=a.readme):
-            print(path)
     elif a.action == "release":
         e = registry.Catalog().release(a.ref, commit=a.commit, migrate_pipeline=a.migrate_pipeline)
         print(f"{a.ref}: {e.sha256} (released {e.released})"
@@ -166,7 +178,7 @@ def main(argv: list[str] | None = None) -> None:
     m = sub.add_parser("models", help="the catalog's presets")
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
-    c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas", "docs"])
+    c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas"])
     c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release; show also takes an "
                                           "edition's sha256, today's or from before a migration) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
@@ -178,8 +190,13 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--migrate-pipeline", action="store_true",
                    help="release: record a released recipe edition's expanded pipeline anew (a catalog migration: the "
                         "pipeline's code changed, its behavior did not)")
-    c.add_argument("--out", help="schemas, docs: output folder (default: the package's schemas/, docs/catalog)")
-    c.add_argument("--readme", help="docs: also rewrite this README's model tables between its catalog markers")
+    c.add_argument("--out", help="schemas: output folder (default: the package's schemas/)")
+    d = sub.add_parser("docs", help="write the generated docs: the catalog's and the blocks' pages, the README's tables, "
+                                    "the site's index and llms.txt")
+    d.add_argument("--out", default="docs", help="the docs folder (default docs)")
+    d.add_argument("--readme", default="README.md", help="the README with the table markers (default README.md)")
+    d.add_argument("--check", action="store_true", help="write nothing; exit 1 naming each file that differs from a "
+                                                        "fresh generation")
     p = sub.add_parser("page", help="run a pipeline script's blocks on one page image in this process, without an "
                                     "executor; the pipeline's options follow (--recipe R, --lines ..., --files DIR)")
     p.add_argument("image", help="the page image")
@@ -204,6 +221,8 @@ def main(argv: list[str] | None = None) -> None:
             _models(a)
         elif a.command == "catalog":
             _catalog(a)
+        elif a.command == "docs":
+            _docs(a)
         elif a.command == "traces":
             _traces(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)

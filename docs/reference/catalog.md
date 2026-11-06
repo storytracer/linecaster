@@ -133,7 +133,7 @@ lives in this catalog too (squiddleocr's `squiddle`); the derivative names it by
 One measurement per file: `preset: id@edition` or `recipe: id@edition`, `context` (for a preset measured
 inside a pipeline: the rest of it), `source` (`own-run`, `board`, `card-claim`, `vendor-benchmark`),
 `dataset` (`repo@revision`, or a description for claims), `metrics`, `date`, `hardware`, `software`
-(linecaster commit, server version), `run`, `notes`. Claims are never measurements; the docs show the source of
+(linecaster commit, server version, `backend`: `in-process` or `served`), `run`, `notes`. Claims are never measurements; the docs show the source of
 every number.
 
 ## Released editions are immutable
@@ -312,8 +312,9 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and their expanded pipelines, and evidence |
 | `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
-| `linecaster catalog docs [--out docs/catalog] [--readme README.md]` | the generated docs and the README's tables |
+| `linecaster docs [--out docs] [--readme README.md] [--check]` | the generated docs (the catalog's pages among them) and the README's tables; `--check` writes nothing and fails naming each file that differs |
 
-The generated docs are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
+The catalog's generated pages are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
 recipes}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
-`ast`), so the engines need not be installed.
+`ast`), so the engines need not be installed. The evidence tables on preset and recipe pages name each record's
+source, hardware and backend.
