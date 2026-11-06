@@ -14,4 +14,6 @@ its client in the pipeline's process.
   board strips leaked `>>UNUSED_N<<` vocabulary tokens in its harness (`falcon_strip_unused_tokens`).
 - The image has Python 3.10 and no uv: on HF Jobs the pipeline cannot run inside it as it is (not tried).
 
-Apache-2.0. Not yet run in linecaster (NOTES.md).
+Apache-2.0. Run on the 60-page sample (NOTES.md, "The four board models the catalog lacked"): CER reading 0.0775 for linecaster's run on an RTX A6000 against
+0.1301 for the board's own outputs on the same pages (the Markdown identical on 47 of 60 pages; one page the board's
+run looped on carries the gap). Not run on HF Jobs.

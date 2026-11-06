@@ -18,5 +18,6 @@ pipeline's process.
   8,192 tokens in the vendor's configuration). The board drops the figure crops' image links in its harness
   (`oxr_drop_image_links`).
 
-License: the OXR License (Apache-2.0 with additional terms; see the model's page). Not yet run in linecaster
-(NOTES.md).
+License: the OXR License (Apache-2.0 with additional terms; see the model's page). Run on the 60-page sample
+(NOTES.md, "The four board models the catalog lacked"): CER reading 0.0380 on an RTX A6000; the board's own outputs for these pages are not published (its
+full-benchmark number is 0.1104). Not run on HF Jobs.

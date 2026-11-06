@@ -15,4 +15,6 @@ package's. The engine is `indra.recognition.v1` (package `linecaster-indra`).
   the package reports as failed is the page's error; an empty Markdown (a blank leaf) is a transcription without
   text. The board strips the outer whitespace only.
 
-Weights: modified OpenRAIL-M (see the model's page). Not yet run in linecaster (NOTES.md).
+Weights: modified OpenRAIL-M (see the model's page). Run on the 60-page sample (NOTES.md, "The four board models the catalog lacked"): CER reading 0.0489 for
+linecaster's run on spark's CPU, as for the board's own outputs on the same pages (the Markdown identical on 54 of 60
+pages).

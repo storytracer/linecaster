@@ -20,4 +20,6 @@ block-mode fallback. The engine (`surya.recognition.v1`, package `linecaster-sur
   headers and footers kept (`surya_blocks_to_markdown` in bhl-ocr-eval's `normalize_outputs`). `finish_reason` is
   `length` when the page keeps a capped block's partial HTML; a failed block request is the page's error.
 
-Weights: modified OpenRAIL-M (see the model's page). Not yet run in linecaster (NOTES.md).
+Weights: modified OpenRAIL-M (see the model's page). Run on the 60-page sample (NOTES.md, "The four board models the catalog lacked"): CER reading 0.0262 for
+linecaster's run on an RTX A6000 against 0.0251 for the board's own outputs on the same pages (the blocks' HTML
+identical on 52 of 60 pages). Not run on HF Jobs.

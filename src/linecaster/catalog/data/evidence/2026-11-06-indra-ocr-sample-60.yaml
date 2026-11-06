@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../schemas/evidence-1.json
+schema: linecaster.evidence/1
+preset: indra-ocr@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  cer_diplomatic: 0.0838
+  cer_reading: 0.0489
+  recall: 0.93
+date: '2026-11-06'
+hardware: 'DGX Spark (GB10, aarch64), CPU: one task, one ONNX Runtime thread'
+software:
+  linecaster: daf1063
+  indra-ocr: 1.1.2
+  onnxruntime: 1.31.1
+  opencv-python-headless: 4.11.0.86
+  backend: in-process
+run: pipelines/transcribe_page.py --recognition indra-ocr@1 (PageRecognizer, in-process), the sample's Parquet file
+notes: "NOTES.md, \"The four board models the catalog lacked\". Scored the board's way: consolidate, normalize_outputs postproc 3 (strip only), score_dataset (bhl-ocr-eval at 76bc19d, a fresh clone). The raw Markdown of 54 of the 60 pages is identical to the board's. The same run before the engine read the image file itself (a PNG of the decoded pixels instead) scored 0.0486 with 26 identical pages, the same on spark and on an x86_64 machine (60 of 60 pages identical between the two)."
