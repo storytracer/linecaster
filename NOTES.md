@@ -2,6 +2,22 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Rule-based steps on their engines: parity (2026-11-06, spark)
+
+The squiddle recipe before (531a422) and after the rule-based steps moved onto their engines and presets
+(`ratios@1`, `unicode-recomposition@1`, `docling-composition@1`), in-process:
+
+- Page runs, sample-60 and tables-7, `--text reflow` and `lines`, with and without `--furniture`, formats md, txt,
+  html, doclang, json, hocr, alto, page, transcription (2,412 files): md, txt, html, doclang and the Docling JSON
+  byte-identical; hOCR, ALTO and PAGE identical apart from the step records (the typography step now named by its
+  engine and preset, new recomposition and composition steps); transcription JSON and page records identical apart
+  from the steps and, with `reflow`, the paragraphs the `Recomposer` adds. The documents replayed from the same page
+  records with sections and dividers on and off: 5,360 files, all identical.
+- `compare_goldens.py`: 60 of 60 pages exact, 1,560 of 1,560 lines.
+- Item documents (`BindItem`, reflow) of the six whole items of the BHL ground truth (2,165 pages) from the same page
+  records: md, txt, html, doclang, json identical. Item texts (`--item-texts`) of two whole items run again: the
+  text files identical; the JSONL rows differ only in their trace context.
+
 ## Daniel's four kraken changes measured one by one (#1, 2026-11-04, HF Jobs L4)
 
 Each change alone against the same baseline, full ground truth (bhl-impact-gt, 2,165 pages), one `l4x1` Job
