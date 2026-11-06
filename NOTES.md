@@ -46,10 +46,23 @@ from the `transcribe_modular.py` environment (extra `[ray]`), nothing installed,
   `RejectWriter` and the error budget (`run()` per page resets it), tracing, the run record, writers per rank.
   Back pressure was not exercised on 60 pages.
 
+The same day, the two datatrove alternatives the comparison left out (same machine and pages, one run each, the GPU
+otherwise idle; `uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle` plus the flags):
+
+| | wall time, end to end | goldens (sample-60) |
+|---|---|---|
+| in-process, 1 task (above) | 84.4 s | — |
+| `--backend served`, 1 task | 65.5 s (of it 15.3 s the server's warm-up) | 60/60 pages, 1560/1560 lines exact |
+| in-process, `--tasks 2 --workers 2` | 64.4 s (the longer task 61.5 s) | 60/60 pages, 1560/1560 lines exact |
+| Ray Data (above) | 59.0 s | `ocr_new` identical to the 1-task run |
+
+Each closes most of the gap: 25.4 s of the 84.4 s with Ray Data, 18.9 s served, 20.0 s with two tasks. Served with
+two tasks (a server per task) and larger `--window` values were not measured.
+
 Recommendation: do not adopt it now. The outputs are the same and the time after loading is 1.7x shorter here, but
 all of it comes from overlapping the blocks, and resume, logs, stats, rejects, tracing, the run record and stage
-cutting would each have to be rebuilt on Ray. Revisit when one GPU per task is clearly underused on Jobs and a
-datatrove run with two or more tasks per GPU has been measured and falls short.
+cutting would each have to be rebuilt on Ray. With served or two tasks per GPU, datatrove
+gets within 6 s of it on these 60 pages; revisit only when one GPU per task is clearly underused on Jobs.
 
 ## Readable item texts from the item recomposition (2026-11-06, spark)
 
