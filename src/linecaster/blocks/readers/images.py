@@ -3,20 +3,23 @@
 
 * ``ImageFolderReader``: image files (found by ``glob_pattern`` or listed in a ``paths_file``), one page each.
 * ``ImageParquetReader``: Parquet files with an image column (the bytes, or a path to the image), e.g. an image
-  dataset on the Hub (``hf://datasets/<repo>@<revision>/data``), one page per row.
+  dataset on the Hub (``hf://datasets/<repo>@<revision>/data``), one page per row; the rows, not the files, are
+  divided over the tasks (``linecaster.blocks.readers.tables``).
 
-Entries are distributed as datatrove distributes files, so an item's pages can land in different tasks;
+An item's pages can land in different tasks;
 item-level steps run in a later stage over item shards (``linecaster.blocks.writers.shards``). Page records of an
 earlier run: ``linecaster.blocks.readers.records``.
 
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
 (in a Parquet image column or a page record) are fetched with pybookget (``linecaster[pybookget]``), politely:
-rate limits per task, retries that honor ``Retry-After``. Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
+rate limits (``linecaster.runtime.run`` divides the run's over the tasks running at once), retries that honor
+``Retry-After``, requests ahead in a window that sizes itself (``linecaster.net.http.prefetched``). Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
 """
 from __future__ import annotations
 
 import posixpath
+import random
 from collections.abc import Callable
 from concurrent.futures import Future
 
@@ -26,6 +29,7 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
+from .tables import PAGES_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows, whole_file
 from ..base.block import reported_file
 from ..base.contract import Contracted
 from ...data.page import Page, PageImage
@@ -42,7 +46,8 @@ def _stem(path: str) -> str:
 class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
     ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honor
-    ``Retry-After``; ``http`` sets its ``Config`` fields, ``linecaster.net.http.HTTPFetcher``)."""
+    ``Retry-After``; ``http`` sets its ``Config`` fields; one ``linecaster.net.http.HTTPFetcher.shared`` per process
+    and configuration, so its rate limits hold across a worker's tasks)."""
 
     def __init__(self, http: dict | None = None):
         self._folders: dict = {}
@@ -63,7 +68,7 @@ class _Opener:
             from ...net.http import HTTPFetcher
 
             if self._fetcher is None:
-                self._fetcher = HTTPFetcher(**self.http)
+                self._fetcher = HTTPFetcher.shared(**self.http)
             return self._fetcher.submit(uri)
         return _future(lambda: self._read_local(uri))
 
@@ -195,8 +200,11 @@ class ImageFolderReader(Contracted, BaseDiskReader):
 class ImageParquetReader(Contracted, ParquetReader):
     """Reads one page per row of Parquet files with an image column.
 
-    The files are read through datatrove's ``ParquetReader`` and distributed over tasks in turn, so a file should
-    hold whole items. Each row adds ``image`` and ``metadata`` (the page record). The image column holds the image
+    The rows of all files, in order, are divided over the tasks in equal shards, read by row group
+    (``linecaster.blocks.readers.tables``), so any table works with any number of tasks; an item's pages can land in
+    two tasks where a shard ends. ``auto_tasks`` is the task count for shards of about ``PAGES_PER_TASK`` pages, which
+    ``linecaster.runtime.run`` uses for a pipeline without engines. Each row adds ``image`` and ``metadata`` (the page
+    record). The image column holds the image
     as Hugging Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as
     plain bytes, or as a path: absolute (any fsspec URI, ``http(s)://`` through pybookget) or relative to
     ``image_folder``. A row with neither bytes nor a path fails the task (a ``PageError``: the table is wrong).
@@ -219,12 +227,12 @@ class ImageParquetReader(Contracted, ParquetReader):
         image_folder: the folder relative image paths are read from; default ``data_folder``.
         read_metadata: the other columns go into the page's metadata; without it only the named columns are read.
         default_metadata: goes into every page's metadata.
-        http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths.
-        prefetch: ``http(s)://`` images requested ahead of the page being given on, at least 1 (1: one request at a
-            time). Pages keep the files' row order; the rate limits in ``http`` hold for all of them together, so one
-            task can use its whole rate limit instead of waiting for each image in turn.
-        paths_file, glob_pattern, recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's
-            ``ParquetReader`` arguments.
+        http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths. Their images are
+            requested ahead of the page being given on, as many as keep the rate limits busy
+            (``linecaster.net.http.prefetched``); pages keep the rows' order.
+        limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
+        paths_file, glob_pattern, recursive, file_progress, doc_progress: datatrove's ``ParquetReader`` arguments.
+        shuffle_files: read the files of a task's shard in random order.
     """
 
     name = "🖼️ image parquet"
@@ -239,16 +247,28 @@ class ImageParquetReader(Contracted, ParquetReader):
                  batch_size: int = 64, id_key: str = "id", image_key: str = "image", item_key: str | None = None,
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
-                 prefetch: int = 8):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
-        if prefetch < 1:
-            raise PipelineConfigError("prefetch must be at least 1")
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
-        self.prefetch = prefetch
         self._opener = _Opener(http)
+        self._layout: list | None = None
+
+    def layout(self) -> list[tuple[str, tuple[int, ...]]]:
+        """The input files with the rows of each row group (``tables.table_rows``), read once and kept."""
+        if self._layout is None:
+            files = (list(get_shard_from_paths_file(self.paths_file, 0, 1)) if self.paths_file
+                     else self.data_folder.list_files(recursive=self.recursive, glob_pattern=self.glob_pattern))
+            if not files:
+                raise PipelineConfigError(f"No Parquet files found on {self.data_folder.path} matching "
+                                          f"{self.glob_pattern!r}")
+            self._layout = table_rows(self.data_folder, files)
+        return self._layout
+
+    def auto_tasks(self) -> int:
+        """The task count for shards of about ``PAGES_PER_TASK`` pages."""
+        return tasks_for(total_rows(self.layout()), PAGES_PER_TASK)
 
     def _request(self, value, filepath: str, page_id: str) -> tuple[Future, str | None]:
         """A future of the page's image (``_Opener.submit``: an http(s) request starts now) and the image's URI."""
@@ -272,16 +292,34 @@ class ImageParquetReader(Contracted, ParquetReader):
         return _future(relative), self.image_folder.resolve_paths(path)
 
     def run(self, data=None, rank: int = 0, world_size: int = 1):
+        if data:
+            yield from data
         self._budget = ErrorBudget(self, self.max_page_errors)          # one per task, over all its files
-        yield from super().run(data, rank, world_size)
+        slices = row_slices(self.layout(), rank, world_size)
+        self._log_limit_scope(rank, world_size)
+        files = list(dict.fromkeys(path for path, *_ in slices))
+        if self.shuffle_files:
+            random.shuffle(files)
+        self._counts = {"skip": self.skip, "limit": self.limit}
+        for path in files:
+            if self._counts["limit"] == 0:
+                break
+            self.stat_update("input_files")
+            for doc in reported_file(self, path, self._read_file(path, [s for s in slices if s[0] == path])):
+                self.update_doc_stats(doc)
+                yield doc
 
     def read_file(self, filepath: str):
-        yield from reported_file(self, filepath, self._read_file(filepath))
+        """The pages of one whole file (datatrove's reader interface; ``run`` reads a task's shard of rows)."""
+        self._counts = {"skip": 0, "limit": -1}
+        yield from reported_file(self, filepath, self._read_file(filepath, None))
 
-    def _rows(self, filepath: str):
-        """``(page_id, item, sequence, image value, other columns)`` for each row of the file, in order."""
+    def _rows(self, filepath: str, slices: list | None):
+        """``(page_id, item, sequence, image value, other columns)`` for each row of ``slices`` of the file (None:
+        every row), in order, after the task's ``skip`` and up to its ``limit``."""
         import pyarrow.parquet as pq
 
+        counts = self._counts
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
             derive = self.id_key not in pqf.schema_arrow.names
             if derive and not (self.item_key and self.sequence_key):
@@ -289,19 +327,29 @@ class ImageParquetReader(Contracted, ParquetReader):
                                  "sequence_key to name pages <item>_<0001>")
             keys = [k for k in (None if derive else self.id_key, self.image_key, self.item_key, self.sequence_key)
                     if k]
-            for batch in pqf.iter_batches(batch_size=self.batch_size, columns=None if self.read_metadata else keys):
+            columns = None if self.read_metadata else keys
+            for batch in slice_batches(pqf, slices or whole_file(pqf, filepath), columns, self.batch_size):
                 for row in batch.to_pylist():
+                    if counts["skip"] > 0:
+                        counts["skip"] -= 1
+                        continue
+                    if counts["limit"] == 0:
+                        return
+                    if counts["limit"] > 0:
+                        counts["limit"] -= 1
                     item = row.pop(self.item_key) if self.item_key else None
                     sequence = row.pop(self.sequence_key) if self.sequence_key else None
                     page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
                     yield page_id, item, sequence, row.pop(self.image_key), row
 
-    def _read_file(self, filepath: str):
+    def _read_file(self, filepath: str, slices: list | None):
         def submit(entry):
             return (entry, *self._request(entry[3], filepath, entry[0]))
 
         budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
-        for entry, future, uri in prefetched(self._rows(filepath), submit, self.prefetch, lambda s: s[1].cancel()):
+        rows = self._rows(filepath, slices)
+        for entry, future, uri in prefetched(rows, submit, lambda s: s[1].cancel(), future=lambda s: s[1],
+                                             fetcher=lambda: self._opener._fetcher):
             page_id, item, sequence, _, row = entry
             item_id = None if item is None else str(item)
             sequence = None if sequence is None else int(sequence)

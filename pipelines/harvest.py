@@ -19,18 +19,23 @@ table (--parquet), downloaded once into item folders, with page records that kee
 engine or GPU is needed; the transcribe stage then reads the page records without waiting on the libraries' servers.
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
-        --tasks 16 --workers 4 --rate-limit 5/1 --existing-ocr
+        --rate-limit 5/1 --existing-ocr
+    uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
+        --rate-limit 150/60 --rate-limit 3/1
     uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe ...                 # keeps the metadata
     uv run pipelines/transcribe_modular.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
 
 OUT/images/<item>/<page>.<ext> as the server sent them; with --existing-ocr OUT/ocr/<item>/<page>.xml|.html; the
 manifests as fetched in OUT/manifests/<item>.json|.xml; page records in OUT/pages/<rank>.jsonl.gz (``image.uri`` the
 copy, ``image.extra.source_uri`` the source, ``metadata.manifest`` the item's and page's manifest data, the
-transcription ``ocr_original`` with the existing OCR). Rate limits hold per task: the servers see up to --workers
-times --rate-limit. Each task keeps --prefetch requests in flight (manifests' pages and http(s) images in a
---parquet page table alike), so one task can use its whole rate limit; a few tasks are enough. Tasks get whole input
-files (datatrove never splits a file), so a page table needs about one file per task, each holding whole items. A
-task that fails runs again whole (datatrove's resume is per task), so keep tasks small.
+transcription ``ocr_original`` with the existing OCR).
+
+Nothing needs sizing: --rate-limit is what the servers see from the whole run. The input is divided into tasks of
+about 1,000 pages (a --parquet page table by rows, whatever its files; --manifests about 5 items each), so a rerun into
+the same OUT repeats at most the task each worker was in (datatrove's resume is per task). With rate limits one
+worker runs the tasks one after the other: its requests ahead (manifests' pages and http(s) images alike) grow until
+the rate limits are kept busy, and the limits hold across its tasks. --tasks and --workers still override; the run's
+rate limits are then divided over the tasks running at once.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
 from linecaster.blocks.conversion import TranscriptionConverter

@@ -1,50 +1,96 @@
-"""Requests ahead: ``linecaster.net.http.prefetched`` keeps a window of submitted entries in order and cancels what
-is left when the consumer stops; ``ImageParquetReader`` uses it for ``http(s)://`` images, so a task keeps up to
-``prefetch`` requests in flight (1: one at a time) and its pages keep the rows' order; ``--prefetch`` reaches it.
+"""Requests ahead: ``linecaster.net.http.prefetched`` keeps a window of submitted entries in order, sizes it itself
+(it grows while the first request is not done and none waits for the rate limits) and cancels what is left when the
+consumer stops; ``ImageParquetReader`` uses it for ``http(s)://`` images, so one task keeps its rate limits busy and
+its pages keep the rows' order. The fetcher is shared per process and configuration, so the limits hold across tasks.
 An image that cannot be read is that page's error (no image, ``doc.metadata["errors"]``), the task goes on within
 its error budget, and ``ImageFilesWriter`` passes such a page through without a file."""
 import threading
 import time
+from concurrent.futures import Future
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
 from linecaster.blocks.base.page import failed, page_of
 from linecaster.blocks.readers.images import ImageParquetReader
-from linecaster.errors import PageError, PipelineConfigError
-from linecaster.net.http import prefetched
+from linecaster.errors import PageError
+from linecaster.net.http import MAX_AHEAD, divided, prefetched
 from linecaster.testing import sample_png
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 1, "trust_env": False}  # no proxy from the environment
 
 
-class Handle:
+class Handle(Future):
+    """A future that is done as soon as it is submitted (an entry read at once)."""
+
     def __init__(self, entry):
-        self.entry, self.cancelled = entry, False
+        super().__init__()
+        self.entry, self.cancelled_ = entry, False
+        self.set_result(entry)
 
 
-def test_prefetched_keeps_order_and_a_window_of_submitted_entries():
-    submitted, taken = [], []
-
-    def submit(entry):
-        submitted.append(entry)
-        return Handle(entry)
-
-    for handle in prefetched(range(10), submit, 3, lambda h: None):
-        taken.append(handle.entry)
-        assert len(submitted) - len(taken) <= 2          # the one taken plus at most prefetch - 1 ahead
-    assert taken == list(range(10))
+class FakeFetcher:
+    def __init__(self, waiting=0):
+        self.waiting, self.ahead = waiting, 1
 
 
-def test_prefetch_one_submits_each_entry_after_the_one_before_is_taken():
+def test_without_a_fetcher_each_entry_is_submitted_after_the_one_before_is_taken():
     submitted = []
 
     def submit(entry):
         submitted.append(entry)
         return Handle(entry)
 
-    for handle in prefetched(range(5), submit, 1, lambda h: None):
+    taken = []
+    for handle in prefetched(range(5), submit, lambda h: None):
         assert submitted[-1] == handle.entry
+        taken.append(handle.entry)
+    assert taken == list(range(5))
+
+
+def slow_handles(seconds):
+    """``submit`` for handles that are done ``seconds`` after they were submitted."""
+    def submit(entry):
+        h = Future()
+        h.entry = entry
+        threading.Timer(seconds, h.set_result, [entry]).start()
+        return h
+    return submit
+
+
+def test_the_window_grows_while_nothing_waits_for_the_rate_limits_and_keeps_order():
+    fetcher = FakeFetcher(waiting=0)
+    taken = [h.entry for h in prefetched(range(40), slow_handles(0.3), lambda h: None, fetcher=lambda: fetcher)]
+    assert taken == list(range(40))
+    assert fetcher.ahead > 2                   # it grew while the first request was out, and keeps what it learned
+
+
+def test_the_window_does_not_grow_while_requests_wait_for_the_rate_limits():
+    fetcher = FakeFetcher(waiting=1)
+    submitted = []
+
+    def submit(entry):
+        submitted.append(entry)
+        return slow_handles(0.1)(entry)
+
+    for handle in prefetched(range(5), submit, lambda h: None, fetcher=lambda: fetcher):
+        assert submitted[-1] == handle.entry   # one at a time: the limits are busy anyway
+    assert fetcher.ahead == 1
+
+
+def test_the_window_starts_at_what_the_fetcher_learned_and_stops_at_max_ahead():
+    fetcher = FakeFetcher(waiting=1)
+    fetcher.ahead = 7
+    submitted, gaps = [], []
+
+    def submit(entry):
+        submitted.append(entry)
+        return slow_handles(0.05)(entry)
+
+    for handle in prefetched(range(20), submit, lambda h: None, fetcher=lambda: fetcher):
+        gaps.append(len(submitted) - handle.entry)
+    assert max(gaps) == 7
+    assert MAX_AHEAD >= 64
 
 
 def test_stopping_early_cancels_the_window_and_closes_the_entries():
@@ -60,15 +106,25 @@ def test_stopping_early_cancels_the_window_and_closes_the_entries():
         handles.append(Handle(entry))
         return handles[-1]
 
-    gen = prefetched(entries(), submit, 4, lambda h: setattr(h, "cancelled", True))
+    fetcher = FakeFetcher(waiting=1)
+    fetcher.ahead = 4
+    gen = prefetched(entries(), submit, lambda h: setattr(h, "cancelled_", True), fetcher=lambda: fetcher)
     assert next(gen).entry == 0
     gen.close()
-    assert [h.entry for h in handles if h.cancelled] == [1, 2, 3] and closed == [True]
+    assert [h.entry for h in handles if h.cancelled_] == [1, 2, 3] and closed == [True]
 
 
-def test_prefetch_must_be_at_least_one():
-    with pytest.raises(ValueError):
-        list(prefetched([1], Handle, 0, lambda h: None))
+@pytest.mark.parametrize("limits, tasks, share", [
+    ([(150, 60)], 1, [(150, 60.0)]),
+    ([(150, 60), (3, 1)], 2, [(75, 60.0), (1, 2 / 3)]),
+    ([(5, 4)], 3, [(1, 2.4)]),
+])
+def test_divided_gives_each_task_its_share_of_the_rate_limits(limits, tasks, share):
+    got = divided(limits, tasks)
+    assert [n for n, _ in got] == [n for n, _ in share]
+    assert [s for _, s in got] == pytest.approx([s for _, s in share])
+    for (n, s), (total_n, total_s) in zip(got, limits):     # together: the same average rate, no more
+        assert tasks * n / s == pytest.approx(total_n / total_s)
 
 
 # ---------------------------------------------------------------- ImageParquetReader over http(s)
@@ -125,21 +181,56 @@ def page_table(tmp_path, base, names):
     return str(tmp_path / "data")
 
 
-@pytest.mark.parametrize("prefetch", [1, 4])
-def test_http_images_in_a_page_table_are_requested_ahead_in_order(slow_server, tmp_path, prefetch):
+@pytest.fixture(autouse=True)
+def fresh_fetchers():
+    """Each test its own shared fetchers (they keep the rate limits and the window they learned)."""
+    from linecaster.net.http import close_shared
+
+    close_shared()
+    yield
+    close_shared()
+
+
+def test_http_images_in_a_page_table_are_requested_ahead_in_order(slow_server, tmp_path):
     names = [f"p{i}" for i in range(12)]
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
-                                sequence_key="page", http=FAST, prefetch=prefetch)
+                                sequence_key="page", http=FAST)
     pages = [page_of(d) for d in reader.run()]
     assert [p.page_id for p in pages] == [f"b_{i:04d}" for i in range(1, 13)]
     assert [p.image.uri for p in pages] == [f"{slow_server['base']}/{n}.png" for n in names]
-    assert slow_server["max_in_flight"] == (1 if prefetch == 1 else prefetch)
+    assert slow_server["max_in_flight"] > 1                # without rate limits it grows while the server is slow
+
+
+def test_one_task_keeps_its_rate_limit_busy_without_a_setting(slow_server, tmp_path):
+    """20 requests per second against a server that takes 0.3 s: one at a time would manage about 3 per second."""
+    slow_server["delay"] = 0.3
+    names = [f"p{i}" for i in range(40)]
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
+                                sequence_key="page", http={**FAST, "rate_limits": [(20, 1)]})
+    t = time.perf_counter()
+    pages = [page_of(d) for d in reader.run()]
+    elapsed = time.perf_counter() - t
+    assert [p.page_id for p in pages] == [f"b_{i:04d}" for i in range(1, 41)]
+    assert elapsed < 5                                     # 40 at 20/s: about 2 s plus the ramp, not 12 s
+    assert slow_server["max_in_flight"] >= 4
+
+
+def test_the_rate_limits_hold_across_tasks_that_run_one_after_the_other(slow_server, tmp_path):
+    """Two tasks of one worker share the fetcher: 2 + 2 requests within a 2-per-second limit take over a second."""
+    slow_server["delay"] = 0
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3", "p4"]),
+                                item_key="book", sequence_key="page", http={**FAST, "rate_limits": [(2, 1)]})
+    t = time.perf_counter()
+    first = [page_of(d).page_id for d in reader.run(rank=0, world_size=2)]
+    second = [page_of(d).page_id for d in reader.run(rank=1, world_size=2)]
+    assert (first, second) == (["b_0001", "b_0002"], ["b_0003", "b_0004"])
+    assert time.perf_counter() - t >= 0.9
 
 
 def test_an_image_that_cannot_be_read_is_that_pages_error_and_the_task_goes_on(slow_server, tmp_path):
     names = ["p1", "missing", "p3", "html", "p5"]
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
-                                sequence_key="page", http=FAST, prefetch=3)
+                                sequence_key="page", http=FAST)
     docs = list(reader.run())
     assert [page_of(d).page_id for d in docs] == [f"b_{i:04d}" for i in range(1, 6)]
     assert [failed(d) for d in docs] == [False, True, False, True, False]
@@ -158,7 +249,7 @@ def test_more_failed_images_than_the_error_budget_fail_the_task(slow_server, tmp
     slow_server["delay"] = 0
     names = ["missing"] * 120
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
-                                sequence_key="page", http=FAST, prefetch=16)
+                                sequence_key="page", http=FAST)
     reader.max_page_errors = 0.5                     # the builder sets it from --max-page-errors
     got = []
     with pytest.raises(PageError, match="more than the error budget"):
@@ -214,11 +305,11 @@ def test_a_harvest_with_a_dead_link_finishes_with_the_page_in_records_and_reject
     assert (out / "logs" / "completions" / "00000").exists()             # the task finished
 
 
-def test_prefetch_option_reaches_the_parquet_reader(tmp_path):
+def test_there_is_no_prefetch_option(tmp_path):
     from linecaster.runtime import run
 
     ap = run.parser(None)
-    reader = run.reader(run.check(ap, ap.parse_args(["--parquet", str(tmp_path), "OUT", "--prefetch", "3"])))
-    assert isinstance(reader, ImageParquetReader) and reader.prefetch == 3
-    with pytest.raises(PipelineConfigError):
-        ImageParquetReader(str(tmp_path), prefetch=0)
+    with pytest.raises(SystemExit):
+        ap.parse_args(["--parquet", str(tmp_path), "OUT", "--prefetch", "3"])
+    with pytest.raises(TypeError):
+        ImageParquetReader(str(tmp_path), prefetch=3)

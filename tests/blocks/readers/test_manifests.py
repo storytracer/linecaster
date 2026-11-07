@@ -183,7 +183,7 @@ def test_manifests_are_entries_with_whole_items_per_task(server, tmp_path):
             f"{base}/missing/manifest"]
     (tmp_path / "manifests.txt").write_text("\n".join(urls) + "\n")
     reader = lambda: ManifestReader(paths_file=str(tmp_path / "manifests.txt"),  # noqa: E731
-                                        http={**FAST, "iiif_format": "png"}, prefetch=2)
+                                        http={**FAST, "iiif_format": "png"})
     task0, task1 = pages(reader(), 0, 2), pages(reader(), 1, 2)
     assert [(p.item_id, p.page_id, p.sequence) for p in task0] == [
         ("a", "a_0001", 1), ("a", "a_0002", 2), ("a", "a_0003", 3), ("c", "c_0001", 1)]   # c: "lost" failed,
@@ -367,6 +367,24 @@ def test_item_tables_name_items_and_carry_their_columns(server, tmp_path):
     assert [p.metadata["manifest"]["format"] for p in got] == ["iiif", "mets"]
     with pytest.raises(PipelineConfigError, match="manifest_key"):
         ManifestReader(str(tmp_path / "items"), item_key="item_id")
+
+
+def test_one_item_table_is_divided_over_tasks_by_rows_with_whole_items(server, tmp_path):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    base = server["base"]
+    names = ["i1", "i2", "i3", "i4", "i5"]
+    urls = [publish(server, n, v3(base, n, [f"{n}a", f"{n}b"])) for n in names]
+    (tmp_path / "items").mkdir()
+    pq.write_table(pa.table({"item_id": names, "manifest_url": urls}), tmp_path / "items" / "part-0.parquet",
+                   row_group_size=2)
+    reader = lambda: ManifestReader(str(tmp_path / "items"), manifest_key="manifest_url",  # noqa: E731
+                                    item_key="item_id", http={**FAST, "iiif_format": "png"})
+    tasks = [[p.page_id for p in pages(reader(), r, 2)] for r in range(2)]
+    assert tasks == [["i1_0001", "i1_0002", "i2_0001", "i2_0002"],
+                     ["i3_0001", "i3_0002", "i4_0001", "i4_0002", "i5_0001", "i5_0002"]]
+    assert reader().auto_tasks() == 1                                      # 5 items: ITEMS_PER_TASK
 
 
 def test_a_mets_package_with_local_files(tmp_path):

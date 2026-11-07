@@ -177,13 +177,18 @@ pipeline reads the previous folder and writes complete page records with one mor
 copies). Checks like `PageValidator` record on the page why it failed.
 
 **Readers** follow datatrove's conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`,
-`limit`/`skip` per task; files, or Parquet files, distributed over tasks in turn): `ImageFolderReader` (image files),
+`limit`/`skip` per task; files distributed over tasks in turn, Parquet tables by rows in equal shards,
+`linecaster.blocks.readers.tables`, so a table needs no splitting): `ImageFolderReader` (image files),
 `ImageParquetReader` (an image column: bytes, an HF image struct or a path), `ManifestReader` (IIIF or METS, parsed
 by pybookget, extra `[pybookget]`, which also fetches `http(s)://` images through `linecaster.net.http`; a manifest,
-or a row of a Parquet item table, is an entry like a file, so an item stays in one task; a IIIF Collection entry is
-its manifests, one level; pages fetched ahead, rate limits per task; `existing_ocr` fetches a library's OCR as a
-document media, which a `TranscriptionConverter` reads as `ocr_original`, the builder adding one when missing),
-`PdfReader` (PDF files as items, pages rendered with pypdfium2, extra `[pypdfium2]`) and `PageRecordReader`.
+or a row of a Parquet item table, is an entry, so an item stays in one task; a IIIF Collection entry is its
+manifests, one level; `existing_ocr` fetches a library's OCR as a document media, which a `TranscriptionConverter`
+reads as `ocr_original`, the builder adding one when missing), `PdfReader` (PDF files as items, pages rendered with
+pypdfium2, extra `[pypdfium2]`) and `PageRecordReader`. Readers that fetch over http(s) request ahead in a window
+that grows while no request waits for the rate limits (`linecaster.net.http.prefetched`), through one fetcher per
+process and configuration, so the limits hold across a worker's tasks; `ImageParquetReader` and `ManifestReader`
+suggest a task count from their input (`auto_tasks`), which a pipeline without engines runs with
+([pipelines](pipelines.md#tasks-workers-and-rate-limits)).
 
 **The workflow** is harvest → transcribe → bind: `pipelines/harvest.py` downloads images (and OCR, manifests) once
 into item folders plus page records, the transcribe pipelines read those with `--pages`, `pipelines/bind.py` makes

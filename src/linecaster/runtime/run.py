@@ -26,6 +26,11 @@ their contracts (every problem listed, nothing launched), stamps the recipe befo
 ``--until``, ``--after`` and ``--tap-after``, and cuts the pipeline into stages where the stream changes from pages to
 items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the one before). ``--page IMAGE`` runs one
 image through the pipeline in this process (``linecaster page``).
+``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
+engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input), one
+worker when it has rate limits (one task keeps them busy) and one per CPU without; a pipeline with engines one task,
+and as many workers as tasks. ``--rate-limit`` holds for the whole run: each task running at once gets its share
+(``linecaster.net.http.divided``).
 ``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
@@ -63,8 +68,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                                         "item tables (default **/*.parquet)")
     g.add_argument("--item-from-parent", action="store_true",
                    help="IMAGES: the parent folder is the item (item id)")
-    g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES, e.g. a Hub dataset: "
-                                     "hf://datasets/<repo>@<revision>/data")
+    g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES (a folder or one .parquet "
+                                     "file), e.g. a Hub dataset: hf://datasets/<repo>@<revision>/data")
     g.add_argument("--id-key", default="id", help="--parquet: the page id column (without it: <item>_<0001> from "
                                                    "--item-key and --sequence-key)")
     g.add_argument("--image-key", default="image", help="--parquet: the image column (bytes, an HF image struct, "
@@ -87,8 +92,6 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--item-id-pattern", default=None,
                    help="--manifests: a regular expression whose first group is the item id in each manifest "
                         "entry (default: its last path segment that is not 'manifest')")
-    g.add_argument("--prefetch", type=int, default=8, help="--manifests, --parquet with http(s) images: pages "
-                                                           "requested ahead (1: one request at a time)")
     g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
                                                         "services (jpg, png, tif, webp; what the server offers)")
     g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
@@ -96,7 +99,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--page", metavar="IMAGE", help="one page image instead of IMAGES, run in this process without "
                                                    "an executor (`linecaster page`)")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
-                   help="http(s) requests (manifests, images, OCR) per task, e.g. 5/1; repeatable, all windows apply")
+                   help="http(s) requests (manifests, images, OCR) the run may send, e.g. 5/1; repeatable, all "
+                        "windows apply; each task running at once gets its share")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
@@ -122,8 +126,12 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "stage (pipelines/bind.py) reads whole items")
     g = ap.add_argument_group("where it runs")
     g.add_argument("--on", choices=ON, default="local")
-    g.add_argument("--tasks", type=int, default=1, help="datatrove tasks (one GPU each on Ray and HF Jobs)")
-    g.add_argument("--workers", type=int, default=None, help="tasks at once (default: all)")
+    g.add_argument("--tasks", type=int, default=None,
+                   help="datatrove tasks (one GPU each on Ray and HF Jobs); default: a pipeline without engines "
+                        "tasks of about 1,000 pages (or 5 items) from its input, one otherwise")
+    g.add_argument("--workers", type=int, default=None,
+                   help="tasks at once; default: a pipeline without engines one with --rate-limit, one per CPU "
+                        "without; all tasks otherwise")
     g.add_argument("--backend", choices=["in-process", "served"], default=None,
                    help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
@@ -168,7 +176,7 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("give one of IMAGES, --parquet, --manifests, --pages and --page")
     if getattr(a, "after", None) and not a.pages:
         ap.error("--after starts from page records: give --pages DIR")
-    if getattr(a, "page", None) and (a.on != "local" or a.tasks != 1):
+    if getattr(a, "page", None) and (a.on != "local" or a.tasks not in (None, 1)):
         ap.error("--page runs one image in this process: no --on, no --tasks")
     if (a.parquet or a.pages) and (a.paths_file or a.item_from_parent):
         ap.error("--paths-file and --item-from-parent are for IMAGES and --manifests; --parquet names items "
@@ -185,6 +193,8 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         a.rate_limits = rate_limits(a.rate_limit)
     except PipelineConfigError as e:
         ap.error(e.problems[0])
+    if (a.tasks is not None and a.tasks < 1) or (a.workers is not None and a.workers < 1):
+        ap.error("--tasks and --workers need at least 1")
     if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
         ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
     if a.on == "hf-jobs" and not a.commit:
@@ -197,12 +207,63 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     return a
 
 
+def has_engines(a: argparse.Namespace) -> bool:
+    """Whether the pipeline runs engines (``main`` sets ``a.has_engines`` from the script's ``models``; unknown counts
+    as yes, which keeps one task and every task at once)."""
+    return getattr(a, "has_engines", True)
+
+
+def concurrent_tasks(a: argparse.Namespace) -> int:
+    """The tasks that run at once, as ``allocate`` will choose them: ``--workers`` (at most ``--tasks``); by default
+    one for a pipeline without engines that has rate limits, else every task."""
+    if a.workers:
+        return min(a.workers, a.tasks) if a.tasks else a.workers
+    if not has_engines(a) and getattr(a, "rate_limits", None):
+        return 1
+    return a.tasks or 1
+
+
 def http(a: argparse.Namespace) -> dict:
-    """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``)."""
+    """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` as each
+    task's share of it (``divided`` by the tasks running at once)."""
+    from ..net.http import divided
+
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "rate_limits", None):
-        out["rate_limits"] = a.rate_limits
+        share = divided(a.rate_limits, concurrent_tasks(a))
+        try:
+            from pybookget.http.ratelimit import to_rates
+        except ImportError:                       # checked where the requests are made
+            to_rates = None
+        if to_rates is not None:
+            try:
+                to_rates(share)
+            except ValueError:
+                raise PipelineConfigError(f"--rate-limit {a.rate_limit} over {concurrent_tasks(a)} tasks at once "
+                                          f"gives each {share}, which are not consistent; give fewer --workers or "
+                                          "other windows") from None
+        out["rate_limits"] = share
     return out
+
+
+def allocate(a: argparse.Namespace, pipeline: list) -> None:
+    """``--tasks`` and ``--workers`` where the command line leaves them open. A pipeline without engines: the task
+    count its reader suggests (``auto_tasks``, from the input; one if it has none), one worker with rate limits (one
+    task keeps them busy, ``linecaster.net.http.prefetched``), one per CPU without. A pipeline with engines: one task,
+    every task at once. ``--page``: one of each."""
+    if getattr(a, "page", None):
+        a.tasks, a.workers = 1, 1
+        return
+    if a.tasks is None:
+        reader = next((b for b in pipeline if hasattr(b, "auto_tasks")), None)
+        a.tasks = reader.auto_tasks() if reader is not None and not has_engines(a) else 1
+    if a.workers is None:
+        if has_engines(a):
+            a.workers = a.tasks
+        elif getattr(a, "rate_limits", None):
+            a.workers = 1
+        else:
+            a.workers = min(a.tasks, os.cpu_count() or 1)
 
 
 def reader(a: argparse.Namespace, manifest_folder: str | None = None):
@@ -223,18 +284,20 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
         return ManifestReader(folder, paths_file=paths_file, glob_pattern=glob, limit=a.limit, skip=a.skip,
                               manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
-                              existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, prefetch=a.prefetch,
-                              http=http(a))
+                              existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a))
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a))
     if getattr(a, "page", None):
         folder, _, name = a.page.rstrip("/").rpartition("/")
         return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
     if a.parquet:
-        return ImageParquetReader(a.parquet, glob_pattern=a.glob_pattern or "**/*.parquet", limit=a.limit,
+        folder, glob = a.parquet, a.glob_pattern or "**/*.parquet"
+        if a.parquet.endswith(".parquet"):                    # one file: its folder, the file by name
+            parent, _, name = a.parquet.rpartition("/")
+            folder, glob = parent or ".", name
+        return ImageParquetReader(folder, glob_pattern=glob, limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
-                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
-                                  prefetch=a.prefetch)
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a))
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip,
                              sequence=a.item_from_parent and not a.paths_file)
@@ -348,7 +411,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
-    opts = {k: v for k, v in vars(a).items() if k not in ("recipe_record", "describe_only")}
+    opts = {k: v for k, v in vars(a).items() if k not in ("recipe_record", "describe_only", "has_engines")}
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
 
@@ -430,7 +493,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
     from . import builder
 
     recipe = getattr(a, "recipe_record", None)
-    return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else a.tasks,
+    return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else (a.tasks or 1),
                          until=getattr(a, "until", None), after=getattr(a, "after", None),
                          taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
@@ -458,7 +521,8 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             else:                                    # an item stage without models needs no GPU
                 from datatrove.executor.ray import RayPipelineExecutor as Ray
 
-            previous = Ray(stage.pipeline, tasks=stage.tasks, cpus_per_task=a.cpus_per_task,
+            previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
+                           cpus_per_task=a.cpus_per_task,
                            mem_per_cpu_gb=a.mem_per_cpu_gb, logging_dir=logs, depends=previous)
         else:
             from .jobs import GPUJobsExecutor, JobsExecutor
@@ -485,6 +549,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
     page in this process."""
     out = a.out.rstrip("/")
+    allocate(a, pipeline)
     p = build_plan(a, pipeline)
     blocks = p.blocks
     deps = None
@@ -602,6 +667,7 @@ def describe_script(script: str | Path, argv: list[str], c=None):
     pipeline_id = getattr(module, "PIPELINE", None)
     a = parse(list(argv), module.__doc__, module.options, pipeline_id, getattr(module, "SLOTS", None), c)
     a.describe_only = True
+    a.has_engines = bool(module.models(a))
     built = module.pipeline(a, str(Path(script).resolve()))
     pipeline = built[0] if isinstance(built, tuple) else built
     return build_plan(a, pipeline)
@@ -673,6 +739,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         if argv[:1] == ["serve"]:
             return serve(argv[1:], options, models, pipeline_id, slots)
         a = parse(argv, description, options, pipeline_id, slots)
+        a.has_engines = bool(models(a))
         built = build(a, str(Path(script).resolve()))
         pipeline, extra = built if isinstance(built, tuple) else (built, {})
         run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)

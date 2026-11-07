@@ -27,8 +27,8 @@ The contract is that of `ImageParquetReader(data_folder='pages/')`; the comes-af
 | `paths_file` | `DataFileLike \| None` | `None` | datatrove's `ParquetReader` arguments. |
 | `glob_pattern` | `str \| None` | `'**/*.parquet'` | datatrove's `ParquetReader` arguments. |
 | `recursive` | `bool` | `True` | datatrove's `ParquetReader` arguments. |
-| `limit` | `int` | `-1` | datatrove's `ParquetReader` arguments. |
-| `skip` | `int` | `0` | datatrove's `ParquetReader` arguments. |
+| `limit` | `int` | `-1` | pages per task, as datatrove's count documents; they apply before anything is read or fetched. |
+| `skip` | `int` | `0` | pages per task, as datatrove's count documents; they apply before anything is read or fetched. |
 | `batch_size` | `int` | `64` | the rows read at once from a file. |
 | `id_key` | `str` | `'id'` | the column with the page id. A table without it names its pages `<item>_<0001>` from `item_key` and `sequence_key`, which it then needs. |
 | `image_key` | `str` | `'image'` | the column with the image. |
@@ -39,14 +39,16 @@ The contract is that of `ImageParquetReader(data_folder='pages/')`; the comes-af
 | `file_progress` | `bool` | `False` | datatrove's `ParquetReader` arguments. |
 | `doc_progress` | `bool` | `False` | datatrove's `ParquetReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
-| `shuffle_files` | `bool` | `False` | datatrove's `ParquetReader` arguments. |
-| `http` | `dict \| None` | `None` | pybookget `Config` fields (rate limits, retries) for `http(s)://` image paths. |
-| `prefetch` | `int` | `8` | `http(s)://` images requested ahead of the page being given on, at least 1 (1: one request at a time). Pages keep the files' row order; the rate limits in `http` hold for all of them together, so one task can use its whole rate limit instead of waiting for each image in turn. |
+| `shuffle_files` | `bool` | `False` | read the files of a task's shard in random order. |
+| `http` | `dict \| None` | `None` | pybookget `Config` fields (rate limits, retries) for `http(s)://` image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (`linecaster.net.http.prefetched`); pages keep the rows' order. |
 
 ## Behavior
 
-The files are read through datatrove's `ParquetReader` and distributed over tasks in turn, so a file should
-hold whole items. Each row adds `image` and `metadata` (the page record). The image column holds the image
+The rows of all files, in order, are divided over the tasks in equal shards, read by row group
+(`linecaster.blocks.readers.tables`), so any table works with any number of tasks; an item's pages can land in
+two tasks where a shard ends. `auto_tasks` is the task count for shards of about `PAGES_PER_TASK` pages, which
+`linecaster.runtime.run` uses for a pipeline without engines. Each row adds `image` and `metadata` (the page
+record). The image column holds the image
 as Hugging Face's `Image` feature stores it (`{"bytes", "path"}`: the bytes when present, else the path), as
 plain bytes, or as a path: absolute (any fsspec URI, `http(s)://` through pybookget) or relative to
 `image_folder`. A row with neither bytes nor a path fails the task (a `PageError`: the table is wrong).
