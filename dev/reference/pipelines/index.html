@@ -1511,6 +1511,13 @@ proxy left a page fails (its error budget then stops the task). A 429 or 503 wit
 proxy out only that long (resilient-httpx's <code>blacklist_ttl_from_retry_after</code>, storytracer's fork). The file holds one proxy per line, a URL or
 <code>host:port[:user:pass]</code> as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (<code>linecaster.net.http.redact</code>).</p>
+<p><strong>Failures.</strong> Each fetcher has a breaker (<code>linecaster.net.http.Breaker</code>): when most attempts of the last minute got a
+server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
+from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
+failing. A single server error is retried (through another proxy, without blacklisting the one it came through). A
+local task that fails is logged and the others go on (<code>LocalExecutor</code>); it runs again on the next launch. An error
+that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</code> failed tasks in a row in one worker stop the run.
+<code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
 <p>A local run (<code>--on local</code>, <code>linecaster.runtime.local.LocalExecutor</code>) shows on the terminal: one line naming the
 pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
