@@ -253,6 +253,16 @@ def last_error(error: BaseException | None) -> str:
     return f"{type(error).__name__}: {error}" if str(error) else f"{type(error).__name__} (no message)"
 
 
+def _server_error(error: BaseException) -> bool:
+    """Whether ``error`` (pybookget's ``HTTPStatusError``, or resilient-httpx's retries used up) is a server error."""
+    for e in (error, error.__cause__):
+        response = getattr(e, "response", None)
+        status = getattr(response, "status_code", None)
+        if status is not None:
+            return status >= 500
+    return False
+
+
 def failed_fetch(error: BaseException) -> dict | None:
     """The record of the fetch that raised ``error`` (``HTTPFetcher._fetch``), or None."""
     return getattr(error, FETCH_KEY.replace(".", "_"), None)
@@ -324,16 +334,24 @@ BREAKER_FIRST_WAIT = 60.0
 BREAKER_MAX_WAIT = 600.0
 #: a probe without an answer (a timeout, a proxy error) after this long lets another probe go
 BREAKER_PROBE_TIMEOUT = 60.0
+#: how often a request waiting in a pause looks again (at the latest)
+BREAKER_POLL = 1.0
+#: how often one request waits out a pause after its retries ran out in it (``HTTPFetcher._fetch``), so a URL that
+#: fails for itself, not because of an outage, still ends
+BREAKER_WAITS = 5
 
 
 class Breaker:
     """Pauses a fetcher's requests while its server fails. Closed, it notes each attempt's answer (``record``: a
     server error, 5xx, or not); when at least ``BREAKER_SHARE`` of the attempts in the last ``BREAKER_WINDOW`` seconds
-    (``BREAKER_MIN_ATTEMPTS`` at least) were server errors it opens: requests wait in ``wait_turn`` (before the rate
+    (``BREAKER_MIN_ATTEMPTS`` at least) were server errors, or the last ``in_a_row`` were (the fetcher's retries per
+    request, so a request alone cannot use them up before the breaker sees the outage), it opens: requests wait in ``wait_turn`` (before the rate
     limits) except one probe after ``BREAKER_FIRST_WAIT``, then after waits that double up to ``BREAKER_MAX_WAIT``;
     the first answer that is not a server error closes it. Used from the fetcher's event loop only."""
 
-    def __init__(self):
+    def __init__(self, in_a_row: int | None = None):
+        self.in_a_row = in_a_row
+        self._errors_in_a_row = 0
         self._outcomes: deque = deque()                  # (time, server error)
         self.open_until: float | None = None             # monotonic; None: closed
         self.opened_at: float | None = None
@@ -365,15 +383,24 @@ class Breaker:
                 self.open_until = self.opened_at = None
                 self._wait = BREAKER_FIRST_WAIT
                 self._outcomes.clear()
+                self._errors_in_a_row = 0
             return
         self._outcomes.append((now, server_error))
+        self._errors_in_a_row = self._errors_in_a_row + 1 if server_error else 0
         while self._outcomes and now - self._outcomes[0][0] > BREAKER_WINDOW:
             self._outcomes.popleft()
         failed = sum(1 for _, e in self._outcomes if e)
-        if len(self._outcomes) >= BREAKER_MIN_ATTEMPTS and failed >= BREAKER_SHARE * len(self._outcomes):
+        if (len(self._outcomes) >= BREAKER_MIN_ATTEMPTS and failed >= BREAKER_SHARE * len(self._outcomes)
+                or self.in_a_row and self._errors_in_a_row >= self.in_a_row):
             self.opened_at, self.open_until = now, now + self._wait
             logger.warning("server errors in {failed} of the last {n} attempts: requests pause, next try in {wait}",
                            failed=failed, n=len(self._outcomes), wait=f"{self._wait:.0f} s")
+
+    async def wait_out(self) -> None:
+        """Return when the pause is over or its next probe is due, without taking the probe (the request's next
+        attempt takes it in ``wait_turn``, as any attempt does)."""
+        while self.open_until is not None and time.monotonic() < self.open_until:
+            await asyncio.sleep(min(BREAKER_POLL, max(0.01, self.open_until - time.monotonic())))
 
     async def wait_turn(self) -> None:
         """Return when a request may go out: at once while closed; while open, as the probe once its time has come
@@ -385,7 +412,8 @@ class Breaker:
             if self._probe is None and now >= self.open_until:
                 self._probe = now
                 return
-            await asyncio.sleep(1.0 if self._probe is not None else min(1.0, max(0.05, self.open_until - now)))
+            await asyncio.sleep(BREAKER_POLL if self._probe is not None
+                                else min(BREAKER_POLL, max(0.01, self.open_until - now)))
 
 
 async def _breaker_turn(request) -> None:       # a request hook, before the rate limits'
@@ -421,7 +449,7 @@ class HTTPFetcher:
 
         self.config = Config(**{**HTTP_DEFAULTS, **config})
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
-        self.breaker = Breaker()
+        self.breaker = Breaker(in_a_row=self.config.max_retries)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()
@@ -481,10 +509,20 @@ class HTTPFetcher:
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
         try:
-            if self._proxies is None:
-                response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
-            else:
-                response = await self._through_proxies(url, fallback_url)
+            for waits in range(BREAKER_WAITS + 1):
+                try:
+                    if self._proxies is None:
+                        response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
+                    else:
+                        response = await self._through_proxies(url, fallback_url)
+                    break
+                except Exception as e:
+                    # retries used up on a server error while the server is down (the breaker paused, at the
+                    # latest by this request's last error): wait the outage out and try again, instead of failing
+                    if waits < BREAKER_WAITS and self.breaker.paused and _server_error(e):
+                        await self.breaker.wait_out()
+                        continue
+                    raise
             record["status"] = response.status_code
             response.extensions[FETCH_KEY] = record
             return response

@@ -24,7 +24,8 @@ def fresh_fetchers():
 
 @pytest.fixture
 def quick(monkeypatch):
-    """A breaker that opens after 4 attempts and probes after 0.3 s (0.6 s, ...)."""
+    """A breaker that opens after 4 attempts and probes after 0.3 s (0.6 s, ...); the waits only make the tests
+    quick, the outcomes do not depend on them."""
     monkeypatch.setattr(nethttp, "BREAKER_MIN_ATTEMPTS", 4)
     monkeypatch.setattr(nethttp, "BREAKER_FIRST_WAIT", 0.3)
     monkeypatch.setattr(nethttp, "BREAKER_MAX_WAIT", 1.0)
@@ -59,22 +60,41 @@ def test_a_probe_goes_out_after_the_wait_and_its_answer_decides(quick):
     assert not b.paused and asyncio.run(turn()) < 0.05
 
 
-def test_pages_wait_out_an_outage_instead_of_failing(quick, tmp_path, monkeypatch):
-    """The server answers 520 for 0.8 s; every page arrives, none failed."""
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+def test_it_opens_after_as_many_server_errors_in_a_row_as_a_request_has_retries():
+    b = Breaker(in_a_row=3)
+    for status in (520, 502):
+        b.record(status)
+    assert not b.paused
+    b.record(200)                                         # an answer breaks the run
+    for status in (500, 503):
+        b.record(status)
+    assert not b.paused
+    b.record(520)                                         # three in a row: a request alone would now have failed
+    assert b.paused
 
-    from linecaster.blocks.base.page import failed
-    from linecaster.blocks.readers.images import ImageParquetReader
 
-    body, start = sample_png(), time.monotonic()
+@pytest.fixture
+def fast(monkeypatch):
+    """Like ``quick``, with waits of a few milliseconds: the outage tests count requests, they do not time them."""
+    monkeypatch.setattr(nethttp, "BREAKER_MIN_ATTEMPTS", 4)
+    monkeypatch.setattr(nethttp, "BREAKER_FIRST_WAIT", 0.01)
+    monkeypatch.setattr(nethttp, "BREAKER_MAX_WAIT", 0.02)
+    monkeypatch.setattr(nethttp, "BREAKER_POLL", 0.01)
+
+
+def failing_server(failures: int):
+    """A server whose first ``failures`` requests get 520 and the rest a PNG: counted, not timed."""
+    body, lock, seen = sample_png(), threading.Lock(), [0]
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
 
         def do_GET(self):
-            if time.monotonic() - start < 0.8:
+            with lock:
+                seen[0] += 1
+                fail = seen[0] <= failures
+            if fail:
                 self.send_response(520)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -87,16 +107,48 @@ def test_pages_wait_out_an_outage_instead_of_failing(quick, tmp_path, monkeypatc
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, seen
+
+
+def harvest(tmp_path, base: str, pages: int):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from linecaster.blocks.readers.images import ImageParquetReader
+
+    (tmp_path / "data").mkdir()
+    pq.write_table(pa.table({"book": ["b"] * pages, "page": list(range(1, pages + 1)),
+                             "image": [f"{base}/p{i}.png" for i in range(pages)]}), tmp_path / "data" / "p.parquet")
+    reader = ImageParquetReader(str(tmp_path / "data"), item_key="book", sequence_key="page",
+                                http={"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 3, "trust_env": False})
+    return reader, list(reader.run())
+
+
+@pytest.mark.parametrize("pages, failures", [(1, 3), (1, 7), (6, 6), (6, 11)])
+def test_pages_wait_out_an_outage_instead_of_failing(fast, tmp_path, pages, failures):
+    """However the requests interleave, every retry that runs out does so after at least three server errors in a
+    row, so in a pause, and waits it out: no page fails. One page alone was the race (its three attempts used up
+    before the breaker had seen enough of them)."""
+    from linecaster.blocks.base.page import failed
+
+    httpd, seen = failing_server(failures)
     try:
-        base = f"http://127.0.0.1:{httpd.server_address[1]}"
-        (tmp_path / "data").mkdir()
-        pq.write_table(pa.table({"book": ["b"] * 6, "page": list(range(1, 7)),
-                                 "image": [f"{base}/p{i}.png" for i in range(6)]}), tmp_path / "data" / "p.parquet")
-        reader = ImageParquetReader(str(tmp_path / "data"), item_key="book", sequence_key="page",
-                                    http={"retry_wait_min": 0.05, "retry_wait_max": 0.1, "max_retries": 3,
-                                          "trust_env": False})
-        docs = list(reader.run())
-        assert len(docs) == 6 and not any(failed(d) for d in docs)
+        reader, docs = harvest(tmp_path, f"http://127.0.0.1:{httpd.server_address[1]}", pages)
+        assert len(docs) == pages and not any(failed(d) for d in docs)
+        assert seen[0] >= failures + pages                     # every failure answered, then every page
         assert not reader._opener._fetcher.breaker.paused
+    finally:
+        httpd.shutdown()
+
+
+def test_a_url_that_keeps_failing_still_fails_after_its_waits(fast, tmp_path, monkeypatch):
+    """A server that never recovers: the request waits out ``BREAKER_WAITS`` pauses, then its page fails."""
+    from linecaster.blocks.base.page import failed
+
+    monkeypatch.setattr(nethttp, "BREAKER_WAITS", 2)
+    httpd, seen = failing_server(10**6)
+    try:
+        reader, docs = harvest(tmp_path, f"http://127.0.0.1:{httpd.server_address[1]}", 1)
+        assert failed(docs[0]) and docs[0].metadata["errors"][0]["type"] == "HTTPStatusError"
     finally:
         httpd.shutdown()

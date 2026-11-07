@@ -169,8 +169,12 @@ def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_lo
             s.shutdown()
 
 
-def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path):
-    """A proxy through which the server always answers 520: MaxRetriesExceeded names it, with the attempts traced."""
+def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path, monkeypatch):
+    """A proxy through which the server always answers 520: MaxRetriesExceeded names it, with the attempts traced.
+    (No pauses waited out here: the breaker's waits are its own tests'.)"""
+    from linecaster.net import http as nethttp
+
+    monkeypatch.setattr(nethttp, "BREAKER_WAITS", 0)
     body = b""
 
     class Handler(BaseHTTPRequestHandler):
