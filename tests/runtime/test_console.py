@@ -107,3 +107,38 @@ def test_with_several_workers_the_console_counts_the_pages_of_every_process(tmp_
     err = capsys.readouterr().err
     assert "12 pages in 4 tasks, 2 workers" in err
     assert "harvest done: 12 pages" in err and "4/4 tasks" in err      # counted in the workers, summed here
+
+
+def test_pinned_line_sits_on_the_first_row_above_a_scroll_region():
+    import io
+
+    from linecaster.runtime.console import Pinned, bar
+
+    out, size = io.StringIO(), [(24, 40)]
+    p = Pinned(out, size=lambda: size[0])
+    assert out.getvalue() == "\n\x1b[2;24r\x1b[24;1H"                 # rows 2-24 scroll, the cursor at the bottom
+    p.draw("harvest " + "x" * 60)
+    assert out.getvalue().endswith("\x1b7\x1b[1;1H\x1b[2K" + ("harvest " + "x" * 60)[:40] + "\x1b8")
+    size[0] = (30, 100)                                                # a resized terminal: the region again
+    p.draw("harvest")
+    assert "\x1b[2;30r" in out.getvalue()
+    p.close()
+    assert out.getvalue().endswith("\x1b[r\x1b[30;1H")                 # the whole terminal back
+    assert bar(0.5, 10) == "█████░░░░░" and bar(2, 4) == "████"
+
+
+def test_a_live_console_draws_on_the_pinned_line_and_logs_scroll_below(capsys, monkeypatch):
+    import os
+
+    from linecaster.runtime import console as module
+
+    monkeypatch.setattr(module.shutil, "get_terminal_size", lambda: os.terminal_size((80, 24)))
+    c = Console("harvest", tasks=2, total=100, live=True).open()
+    c.page(1000, False)
+    c.write("12:00:00 WARNING something\n")
+    c.close()
+    err = capsys.readouterr().err
+    assert "\x1b[2;24r" in err                                        # the region below row 1
+    assert "\x1b[1;1H\x1b[2Kharvest ░" in err                       # drawn on row 1
+    assert "12:00:00 WARNING something\n" in err                      # written plainly, into the region
+    assert err.endswith("\x1b[r\x1b[24;1H")

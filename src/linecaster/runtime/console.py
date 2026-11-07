@@ -1,6 +1,8 @@
 """What a local run shows on the terminal: one line naming the pipeline, a live progress line for the whole run
 (pages done of the total, rate, size, failed pages, the task, the time left), one line per finished task and a
-summary at the end, with human-readable units. Warnings and errors print above the progress line.
+summary at the end, with human-readable units. On a terminal the progress line is pinned to the top row and
+everything else scrolls below it (a scroll region, ``Pinned``), so log lines, worker processes and libraries
+writing to the terminal never break it.
 
 datatrove's own console output (its pipeline listing and stats block per task, the merged stats at the end) goes
 only to the task logs (``OUT/logs/logs/task_<rank>.log``) and the stats files (``OUT/logs/stats/``), which keep it
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -102,6 +105,42 @@ def console_sink(level: str = "INFO") -> int:
                       filter=lambda record: not _quiet(record))
 
 
+class Pinned:
+    """A line pinned to the terminal's first row: the rows below it are the terminal's scroll region (DECSTBM), so
+    whatever is written to the terminal, by this process or another, scrolls under it. ``size`` gives (rows, columns)
+    (default the terminal's); a resized terminal gets its region set again. ``close`` gives the whole terminal back,
+    the cursor on its last row."""
+
+    def __init__(self, stream=None, size=None):
+        self.stream = stream if stream is not None else sys.stderr
+        self._size = size or (lambda: tuple(reversed(shutil.get_terminal_size())))
+        self.rows = self.cols = 0
+        self._setup()
+
+    def _setup(self) -> None:
+        self.rows, self.cols = self._size()
+        # a new line keeps what is on the last row; the region is rows 2..last; setting it homes the cursor
+        self.stream.write(f"\n\x1b[2;{self.rows}r\x1b[{self.rows};1H")
+        self.stream.flush()
+
+    def draw(self, text: str) -> None:
+        if self._size() != (self.rows, self.cols):
+            self._setup()
+        # one write: save the cursor, draw row 1, restore the cursor (where the scrolling output goes on)
+        self.stream.write(f"\x1b7\x1b[1;1H\x1b[2K{text[:self.cols]}\x1b8")
+        self.stream.flush()
+
+    def close(self) -> None:
+        self.stream.write(f"\x1b7\x1b[1;1H\x1b[2K\x1b8\x1b[r\x1b[{self.rows};1H")
+        self.stream.flush()
+
+
+def bar(fraction: float, width: int = 20) -> str:
+    """``████████░░░░`` for ``fraction`` (0 to 1) in ``width`` cells."""
+    filled = max(0, min(width, int(fraction * width)))
+    return "█" * filled + "░" * (width - filled)
+
+
 #: the console of a run launched in this process (process, Console), set by ``Console.open``
 _CONSOLE: list = [None]
 #: what the tasks of this worker process have done so far, for the run's console (``Progress.report``)
@@ -141,13 +180,8 @@ class Console:
 
     def open(self) -> Console:
         _CONSOLE[0] = self
-        if self.live:
-            from tqdm import tqdm
-
-            self._bar = tqdm(total=self.total or self.tasks, initial=self.done_pages if self.total else self.done_tasks,
-                             bar_format=self.title.replace("{", "{{").replace("}", "}}") + " {bar:20} {desc}",
-                             file=sys.stderr,
-                             dynamic_ncols=True, leave=False)
+        if self.live and shutil.get_terminal_size().lines >= 4:     # a terminal with room for a region
+            self._bar = Pinned()
             self._render(force=True)
         # refreshed while no page arrives too (a stall is when the time left matters)
         threading.Thread(target=self._tick, name="linecaster-console", daemon=True).start()
@@ -169,10 +203,8 @@ class Console:
     def write(self, text: str) -> None:
         """A log line, above the progress line."""
         with self._lock:
-            if self._bar is not None:
-                self._bar.write(text.rstrip("\n"), file=sys.stderr)
-            else:
-                sys.stderr.write(text)
+            sys.stderr.write(text)                  # under a pinned line: the region scrolls it
+            sys.stderr.flush()
 
     # -- counting (from ``Progress`` in this process)
 
@@ -185,15 +217,11 @@ class Console:
             self.pages += 1
             self.bytes += nbytes
             self.failed += failed
-            if self._bar is not None and self.total:
-                self._bar.update(1)
         self._render()
 
     def task_done(self) -> None:
         with self._lock:
             self.done_tasks += 1
-            if self._bar is not None and not self.total:
-                self._bar.update(1)
         self._render(force=True)
 
     def _sync(self) -> None:
@@ -208,8 +236,6 @@ class Console:
         self.failed = sum(r[1] for r in reports)
         self.bytes = sum(r[2] for r in reports)
         self.done_tasks = self._done_before + sum(r[3] for r in reports)
-        if self._bar is not None:
-            self._bar.n = self.done_pages + self.pages if self.total else self.done_tasks
 
     # -- what is shown
 
@@ -258,7 +284,8 @@ class Console:
             now = time.monotonic()
             if self._bar is not None:
                 if force or now - self._shown >= 0.5:
-                    self._bar.set_description_str(self.status(), refresh=True)
+                    done = (self.done_pages + self.pages) / self.total if self.total else self.done_tasks / self.tasks
+                    self._bar.draw(f"{self.title} {bar(done)} {self.status()}")
                     self._shown = now
                 return
             if now - self._shown < EVERY_SECONDS:               # off a terminal: a line now and then
