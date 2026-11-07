@@ -57,7 +57,9 @@ the tags; the first is `v0.1.0`.
   (`after 5 attempts: HTTP 520`, `... ReadTimeout (no message)`), an empty pool `AllProxiesExhausted` with a message,
   and httpx's silent timeouts get one; and the fetch's record (attempts, `tries`, waits) goes with the exception into
   the failed page's trace (`linecaster.net.http.failed_fetch`), where it was dropped.
-- Outages are waited out: each fetcher has a breaker (`linecaster.net.http.Breaker`). When at least half of the
+- Outages are waited out: each fetcher has a breaker (`linecaster.net.http.Breaker`), which also opens after as many
+  server errors in a row as a request has retries; a request whose retries ran out in a pause waits it out and tries
+  again (at most `BREAKER_WAITS` times), so a request alone no longer fails before the breaker sees the outage. When at least half of the
   attempts in the last minute (20 at least) got a server error (5xx), requests pause; a probe goes out after a minute,
   then after waits that double up to ten minutes, and the first answer that is not a server error ends the pause. The
   pages wait instead of failing, and the progress line says `paused: server errors`. Cloudflare's 520-524 are retried
