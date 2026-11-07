@@ -144,7 +144,7 @@ def bar(fraction: float, width: int = 20) -> str:
 #: the console of a run launched in this process (process, Console), set by ``Console.open``
 _CONSOLE: list = [None]
 #: what the tasks of this worker process have done so far, for the run's console (``Progress.report``)
-_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reused": 0, "reported": 0.0}
+_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reused": 0, "reused_bytes": 0, "reported": 0.0}
 
 
 def active() -> Console | None:
@@ -165,7 +165,9 @@ class Console:
         self.title, self.tasks, self.total = title, tasks, total
         self.done_pages, self.done_tasks = done_pages, done_tasks
         self.shared, self._done_before = shared, done_tasks
-        self.pages = self.failed = self.bytes = self.reused = 0
+        self.pages = self.failed = self.bytes = self.reused = self.reused_bytes = 0
+        #: the size of what was done before this launch (``add_before``); None while it is being read
+        self.done_bytes: int | None = 0 if not done_tasks else None
         self.task: int | None = None
         self.live = sys.stderr.isatty() if live is None else live
         self.pid = os.getpid()
@@ -212,10 +214,17 @@ class Console:
         self.task = rank
         self._render(force=True)
 
+    def add_before(self, nbytes: int) -> None:
+        """The size of what was done before this launch, once read (``linecaster.runtime.local.size_before``)."""
+        with self._lock:
+            self.done_bytes = nbytes
+        self._render(force=True)
+
     def page(self, nbytes: int, failed: bool, reused: bool = False) -> None:
         with self._lock:
             if reused:                              # done before, not fetched now: not in the rate
                 self.reused += 1
+                self.reused_bytes += nbytes
                 return
             self.pages += 1
             self.bytes += nbytes
@@ -240,6 +249,7 @@ class Console:
         self.bytes = sum(r[2] for r in reports)
         self.done_tasks = self._done_before + sum(r[3] for r in reports)
         self.reused = sum(r[4] for r in reports)
+        self.reused_bytes = sum(r[5] for r in reports)
 
     # -- what is shown
 
@@ -262,8 +272,11 @@ class Console:
         else:
             parts.append(f"{count(done)} pages")
         parts.append(f"{rate * 60:,.0f}/min")
-        if self.bytes:
-            parts.append(size(self.bytes))
+        stored = self.bytes + self.reused_bytes + (self.done_bytes or 0)
+        if self.done_bytes is None:
+            parts.append(f"{size(stored)} + size before …" if stored else "size …")
+        elif stored:
+            parts.append(size(stored))
         if self.failed:
             parts.append(f"{count(self.failed)} failed")
         if self.reused:
@@ -353,7 +366,7 @@ class Progress(Observer):
         _WORKER["reported"] = now
         try:
             self.report[os.getpid()] = (_WORKER["pages"], _WORKER["failed"], _WORKER["bytes"], _WORKER["tasks"],
-                                        _WORKER["reused"])
+                                        _WORKER["reused"], _WORKER["reused_bytes"])
         except Exception:  # noqa: BLE001 - the run's console is gone; the pages go on
             self.report = None
 
@@ -366,7 +379,8 @@ class Progress(Observer):
         from ..blocks.base.page import failed
         from ..blocks.readers.existing import is_reused
 
-        nbytes, bad, reused = _nbytes(doc), failed(doc), is_reused(doc)
+        reused = is_reused(doc)
+        nbytes, bad = _nbytes(doc), failed(doc)
         if reused:
             self.reused += 1
         else:
@@ -378,6 +392,7 @@ class Progress(Observer):
         elif self.report is not None:
             if reused:
                 _WORKER["reused"] += 1
+                _WORKER["reused_bytes"] += nbytes
             else:
                 _WORKER["pages"] += 1
                 _WORKER["failed"] += bad

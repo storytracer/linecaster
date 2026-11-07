@@ -50,10 +50,16 @@ the tags; the first is `v0.1.0`.
   sizes. A harvest run folder started with the 1,000-page tasks has another task count: run into a new folder.
 - A resumed harvest does not fetch images again that an earlier launch wrote: `ImageParquetReader` and
   `ManifestReader` take `reuse_folder` (`harvest.py`: `OUT/images`), list an item's folder once when they reach it
-  (`linecaster.blocks.readers.existing.ExistingImages`; names and sizes only, no egress) and pass a page whose file
-  is there on without a request. Its record names the copy and says `image.extra.reused` (no `sha256`, width or
-  height); `ImageFilesWriter` passes it through; the console counts it as done, apart from the downloads. Not with
-  `--existing-ocr`. `ImageFilesWriter` writes local files as `<name>.part` and renames them when whole.
+  (`linecaster.blocks.readers.existing.ExistingImages`; names and sizes) and read a page whose file is there from
+  the storage instead of fetching it from the source. Only pages of items whose task was interrupted are read back
+  (with one item per task, at most one item per worker and restart), so storage egress stays small. Its record is
+  complete (`sha256`, width, height) and says `image.extra.reused`; `ImageFilesWriter` leaves the file as it is; the
+  reader counts it in `pages`, `media_size` (the bytes it read) and `reused`; the console counts it as done, apart
+  from the downloads and their rate. Not with `--existing-ocr`. `ImageFilesWriter` writes local files as
+  `<name>.part` and renames them when whole.
+- The console's size on a restart starts with the finished tasks' images: their readers' `media_size` from
+  datatrove's stats files (`linecaster.runtime.local.size_before`), read in batches in the background while the run
+  starts (`size …` until then).
 - `--proxies FILE`: http(s) requests through a list of proxies (one per line: a URL, or `host:port[:user:pass]` as
   Webshare lists them), with resilient-httpx (the extra `resilient-httpx`): each attempt through the next proxy, a
   proxy that fails an attempt left out for an hour (`PROXY_BLACKLIST_THRESHOLD` 1, `PROXY_BLACKLIST_TTL` 3600 s), the

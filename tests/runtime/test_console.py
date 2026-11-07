@@ -142,3 +142,28 @@ def test_a_live_console_draws_on_the_pinned_line_and_logs_scroll_below(capsys, m
     assert "\x1b[1;1H\x1b[2Kharvest ░" in err                       # drawn on row 1
     assert "12:00:00 WARNING something\n" in err                      # written plainly, into the region
     assert err.endswith("\x1b[r\x1b[24;1H")
+
+
+def test_the_size_counts_what_was_there_before_and_what_is_reused():
+    c = Console("harvest", tasks=4, total=40, done_pages=20, done_tasks=2, live=False)
+    assert "size …" in c.status()                                   # the finished tasks' size is being read
+    c.page(300_000, False, reused=True)
+    c.page(200_000, False)
+    assert "500 kB + size before …" in c.status()
+    c.add_before(10_000_000)
+    assert "10.5 MB" in c.status() and "1 reused" in c.status()
+
+
+def test_size_before_sums_the_readers_media_size_of_finished_tasks(tmp_path):
+    import json
+
+    from linecaster.runtime.local import size_before
+
+    stats = tmp_path / "logs" / "stats"
+    stats.mkdir(parents=True)
+    for rank, total in ((0, 1000), (1, 2500), (2, 7)):
+        (stats / f"{rank:05d}.json").write_text(json.dumps([
+            {"name": "📖 - READER: 🖼️ image parquet", "stats": {"pages": 3, "media_size": {"total": total, "n": 3}}},
+            {"name": "💽 - WRITER: 🖼️ image files", "stats": {"images": 3}}]))
+    assert size_before(str(tmp_path / "logs"), {0, 1}) == 3500
+    assert size_before(str(tmp_path / "logs"), {0, 1, 9}) == 3500             # a missing file is left out

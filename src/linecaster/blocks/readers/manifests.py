@@ -21,7 +21,7 @@ from loguru import logger
 
 from ...errors import PipelineConfigError
 from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url, prefetched
-from .existing import ExistingImages, Reused, reused_page
+from .existing import ExistingImages, Reused, mark_reused
 from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
@@ -154,8 +154,9 @@ class ManifestReader(Contracted, BaseDiskReader):
         task_per_item: ``auto_tasks`` gives one task per item (``pipelines/harvest.py``); default about
             ``ITEMS_PER_TASK`` items per task.
         reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
-            page whose file is already there is passed on without a request (``linecaster.blocks.readers.existing``);
-            the manifest is still read. Not with ``existing_ocr`` (its OCR files would need fetching anyway).
+            page whose file is already there is read from it instead of from the source
+            (``linecaster.blocks.readers.existing``); the manifest is still read. Not with ``existing_ocr`` (its OCR
+            files would need fetching anyway).
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -353,12 +354,17 @@ class ManifestReader(Contracted, BaseDiskReader):
         base = item["url"]
         if self._existing is not None:
             copy = self._existing.get(item_id, f"{item_id}_{page.index:04d}")
-            if copy is not None:                    # already written by an earlier launch: no request
+            if copy is not None:                    # already written by an earlier launch: read, not fetched
                 from concurrent.futures import Future
 
                 done: Future = Future()
-                done.set_result(Reused(copy))
-                return entry, done, None
+                try:
+                    folder, name = copy[0].rsplit("/", 1)
+                    with get_datafolder(folder).open(name, "rb") as f:
+                        done.set_result(Reused(copy, f.read()))
+                    return entry, done, None
+                except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched from the source
+                    pass
         image = self._get(fetcher, resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base))
         ocr = self._get(fetcher, resolve(page.ocr_url, base)) if self.existing_ocr and page.ocr_url else None
         return entry, image, ocr
@@ -386,6 +392,9 @@ class ManifestReader(Contracted, BaseDiskReader):
         item_id, item, extra, page = entry
         try:
             response = image.result()
+            reused = isinstance(response, Reused)
+            if reused:                                 # read from its existing file; the source is still its URI
+                response = _Local(response.data, resolve(page.url, item["url"]))
         except Exception as e:  # noqa: BLE001 - logged and counted; the task goes on
             logger.warning("page {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
                            url=page.url, error_type=type(e).__name__, error=str(e))
@@ -396,9 +405,6 @@ class ManifestReader(Contracted, BaseDiskReader):
         manifest = {**item, "page_id": page.id, "page_label": page.label, "request": page.url}
         metadata = {**(self.default_metadata or {}), **extra, "manifest": manifest}
         page_id = f"{item_id}_{page.index:04d}"
-        if isinstance(response, Reused):
-            self.stat_update("reused")
-            return reused_page(page_id, response.copy, resolve(page.url, item["url"]), item_id, page.index, metadata)
         try:
             doc = new_page_document(page_id, response.content, uri=str(response.url), item_id=item_id,
                                     sequence=page.index, metadata=metadata)
@@ -409,6 +415,9 @@ class ManifestReader(Contracted, BaseDiskReader):
             if ocr is not None:
                 ocr.cancel()
             return None
+        if reused:
+            mark_reused(doc)
+            self.stat_update("reused")
         fetches = [{**r, "what": "image"}] if (r := fetch_record(response)) is not None else []
         if fetches:
             doc.metadata["trace"] = {"fetch": fetches}

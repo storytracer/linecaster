@@ -19,8 +19,9 @@ class ImageFilesWriter(Contracted, PipelineStep):
     ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
     point at the copy (``PageRecordReader`` fetches it from there), and ``ImageFolderReader(output_folder,
     item_from_parent=True)`` reads the folder as it is. Pages pass through; a page that carries errors and no image
-    (e.g. its download failed), or whose file an earlier launch wrote (``image.extra["reused"]``, from a reader's
-    ``reuse_folder``), passes through unchanged, with no file written. A local file appears only once it is whole
+    (e.g. its download failed) passes through unchanged, with no file written; a page read from the file an earlier
+    launch wrote (``image.extra["reused"]``, a reader's ``reuse_folder``) gets its record as written, the file
+    left as it is. A local file appears only once it is whole
     (written as ``<name>.part``, then renamed), so a reader never takes a half-written file for a done page.
 
     Args:
@@ -57,25 +58,22 @@ class ImageFilesWriter(Contracted, PipelineStep):
         out = get_datafolder(self.output_folder)
         ocr_out = get_datafolder(self.ocr_folder) if self.ocr_folder is not None else None
         for doc in data:
-            if not any(m.type == MediaType.IMAGE and m.media_bytes for m in doc.media):
-                if is_reused(doc):
-                    self.stat_update("reused")                    # written by an earlier launch
-                    yield doc
-                    continue
-                if failed(doc):
-                    self.stat_update("skipped_after_error")      # nothing to write; its record keeps the error
-                    yield doc
-                    continue
+            if failed(doc) and not any(m.type == MediaType.IMAGE and m.media_bytes for m in doc.media):
+                self.stat_update("skipped_after_error")          # nothing to write; its record keeps the error
+                yield doc
+                continue
             page = page_of(doc)
             fmt = (page.image.format if page.image else None) or ""
             path = self._path(page, IMAGE_FILE_EXTENSIONS.get(fmt, fmt or "bin"))
-            with self.track_time():
-                _write_whole(out, path, image_bytes(doc))
+            reused = is_reused(doc)
+            if not reused:                                        # a reused page's file is there already
+                with self.track_time():
+                    _write_whole(out, path, image_bytes(doc))
             source = page.image.uri
             extra = {**page.image.extra, "source_uri": source} if source else page.image.extra
             page = page.model_copy(update={"image": page.image.model_copy(
                 update={"uri": out.resolve_paths(path), "extra": extra})})
-            self.stat_update("images")
+            self.stat_update("reused" if reused else "images")
             ocr = next((m for m in doc.media if m.type == MediaType.DOCUMENT and m.media_bytes), None)
             if ocr_out is not None and ocr is not None and OCR_ORIGINAL in page.transcriptions:
                 t = page.transcriptions[OCR_ORIGINAL]

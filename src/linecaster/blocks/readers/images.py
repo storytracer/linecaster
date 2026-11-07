@@ -29,7 +29,7 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
-from .existing import ExistingImages, Reused, reused_page
+from .existing import ExistingImages, Reused, mark_reused
 from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, row_slices, rows_between, slice_batches,
                      table_rows, tasks_for, total_rows, whole_file)
 from ..base.block import reported_file
@@ -245,8 +245,10 @@ class ImageParquetReader(Contracted, ParquetReader):
         max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
             ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
         reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
-            page whose file is already there is passed on without a request (``linecaster.blocks.readers.existing``:
-            one listing per item, no contents read), so a resumed harvest does not fetch it again. Default: none.
+            page whose file is already there is read from it instead of from the source
+            (``linecaster.blocks.readers.existing``: one listing per item), so a resumed harvest does not fetch it
+            again; its record is complete and says ``image.extra["reused"]``. A copy that cannot be read is fetched
+            from the source. Default: none.
         task_per_item: the tasks divide the items (the ``item_key`` values, needs it; an item's rows need not be
             together), not the rows, and ``auto_tasks`` is one task per item: each item whole in its task, a task that
             fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
@@ -404,8 +406,13 @@ class ImageParquetReader(Contracted, ParquetReader):
         def submit(entry):
             page_id, item = entry[0], entry[1]
             copy = self._existing.get(None if item is None else str(item), page_id) if self._existing else None
-            if copy is not None:                    # already written by an earlier launch: no request
-                return entry, _future(lambda: Reused(copy)), self._source(entry[3], filepath, page_id)
+            if copy is not None:                    # already written by an earlier launch: read, not fetched
+                try:
+                    data = self._opener.read(copy[0])
+                except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched from the source
+                    data = None
+                if data is not None:
+                    return entry, _future(lambda: Reused(copy, data)), self._source(entry[3], filepath, page_id)
             return (entry, *self._request(entry[3], filepath, entry[0]))
 
         budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
@@ -415,12 +422,6 @@ class ImageParquetReader(Contracted, ParquetReader):
             page_id, item, sequence, _, row = entry
             item_id = None if item is None else str(item)
             sequence = None if sequence is None else int(sequence)
-            if future.done() and not future.exception() and isinstance(future.result(), Reused):
-                metadata = {**(self.default_metadata or {}),
-                            **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
-                self.stat_update("reused")
-                yield reused_page(page_id, future.result().copy, uri, item_id, sequence, metadata)
-                continue
             budget.page()
             failure = None
             with self.track_time():
@@ -428,9 +429,14 @@ class ImageParquetReader(Contracted, ParquetReader):
                 metadata = {**(self.default_metadata or {}),
                             **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
                 try:
-                    data = self._opener.result(future, fetches)
+                    raw = future.result() if future.done() and not future.exception() else None
+                    reused = isinstance(raw, Reused)
+                    data = raw.data if reused else self._opener.result(future, fetches)
                     doc = new_page_document(page_id, data, uri=uri, item_id=item_id, sequence=sequence,
                                             metadata=metadata)
+                    if reused:
+                        mark_reused(doc)
+                        self.stat_update("reused")
                 except (*NOT_THE_PAGES, PageError):
                     raise
                 except Exception as e:  # noqa: BLE001 - the page's error; the task goes on within its budget

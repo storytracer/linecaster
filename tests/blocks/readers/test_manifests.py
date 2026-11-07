@@ -397,12 +397,15 @@ def test_a_manifests_images_already_written_are_reused(server, tmp_path):
     url = publish(server, "r", v3(base, "r", ["r1", "r2"]))
     (tmp_path / "manifests.txt").write_text(url + "\n")
     (tmp_path / "images" / "r").mkdir(parents=True)
-    (tmp_path / "images" / "r" / "r_0001.png").write_bytes(b"png")
+    from linecaster.testing import sample_png
+
+    (tmp_path / "images" / "r" / "r_0001.png").write_bytes(sample_png())
     reader = ManifestReader(paths_file=str(tmp_path / "manifests.txt"), http={**FAST, "iiif_format": "png"},
                             reuse_folder=str(tmp_path / "images"))
     docs = sorted(reader.run(), key=lambda d: d.id)
     assert [(d.id, is_reused(d)) for d in docs] == [("r_0001", True), ("r_0002", False)]
     assert page_of(docs[0]).metadata["manifest"]["page_label"] is not None      # the manifest's data, as fetched
+    assert page_of(docs[0]).image.sha256 is not None                          # read back: a complete record
     assert ManifestReader(paths_file=str(tmp_path / "manifests.txt"), existing_ocr=True,
                           reuse_folder=str(tmp_path / "images"))._existing is None   # its OCR would be missing
 
