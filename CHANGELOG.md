@@ -44,6 +44,10 @@ the tags; the first is `v0.1.0`.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- `pipelines/harvest.py` runs one item per task (`task_per_item` of `ImageParquetReader` and `ManifestReader`): every
+  item whole in its task, a task that fails costs one item. Items are grouped by their `--item-key` value, so a table
+  whose item rows are apart still gives one task per item (`tables.item_runs`). Other pipelines keep their task
+  sizes. A harvest run folder started with the 1,000-page tasks has another task count: run into a new folder.
 - `--proxies FILE`: http(s) requests through a list of proxies (one per line: a URL, or `host:port[:user:pass]` as
   Webshare lists them), with resilient-httpx (the extra `resilient-httpx`): each attempt through the next proxy, a
   proxy that fails an attempt left out for an hour (`PROXY_BLACKLIST_THRESHOLD` 1, `PROXY_BLACKLIST_TTL` 3600 s), the

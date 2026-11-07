@@ -99,8 +99,8 @@ class ManifestReader(Contracted, BaseDiskReader):
       column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
       tasks in equal shards (``linecaster.blocks.readers.tables``), so one table works with any number of tasks.
 
-    ``auto_tasks`` is the task count for about ``ITEMS_PER_TASK`` items per task, which ``linecaster.runtime.run``
-    uses for a pipeline without engines.
+    ``auto_tasks`` is the task count for about ``ITEMS_PER_TASK`` items per task, or one item per task with
+    ``task_per_item`` (``pipelines/harvest.py``), which ``linecaster.runtime.run`` uses for a pipeline without engines.
 
     A manifest is one entry, so an item's pages stay in one task (``whole_items``). An entry that is a IIIF
     Collection stands for its manifests, each an item named by its own link (a table's ``item_key`` does not apply
@@ -168,7 +168,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                  manifest_format: str | None = None, item_id_pattern: str | None = None,
                  existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False):
         if glob_pattern is None:
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
@@ -180,7 +180,7 @@ class ManifestReader(Contracted, BaseDiskReader):
             raise PipelineConfigError("item_key names a column of an item table: give manifest_key too")
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
-        self.manifest_folder, self.http = manifest_folder, dict(http or {})
+        self.manifest_folder, self.http, self.task_per_item = manifest_folder, dict(http or {}), task_per_item
         self._all: list[str] | None = None
         self._layout: list | None = None
 
@@ -217,7 +217,7 @@ class ManifestReader(Contracted, BaseDiskReader):
     def auto_tasks(self) -> int:
         """The task count for about ``ITEMS_PER_TASK`` items per task (manifests, or item table rows)."""
         items = total_rows(self.layout()) if self.manifest_key else len(self._every_entry())
-        return tasks_for(items, ITEMS_PER_TASK)
+        return tasks_for(items, 1 if self.task_per_item else ITEMS_PER_TASK)
 
     def _entries(self, rank: int, world_size: int) -> list:
         """The task's entries: manifests in turn; with ``manifest_key``, its shard of item table rows (``row_slices``)."""

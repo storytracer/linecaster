@@ -219,3 +219,69 @@ def test_max_pages_is_for_inputs_whose_pages_are_known_before_reading():
     for argv in (["--manifests", "m.txt", "OUT", "--max-pages", "5"], ["--parquet", "d", "OUT", "--max-pages", "0"]):
         with pytest.raises(SystemExit):
             run.check(ap, ap.parse_args(argv))
+
+
+# ---------------------------------------------------------------- task_per_item: one item per task (harvest.py)
+
+
+def write_books(folder, books: list[list[int]], row_group_size: int):
+    """Page tables of books: file ``i`` holds books ``books[i]`` (their page counts), named f<i>b<j>."""
+    folder.mkdir()
+    png = sample_png()
+    for i, counts in enumerate(books):
+        ids = [f"f{i}b{j}" for j, n in enumerate(counts) for _ in range(n)]
+        pages = [p for n in counts for p in range(1, n + 1)]
+        pq.write_table(pa.table({"book": ids, "page": pages, "image": [png] * len(ids)}),
+                       folder / f"part-{i}.parquet", row_group_size=row_group_size)
+    return str(folder)
+
+
+def test_item_runs_find_items_across_row_groups_and_files(tmp_path):
+    from linecaster.blocks.readers.tables import item_ranges, item_runs
+
+    data = write_books(tmp_path / "data", [[3, 4], [2]], row_group_size=2)
+    folder = get_datafolder(data)
+    items = item_runs(folder, table_rows(folder, ["part-0.parquet", "part-1.parquet"]), "book")
+    assert list(items[0]) == [0, 3, 7, 9]                               # f0b0, f0b1, f1b0; 9 rows
+    assert [item_ranges(items, r, 3) for r in range(3)] == [[(0, 3)], [(3, 7)], [(7, 9)]]
+    assert [item_ranges(items, r, 2) for r in range(2)] == [[(0, 3)], [(3, 7), (7, 9)]]
+
+
+def test_an_item_whose_rows_are_apart_is_still_one_item(tmp_path):
+    import pyarrow as pa
+
+    (tmp_path / "data").mkdir()
+    png = sample_png()
+    books = ["a", "a", "b", "b", "a", "c"]                                 # a's rows apart (an unsorted table)
+    pq.write_table(pa.table({"book": books, "page": [1, 2, 1, 2, 3, 1], "image": [png] * 6}),
+                   tmp_path / "data" / "part-0.parquet", row_group_size=4)
+    reader = ImageParquetReader(str(tmp_path / "data"), item_key="book", sequence_key="page", task_per_item=True)
+    assert reader.auto_tasks() == 3
+    tasks = [[page_of(d).page_id for d in reader.run(rank=r, world_size=3)] for r in range(3)]
+    assert tasks == [["a_0001", "a_0002", "a_0003"], ["b_0001", "b_0002"], ["c_0001"]]
+    assert [reader.task_pages(r, 3) for r in range(3)] == [3, 2, 1]
+
+
+def test_task_per_item_gives_each_item_a_task_of_its_own(tmp_path):
+    data = write_books(tmp_path / "data", [[3, 4], [2]], row_group_size=2)
+    reader = ImageParquetReader(data, item_key="book", sequence_key="page", task_per_item=True)
+    assert reader.auto_tasks() == 3
+    tasks = [[page_of(d).page_id for d in reader.run(rank=r, world_size=3)] for r in range(3)]
+    assert tasks == [[f"f0b0_{i:04d}" for i in range(1, 4)], [f"f0b1_{i:04d}" for i in range(1, 5)],
+                     ["f1b0_0001", "f1b0_0002"]]
+    assert [reader.task_pages(r, 3) for r in range(3)] == [3, 4, 2]
+    assert ImageParquetReader(data, item_key="book", sequence_key="page").auto_tasks() == 1   # default: by rows
+    with pytest.raises(Exception, match="task_per_item needs item_key"):
+        ImageParquetReader(data, task_per_item=True)
+
+
+def test_harvest_runs_one_item_per_task_and_other_pipelines_do_not(tmp_path):
+    from linecaster.runtime import run
+
+    data = write_books(tmp_path / "data", [[3, 4], [2]], row_group_size=2)
+    a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page", "--rate-limit", "10/1"],
+                has_engines=False)
+    harvest, other = run.reader(a, task_per_item=True), run.reader(a)
+    assert harvest.task_per_item and not other.task_per_item
+    run.allocate(a, [harvest])
+    assert (a.tasks, a.workers) == (3, 1)

@@ -22,12 +22,11 @@ copy, `image.extra.source_uri` the source, `metadata.manifest` the item's and pa
 transcription `ocr_original` with the existing OCR).
 
 Nothing needs sizing: --rate-limit holds per worker, and with it one worker runs the tasks (the run states what a
-server sees before it starts). The input is divided into tasks of
-about 1,000 pages (a --parquet page table by rows, whatever its files; --manifests about 5 items each), so a rerun into
-the same OUT repeats at most the task each worker was in (datatrove's resume is per task). With rate limits one
-worker runs the tasks one after the other: its requests ahead (manifests' pages and http(s) images alike) grow until
-the rate limits are kept busy, and the limits hold across its tasks. --tasks and --workers still override; with
+server sees before it starts). Each item is a task (a --parquet page table with --item-key: a run of rows with the
+same item, whatever the files; --manifests: a manifest or a row of an item table; without --item-key tasks of about
+1,000 pages), so an item is whole in its task and a rerun into the same OUT repeats at most the item each worker was
+in (datatrove's resume is per task). The worker's requests ahead (manifests' pages and http(s) images alike) grow
+until the rate limits are kept busy, and the limits hold across its tasks. --tasks and --workers still override; with
 --workers N a server sees N times --rate-limit, so give each worker its part. --max-pages N runs the first N pages of
-the input in
-the same automatic tasks, a smoke test of the real setup (--limit counts per task, as in datatrove).
+the input in the same automatic tasks, a smoke test of the real setup (--limit counts per task, as in datatrove).
 `linecaster.runtime.run` has the options every pipeline shares.

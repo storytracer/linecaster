@@ -58,7 +58,59 @@ def row_slices(layout: list[tuple[str, tuple[int, ...]]], rank: int, world_size:
     """Task ``rank``'s shard of the rows of ``layout`` (``table_rows``), as ``(file, row group, start, stop)`` with
     ``start``/``stop`` within the row group, in order."""
     total = total_rows(layout)
-    lo, hi = rank * total // world_size, (rank + 1) * total // world_size
+    return rows_between(layout, rank * total // world_size, (rank + 1) * total // world_size)
+
+
+def item_runs(folder, layout: list[tuple[str, tuple[int, ...]]], item_key: str) -> tuple:
+    """The items of ``layout``'s rows by their ``item_key`` value, in the order they first appear, as three ``array``s:
+    ``starts`` (where each run of rows with one item begins, the total row count last), ``order`` (the runs, item by
+    item) and ``offsets`` (where each item's runs begin in ``order``, the run count last). An item whose rows are not
+    together (an unsorted table) is still one item. Arrays, not lists: the pipeline is copied for every task."""
+    import array
+
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    starts, values, pos, last = array.array("q"), [], 0, object()
+    for path, groups in layout:
+        with folder.open(path, "rb") as f, pq.ParquetFile(f) as pqf:
+            for i, n in enumerate(groups):
+                if n == 0:
+                    continue
+                column = pqf.read_row_group(i, columns=[item_key]).column(0).slice(0, n).combine_chunks()
+                cuts = [0]
+                if n > 1:
+                    changed = pc.not_equal(column.slice(1), column.slice(0, n - 1))
+                    cuts += [int(j) + 1 for j in pc.indices_nonzero(changed).to_pylist()]
+                for c in cuts:
+                    value = column[c].as_py()
+                    if c > 0 or value != last:
+                        starts.append(pos + c)
+                        values.append(value)
+                last = column[n - 1].as_py()
+                pos += n
+    starts.append(pos)
+    by_item: dict = {}
+    for run, value in enumerate(values):
+        by_item.setdefault(value, []).append(run)
+    order, offsets = array.array("q"), array.array("q", [0])
+    for runs in by_item.values():
+        order.extend(runs)
+        offsets.append(len(order))
+    return starts, order, offsets
+
+
+def item_ranges(items: tuple, rank: int, world_size: int) -> list[tuple[int, int]]:
+    """The row ranges (from, to) of task ``rank``'s items when ``world_size`` tasks divide the items of ``items``
+    (``item_runs``) in equal shards: one item each when there are as many tasks as items."""
+    starts, order, offsets = items
+    count = len(offsets) - 1
+    first, end = rank * count // world_size, (rank + 1) * count // world_size
+    return [(starts[r], starts[r + 1]) for r in order[offsets[first]:offsets[end]]]
+
+
+def rows_between(layout: list[tuple[str, tuple[int, ...]]], lo: int, hi: int) -> list[tuple[str, int, int, int]]:
+    """The rows ``lo`` to ``hi`` of ``layout``, as ``row_slices`` gives them."""
     out, pos = [], 0
     for path, groups in layout:
         for i, n in enumerate(groups):
