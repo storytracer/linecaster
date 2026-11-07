@@ -40,7 +40,7 @@ The contract is that of `ImageParquetReader(data_folder='pages/')`; the comes-af
 | `doc_progress` | `bool` | `False` | datatrove's `ParquetReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
 | `shuffle_files` | `bool` | `False` | read the files of a task's shard in random order. |
-| `http` | `dict \| None` | `None` | pybookget `Config` fields (rate limits, retries) for `http(s)://` image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (`linecaster.net.http.prefetched`); pages keep the rows' order. |
+| `http` | `dict \| None` | `None` | pybookget `Config` fields (rate limits, retries) for `http(s)://` image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (`linecaster.net.http.prefetched`), and pages go on as their images arrive: a slow request (one being retried) delays only its own page. Rows read without a request (bytes, files) keep their order. |
 | `max_pages` | `int \| None` | `None` | only the first `max_pages` rows of the input, for the whole run: the tables are read as if they ended there, divided over the tasks (and `auto_tasks` counted) the same way; default: every row. |
 
 ## Behavior

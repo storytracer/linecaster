@@ -237,7 +237,8 @@ class ImageParquetReader(Contracted, ParquetReader):
         default_metadata: goes into every page's metadata.
         http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths. Their images are
             requested ahead of the page being given on, as many as keep the rate limits busy
-            (``linecaster.net.http.prefetched``); pages keep the rows' order.
+            (``linecaster.net.http.prefetched``), and pages go on as their images arrive: a slow request (one being
+            retried) delays only its own page. Rows read without a request (bytes, files) keep their order.
         limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
         max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
             ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
@@ -370,7 +371,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
         rows = self._rows(filepath, slices)
         for entry, future, uri in prefetched(rows, submit, lambda s: s[1].cancel(), future=lambda s: s[1],
-                                             fetcher=lambda: self._opener._fetcher):
+                                             fetcher=lambda: self._opener._fetcher, ordered=False):
             page_id, item, sequence, _, row = entry
             item_id = None if item is None else str(item)
             sequence = None if sequence is None else int(sequence)

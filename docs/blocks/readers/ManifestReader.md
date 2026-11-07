@@ -83,7 +83,8 @@ response that is not an image is logged and counted (`manifests_failed`, `pages_
 
 Pages are requested ahead, across manifests, as many as keep the rate limits busy
 (`linecaster.net.http.prefetched`), through one `HTTPFetcher.shared` per process and configuration, so the
-rate limits hold across the tasks a worker runs one after the other.
+rate limits hold across the tasks a worker runs one after the other; they go on as their images arrive, so a
+slow request delays only its own page (an item's pages can leave out of order; `sequence` keeps their place).
 
 ## Contract
 

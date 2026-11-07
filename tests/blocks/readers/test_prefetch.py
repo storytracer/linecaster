@@ -30,8 +30,8 @@ class Handle(Future):
 
 
 class FakeFetcher:
-    def __init__(self, waiting=0):
-        self.waiting, self.ahead = waiting, 1
+    def __init__(self, waiting=0, max_ahead=MAX_AHEAD):
+        self.waiting, self.ahead, self.max_ahead = waiting, 1, max_ahead
 
 
 def test_without_a_fetcher_each_entry_is_submitted_after_the_one_before_is_taken():
@@ -221,7 +221,7 @@ def test_one_task_keeps_its_rate_limit_busy_without_a_setting(slow_server, tmp_p
     t = time.perf_counter()
     pages = [page_of(d) for d in reader.run()]
     elapsed = time.perf_counter() - t
-    assert [p.page_id for p in pages] == [f"b_{i:04d}" for i in range(1, 41)]
+    assert sorted(p.page_id for p in pages) == [f"b_{i:04d}" for i in range(1, 41)]
     assert elapsed < 5                                     # 40 at 20/s: about 2 s plus the ramp, not 12 s
     assert slow_server["max_in_flight"] >= 4
 
@@ -334,11 +334,39 @@ def test_a_response_that_trickles_is_cut_and_retried_so_the_pages_behind_it_go_o
     t = time.perf_counter()
     docs = list(reader.run())
     assert not any(failed(d) for d in docs) and time.perf_counter() - t < 3
-    fetch = docs[1].metadata["trace"]["fetch"][0]
-    assert fetch["attempts"] == 2 and fetch["status"] == 200
+    slow = next(d for d in docs if page_of(d).page_id == "b_0002")
+    fetch = slow.metadata["trace"]["fetch"][0]
+    assert fetch["attempts"] == 2 and fetch["status"] == 200 and fetch["tries"] == ["200-cut", "200"]
+    assert page_of(docs[-1]).page_id == "b_0002"              # the others went on while it was retried
 
 
 def test_bulk_defaults_carry_a_deadline_per_attempt():
     from linecaster.net.http import HTTP_DEFAULTS
 
-    assert HTTP_DEFAULTS["attempt_timeout"] == 30.0 and HTTP_DEFAULTS["attempt_min_rate"] == 50_000
+    assert HTTP_DEFAULTS["attempt_timeout"] == 15.0 and HTTP_DEFAULTS["attempt_min_rate"] == 50_000
+
+
+def test_unordered_a_slow_handle_holds_back_only_itself():
+    delays = {0: 0.6}
+
+    def submit(entry):
+        h = Future()
+        h.entry = entry
+        threading.Timer(delays.get(entry, 0.02), h.set_result, [entry]).start()
+        return h
+
+    fetcher = FakeFetcher(waiting=0)
+    taken = [h.entry for h in prefetched(range(10), submit, lambda h: None, fetcher=lambda: fetcher, ordered=False)]
+    assert sorted(taken) == list(range(10)) and taken[-1] == 0
+
+
+def test_max_ahead_is_the_rate_times_the_deadline():
+    from linecaster.net.http import HTTPFetcher
+
+    limited = HTTPFetcher(**FAST, rate_limits=[(150, 60), (3, 1)])            # 2.5/s, 15 s per attempt
+    unlimited = HTTPFetcher(**FAST)
+    try:
+        assert limited.max_ahead == 38 and unlimited.max_ahead == MAX_AHEAD
+    finally:
+        limited.close()
+        unlimited.close()

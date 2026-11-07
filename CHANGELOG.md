@@ -20,8 +20,8 @@ the tags; the first is `v0.1.0`.
   engines (`pipelines/harvest.py`) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   `--rate-limit`, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
   started with the old default (`--tasks 1`) needs `--tasks 1`.
-- http(s) requests have a deadline per attempt (`HTTP_DEFAULTS`: pybookget's `attempt_timeout=30` and
-  `attempt_min_rate=50_000`, i.e. 30 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
+- http(s) requests have a deadline per attempt (`HTTP_DEFAULTS`: pybookget's `attempt_timeout=15` and
+  `attempt_min_rate=50_000`, i.e. 15 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
   attempt past it is cut and retried. A server that needs longer for a response without Content-Length needs
   `http={"attempt_timeout": None}` (or a longer one). linecaster pins pybookget `bf8eee1`, which has the setting.
 - `--prefetch` and the readers' `prefetch=` argument are gone: `ManifestReader` and `ImageParquetReader` request
@@ -50,6 +50,13 @@ the tags; the first is `v0.1.0`.
   time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
   datatrove's pipeline listing (with the builder's boundary steps) and stats blocks go only to the task logs. The
   completion markers are listed once per launch instead of looked up task by task.
+- `ImageParquetReader` and `ManifestReader` pass pages on as their http(s) requests finish, not in row order, so a
+  slow or retried request delays only its own page (`prefetched(..., ordered=False)`); pages read without a request
+  keep their order. Requests in flight are capped at the rate limits times the deadline per attempt
+  (`HTTPFetcher.max_ahead`). In a 2,000-page LoC smoke run the oldest request, being retried, held the window full
+  of finished pages for minutes (94 pages/min against 150).
+- Fetch records and traces carry each attempt's outcome (`tries`, the span attribute `http.tries`): a status for a
+  response read whole, `<status>-cut` for one the deadline cut, `no-response` for a timeout or a connection error.
 - `--max-pages N` (`--parquet`, IMAGES; `max_pages` of `ImageParquetReader` and `ImageFolderReader`): the first N pages
   of the input for the whole run, in the same automatic tasks, so a smoke test is the real setup stopped early
   (`--limit` counts per task).

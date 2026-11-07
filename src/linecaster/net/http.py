@@ -8,7 +8,13 @@ running at once its share of the run's limits (``divided``), so the server sees 
 
 Readers request ahead (``prefetched``) in a window that sizes itself: it grows while the reader waits for a response
 and no request is waiting for the rate limits (``HTTPFetcher.waiting``), so the limits stay busy, rate times latency
-in flight, without a setting.
+in flight, without a setting, up to the rate limits times the deadline per attempt (``HTTPFetcher.max_ahead``).
+Readers take pages as their requests finish, not in row order, so a slow request (one being retried) delays only
+itself.
+
+Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
+``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
+connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
 
 Every fetch records what it took (``fetch_record``): start and end, the host, the status, the attempts (retries and
 redirects count) and the time spent waiting for the rate limits. Readers put the records on the page they fetched
@@ -24,7 +30,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
-from concurrent.futures import Future, wait
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from typing import TypeVar
 from urllib.parse import urlsplit
 
@@ -33,10 +39,10 @@ S = TypeVar("S")
 
 USER_AGENT = "linecaster (+https://github.com/storytracer/linecaster)"
 #: pybookget ``Config`` settings for bulk work: an honest user agent, reused connections, patient retries, and a
-#: deadline per attempt (30 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
-#: connection that trickles (a slow proxy exit) is cut and retried instead of holding the pages behind it
+#: deadline per attempt (15 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
+#: connection that hangs or trickles (a slow proxy exit) is cut and retried within seconds
 HTTP_DEFAULTS = dict(use_fake_user_agent=False, user_agent=USER_AGENT, max_keepalive_connections=16,
-                     max_retries=5, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=30.0,
+                     max_retries=5, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=15.0,
                      attempt_min_rate=50_000, show_progress=False)
 
 
@@ -72,17 +78,21 @@ def divided(rate_limits: list[tuple[int, float]], tasks: int) -> list[tuple[int,
 
 def prefetched(entries: Iterable[T], submit: Callable[[T], S], cancel: Callable[[S], None],
                future: Callable[[S], Future] | None = None,
-               fetcher: Callable[[], HTTPFetcher | None] | None = None) -> Iterator[S]:
-    """``submit(entry)`` for each of ``entries``, submitted ahead of the one given back and given back in the order of
-    ``entries``. ``submit`` starts the work (e.g. ``HTTPFetcher.submit``) and returns its handle, whose
-    ``concurrent.futures.Future`` is ``future(handle)`` (default: the handle itself).
+               fetcher: Callable[[], HTTPFetcher | None] | None = None, ordered: bool = True) -> Iterator[S]:
+    """``submit(entry)`` for each of ``entries``, submitted ahead of the ones given back. ``submit`` starts the work
+    (e.g. ``HTTPFetcher.submit``) and returns its handle, whose ``concurrent.futures.Future`` is ``future(handle)``
+    (default: the handle itself). ``ordered``: handles are given back in the order of ``entries``, so the first one's
+    work holds back the others; else as their work is done (the earliest submitted of those done first), so a slow
+    request delays only itself.
 
-    The window sizes itself: it starts at ``fetcher().ahead`` and grows by one, at most every ``POLL_SECONDS`` and up
-    to ``MAX_AHEAD``, while the first handle's future is not done and no request is waiting for the fetcher's rate
-    limits (``HTTPFetcher.waiting``), so they are kept busy; ``ahead`` keeps the size for the next task in this
-    process. Without a fetcher (``fetcher`` None, or returning None: nothing fetched over http yet) one entry is
-    submitted at a time, as a plain loop would. Whatever is still in the window when the consumer stops is passed to
-    ``cancel``, and ``entries`` is closed if it is a generator (its open files closed at once)."""
+    The window sizes itself: it starts at ``fetcher().ahead`` and grows by one, at most every ``POLL_SECONDS``, while
+    the consumer would wait (the first handle's work, or with ``ordered=False`` every handle's, is not done) and no
+    request waits for the fetcher's rate limits (``HTTPFetcher.waiting``), so they are kept busy, up to
+    ``fetcher().max_ahead`` (more in flight than rate limits times the deadline per attempt never helps).
+    ``ahead`` keeps the size for the next task in this process. Without a fetcher (``fetcher`` None, or returning
+    None: nothing fetched over http yet) one entry is submitted at a time, as a plain loop would. Whatever is still
+    in the window when the consumer stops is passed to ``cancel``, and ``entries`` is closed if it is a generator (its
+    open files closed at once)."""
     future = future or (lambda handle: handle)
     window: deque = deque()
     source = iter(entries)
@@ -95,21 +105,29 @@ def prefetched(entries: Iterable[T], submit: Callable[[T], S], cancel: Callable[
             return
         more = False
 
+    def ready():
+        """The index in the window of the handle to give back now, or None."""
+        if ordered:
+            return 0 if future(window[0]).done() else None
+        return next((i for i, h in enumerate(window) if future(h).done()), None)
+
     try:
         while True:
             f = fetcher() if fetcher else None
-            while more and len(window) < (f.ahead if f is not None else 1):
+            while more and len(window) < (min(f.ahead, f.max_ahead) if f is not None else 1):
                 add()
             if not window:
                 return
-            head = future(window[0])
-            while not head.done():
-                wait([head], timeout=POLL_SECONDS)
+            while (i := ready()) is None:
+                wait([future(window[0])] if ordered else [future(h) for h in window], timeout=POLL_SECONDS,
+                     return_when=FIRST_COMPLETED)
                 f = fetcher() if fetcher else None
-                if not head.done() and more and f is not None and f.waiting == 0 and len(window) < MAX_AHEAD:
+                if ready() is None and more and f is not None and f.waiting == 0 and len(window) < f.max_ahead:
                     add()
                     f.ahead = max(f.ahead, len(window))
-            yield window.popleft()
+            handle = window[i]
+            del window[i]
+            yield handle
     finally:
         for handle in window:
             cancel(handle)
@@ -151,6 +169,7 @@ async def _before(request) -> None:
     record = _FETCH.get()
     if record is not None:
         record["attempts"] += 1
+        record["tries"].append("no-response")             # until its response comes
         record["_t"] = time.perf_counter()
     if (ticket := _TICKET.get()) is not None:
         ticket.queue(True)
@@ -162,6 +181,18 @@ async def _after(request) -> None:              # after the rate limits' hook: t
     record = _FETCH.get()
     if record is not None and "_t" in record:
         record["wait_seconds"] = round(record["wait_seconds"] + time.perf_counter() - record.pop("_t"), 4)
+
+
+async def _headers(response) -> None:          # the first response hook: the headers are in
+    record = _FETCH.get()
+    if record is not None and record["tries"]:
+        record["tries"][-1] = f"{response.status_code}-cut"
+
+
+async def _read(response) -> None:             # the last response hook: read whole (the deadline did not cut it)
+    record = _FETCH.get()
+    if record is not None and record["tries"]:
+        record["tries"][-1] = str(response.status_code)
 
 
 _SHARED: dict[tuple, HTTPFetcher] = {}
@@ -200,6 +231,7 @@ class HTTPFetcher:
             c = create_client(self.config)
             hooks = dict(c.event_hooks)
             hooks["request"] = [_before, *hooks.get("request", []), _after]
+            hooks["response"] = [_headers, *hooks.get("response", []), _read]
             c.event_hooks = hooks
             return c
 
@@ -209,10 +241,21 @@ class HTTPFetcher:
     def waiting(self) -> int:
         return self._waiting
 
+    @property
+    def max_ahead(self) -> int:
+        """The most requests worth having in flight: the rate limits' rate (the strictest window's) times the deadline
+        per attempt, since every attempt ends within it; ``MAX_AHEAD`` without either, and never more."""
+        limits, deadline = self.config.rate_limits, getattr(self.config, "attempt_timeout", None)
+        if not limits or not deadline:
+            return MAX_AHEAD
+        rate = min(n / s for n, s in limits)
+        return max(1, min(MAX_AHEAD, int(rate * deadline) + 1))
+
     async def _fetch(self, url: str, fallback_url: str | None, ticket: _Ticket):
         from pybookget.http import fetch
 
-        record = {"start": time.time_ns(), "host": urlsplit(url).hostname or "", "attempts": 0, "wait_seconds": 0.0}
+        record = {"start": time.time_ns(), "host": urlsplit(url).hostname or "", "attempts": 0, "wait_seconds": 0.0,
+                  "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
         try:
             response = await fetch(self._client, url, self.config, fallback_url=fallback_url)

@@ -127,7 +127,8 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     Pages are requested ahead, across manifests, as many as keep the rate limits busy
     (``linecaster.net.http.prefetched``), through one ``HTTPFetcher.shared`` per process and configuration, so the
-    rate limits hold across the tasks a worker runs one after the other.
+    rate limits hold across the tasks a worker runs one after the other; they go on as their images arrive, so a
+    slow request delays only its own page (an item's pages can leave out of order; ``sequence`` keeps their place).
 
     Args:
         data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the manifests or item tables, and the
@@ -418,7 +419,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                 ocr.cancel()
 
         for submitted in prefetched(pages, lambda entry: self._submit(fetcher, entry), cancel,
-                                    future=lambda submitted: submitted[1], fetcher=lambda: fetcher):
+                                    future=lambda submitted: submitted[1], fetcher=lambda: fetcher, ordered=False):
             doc = self._page(*submitted)
             if doc is not None:
                 yield doc

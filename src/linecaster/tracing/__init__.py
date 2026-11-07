@@ -57,7 +57,8 @@ RUN_ENV, TASK_ENV = "LINECASTER_RUN", "LINECASTER_TASK"
 ATTRIBUTES = ("block", "block.name", "block.family", "unit", "page.id", "item.id", "preset", "edition", "engine",
               "model", "backend", "server", "step", "lines", "regions", "words", "tokens.prompt",
               "tokens.completion", "finish_reason", "error.type", "region", "file", "pages", "seconds.own",
-              "http.host", "http.status", "http.attempts", "http.retries", "http.wait_seconds", "task", "stage")
+              "http.host", "http.status", "http.attempts", "http.retries", "http.wait_seconds", "http.tries", "task",
+              "stage")
 
 PAGE_ID, ITEM_ID = "linecaster.page.id", "linecaster.item.id"
 
@@ -486,6 +487,8 @@ class Tracing(Observer):
             attrs["linecaster.http.retries"] = max(0, int(f["attempts"]) - 1)
         if f.get("what"):
             attrs["linecaster.http.what"] = f["what"]
+        if f.get("tries"):
+            attrs["linecaster.http.tries"] = ",".join(f["tries"])
         span = self._child("linecaster.http.fetch", u.context, int(f["start"]), attrs)
         if f.get("error"):
             span.set_status(StatusCode.ERROR)
