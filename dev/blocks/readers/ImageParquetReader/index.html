@@ -941,6 +941,12 @@
 <td><code>None</code></td>
 <td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (<code>linecaster.net.http.prefetched</code>); pages keep the rows' order.</td>
 </tr>
+<tr>
+<td><code>max_pages</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>only the first <code>max_pages</code> rows of the input, for the whole run: the tables are read as if they ended there, divided over the tasks (and <code>auto_tasks</code> counted) the same way; default: every row.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
