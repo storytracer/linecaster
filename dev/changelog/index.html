@@ -995,6 +995,8 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li><code>pp-doclayout-plus-l</code> without an edition resolves to edition 2, which orders the regions with XY-Cut++ instead of
+  plain XY-cut. A run that must keep the old order names <code>pp-doclayout-plus-l@1</code>.</li>
 <li><code>pipeline_sha256</code> leaves an in-process engine's <code>endpoint</code> and <code>timeout</code> options out (<code>ENGINE_OPERATIONAL</code>: where
   its service is). A derivative's run whose engine has an option of either name gets another hash: a resume into its
   folder needs <code>--new-pipeline</code>. No released recipe is affected.</li>
@@ -1021,6 +1023,12 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>XY-Cut++ reading order (Liu, Li and Wei, arXiv:2504.10258) for layout models without one:
+  <code>linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)</code>, pure and
+  deterministic, the paper's β, θ_v, τ_overlap, centering tolerance and edge weights as keyword arguments, its
+  ambiguities resolved by the authors' Apache-2.0 implementation (NOTES.md, 2026-11-07). <code>paddlex.layout.v1</code> takes it
+  with the new option <code>reading_order: xy-cut++</code> (default <code>xy-cut</code>, the plain XY-cut as before), and the new edition
+  <code>pp-doclayout-plus-l@2</code> sets it. <code>place_unordered</code> keeps plain XY-cut.</li>
 <li>Nothing to size for a harvest: <code>pipelines/harvest.py --parquet TABLE ... OUT --rate-limit 150/60</code> reads any page
   table as it is, in tasks of about 1,000 pages, with one worker that keeps the rate limits busy.
   <code>linecaster.blocks.readers.tables</code> divides Parquet tables over tasks by rows in equal shards (by row group);

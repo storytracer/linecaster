@@ -1368,6 +1368,21 @@ term is added here before it is used.</p>
 <td></td>
 </tr>
 <tr>
+<td><strong>reading order</strong></td>
+<td>The rank in which a page's regions are read (<code>Region.reading_order</code>), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster.</td>
+<td>not the order of <code>Transcription.lines</code>, which is the processing order</td>
+</tr>
+<tr>
+<td><strong>XY-cut</strong>, <strong>XY-Cut++</strong></td>
+<td>The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (<code>linecaster.data.geometry</code>, the layout option <code>reading_order</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>cross-layout region</strong></td>
+<td>A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting.</td>
+<td>not a region label</td>
+</tr>
+<tr>
 <td><strong>line</strong></td>
 <td>One printed or written line: its geometry and, once recognized, its text and words.</td>
 <td></td>

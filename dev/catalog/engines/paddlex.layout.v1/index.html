@@ -764,7 +764,8 @@
 <h1 id="paddlexlayoutv1">paddlex.layout.v1<a class="headerlink" href="#paddlexlayoutv1" title="Permanent link">&para;</a></h1>
 <p><em>Engine · layout · package <code>linecaster-paddlex</code></em></p>
 <p>linecaster engine for the layout step: fills <code>Transcription.regions</code> (Docling labels,
-the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
+PP-DocLayoutV3's reading order and polygons, or the order <code>reading_order</code> gives). Replaces any regions already
+present.
 The model files: <code>weights</code> (a catalog pin) or the catalog's newest pin for <code>model_name</code>
 (<code>weights.resolve</code>).</p>
 <table>
@@ -808,7 +809,7 @@ The model files: <code>weights</code> (a catalog pin) or the catalog's newest pi
 <td><code>model_name</code></td>
 <td><code>str</code></td>
 <td><code>'PP-DocLayoutV3'</code></td>
-<td>PaddleX layout model (PP-DocLayoutV3: learned reading order and polygons; others: XY-cut order)</td>
+<td>PaddleX layout model (PP-DocLayoutV3: learned reading order and polygons; others: ordered by reading_order)</td>
 </tr>
 <tr>
 <td><code>device</code></td>
@@ -845,6 +846,12 @@ The model files: <code>weights</code> (a catalog pin) or the catalog's newest pi
 <td><code>float</code></td>
 <td><code>0.8</code></td>
 <td>a region contained in another by more than this share of its area is dropped</td>
+</tr>
+<tr>
+<td><code>reading_order</code></td>
+<td><code>Literal['xy-cut', 'xy-cut++']</code></td>
+<td><code>'xy-cut'</code></td>
+<td>the order of the regions of a model without learned reading order: xy-cut (plain recursive XY-cut on the boxes) or xy-cut++ (XY-Cut++, Liu et al. 2025: titles, figures, tables and cross-column text masked, the rest cut by density, the masked regions matched back by label and distance); PP-DocLayoutV3 keeps its own order</td>
 </tr>
 </tbody>
 </table>
