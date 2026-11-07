@@ -1000,9 +1000,9 @@ the tags; the first is <code>v0.1.0</code>.</p>
   folder needs <code>--new-pipeline</code>. No released recipe is affected.</li>
 <li><code>linecaster.testing.check_engine</code> calls a page engine (recognition, unit <code>page</code>) with an empty transcription
   (no regions, no lines), not the sample layout's regions.</li>
-<li><code>--rate-limit</code> holds for the whole run, not per task: each task running at once gets its share
-  (<code>linecaster.net.http.divided</code>). A run that gave a per-task limit with several workers gives the total now (e.g.
-  <code>--workers 2 --rate-limit 75/60</code> becomes <code>--rate-limit 150/60</code>).</li>
+<li><code>--rate-limit</code> holds per worker (process), not per task: the tasks a worker runs one after the other share one
+  fetcher and its limits (<code>HTTPFetcher.shared</code>), where each task started its limits afresh. A server sees the workers
+  running at once times the limits, as before; the run now states it before it starts (<code>run.rate_note</code>).</li>
 <li><code>--tasks</code> and <code>--workers</code> default to an automatic choice (<code>linecaster.runtime.run.allocate</code>): a pipeline without
   engines (<code>pipelines/harvest.py</code>) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   <code>--rate-limit</code>, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
@@ -1029,8 +1029,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   window both readers use, grows while the first request is out and none waits for the rate limits
   (<code>HTTPFetcher.waiting</code>), up to <code>MAX_AHEAD</code>, so one task keeps any rate limit busy.</li>
 <li><code>HTTPFetcher.shared(**config)</code>: one fetcher per process and configuration, which the readers use, so the rate
-  limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.
-  <code>linecaster.net.divided(rate_limits, tasks)</code>: one task's share of rate limits.</li>
+  limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.</li>
 <li><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</li>
 <li><code>--user-agent TEXT</code> and <code>--random-user-agent</code> (a random browser User-Agent from pybookget's fake-useragent, a new
   one for each task, <code>HTTPFetcher.new_user_agent</code>) for every http(s) request; default linecaster's own.</li>

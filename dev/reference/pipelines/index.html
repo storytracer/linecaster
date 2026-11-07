@@ -1490,9 +1490,10 @@ what <code>linecaster catalog release</code> records in the lock and <code>verif
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 <code>--max-pages N</code> (<code>--parquet</code>, IMAGES; the readers' <code>max_pages</code>) reads the input as if it ended after its first N
 pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove.</p>
-<p><code>--rate-limit</code> is what the servers see from the whole run: each task running at once gets its share
-(<code>linecaster.net.http.divided</code>: a window's requests divided, at least one, the window stretched to keep the average
-rate). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
+<p><code>--rate-limit</code> holds per worker: each worker process has one fetcher with its limits (<code>HTTPFetcher.shared</code>), so a
+server sees the workers running at once times the limits; the run states it before it starts
+(<code>linecaster.runtime.run.rate_note</code>, e.g. <code>rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
+server</code>). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
 (<code>linecaster.net.http.prefetched</code>, at most <code>MAX_AHEAD</code>), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFetcher.shared</code>).</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
