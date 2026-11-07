@@ -148,6 +148,7 @@ def slow_server():
                 state["in_flight"] += 1
                 state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
                 state["requests"].append(self.path)
+                state.setdefault("agents", []).append(self.headers.get("User-Agent"))
             try:
                 time.sleep(state["delay"])
                 if self.path == "/trickle.png" and state.setdefault("trickled", 0) < 1:
@@ -370,3 +371,23 @@ def test_max_ahead_is_the_rate_times_the_deadline():
     finally:
         limited.close()
         unlimited.close()
+
+
+def test_a_random_user_agent_is_new_for_each_task(slow_server, tmp_path, monkeypatch):
+    import fake_useragent
+
+    agents = iter(["agent-1", "agent-2", "agent-3", "agent-4"])
+
+    class FakeAgents:
+        @property
+        def random(self):
+            return next(agents)
+
+    monkeypatch.setattr(fake_useragent, "UserAgent", FakeAgents)
+    slow_server["delay"] = 0
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3", "p4"]), item_key="book",
+                                sequence_key="page", http={**FAST, "use_fake_user_agent": True})
+    for rank in range(2):
+        list(reader.run(rank=rank, world_size=2))
+    by_task = slow_server["agents"][:2], slow_server["agents"][2:]
+    assert len(set(by_task[0])) == 1 and len(set(by_task[1])) == 1 and by_task[0][0] != by_task[1][0]

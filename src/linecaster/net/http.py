@@ -282,6 +282,20 @@ class HTTPFetcher:
     def get(self, url: str, fallback_url: str | None = None):
         return self.submit(url, fallback_url).result()
 
+    def new_user_agent(self) -> None:
+        """With ``use_fake_user_agent``: a new random browser User-Agent for the requests from now on (the readers
+        take one per task); otherwise nothing. The rate limits and the window stay as they are."""
+        if not self.config.use_fake_user_agent:
+            return
+        from fake_useragent import UserAgent
+
+        agent = UserAgent().random
+
+        async def set_header():
+            self._client.headers["User-Agent"] = agent
+
+        asyncio.run_coroutine_threadsafe(set_header(), self._loop).result()
+
     def close(self) -> None:
         if self._loop.is_closed():
             return

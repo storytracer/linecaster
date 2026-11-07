@@ -439,6 +439,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
             random.shuffle(entries)
         fetcher = HTTPFetcher.shared(**self.http)
+        fetcher.new_user_agent()                    # with --random-user-agent: one per task
 
         def selected():                    # skip and limit before anything is downloaded
             for i, entry in enumerate(self._pages(fetcher, entries)):
