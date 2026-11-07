@@ -1301,8 +1301,11 @@ grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher
 
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
 `resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
-or proxy error, a retryable status) is left out for an hour, and the attempt goes out again through another. With no
-proxy left a page fails (its error budget then stops the task). A 429 or 503 with a shorter `Retry-After` leaves the
+or proxy error, a 429) is left out for an hour, and the attempt goes out again through another. An HTML page where
+another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
+goes on through the next one, without counting toward the breaker. A host's policy can leave a blocked proxy out
+longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`). With no proxy left for a host the run
+stops (`StopRequests`) and says when the first one returns. A 429 or 503 with a shorter `Retry-After` leaves the
 proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, storytracer's fork). The file holds one proxy per line, a URL or
 `host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (`linecaster.net.http.redact`).
@@ -1318,12 +1321,14 @@ that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
 with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
-an HTML page where another format was expected fails and counts toward the breaker) and kept as a raw copy,
+an HTML page where another format was expected fails and counts toward the breaker, or through proxies leaves that
+proxy out) and kept as a raw copy,
 `OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in
 `OUT/resources/<rank>.jsonl.gz` (`ResourceRecordWriter`: source and final URL, status, type, size, `sha256`, ETag,
 Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--hosts FILE`
 gives each host its policy (`linecaster.net.hosts`: rate limits, proxies or direct, User-Agent, deadline, retries,
-`stop_on` statuses and `html` that stop the run without a retry), for `--items` and `--parquet`.
+how long a blocked proxy is left out, `stop_on` statuses and `html` that stop the run without a retry), for `--items`
+and `--parquet`.
 
 ## The console
 
