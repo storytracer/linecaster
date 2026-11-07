@@ -105,7 +105,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: linecaster's own, naming the project)")
     ua.add_argument("--random-user-agent", action="store_true",
-                    help="a random browser User-Agent (pybookget's fake-useragent), one per worker process")
+                    help="a random browser User-Agent (pybookget's fake-useragent), a new one for each task")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "

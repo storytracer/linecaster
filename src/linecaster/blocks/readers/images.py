@@ -70,6 +70,7 @@ class _Opener:
 
             if self._fetcher is None:
                 self._fetcher = HTTPFetcher.shared(**self.http)
+                self._fetcher.new_user_agent()            # a task's first request: its own random User-Agent
             return self._fetcher.submit(uri)
         return _future(lambda: self._read_local(uri))
 
@@ -317,6 +318,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         if data:
             yield from data
         self._budget = ErrorBudget(self, self.max_page_errors)          # one per task, over all its files
+        self._opener._fetcher = None                     # taken again (shared) at the task's first request
         slices = row_slices(self.layout(), rank, world_size)
         self._log_limit_scope(rank, world_size)
         files = list(dict.fromkeys(path for path, *_ in slices))
