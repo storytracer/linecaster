@@ -1297,7 +1297,8 @@ pipeline (its blocks, without the builder's boundaries; pages, tasks and workers
 live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
 left; warnings print above it), a line per finished task and a summary, in human units
 (`linecaster.runtime.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
-that leave the pipeline. Off a terminal, or with several workers, the progress is a log line every 30 s instead.
+that leave the pipeline; with several workers each worker process reports its counts to the console about every
+second. Off a terminal the progress is a log line every 30 s instead.
 datatrove's own console output (its pipeline listing and stats block per task, the merged stats) goes only to the
 task logs (`OUT/logs/logs/task_<rank>.log`, in its full line format) and the stats files, which keep it whole. A launch
 lists the completion markers once instead of looking them up task by task.
