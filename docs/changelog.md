@@ -21,6 +21,10 @@ the tags; the first is `v0.1.0`.
   engines (`pipelines/harvest.py`) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   `--rate-limit`, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
   started with the old default (`--tasks 1`) needs `--tasks 1`.
+- http(s) requests have a deadline per attempt (`HTTP_DEFAULTS`: pybookget's `attempt_timeout=30` and
+  `attempt_min_rate=50_000`, i.e. 30 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
+  attempt past it is cut and retried. A server that needs longer for a response without Content-Length needs
+  `http={"attempt_timeout": None}` (or a longer one). linecaster pins pybookget `bf8eee1`, which has the setting.
 - `--prefetch` and the readers' `prefetch=` argument are gone: `ManifestReader` and `ImageParquetReader` request
   `http(s)://` pages ahead in a window that sizes itself; drop the option. `linecaster.net.prefetched` takes
   `(entries, submit, cancel, future=, fetcher=)`.
@@ -42,6 +46,9 @@ the tags; the first is `v0.1.0`.
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
   `linecaster.net.divided(rate_limits, tasks)`: one task's share of rate limits.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- A response that trickles no longer holds a task: the deadline per attempt (above) cuts it and fetches it again,
+  usually through another proxy exit. In a LoC smoke run one such response took 150 s while the 199 pages behind it
+  waited; the trace shows a cut attempt as `http.attempts` 2.
 
 - The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
   60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at

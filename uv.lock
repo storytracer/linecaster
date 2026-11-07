@@ -1247,7 +1247,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/470b2aaed835cfa73ee471c4879f8129d3bf8705.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
@@ -2566,7 +2566,7 @@ wheels = [
 [[package]]
 name = "pybookget"
 version = "1.1.0"
-source = { url = "https://github.com/storytracer/pybookget/archive/470b2aaed835cfa73ee471c4879f8129d3bf8705.tar.gz" }
+source = { url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" }
 dependencies = [
     { name = "fake-useragent" },
     { name = "h2" },
@@ -2575,7 +2575,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "tqdm" },
 ]
-sdist = { hash = "sha256:0c39f5a940891283c55a8a12a68c449a364ac6d0542e7bbb6f62c0ff1efb4395" }
+sdist = { hash = "sha256:89172a527116f55b0dfd32e70e033c7d5081dc833fff82afb3cf9caf284671b9" }
 
 [package.metadata]
 requires-dist = [
