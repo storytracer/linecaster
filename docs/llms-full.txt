@@ -585,6 +585,9 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **working image** | The `working-image` preset of the `ImageConverter`: lossless WebP at full resolution, 8-bit sRGB. | not a role |
 | **transcription** | Everything read from a page by one source (`Transcription`): regions, lines, words, paragraphs, the document, the steps that made it, and its source. Named per page: `ocr_new` (linecaster's), `ocr_original` (the library's own), `ground_truth`. | not "OCR" (it also holds HTR and ground truth) |
 | **region** | An area of a page with a label (`text`, `title`, `table`, ...) from layout. | |
+| **reading order** | The rank in which a page's regions are read (`Region.reading_order`), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster. | not the order of `Transcription.lines`, which is the processing order |
+| **XY-cut**, **XY-Cut++** | The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (`linecaster.data.geometry`, the layout option `reading_order`). | |
+| **cross-layout region** | A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting. | not a region label |
 | **line** | One printed or written line: its geometry and, once recognized, its text and words. | |
 | **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
