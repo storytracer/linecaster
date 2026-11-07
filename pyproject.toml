@@ -42,6 +42,8 @@ ray = ["ray[default]>=2.40"]
 # pybookget's manifest parser and HTTP layer
 # (rate limits, retries that honor Retry-After); its core install, without its CLI
 pybookget = ["pybookget>=1.1"]
+# lists of proxies (--proxies, linecaster.net.http): retries through the next proxy, failing proxies left out a while
+resilient-httpx = ["resilient-httpx>=1.3"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
 

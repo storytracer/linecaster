@@ -33,7 +33,8 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).
+required dependencies; engines, Ray, pybookget, resilient-httpx (proxy lists) and PDFium are not (engine packages
+and extras).
 
 ## Blocks and backends
 

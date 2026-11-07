@@ -101,6 +101,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
                    help="http(s) requests (manifests, images, OCR) each worker may send, e.g. 5/1; repeatable, all "
                         "windows apply; a server sees the workers running at once times this")
+    g.add_argument("--proxies", default=None, metavar="FILE",
+                   help="http(s) requests through these proxies in turn (linecaster[resilient-httpx]): one per line, a "
+                        "URL or host:port[:user:pass] as Webshare lists them; a proxy that fails an attempt is left "
+                        "out for an hour; the environment's HTTPS_PROXY then does not apply to them")
     ua = g.add_mutually_exclusive_group()
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: linecaster's own, naming the project)")
@@ -212,6 +216,13 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--on hf-jobs needs --commit (pushed)")
     if a.backend is None:
         a.backend = "in-process" if a.on == "local" and not a.endpoint else "served"
+    if getattr(a, "proxies", None):
+        from ..net.http import read_proxies
+
+        try:
+            a.proxy_count = len(read_proxies(a.proxies))
+        except (OSError, ValueError) as e:
+            ap.error(f"--proxies: {e}")
     for kv in a.env:
         if "=" not in kv or kv.startswith("="):
             ap.error(f"--env needs KEY=VALUE, got {kv!r}")
@@ -232,14 +243,22 @@ def rate_note(a: argparse.Namespace) -> str | None:
     workers = min(a.workers or a.tasks or 1, a.tasks or 1)
     per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
-    return (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
+    note = (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
             f"{per_minute:,.0f}/min at a server")
+    if getattr(a, "proxy_count", None):
+        from ..net.http import PROXY_BLACKLIST_THRESHOLD, PROXY_BLACKLIST_TTL
+
+        note += (f" · through {a.proxy_count:,} proxies (left out for {PROXY_BLACKLIST_TTL:.0f} s after "
+                 f"{PROXY_BLACKLIST_THRESHOLD} failure{'s' if PROXY_BLACKLIST_THRESHOLD != 1 else ''})")
+    return note
 
 
 def http(a: argparse.Namespace) -> dict:
     """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
     worker's), ``--user-agent`` or ``--random-user-agent``."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
+    if getattr(a, "proxies", None):
+        out["proxy_file"] = a.proxies
     if getattr(a, "user_agent", None):
         out["user_agent"] = a.user_agent
     if getattr(a, "random_user_agent", False):
@@ -415,7 +434,8 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
-    opts = {k: v for k, v in vars(a).items() if k not in ("recipe_record", "describe_only", "has_engines")}
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count")
+    opts = {k: v for k, v in vars(a).items() if k not in internal}
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
 

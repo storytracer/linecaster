@@ -215,6 +215,10 @@ class Console:
             parts.append(size(self.bytes))
         if self.failed:
             parts.append(f"{count(self.failed)} failed")
+        from ..net.http import proxy_rotation
+
+        if (proxies := proxy_rotation()) is not None:
+            parts.append(f"proxies {count(proxies[0])}/{count(proxies[1])}")
         parts.append(f"task {count((self.task if self.task is not None else self.done_tasks) + 1)}/{count(self.tasks)}")
         if self.total and rate > 0:
             parts.append(f"ETA {duration((self.total - done) / rate)}")
