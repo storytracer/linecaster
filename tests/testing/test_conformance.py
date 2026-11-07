@@ -307,6 +307,8 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (readers.PdfReader(i["pdf"], dpi=72), {}),
         (readers.PageRecordReader(i["pages"]), {}),
         (readers.ManifestReader(str(tmp_path)), {"run": False}),       # its manifests come over http(s)
+        (readers.ResourceReader(str(tmp_path), item_key="lccn",            # its resources come over http(s)
+                                templates={"marcxml": "https://lccn.loc.gov/{item}/marcxml"}), {"run": False}),
         (layout.LayoutDetector(fake["layout"]), {}),
         (lines.LineDetector(fake["lines"]), {}),
         (lines.LineAssigner(), {}),
@@ -340,6 +342,8 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (writers.PageFileWriter(str(out / "files"), formats=("hocr", "alto", "page", "txt", "md")), {}),
         (writers.ImageFilesWriter(str(out / "images")), {}),
         (writers.RejectWriter(str(out / "rejects")), {}),
+        (writers.ResourceFilesWriter(str(out / "resources")), {}),
+        (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
         (writers.ItemTextWriter(str(out / "texts")), {}),
         (writers.ItemDocumentWriter(str(out / "documents")), {"docs": item_docs}),
         (composites.ModularTranscriber(fake["lines"], fake["recognition"], "single-region@1"), {}),
@@ -354,13 +358,14 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
 
 
 #: the labels of ``public_blocks`` (a class built twice: ``+``)
-BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader",
+BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionConverter", "UnicodeNormalizer", "CharacterNormalizer", "CharacterNormalizer+",
           "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
-          "PageFileWriter", "ImageFilesWriter", "RejectWriter", "ItemTextWriter", "ItemDocumentWriter",
+          "PageFileWriter", "ImageFilesWriter", "RejectWriter", "ResourceFilesWriter", "ResourceRecordWriter",
+          "ItemTextWriter", "ItemDocumentWriter",
           "ModularTranscriber")
 
 
