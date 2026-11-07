@@ -102,6 +102,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="http(s) requests (manifests, images, OCR) the run may send, e.g. 5/1; repeatable, all "
                         "windows apply; each task running at once gets its share")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
+    g.add_argument("--max-pages", type=int, default=None, metavar="N",
+                   help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
+                        "as the whole input would be (a smoke test of the real setup)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
     g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
     g.add_argument("--until", metavar="BLOCK", help="run the blocks up to BLOCK, then write the page records "
@@ -187,6 +190,9 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--manifest-key, --manifest-format and --existing-ocr are for --manifests")
     if a.manifests and a.item_key and not a.manifest_key:
         ap.error("--manifests: --item-key names a column of item tables, so it needs --manifest-key")
+    if a.max_pages is not None and (a.max_pages < 1 or a.manifests or a.pages or getattr(a, "page", None)):
+        ap.error("--max-pages N (at least 1) is for --parquet and IMAGES, whose pages are known before they are read; "
+                 "--manifests: --tasks 1 with --limit")
     if a.pages and (a.limit != -1 or a.skip or a.glob_pattern):
         ap.error("--pages reads whole files of page records; --limit, --skip and --glob-pattern are for the other inputs")
     try:
@@ -297,9 +303,10 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None):
             folder, glob = parent or ".", name
         return ImageParquetReader(folder, glob_pattern=glob, limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
-                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a))
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
+                                  max_pages=a.max_pages)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
-                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip,
+                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file)
 
 

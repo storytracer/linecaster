@@ -36,6 +36,7 @@ The contract is that of `ImageFolderReader(data_folder='scans/')`; the comes-aft
 | `doc_progress` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
 | `shuffle_files` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
+| `max_pages` | `int \| None` | `None` | only the first `max_pages` files (sorted, or as `paths_file` lists them), for the whole run, divided over the tasks as all of them would be; default: every file. |
 
 ## Behavior
 

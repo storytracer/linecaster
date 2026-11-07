@@ -156,3 +156,48 @@ def test_parquet_may_name_one_file(tmp_path):
     a = options(["--parquet", f"{data}/part-1.parquet", "OUT", "--item-key", "book", "--sequence-key", "page"],
                 has_engines=False)
     assert [page_of(d).page_id for d in run.reader(a).run()] == ["f1_0001", "f1_0002"]
+
+
+# ---------------------------------------------------------------- --max-pages: the first N pages of the whole run
+
+
+def test_first_rows_cuts_the_layout_as_if_the_input_ended_there():
+    from linecaster.blocks.readers.tables import first_rows
+
+    layout = [("a.parquet", (4, 4, 2)), ("b.parquet", (3,))]
+    assert first_rows(layout, 6) == [("a.parquet", (4, 2))]
+    assert first_rows(layout, 11) == [("a.parquet", (4, 4, 2)), ("b.parquet", (1,))]
+    assert first_rows(layout, 99) == layout
+
+
+def test_max_pages_runs_the_first_pages_in_automatic_tasks(tmp_path):
+    from linecaster.runtime import run
+
+    data = write_pages(tmp_path / "data", [1500, 1500], row_group_size=700)
+    a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page", "--max-pages", "2500",
+                 "--rate-limit", "150/60"], has_engines=False)
+    reader = run.reader(a)
+    run.allocate(a, [reader])
+    assert (a.tasks, a.workers) == (3, 1)                    # 2,500 pages in tasks of about 1,000
+    ids = [page_of(d).page_id for r in range(3) for d in run.reader(a).run(rank=r, world_size=3)]
+    assert ids == [f"f0_{i:04d}" for i in range(1, 1501)] + [f"f1_{i:04d}" for i in range(1, 1001)]
+
+
+def test_max_pages_takes_the_first_image_files(tmp_path):
+    from linecaster.blocks.readers.images import ImageFolderReader
+
+    (tmp_path / "scans").mkdir()
+    for i in range(1, 6):
+        (tmp_path / "scans" / f"p{i}.png").write_bytes(sample_png())
+    ids = [page_of(d).page_id for r in range(2)
+           for d in ImageFolderReader(str(tmp_path / "scans"), max_pages=3).run(rank=r, world_size=2)]
+    assert sorted(ids) == ["p1", "p2", "p3"]
+
+
+def test_max_pages_is_for_inputs_whose_pages_are_known_before_reading():
+    from linecaster.runtime import run
+
+    ap = run.parser(None)
+    for argv in (["--manifests", "m.txt", "OUT", "--max-pages", "5"], ["--parquet", "d", "OUT", "--max-pages", "0"]):
+        with pytest.raises(SystemExit):
+            run.check(ap, ap.parse_args(argv))

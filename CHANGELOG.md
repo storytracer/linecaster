@@ -45,6 +45,9 @@ the tags; the first is `v0.1.0`.
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
   `linecaster.net.divided(rate_limits, tasks)`: one task's share of rate limits.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- `--max-pages N` (`--parquet`, IMAGES; `max_pages` of `ImageParquetReader` and `ImageFolderReader`): the first N pages
+  of the input for the whole run, in the same automatic tasks, so a smoke test is the real setup stopped early
+  (`--limit` counts per task).
 - A response that trickles no longer holds a task: the deadline per attempt (above) cuts it and fetches it again,
   usually through another proxy exit. In a LoC smoke run one such response took 150 s while the 199 pages behind it
   waited; the trace shows a cut attempt as `http.attempts` 2.
