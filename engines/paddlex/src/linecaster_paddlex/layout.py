@@ -2,12 +2,13 @@
 
 ``PP-DocLayoutV3`` (default) predicts region polygons and the reading order itself; PaddleX hands
 its boxes back already sorted by that order. ``PP-DocLayout_plus-L`` (PP-StructureV3's layout
-model) only gives boxes, so its regions are ordered with our XY-cut.
+model) only gives boxes, so its regions are ordered by linecaster: plain XY-cut (``reading_order="xy-cut"``, the
+default) or XY-Cut++ (``"xy-cut++"``, which also reads the labels).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data import Region as LCRegion, StepInfo, Transcription
 from linecaster.data.geometry import BBox, xywh
 from linecaster.data.geometry.order import suppress_contained, xy_cut_order
+from linecaster.data.geometry.xy_cut_plus_plus import xy_cut_plus_plus_order
 
 from .compat import create_predictor, paddle_image
 from .weights import check, resolve
@@ -106,19 +108,20 @@ def regions_from_boxes(boxes, page_height: float, header_zone: float = 0.15) -> 
 class PaddleLayout:
     """PP-DocLayoutV3 (default) region detection with the model's own reading order.
 
-    Any PaddleX layout-detection model name works; models without learned order get XY-cut order.
+    Any PaddleX layout-detection model name works; models without learned order are ordered by
+    ``reading_order``: ``xy-cut`` (plain XY-cut) or ``xy-cut++`` (XY-Cut++ on boxes, labels and the page size).
     ``threshold`` and ``merge_mode`` default to PaddleX's own settings for the two known models.
     """
 
     def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
                  threshold: float | dict[int, float] | None = None,
                  header_zone: float = 0.15, nms: bool = True, merge_mode: str | dict[int, str] | None = None,
-                 max_containment: float = 0.8, model_dir: str | None = None):
+                 max_containment: float = 0.8, reading_order: str = "xy-cut", model_dir: str | None = None):
         defaults = MODEL_DEFAULTS.get(model_name, {"threshold": 0.5, "merge_mode": "large"})
         self.model_name, self.header_zone = model_name, header_zone
         self.threshold = defaults["threshold"] if threshold is None else threshold
         self.merge_mode = defaults["merge_mode"] if merge_mode is None else merge_mode
-        self.nms, self.max_containment = nms, max_containment
+        self.nms, self.max_containment, self.reading_order = nms, max_containment, reading_order
         self.predictor = create_predictor(model_name, device, model_dir=model_dir)
 
     def analyze(self, image: np.ndarray) -> list[Region]:
@@ -131,14 +134,20 @@ class PaddleLayout:
             for rank, r in enumerate(regions):
                 r.order = rank
         else:
-            for rank, i in enumerate(xy_cut_order([r.bbox for r in regions])):
+            boxes = [r.bbox for r in regions]
+            if self.reading_order == "xy-cut++":
+                ranked = xy_cut_plus_plus_order(boxes, [r.label for r in regions], (image.shape[1], image.shape[0]))
+            else:
+                ranked = xy_cut_order(boxes)
+            for rank, i in enumerate(ranked):
                 regions[i].order = rank
         return regions
 
 
 class PaddleLayoutEngine:
     """linecaster engine for the layout step: fills ``Transcription.regions`` (Docling labels,
-    the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
+    PP-DocLayoutV3's reading order and polygons, or the order ``reading_order`` gives). Replaces any regions already
+    present.
     The model files: ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name``
     (``weights.resolve``)."""
 
@@ -150,7 +159,8 @@ class PaddleLayoutEngine:
         model_config = ConfigDict(extra="forbid", protected_namespaces=())
 
         model_name: str = Field("PP-DocLayoutV3", description="PaddleX layout model (PP-DocLayoutV3: learned "
-                                                              "reading order and polygons; others: XY-cut order)")
+                                                              "reading order and polygons; others: ordered by "
+                                                              "reading_order)")
         device: str = Field("auto", description="auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers)")
         threshold: float | dict[int, float] | None = Field(
             None, description="score threshold, one or per class index; None: PaddleX's own for the model "
@@ -163,13 +173,19 @@ class PaddleLayoutEngine:
                               "PaddleX's own for the model")
         max_containment: float = Field(0.8, description="a region contained in another by more than this share "
                                                         "of its area is dropped")
+        reading_order: Literal["xy-cut", "xy-cut++"] = Field(
+            "xy-cut", description="the order of the regions of a model without learned reading order: xy-cut "
+                                  "(plain recursive XY-cut on the boxes) or xy-cut++ (XY-Cut++, Liu et al. 2025: "
+                                  "titles, figures, tables and cross-column text masked, the rest cut by density, "
+                                  "the masked regions matched back by label and distance); PP-DocLayoutV3 keeps its "
+                                  "own order")
 
     def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
                  threshold: float | dict[int, float] | None = None, header_zone: float = 0.15, nms: bool = True,
                  merge_mode: str | dict[int, str] | None = None, max_containment: float = 0.8,
-                 weights: dict | None = None):
+                 reading_order: str = "xy-cut", weights: dict | None = None):
         o = self.Options(model_name=model_name, device=device, threshold=threshold, header_zone=header_zone, nms=nms,
-                         merge_mode=merge_mode, max_containment=max_containment)
+                         merge_mode=merge_mode, max_containment=max_containment, reading_order=reading_order)
         check(o.model_name, weights)
         self.options, self.weights = o, weights
         self.name, self.device = o.model_name, o.device
