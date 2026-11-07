@@ -41,7 +41,7 @@ The comes-after and comes-before rows are derived from every block's contract.
 | `doc_progress` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
 | `shuffle_files` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
-| `task_per_item` | `bool` | `False` |  |
+| `task_per_item` | `bool` | `False` | `auto_tasks` gives one task per item (`pipelines/harvest.py`); default about `ITEMS_PER_TASK` items per task. |
 
 ## Behavior
 

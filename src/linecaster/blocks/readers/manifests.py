@@ -150,6 +150,8 @@ class ManifestReader(Contracted, BaseDiskReader):
         http: pybookget ``Config`` fields over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task,
             ``timeout``, ``proxy``, ``iiif_format``, ``iiif_quality``, ``mets_image_groups``, ...).
         default_metadata: goes into every page's metadata.
+        task_per_item: ``auto_tasks`` gives one task per item (``pipelines/harvest.py``); default about
+            ``ITEMS_PER_TASK`` items per task.
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
