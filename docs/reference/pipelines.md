@@ -302,6 +302,18 @@ rate). One worker keeps any rate limit busy: a reader's requests ahead grow whil
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
 
+## The console
+
+A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the
+pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
+live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
+left; warnings print above it), a line per finished task and a summary, in human units
+(`linecaster.runtime.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
+that leave the pipeline. Off a terminal, or with several workers, the progress is a log line every 30 s instead.
+datatrove's own console output (its pipeline listing and stats block per task, the merged stats) goes only to the
+task logs (`OUT/logs/logs/task_<rank>.log`, in its full line format) and the stats files, which keep it whole. A launch
+lists the completion markers once instead of looking them up task by task.
+
 ## Secrets
 
 `linecaster.runtime.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task

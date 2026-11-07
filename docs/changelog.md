@@ -46,6 +46,11 @@ the tags; the first is `v0.1.0`.
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
   `linecaster.net.divided(rate_limits, tasks)`: one task's share of rate limits.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- The console of a local run (`linecaster.runtime.console`, `linecaster.runtime.local.LocalExecutor`): one line
+  naming the pipeline, a live progress line for the whole run (pages of the total, rate, size, failed pages, task,
+  time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
+  datatrove's pipeline listing (with the builder's boundary steps) and stats blocks go only to the task logs. The
+  completion markers are listed once per launch instead of looked up task by task.
 - `--max-pages N` (`--parquet`, IMAGES; `max_pages` of `ImageParquetReader` and `ImageFolderReader`): the first N pages
   of the input for the whole run, in the same automatic tasks, so a smoke test is the real setup stopped early
   (`--limit` counts per task).
