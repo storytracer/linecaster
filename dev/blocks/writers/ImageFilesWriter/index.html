@@ -853,8 +853,9 @@ without an item), the extension from the image's format. It reads <code>image</c
 <code>image.uri</code> then names the written file and <code>image.extra["source_uri"]</code> where it came from, so page records written after this block
 point at the copy (<code>PageRecordReader</code> fetches it from there), and <code>ImageFolderReader(output_folder,
 item_from_parent=True)</code> reads the folder as it is. Pages pass through; a page that carries errors and no image
-(e.g. its download failed), or whose file an earlier launch wrote (<code>image.extra["reused"]</code>, from a reader's
-<code>reuse_folder</code>), passes through unchanged, with no file written. A local file appears only once it is whole
+(e.g. its download failed) passes through unchanged, with no file written; a page read from the file an earlier
+launch wrote (<code>image.extra["reused"]</code>, a reader's <code>reuse_folder</code>) gets its record as written, the file
+left as it is. A local file appears only once it is whole
 (written as <code>&lt;name&gt;.part</code>, then renamed), so a reader never takes a half-written file for a done page.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
