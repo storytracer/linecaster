@@ -29,6 +29,7 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
+from .existing import ExistingImages, Reused, reused_page
 from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, row_slices, rows_between, slice_batches,
                      table_rows, tasks_for, total_rows, whole_file)
 from ..base.block import reported_file
@@ -243,6 +244,9 @@ class ImageParquetReader(Contracted, ParquetReader):
         limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
         max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
             ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
+        reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
+            page whose file is already there is passed on without a request (``linecaster.blocks.readers.existing``:
+            one listing per item, no contents read), so a resumed harvest does not fetch it again. Default: none.
         task_per_item: the tasks divide the items (the ``item_key`` values, needs it; an item's rows need not be
             together), not the rows, and ``auto_tasks`` is one task per item: each item whole in its task, a task that
             fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
@@ -263,7 +267,8 @@ class ImageParquetReader(Contracted, ParquetReader):
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
-                 max_pages: int | None = None, task_per_item: bool = False):
+                 max_pages: int | None = None, task_per_item: bool = False,
+                 reuse_folder: DataFolderLike | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
@@ -271,6 +276,8 @@ class ImageParquetReader(Contracted, ParquetReader):
         if task_per_item and not item_key:
             raise PipelineConfigError("task_per_item needs item_key: the items are runs of rows with the same item")
         self.max_pages, self.task_per_item = max_pages, task_per_item
+        self.reuse_folder = reuse_folder
+        self._existing = ExistingImages(reuse_folder) if reuse_folder is not None else None
         self._starts = None
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
@@ -311,6 +318,13 @@ class ImageParquetReader(Contracted, ParquetReader):
         """The pages task ``rank`` of ``world_size`` reads: its shard's rows, after ``skip``, up to ``limit``."""
         rows = max(0, sum(hi - lo for lo, hi in self._task_ranges(rank, world_size)) - self.skip)
         return rows if self.limit == -1 else min(rows, self.limit)
+
+    def _source(self, value, filepath: str, page_id: str) -> str:
+        """The URI the page's image would be read from (``_request``'s), without reading it."""
+        path = value.get("path") if isinstance(value, dict) else value if isinstance(value, str) else None
+        if isinstance(value, dict) and value.get("bytes") is not None or not path:
+            return f"{self.data_folder.resolve_paths(filepath)}#{page_id}"
+        return path if "://" in path or path.startswith("/") else self.image_folder.resolve_paths(path)
 
     def _request(self, value, filepath: str, page_id: str) -> tuple[Future, str | None]:
         """A future of the page's image (``_Opener.submit``: an http(s) request starts now) and the image's URI."""
@@ -388,6 +402,10 @@ class ImageParquetReader(Contracted, ParquetReader):
 
     def _read_file(self, filepath: str, slices: list | None):
         def submit(entry):
+            page_id, item = entry[0], entry[1]
+            copy = self._existing.get(None if item is None else str(item), page_id) if self._existing else None
+            if copy is not None:                    # already written by an earlier launch: no request
+                return entry, _future(lambda: Reused(copy)), self._source(entry[3], filepath, page_id)
             return (entry, *self._request(entry[3], filepath, entry[0]))
 
         budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
@@ -397,6 +415,12 @@ class ImageParquetReader(Contracted, ParquetReader):
             page_id, item, sequence, _, row = entry
             item_id = None if item is None else str(item)
             sequence = None if sequence is None else int(sequence)
+            if future.done() and not future.exception() and isinstance(future.result(), Reused):
+                metadata = {**(self.default_metadata or {}),
+                            **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
+                self.stat_update("reused")
+                yield reused_page(page_id, future.result().copy, uri, item_id, sequence, metadata)
+                continue
             budget.page()
             failure = None
             with self.track_time():

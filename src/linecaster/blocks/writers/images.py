@@ -19,7 +19,9 @@ class ImageFilesWriter(Contracted, PipelineStep):
     ``image.uri`` then names the written file and ``image.extra["source_uri"]`` where it came from, so page records written after this block
     point at the copy (``PageRecordReader`` fetches it from there), and ``ImageFolderReader(output_folder,
     item_from_parent=True)`` reads the folder as it is. Pages pass through; a page that carries errors and no image
-    (e.g. its download failed) passes through unchanged, with no file written.
+    (e.g. its download failed), or whose file an earlier launch wrote (``image.extra["reused"]``, from a reader's
+    ``reuse_folder``), passes through unchanged, with no file written. A local file appears only once it is whole
+    (written as ``<name>.part``, then renamed), so a reader never takes a half-written file for a done page.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
@@ -49,21 +51,26 @@ class ImageFilesWriter(Contracted, PipelineStep):
         from datatrove.io import get_datafolder
 
         from ..base.page import failed, image_bytes, page_of, set_page
+        from ..readers.existing import is_reused
         from ..readers.manifests import OCR_EXTENSIONS, OCR_ORIGINAL
 
         out = get_datafolder(self.output_folder)
         ocr_out = get_datafolder(self.ocr_folder) if self.ocr_folder is not None else None
         for doc in data:
-            if failed(doc) and not any(m.type == MediaType.IMAGE and m.media_bytes for m in doc.media):
-                self.stat_update("skipped_after_error")          # nothing to write; its record keeps the error
-                yield doc
-                continue
+            if not any(m.type == MediaType.IMAGE and m.media_bytes for m in doc.media):
+                if is_reused(doc):
+                    self.stat_update("reused")                    # written by an earlier launch
+                    yield doc
+                    continue
+                if failed(doc):
+                    self.stat_update("skipped_after_error")      # nothing to write; its record keeps the error
+                    yield doc
+                    continue
             page = page_of(doc)
             fmt = (page.image.format if page.image else None) or ""
             path = self._path(page, IMAGE_FILE_EXTENSIONS.get(fmt, fmt or "bin"))
             with self.track_time():
-                with out.open(path, "wb") as f:
-                    f.write(image_bytes(doc))
+                _write_whole(out, path, image_bytes(doc))
             source = page.image.uri
             extra = {**page.image.extra, "source_uri": source} if source else page.image.extra
             page = page.model_copy(update={"image": page.image.model_copy(
@@ -79,3 +86,16 @@ class ImageFilesWriter(Contracted, PipelineStep):
                 self.stat_update("ocr_files")
             set_page(doc, page)
             yield doc
+
+
+def _write_whole(folder, path: str, data: bytes) -> None:
+    """``data`` to ``path`` in ``folder``, appearing only whole: a local file is written as ``<path>.part`` and
+    renamed; object storage makes an object visible once its upload is complete anyway."""
+    protocol = folder.fs.protocol if isinstance(folder.fs.protocol, str) else folder.fs.protocol[0]
+    if protocol not in ("file", "local"):
+        with folder.open(path, "wb") as f:
+            f.write(data)
+        return
+    with folder.open(f"{path}.part", "wb") as f:
+        f.write(data)
+    folder.mv(f"{path}.part", path)

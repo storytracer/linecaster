@@ -289,10 +289,12 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
             a.workers = min(a.tasks, os.cpu_count() or 1)
 
 
-def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False):
+def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
+           reuse_folder: str | None = None):
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
-    (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``)."""
+    (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
+    pipeline writes its images, so a resumed run passes the ones already there on without a request."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
 
@@ -309,7 +311,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a),
-                              task_per_item=task_per_item)
+                              task_per_item=task_per_item, reuse_folder=reuse_folder)
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a))
     if getattr(a, "page", None):
@@ -323,7 +325,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
         return ImageParquetReader(folder, glob_pattern=glob, limit=a.limit,
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
-                                  max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key))
+                                  max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
+                                  reuse_folder=reuse_folder)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file)

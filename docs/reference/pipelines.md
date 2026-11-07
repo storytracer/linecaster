@@ -294,7 +294,10 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
 (`pipelines/harvest.py`) asks its reader for one item per task (`task_per_item`): the tasks divide the items, an
 item's rows wherever they are in the table (`tables.item_runs`), so every item is whole in its task and a task that
-fails costs one item. Parquet tables are
+fails costs one item. Its reader also gets `reuse_folder` (`OUT/images`): when it reaches an item it lists the item's
+folder once (an fsspec listing, names and sizes only, so no egress on any storage) and passes a page whose image
+file is already there on without a request (`linecaster.blocks.readers.existing`); such a record says
+`image.extra.reused`, without `sha256`, width and height, and the console counts it as done but not in the rate. Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 `--max-pages N` (`--parquet`, IMAGES; the readers' `max_pages`) reads the input as if it ended after its first N
 pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove.

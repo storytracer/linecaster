@@ -144,7 +144,7 @@ def bar(fraction: float, width: int = 20) -> str:
 #: the console of a run launched in this process (process, Console), set by ``Console.open``
 _CONSOLE: list = [None]
 #: what the tasks of this worker process have done so far, for the run's console (``Progress.report``)
-_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reported": 0.0}
+_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reused": 0, "reported": 0.0}
 
 
 def active() -> Console | None:
@@ -165,7 +165,7 @@ class Console:
         self.title, self.tasks, self.total = title, tasks, total
         self.done_pages, self.done_tasks = done_pages, done_tasks
         self.shared, self._done_before = shared, done_tasks
-        self.pages = self.failed = self.bytes = 0
+        self.pages = self.failed = self.bytes = self.reused = 0
         self.task: int | None = None
         self.live = sys.stderr.isatty() if live is None else live
         self.pid = os.getpid()
@@ -212,8 +212,11 @@ class Console:
         self.task = rank
         self._render(force=True)
 
-    def page(self, nbytes: int, failed: bool) -> None:
+    def page(self, nbytes: int, failed: bool, reused: bool = False) -> None:
         with self._lock:
+            if reused:                              # done before, not fetched now: not in the rate
+                self.reused += 1
+                return
             self.pages += 1
             self.bytes += nbytes
             self.failed += failed
@@ -236,6 +239,7 @@ class Console:
         self.failed = sum(r[1] for r in reports)
         self.bytes = sum(r[2] for r in reports)
         self.done_tasks = self._done_before + sum(r[3] for r in reports)
+        self.reused = sum(r[4] for r in reports)
 
     # -- what is shown
 
@@ -250,7 +254,7 @@ class Console:
         return (self.pages - p0) / (now - t0) if now > t0 else 0.0
 
     def status(self) -> str:
-        done = self.done_pages + self.pages
+        done = self.done_pages + self.reused + self.pages
         rate = self.rate()
         parts = []
         if self.total:
@@ -262,6 +266,8 @@ class Console:
             parts.append(size(self.bytes))
         if self.failed:
             parts.append(f"{count(self.failed)} failed")
+        if self.reused:
+            parts.append(f"{count(self.reused)} reused")
         from ..net.http import proxy_rotation
 
         if (proxies := proxy_rotation()) is not None:
@@ -303,6 +309,8 @@ class Console:
             what += f" ({count(self.failed)} failed)"
         if self.bytes:
             what += f", {size(self.bytes)}"
+        if self.reused:
+            what += f"; {count(self.reused)} reused (already there)"
         head = "stopped" if error is not None else "done"
         resumed = f"; {count(self.done_pages)} pages from before" if self.done_pages else ""
         return (f"{self.title} {head}: {what} in {duration(seconds)} ({per_minute(self.pages, seconds)}){resumed}, "
@@ -327,7 +335,7 @@ class Progress(Observer):
 
     def _reset(self, rank: int, world_size: int) -> None:
         self.rank, self.world_size = rank, world_size
-        self.pages = self.failed = self.bytes = 0
+        self.pages = self.failed = self.bytes = self.reused = 0
         self.start = self._logged = time.monotonic()
 
     def __getstate__(self):                     # its counts stay where they are; the shared dict travels
@@ -344,7 +352,8 @@ class Progress(Observer):
             return
         _WORKER["reported"] = now
         try:
-            self.report[os.getpid()] = (_WORKER["pages"], _WORKER["failed"], _WORKER["bytes"], _WORKER["tasks"])
+            self.report[os.getpid()] = (_WORKER["pages"], _WORKER["failed"], _WORKER["bytes"], _WORKER["tasks"],
+                                        _WORKER["reused"])
         except Exception:  # noqa: BLE001 - the run's console is gone; the pages go on
             self.report = None
 
@@ -355,17 +364,24 @@ class Progress(Observer):
 
     def on_leave(self, doc) -> None:
         from ..blocks.base.page import failed
+        from ..blocks.readers.existing import is_reused
 
-        nbytes, bad = _nbytes(doc), failed(doc)
-        self.pages += 1
-        self.bytes += nbytes
-        self.failed += bad
+        nbytes, bad, reused = _nbytes(doc), failed(doc), is_reused(doc)
+        if reused:
+            self.reused += 1
+        else:
+            self.pages += 1
+            self.bytes += nbytes
+            self.failed += bad
         if (c := active()) is not None:
-            c.page(nbytes, bad)
+            c.page(nbytes, bad, reused)
         elif self.report is not None:
-            _WORKER["pages"] += 1
-            _WORKER["failed"] += bad
-            _WORKER["bytes"] += nbytes
+            if reused:
+                _WORKER["reused"] += 1
+            else:
+                _WORKER["pages"] += 1
+                _WORKER["failed"] += bad
+                _WORKER["bytes"] += nbytes
             self._report()
         elif time.monotonic() - self._logged >= EVERY_SECONDS:
             self._logged = time.monotonic()
@@ -390,4 +406,6 @@ class Progress(Observer):
             out += f", {count(self.failed)} failed"
         if self.bytes:
             out += f", {size(self.bytes)}"
+        if self.reused:
+            out += f", {count(self.reused)} reused"
         return out + (f" in {duration(seconds)}" if final else "") + f" ({per_minute(self.pages, seconds)})"

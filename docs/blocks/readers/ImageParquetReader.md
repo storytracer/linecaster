@@ -43,6 +43,7 @@ The contract is that of `ImageParquetReader(data_folder='pages/')`; the comes-af
 | `http` | `dict \| None` | `None` | pybookget `Config` fields (rate limits, retries) for `http(s)://` image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (`linecaster.net.http.prefetched`), and pages go on as their images arrive: a slow request (one being retried) delays only its own page. Rows read without a request (bytes, files) keep their order. |
 | `max_pages` | `int \| None` | `None` | only the first `max_pages` rows of the input, for the whole run: the tables are read as if they ended there, divided over the tasks (and `auto_tasks` counted) the same way; default: every row. |
 | `task_per_item` | `bool` | `False` | the tasks divide the items (the `item_key` values, needs it; an item's rows need not be together), not the rows, and `auto_tasks` is one task per item: each item whole in its task, a task that fails costs one item (`pipelines/harvest.py`). Default: rows in equal shards. |
+| `reuse_folder` | `DataFolderLike \| None` | `None` | where `ImageFilesWriter` writes the images (`pipelines/harvest.py`: `OUT/images`): a page whose file is already there is passed on without a request (`linecaster.blocks.readers.existing`: one listing per item, no contents read), so a resumed harvest does not fetch it again. Default: none. |
 
 ## Behavior
 
