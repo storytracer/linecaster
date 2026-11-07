@@ -1507,7 +1507,8 @@ grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFe
 <p><strong>Proxies.</strong> <code>--proxies FILE</code> sends the http(s) requests through a list of proxies with resilient-httpx (the extra
 <code>resilient-httpx</code>): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
 or proxy error, a retryable status) is left out for an hour, and the attempt goes out again through another. With no
-proxy left a page fails (its error budget then stops the task). The file holds one proxy per line, a URL or
+proxy left a page fails (its error budget then stops the task). A 429 or 503 with a shorter <code>Retry-After</code> leaves the
+proxy out only that long (resilient-httpx's <code>blacklist_ttl_from_retry_after</code>, storytracer's fork). The file holds one proxy per line, a URL or
 <code>host:port[:user:pass]</code> as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (<code>linecaster.net.http.redact</code>).</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
