@@ -55,6 +55,34 @@ def close_task_logger(logfile) -> None:
     logfile.close()
 
 
+#: stats files read at once for the size before (``size_before``)
+STATS_BATCH = 1000
+
+
+def size_before(logging_dir, ranks) -> int:
+    """The bytes of the images the finished tasks ``ranks`` read (their readers' ``media_size``: downloaded and
+    reused), from datatrove's stats files (``logging_dir/stats/<rank>.json``), read in batches through fsspec."""
+    import json
+
+    from datatrove.io import get_datafolder
+
+    folder, total = get_datafolder(logging_dir), 0
+    ranks = sorted(ranks)
+    for i in range(0, len(ranks), STATS_BATCH):
+        paths = [f"stats/{r:05d}.json" for r in ranks[i:i + STATS_BATCH]]
+        for raw in folder.cat(paths, on_error="omit").values():
+            try:
+                steps = json.loads(raw)
+            except ValueError:
+                continue
+            for step in steps:
+                media = (step.get("stats") or {}).get("media_size")
+                if isinstance(media, dict):
+                    total += int(media.get("total") or 0)
+                    break                            # the reader's; later blocks do not read images again
+    return total
+
+
 def blocks(pipeline) -> list[str]:
     """The pipeline's blocks by name, without the builder's boundaries."""
     from .observers import Boundary
@@ -132,6 +160,18 @@ class LocalExecutor(LocalPipelineExecutor):
                             o.report = shared
         console = Console(self.title, self.local_tasks, total, done_pages, len(self._completed),
                           live=sys.stderr.isatty(), shared=shared).open()
+        if self._completed:                      # their size, read while the run starts
+            import threading
+
+            def read_size() -> None:
+                try:
+                    console.add_before(size_before(self.logging_dir, self._completed))
+                except Exception as e:  # noqa: BLE001 - the size is shown without what came before
+                    logger.warning("the size of the {n} finished tasks could not be read: {error}",
+                                   n=len(self._completed), error=str(e))
+                    console.add_before(0)
+
+            threading.Thread(target=read_size, name="linecaster-size-before", daemon=True).start()
         error = None
         try:
             return super().run()

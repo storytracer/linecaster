@@ -1,8 +1,9 @@
 """``ExistingImages``: the page images an earlier launch already wrote, so a harvest that is resumed does not fetch
 them again. ``ImageFilesWriter`` writes ``<item_id>/<page_id>.<ext>``; a reader with ``reuse_folder`` lists an item's
-folder once, when it reaches the item (one fsspec listing: names and sizes, no contents, so no egress on any
-storage), and passes a page whose file is there on without a request (``reused_page``). Its record names the copy and
-says ``image.extra["reused"]``; ``sha256``, width and height stay empty, since the bytes are not read.
+folder once, when it reaches the item (one fsspec listing: names and sizes), and reads a page whose file is there
+from the storage instead of fetching it from the source (``Reused``). Its record is complete (``sha256``, width,
+height, as for a download) and says ``image.extra["reused"]``. Only pages of items whose task was interrupted are
+read back (with one item per task, at most one item per worker and restart), so storage egress stays small.
 """
 from __future__ import annotations
 
@@ -57,33 +58,25 @@ class ExistingImages:
 
 
 class Reused:
-    """What a reader's request window holds for a page whose file is already there: the copy, no request."""
+    """What a reader's request window holds for a page whose file is already there: the copy and its bytes, read from
+    the storage instead of fetched from the source."""
 
-    def __init__(self, copy: tuple[str, int, str]):
-        self.copy = copy
+    def __init__(self, copy: tuple[str, int, str], data: bytes):
+        self.copy, self.data = copy, data
 
 
-def reused_page(page_id: str, copy: tuple[str, int, str], source_uri: str | None, item_id: str | None,
-                sequence: int | None, metadata: dict):
-    """The document of a page whose image file is already there: no image bytes; ``image.uri`` the copy,
-    ``image.extra`` its ``source_uri``, ``reused`` and the file's ``bytes``; the format from the extension."""
-    from datatrove.data import Document
+def mark_reused(doc) -> None:
+    """Mark a page read from its existing file (``image.extra["reused"]``): ``ImageFilesWriter`` does not write it
+    again, and the console counts it apart from the downloads."""
+    from ..base.page import page_of, set_page
 
-    from ...data.page import Page, PageImage
-    from ..base.page import set_page
-    from ..writers.images import IMAGE_FILE_EXTENSIONS
-
-    uri, size, ext = copy
-    formats = {v: k for k, v in IMAGE_FILE_EXTENSIONS.items()}
-    image = PageImage(uri=uri, format=formats.get(ext, ext), extra={"source_uri": source_uri, "reused": True,
-                                                                    "bytes": size})
-    doc = Document(text="", id=page_id, media=[])
-    set_page(doc, Page(page_id=page_id, item_id=item_id, sequence=sequence, image=image, metadata=metadata))
-    return doc
+    page = page_of(doc)
+    page.image.extra["reused"] = True
+    set_page(doc, page)
 
 
 def is_reused(doc) -> bool:
-    """Whether ``doc`` is a page passed on from its existing image file (``reused_page``)."""
+    """Whether ``doc`` is a page read from its existing image file (``mark_reused``)."""
     from ...data.page import PAGE_KEY
 
     page = doc.metadata.get(PAGE_KEY) or {}

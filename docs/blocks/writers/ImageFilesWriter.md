@@ -33,8 +33,9 @@ without an item), the extension from the image's format. It reads `image` and re
 `image.uri` then names the written file and `image.extra["source_uri"]` where it came from, so page records written after this block
 point at the copy (`PageRecordReader` fetches it from there), and `ImageFolderReader(output_folder,
 item_from_parent=True)` reads the folder as it is. Pages pass through; a page that carries errors and no image
-(e.g. its download failed), or whose file an earlier launch wrote (`image.extra["reused"]`, from a reader's
-`reuse_folder`), passes through unchanged, with no file written. A local file appears only once it is whole
+(e.g. its download failed) passes through unchanged, with no file written; a page read from the file an earlier
+launch wrote (`image.extra["reused"]`, a reader's `reuse_folder`) gets its record as written, the file
+left as it is. A local file appears only once it is whole
 (written as `<name>.part`, then renamed), so a reader never takes a half-written file for a done page.
 
 ## Contract

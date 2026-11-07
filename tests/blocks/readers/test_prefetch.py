@@ -381,8 +381,9 @@ def test_a_random_user_agent_is_new_for_each_task(slow_server, tmp_path, monkeyp
     assert len(set(by_task[0])) == 1 and len(set(by_task[1])) == 1 and by_task[0][0] != by_task[1][0]
 
 
-def test_images_already_written_are_reused_without_a_request(slow_server, tmp_path):
-    """A resumed harvest: the files of pages 1 and 3 are there (one listing of the item's folder finds them)."""
+def test_images_already_written_are_read_back_instead_of_fetched(slow_server, tmp_path):
+    """A resumed harvest: the files of pages 1 and 3 are there (one listing of the item's folder finds them); they are
+    read from the storage, so their records are complete, and the writer leaves the files as they are."""
     from linecaster.blocks.readers.existing import is_reused
     from linecaster.blocks.writers.images import ImageFilesWriter
 
@@ -392,19 +393,22 @@ def test_images_already_written_are_reused_without_a_request(slow_server, tmp_pa
     for page in ("b_0001", "b_0003"):
         (images / "b" / f"{page}.png").write_bytes(sample_png())
     (images / "b" / "b_0004.png.part").write_bytes(b"half")               # a file still being written: not done
+    before = (images / "b" / "b_0001.png").stat().st_mtime_ns
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3", "p4"]), item_key="book",
                                 sequence_key="page", http=FAST, reuse_folder=str(images))
     writer = ImageFilesWriter(str(images))
     docs = sorted(writer.run(reader.run()), key=lambda d: d.id)
     assert sorted(slow_server["requests"]) == ["/p2.png", "/p4.png"]           # only the missing ones
     assert [is_reused(d) for d in docs] == [True, False, True, False]
-    reused = page_of(docs[0])
+    reused, fetched = page_of(docs[0]), page_of(docs[1])
     assert reused.image.uri == str(images / "b" / "b_0001.png") and reused.image.format == "png"
-    assert reused.image.extra["source_uri"] == f"{slow_server['base']}/p1.png" and reused.image.extra["bytes"] > 0
-    assert reused.image.sha256 is None and not failed(docs[0])
+    assert reused.image.extra["source_uri"] == f"{slow_server['base']}/p1.png"
+    assert reused.image.sha256 == fetched.image.sha256 and reused.image.width == fetched.image.width   # complete
     assert writer.stats["reused"].total == 2 and writer.stats["images"].total == 2
-    assert sorted(p.name for p in (images / "b").iterdir() if not p.name.endswith(".part")) == [
-        "b_0001.png", "b_0002.png", "b_0003.png", "b_0004.png"]
+    assert (images / "b" / "b_0001.png").stat().st_mtime_ns == before            # not written again
+    assert reader.stats["reused"].total == 2 and reader.stats["pages"].total == 4
+    files = [p for p in (images / "b").iterdir() if not p.name.endswith(".part")]
+    assert reader.stats["media_size"].total == sum(p.stat().st_size for p in files)   # every page's bytes, read
 
 
 def test_the_console_counts_reused_pages_as_done_but_not_in_the_rate():
