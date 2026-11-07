@@ -202,5 +202,7 @@ def test_parquet_reader_without_parquet_files_is_an_error(tmp_path):
 
     (tmp_path / "book").mkdir()
     (tmp_path / "book" / "book_0001.webp").write_bytes(b"not parquet")
-    with pytest.raises(RuntimeError, match="No files found"):
+    from linecaster.errors import PipelineConfigError
+
+    with pytest.raises(PipelineConfigError, match="No Parquet files found"):
         list(ImageParquetReader(str(tmp_path)).run())

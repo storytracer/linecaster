@@ -97,7 +97,7 @@ Any fsspec path works: local, `s3://`, `hf://`. Manifests need the `pybookget` e
 For large collections, fetch the images once, then transcribe, then bind the pages into items:
 
 ```bash
-uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --tasks 16 --rate-limit 5/1
+uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
 uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe squiddle --item-shards 64
 uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
 ```

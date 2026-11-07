@@ -255,7 +255,7 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 | Operational (left out) | Why |
 |---|---|
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
-| which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `prefetch`, `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
+| which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
 | servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
 | server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
@@ -279,6 +279,26 @@ current process without its engines: the script is loaded as a module, its optio
 without checking that their engines are installed, nothing loaded or started. `describe_recipe(ref)` describes a
 recipe edition that way (its pipeline script by the recipe's pipeline id, `--recipe REF`, placeholder folders):
 what `linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
+
+## Tasks, workers and rate limits
+
+`--tasks` and `--workers` are chosen when the command line leaves them open (`linecaster.runtime.run.allocate`):
+
+| Pipeline | `--tasks` | `--workers` |
+|---|---|---|
+| with engines | 1 | every task |
+| without engines, with `--rate-limit` | the reader's `auto_tasks` (from the input), else 1 | 1 |
+| without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
+
+`auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
+(`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. Parquet tables are
+divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
+
+`--rate-limit` is what the servers see from the whole run: each task running at once gets its share
+(`linecaster.net.http.divided`: a window's requests divided, at least one, the window stretched to keep the average
+rate). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
+(`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
+grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
 
 ## Secrets
 

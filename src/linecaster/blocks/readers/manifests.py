@@ -21,6 +21,7 @@ from loguru import logger
 
 from ...errors import PipelineConfigError
 from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url, prefetched
+from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
 
@@ -87,14 +88,19 @@ class ManifestReader(Contracted, BaseDiskReader):
     """Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an
     OAI-PMH response).
 
-    Entries, distributed over tasks in turn (``[rank::world_size]``) the way datatrove distributes files:
+    Entries:
 
     * without ``manifest_key``: manifests: the files under ``data_folder`` matching ``glob_pattern``, or the
-      lines of ``paths_file`` (a manifest URL, or a path relative to ``data_folder``);
+      lines of ``paths_file`` (a manifest URL, or a path relative to ``data_folder``), distributed over tasks in
+      turn (``[rank::world_size]``) the way datatrove distributes files;
     * with ``manifest_key``: Parquet item tables (the files matching ``glob_pattern``, or a ``paths_file`` listing
       them), one item per row: its manifest link in ``manifest_key`` (a URL, an absolute fsspec path, or a path
       relative to ``data_folder``), its id in ``item_key`` (optional), and, with ``read_metadata``, every other
-      column in the metadata of each of its pages.
+      column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
+      tasks in equal shards (``linecaster.blocks.readers.tables``), so one table works with any number of tasks.
+
+    ``auto_tasks`` is the task count for about ``ITEMS_PER_TASK`` items per task, which ``linecaster.runtime.run``
+    uses for a pipeline without engines.
 
     A manifest is one entry, so an item's pages stay in one task (``whole_items``). An entry that is a IIIF
     Collection stands for its manifests, each an item named by its own link (a table's ``item_key`` does not apply
@@ -119,6 +125,10 @@ class ManifestReader(Contracted, BaseDiskReader):
     response that is not an image is logged and counted (``manifests_failed``, ``pages_failed``,
     ``pages_not_images``, ``ocr_failed``), and the task goes on. Needs the extra ``[pybookget]``.
 
+    Pages are requested ahead, across manifests, as many as keep the rate limits busy
+    (``linecaster.net.http.prefetched``), through one ``HTTPFetcher.shared`` per process and configuration, so the
+    rate limits hold across the tasks a worker runs one after the other.
+
     Args:
         data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the manifests or item tables, and the
             base of relative links; default the current folder.
@@ -136,8 +146,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         existing_ocr: also fetch each page's own OCR file (``transcription_file``).
         manifest_folder: where every manifest read is saved as fetched, ``<item_id>.json`` / ``.xml``; default: not
             saved.
-        prefetch: pages requested ahead, across manifests, while the pipeline works; at least 1.
-        http: pybookget ``Config`` fields over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` per task,
+        http: pybookget ``Config`` fields over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task,
             ``timeout``, ``proxy``, ``iiif_format``, ``iiif_quality``, ``mets_image_groups``, ...).
         default_metadata: goes into every page's metadata.
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
@@ -156,7 +165,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                  glob_pattern: str | None = None, recursive: bool = True, limit: int = -1, skip: int = 0,
                  manifest_key: str | None = None, item_key: str | None = None, read_metadata: bool = True,
                  manifest_format: str | None = None, item_id_pattern: str | None = None,
-                 existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None, prefetch: int = 8,
+                 existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False):
         if glob_pattern is None:
@@ -164,15 +173,15 @@ class ManifestReader(Contracted, BaseDiskReader):
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         _pybookget()
-        if prefetch < 1:
-            raise PipelineConfigError("prefetch must be at least 1")
         if manifest_format not in (None, "iiif", "mets"):
             raise PipelineConfigError(f"manifest_format is iiif or mets, not {manifest_format!r}")
         if item_key and not manifest_key:
             raise PipelineConfigError("item_key names a column of an item table: give manifest_key too")
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
-        self.manifest_folder, self.prefetch, self.http = manifest_folder, prefetch, dict(http or {})
+        self.manifest_folder, self.http = manifest_folder, dict(http or {})
+        self._all: list[str] | None = None
+        self._layout: list | None = None
 
     # ------------------------------------------------------------------ entries and items
 
@@ -184,17 +193,44 @@ class ManifestReader(Contracted, BaseDiskReader):
             return sorted({p for alt in alts.split(",") for p in self.data_folder.glob(f"{head}{alt}{tail}")})
         return sorted(self.data_folder.glob(pattern))
 
-    def _entries(self, rank: int, world_size: int) -> list[str]:
-        if self.paths_file:
-            return [e for e in get_shard_from_paths_file(self.paths_file, rank, world_size) if e]
-        entries = self._glob()
-        if not entries:
-            what = "item tables" if self.manifest_key else "manifests"
-            raise PipelineConfigError(f"No {what} found on {self.data_folder.path} matching {self.glob_pattern!r}")
-        return entries[rank::world_size]
+    def _every_entry(self) -> list[str]:
+        """Every entry (manifests, or item tables), found once and kept."""
+        if self._all is None:
+            if self.paths_file:
+                entries = [e for e in get_shard_from_paths_file(self.paths_file, 0, 1) if e]
+            else:
+                entries = self._glob()
+            if not entries:
+                what = "item tables" if self.manifest_key else "manifests"
+                raise PipelineConfigError(f"No {what} found on {self.data_folder.path} matching "
+                                          f"{self.glob_pattern!r}")
+            self._all = entries
+        return self._all
 
-    def _items(self, entries: list[str]):
-        """(item_id or None, manifest reference, table metadata) per item of the entries."""
+    def layout(self) -> list[tuple[str, tuple[int, ...]]]:
+        """The item tables with the rows of each row group (``tables.table_rows``), read once and kept."""
+        if self._layout is None:
+            self._layout = table_rows(self.data_folder, self._every_entry())
+        return self._layout
+
+    def auto_tasks(self) -> int:
+        """The task count for about ``ITEMS_PER_TASK`` items per task (manifests, or item table rows)."""
+        items = total_rows(self.layout()) if self.manifest_key else len(self._every_entry())
+        return tasks_for(items, ITEMS_PER_TASK)
+
+    def _entries(self, rank: int, world_size: int) -> list:
+        """The task's entries: manifests in turn; with ``manifest_key``, its shard of item table rows (``row_slices``)."""
+        if self.manifest_key:
+            return row_slices(self.layout(), rank, world_size)
+        return self._every_entry()[rank::world_size]
+
+    def _items(self, entries: list):
+        """(item_id or None, manifest reference, table metadata) per item of the entries: manifests, or slices of
+        item tables (``tables.row_slices``; a plain path is a whole table)."""
+        if self.manifest_key:
+            entries = [e if isinstance(e, tuple) else (e, None, 0, 0) for e in entries]
+            files = list(dict.fromkeys(e[0] for e in entries))
+            entries = [(path, [e for e in entries if e[0] == path]) for path in files]
         for entry in entries:
             self.stat_update("input_files")
             if not self.manifest_key:
@@ -202,9 +238,14 @@ class ManifestReader(Contracted, BaseDiskReader):
                 continue
             import pyarrow.parquet as pq
 
-            with self.data_folder.open(entry, "rb") as f, pq.ParquetFile(f) as pqf:
+            path, slices = entry
+            with self.data_folder.open(path, "rb") as f, pq.ParquetFile(f) as pqf:
                 keys = None if self.read_metadata else [k for k in (self.manifest_key, self.item_key) if k]
-                for batch in pqf.iter_batches(columns=keys):
+                if any(group is None for _, group, _, _ in slices):          # a whole table
+                    batches = pqf.iter_batches(columns=keys)
+                else:
+                    batches = slice_batches(pqf, slices, keys, 65536)
+                for batch in batches:
                     for row in batch.to_pylist():
                         ref = row.pop(self.manifest_key, None)
                         item = row.pop(self.item_key, None) if self.item_key else None
@@ -369,25 +410,23 @@ class ManifestReader(Contracted, BaseDiskReader):
         return doc
 
     def _fetched(self, fetcher: HTTPFetcher, pages):
-        """The documents of ``pages`` in order, ``prefetch`` pages requested ahead."""
+        """The documents of ``pages`` in order, requested ahead (``prefetched``)."""
         def cancel(submitted) -> None:
             _, image, ocr = submitted
             image.cancel()
             if ocr is not None:
                 ocr.cancel()
 
-        for submitted in prefetched(pages, lambda entry: self._submit(fetcher, entry), self.prefetch, cancel):
+        for submitted in prefetched(pages, lambda entry: self._submit(fetcher, entry), cancel,
+                                    future=lambda submitted: submitted[1], fetcher=lambda: fetcher):
             doc = self._page(*submitted)
             if doc is not None:
                 yield doc
 
     def read_file(self, filepath: str):
         """The pages of one entry (a manifest, or an item table); ``run`` reads a task's entries in one stream."""
-        own = HTTPFetcher(**self.http)
-        try:
-            yield from self._fetched(own, self._pages(own, [filepath]))
-        finally:
-            own.close()
+        fetcher = HTTPFetcher.shared(**self.http)
+        yield from self._fetched(fetcher, self._pages(fetcher, [filepath]))
 
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
@@ -398,7 +437,7 @@ class ManifestReader(Contracted, BaseDiskReader):
             import random
 
             random.shuffle(entries)
-        fetcher = HTTPFetcher(**self.http)
+        fetcher = HTTPFetcher.shared(**self.http)
 
         def selected():                    # skip and limit before anything is downloaded
             for i, entry in enumerate(self._pages(fetcher, entries)):
@@ -408,9 +447,6 @@ class ManifestReader(Contracted, BaseDiskReader):
                     return
                 yield entry
 
-        try:
-            for doc in self._fetched(fetcher, selected()):
-                self.update_doc_stats(doc)
-                yield doc
-        finally:
-            fetcher.close()
+        for doc in self._fetched(fetcher, selected()):
+            self.update_doc_stats(doc)
+            yield doc

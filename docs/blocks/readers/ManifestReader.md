@@ -36,8 +36,7 @@ The comes-after and comes-before rows are derived from every block's contract.
 | `item_id_pattern` | `str \| None` | `None` | a regular expression whose first group, found in the manifest entry, is the item id (instead of the last path segment); an entry it does not match is a `PipelineConfigError`. |
 | `existing_ocr` | `bool` | `False` | also fetch each page's own OCR file (`transcription_file`). |
 | `manifest_folder` | `DataFolderLike \| None` | `None` | where every manifest read is saved as fetched, `<item_id>.json` / `.xml`; default: not saved. |
-| `prefetch` | `int` | `8` | pages requested ahead, across manifests, while the pipeline works; at least 1. |
-| `http` | `dict \| None` | `None` | pybookget `Config` fields over `linecaster.net.http.HTTP_DEFAULTS` (`rate_limits` per task, `timeout`, `proxy`, `iiif_format`, `iiif_quality`, `mets_image_groups`, ...). |
+| `http` | `dict \| None` | `None` | pybookget `Config` fields over `linecaster.net.http.HTTP_DEFAULTS` (`rate_limits` of this task, `timeout`, `proxy`, `iiif_format`, `iiif_quality`, `mets_image_groups`, ...). |
 | `file_progress` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `doc_progress` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
@@ -45,14 +44,19 @@ The comes-after and comes-before rows are derived from every block's contract.
 
 ## Behavior
 
-Entries, distributed over tasks in turn (`[rank::world_size]`) the way datatrove distributes files:
+Entries:
 
 * without `manifest_key`: manifests: the files under `data_folder` matching `glob_pattern`, or the
-  lines of `paths_file` (a manifest URL, or a path relative to `data_folder`);
+  lines of `paths_file` (a manifest URL, or a path relative to `data_folder`), distributed over tasks in
+  turn (`[rank::world_size]`) the way datatrove distributes files;
 * with `manifest_key`: Parquet item tables (the files matching `glob_pattern`, or a `paths_file` listing
   them), one item per row: its manifest link in `manifest_key` (a URL, an absolute fsspec path, or a path
   relative to `data_folder`), its id in `item_key` (optional), and, with `read_metadata`, every other
-  column in the metadata of each of its pages.
+  column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
+  tasks in equal shards (`linecaster.blocks.readers.tables`), so one table works with any number of tasks.
+
+`auto_tasks` is the task count for about `ITEMS_PER_TASK` items per task, which `linecaster.runtime.run`
+uses for a pipeline without engines.
 
 A manifest is one entry, so an item's pages stay in one task (`whole_items`). An entry that is a IIIF
 Collection stands for its manifests, each an item named by its own link (a table's `item_key` does not apply
@@ -76,6 +80,10 @@ With `existing_ocr`, a page's own OCR (ALTO or hOCR the manifest links: METS `FU
 A manifest that cannot be read or parsed, an image or OCR file that fails after pybookget's retries, or a
 response that is not an image is logged and counted (`manifests_failed`, `pages_failed`,
 `pages_not_images`, `ocr_failed`), and the task goes on. Needs the extra `[pybookget]`.
+
+Pages are requested ahead, across manifests, as many as keep the rate limits busy
+(`linecaster.net.http.prefetched`), through one `HTTPFetcher.shared` per process and configuration, so the
+rate limits hold across the tasks a worker runs one after the other.
 
 ## Contract
 

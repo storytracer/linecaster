@@ -14,16 +14,34 @@ the tags; the first is `v0.1.0`.
   folder needs `--new-pipeline`. No released recipe is affected.
 - `linecaster.testing.check_engine` calls a page engine (recognition, unit `page`) with an empty transcription
   (no regions, no lines), not the sample layout's regions.
-- `ImageParquetReader` requests up to 8 `http(s)://` images ahead (`prefetch=8`, `--prefetch` for `--parquet`), where
-  it requested one at a time. The rate limits (`--rate-limit`) still hold per task, but a server now sees up to 8
-  requests in flight from each task; `prefetch=1` (`--prefetch 1`) keeps the old behavior.
+- `--rate-limit` holds for the whole run, not per task: each task running at once gets its share
+  (`linecaster.net.http.divided`). A run that gave a per-task limit with several workers gives the total now (e.g.
+  `--workers 2 --rate-limit 75/60` becomes `--rate-limit 150/60`).
+- `--tasks` and `--workers` default to an automatic choice (`linecaster.runtime.run.allocate`): a pipeline without
+  engines (`pipelines/harvest.py`) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
+  `--rate-limit`, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
+  started with the old default (`--tasks 1`) needs `--tasks 1`.
+- `--prefetch` and the readers' `prefetch=` argument are gone: `ManifestReader` and `ImageParquetReader` request
+  `http(s)://` pages ahead in a window that sizes itself; drop the option. `linecaster.net.prefetched` takes
+  `(entries, submit, cancel, future=, fetcher=)`.
+- `ImageParquetReader` and `ManifestReader` item tables divide rows, not files, over the tasks; `ImageParquetReader`
+  no longer splits a task's rows by datatrove's `ParquetReader.read_files_shard`, so `limit` and `skip` apply before
+  anything is fetched, and no Parquet file is a `PipelineConfigError` (was datatrove's `RuntimeError`). A table
+  no longer needs splitting into one file per task.
 
 ### Added
 
-- `ImageParquetReader(prefetch=...)`: `http(s)://` images of a page table requested ahead, pages in the files' row
-  order, so one task of `pipelines/harvest.py --parquet` can use its whole rate limit instead of waiting for each
-  image; `--prefetch` now applies to `--parquet` as to `--manifests`. `linecaster.net.prefetched` is the ordered
-  window both readers use (`ManifestReader` unchanged in behavior).
+- Nothing to size for a harvest: `pipelines/harvest.py --parquet TABLE ... OUT --rate-limit 150/60` reads any page
+  table as it is, in tasks of about 1,000 pages, with one worker that keeps the rate limits busy.
+  `linecaster.blocks.readers.tables` divides Parquet tables over tasks by rows in equal shards (by row group);
+  `ImageParquetReader.auto_tasks()` and `ManifestReader.auto_tasks()` suggest a task count from the input.
+- `ImageParquetReader` requests `http(s)://` images ahead, pages in the rows' order. `linecaster.net.prefetched`, the
+  window both readers use, grows while the first request is out and none waits for the rate limits
+  (`HTTPFetcher.waiting`), up to `MAX_AHEAD`, so one task keeps any rate limit busy.
+- `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
+  limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
+  `linecaster.net.divided(rate_limits, tasks)`: one task's share of rate limits.
+- `--parquet` takes one `.parquet` file as well as a folder.
 
 - The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
   60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
@@ -48,6 +66,9 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- The rate limits started afresh with every task (each made its own fetcher), so a worker's next task could
+  send a whole window's requests at once; and `ImageParquetReader` never closed its fetcher, leaving a thread per
+  task. The readers share one fetcher per process and configuration (`HTTPFetcher.shared`).
 - `ImageParquetReader`: an image that cannot be read (an `http(s)` error after the retries, a missing file, bytes
   that are not an image) no longer fails the task. The page comes without image and with the error in
   `doc.metadata["errors"]` (`field` `image`, `raw_value` its URI), so the page records and rejects keep it and a
