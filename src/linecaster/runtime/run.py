@@ -126,6 +126,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
                    help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
                         "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
+    g.add_argument("--retry-failed", action="store_true",
+                   help="local: finished tasks that left rejects (OUT/rejects) run again; with harvest.py their "
+                        "images that are there are read back and only the failed pages fetched")
     g.add_argument("--new-pipeline", action="store_true",
                    help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
                         "without it such a run is refused")
@@ -550,7 +553,8 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
             previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
                                      logging_dir=logs, depends=previous, out=out, reader=reader,
-                                     title=f"{title}/{stage.name}" if many else title, note=rate_note(a))
+                                     title=f"{title}/{stage.name}" if many else title, note=rate_note(a),
+                                     retry_failed=getattr(a, "retry_failed", False))
         elif a.on == "ray":
             if servers or not many:
                 from .ray import RayGPUExecutor as Ray

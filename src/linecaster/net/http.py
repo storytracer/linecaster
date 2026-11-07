@@ -21,6 +21,14 @@ resilient-httpx, ``blacklist_ttl_from_retry_after``), the retries resilient-http
 ``create_client``, so the rate limits (shared by all proxies), the deadline per attempt and the records below hold
 as without. Proxy URLs are never logged with their credentials (``redact``).
 
+A fetcher pauses while its server fails (``Breaker``): when most recent attempts got a server error (5xx, Cloudflare's
+520-524 among them), no request goes out except a probe now and then, with waits that double up to ten minutes; the
+first probe the server answers ends the pause. Requests waiting there count as waiting for the rate limits, so the
+window does not grow, and their pages are delayed, not failed. The retries themselves are pybookget's (520-524
+included); with a proxy list a server error is retried through another proxy without blacklisting the one it came
+through (resilient-httpx's ``blacklist_on``: only a 429 counts against a proxy, besides timeouts and connection or
+proxy errors).
+
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
 ``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
 connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
@@ -150,7 +158,7 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
         max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES),
         retry_on_exception=[httpx.TransportError]),
         timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, blacklist_ttl_from_retry_after=True,
-        on_blacklist=blacklisted)
+        blacklist_on={429}, on_blacklist=blacklisted)
     client._log = _QuietLog()
     return client
 
@@ -273,6 +281,8 @@ async def _after(request) -> None:              # after the rate limits' hook: t
 
 
 async def _headers(response) -> None:          # the first response hook: the headers are in
+    if (ticket := _TICKET.get()) is not None:
+        ticket.fetcher.breaker.record(response.status_code)
     record = _FETCH.get()
     if record is not None and record["tries"]:
         record["tries"][-1] = f"{response.status_code}-cut"
@@ -282,6 +292,85 @@ async def _read(response) -> None:             # the last response hook: read wh
     record = _FETCH.get()
     if record is not None and record["tries"]:
         record["tries"][-1] = str(response.status_code)
+
+
+#: a pause starts when at least this share of the attempts in the last ``BREAKER_WINDOW`` seconds got a server error,
+BREAKER_SHARE = 0.5
+BREAKER_WINDOW = 60.0
+#: ... counting at least this many attempts
+BREAKER_MIN_ATTEMPTS = 20
+#: the first wait before a probe; each probe the server fails doubles it, up to ``BREAKER_MAX_WAIT``
+BREAKER_FIRST_WAIT = 60.0
+BREAKER_MAX_WAIT = 600.0
+#: a probe without an answer (a timeout, a proxy error) after this long lets another probe go
+BREAKER_PROBE_TIMEOUT = 60.0
+
+
+class Breaker:
+    """Pauses a fetcher's requests while its server fails. Closed, it notes each attempt's answer (``record``: a
+    server error, 5xx, or not); when at least ``BREAKER_SHARE`` of the attempts in the last ``BREAKER_WINDOW`` seconds
+    (``BREAKER_MIN_ATTEMPTS`` at least) were server errors it opens: requests wait in ``wait_turn`` (before the rate
+    limits) except one probe after ``BREAKER_FIRST_WAIT``, then after waits that double up to ``BREAKER_MAX_WAIT``;
+    the first answer that is not a server error closes it. Used from the fetcher's event loop only."""
+
+    def __init__(self):
+        self._outcomes: deque = deque()                  # (time, server error)
+        self.open_until: float | None = None             # monotonic; None: closed
+        self.opened_at: float | None = None
+        self._wait = BREAKER_FIRST_WAIT
+        self._probe: float | None = None                 # when the probe went out
+
+    @property
+    def paused(self) -> bool:
+        return self.open_until is not None
+
+    def next_try(self) -> float:
+        """Seconds until the next probe (0 when one is out or the breaker is closed)."""
+        return max(0.0, self.open_until - time.monotonic()) if self.open_until is not None and not self._probe else 0.0
+
+    def record(self, status: int) -> None:
+        now, server_error = time.monotonic(), status >= 500
+        if self.open_until is not None:
+            if self._probe is None:                      # an attempt that went out before the pause began
+                return
+            self._probe = None
+            if server_error:
+                self._wait = min(self._wait * 2, BREAKER_MAX_WAIT)
+                self.open_until = now + self._wait
+                logger.info("the server still fails (HTTP {status}): next try in {wait}", status=status,
+                            wait=f"{self._wait:.0f} s")
+            else:
+                logger.warning("the server answers again after {paused}: requests go on",
+                               paused=f"{now - (self.opened_at or now):.0f} s")
+                self.open_until = self.opened_at = None
+                self._wait = BREAKER_FIRST_WAIT
+                self._outcomes.clear()
+            return
+        self._outcomes.append((now, server_error))
+        while self._outcomes and now - self._outcomes[0][0] > BREAKER_WINDOW:
+            self._outcomes.popleft()
+        failed = sum(1 for _, e in self._outcomes if e)
+        if len(self._outcomes) >= BREAKER_MIN_ATTEMPTS and failed >= BREAKER_SHARE * len(self._outcomes):
+            self.opened_at, self.open_until = now, now + self._wait
+            logger.warning("server errors in {failed} of the last {n} attempts: requests pause, next try in {wait}",
+                           failed=failed, n=len(self._outcomes), wait=f"{self._wait:.0f} s")
+
+    async def wait_turn(self) -> None:
+        """Return when a request may go out: at once while closed; while open, as the probe once its time has come
+        (or the probe before it went unanswered for ``BREAKER_PROBE_TIMEOUT``), else after the pause."""
+        while self.open_until is not None:
+            now = time.monotonic()
+            if self._probe is not None and now - self._probe > BREAKER_PROBE_TIMEOUT:
+                self._probe = None                       # unanswered (a timeout, a proxy error): another may go
+            if self._probe is None and now >= self.open_until:
+                self._probe = now
+                return
+            await asyncio.sleep(1.0 if self._probe is not None else min(1.0, max(0.05, self.open_until - now)))
+
+
+async def _breaker_turn(request) -> None:       # a request hook, before the rate limits'
+    if (ticket := _TICKET.get()) is not None:
+        await ticket.fetcher.breaker.wait_turn()
 
 
 _SHARED: dict[tuple, HTTPFetcher] = {}
@@ -312,6 +401,7 @@ class HTTPFetcher:
 
         self.config = Config(**{**HTTP_DEFAULTS, **config})
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
+        self.breaker = Breaker()
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()
@@ -338,7 +428,7 @@ class HTTPFetcher:
             config._limiters = self.config._limiters
         c = create_client(config)
         hooks = dict(c.event_hooks)
-        hooks["request"] = [_before, *hooks.get("request", []), _after]
+        hooks["request"] = [_before, _breaker_turn, *hooks.get("request", []), _after]
         hooks["response"] = [_headers, *hooks.get("response", []), _read]
         c.event_hooks = hooks
         return c
@@ -442,6 +532,14 @@ def proxy_rotation() -> tuple[int, int] | None:
     with _SHARED_LOCK:
         counts = [c for f in _SHARED.values() if (c := f.proxies_in_rotation()) is not None]
     return (sum(c[0] for c in counts), sum(c[1] for c in counts)) if counts else None
+
+
+def paused() -> float | None:
+    """Seconds until the next probe of a paused fetcher of this process (``Breaker``; 0: a probe is out); None when
+    none is paused."""
+    with _SHARED_LOCK:
+        waits = [f.breaker.next_try() for f in _SHARED.values() if f.breaker.paused]
+    return min(waits) if waits else None
 
 
 def close_shared() -> None:

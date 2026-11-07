@@ -319,6 +319,14 @@ proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, st
 `host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (`linecaster.net.http.redact`).
 
+**Failures.** Each fetcher has a breaker (`linecaster.net.http.Breaker`): when most attempts of the last minute got a
+server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
+from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
+failing. A single server error is retried (through another proxy, without blacklisting the one it came through). A
+local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
+that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
+`--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
+
 ## The console
 
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the
