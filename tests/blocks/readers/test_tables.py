@@ -132,6 +132,21 @@ def test_given_tasks_and_workers_stay_and_divide_the_rate_limits(tmp_path):
     assert (a.tasks, a.workers) == (8, 2)
 
 
+def test_user_agent_options_reach_the_readers_http_settings(tmp_path):
+    from linecaster.net.http import HTTP_DEFAULTS
+    from linecaster.runtime import run
+
+    data = write_pages(tmp_path / "data", [2], row_group_size=2)
+    plain = run.reader(options(["--parquet", data, "OUT"], has_engines=False))._opener.http
+    given = run.reader(options(["--parquet", data, "OUT", "--user-agent", "FineBooks"], has_engines=False))._opener.http
+    rand = run.reader(options(["--parquet", data, "OUT", "--random-user-agent"], has_engines=False))._opener.http
+    assert "user_agent" not in plain and not HTTP_DEFAULTS["use_fake_user_agent"]      # linecaster's own
+    assert given["user_agent"] == "FineBooks" and rand["use_fake_user_agent"] is True
+    ap = run.parser(None)
+    with pytest.raises(SystemExit):
+        ap.parse_args(["--parquet", data, "OUT", "--user-agent", "x", "--random-user-agent"])
+
+
 def test_tasks_and_workers_must_be_positive():
     from linecaster.runtime import run
 
