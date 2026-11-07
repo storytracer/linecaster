@@ -101,6 +101,11 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
                    help="http(s) requests (manifests, images, OCR) the run may send, e.g. 5/1; repeatable, all "
                         "windows apply; each task running at once gets its share")
+    ua = g.add_mutually_exclusive_group()
+    ua.add_argument("--user-agent", default=None, metavar="TEXT",
+                    help="the User-Agent of every http(s) request (default: linecaster's own, naming the project)")
+    ua.add_argument("--random-user-agent", action="store_true",
+                    help="a random browser User-Agent (pybookget's fake-useragent), one per worker process")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
@@ -231,10 +236,14 @@ def concurrent_tasks(a: argparse.Namespace) -> int:
 
 def http(a: argparse.Namespace) -> dict:
     """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` as each
-    task's share of it (``divided`` by the tasks running at once)."""
+    task's share of it (``divided`` by the tasks running at once), ``--user-agent`` or ``--random-user-agent``."""
     from ..net.http import divided
 
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
+    if getattr(a, "user_agent", None):
+        out["user_agent"] = a.user_agent
+    if getattr(a, "random_user_agent", False):
+        out["use_fake_user_agent"] = True
     if getattr(a, "rate_limits", None):
         share = divided(a.rate_limits, concurrent_tasks(a))
         try:
