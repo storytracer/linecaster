@@ -315,7 +315,7 @@ credentials (`linecaster.net.http.redact`).
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the
 pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
 live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
-left; warnings print above it), a line per finished task and a summary, in human units
+left) pinned to the terminal's top row, with everything else scrolling below it (a scroll region, `Pinned`), a line per finished task and a summary, in human units
 (`linecaster.runtime.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
 that leave the pipeline; with several workers each worker process reports its counts to the console about every
 second. Off a terminal the progress is a log line every 30 s instead.
