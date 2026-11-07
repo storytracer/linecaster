@@ -1007,6 +1007,10 @@ the tags; the first is <code>v0.1.0</code>.</p>
   engines (<code>pipelines/harvest.py</code>) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   <code>--rate-limit</code>, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
   started with the old default (<code>--tasks 1</code>) needs <code>--tasks 1</code>.</li>
+<li>http(s) requests have a deadline per attempt (<code>HTTP_DEFAULTS</code>: pybookget's <code>attempt_timeout=30</code> and
+  <code>attempt_min_rate=50_000</code>, i.e. 30 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
+  attempt past it is cut and retried. A server that needs longer for a response without Content-Length needs
+  <code>http={"attempt_timeout": None}</code> (or a longer one). linecaster pins pybookget <code>bf8eee1</code>, which has the setting.</li>
 <li><code>--prefetch</code> and the readers' <code>prefetch=</code> argument are gone: <code>ManifestReader</code> and <code>ImageParquetReader</code> request
   <code>http(s)://</code> pages ahead in a window that sizes itself; drop the option. <code>linecaster.net.prefetched</code> takes
   <code>(entries, submit, cancel, future=, fetcher=)</code>.</li>
@@ -1027,8 +1031,11 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li><code>HTTPFetcher.shared(**config)</code>: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.
   <code>linecaster.net.divided(rate_limits, tasks)</code>: one task's share of rate limits.</li>
+<li><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</li>
 <li>
-<p><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</p>
+<p>A response that trickles no longer holds a task: the deadline per attempt (above) cuts it and fetches it again,
+  usually through another proxy exit. In a LoC smoke run one such response took 150 s while the 199 pages behind it
+  waited; the trace shows a cut attempt as <code>http.attempts</code> 2.</p>
 </li>
 <li>
 <p>The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
