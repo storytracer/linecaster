@@ -12,6 +12,14 @@ in flight, without a setting, up to the rate limits times the deadline per attem
 Readers take pages as their requests finish, not in row order, so a slow request (one being retried) delays only
 itself.
 
+With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) requests go through resilient-httpx
+(``linecaster[resilient-httpx]``): each attempt through the next proxy in turn, a proxy that fails an attempt (a
+timeout, a connection or proxy error, a retryable status) blacklisted for ``PROXY_BLACKLIST_TTL`` seconds after
+``PROXY_BLACKLIST_THRESHOLD`` failures, the retries resilient-httpx's (pybookget's counts and waits; no
+``Retry-After``: the next attempt goes out through another proxy). Each proxy's client is made by pybookget's
+``create_client``, so the rate limits (shared by all proxies), the deadline per attempt and the records below hold
+as without. Proxy URLs are never logged with their credentials (``redact``).
+
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
 ``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
 connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
@@ -32,7 +40,9 @@ from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from typing import TypeVar
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
+
+from loguru import logger
 
 T = TypeVar("T")
 S = TypeVar("S")
@@ -51,6 +61,95 @@ def _pybookget():
         import pybookget  # noqa: F401
     except ImportError as e:
         raise ImportError("manifests and http(s) images need pybookget: install linecaster[pybookget]") from e
+
+
+#: a proxy that fails this many attempts in a row is left out of the rotation ...
+PROXY_BLACKLIST_THRESHOLD = 1
+#: ... for this many seconds
+PROXY_BLACKLIST_TTL = 3600.0
+
+
+def read_proxies(path: str) -> list[str]:
+    """The proxies listed in the file ``path`` (any fsspec path), as URLs: one per line, as a URL
+    (``http://user:pass@host:port``, ``socks5://host:port``) or as Webshare's lists give them (``host:port`` or
+    ``host:port:user:pass``, meaning http). Blank lines and ``#`` comments are skipped."""
+    from datatrove.io import get_datafolder
+
+    folder, _, name = path.rpartition("/")
+    with get_datafolder(folder or ".").open(name, "r") as f:
+        lines = f.read().splitlines()
+    out = []
+    for n, raw in enumerate(lines, 1):
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if "://" in line:
+            out.append(line)
+            continue
+        parts = line.split(":")
+        if len(parts) == 2:
+            out.append(f"http://{parts[0]}:{parts[1]}")
+        elif len(parts) == 4:
+            host, port, user, password = parts
+            out.append(f"http://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}")
+        else:
+            raise ValueError(f"{path}, line {n}: a proxy is a URL, host:port or host:port:user:pass")
+    if not out:
+        raise ValueError(f"{path}: no proxies")
+    return out
+
+
+def redact(proxy: str | None) -> str:
+    """``proxy`` without its credentials: ``http://***@host:port``."""
+    if not proxy:
+        return "direct"
+    parts = urlsplit(proxy)
+    host = parts.hostname or ""
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{'***@' if parts.username or parts.password else ''}{host}{port}"
+
+
+class _QuietLog:
+    """resilient-httpx's structlog logger, silenced: it logs proxy URLs with their credentials; linecaster logs the
+    blacklisting itself (redacted)."""
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl: float):
+    """resilient-httpx's ``AsyncProxyHttpClient`` over ``proxies`` whose per-proxy clients are pybookget's
+    ``create_client`` (with ``fetcher``'s hooks and its shared rate limiter), retrying as pybookget's ``Config``
+    says."""
+    try:
+        import httpx
+        from resilient_httpx import AsyncProxyHttpClient, RetryPolicy
+    except ImportError as e:
+        raise ImportError("a proxy list needs resilient-httpx: install linecaster[resilient-httpx]") from e
+    from pybookget.http.client import RETRYABLE_STATUS_CODES
+
+    config = fetcher.config
+    total = len(proxies)
+
+    def blacklisted(pool: str, proxy: str) -> None:
+        left = sum(1 for p in client.blacklist_snapshot().get(pool, ()) if p["in_rotation"])
+        log = logger.warning if left < max(1, total // 10) else logger.debug
+        log("proxy {proxy} left out for {ttl:.0f} s; {left} of {total} in rotation", proxy=redact(proxy), ttl=ttl,
+            left=left, total=total)
+
+    class Client(AsyncProxyHttpClient):
+        def _get_client(self, proxy, impersonate=False):
+            if proxy not in self._clients:
+                self._clients[proxy] = fetcher._new_client(proxy)
+            return self._clients[proxy]
+
+    client = Client(proxies=proxies, retry=RetryPolicy(
+        max_attempts=config.max_retries, backoff="exponential", min_wait=config.retry_wait_min,
+        max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES),
+        retry_on_exception=[httpx.TransportError]),
+        timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, on_blacklist=blacklisted)
+    client._log = _QuietLog()
+    return client
 
 
 def is_url(path: str) -> bool:
@@ -203,10 +302,10 @@ class HTTPFetcher:
                 fetcher = _SHARED[key] = cls(**config)
             return fetcher
 
-    def __init__(self, **config):
+    def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
+                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, **config):
         _pybookget()
         from pybookget.config import Config
-        from pybookget.http import create_client
 
         self.config = Config(**{**HTTP_DEFAULTS, **config})
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
@@ -215,14 +314,38 @@ class HTTPFetcher:
         self._thread.start()
 
         async def client():
-            c = create_client(self.config)
-            hooks = dict(c.event_hooks)
-            hooks["request"] = [_before, *hooks.get("request", []), _after]
-            hooks["response"] = [_headers, *hooks.get("response", []), _read]
-            c.event_hooks = hooks
-            return c
+            return self._new_client(self.config.proxy)
 
         self._client = asyncio.run_coroutine_threadsafe(client(), self._loop).result()
+        self._proxies = None
+        if proxy_file:
+            proxies = read_proxies(proxy_file)
+            self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl)
+
+    def _new_client(self, proxy: str | None):
+        """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client
+        shares this fetcher's rate limiter (pybookget keeps it per ``Config`` and event loop)."""
+        import dataclasses
+
+        from pybookget.http import create_client
+
+        config = self.config
+        if proxy != config.proxy:
+            config = dataclasses.replace(config, proxy=proxy)
+            config._limiters = self.config._limiters
+        c = create_client(config)
+        hooks = dict(c.event_hooks)
+        hooks["request"] = [_before, *hooks.get("request", []), _after]
+        hooks["response"] = [_headers, *hooks.get("response", []), _read]
+        c.event_hooks = hooks
+        return c
+
+    def proxies_in_rotation(self) -> tuple[int, int] | None:
+        """(proxies in rotation, proxies) with a proxy list, else None."""
+        if self._proxies is None:
+            return None
+        states = [p for pool in self._proxies.blacklist_snapshot().values() for p in pool]
+        return sum(1 for p in states if p["in_rotation"]), len(states)
 
     @property
     def waiting(self) -> int:
@@ -245,7 +368,10 @@ class HTTPFetcher:
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
         try:
-            response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
+            if self._proxies is None:
+                response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
+            else:
+                response = await self._through_proxies(url, fallback_url)
             record["status"] = response.status_code
             response.extensions[FETCH_KEY] = record
             return response
@@ -258,6 +384,16 @@ class HTTPFetcher:
             ticket.queue(False)
             _FETCH.reset(token)
             _TICKET.reset(ticket_token)
+
+    async def _through_proxies(self, url: str, fallback_url: str | None):
+        """``url`` through the proxy list (resilient-httpx's retries and blacklist); on 404 ``fallback_url``, as
+        pybookget's ``fetch`` does. A status that is not retried (404, 403, ...) raises ``httpx.HTTPStatusError``."""
+        response = await self._proxies.get(url)
+        if response.status_code == 404 and fallback_url:
+            logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
+            response = await self._proxies.get(fallback_url)
+        response.raise_for_status()
+        return response
 
     def submit(self, url: str, fallback_url: str | None = None) -> Future:
         ticket = _Ticket(self)
@@ -280,6 +416,10 @@ class HTTPFetcher:
 
         async def set_header():
             self._client.headers["User-Agent"] = agent
+            for c in (self._proxies._clients.values() if self._proxies is not None else ()):
+                c.headers["User-Agent"] = agent
+            if self._proxies is not None:
+                self._proxies._headers = {**self._proxies._headers, "User-Agent": agent}
 
         asyncio.run_coroutine_threadsafe(set_header(), self._loop).result()
 
@@ -287,9 +427,18 @@ class HTTPFetcher:
         if self._loop.is_closed():
             return
         asyncio.run_coroutine_threadsafe(self._client.aclose(), self._loop).result()
+        if self._proxies is not None:
+            asyncio.run_coroutine_threadsafe(self._proxies.aclose(), self._loop).result()
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join()
         self._loop.close()
+
+
+def proxy_rotation() -> tuple[int, int] | None:
+    """(proxies in rotation, proxies) over this process's shared fetchers with a proxy list; None without one."""
+    with _SHARED_LOCK:
+        counts = [c for f in _SHARED.values() if (c := f.proxies_in_rotation()) is not None]
+    return (sum(c[0] for c in counts), sum(c[1] for c in counts)) if counts else None
 
 
 def close_shared() -> None:

@@ -303,6 +303,13 @@ server`). One worker keeps any rate limit busy: a reader's requests ahead grow w
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
 
+**Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
+`resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
+or proxy error, a retryable status) is left out for an hour, and the attempt goes out again through another. With no
+proxy left a page fails (its error budget then stops the task). The file holds one proxy per line, a URL or
+`host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
+credentials (`linecaster.net.http.redact`).
+
 ## The console
 
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the

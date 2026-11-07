@@ -1,0 +1,129 @@
+"""A proxy list (``--proxies``, ``linecaster.net.http.read_proxies``) through resilient-httpx: proxy files as URLs or
+in Webshare's formats; each attempt through the next proxy; a proxy that fails an attempt left out of the rotation
+(threshold 1), the attempt retried through another; no proxy left fails the page; credentials never logged. The
+proxies here are loopback servers that answer absolute-URI requests themselves (an http proxy's view)."""
+import socket
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import pytest
+
+pytest.importorskip("pybookget")
+pytest.importorskip("resilient_httpx")
+
+from loguru import logger  # noqa: E402
+
+from linecaster.blocks.base.page import failed, page_of  # noqa: E402
+from linecaster.blocks.readers.images import ImageParquetReader  # noqa: E402
+from linecaster.net.http import close_shared, read_proxies, redact  # noqa: E402
+from linecaster.testing import sample_png  # noqa: E402
+
+FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 3, "trust_env": False}
+
+
+@pytest.fixture(autouse=True)
+def fresh_fetchers():
+    close_shared()
+    yield
+    close_shared()
+
+
+def proxy_server(served: list):
+    """An 'http proxy' that serves every absolute-URI GET itself with a PNG, noting which URL it served."""
+    body = sample_png()
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            served.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
+def dead_port() -> int:
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def page_table(tmp_path, n):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    (tmp_path / "data").mkdir()
+    pq.write_table(pa.table({"book": ["b"] * n, "page": list(range(1, n + 1)),
+                             "image": [f"http://library.test/p{i}.png" for i in range(1, n + 1)]}),
+                   tmp_path / "data" / "part-0.parquet")
+    return str(tmp_path / "data")
+
+
+def test_proxy_files_as_urls_or_webshare_lines(tmp_path):
+    f = tmp_path / "proxies.txt"
+    f.write_text("# Webshare\n1.2.3.4:8080\n5.6.7.8:9000:user:p@ss\n\nsocks5://9.9.9.9:1080  # a URL\n")
+    assert read_proxies(str(f)) == ["http://1.2.3.4:8080", "http://user:p%40ss@5.6.7.8:9000", "socks5://9.9.9.9:1080"]
+    (tmp_path / "bad.txt").write_text("1.2.3.4\n")
+    with pytest.raises(ValueError, match="line 1"):
+        read_proxies(str(tmp_path / "bad.txt"))
+    assert redact("http://user:secret@5.6.7.8:9000") == "http://***@5.6.7.8:9000"
+    assert redact("http://1.2.3.4:8080") == "http://1.2.3.4:8080"
+
+
+def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_path):
+    served = []
+    good = proxy_server(served)
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}:user:secret\n"
+                                              f"127.0.0.1:{good.server_address[1]}\n")
+        lines = []
+        sink = logger.add(lines.append, level="DEBUG")
+        reader = ImageParquetReader(page_table(tmp_path, 4), item_key="book", sequence_key="page",
+                                    http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+        try:
+            docs = list(reader.run())
+        finally:
+            logger.remove(sink)
+        assert not any(failed(d) for d in docs) and len(docs) == 4
+        assert sorted(served) == [f"http://library.test/p{i}.png" for i in range(1, 5)]   # all through the good one
+        tries = [t for d in docs for t in d.metadata["trace"]["fetch"][0]["tries"]]
+        assert tries.count("no-response") == 1 and tries.count("200") == 4                 # the dead one, once
+        assert reader._opener._fetcher.proxies_in_rotation() == (1, 2)
+        logged = "".join(str(x) for x in lines)
+        assert "left out for 3600 s" in logged and "secret" not in logged and "***@127.0.0.1" in logged
+    finally:
+        good.shutdown()
+
+
+def test_no_proxy_left_fails_the_page(tmp_path):
+    (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n127.0.0.1:{dead_port()}\n")
+    reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+    reader.max_page_errors = None
+    docs = list(reader.run())
+    assert failed(docs[0]) and page_of(docs[0]).page_id == "b_0001"
+    assert docs[0].metadata["errors"][0]["type"] in ("AllProxiesExhausted", "MaxRetriesExceeded")
+
+
+def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
+    from linecaster.runtime import run
+
+    (tmp_path / "proxies.txt").write_text("1.2.3.4:8080\n5.6.7.8:8080\n")
+    ap = run.parser(None)
+    a = run.check(ap, ap.parse_args(["--parquet", page_table(tmp_path, 1), "OUT", "--rate-limit", "150/60",
+                                     "--proxies", str(tmp_path / "proxies.txt")]))
+    a.has_engines = False
+    assert run.reader(a)._opener.http["proxy_file"] == str(tmp_path / "proxies.txt")    # the file, not its lines
+    run.allocate(a, [run.reader(a)])
+    assert run.rate_note(a).endswith("through 2 proxies (left out for 3600 s after 1 failure)")
+    with pytest.raises(SystemExit):
+        run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))

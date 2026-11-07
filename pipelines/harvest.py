@@ -2,7 +2,7 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     # Ray for --on ray (HF Jobs leave it out)
-#     "linecaster[ray,pybookget]",
+#     "linecaster[ray,pybookget,resilient-httpx]",
 #     # direct, so its source applies (sources only apply to a script's own dependencies)
 #     "pybookget",
 #     # s3:// output folders
