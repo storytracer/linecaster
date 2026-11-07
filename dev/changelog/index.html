@@ -1032,6 +1032,8 @@ the tags; the first is <code>v0.1.0</code>.</p>
   limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.
   <code>linecaster.net.divided(rate_limits, tasks)</code>: one task's share of rate limits.</li>
 <li><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</li>
+<li><code>--user-agent TEXT</code> and <code>--random-user-agent</code> (a random browser User-Agent from pybookget's fake-useragent, one
+  per worker process) for every http(s) request; default linecaster's own.</li>
 <li>The console of a local run (<code>linecaster.runtime.console</code>, <code>linecaster.runtime.local.LocalExecutor</code>): one line
   naming the pipeline, a live progress line for the whole run (pages of the total, rate, size, failed pages, task,
   time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
