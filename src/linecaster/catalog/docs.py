@@ -59,7 +59,7 @@ def _evidence(c: Catalog) -> dict[str, list]:
         for _, ev in d.evidence:
             by[ev.subject.rsplit("@", 1)[0]].append(ev)
     for v in by.values():
-        v.sort(key=lambda e: (e.date, e.source), reverse=True)
+        v.sort(key=lambda e: (e.date, int(e.subject.rsplit("@", 1)[1]), e.source), reverse=True)
     return by
 
 
@@ -112,10 +112,10 @@ def preset_page(c: Catalog, pid: str, evs: list) -> str:
 def _evidence_table(evs) -> list[str]:
     if not evs:
         return []
-    rows = [(e.date, SOURCE_NAMES[e.source], e.dataset + (f" ({e.context})" if e.context else ""),
-             e.hardware or "-", e.software.get("backend") or "-",
+    rows = [(e.date, e.subject.rsplit("@", 1)[1], SOURCE_NAMES[e.source],
+             e.dataset + (f" ({e.context})" if e.context else ""), e.hardware or "-", e.software.get("backend") or "-",
              ", ".join(f"{k} {v:g}" for k, v in e.metrics.items())) for e in evs]
-    return ["## Evidence", "", *_table(("Date", "Source", "Dataset", "Hardware", "Backend", "Result"), rows)]
+    return ["## Evidence", "", *_table(("Date", "Edition", "Source", "Dataset", "Hardware", "Backend", "Result"), rows)]
 
 
 def model_page(c: Catalog, mid: str, out: Path, links: Links) -> str:
