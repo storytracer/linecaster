@@ -21,6 +21,7 @@ from loguru import logger
 
 from ...errors import PipelineConfigError
 from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url, prefetched
+from .existing import ExistingImages, Reused, reused_page
 from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import new_page_document
@@ -152,6 +153,9 @@ class ManifestReader(Contracted, BaseDiskReader):
         default_metadata: goes into every page's metadata.
         task_per_item: ``auto_tasks`` gives one task per item (``pipelines/harvest.py``); default about
             ``ITEMS_PER_TASK`` items per task.
+        reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
+            page whose file is already there is passed on without a request (``linecaster.blocks.readers.existing``);
+            the manifest is still read. Not with ``existing_ocr`` (its OCR files would need fetching anyway).
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -170,7 +174,8 @@ class ManifestReader(Contracted, BaseDiskReader):
                  manifest_format: str | None = None, item_id_pattern: str | None = None,
                  existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False,
+                 reuse_folder: DataFolderLike | None = None):
         if glob_pattern is None:
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
@@ -183,6 +188,8 @@ class ManifestReader(Contracted, BaseDiskReader):
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
         self.manifest_folder, self.http, self.task_per_item = manifest_folder, dict(http or {}), task_per_item
+        self.reuse_folder = reuse_folder
+        self._existing = ExistingImages(reuse_folder) if reuse_folder is not None and not existing_ocr else None
         self._all: list[str] | None = None
         self._layout: list | None = None
 
@@ -344,6 +351,14 @@ class ManifestReader(Contracted, BaseDiskReader):
     def _submit(self, fetcher: HTTPFetcher, entry):
         item_id, item, extra, page = entry
         base = item["url"]
+        if self._existing is not None:
+            copy = self._existing.get(item_id, f"{item_id}_{page.index:04d}")
+            if copy is not None:                    # already written by an earlier launch: no request
+                from concurrent.futures import Future
+
+                done: Future = Future()
+                done.set_result(Reused(copy))
+                return entry, done, None
         image = self._get(fetcher, resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base))
         ocr = self._get(fetcher, resolve(page.ocr_url, base)) if self.existing_ocr and page.ocr_url else None
         return entry, image, ocr
@@ -381,6 +396,9 @@ class ManifestReader(Contracted, BaseDiskReader):
         manifest = {**item, "page_id": page.id, "page_label": page.label, "request": page.url}
         metadata = {**(self.default_metadata or {}), **extra, "manifest": manifest}
         page_id = f"{item_id}_{page.index:04d}"
+        if isinstance(response, Reused):
+            self.stat_update("reused")
+            return reused_page(page_id, response.copy, resolve(page.url, item["url"]), item_id, page.index, metadata)
         try:
             doc = new_page_document(page_id, response.content, uri=str(response.url), item_id=item_id,
                                     sequence=page.index, metadata=metadata)

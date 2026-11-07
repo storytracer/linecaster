@@ -378,3 +378,40 @@ def test_a_random_user_agent_is_new_for_each_task(slow_server, tmp_path, monkeyp
         list(reader.run(rank=rank, world_size=2))
     by_task = slow_server["agents"][:2], slow_server["agents"][2:]
     assert len(set(by_task[0])) == 1 and len(set(by_task[1])) == 1 and by_task[0][0] != by_task[1][0]
+
+
+def test_images_already_written_are_reused_without_a_request(slow_server, tmp_path):
+    """A resumed harvest: the files of pages 1 and 3 are there (one listing of the item's folder finds them)."""
+    from linecaster.blocks.readers.existing import is_reused
+    from linecaster.blocks.writers.images import ImageFilesWriter
+
+    slow_server["delay"] = 0
+    images = tmp_path / "images"
+    (images / "b").mkdir(parents=True)
+    for page in ("b_0001", "b_0003"):
+        (images / "b" / f"{page}.png").write_bytes(sample_png())
+    (images / "b" / "b_0004.png.part").write_bytes(b"half")               # a file still being written: not done
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3", "p4"]), item_key="book",
+                                sequence_key="page", http=FAST, reuse_folder=str(images))
+    writer = ImageFilesWriter(str(images))
+    docs = sorted(writer.run(reader.run()), key=lambda d: d.id)
+    assert sorted(slow_server["requests"]) == ["/p2.png", "/p4.png"]           # only the missing ones
+    assert [is_reused(d) for d in docs] == [True, False, True, False]
+    reused = page_of(docs[0])
+    assert reused.image.uri == str(images / "b" / "b_0001.png") and reused.image.format == "png"
+    assert reused.image.extra["source_uri"] == f"{slow_server['base']}/p1.png" and reused.image.extra["bytes"] > 0
+    assert reused.image.sha256 is None and not failed(docs[0])
+    assert writer.stats["reused"].total == 2 and writer.stats["images"].total == 2
+    assert sorted(p.name for p in (images / "b").iterdir() if not p.name.endswith(".part")) == [
+        "b_0001.png", "b_0002.png", "b_0003.png", "b_0004.png"]
+
+
+def test_the_console_counts_reused_pages_as_done_but_not_in_the_rate():
+    from linecaster.runtime.console import Console
+
+    c = Console("harvest", tasks=1, total=10, live=False)
+    for _ in range(4):
+        c.page(0, False, reused=True)
+    c.page(1000, False)
+    status = c.status()
+    assert status.startswith("5 / 10 pages  50%") and "4 reused" in status and c.pages == 1

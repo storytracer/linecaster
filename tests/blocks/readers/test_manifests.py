@@ -390,6 +390,23 @@ def test_one_item_table_is_divided_over_tasks_by_rows_with_whole_items(server, t
     assert one_each.auto_tasks() == 5                                     # harvest.py: one item per task
 
 
+def test_a_manifests_images_already_written_are_reused(server, tmp_path):
+    from linecaster.blocks.readers.existing import is_reused
+
+    base = server["base"]
+    url = publish(server, "r", v3(base, "r", ["r1", "r2"]))
+    (tmp_path / "manifests.txt").write_text(url + "\n")
+    (tmp_path / "images" / "r").mkdir(parents=True)
+    (tmp_path / "images" / "r" / "r_0001.png").write_bytes(b"png")
+    reader = ManifestReader(paths_file=str(tmp_path / "manifests.txt"), http={**FAST, "iiif_format": "png"},
+                            reuse_folder=str(tmp_path / "images"))
+    docs = sorted(reader.run(), key=lambda d: d.id)
+    assert [(d.id, is_reused(d)) for d in docs] == [("r_0001", True), ("r_0002", False)]
+    assert page_of(docs[0]).metadata["manifest"]["page_label"] is not None      # the manifest's data, as fetched
+    assert ManifestReader(paths_file=str(tmp_path / "manifests.txt"), existing_ocr=True,
+                          reuse_folder=str(tmp_path / "images"))._existing is None   # its OCR would be missing
+
+
 def test_a_mets_package_with_local_files(tmp_path):
     """Files next to the METS document, linked by relative paths: read from the folder, no HTTP."""
     pkg = tmp_path / "pkg" / "b1"
