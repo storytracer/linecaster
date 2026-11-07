@@ -29,6 +29,10 @@ included); with a proxy list a server error is retried through another proxy wit
 through (resilient-httpx's ``blacklist_on``: only a 429 counts against a proxy, besides timeouts and connection or
 proxy errors).
 
+A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
+so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
+``ReadTimeout (no message)``), where resilient-httpx's or httpx's own can be empty.
+
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
 ``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
 connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
@@ -236,6 +240,22 @@ def prefetched(entries: Iterable[T], submit: Callable[[T], S], cancel: Callable[
 _FETCH: contextvars.ContextVar[dict | None] = contextvars.ContextVar("linecaster_fetch", default=None)
 #: where a response carries its fetch's record (``response.extensions``)
 FETCH_KEY = "linecaster.fetch"
+
+
+def last_error(error: BaseException | None) -> str:
+    """What failed last in resilient-httpx's retries: ``HTTP 520`` for a retried status, else the error's type and
+    message (``ReadTimeout (no message)`` for httpx's silent timeouts)."""
+    if error is None:
+        return "unknown"
+    response = getattr(error, "response", None)
+    if response is not None and getattr(response, "status_code", None) is not None:
+        return f"HTTP {response.status_code}"
+    return f"{type(error).__name__}: {error}" if str(error) else f"{type(error).__name__} (no message)"
+
+
+def failed_fetch(error: BaseException) -> dict | None:
+    """The record of the fetch that raised ``error`` (``HTTPFetcher._fetch``), or None."""
+    return getattr(error, FETCH_KEY.replace(".", "_"), None)
 
 
 def fetch_record(response) -> dict | None:
@@ -470,6 +490,12 @@ class HTTPFetcher:
             return response
         except Exception as e:
             record["error"] = type(e).__name__
+            if not str(e):                                # httpx's timeouts say nothing: say at least that much
+                e.args = (f"{type(e).__name__} (no message) after {record['attempts']} attempt(s)",)
+            try:
+                setattr(e, FETCH_KEY.replace(".", "_"), record)   # the record goes with the exception
+            except AttributeError:
+                pass
             raise
         finally:
             record["end"] = time.time_ns()
@@ -480,11 +506,21 @@ class HTTPFetcher:
 
     async def _through_proxies(self, url: str, fallback_url: str | None):
         """``url`` through the proxy list (resilient-httpx's retries and blacklist); on 404 ``fallback_url``, as
-        pybookget's ``fetch`` does. A status that is not retried (404, 403, ...) raises ``httpx.HTTPStatusError``."""
-        response = await self._proxies.get(url)
-        if response.status_code == 404 and fallback_url:
-            logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
-            response = await self._proxies.get(fallback_url)
+        pybookget's ``fetch`` does. A status that is not retried (404, 403, ...) raises ``httpx.HTTPStatusError``;
+        retries used up raise ``MaxRetriesExceeded`` naming the last error, no proxy left ``AllProxiesExhausted``."""
+        from resilient_httpx import AllProxiesExhausted, MaxRetriesExceeded
+
+        try:
+            response = await self._proxies.get(url)
+            if response.status_code == 404 and fallback_url:
+                logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
+                response = await self._proxies.get(fallback_url)
+        except MaxRetriesExceeded as e:
+            record = _FETCH.get() or {}
+            raise MaxRetriesExceeded(f"after {record.get('attempts', '?')} attempts: {last_error(e.__cause__)}") \
+                from e.__cause__
+        except AllProxiesExhausted as e:
+            raise AllProxiesExhausted("no proxy left in rotation: every one is left out for now") from e
         response.raise_for_status()
         return response
 

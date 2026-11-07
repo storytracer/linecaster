@@ -440,6 +440,10 @@ class ImageParquetReader(Contracted, ParquetReader):
                 except (*NOT_THE_PAGES, PageError):
                     raise
                 except Exception as e:  # noqa: BLE001 - the page's error; the task goes on within its budget
+                    from ...net.http import failed_fetch
+
+                    if (record := failed_fetch(e)) is not None:     # its attempts, for the page's trace
+                        fetches.append({**record, "what": "image"})
                     doc = _unread_page(page_id, uri, item_id, sequence, metadata)
                     failure = (doc, record_error(doc, error_entry(self, e, field="image", raw_value=uri)), e)
                 if fetches:

@@ -167,3 +167,41 @@ def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_lo
     finally:
         for s in servers:
             s.shutdown()
+
+
+def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path):
+    """A proxy through which the server always answers 520: MaxRetriesExceeded names it, with the attempts traced."""
+    body = b""
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            self.send_response(520)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{httpd.server_address[1]}\n")
+        reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
+                                    http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+        reader.max_page_errors = None
+        (doc,) = list(reader.run())
+        error = doc.metadata["errors"][0]
+        assert error["type"] == "MaxRetriesExceeded" and error["error"] == "after 3 attempts: HTTP 520"
+        assert doc.metadata["trace"]["fetch"][0]["tries"] == ["520", "520", "520"]
+        assert reader._opener._fetcher.proxies_in_rotation() == (1, 1)     # a server error left the proxy in
+    finally:
+        httpd.shutdown()
+
+
+def test_no_proxy_left_says_so(tmp_path):
+    (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n")
+    reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+    reader.max_page_errors = None
+    (doc,) = list(reader.run())
+    assert doc.metadata["errors"][0]["error"] == "no proxy left in rotation: every one is left out for now"

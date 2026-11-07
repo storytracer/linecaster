@@ -420,3 +420,14 @@ def test_the_console_counts_reused_pages_as_done_but_not_in_the_rate():
     c.page(1000, False)
     status = c.status()
     assert status.startswith("5 / 10 pages  50%") and "4 reused" in status and c.pages == 1
+
+
+def test_a_failed_pages_trace_keeps_its_attempts(slow_server, tmp_path):
+    slow_server["delay"] = 0
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["missing"]), item_key="book",
+                                sequence_key="page", http=FAST)
+    reader.max_page_errors = None
+    (doc,) = list(reader.run())
+    assert failed(doc)
+    fetch = doc.metadata["trace"]["fetch"][0]                 # the record went with the exception
+    assert fetch["tries"] == ["404"] and fetch["attempts"] == 1 and fetch["error"] == "HTTPStatusError"
