@@ -385,6 +385,9 @@ def test_one_item_table_is_divided_over_tasks_by_rows_with_whole_items(server, t
     assert tasks == [["i1_0001", "i1_0002", "i2_0001", "i2_0002"],
                      ["i3_0001", "i3_0002", "i4_0001", "i4_0002", "i5_0001", "i5_0002"]]
     assert reader().auto_tasks() == 1                                      # 5 items: ITEMS_PER_TASK
+    one_each = ManifestReader(str(tmp_path / "items"), manifest_key="manifest_url", item_key="item_id",
+                              task_per_item=True)
+    assert one_each.auto_tasks() == 5                                     # harvest.py: one item per task
 
 
 def test_a_mets_package_with_local_files(tmp_path):

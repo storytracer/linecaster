@@ -29,8 +29,8 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
-from .tables import (PAGES_PER_TASK, first_rows, row_slices, slice_batches, table_rows, tasks_for, total_rows,
-                     whole_file)
+from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, row_slices, rows_between, slice_batches,
+                     table_rows, tasks_for, total_rows, whole_file)
 from ..base.block import reported_file
 from ..base.contract import Contracted
 from ...data.page import Page, PageImage
@@ -243,6 +243,9 @@ class ImageParquetReader(Contracted, ParquetReader):
         limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
         max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
             ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
+        task_per_item: the tasks divide the items (the ``item_key`` values, needs it; an item's rows need not be
+            together), not the rows, and ``auto_tasks`` is one task per item: each item whole in its task, a task that
+            fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
         paths_file, glob_pattern, recursive, file_progress, doc_progress: datatrove's ``ParquetReader`` arguments.
         shuffle_files: read the files of a task's shard in random order.
     """
@@ -260,12 +263,15 @@ class ImageParquetReader(Contracted, ParquetReader):
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
-                 max_pages: int | None = None):
+                 max_pages: int | None = None, task_per_item: bool = False):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
             raise PipelineConfigError("max_pages must be at least 1")
-        self.max_pages = max_pages
+        if task_per_item and not item_key:
+            raise PipelineConfigError("task_per_item needs item_key: the items are runs of rows with the same item")
+        self.max_pages, self.task_per_item = max_pages, task_per_item
+        self._starts = None
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
         self._opener = _Opener(http)
@@ -283,14 +289,27 @@ class ImageParquetReader(Contracted, ParquetReader):
             self._layout = layout if self.max_pages is None else first_rows(layout, self.max_pages)
         return self._layout
 
+    def items(self) -> tuple:
+        """The input's items and their rows (``tables.item_runs``), read once and kept."""
+        if self._starts is None:
+            self._starts = item_runs(self.data_folder, self.layout(), self.item_key)
+        return self._starts
+
     def auto_tasks(self) -> int:
-        """The task count for shards of about ``PAGES_PER_TASK`` pages."""
+        """The task count: one per item with ``task_per_item``, else shards of about ``PAGES_PER_TASK`` pages."""
+        if self.task_per_item:
+            return max(1, len(self.items()[2]) - 1)
         return tasks_for(total_rows(self.layout()), PAGES_PER_TASK)
+
+    def _task_ranges(self, rank: int, world_size: int) -> list[tuple[int, int]]:
+        if self.task_per_item:
+            return item_ranges(self.items(), rank, world_size)
+        total = total_rows(self.layout())
+        return [(rank * total // world_size, (rank + 1) * total // world_size)]
 
     def task_pages(self, rank: int, world_size: int) -> int:
         """The pages task ``rank`` of ``world_size`` reads: its shard's rows, after ``skip``, up to ``limit``."""
-        total = total_rows(self.layout())
-        rows = max(0, (rank + 1) * total // world_size - rank * total // world_size - self.skip)
+        rows = max(0, sum(hi - lo for lo, hi in self._task_ranges(rank, world_size)) - self.skip)
         return rows if self.limit == -1 else min(rows, self.limit)
 
     def _request(self, value, filepath: str, page_id: str) -> tuple[Future, str | None]:
@@ -319,7 +338,8 @@ class ImageParquetReader(Contracted, ParquetReader):
             yield from data
         self._budget = ErrorBudget(self, self.max_page_errors)          # one per task, over all its files
         self._opener._fetcher = None                     # taken again (shared) at the task's first request
-        slices = row_slices(self.layout(), rank, world_size)
+        slices = ([s for lo, hi in self._task_ranges(rank, world_size) for s in rows_between(self.layout(), lo, hi)]
+                  if self.task_per_item else row_slices(self.layout(), rank, world_size))
         self._log_limit_scope(rank, world_size)
         files = list(dict.fromkeys(path for path, *_ in slices))
         if self.shuffle_files:

@@ -41,6 +41,7 @@ The comes-after and comes-before rows are derived from every block's contract.
 | `doc_progress` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
 | `shuffle_files` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
+| `task_per_item` | `bool` | `False` |  |
 
 ## Behavior
 
@@ -55,8 +56,8 @@ Entries:
   column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
   tasks in equal shards (`linecaster.blocks.readers.tables`), so one table works with any number of tasks.
 
-`auto_tasks` is the task count for about `ITEMS_PER_TASK` items per task, which `linecaster.runtime.run`
-uses for a pipeline without engines.
+`auto_tasks` is the task count for about `ITEMS_PER_TASK` items per task, or one item per task with
+`task_per_item` (`pipelines/harvest.py`), which `linecaster.runtime.run` uses for a pipeline without engines.
 
 A manifest is one entry, so an item's pages stay in one task (`whole_items`). An entry that is a IIIF
 Collection stands for its manifests, each an item named by its own link (a table's `item_key` does not apply
