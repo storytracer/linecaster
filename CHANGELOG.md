@@ -13,9 +13,9 @@ the tags; the first is `v0.1.0`.
   folder needs `--new-pipeline`. No released recipe is affected.
 - `linecaster.testing.check_engine` calls a page engine (recognition, unit `page`) with an empty transcription
   (no regions, no lines), not the sample layout's regions.
-- `--rate-limit` holds for the whole run, not per task: each task running at once gets its share
-  (`linecaster.net.http.divided`). A run that gave a per-task limit with several workers gives the total now (e.g.
-  `--workers 2 --rate-limit 75/60` becomes `--rate-limit 150/60`).
+- `--rate-limit` holds per worker (process), not per task: the tasks a worker runs one after the other share one
+  fetcher and its limits (`HTTPFetcher.shared`), where each task started its limits afresh. A server sees the workers
+  running at once times the limits, as before; the run now states it before it starts (`run.rate_note`).
 - `--tasks` and `--workers` default to an automatic choice (`linecaster.runtime.run.allocate`): a pipeline without
   engines (`pipelines/harvest.py`) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   `--rate-limit`, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
@@ -43,7 +43,6 @@ the tags; the first is `v0.1.0`.
   (`HTTPFetcher.waiting`), up to `MAX_AHEAD`, so one task keeps any rate limit busy.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
-  `linecaster.net.divided(rate_limits, tasks)`: one task's share of rate limits.
 - `--parquet` takes one `.parquet` file as well as a folder.
 - `--user-agent TEXT` and `--random-user-agent` (a random browser User-Agent from pybookget's fake-useragent, a new
   one for each task, `HTTPFetcher.new_user_agent`) for every http(s) request; default linecaster's own.

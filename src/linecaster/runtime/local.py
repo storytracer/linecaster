@@ -65,11 +65,13 @@ def blocks(pipeline) -> list[str]:
 class LocalExecutor(LocalPipelineExecutor):
     """``LocalPipelineExecutor`` whose console is linecaster's: ``title`` names the run on it, ``out`` is the run
     folder the summary points at, and ``reader`` (a block with ``task_pages(rank, world_size)``, optional) gives the
-    pages of each task, so the progress line has a total and a time left."""
+    pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line
+    (``linecaster.runtime.run.rate_note``: what a server sees)."""
 
-    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, **kwargs):
+    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | None = None,
+                 **kwargs):
         super().__init__(pipeline, **kwargs)
-        self.title, self.out, self.reader = title, out, reader
+        self.title, self.out, self.reader, self.note = title, out, reader, note
         self._completed: set[int] | None = None
 
     def is_rank_completed(self, rank: int) -> bool:
@@ -110,6 +112,8 @@ class LocalExecutor(LocalPipelineExecutor):
             line += f"; {count(len(self._completed))} done before ({count(done_pages)} pages)" if pages else \
                     f"; {count(len(self._completed))} done before"
         logger.info(line)
+        if self.note:
+            logger.info(self.note)
         if not todo:
             return super().run()
         console = Console(self.title, self.local_tasks, total, done_pages, len(self._completed),
