@@ -285,6 +285,12 @@ class ImageParquetReader(Contracted, ParquetReader):
         """The task count for shards of about ``PAGES_PER_TASK`` pages."""
         return tasks_for(total_rows(self.layout()), PAGES_PER_TASK)
 
+    def task_pages(self, rank: int, world_size: int) -> int:
+        """The pages task ``rank`` of ``world_size`` reads: its shard's rows, after ``skip``, up to ``limit``."""
+        total = total_rows(self.layout())
+        rows = max(0, (rank + 1) * total // world_size - rank * total // world_size - self.skip)
+        return rows if self.limit == -1 else min(rows, self.limit)
+
     def _request(self, value, filepath: str, page_id: str) -> tuple[Future, str | None]:
         """A future of the page's image (``_Opener.submit``: an http(s) request starts now) and the image's URI."""
         data, path = value, None

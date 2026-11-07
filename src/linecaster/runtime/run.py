@@ -499,8 +499,11 @@ def build_plan(a: argparse.Namespace, pipeline: list):
     """The builder's plan for the pipeline a script built, with the command line's partial run, taps and recipe."""
     from . import builder
 
+    from .console import Progress
+
     recipe = getattr(a, "recipe_record", None)
     return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else (a.tasks or 1),
+                         observers=None if getattr(a, "page", None) else [Progress()],
                          until=getattr(a, "until", None), after=getattr(a, "after", None),
                          taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
@@ -508,7 +511,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          trace_sample=getattr(a, "trace_sample", None))
 
 
-def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None):
+def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None, script: str | None = None):
     """One executor per stage, each depending on the one before (datatrove's ``depends=``); the last one runs
     them all. One stage logs to ``OUT/logs``, several to ``OUT/logs/<stage>``."""
     previous = None
@@ -517,11 +520,14 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
         logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
         servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.blocks)
         if a.on == "local":
-            from datatrove.executor import LocalPipelineExecutor
+            from .local import LocalExecutor
 
             workers = a.workers or stage.tasks
-            previous = LocalPipelineExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
-                                             logging_dir=logs, depends=previous)
+            title = Path(script).stem if script else "run"
+            reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
+            previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
+                                     logging_dir=logs, depends=previous, out=out, reader=reader,
+                                     title=f"{title}/{stage.name}" if many else title)
         elif a.on == "ray":
             if servers or not many:
                 from .ray import RayGPUExecutor as Ray
@@ -587,7 +593,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         docs = run_plan(p)
         print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
         return
-    _executors(a, p, out, image, deps).run()
+    _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
 
