@@ -127,3 +127,43 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
     assert run.rate_note(a).endswith("through 2 proxies (left out for 3600 s after 1 failure)")
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))
+
+
+def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_long(tmp_path):
+    """resilient-httpx's blacklist_ttl_from_retry_after (storytracer's fork): Retry-After 30 instead of an hour."""
+    from linecaster.net.http import HTTPFetcher
+
+    body = sample_png()
+    calls = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            calls.append(self.path)
+            if len(calls) == 1:
+                self.send_response(429)
+                self.send_header("Retry-After", "30")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    servers = [ThreadingHTTPServer(("127.0.0.1", 0), Handler) for _ in range(2)]
+    for s in servers:
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    try:
+        (tmp_path / "proxies.txt").write_text("".join(f"127.0.0.1:{s.server_address[1]}\n" for s in servers))
+        fetcher = HTTPFetcher.shared(**FAST, proxy_file=str(tmp_path / "proxies.txt"))
+        assert fetcher.get("http://library.test/p1.png").status_code == 200
+        ttl = [p["ttl_remaining_seconds"] for pool in fetcher._proxies.blacklist_snapshot().values() for p in pool
+               if p["ttl_remaining_seconds"] is not None]
+        assert len(ttl) == 1 and 25 < ttl[0] <= 30                     # not 3600
+    finally:
+        for s in servers:
+            s.shutdown()

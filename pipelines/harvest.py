@@ -3,8 +3,9 @@
 # dependencies = [
 #     # Ray for --on ray (HF Jobs leave it out)
 #     "linecaster[ray,pybookget,resilient-httpx]",
-#     # direct, so its source applies (sources only apply to a script's own dependencies)
+#     # direct, so their sources apply (sources only apply to a script's own dependencies)
 #     "pybookget",
+#     "resilient-httpx",
 #     # s3:// output folders
 #     "s3fs",
 # ]
@@ -12,6 +13,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # pybookget = { url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" }
+# resilient-httpx = { url = "https://github.com/storytracer/resilient-httpx/archive/238582e50348cc28c5e34bc01fe9664c8b854d91.tar.gz" }
 # ///
 r"""The harvest stage: items' page images (and, with --existing-ocr, the library's own OCR) from their manifests
 (IIIF or METS; a folder, a list of links, or item tables with --manifest-key), or from http(s) image URLs in a page

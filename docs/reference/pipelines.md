@@ -314,7 +314,8 @@ grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
 `resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
 or proxy error, a retryable status) is left out for an hour, and the attempt goes out again through another. With no
-proxy left a page fails (its error budget then stops the task). The file holds one proxy per line, a URL or
+proxy left a page fails (its error budget then stops the task). A 429 or 503 with a shorter `Retry-After` leaves the
+proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, storytracer's fork). The file holds one proxy per line, a URL or
 `host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (`linecaster.net.http.redact`).
 
