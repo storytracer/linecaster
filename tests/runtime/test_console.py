@@ -90,3 +90,20 @@ def test_progress_survives_pickling_without_its_counts():
     p.pages = 12
     q = pickle.loads(pickle.dumps(p))
     assert q.pages == 0 and q.rank == 0
+
+
+def test_with_several_workers_the_console_counts_the_pages_of_every_process(tmp_path, capsys):
+    from linecaster.blocks.readers.images import ImageParquetReader
+    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.runtime.builder import build
+    from linecaster.runtime.local import LocalExecutor
+
+    out = tmp_path / "out"
+    reader = ImageParquetReader(page_table(tmp_path, 12), item_key="book", sequence_key="page")
+    plan = build([reader, PageJsonlWriter(str(out / "pages"), output_filename="${rank}.jsonl.gz")],
+                 tasks=4, run_folder=str(out), observers=[Progress()])
+    LocalExecutor(plan.stages[0].pipeline, tasks=4, workers=2, logging_dir=str(out / "logs"), out=str(out),
+                  reader=reader, title="harvest").run()
+    err = capsys.readouterr().err
+    assert "12 pages in 4 tasks, 2 workers" in err
+    assert "harvest done: 12 pages" in err and "4/4 tasks" in err      # counted in the workers, summed here

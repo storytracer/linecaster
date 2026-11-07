@@ -58,7 +58,8 @@ the tags; the first is `v0.1.0`.
   naming the pipeline, a live progress line for the whole run (pages of the total, rate, size, failed pages, task,
   time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
   datatrove's pipeline listing (with the builder's boundary steps) and stats blocks go only to the task logs. The
-  completion markers are listed once per launch instead of looked up task by task.
+  completion markers are listed once per launch instead of looked up task by task. With several workers the worker
+  processes report their counts to the console (a `multiprocess` manager's dict), and every worker's task lines show.
 - `ImageParquetReader` and `ManifestReader` pass pages on as their http(s) requests finish, not in row order, so a
   slow or retried request delays only its own page (`prefetched(..., ordered=False)`); pages read without a request
   keep their order. Requests in flight are capped at the rate limits times the deadline per attempt

@@ -8,8 +8,10 @@ whole; ``linecaster.runtime.local.LocalExecutor`` routes it. Off a terminal (a f
 log line every ``EVERY_SECONDS`` instead.
 
 ``Progress`` is the observer that counts the pages leaving the pipeline (the builder puts it on every stage): in the
-process that launched the run (one worker) it feeds the ``Console``; in another process (several workers) it logs
-its task's progress every ``EVERY_SECONDS`` and its task line when the task ends.
+process that launched the run (one worker) it feeds the ``Console`` directly; in a worker process (several workers)
+it reports its process's counts about every second to a dict the ``Console`` reads (``report``, a ``multiprocess``
+manager's, which ``LocalExecutor`` hands out); without either (another executor) it logs its task's progress every
+``EVERY_SECONDS``. Every task ends with its line.
 """
 from __future__ import annotations
 
@@ -102,6 +104,8 @@ def console_sink(level: str = "INFO") -> int:
 
 #: the console of a run launched in this process (process, Console), set by ``Console.open``
 _CONSOLE: list = [None]
+#: what the tasks of this worker process have done so far, for the run's console (``Progress.report``)
+_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reported": 0.0}
 
 
 def active() -> Console | None:
@@ -114,12 +118,14 @@ def active() -> Console | None:
 
 class Console:
     """The live view of one local run (one stage): ``total`` pages (None: unknown, then tasks are counted), of which
-    ``done_pages`` were done before (a resume; ``done_tasks`` of ``tasks``)."""
+    ``done_pages`` were done before (a resume; ``done_tasks`` of ``tasks``). ``shared``: the dict the worker processes
+    report their counts to (several workers); without it the counts come from ``Progress`` in this process."""
 
     def __init__(self, title: str, tasks: int, total: int | None = None, done_pages: int = 0, done_tasks: int = 0,
-                 live: bool | None = None):
+                 live: bool | None = None, shared=None):
         self.title, self.tasks, self.total = title, tasks, total
         self.done_pages, self.done_tasks = done_pages, done_tasks
+        self.shared, self._done_before = shared, done_tasks
         self.pages = self.failed = self.bytes = 0
         self.task: int | None = None
         self.live = sys.stderr.isatty() if live is None else live
@@ -190,6 +196,21 @@ class Console:
                 self._bar.update(1)
         self._render(force=True)
 
+    def _sync(self) -> None:
+        """The worker processes' counts (several workers), into this console and its bar. Holds ``_lock``."""
+        if self.shared is None:
+            return
+        try:
+            reports = list(self.shared.values())
+        except Exception:  # noqa: BLE001 - the manager is gone (the run is ending): keep the last counts
+            return
+        self.pages = sum(r[0] for r in reports)
+        self.failed = sum(r[1] for r in reports)
+        self.bytes = sum(r[2] for r in reports)
+        self.done_tasks = self._done_before + sum(r[3] for r in reports)
+        if self._bar is not None:
+            self._bar.n = self.done_pages + self.pages if self.total else self.done_tasks
+
     # -- what is shown
 
     def rate(self) -> float:
@@ -219,7 +240,11 @@ class Console:
 
         if (proxies := proxy_rotation()) is not None:
             parts.append(f"proxies {count(proxies[0])}/{count(proxies[1])}")
-        parts.append(f"task {count((self.task if self.task is not None else self.done_tasks) + 1)}/{count(self.tasks)}")
+        if self.shared is not None:
+            parts.append(f"{count(self.done_tasks)}/{count(self.tasks)} tasks done")
+        else:
+            parts.append(f"task {count((self.task if self.task is not None else self.done_tasks) + 1)}/"
+                         f"{count(self.tasks)}")
         if self.total and rate > 0:
             parts.append(f"ETA {duration((self.total - done) / rate)}")
         elif not self.total and self.done_tasks > 0:
@@ -229,6 +254,7 @@ class Console:
 
     def _render(self, force: bool = False) -> None:
         with self._lock:
+            self._sync()
             now = time.monotonic()
             if self._bar is not None:
                 if force or now - self._shown >= 0.5:
@@ -242,6 +268,8 @@ class Console:
         logger.info("{title}: {status}", title=self.title, status=status)
 
     def summary(self, out: str, error: BaseException | None = None) -> str:
+        with self._lock:
+            self._sync()
         seconds = time.monotonic() - self.start
         what = f"{count(self.pages)} pages"
         if self.failed:
@@ -261,11 +289,13 @@ def _nbytes(doc) -> int:
 
 
 class Progress(Observer):
-    """Counts the pages that leave the pipeline, with their bytes and the failed ones, and reports each task: to the
-    ``Console`` of the run when the task runs in the process that launched it, else a progress log line every
-    ``EVERY_SECONDS``; a line when the task ends."""
+    """Counts the pages that leave the pipeline, with their bytes and the failed ones, and reports them: to the
+    ``Console`` of the run when the task runs in the process that launched it; to ``report`` (a dict shared with that
+    process, set by ``LocalExecutor`` for several workers) from a worker process; else as a progress log line every
+    ``EVERY_SECONDS``. A line when the task ends."""
 
     def __init__(self):
+        self.report = None
         self._reset(0, 1)
 
     def _reset(self, rank: int, world_size: int) -> None:
@@ -273,11 +303,23 @@ class Progress(Observer):
         self.pages = self.failed = self.bytes = 0
         self.start = self._logged = time.monotonic()
 
-    def __getstate__(self):
-        return {}
+    def __getstate__(self):                     # its counts stay where they are; the shared dict travels
+        return {"report": self.report}
 
     def __setstate__(self, state):
+        self.report = state.get("report")
         self._reset(0, 1)
+
+    def _report(self, force: bool = False) -> None:
+        """This process's counts to ``report``, about once a second (``force``: now)."""
+        now = time.monotonic()
+        if self.report is None or not force and now - _WORKER["reported"] < 1:
+            return
+        _WORKER["reported"] = now
+        try:
+            self.report[os.getpid()] = (_WORKER["pages"], _WORKER["failed"], _WORKER["bytes"], _WORKER["tasks"])
+        except Exception:  # noqa: BLE001 - the run's console is gone; the pages go on
+            self.report = None
 
     def on_task_start(self, rank: int, world_size: int) -> None:
         self._reset(rank, world_size)
@@ -293,6 +335,11 @@ class Progress(Observer):
         self.failed += bad
         if (c := active()) is not None:
             c.page(nbytes, bad)
+        elif self.report is not None:
+            _WORKER["pages"] += 1
+            _WORKER["failed"] += bad
+            _WORKER["bytes"] += nbytes
+            self._report()
         elif time.monotonic() - self._logged >= EVERY_SECONDS:
             self._logged = time.monotonic()
             logger.info("task {task}: {status}", task=self._task(), status=self._status())
@@ -302,6 +349,9 @@ class Progress(Observer):
             logger.info("task {task} done: {status}", task=self._task(), status=self._status(final=True))
             if (c := active()) is not None:
                 c.task_done()
+            elif self.report is not None:
+                _WORKER["tasks"] += 1
+        self._report(force=True)
 
     def _task(self) -> str:
         return f"{count(self.rank + 1)}/{count(self.world_size)}"
