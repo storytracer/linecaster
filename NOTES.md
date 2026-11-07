@@ -2,6 +2,100 @@
 
 Measurements, decisions and open questions, newest first.
 
+## XY-Cut++ reading order (2026-11-07, spark)
+
+Layout models without a learned reading order (PP-DocLayout_plus-L) can now be ordered with XY-Cut++ instead of
+plain XY-cut: `linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)`, the
+option `reading_order: xy-cut++` of `paddlex.layout.v1`, and the new edition `pp-doclayout-plus-l@2`.
+
+Source: Liu, Li and Wei, "XY-Cut++: Advanced Layout Ordering via Hierarchical Mask Mechanism on a Novel Benchmark",
+arXiv:2504.10258v3 (HTML and PDF). Implementations looked at before writing ours:
+- The authors' code: `get_layout_ordering` and its helpers in `paddlex/inference/pipelines/layout_parsing/utils.py`
+  of github.com/liushuai35/PaddleXrc, branch `eval_order`, commit 7873ab3 (a PaddleX fork, Apache-2.0, Copyright
+  2024 PaddlePaddle Authors; SoMarkAI/OXR's NOTICE names it the authors' implementation). Followed where the paper is
+  unclear, not copied: it is written around PaddleX's labels, sub-labels of its own (title text, vision footnotes)
+  and pixel constants. Credited in the code's docstring. Its sibling repository liushuai35/XY-Cut_plus_plus
+  (Apache-2.0) has only an evaluation script and says "code and data coming soon".
+- PaddleX 3.7.2's `xycut_enhanced` (Apache-2.0), the product version: consulted for the page furniture (headers
+  first, footers last).
+- DocVortex (myhloli/DocVortex, MIT; MinerU's "shared XYCut++"), `analyzers/native/_shared/xycut.py`: geometry only
+  (no labels, no matching; cross-column blocks merged back by bands), so not the paper's method; not used.
+- home-still/xycut-plus-plus (Rust, GPL-3.0) and vquilon/xycut_ppy (no licence stated): not read further, not used.
+
+Choices where the paper is ambiguous or inconsistent (each with what decided it):
+- Label categories: `title`, `section_header` → title; `picture`, `chart`, `table`, `caption`, `seal` → vision;
+  `footnote` → others (masked, matched last, as the authors' code does with its "other" blocks); every other label →
+  text, cross-layout or not by geometry. `page_header` regions lead and `page_footer` regions close the page, top to
+  bottom (PaddleX `xycut_enhanced`; the paper says nothing about furniture). Horizontal layouts only; the paper's
+  vertical-title weights are unused.
+- Cross-layout (Eq. 1-2): the median width of the page's text regions (paper: document-level); "overlap with at least
+  2 other blocks" counted by the authors' sweep, which counts columns, not blocks stacked in one column. The code's
+  extra rule (wider than 0.6 of the region) is left out.
+- Isolated regions (Eq. 3): the paper's Euclidean distance to the page center would only pre-cut at regions near the
+  middle of the page; a centered heading between two-column parts at a third of the height would not cut, and the
+  masked heading then leaves the gutter free for a vertical cut through both parts. Taken from the code instead: the
+  horizontal offset from the page's center line (≤ 0.2 of the page width, the paper's value), no other region but a
+  visual one to the left or right at the same height; the cut at the region's top edge, regions assigned to bands by
+  their top edge.
+- Density (Eq. 4-5): τ_d once per band; > θ_v = 0.9 (paper; the code uses 1.0) cuts horizontally first, else
+  vertically first, at all whitespace gaps of ≥ 1 px, the other axis when the first gives no cut. A band without
+  single-layout text is cut as it is, nothing masked (the paper does not say).
+- Matching (Eq. 7-13, Algorithm 1): the filter F of Eq. 7 taken literally would match no cross-layout region (nothing
+  ranks above it); Algorithm 1 searches all of T, which is what is done. Term weights [M², M, 1, 1/M], M the larger
+  page side (paper; the code fixes 10⁸, 10⁴, 1, 10⁻⁴). φ1: the code's directions (a visual region always horizontal,
+  a candidate horizontal unless taller than three times its width) and projection overlap on the narrower region
+  < τ_overlap = 0.3 (paper; the code 0.01). φ2: the code's edge gap, weighted by the side the pending region lies on
+  (left, right, above, below the candidate), the sum of both axes when diagonal (Eq. 10). Eq. 14's rows by the
+  paper's labels: title [1, 0.1, 0.1, 1], cross-layout [1, 1, 0.1, 1], vision and others [1, 1, 1, 0.1] (the code
+  gives paragraph titles and visuals the cross-layout row). φ3 and φ4 as the paper writes them (the code also negates
+  them below the candidate for titles and visuals). No early termination (same result). The first candidate in order
+  wins a tie (Algorithm 1's strict `<`).
+- Final sort (Algorithm 1, line 24): "label priority, then anchor index, then y1, x1" taken literally would put every
+  cross-layout region before the page's text; sorted instead after each stage by anchor rank, then top, then left,
+  as the code does; label priority orders the stages.
+- `place_unordered` (the `LineAssigner`'s fallback when no region has an order, i.e. orphan rows alone on a page
+  without layout regions) keeps plain XY-cut: on 5,000 synthetic orphan-row pages the two orders differed on 856, so
+  switching would change released recipes' outputs (squiddle@1 reaches it).
+
+Editions: an engine option whose default keeps the behavior is compatible (the engine id stays), changing the default
+is not, so `reading_order` defaults to `xy-cut` and `pp-doclayout-plus-l@1` (which does not state it) keeps its hash
+and its order. Edition 2 states `reading_order: xy-cut++`, released into the lock; `pp-doclayout-plus-l` without an
+edition now means edition 2 (upgrade note). No other released preset or recipe has a model without learned order.
+
+DocBench-100 (the paper's benchmark, 0.988 mean BLEU-4 for XY-Cut++, 0.797 for XY-cut) is not public: the authors'
+repositories have the evaluation script with local paths only, and no copy was found on GitHub or Hugging Face. Not
+scored.
+
+Sample-60 (`finebooks/bhl-ocr-eval-sample-60@41ff3475`), `--recipe squiddle --layout pp-doclayout-plus-l@1` and
+`@2` (everything else from squiddle@1), in-process, one task, one run each; page Markdown (`--files md`, furniture
+left out) scored the board's way with a fresh clone of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs`
+postproc 3 as `kraken/PP-OCRv6-medium`, strip only → `score_dataset`). Evidence:
+`2026-11-07-pp-doclayout-plus-l-{1,2}-sample-60.yaml`.
+
+| volume | CERread @1 (XY-cut) | CERread @2 (XY-Cut++) |
+|---|---:|---:|
+| birdsofgreatbrit02butl | 0.0040 | 0.0040 |
+| conchologiaiconi05reev | 0.4712 | 0.2605 |
+| daschitinskelett00prel | 0.0123 | 0.0123 |
+| histoirenaturell10cuvi | 0.0058 | 0.0058 |
+| pisciumquerelaee00sche | 0.1374 | 0.1374 |
+| trudyrusskagoent161881russ | 0.0065 | 0.0065 |
+| all 60 pages: CERdip / CERread / recall | 0.1051 / 0.0924 / 0.9562 | 0.0730 / 0.0601 / 0.9563 |
+
+- The order changed on 16 of 60 pages; the reading CER on 5, all in conchologiaiconi05reev (two columns of species
+  descriptions with centered section titles): 8966818 0.5227 → 0.0089, 8967338 0.4362 → 0.0045, 8967305 0.3684 → 0.3565,
+  8967173 0.4715 → 0.4655, 8966900 (a plate page) 2.2329 → 2.2192. The other 11 changes are among page headers and
+  page numbers (top to bottom, left to right now), which the Markdown leaves out: birdsofgreatbrit02butl 8992407,
+  8992441, 8992463, 8992481, 8992549, 8992642; histoirenaturell10cuvi 4443566, 4443712, 4443732, 4443878;
+  trudyrusskagoent161881russ 12342240.
+- The page text (`Transcription.text`, furniture kept) moves the same way: CERread 0.0939 → 0.0617.
+- pisciumquerelaee00sche and the remaining conchologia pages stay far above PP-DocLayoutV3 with its learned order
+  (CERread 0.0270 for all 60 pages in the same chain, `2026-11-03-kraken-ppocrv6-medium-bhl-ocr-eval-sample-60.yaml`);
+  whether that is PP-DocLayout_plus-L's regions or what is left of their order was not investigated.
+- squiddle@1 after the change: `compare_goldens.py` 60 of 60 pages exact, 1,560 of 1,560 lines.
+- Not measured: forge (x86), tables-7, the full ground truth, other layouts (newspapers, many columns), DocBench-100,
+  speed of the ordering alone (both runs 79 s for 60 pages with model loading).
+
 ## dots.mocr and LightOnOCR-3 on an RTX 4000 SFF Ada (2026-11-06)
 
 The presets `dots-mocr@1` (board row 1), `lightonocr-3-4b@1` (row 4) and `lightonocr-3-0.8b@1` (row 11), first

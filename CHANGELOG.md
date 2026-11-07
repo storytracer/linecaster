@@ -8,6 +8,8 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- `pp-doclayout-plus-l` without an edition resolves to edition 2, which orders the regions with XY-Cut++ instead of
+  plain XY-cut. A run that must keep the old order names `pp-doclayout-plus-l@1`.
 - `pipeline_sha256` leaves an in-process engine's `endpoint` and `timeout` options out (`ENGINE_OPERATIONAL`: where
   its service is). A derivative's run whose engine has an option of either name gets another hash: a resume into its
   folder needs `--new-pipeline`. No released recipe is affected.
@@ -34,6 +36,12 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
+- XY-Cut++ reading order (Liu, Li and Wei, arXiv:2504.10258) for layout models without one:
+  `linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)`, pure and
+  deterministic, the paper's β, θ_v, τ_overlap, centering tolerance and edge weights as keyword arguments, its
+  ambiguities resolved by the authors' Apache-2.0 implementation (NOTES.md, 2026-11-07). `paddlex.layout.v1` takes it
+  with the new option `reading_order: xy-cut++` (default `xy-cut`, the plain XY-cut as before), and the new edition
+  `pp-doclayout-plus-l@2` sets it. `place_unordered` keeps plain XY-cut.
 - Nothing to size for a harvest: `pipelines/harvest.py --parquet TABLE ... OUT --rate-limit 150/60` reads any page
   table as it is, in tasks of about 1,000 pages, with one worker that keeps the rate limits busy.
   `linecaster.blocks.readers.tables` divides Parquet tables over tasks by rows in equal shards (by row group);
