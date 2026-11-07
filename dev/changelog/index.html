@@ -1035,6 +1035,12 @@ the tags; the first is <code>v0.1.0</code>.</p>
   item whole in its task, a task that fails costs one item. Items are grouped by their <code>--item-key</code> value, so a table
   whose item rows are apart still gives one task per item (<code>tables.item_runs</code>). Other pipelines keep their task
   sizes. A harvest run folder started with the 1,000-page tasks has another task count: run into a new folder.</li>
+<li>A resumed harvest does not fetch images again that an earlier launch wrote: <code>ImageParquetReader</code> and
+  <code>ManifestReader</code> take <code>reuse_folder</code> (<code>harvest.py</code>: <code>OUT/images</code>), list an item's folder once when they reach it
+  (<code>linecaster.blocks.readers.existing.ExistingImages</code>; names and sizes only, no egress) and pass a page whose file
+  is there on without a request. Its record names the copy and says <code>image.extra.reused</code> (no <code>sha256</code>, width or
+  height); <code>ImageFilesWriter</code> passes it through; the console counts it as done, apart from the downloads. Not with
+  <code>--existing-ocr</code>. <code>ImageFilesWriter</code> writes local files as <code>&lt;name&gt;.part</code> and renames them when whole.</li>
 <li><code>--proxies FILE</code>: http(s) requests through a list of proxies (one per line: a URL, or <code>host:port[:user:pass]</code> as
   Webshare lists them), with resilient-httpx (the extra <code>resilient-httpx</code>): each attempt through the next proxy, a
   proxy that fails an attempt left out for an hour (<code>PROXY_BLACKLIST_THRESHOLD</code> 1, <code>PROXY_BLACKLIST_TTL</code> 3600 s), the

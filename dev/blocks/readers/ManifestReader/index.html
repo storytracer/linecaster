@@ -947,6 +947,12 @@
 <td><code>False</code></td>
 <td><code>auto_tasks</code> gives one task per item (<code>pipelines/harvest.py</code>); default about <code>ITEMS_PER_TASK</code> items per task.</td>
 </tr>
+<tr>
+<td><code>reuse_folder</code></td>
+<td><code>DataFolderLike \| None</code></td>
+<td><code>None</code></td>
+<td>where <code>ImageFilesWriter</code> writes the images (<code>pipelines/harvest.py</code>: <code>OUT/images</code>): a page whose file is already there is passed on without a request (<code>linecaster.blocks.readers.existing</code>); the manifest is still read. Not with <code>existing_ocr</code> (its OCR files would need fetching anyway).</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
