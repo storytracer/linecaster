@@ -44,6 +44,10 @@ the tags; the first is `v0.1.0`.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- A failed fetch says what failed: retries used up through proxies raise `MaxRetriesExceeded` naming the last error
+  (`after 5 attempts: HTTP 520`, `... ReadTimeout (no message)`), an empty pool `AllProxiesExhausted` with a message,
+  and httpx's silent timeouts get one; and the fetch's record (attempts, `tries`, waits) goes with the exception into
+  the failed page's trace (`linecaster.net.http.failed_fetch`), where it was dropped.
 - Outages are waited out: each fetcher has a breaker (`linecaster.net.http.Breaker`). When at least half of the
   attempts in the last minute (20 at least) got a server error (5xx), requests pause; a probe goes out after a minute,
   then after waits that double up to ten minutes, and the first answer that is not a server error ends the pause. The
