@@ -1090,7 +1090,8 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 </table>
 <p>The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (<code>tests/test_import_rule.py</code>),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).</p>
+required dependencies; engines, Ray, pybookget, resilient-httpx (proxy lists) and PDFium are not (engine packages
+and extras).</p>
 <h2 id="blocks-and-backends">Blocks and backends<a class="headerlink" href="#blocks-and-backends" title="Permanent link">&para;</a></h2>
 <p>A block is a datatrove <code>PipelineStep</code> with a contract; a pipeline is a list of blocks run by a datatrove executor.
 Each family is a subpackage of <code>linecaster.blocks</code> (<a href="../../blocks/">blocks</a> has a page per block).</p>

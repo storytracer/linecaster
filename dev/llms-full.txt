@@ -812,7 +812,8 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).
+required dependencies; engines, Ray, pybookget, resilient-httpx (proxy lists) and PDFium are not (engine packages
+and extras).
 
 ## Blocks and backends
 
@@ -1281,6 +1282,13 @@ server sees the workers running at once times the limits; the run states it befo
 server`). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
+
+**Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
+`resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
+or proxy error, a retryable status) is left out for an hour, and the attempt goes out again through another. With no
+proxy left a page fails (its error budget then stops the task). The file holds one proxy per line, a URL or
+`host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
+credentials (`linecaster.net.http.redact`).
 
 ## The console
 

@@ -1031,6 +1031,13 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li><code>HTTPFetcher.shared(**config)</code>: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.</li>
 <li><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</li>
+<li><code>--proxies FILE</code>: http(s) requests through a list of proxies (one per line: a URL, or <code>host:port[:user:pass]</code> as
+  Webshare lists them), with resilient-httpx (the extra <code>resilient-httpx</code>): each attempt through the next proxy, a
+  proxy that fails an attempt left out for an hour (<code>PROXY_BLACKLIST_THRESHOLD</code> 1, <code>PROXY_BLACKLIST_TTL</code> 3600 s), the
+  attempt retried through another. Each proxy's client is pybookget's, so the rate limits (shared by all proxies),
+  the deadline per attempt and the trace records hold as without; retries follow pybookget's counts and waits, without
+  <code>Retry-After</code>. The progress line shows the proxies in rotation; credentials are never logged, and the run record
+  keeps the file's name, not its lines.</li>
 <li><code>--user-agent TEXT</code> and <code>--random-user-agent</code> (a random browser User-Agent from pybookget's fake-useragent, a new
   one for each task, <code>HTTPFetcher.new_user_agent</code>) for every http(s) request; default linecaster's own.</li>
 <li>The console of a local run (<code>linecaster.runtime.console</code>, <code>linecaster.runtime.local.LocalExecutor</code>): one line
