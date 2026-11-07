@@ -23,7 +23,7 @@ TASK_LOG_FORMAT = ("{time:YYYY-MM-DD HH:mm:ss.SSS} | <level>{level: <8}</level> 
 
 def task_logger(logging_dir, rank: int, local_rank: int = 0, node_rank: int = -1):
     """datatrove's ``add_task_logger`` with linecaster's console: the task log file as datatrove writes it, and the
-    console handler (``console_sink``; warnings only for a worker other than the first). Returns the log file."""
+    console handler (``console_sink``, every worker's). Returns the log file."""
     from datatrove.utils.logging import DATATROVE_COLORIZE_LOG_FILES
 
     from .logs import add_task_logger, json_logs
@@ -32,7 +32,7 @@ def task_logger(logging_dir, rank: int, local_rank: int = 0, node_rank: int = -1
         return add_task_logger(logging_dir, rank, local_rank, node_rank)
     logger.remove()
     logfile = logging_dir.open(f"logs/task_{rank:05d}.log", "w")
-    console_sink("INFO" if local_rank == 0 else "WARNING")
+    console_sink()
     logger.add(logfile, colorize=DATATROVE_COLORIZE_LOG_FILES, level="DEBUG", format=TASK_LOG_FORMAT)
     logger.bind(console=False).info(f"Launching pipeline for {rank=}")
     return logfile
@@ -116,8 +116,22 @@ class LocalExecutor(LocalPipelineExecutor):
             logger.info(self.note)
         if not todo:
             return super().run()
+        manager = shared = None
+        if self.workers > 1:                     # the worker processes report their counts to this one
+            import multiprocess
+
+            from .console import Progress
+            from .observers import Boundary
+
+            manager = multiprocess.Manager()
+            shared = manager.dict()
+            for step in self.pipeline:
+                if isinstance(step, Boundary):
+                    for o in step.hub.observers:
+                        if isinstance(o, Progress):
+                            o.report = shared
         console = Console(self.title, self.local_tasks, total, done_pages, len(self._completed),
-                          live=sys.stderr.isatty() and workers == 1).open()
+                          live=sys.stderr.isatty(), shared=shared).open()
         error = None
         try:
             return super().run()
@@ -126,5 +140,6 @@ class LocalExecutor(LocalPipelineExecutor):
             raise
         finally:
             console.close()
-            if workers == 1:
-                logger.info(console.summary(self.out, error))
+            logger.info(console.summary(self.out, error))
+            if manager is not None:
+                manager.shutdown()
