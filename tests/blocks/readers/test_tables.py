@@ -1,7 +1,7 @@
 """Parquet tables are divided over tasks by rows, not files (``linecaster.blocks.readers.tables``): equal shards over
 all files and row groups in order, so one file works with any number of tasks; the readers suggest a task count from
 their input (``auto_tasks``); ``linecaster.runtime.run.allocate`` chooses ``--tasks`` and ``--workers`` where the
-command line leaves them open, and divides ``--rate-limit`` over the tasks running at once."""
+command line leaves them open; ``--rate-limit`` holds per worker, and the run states what a server sees."""
 import argparse
 
 import pyarrow as pa
@@ -93,9 +93,10 @@ def test_a_pipeline_without_engines_gets_its_readers_task_count_and_one_worker_w
     a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page",
                  "--rate-limit", "150/60", "--rate-limit", "3/1"], has_engines=False)
     reader = run.reader(a)
-    assert reader._opener.http["rate_limits"] == [(150, 60.0), (3, 1.0)]        # one task at a time: all of it
+    assert reader._opener.http["rate_limits"] == [(150, 60.0), (3, 1.0)]        # each worker's, as given
     run.allocate(a, [reader])
     assert (a.tasks, a.workers) == (3, 1)
+    assert run.rate_note(a) == "rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a server"
 
 
 def test_without_rate_limits_a_pipeline_without_engines_runs_a_worker_per_cpu(tmp_path, monkeypatch):
@@ -116,20 +117,22 @@ def test_a_pipeline_with_engines_keeps_one_task_and_every_task_at_once(tmp_path)
     run.allocate(a, [run.reader(a)])
     assert (a.tasks, a.workers) == (1, 1)
     a = options(["--parquet", data, "OUT", "--tasks", "4", "--rate-limit", "10/1"], has_engines=True)
-    assert run.reader(a)._opener.http["rate_limits"] == [(2, 0.8)]       # 4 tasks at once share 10/s
+    assert run.reader(a)._opener.http["rate_limits"] == [(10, 1.0)]      # per worker, not divided
     run.allocate(a, [run.reader(a)])
     assert (a.tasks, a.workers) == (4, 4)
+    assert run.rate_note(a).endswith("4 workers → up to 2,400/min at a server")
 
 
-def test_given_tasks_and_workers_stay_and_divide_the_rate_limits(tmp_path):
+def test_given_tasks_and_workers_stay_and_the_rate_limits_hold_per_worker(tmp_path):
     from linecaster.runtime import run
 
     data = write_pages(tmp_path / "data", [10], row_group_size=10)
     a = options(["--parquet", data, "OUT", "--tasks", "8", "--workers", "2", "--rate-limit", "150/60"],
                 has_engines=False)
-    assert run.reader(a)._opener.http["rate_limits"] == [(75, 60.0)]
+    assert run.reader(a)._opener.http["rate_limits"] == [(150, 60.0)]
     run.allocate(a, [run.reader(a)])
     assert (a.tasks, a.workers) == (8, 2)
+    assert run.rate_note(a).endswith("2 workers → up to 300/min at a server")
 
 
 def test_user_agent_options_reach_the_readers_http_settings(tmp_path):

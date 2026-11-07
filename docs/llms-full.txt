@@ -1275,9 +1275,10 @@ divided over the tasks by rows in equal shards, not by files, so a table never n
 `--max-pages N` (`--parquet`, IMAGES; the readers' `max_pages`) reads the input as if it ended after its first N
 pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove.
 
-`--rate-limit` is what the servers see from the whole run: each task running at once gets its share
-(`linecaster.net.http.divided`: a window's requests divided, at least one, the window stretched to keep the average
-rate). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
+`--rate-limit` holds per worker: each worker process has one fetcher with its limits (`HTTPFetcher.shared`), so a
+server sees the workers running at once times the limits; the run states it before it starts
+(`linecaster.runtime.run.rate_note`, e.g. `rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
+server`). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
 

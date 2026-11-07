@@ -14,7 +14,7 @@ import pytest
 from linecaster.blocks.base.page import failed, page_of
 from linecaster.blocks.readers.images import ImageParquetReader
 from linecaster.errors import PageError
-from linecaster.net.http import MAX_AHEAD, divided, prefetched
+from linecaster.net.http import MAX_AHEAD, prefetched
 from linecaster.testing import sample_png
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 1, "trust_env": False}  # no proxy from the environment
@@ -112,19 +112,6 @@ def test_stopping_early_cancels_the_window_and_closes_the_entries():
     assert next(gen).entry == 0
     gen.close()
     assert [h.entry for h in handles if h.cancelled_] == [1, 2, 3] and closed == [True]
-
-
-@pytest.mark.parametrize("limits, tasks, share", [
-    ([(150, 60)], 1, [(150, 60.0)]),
-    ([(150, 60), (3, 1)], 2, [(75, 60.0), (1, 2 / 3)]),
-    ([(5, 4)], 3, [(1, 2.4)]),
-])
-def test_divided_gives_each_task_its_share_of_the_rate_limits(limits, tasks, share):
-    got = divided(limits, tasks)
-    assert [n for n, _ in got] == [n for n, _ in share]
-    assert [s for _, s in got] == pytest.approx([s for _, s in share])
-    for (n, s), (total_n, total_s) in zip(got, limits):     # together: the same average rate, no more
-        assert tasks * n / s == pytest.approx(total_n / total_s)
 
 
 # ---------------------------------------------------------------- ImageParquetReader over http(s)

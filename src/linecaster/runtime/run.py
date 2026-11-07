@@ -29,8 +29,8 @@ image through the pipeline in this process (``linecaster page``).
 ``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
 engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input), one
 worker when it has rate limits (one task keeps them busy) and one per CPU without; a pipeline with engines one task,
-and as many workers as tasks. ``--rate-limit`` holds for the whole run: each task running at once gets its share
-(``linecaster.net.http.divided``).
+and as many workers as tasks. ``--rate-limit`` holds per worker: a server sees the workers running at once times
+it, which the run states before it starts (``rate_note``).
 ``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
@@ -99,8 +99,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--page", metavar="IMAGE", help="one page image instead of IMAGES, run in this process without "
                                                    "an executor (`linecaster page`)")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
-                   help="http(s) requests (manifests, images, OCR) the run may send, e.g. 5/1; repeatable, all "
-                        "windows apply; each task running at once gets its share")
+                   help="http(s) requests (manifests, images, OCR) each worker may send, e.g. 5/1; repeatable, all "
+                        "windows apply; a server sees the workers running at once times this")
     ua = g.add_mutually_exclusive_group()
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: linecaster's own, naming the project)")
@@ -224,40 +224,28 @@ def has_engines(a: argparse.Namespace) -> bool:
     return getattr(a, "has_engines", True)
 
 
-def concurrent_tasks(a: argparse.Namespace) -> int:
-    """The tasks that run at once, as ``allocate`` will choose them: ``--workers`` (at most ``--tasks``); by default
-    one for a pipeline without engines that has rate limits, else every task."""
-    if a.workers:
-        return min(a.workers, a.tasks) if a.tasks else a.workers
-    if not has_engines(a) and getattr(a, "rate_limits", None):
-        return 1
-    return a.tasks or 1
+def rate_note(a: argparse.Namespace) -> str | None:
+    """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; None without rate limits."""
+    if not getattr(a, "rate_limits", None):
+        return None
+    workers = min(a.workers or a.tasks or 1, a.tasks or 1)
+    per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
+    limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
+    return (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
+            f"{per_minute:,.0f}/min at a server")
 
 
 def http(a: argparse.Namespace) -> dict:
-    """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` as each
-    task's share of it (``divided`` by the tasks running at once), ``--user-agent`` or ``--random-user-agent``."""
-    from ..net.http import divided
-
+    """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
+    worker's), ``--user-agent`` or ``--random-user-agent``."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "user_agent", None):
         out["user_agent"] = a.user_agent
     if getattr(a, "random_user_agent", False):
         out["use_fake_user_agent"] = True
     if getattr(a, "rate_limits", None):
-        share = divided(a.rate_limits, concurrent_tasks(a))
-        try:
-            from pybookget.http.ratelimit import to_rates
-        except ImportError:                       # checked where the requests are made
-            to_rates = None
-        if to_rates is not None:
-            try:
-                to_rates(share)
-            except ValueError:
-                raise PipelineConfigError(f"--rate-limit {a.rate_limit} over {concurrent_tasks(a)} tasks at once "
-                                          f"gives each {share}, which are not consistent; give fewer --workers or "
-                                          "other windows") from None
-        out["rate_limits"] = share
+        out["rate_limits"] = a.rate_limits
     return out
 
 
@@ -536,7 +524,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
             previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
                                      logging_dir=logs, depends=previous, out=out, reader=reader,
-                                     title=f"{title}/{stage.name}" if many else title)
+                                     title=f"{title}/{stage.name}" if many else title, note=rate_note(a))
         elif a.on == "ray":
             if servers or not many:
                 from .ray import RayGPUExecutor as Ray
@@ -602,6 +590,10 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         docs = run_plan(p)
         print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
         return
+    if a.on != "local" and (note := rate_note(a)):
+        from loguru import logger
+
+        logger.info(note)
     _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))

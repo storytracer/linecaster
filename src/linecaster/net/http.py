@@ -3,8 +3,8 @@
 for blocking callers such as datatrove blocks.
 
 Rate limits hold per ``HTTPFetcher``. Readers share one per process and configuration (``HTTPFetcher.shared``), so
-the limits hold across the tasks a worker runs one after the other; ``linecaster.runtime.run`` gives each of the tasks
-running at once its share of the run's limits (``divided``), so the server sees the limits as given.
+the limits hold per worker, across the tasks it runs one after the other: a server sees the workers running at once
+times the limits.
 
 Readers request ahead (``prefetched``) in a window that sizes itself: it grows while the reader waits for a response
 and no request is waiting for the rate limits (``HTTPFetcher.waiting``), so the limits stay busy, rate times latency
@@ -61,19 +61,6 @@ def is_url(path: str) -> bool:
 MAX_AHEAD = 256
 #: how often a reader waiting for a response looks whether its window should grow, which it does by one at a time
 POLL_SECONDS = 0.05
-
-
-def divided(rate_limits: list[tuple[int, float]], tasks: int) -> list[tuple[int, float]]:
-    """The rate limits of one of ``tasks`` tasks running at once, so that together they keep ``rate_limits``: each
-    window allows ``max(1, requests // tasks)`` requests and is stretched to keep its average rate,
-    ``requests / (seconds * tasks)``. ``[(150, 60), (3, 1)]`` over 2 tasks: ``[(75, 60.0), (1, 0.667)]``."""
-    if tasks < 1:
-        raise ValueError("tasks must be at least 1")
-    out = []
-    for requests, seconds in rate_limits:
-        share = max(1, requests // tasks)
-        out.append((share, seconds * tasks * share / requests))
-    return out
 
 
 def prefetched(entries: Iterable[T], submit: Callable[[T], S], cancel: Callable[[S], None],

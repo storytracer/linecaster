@@ -13,7 +13,7 @@ earlier run: ``linecaster.blocks.readers.records``.
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
 (in a Parquet image column or a page record) are fetched with pybookget (``linecaster[pybookget]``), politely:
-rate limits (``linecaster.runtime.run`` divides the run's over the tasks running at once), retries that honor
+rate limits (per worker: one fetcher per process, ``HTTPFetcher.shared``), retries that honor
 ``Retry-After``, requests ahead in a window that sizes itself (``linecaster.net.http.prefetched``). Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
 """
 from __future__ import annotations
