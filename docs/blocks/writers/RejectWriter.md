@@ -7,7 +7,7 @@ Writes every page that carries errors to the task's rejects file and passes ever
 
 |  |  |
 |---|---|
-| Unit | page |
+| Unit | any |
 | Role | writer |
 | Reads | - |
 | Adds | - |
@@ -39,6 +39,6 @@ first writer of a pipeline with a run folder (`<run_folder>/rejects`) when it ha
 ```mermaid
 flowchart LR
     B["RejectWriter"]
-    r0["page stream"] --> B
-    B --> a0["page stream"]
+    r0["any stream"] --> B
+    B --> a0["any stream"]
 ```

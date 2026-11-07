@@ -365,6 +365,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Readers | [`ManifestReader`](docs/blocks/readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
 | Readers | [`PageRecordReader`](docs/blocks/readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
 | Readers | [`PdfReader`](docs/blocks/readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
+| Readers | [`ResourceReader`](docs/blocks/readers/ResourceReader.md) | Fetches the remote files of items as they are served, one document per resource, one item per task. |
 | Layout | [`LayoutDetector`](docs/blocks/layout/LayoutDetector.md) | Detects the layout regions of every page, with their labels and reading order, by a layout engine. |
 | Lines | [`LineAssigner`](docs/blocks/lines/LineAssigner.md) | Assigns the lines detected on the whole page to the layout regions and orders them row by row. |
 | Lines | [`LineDetector`](docs/blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
@@ -395,6 +396,8 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Writers | [`PageJsonlWriter`](docs/blocks/writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
 | Writers | [`PageParquetWriter`](docs/blocks/writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
 | Writers | [`RejectWriter`](docs/blocks/writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
+| Writers | [`ResourceFilesWriter`](docs/blocks/writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
+| Writers | [`ResourceRecordWriter`](docs/blocks/writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
 | Composites | [`ModularTranscriber`](docs/blocks/composites/ModularTranscriber.md) | Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition. |
 <!-- blocks:end -->
 
@@ -518,6 +521,8 @@ term is added here before it is used.
 | **partial run** | A run of part of a pipeline: up to a block (`--until`), or from page records after one (`--after`). | |
 | **run folder** | The output folder of a run (`OUT`): `pages/` (the page records), `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
 | **run record** | `OUT/run.yaml`: the pipeline as run (every block's parameters, `to_dict()`), the recipe, the command line, the executor and the software, with `pipeline_sha256` (the hash of the functional parameters). | |
+| **resource** | A remote file of an item or of one of its pages (a catalogue record, an API's item JSON, a manifest, OCR, an image), with a kind (`marcxml`, `item-json`, ...): fetched as served by `ResourceReader` and kept as a raw copy, `<kind>/<item>/<name>.<ext>`, with a fetch record. | not a datatrove `Media` |
+| **host policy** | How requests to one host go out (rate limits, proxies or direct, User-Agent, deadline, retries, statuses that stop the run), from a host policies file (`--hosts`, `linecaster.net.hosts`); each host gets its own fetcher. | |
 | **reject** | A page that failed a check or a step, written to `rejects/` with the reason; it stays in the page records with its errors. | |
 | **warm-up** | What a block loads before its first unit (`warm_up()`): an engine, a server, a client's secrets. Timed as its own stat. | |
 | **error budget** | The share of a task's pages a block may fail on before the task fails (`--max-page-errors`, default 1 % of at least 100 pages). | |
@@ -1309,6 +1314,16 @@ failing. A single server error is retried (through another proxy, without blackl
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
+
+**Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
+(`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
+with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
+an HTML page where another format was expected fails and counts toward the breaker) and kept as a raw copy,
+`OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in
+`OUT/resources/<rank>.jsonl.gz` (`ResourceRecordWriter`: source and final URL, status, type, size, `sha256`, ETag,
+Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--hosts FILE`
+gives each host its policy (`linecaster.net.hosts`: rate limits, proxies or direct, User-Agent, deadline, retries,
+`stop_on` statuses and `html` that stop the run without a retry), for `--items` and `--parquet`.
 
 ## The console
 
@@ -2252,6 +2267,7 @@ Every public block, by family: one page each with its contract, backends, option
 | [`ManifestReader`](readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
 | [`PageRecordReader`](readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
 | [`PdfReader`](readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
+| [`ResourceReader`](readers/ResourceReader.md) | Fetches the remote files of items as they are served, one document per resource, one item per task. |
 
 ## Layout
 
@@ -2352,6 +2368,8 @@ Every public block, by family: one page each with its contract, backends, option
 | [`PageJsonlWriter`](writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
 | [`PageParquetWriter`](writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
 | [`RejectWriter`](writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
+| [`ResourceFilesWriter`](writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
+| [`ResourceRecordWriter`](writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
 
 ## Composites
 

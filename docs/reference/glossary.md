@@ -35,6 +35,8 @@ term is added here before it is used.
 | **partial run** | A run of part of a pipeline: up to a block (`--until`), or from page records after one (`--after`). | |
 | **run folder** | The output folder of a run (`OUT`): `pages/` (the page records), `rejects/`, `logs/`, `traces/`, `run.yaml`, and the files the writers produce. | |
 | **run record** | `OUT/run.yaml`: the pipeline as run (every block's parameters, `to_dict()`), the recipe, the command line, the executor and the software, with `pipeline_sha256` (the hash of the functional parameters). | |
+| **resource** | A remote file of an item or of one of its pages (a catalogue record, an API's item JSON, a manifest, OCR, an image), with a kind (`marcxml`, `item-json`, ...): fetched as served by `ResourceReader` and kept as a raw copy, `<kind>/<item>/<name>.<ext>`, with a fetch record. | not a datatrove `Media` |
+| **host policy** | How requests to one host go out (rate limits, proxies or direct, User-Agent, deadline, retries, statuses that stop the run), from a host policies file (`--hosts`, `linecaster.net.hosts`); each host gets its own fetcher. | |
 | **reject** | A page that failed a check or a step, written to `rejects/` with the reason; it stays in the page records with its errors. | |
 | **warm-up** | What a block loads before its first unit (`warm_up()`): an engine, a server, a client's secrets. Timed as its own stat. | |
 | **error budget** | The share of a task's pages a block may fail on before the task fails (`--max-page-errors`, default 1 % of at least 100 pages). | |

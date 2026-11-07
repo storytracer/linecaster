@@ -15,7 +15,7 @@ Detects the text lines of every page, with their geometry, by a line detection e
 | Backends | in-process (`InProcess`), served (`Served`), a preset ref (`id@edition`) builds one |
 | Catalog step | `lines` |
 | Presets | [`pp-ocrv6-medium-det@1`](../../catalog/presets/lines/pp-ocrv6-medium-det.md), [`pp-ocrv6-small-det@1`](../../catalog/presets/lines/pp-ocrv6-small-det.md), [`pp-ocrv6-tiny-det@1`](../../catalog/presets/lines/pp-ocrv6-tiny-det.md) |
-| Comes after | any reader |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md) |
 | Comes before | [`LineAssigner`](LineAssigner.md), [`LineRecognizer`](../recognition/LineRecognizer.md), [`Composer`](../composition/Composer.md), [`Recomposer`](../composition/Recomposer.md), [`Typographer`](../composition/Typographer.md), [`ItemTextWriter`](../writers/ItemTextWriter.md), [`PageFileWriter`](../writers/PageFileWriter.md) |
 | Used in | [`transcribe_modular.v1`](../../catalog/pipelines/transcribe_modular.v1.md) |
 | Source | [detector.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/lines/detector.py) |

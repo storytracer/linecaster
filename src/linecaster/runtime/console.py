@@ -161,8 +161,8 @@ class Console:
     report their counts to (several workers); without it the counts come from ``Progress`` in this process."""
 
     def __init__(self, title: str, tasks: int, total: int | None = None, done_pages: int = 0, done_tasks: int = 0,
-                 live: bool | None = None, shared=None):
-        self.title, self.tasks, self.total = title, tasks, total
+                 live: bool | None = None, shared=None, unit: str = "pages"):
+        self.title, self.tasks, self.total, self.unit = title, tasks, total, unit
         self.done_pages, self.done_tasks = done_pages, done_tasks
         self.shared, self._done_before = shared, done_tasks
         self.pages = self.failed = self.bytes = self.reused = self.reused_bytes = 0
@@ -273,9 +273,9 @@ class Console:
         rate = self.rate()
         parts = []
         if self.total:
-            parts.append(f"{count(done)} / {count(self.total)} pages  {100 * done / self.total:.0f}%")
+            parts.append(f"{count(done)} / {count(self.total)} {self.unit}  {100 * done / self.total:.0f}%")
         else:
-            parts.append(f"{count(done)} pages")
+            parts.append(f"{count(done)} {self.unit}")
         parts.append(f"{rate * 60:,.0f}/min")
         stored = self.bytes + self.reused_bytes + (self.done_bytes or 0)
         if self.done_bytes is None:
@@ -325,7 +325,7 @@ class Console:
         reader.start()
         reader.join(5)
         seconds = time.monotonic() - self.start
-        what = f"{count(self.pages)} pages"
+        what = f"{count(self.pages)} {self.unit}"
         if self.failed:
             what += f" ({count(self.failed)} failed)"
         if self.bytes:
@@ -333,7 +333,7 @@ class Console:
         if self.reused:
             what += f"; {count(self.reused)} reused (already there)"
         head = "stopped" if error is not None else "done"
-        resumed = f"; {count(self.done_pages)} pages from before" if self.done_pages else ""
+        resumed = f"; {count(self.done_pages)} {self.unit} from before" if self.done_pages else ""
         return (f"{self.title} {head}: {what} in {duration(seconds)} ({per_minute(self.pages, seconds)}){resumed}, "
                 f"{count(self.done_tasks)}/{count(self.tasks)} tasks · {out}")
 
@@ -357,6 +357,7 @@ class Progress(Observer):
     def _reset(self, rank: int, world_size: int) -> None:
         self.rank, self.world_size = rank, world_size
         self.pages = self.failed = self.bytes = self.reused = 0
+        self.unit = "pages"                         # "files" once a resource leaves
         self.start = self._logged = time.monotonic()
 
     def __getstate__(self):                     # its counts stay where they are; the shared dict travels
@@ -389,6 +390,8 @@ class Progress(Observer):
 
         reused = is_reused(doc)
         nbytes, bad = _nbytes(doc), failed(doc)
+        if "resource" in doc.metadata:
+            self.unit = "files"
         if reused:
             self.reused += 1
         else:
@@ -424,7 +427,7 @@ class Progress(Observer):
 
     def _status(self, final: bool = False) -> str:
         seconds = time.monotonic() - self.start
-        out = f"{count(self.pages)} pages"
+        out = f"{count(self.pages)} {self.unit}"
         if self.failed:
             out += f", {count(self.failed)} failed"
         if self.bytes:

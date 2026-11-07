@@ -12,7 +12,7 @@ Reads a page's lines the modular way: layout, lines on the whole page, line assi
 | Reads | `image` |
 | Adds | `ocr_new:line_confidences`, `ocr_new:line_regions`, `ocr_new:lines`, `ocr_new:reading_order`, `ocr_new:regions`, `ocr_new:text`, `ocr_new:word_confidences`, `ocr_new:words` |
 | Replaces | - |
-| Comes after | any reader |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md) |
 | Comes before | [`LineAssigner`](../lines/LineAssigner.md), [`FormulaRecognizer`](../recognition/FormulaRecognizer.md), [`LineRecognizer`](../recognition/LineRecognizer.md), [`RegionRecognizer`](../recognition/RegionRecognizer.md), [`TableRecognizer`](../recognition/TableRecognizer.md), [`CharacterNormalizer`](../text/CharacterNormalizer.md), [`UnicodeNormalizer`](../text/UnicodeNormalizer.md), [`Composer`](../composition/Composer.md), [`Recomposer`](../composition/Recomposer.md), [`Typographer`](../composition/Typographer.md), [`ItemTextWriter`](../writers/ItemTextWriter.md), [`PageFileWriter`](../writers/PageFileWriter.md) |
 | Used in | [`transcribe_modular.v1`](../../catalog/pipelines/transcribe_modular.v1.md) |
 | Source | [modular.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/composites/modular.py) |

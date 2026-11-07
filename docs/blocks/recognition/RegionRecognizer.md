@@ -15,7 +15,7 @@ Recognizes each layout region of every page with a chat VLM, one request per reg
 | Backends | chat (`Chat`), a preset ref (`id@edition`) builds one |
 | Catalog step | `recognition` |
 | Presets | [`lightonocr-2-1b-regions@1`](../../catalog/presets/recognition/lightonocr-2-1b-regions.md), [`minicpm-ocr-1.0@1`](../../catalog/presets/recognition/minicpm-ocr-1.0.md) |
-| Comes after | any reader, [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md), [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
 | Comes before | [`LineAssigner`](../lines/LineAssigner.md), [`LineRecognizer`](LineRecognizer.md), [`CharacterNormalizer`](../text/CharacterNormalizer.md), [`UnicodeNormalizer`](../text/UnicodeNormalizer.md), [`Composer`](../composition/Composer.md), [`Recomposer`](../composition/Recomposer.md), [`Typographer`](../composition/Typographer.md), [`ItemTextWriter`](../writers/ItemTextWriter.md), [`PageFileWriter`](../writers/PageFileWriter.md) |
 | Used in | [`transcribe_vlm.v1`](../../catalog/pipelines/transcribe_vlm.v1.md) |
 | Source | [chat.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/recognition/chat.py) |

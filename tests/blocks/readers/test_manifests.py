@@ -184,7 +184,8 @@ def test_manifests_are_entries_with_whole_items_per_task(server, tmp_path):
     (tmp_path / "manifests.txt").write_text("\n".join(urls) + "\n")
     reader = lambda: ManifestReader(paths_file=str(tmp_path / "manifests.txt"),  # noqa: E731
                                         http={**FAST, "iiif_format": "png"})
-    task0, task1 = pages(reader(), 0, 2), pages(reader(), 1, 2)
+    # pages go on as their images arrive: compared in page order
+    task0, task1 = (sorted(pages(reader(), r, 2), key=lambda p: p.page_id) for r in (0, 1))
     assert [(p.item_id, p.page_id, p.sequence) for p in task0] == [
         ("a", "a_0001", 1), ("a", "a_0002", 2), ("a", "a_0003", 3), ("c", "c_0001", 1)]   # c: "lost" failed,
     #                                                                                     "html" is no image
@@ -212,7 +213,7 @@ def test_limit_and_skip_count_pages_before_downloading(server, tmp_path, png_for
     urls = [publish(server, "a", v3(base, "a", ["a1", "a2", "a3"])), publish(server, "b", v3(base, "b", ["b1"]))]
     (tmp_path / "m.txt").write_text("\n".join(urls))
     got = pages(ManifestReader(paths_file=str(tmp_path / "m.txt"), skip=1, limit=2, http=png_format))
-    assert [p.page_id for p in got] == ["a_0002", "a_0003"]
+    assert sorted(p.page_id for p in got) == ["a_0002", "a_0003"]               # in the order they arrive
     images = sorted(r for r in server["requests"] if r.startswith("/iiif/"))   # fetched at once: any order
     assert images == ["/iiif/a2/full/max/0/default.png", "/iiif/a3/full/max/0/default.png"]
 

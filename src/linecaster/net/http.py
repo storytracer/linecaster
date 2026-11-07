@@ -310,8 +310,16 @@ async def _after(request) -> None:              # after the rate limits' hook: t
         record["wait_seconds"] = round(record["wait_seconds"] + time.perf_counter() - record.pop("_t"), 4)
 
 
+class StopRequests(Exception):
+    """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.hosts``): raised
+    before any retry, since a retry would only prolong its block."""
+
+
 async def _headers(response) -> None:          # the first response hook: the headers are in
     if (ticket := _TICKET.get()) is not None:
+        if response.status_code in ticket.fetcher.stop_on:
+            raise StopRequests(f"HTTP {response.status_code} from {response.request.url.host}: its policy stops "
+                               "the run here (stop_on), without a retry")
         ticket.fetcher.breaker.record(response.status_code)
     record = _FETCH.get()
     if record is not None and record["tries"]:
@@ -443,13 +451,14 @@ class HTTPFetcher:
             return fetcher
 
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
-                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, **config):
+                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, stop_on: list[int] | None = None, **config):
         _pybookget()
         from pybookget.config import Config
 
         self.config = Config(**{**HTTP_DEFAULTS, **config})
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
         self.breaker = Breaker(in_a_row=self.config.max_retries)
+        self.stop_on = frozenset(stop_on or ())
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()

@@ -111,6 +111,22 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     ua.add_argument("--random-user-agent", action="store_true",
                     help="a random browser User-Agent (pybookget's fake-useragent), a new one for each task")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
+    g.add_argument("--items", metavar="TABLE",
+                   help="items' remote files (resources) instead of IMAGES: Parquet (a folder or one .parquet file) "
+                        "with --item-key and either --resource templates or one row per resource (--url-key, "
+                        "--kind-key, --name-key); pipelines/harvest.py fetches them as served")
+    g.add_argument("--resource", action="append", default=[], metavar="KIND=URL",
+                   help="--items: a resource of every item, its URL with {item} for the item id, e.g. "
+                        "marcxml=https://lccn.loc.gov/{item}/marcxml; repeatable")
+    g.add_argument("--url-key", default="url", help="--items without --resource: the resource URL column")
+    g.add_argument("--kind-key", default="kind", help="--items without --resource: the resource kind column")
+    g.add_argument("--name-key", default=None, help="--items without --resource: the copy's name column (default "
+                                                    "the URL's last segment)")
+    g.add_argument("--max-items", type=int, default=None, metavar="N",
+                   help="--items: only the first N items of the input for the whole run (a smoke test)")
+    g.add_argument("--hosts", default=None, metavar="FILE",
+                   help="--items, --parquet: a host policies file (YAML: hosts -> rate_limits, proxies, direct, "
+                        "user_agent, stop_on, ...; linecaster.net.hosts) laid over the run's own HTTP settings")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")
@@ -187,9 +203,30 @@ def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
 
 
 def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
-    inputs = [x for x in ("images", "parquet", "manifests", "pages", "page") if getattr(a, x, None)]
+    inputs = [x for x in ("images", "parquet", "manifests", "pages", "page", "items") if getattr(a, x, None)]
     if len(inputs) != 1:
-        ap.error("give one of IMAGES, --parquet, --manifests, --pages and --page")
+        ap.error("give one of IMAGES, --parquet, --manifests, --pages, --page and --items")
+    if a.items and not a.item_key:
+        ap.error("--items needs --item-key: the column with each row's item id")
+    a.templates = {}
+    for spec in a.resource:
+        kind, sep, url = spec.partition("=")
+        if not sep or not kind or "{item}" not in url:
+            ap.error(f"--resource needs KIND=URL with {{item}} in the URL, got {spec!r}")
+        a.templates[kind] = url
+    if (a.resource or a.max_items is not None) and not a.items:
+        ap.error("--resource and --max-items are for --items")
+    if a.max_items is not None and a.max_items < 1:
+        ap.error("--max-items needs at least 1")
+    if a.hosts and (a.manifests or a.pages):
+        ap.error("--hosts is for --items and --parquet so far")
+    if a.hosts:
+        from ..net.hosts import HostPolicies
+
+        try:
+            HostPolicies(a.hosts)
+        except PipelineConfigError as e:
+            ap.error(e.problems[0])
     if getattr(a, "after", None) and not a.pages:
         ap.error("--after starts from page records: give --pages DIR")
     if getattr(a, "page", None) and (a.on != "local" or a.tasks not in (None, 1)):
@@ -241,9 +278,15 @@ def has_engines(a: argparse.Namespace) -> bool:
 
 def rate_note(a: argparse.Namespace) -> str | None:
     """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
-    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; None without rate limits."""
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``, and the host policies (``--hosts``); None
+    without either."""
+    hosts = None
+    if getattr(a, "hosts", None):
+        from ..net.hosts import HostPolicies
+
+        hosts = "host policies per worker: " + HostPolicies(a.hosts).describe()
     if not getattr(a, "rate_limits", None):
-        return None
+        return hosts
     workers = min(a.workers or a.tasks or 1, a.tasks or 1)
     per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
@@ -254,7 +297,7 @@ def rate_note(a: argparse.Namespace) -> str | None:
 
         note += (f" · through {a.proxy_count:,} proxies (left out for {PROXY_BLACKLIST_TTL:.0f} s after "
                  f"{PROXY_BLACKLIST_THRESHOLD} failure{'s' if PROXY_BLACKLIST_THRESHOLD != 1 else ''})")
-    return note
+    return note + (f" · {hosts}" if hosts else "")
 
 
 def http(a: argparse.Namespace) -> dict:
@@ -286,7 +329,7 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     if a.workers is None:
         if has_engines(a):
             a.workers = a.tasks
-        elif getattr(a, "rate_limits", None):
+        elif getattr(a, "rate_limits", None) or getattr(a, "hosts", None):
             a.workers = 1
         else:
             a.workers = min(a.tasks, os.cpu_count() or 1)
@@ -301,6 +344,17 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
 
+    if getattr(a, "items", None):
+        from ..blocks.readers.resources import ResourceReader
+
+        folder, glob = a.items, a.glob_pattern or "**/*.parquet"
+        if a.items.endswith(".parquet"):
+            parent, _, name = a.items.rpartition("/")
+            folder, glob = parent or ".", name
+        return ResourceReader(folder, item_key=a.item_key, templates=getattr(a, "templates", None) or None,
+                              url_key=a.url_key, kind_key=a.kind_key, name_key=a.name_key, http=http(a),
+                              hosts=a.hosts, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
+                              limit=a.limit, skip=a.skip)
     if getattr(a, "manifests", None):
         from ..blocks.readers.manifests import ManifestReader
 
@@ -329,7 +383,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
-                                  reuse_folder=reuse_folder)
+                                  reuse_folder=reuse_folder, hosts=getattr(a, "hosts", None))
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file)
@@ -443,7 +497,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
-    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count")
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
