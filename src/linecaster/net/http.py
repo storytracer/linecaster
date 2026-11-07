@@ -47,8 +47,9 @@ from loguru import logger
 T = TypeVar("T")
 S = TypeVar("S")
 
-USER_AGENT = "linecaster (+https://github.com/storytracer/linecaster)"
-#: pybookget ``Config`` settings for bulk work: an honest user agent, reused connections, patient retries, and a
+#: the User-Agent sent by default: datatrove's (``HTTPFetchReader``'s ``custom_agent``)
+USER_AGENT = "HF-Research/1.0"
+#: pybookget ``Config`` settings for bulk work: datatrove's user agent, reused connections, patient retries, and a
 #: deadline per attempt (15 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
 #: connection that hangs or trickles (a slow proxy exit) is cut and retried within seconds
 HTTP_DEFAULTS = dict(use_fake_user_agent=False, user_agent=USER_AGENT, max_keepalive_connections=16,

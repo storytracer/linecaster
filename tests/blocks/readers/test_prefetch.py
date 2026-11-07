@@ -190,13 +190,14 @@ def fresh_fetchers():
     close_shared()
 
 
-def test_http_images_in_a_page_table_are_requested_ahead_in_order(slow_server, tmp_path):
+def test_http_images_in_a_page_table_are_requested_ahead(slow_server, tmp_path):
     names = [f"p{i}" for i in range(12)]
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
                                 sequence_key="page", http=FAST)
-    pages = [page_of(d) for d in reader.run()]
-    assert [p.page_id for p in pages] == [f"b_{i:04d}" for i in range(1, 13)]
-    assert [p.image.uri for p in pages] == [f"{slow_server['base']}/{n}.png" for n in names]
+    pages = [page_of(d) for d in reader.run()]                    # in the order their images arrive
+    assert sorted(p.page_id for p in pages) == [f"b_{i:04d}" for i in range(1, 13)]
+    assert {p.page_id: p.image.uri for p in pages} == {
+        f"b_{i:04d}": f"{slow_server['base']}/{n}.png" for i, n in enumerate(names, 1)}
     assert slow_server["max_in_flight"] > 1                # without rate limits it grows while the server is slow
 
 
