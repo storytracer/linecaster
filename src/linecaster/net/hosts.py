@@ -10,7 +10,9 @@ several hosts with their own limits (an institution's image server, its catalogu
 A host's policy (else ``default``, else none) is laid over the run's own HTTP settings (``--rate-limit``,
 ``--proxies``, ``--user-agent``, ...). Its fields: ``rate_limits`` (``REQUESTS/SECONDS`` strings, per worker),
 ``proxies`` (a proxy file, ``read_proxies``), ``direct`` (no proxy, neither a file nor the environment's),
-``user_agent``, ``random_user_agent``, ``attempt_timeout``, ``max_retries``, and ``stop_on``: statuses (and
+``user_agent``, ``random_user_agent``, ``attempt_timeout``, ``max_retries``, ``blacklist_ttl`` and
+``blacklist_threshold`` (how long a proxy is left out, and after how many failures in a row, e.g. ``72h`` for a host
+whose block lasts three days; default ``linecaster.net.http``'s 3600 s after 1), and ``stop_on``: statuses (and
 ``html``, an HTML page where another format was expected: a CAPTCHA) that stop the run at once, without a retry, for
 a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and starts the block again with every
 request during it). Each policy gets its own fetcher (``HTTPFetcher.shared``), so each host its own rate limits,
@@ -23,7 +25,21 @@ from urllib.parse import urlsplit
 from ..errors import PipelineConfigError
 
 FIELDS = ("rate_limits", "proxies", "direct", "user_agent", "random_user_agent", "attempt_timeout", "max_retries",
-          "stop_on")
+          "stop_on", "blacklist_ttl", "blacklist_threshold")
+
+
+def seconds(value, where: str) -> float:
+    """``259200``, ``"72h"``, ``"30m"``, ``"45s"``, ``"3d"`` -> seconds."""
+    if isinstance(value, int | float) and not isinstance(value, bool) and value > 0:
+        return float(value)
+    text = str(value).strip().lower()
+    units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    try:
+        if text[-1:] in units and float(text[:-1]) > 0:
+            return float(text[:-1]) * units[text[-1]]
+    except ValueError:
+        pass
+    raise PipelineConfigError(f"{where}: a duration is seconds or a number with s, m, h or d (72h), not {value!r}")
 
 
 def _rate(text: str, where: str) -> tuple[int, float]:
@@ -67,6 +83,11 @@ class HostPolicies:
             raise PipelineConfigError(f"{where}: unknown {', '.join(sorted(unknown))}; known: {', '.join(FIELDS)}")
         for rate in policy.get("rate_limits") or ():
             _rate(rate, where)
+        if "blacklist_ttl" in policy:
+            seconds(policy["blacklist_ttl"], where)
+        threshold = policy.get("blacklist_threshold")
+        if threshold is not None and not (isinstance(threshold, int) and threshold >= 1):
+            raise PipelineConfigError(f"{where}: blacklist_threshold is a whole number of failures, at least 1")
         for status in policy.get("stop_on") or ():
             if status != "html" and not (isinstance(status, int) and 100 <= status < 600):
                 raise PipelineConfigError(f"{where}: stop_on holds HTTP statuses and `html`, not {status!r}")
@@ -94,6 +115,10 @@ class HostPolicies:
                 out[key] = policy[key]
         if policy.get("random_user_agent"):
             out["use_fake_user_agent"] = True
+        if "blacklist_ttl" in policy:
+            out["proxy_blacklist_ttl"] = seconds(policy["blacklist_ttl"], self.path)
+        if "blacklist_threshold" in policy:
+            out["proxy_blacklist_threshold"] = int(policy["blacklist_threshold"])
         statuses = [s for s in policy.get("stop_on") or () if isinstance(s, int)]
         if statuses:
             out["stop_on"] = statuses
@@ -107,6 +132,8 @@ class HostPolicies:
         def one(name: str, p: dict) -> str:
             parts = [", ".join(p.get("rate_limits") or []) or "no rate limit"]
             parts.append("direct" if p.get("direct") else "through proxies" if p.get("proxies") else "")
+            if p.get("proxies") and p.get("blacklist_ttl"):
+                parts.append(f"a blocked proxy left out {p['blacklist_ttl']}")
             if p.get("stop_on"):
                 parts.append("stops on " + ", ".join(map(str, p["stop_on"])))
             return f"{name}: " + ", ".join(x for x in parts if x)

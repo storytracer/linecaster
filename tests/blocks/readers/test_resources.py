@@ -232,3 +232,64 @@ def test_the_harvest_pipeline_runs_through_the_builder_and_counts_files(server, 
     assert sorted(p.name for p in (out / "marcxml").iterdir()) == ["a1", "c3"]
     rejected = [json.loads(line) for p in (out / "rejects").iterdir() for line in p.open()]
     assert [(r["key"], r["field"]) for r in rejected] == [("bad/marcxml/bad", "resource")]
+
+
+def fake_proxy(body: bytes, ctype: str):
+    """An 'http proxy' answering every absolute-URI request itself with ``body``; requests counted."""
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, seen
+
+
+def test_an_html_page_through_a_proxy_blocks_that_proxy_for_its_hosts_ttl(tmp_path):
+    """One proxy sends a block page (HTML), the other the records: every record arrives, the blocking proxy is left
+    out for the host's blacklist_ttl (72 h), and the breaker does not pause."""
+    blocking, blocked_seen = fake_proxy(b"<!DOCTYPE html><html><title>No Connections Available</title></html>",
+                                        "text/html;charset=UTF-8")
+    good, good_seen = fake_proxy(XML, "application/xml")
+    try:
+        (tmp_path / "proxies.txt").write_text(
+            f"127.0.0.1:{blocking.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
+        hosts = hosts_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
+                                     "blacklist_ttl: 72h}\n")
+        out = tmp_path / "out"
+        reader = ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=FAST, hosts=hosts,
+                                templates={"marcxml": "http://catalog.test/{item}/marcxml"})
+        docs = run_all(reader, out)
+        assert not any(d.metadata.get("errors") for d in docs) and len(docs) == 3
+        assert sorted(p.name for p in (out / "marcxml").iterdir()) == ["a1", "b2", "c3"]
+        assert len(blocked_seen) == 1 and len(good_seen) == 3       # blocked once, then left out
+        fetcher = reader._last
+        ttl = [p["ttl_remaining_seconds"] for pool in fetcher._proxies.blacklist_snapshot().values() for p in pool
+               if p["ttl_remaining_seconds"] is not None]
+        assert len(ttl) == 1 and 72 * 3600 - 60 < ttl[0] <= 72 * 3600
+        assert not fetcher.breaker.paused
+    finally:
+        blocking.shutdown()
+        good.shutdown()
+
+
+def test_blacklist_settings_per_host(tmp_path):
+    from linecaster.net.hosts import seconds
+
+    hosts = HostPolicies(hosts_file(tmp_path, "hosts:\n  lccn.loc.gov: {proxies: p.txt, blacklist_ttl: 72h, "
+                                              "blacklist_threshold: 2}\n"))
+    config = hosts.http_for("https://lccn.loc.gov/1/marcxml")
+    assert config["proxy_blacklist_ttl"] == 259200 and config["proxy_blacklist_threshold"] == 2
+    assert (seconds("30m", "x"), seconds(45, "x"), seconds("3d", "x")) == (1800, 45, 259200)
+    with pytest.raises(PipelineConfigError, match="duration"):
+        HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_ttl: soon}\n"))

@@ -271,7 +271,7 @@ class ResourceReader(Contracted, BaseDiskReader):
             except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched again
                 pass
         fetcher = self._fetcher(url)
-        return entry, fetcher.submit(url), fetcher
+        return entry, fetcher.submit(url, expect=expected_format(kind, url)), fetcher
 
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:

@@ -76,6 +76,12 @@ the tags; the first is `v0.1.0`.
 - With `--proxies` a server error is retried through another proxy without blacklisting the one it came through
   (resilient-httpx `blacklist_on={429}`, storytracer's fork 1.5.0 at `f706598`): only a 429, a timeout or a connection
   or proxy error counts against a proxy, so an outage no longer empties the pool.
+- With `--proxies` (or a host's `proxies`), an HTML page where another format was expected is that proxy's block:
+  the proxy is left out and the item goes on through the next one (`linecaster.net.http.ProxyBlocked`;
+  `HTTPFetcher.submit(..., expect=)`), with no breaker pause. Without proxies such a page fails as before. A host's
+  policy sets how long a blocked proxy is left out and after how many failures (`blacklist_ttl: 72h`,
+  `blacklist_threshold`; durations in s, m, h or d). A host with no proxy left stops the run (`StopRequests`, a
+  `ServerError`) naming when the first returns, where every following item failed with `AllProxiesExhausted`.
 - A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
   exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
   summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one

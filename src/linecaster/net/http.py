@@ -33,6 +33,12 @@ A fetch that fails keeps its record too: it travels with the exception (``FETCH_
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
 ``ReadTimeout (no message)``), where resilient-httpx's or httpx's own can be empty.
 
+With a proxy list an HTML page where another format was expected (``submit(..., expect=...)``: a resource's format,
+an image) is that proxy's block, as a 429 is: the attempt fails (``ProxyBlocked``), the proxy is left out (its host's
+``blacklist_ttl``) and the request goes on through the next one; it does not count toward the breaker. A host whose
+proxies are all left out stops the run (``StopRequests``, naming when the first one returns) instead of failing every
+item that follows.
+
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
 ``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
 connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
@@ -56,6 +62,8 @@ from typing import TypeVar
 from urllib.parse import quote, urlsplit
 
 from loguru import logger
+
+from ..errors import ServerError
 
 T = TypeVar("T")
 S = TypeVar("S")
@@ -242,6 +250,11 @@ _FETCH: contextvars.ContextVar[dict | None] = contextvars.ContextVar("linecaster
 FETCH_KEY = "linecaster.fetch"
 
 
+def _duration(seconds: float) -> str:
+    s = int(seconds)
+    return f"{s // 3600} h {s % 3600 // 60:02d} min" if s >= 3600 else f"{s // 60} min {s % 60:02d} s"
+
+
 def last_error(error: BaseException | None) -> str:
     """What failed last in resilient-httpx's retries: ``HTTP 520`` for a retried status, else the error's type and
     message (``ReadTimeout (no message)`` for httpx's silent timeouts)."""
@@ -282,8 +295,8 @@ class _Ticket:
     """A fetch's place in ``HTTPFetcher.waiting``: queued from its submission until its first attempt has passed the
     rate limits, and again for each retry until it has passed them."""
 
-    def __init__(self, fetcher: HTTPFetcher):
-        self.fetcher, self.queued = fetcher, False
+    def __init__(self, fetcher: HTTPFetcher, expect: str | None = None):
+        self.fetcher, self.queued, self.expect = fetcher, False, expect
 
     def queue(self, queued: bool) -> None:
         with self.fetcher._lock:
@@ -310,9 +323,26 @@ async def _after(request) -> None:              # after the rate limits' hook: t
         record["wait_seconds"] = round(record["wait_seconds"] + time.perf_counter() - record.pop("_t"), 4)
 
 
-class StopRequests(Exception):
-    """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.hosts``): raised
-    before any retry, since a retry would only prolong its block."""
+class StopRequests(ServerError):
+    """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.hosts``), raised
+    before any retry since a retry would only prolong its block; or every proxy of a host is left out. A
+    ``ServerError``: it stops the run (``NOT_THE_PAGES``)."""
+
+
+class ProxyBlocked(Exception):
+    """An HTML page through a proxy where another format was expected: that proxy's block (made a ``TransportError``
+    where it is raised, so resilient-httpx leaves the proxy out and retries through the next)."""
+
+
+def _is_html(response) -> bool:
+    ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if ctype == "text/html":
+        return True
+    try:
+        head = response.content[:512].lstrip().lower()
+    except Exception:  # noqa: BLE001 - not read: decided by the content type alone
+        return False
+    return head.startswith((b"<!doctype html", b"<html"))
 
 
 async def _headers(response) -> None:          # the first response hook: the headers are in
@@ -328,6 +358,19 @@ async def _headers(response) -> None:          # the first response hook: the he
 
 async def _read(response) -> None:             # the last response hook: read whole (the deadline did not cut it)
     record = _FETCH.get()
+    ticket = _TICKET.get()
+    if (ticket is not None and ticket.expect and ticket.expect != "html" and ticket.fetcher._proxies is not None
+            and response.status_code < 300):
+        await response.aread()
+        if _is_html(response):                   # a proxy's block page: the attempt fails, the proxy is left out
+            if record is not None and record["tries"]:
+                record["tries"][-1] = f"{response.status_code}-html"
+            import httpx
+
+            class Blocked(ProxyBlocked, httpx.TransportError):
+                pass
+
+            raise Blocked(f"an HTML page through the proxy where {ticket.expect} was expected", request=response.request)
     if record is not None and record["tries"]:
         record["tries"][-1] = str(response.status_code)
 
@@ -554,7 +597,8 @@ class HTTPFetcher:
     async def _through_proxies(self, url: str, fallback_url: str | None):
         """``url`` through the proxy list (resilient-httpx's retries and blacklist); on 404 ``fallback_url``, as
         pybookget's ``fetch`` does. A status that is not retried (404, 403, ...) raises ``httpx.HTTPStatusError``;
-        retries used up raise ``MaxRetriesExceeded`` naming the last error, no proxy left ``AllProxiesExhausted``."""
+        retries used up raise ``MaxRetriesExceeded`` naming the last error, no proxy left ``StopRequests`` (the run
+        stops)."""
         from resilient_httpx import AllProxiesExhausted, MaxRetriesExceeded
 
         try:
@@ -567,12 +611,18 @@ class HTTPFetcher:
             raise MaxRetriesExceeded(f"after {record.get('attempts', '?')} attempts: {last_error(e.__cause__)}") \
                 from e.__cause__
         except AllProxiesExhausted as e:
-            raise AllProxiesExhausted("no proxy left in rotation: every one is left out for now") from e
+            waits = [p["ttl_remaining_seconds"] for pool in self._proxies.blacklist_snapshot().values() for p in pool
+                     if p["ttl_remaining_seconds"] is not None]
+            back = f"the first returns in {_duration(min(waits))}" if waits else "none returns"
+            raise StopRequests(f"no proxy left for {urlsplit(url).hostname}: every one is left out ({back}); "
+                               "the run stops instead of failing every item that follows") from e
         response.raise_for_status()
         return response
 
-    def submit(self, url: str, fallback_url: str | None = None) -> Future:
-        ticket = _Ticket(self)
+    def submit(self, url: str, fallback_url: str | None = None, expect: str | None = None) -> Future:
+        """A future of ``url``'s response. ``expect``: the format it should have (``xml``, ``json``, ``image``):
+        through a proxy, an HTML page instead is that proxy's block (see the module docstring)."""
+        ticket = _Ticket(self, expect)
         ticket.queue(True)
         future = asyncio.run_coroutine_threadsafe(self._fetch(url, fallback_url, ticket), self._loop)
         future.add_done_callback(lambda _: ticket.queue(False))      # also when cancelled before it started

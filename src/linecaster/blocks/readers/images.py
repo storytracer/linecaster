@@ -87,7 +87,7 @@ class _Opener:
                 self._used.add(fetcher)
                 fetcher.new_user_agent()
             self._fetcher = fetcher
-            return fetcher.submit(uri)
+            return fetcher.submit(uri, expect="image")       # through a proxy, an HTML page is its block
         return _future(lambda: self._read_local(uri))
 
     @staticmethod

@@ -104,14 +104,16 @@ def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_pa
         good.shutdown()
 
 
-def test_no_proxy_left_fails_the_page(tmp_path):
+def test_no_proxy_left_stops_the_run_and_says_when_one_returns(tmp_path):
+    """Every proxy left out: the run stops (a ServerError) instead of failing every page that follows."""
+    from linecaster.errors import ServerError
+
     (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n127.0.0.1:{dead_port()}\n")
     reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
                                 http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
-    reader.max_page_errors = None
-    docs = list(reader.run())
-    assert failed(docs[0]) and page_of(docs[0]).page_id == "b_0001"
-    assert docs[0].metadata["errors"][0]["type"] in ("AllProxiesExhausted", "MaxRetriesExceeded")
+    with pytest.raises(ServerError, match=r"no proxy left for library\.test: every one is left out \(the first "
+                                          r"returns in 59 min"):
+        list(reader.run())
 
 
 def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
@@ -200,12 +202,3 @@ def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path, monkeypatch
         assert reader._opener._fetcher.proxies_in_rotation() == (1, 1)     # a server error left the proxy in
     finally:
         httpd.shutdown()
-
-
-def test_no_proxy_left_says_so(tmp_path):
-    (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n")
-    reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
-                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
-    reader.max_page_errors = None
-    (doc,) = list(reader.run())
-    assert doc.metadata["errors"][0]["error"] == "no proxy left in rotation: every one is left out for now"
