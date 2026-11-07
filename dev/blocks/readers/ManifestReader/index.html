@@ -941,6 +941,12 @@
 <td><code>False</code></td>
 <td>datatrove's <code>BaseDiskReader</code> arguments.</td>
 </tr>
+<tr>
+<td><code>task_per_item</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td></td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
@@ -955,8 +961,8 @@
   column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
   tasks in equal shards (<code>linecaster.blocks.readers.tables</code>), so one table works with any number of tasks.</li>
 </ul>
-<p><code>auto_tasks</code> is the task count for about <code>ITEMS_PER_TASK</code> items per task, which <code>linecaster.runtime.run</code>
-uses for a pipeline without engines.</p>
+<p><code>auto_tasks</code> is the task count for about <code>ITEMS_PER_TASK</code> items per task, or one item per task with
+<code>task_per_item</code> (<code>pipelines/harvest.py</code>), which <code>linecaster.runtime.run</code> uses for a pipeline without engines.</p>
 <p>A manifest is one entry, so an item's pages stay in one task (<code>whole_items</code>). An entry that is a IIIF
 Collection stands for its manifests, each an item named by its own link (a table's <code>item_key</code> does not apply
 to them); a collection listed in it, or a paged one, raises <code>NotImplementedError</code> (one level).</p>

@@ -1486,7 +1486,10 @@ what <code>linecaster catalog release</code> records in the lock and <code>verif
 </tbody>
 </table>
 <p><code>auto_tasks</code> is about 1,000 pages per task for <code>ImageParquetReader</code> and about 5 items per task for <code>ManifestReader</code>
-(<code>linecaster.blocks.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. Parquet tables are
+(<code>linecaster.blocks.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. The harvest
+(<code>pipelines/harvest.py</code>) asks its reader for one item per task (<code>task_per_item</code>): the tasks divide the items, an
+item's rows wherever they are in the table (<code>tables.item_runs</code>), so every item is whole in its task and a task that
+fails costs one item. Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 <code>--max-pages N</code> (<code>--parquet</code>, IMAGES; the readers' <code>max_pages</code>) reads the input as if it ended after its first N
 pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove.</p>

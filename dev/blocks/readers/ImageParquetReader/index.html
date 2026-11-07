@@ -947,6 +947,12 @@
 <td><code>None</code></td>
 <td>only the first <code>max_pages</code> rows of the input, for the whole run: the tables are read as if they ended there, divided over the tasks (and <code>auto_tasks</code> counted) the same way; default: every row.</td>
 </tr>
+<tr>
+<td><code>task_per_item</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>the tasks divide the items (the <code>item_key</code> values, needs it; an item's rows need not be together), not the rows, and <code>auto_tasks</code> is one task per item: each item whole in its task, a task that fails costs one item (<code>pipelines/harvest.py</code>). Default: rows in equal shards.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
