@@ -15,7 +15,8 @@ itself.
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) requests go through resilient-httpx
 (``linecaster[resilient-httpx]``): each attempt through the next proxy in turn, a proxy that fails an attempt (a
 timeout, a connection or proxy error, a retryable status) blacklisted for ``PROXY_BLACKLIST_TTL`` seconds after
-``PROXY_BLACKLIST_THRESHOLD`` failures, the retries resilient-httpx's (pybookget's counts and waits; no
+``PROXY_BLACKLIST_THRESHOLD`` failures, or for a shorter ``Retry-After`` a 429 or 503 asks for (storytracer's fork of
+resilient-httpx, ``blacklist_ttl_from_retry_after``), the retries resilient-httpx's (pybookget's counts and waits; no
 ``Retry-After``: the next attempt goes out through another proxy). Each proxy's client is made by pybookget's
 ``create_client``, so the rate limits (shared by all proxies), the deadline per attempt and the records below hold
 as without. Proxy URLs are never logged with their credentials (``redact``).
@@ -148,7 +149,8 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
         max_attempts=config.max_retries, backoff="exponential", min_wait=config.retry_wait_min,
         max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES),
         retry_on_exception=[httpx.TransportError]),
-        timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, on_blacklist=blacklisted)
+        timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, blacklist_ttl_from_retry_after=True,
+        on_blacklist=blacklisted)
     client._log = _QuietLog()
     return client
 

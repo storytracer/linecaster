@@ -44,6 +44,9 @@ the tags; the first is `v0.1.0`.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- A proxy answered with a 429 or 503 whose `Retry-After` is shorter than the blacklist TTL (3600 s) is left out only
+  that long (resilient-httpx's `blacklist_ttl_from_retry_after`, from storytracer's fork, pinned at `238582e` as
+  resilient-httpx 1.4.0); everything else keeps 3600 s.
 - `pipelines/harvest.py` runs one item per task (`task_per_item` of `ImageParquetReader` and `ManifestReader`): every
   item whole in its task, a task that fails costs one item. Items are grouped by their `--item-key` value, so a table
   whose item rows are apart still gives one task per item (`tables.item_runs`). Other pipelines keep their task

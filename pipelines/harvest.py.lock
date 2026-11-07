@@ -11,6 +11,7 @@ resolution-markers = [
 requirements = [
     { name = "linecaster", extras = ["ray", "pybookget", "resilient-httpx"], editable = "../" },
     { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" },
+    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/238582e50348cc28c5e34bc01fe9664c8b854d91.tar.gz" },
     { name = "s3fs" },
 ]
 
@@ -835,7 +836,7 @@ requires-dist = [
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", specifier = ">=1.3" },
+    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/238582e50348cc28c5e34bc01fe9664c8b854d91.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
@@ -1606,17 +1607,29 @@ wheels = [
 
 [[package]]
 name = "resilient-httpx"
-version = "1.3.0"
-source = { registry = "https://pypi.org/simple" }
+version = "1.4.0"
+source = { url = "https://github.com/storytracer/resilient-httpx/archive/238582e50348cc28c5e34bc01fe9664c8b854d91.tar.gz" }
 dependencies = [
     { name = "httpx" },
     { name = "structlog" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/69/018b7db9dc705b2907f484171f36981a37d8157d4951df645f52a3cf76be/resilient_httpx-1.3.0.tar.gz", hash = "sha256:b5d45f306c2e68c87442749ed924716fce756208db459e220d37f507742a4360", size = 57310, upload-time = "2026-08-18T16:05:29.08Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/14/77a147a35e07b8b12eafcb4831a7b37d11453fd15d8d48ce082ff426126b/resilient_httpx-1.3.0-py3-none-any.whl", hash = "sha256:9f551b559faaed4e15cb0770d8c4e9380fefca7e6bb4b4da0767db21cddce005", size = 17488, upload-time = "2026-08-18T16:05:27.6Z" },
+sdist = { hash = "sha256:3b699a718367e963ccc1f8ea120a05bca2ac2152b01b01c11497787ab6053a4d" }
+
+[package.metadata]
+requires-dist = [
+    { name = "curl-cffi", marker = "extra == 'dev'", specifier = ">=0.16.0" },
+    { name = "curl-cffi", marker = "extra == 'impersonate'", specifier = ">=0.16.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "respx", marker = "extra == 'dev'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "structlog", specifier = ">=25.0.0" },
+    { name = "tenacity", specifier = ">=9.1.0" },
 ]
+provides-extras = ["impersonate", "dev"]
 
 [[package]]
 name = "rich"
