@@ -4,7 +4,8 @@
 *Engine · layout · package `linecaster-paddlex`*
 
 linecaster engine for the layout step: fills `Transcription.regions` (Docling labels,
-the model's reading order, PP-DocLayoutV3's polygons). Replaces any regions already present.
+PP-DocLayoutV3's reading order and polygons, or the order `reading_order` gives). Replaces any regions already
+present.
 The model files: `weights` (a catalog pin) or the catalog's newest pin for `model_name`
 (`weights.resolve`).
 
@@ -19,13 +20,14 @@ The model files: `weights` (a catalog pin) or the catalog's newest pin for `mode
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `model_name` | `str` | `'PP-DocLayoutV3'` | PaddleX layout model (PP-DocLayoutV3: learned reading order and polygons; others: XY-cut order) |
+| `model_name` | `str` | `'PP-DocLayoutV3'` | PaddleX layout model (PP-DocLayoutV3: learned reading order and polygons; others: ordered by reading_order) |
 | `device` | `str` | `'auto'` | auto, cpu, cuda, tensorrt or coreml (ONNX Runtime providers) |
 | `threshold` | `float \| dict[int, float] \| None` | `None` | score threshold, one or per class index; None: PaddleX's own for the model (PP-DocLayoutV3 0.3, PP-DocLayout_plus-L PP-StructureV3's per class) |
 | `header_zone` | `float` | `0.15` | share of the page height from the top in which a page number is a page header (below: a page footer) |
 | `nms` | `bool` | `True` | PaddleX's layout NMS |
 | `merge_mode` | `str \| dict[int, str] \| None` | `None` | PaddleX's box merge mode (large, union, small), one or per class index; None: PaddleX's own for the model |
 | `max_containment` | `float` | `0.8` | a region contained in another by more than this share of its area is dropped |
+| `reading_order` | `Literal['xy-cut', 'xy-cut++']` | `'xy-cut'` | the order of the regions of a model without learned reading order: xy-cut (plain recursive XY-cut on the boxes) or xy-cut++ (XY-Cut++, Liu et al. 2025: titles, figures, tables and cross-column text masked, the rest cut by density, the masked regions matched back by label and distance); PP-DocLayoutV3 keeps its own order |
 
 ## Presets
 

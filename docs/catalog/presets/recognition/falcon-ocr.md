@@ -48,10 +48,10 @@ uv run launch.py falcon-ocr IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-06 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | RTX A6000 48 GB (x86_64), one GPU | in-process | cer_diplomatic 0.0919, cer_reading 0.0775, recall 0.9471 |
-| 2026-11-06 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs a10g-small (A10G) | - | cer_diplomatic 0.1435, cer_reading 0.1301, recall 0.9469 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-06 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | RTX A6000 48 GB (x86_64), one GPU | in-process | cer_diplomatic 0.0919, cer_reading 0.0775, recall 0.9471 |
+| 2026-11-06 | 1 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs a10g-small (A10G) | - | cer_diplomatic 0.1435, cer_reading 0.1301, recall 0.9469 |
 
 ## Provenance
 

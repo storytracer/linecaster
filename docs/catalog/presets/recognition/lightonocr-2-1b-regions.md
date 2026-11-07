@@ -32,9 +32,9 @@ experimental way to read regions with a page model; region reading wants a regio
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0402 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0402 |
 
 ## Provenance
 

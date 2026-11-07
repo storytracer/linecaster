@@ -44,10 +44,10 @@ uv run launch.py dots-ocr IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs L4 | - | cer_reading 0.017 |
-| 2026-11-03 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | A10G | - | cer_reading 0.017 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs L4 | - | cer_reading 0.017 |
+| 2026-11-03 | 1 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | A10G | - | cer_reading 0.017 |
 
 ## Provenance
 

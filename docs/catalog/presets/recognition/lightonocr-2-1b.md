@@ -43,11 +43,11 @@ uv run launch.py lightonocr-2-1b IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0372, cer_dip 0.0738 |
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0285, cer_dip 0.0614, recall 0.9717 |
-| 2026-11-03 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | A10G | - | cer_reading 0.0321, cer_dip 0.0656, recall 0.9666 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0372, cer_dip 0.0738 |
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | spark (GB10) | - | cer_reading 0.0285, cer_dip 0.0614, recall 0.9717 |
+| 2026-11-03 | 1 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | A10G | - | cer_reading 0.0321, cer_dip 0.0656, recall 0.9666 |
 
 ## Provenance
 

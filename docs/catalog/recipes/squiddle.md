@@ -38,12 +38,12 @@ uv run launch.py squiddle IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | NVIDIA GB10 (spark) | in-process | lines_identical 1560, lines_total 1560, pages_exact 60 |
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | NVIDIA GB10 (spark) | served | lines_identical 1560, lines_total 1560, pages_exact 60 |
-| 2026-11-03 | Linecaster run | bhl-ocr-eval-tables-7 | NVIDIA GB10 (spark) | in-process | lines_identical 651, lines_total 651, pages_exact 7 |
-| 2026-11-03 | Linecaster run | bhl-ocr-eval-tables-7 | NVIDIA GB10 (spark) | served | lines_identical 651, lines_total 651, pages_exact 7 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | NVIDIA GB10 (spark) | in-process | lines_identical 1560, lines_total 1560, pages_exact 60 |
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | NVIDIA GB10 (spark) | served | lines_identical 1560, lines_total 1560, pages_exact 60 |
+| 2026-11-03 | 1 | Linecaster run | bhl-ocr-eval-tables-7 | NVIDIA GB10 (spark) | in-process | lines_identical 651, lines_total 651, pages_exact 7 |
+| 2026-11-03 | 1 | Linecaster run | bhl-ocr-eval-tables-7 | NVIDIA GB10 (spark) | served | lines_identical 651, lines_total 651, pages_exact 7 |
 
 ## Provenance
 

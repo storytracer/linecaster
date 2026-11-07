@@ -48,10 +48,10 @@ uv run launch.py qwen3.5-9b IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs L40S | - | cer_reading 0.0358 |
-| 2026-11-03 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | L40S | - | cer_reading 0.0356 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs L40S | - | cer_reading 0.0358 |
+| 2026-11-03 | 1 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | L40S | - | cer_reading 0.0356 |
 
 ## Provenance
 

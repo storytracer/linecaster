@@ -49,10 +49,10 @@ uv run launch.py indra-ocr IMAGES OUT
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-06 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | DGX Spark (GB10, aarch64), CPU: one task, one ONNX Runtime thread | in-process | cer_diplomatic 0.0838, cer_reading 0.0489, recall 0.93 |
-| 2026-11-06 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs cpu-upgrade | - | cer_diplomatic 0.0838, cer_reading 0.0489, recall 0.9299 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-06 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | DGX Spark (GB10, aarch64), CPU: one task, one ONNX Runtime thread | in-process | cer_diplomatic 0.0838, cer_reading 0.0489, recall 0.93 |
+| 2026-11-06 | 1 | BHL board | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | HF Jobs cpu-upgrade | - | cer_diplomatic 0.0838, cer_reading 0.0489, recall 0.9299 |
 
 ## Provenance
 
