@@ -32,9 +32,12 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 USER_AGENT = "linecaster (+https://github.com/storytracer/linecaster)"
-#: pybookget ``Config`` settings for bulk work: an honest user agent, reused connections, patient retries
+#: pybookget ``Config`` settings for bulk work: an honest user agent, reused connections, patient retries, and a
+#: deadline per attempt (30 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
+#: connection that trickles (a slow proxy exit) is cut and retried instead of holding the pages behind it
 HTTP_DEFAULTS = dict(use_fake_user_agent=False, user_agent=USER_AGENT, max_keepalive_connections=16,
-                     max_retries=5, retry_wait_min=2.0, retry_wait_max=60.0, show_progress=False)
+                     max_retries=5, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=30.0,
+                     attempt_min_rate=50_000, show_progress=False)
 
 
 def _pybookget():

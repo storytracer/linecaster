@@ -150,6 +150,17 @@ def slow_server():
                 state["requests"].append(self.path)
             try:
                 time.sleep(state["delay"])
+                if self.path == "/trickle.png" and state.setdefault("trickled", 0) < 1:
+                    state["trickled"] += 1                 # the first attempt sends its bytes slowly
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    for i in range(len(body)):
+                        self.wfile.write(body[i:i + 1])
+                        self.wfile.flush()
+                        time.sleep(0.05)
+                    return
                 if self.path == "/missing.png":
                     self.send_response(404)
                     self.end_headers()
@@ -313,3 +324,21 @@ def test_there_is_no_prefetch_option(tmp_path):
         ap.parse_args(["--parquet", str(tmp_path), "OUT", "--prefetch", "3"])
     with pytest.raises(TypeError):
         ImageParquetReader(str(tmp_path), prefetch=3)
+
+
+def test_a_response_that_trickles_is_cut_and_retried_so_the_pages_behind_it_go_on(slow_server, tmp_path):
+    """The first attempt at ``trickle.png`` sends a byte every 50 ms; past its deadline it is cut and fetched again."""
+    slow_server["delay"] = 0
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "trickle", "p3"]), item_key="book",
+                                sequence_key="page", http={**FAST, "max_retries": 2, "attempt_timeout": 0.5})
+    t = time.perf_counter()
+    docs = list(reader.run())
+    assert not any(failed(d) for d in docs) and time.perf_counter() - t < 3
+    fetch = docs[1].metadata["trace"]["fetch"][0]
+    assert fetch["attempts"] == 2 and fetch["status"] == 200
+
+
+def test_bulk_defaults_carry_a_deadline_per_attempt():
+    from linecaster.net.http import HTTP_DEFAULTS
+
+    assert HTTP_DEFAULTS["attempt_timeout"] == 30.0 and HTTP_DEFAULTS["attempt_min_rate"] == 50_000
