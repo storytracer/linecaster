@@ -28,6 +28,23 @@ def table_rows(folder, files: list[str]) -> list[tuple[str, tuple[int, ...]]]:
     return out
 
 
+def first_rows(layout: list[tuple[str, tuple[int, ...]]], rows: int) -> list[tuple[str, tuple[int, ...]]]:
+    """``layout`` cut after its first ``rows`` rows (the last row group shortened), as if the input ended there."""
+    out, left = [], rows
+    for path, groups in layout:
+        kept = []
+        for n in groups:
+            if left <= 0:
+                break
+            kept.append(min(n, left))
+            left -= kept[-1]
+        if kept:
+            out.append((path, tuple(kept)))
+        if left <= 0:
+            break
+    return out
+
+
 def total_rows(layout: list[tuple[str, tuple[int, ...]]]) -> int:
     return sum(sum(groups) for _, groups in layout)
 

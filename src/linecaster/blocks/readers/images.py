@@ -29,7 +29,8 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
-from .tables import PAGES_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows, whole_file
+from .tables import (PAGES_PER_TASK, first_rows, row_slices, slice_batches, table_rows, tasks_for, total_rows,
+                     whole_file)
 from ..base.block import reported_file
 from ..base.contract import Contracted
 from ...data.page import Page, PageImage
@@ -124,6 +125,8 @@ class ImageFolderReader(Contracted, BaseDiskReader):
         sequence: sets ``Page.sequence`` to the file's 1-based position among its item's files in sorted order;
             needs ``glob_pattern`` (every file of an item), not ``paths_file``.
         default_metadata: goes into every page's metadata.
+        max_pages: only the first ``max_pages`` files (sorted, or as ``paths_file`` lists them), for the whole run,
+            divided over the tasks as all of them would be; default: every file.
         recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -136,9 +139,12 @@ class ImageFolderReader(Contracted, BaseDiskReader):
                  glob_pattern: str = IMAGE_GLOB, recursive: bool = True, limit: int = -1, skip: int = 0,
                  item_from_parent: bool = False, item_id: str | None = None, sequence: bool = False,
                  file_progress: bool = False, doc_progress: bool = False, default_metadata: dict | None = None,
-                 shuffle_files: bool = False):
+                 shuffle_files: bool = False, max_pages: int | None = None):
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
+        if max_pages is not None and max_pages < 1:
+            raise PipelineConfigError("max_pages must be at least 1")
+        self.max_pages = max_pages
         if item_id is not None and item_from_parent:
             raise PipelineConfigError("item_id and item_from_parent exclude each other")
         if sequence and paths_file:
@@ -163,7 +169,9 @@ class ImageFolderReader(Contracted, BaseDiskReader):
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
             yield from data
-        if self.paths_file:
+        if self.paths_file and self.max_pages is not None:
+            files = list(get_shard_from_paths_file(self.paths_file, 0, 1))[:self.max_pages][rank::world_size]
+        elif self.paths_file:
             files = list(get_shard_from_paths_file(self.paths_file, rank, world_size))
         else:
             all_files = self._glob()
@@ -175,7 +183,7 @@ class ImageFolderReader(Contracted, BaseDiskReader):
                     item = self._item(path)
                     counts[item] = counts.get(item, 0) + 1
                     self._positions[path] = counts[item]
-            files = all_files[rank::world_size]
+            files = all_files[:self.max_pages][rank::world_size]
         self._log_limit_scope(rank, world_size)
         if self.shuffle_files:
             import random
@@ -231,6 +239,8 @@ class ImageParquetReader(Contracted, ParquetReader):
             requested ahead of the page being given on, as many as keep the rate limits busy
             (``linecaster.net.http.prefetched``); pages keep the rows' order.
         limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
+        max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
+            ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
         paths_file, glob_pattern, recursive, file_progress, doc_progress: datatrove's ``ParquetReader`` arguments.
         shuffle_files: read the files of a task's shard in random order.
     """
@@ -247,9 +257,13 @@ class ImageParquetReader(Contracted, ParquetReader):
                  batch_size: int = 64, id_key: str = "id", image_key: str = "image", item_key: str | None = None,
                  sequence_key: str | None = None, image_folder: DataFolderLike | None = None,
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
-                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None):
+                 default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
+                 max_pages: int | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
+        if max_pages is not None and max_pages < 1:
+            raise PipelineConfigError("max_pages must be at least 1")
+        self.max_pages = max_pages
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
         self._opener = _Opener(http)
@@ -263,7 +277,8 @@ class ImageParquetReader(Contracted, ParquetReader):
             if not files:
                 raise PipelineConfigError(f"No Parquet files found on {self.data_folder.path} matching "
                                           f"{self.glob_pattern!r}")
-            self._layout = table_rows(self.data_folder, files)
+            layout = table_rows(self.data_folder, files)
+            self._layout = layout if self.max_pages is None else first_rows(layout, self.max_pages)
         return self._layout
 
     def auto_tasks(self) -> int:

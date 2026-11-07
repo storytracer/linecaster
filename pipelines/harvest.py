@@ -22,6 +22,7 @@ engine or GPU is needed; the transcribe stage then reads the page records withou
         --rate-limit 5/1 --existing-ocr
     uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
         --rate-limit 150/60 --rate-limit 3/1
+    uv run pipelines/harvest.py ... SMOKE --rate-limit 150/60 --rate-limit 3/1 --max-pages 2000     # a smoke test
     uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe ...                 # keeps the metadata
     uv run pipelines/transcribe_modular.py OUT/images OUT2 --item-from-parent --recipe ...   # or the plain folder
 
@@ -35,7 +36,8 @@ about 1,000 pages (a --parquet page table by rows, whatever its files; --manifes
 the same OUT repeats at most the task each worker was in (datatrove's resume is per task). With rate limits one
 worker runs the tasks one after the other: its requests ahead (manifests' pages and http(s) images alike) grow until
 the rate limits are kept busy, and the limits hold across its tasks. --tasks and --workers still override; the run's
-rate limits are then divided over the tasks running at once.
+rate limits are then divided over the tasks running at once. --max-pages N runs the first N pages of the input in
+the same automatic tasks, a smoke test of the real setup (--limit counts per task, as in datatrove).
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
 from linecaster.blocks.conversion import TranscriptionConverter

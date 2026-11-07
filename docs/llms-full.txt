@@ -1272,6 +1272,8 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
+`--max-pages N` (`--parquet`, IMAGES; the readers' `max_pages`) reads the input as if it ended after its first N
+pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove.
 
 `--rate-limit` is what the servers see from the whole run: each task running at once gets its share
 (`linecaster.net.http.divided`: a window's requests divided, at least one, the window stretched to keep the average

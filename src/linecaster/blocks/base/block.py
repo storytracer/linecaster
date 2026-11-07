@@ -30,7 +30,8 @@ OPERATIONAL = frozenset({
     "name", "data_folder", "output_folder", "output_filename", "folder", "image_folder", "manifest_folder",
     "ocr_folder", "suffix", "bucket_by_item", "prefix",
     # which input files a task reads, and how (the pages themselves are recorded per page)
-    "paths_file", "glob_pattern", "recursive", "limit", "skip", "shuffle_files", "file_progress", "doc_progress",
+    "paths_file", "glob_pattern", "recursive", "limit", "skip", "max_pages", "shuffle_files", "file_progress",
+    "doc_progress",
     "batch_size", "http", "uri_map",
     # servers and clients: how they are started and reached
     "port", "host", "python", "boot_timeout", "max_queue", "script", "vllm", "outside_venv", "prepare_workers",
