@@ -7,6 +7,7 @@ from linecaster.engines.api import model_entry, weights_of
 from linecaster.testing import check_engine
 from linecaster_paddlex import (PaddleFormulaEngine, PaddleLayoutEngine, PaddleLineEngine, PaddleRecognitionEngine,
                                 PaddleTableEngine)
+from linecaster_paddlex.layout import PaddleLayout
 from linecaster_paddlex.recognizer import line_rectangle
 from linecaster_paddlex.tables import cells_from_html, parse_structure
 from linecaster_paddlex.weights import catalog_weights, check, model_id
@@ -50,3 +51,27 @@ def test_table_structure_tokens_and_html():
         (0, 0, 1, 1), (0, 1, 1, 2)]
     cells = cells_from_html("<table><tr><td>a</td><td>b</td></tr><tr><td colspan='2'>c</td></tr></table>")
     assert [(c.text, c.row, c.col) for c in cells] == [("a", 0, 0), ("b", 0, 1), ("c", 1, 0)]
+
+
+class _Boxes:
+    """A predictor that returns fixed layout boxes without ``order`` (as PP-DocLayout_plus-L does)."""
+
+    def __init__(self, boxes):
+        self.boxes = boxes
+
+    def predict(self, image, **kwargs):
+        yield {"boxes": self.boxes}
+
+
+@pytest.mark.parametrize("reading_order, expected", [
+    ("xy-cut", ["text_0", "text_1", "text_2", "text_3"]),        # the aligned gaps cut across both columns
+    ("xy-cut++", ["text_0", "text_2", "text_1", "text_3"]),
+])
+def test_regions_without_learned_order_follow_reading_order(reading_order, expected):
+    boxes = [{"coordinate": c, "label": "text", "score": 0.9} for c in
+             ([100, 100, 480, 500], [520, 100, 900, 500], [100, 520, 480, 1300], [520, 520, 900, 1300])]
+    layout = PaddleLayout.__new__(PaddleLayout)
+    layout.predictor, layout.threshold, layout.nms, layout.merge_mode = _Boxes(boxes), 0.5, True, "large"
+    layout.header_zone, layout.max_containment, layout.reading_order = 0.15, 0.8, reading_order
+    regions = layout.analyze(np.zeros((1400, 1000, 3), dtype=np.uint8))
+    assert [r.id for r in sorted(regions, key=lambda r: r.order)] == expected

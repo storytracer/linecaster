@@ -140,7 +140,7 @@ def test_docs_from_the_catalog(tmp_path):
     docs.write(Catalog([root]), tmp_path / "docs", readme=readme)
     out = tmp_path / "docs"
     page = (out / "presets" / "recognition" / "p.md").read_text()
-    assert "Why these settings." in page and "| 2026-11-03 | Linecaster run | d@r | - | - | cer_reading 0.0312 |" in page
+    assert "Why these settings." in page and "| 2026-11-03 | 1 | Linecaster run | d@r | - | - | cer_reading 0.0312 |" in page
     assert "[`chat.v1`](../../engines/chat.v1.md)" in page and "(../../models/m.md)" in page
     model = (out / "models" / "m.md").read_text()
     assert "Ours." in model and "(../../cat/models/m/upstream/abc/README.md)" in model and "../presets/recognition/p.md" in model

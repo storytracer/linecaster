@@ -1,5 +1,6 @@
-"""Region post-processing shared by layout steps: overlap suppression, XY-cut reading order and
-slotting unordered regions into an order a model gave.
+"""Region post-processing shared by layout steps: overlap suppression, plain XY-cut reading order and
+slotting unordered regions into an order a model gave. XY-Cut++, which also reads the regions' labels, is in
+``xy_cut_plus_plus``.
 
 The functions take any objects with a ``bbox`` (a ``BBox``) and a mutable ``order`` (int or None)."""
 from __future__ import annotations
@@ -68,8 +69,9 @@ def place_unordered(regions: Sequence) -> None:
     An unordered region goes after the last ordered region that ends above its center and overlaps
     it horizontally (falling back to any region whose center is above it), so a page number at the
     top comes first, a missed line follows the paragraph above it and a drop capital precedes its
-    paragraph. When no region carries an order the whole set is ordered with XY-cut. Ranks are
-    renumbered 0..n-1.
+    paragraph. When no region carries an order the whole set is ordered with plain XY-cut
+    (``xy_cut_order``; the ``LineAssigner`` of released recipes reaches this with orphan rows alone, where
+    XY-Cut++ would order some pages differently). Ranks are renumbered 0..n-1.
     """
     ordered = sorted((r for r in regions if r.order is not None), key=lambda r: r.order)
     if not ordered:

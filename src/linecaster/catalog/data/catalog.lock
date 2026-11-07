@@ -1098,6 +1098,66 @@ presets:
         formula_number: text
         aside_text: text
         reference_content: reference
+  pp-doclayout-plus-l@2:
+    sha256: sha256:c0be58a3d607bd3b401c8271ad57ca98adf51570ba848040d36ec0ce29a534b0
+    released: '2026-11-07'
+    linecaster: 04c1f7a
+    resolved:
+      step: layout
+      model:
+        id: pp-doclayout-plus-l-onnx
+        revision: feb74619326f634e0e883218598096a3733ad9f7
+        files:
+          inference.onnx: sha256:77afb2caa74dd13240d087d2eced91d7fcd2caebd16006a0a66162fc8707ff0e
+      engine: paddlex.layout.v1
+      options:
+        model_name: PP-DocLayout_plus-L
+        threshold:
+          '0': 0.3
+          '1': 0.5
+          '2': 0.4
+          '3': 0.5
+          '4': 0.5
+          '5': 0.5
+          '6': 0.5
+          '7': 0.3
+          '8': 0.5
+          '9': 0.5
+          '10': 0.5
+          '11': 0.5
+          '12': 0.5
+          '13': 0.5
+          '14': 0.5
+          '15': 0.45
+          '16': 0.5
+          '17': 0.5
+          '18': 0.5
+          '19': 0.5
+        header_zone: 0.15
+        nms: true
+        merge_mode: large
+        max_containment: 0.8
+        reading_order: xy-cut++
+      labels:
+        paragraph_title: section_header
+        image: picture
+        text: text
+        abstract: text
+        content: text
+        figure_title: caption
+        formula: formula
+        table: table
+        reference: reference
+        doc_title: title
+        footnote: footnote
+        header: page_header
+        algorithm: code
+        footer: page_footer
+        seal: seal
+        chart: picture
+        formula_number: text
+        aside_text: text
+        reference_content: reference
   pp-doclayoutv3@1:
     sha256: sha256:a76f9337c505909134ae1f26859fa8b07f70c7ff4d6f97d57fbf009fea0eba87
     released: '2026-11-04'

@@ -31,9 +31,9 @@ against PaddleX's rectangle warp). Not investigated further.
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 (transcribe_modular.v1 with pp-doclayoutv3@1, pp-ocrv6-medium-det@1, slanet-plus@1, no formulas, text lines; only the recognizer varied) | DGX Spark (GB10, aarch64, CUDA 13) | - | cer_diplomatic 0.0387, cer_reading 0.0315, recall 0.9343, wall_seconds 49 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 (transcribe_modular.v1 with pp-doclayoutv3@1, pp-ocrv6-medium-det@1, slanet-plus@1, no formulas, text lines; only the recognizer varied) | DGX Spark (GB10, aarch64, CUDA 13) | - | cer_diplomatic 0.0387, cer_reading 0.0315, recall 0.9343, wall_seconds 49 |
 
 ## Provenance
 

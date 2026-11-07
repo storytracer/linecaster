@@ -51,9 +51,9 @@ with its own containment suppression. Experimental: validated against the SDK, n
 
 ## Evidence
 
-| Date | Source | Dataset | Hardware | Backend | Result |
-|---|---|---|---|---|---|
-| 2026-11-03 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | forge (RTX 4000 SFF Ada 20 GB) | - | cer_reading 0.0243, cer_dip 0.0361, recall 0.9379 |
+| Date | Edition | Source | Dataset | Hardware | Backend | Result |
+|---|---|---|---|---|---|---|
+| 2026-11-03 | 1 | Linecaster run | finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7 | forge (RTX 4000 SFF Ada 20 GB) | - | cer_reading 0.0243, cer_dip 0.0361, recall 0.9379 |
 
 ## Provenance
 
