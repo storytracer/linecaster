@@ -107,7 +107,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "out for an hour; the environment's HTTPS_PROXY then does not apply to them")
     ua = g.add_mutually_exclusive_group()
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
-                    help="the User-Agent of every http(s) request (default: linecaster's own, naming the project)")
+                    help="the User-Agent of every http(s) request (default: datatrove's, HF-Research/1.0)")
     ua.add_argument("--random-user-agent", action="store_true",
                     help="a random browser User-Agent (pybookget's fake-useragent), a new one for each task")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")

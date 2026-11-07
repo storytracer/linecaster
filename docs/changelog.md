@@ -63,7 +63,8 @@ the tags; the first is `v0.1.0`.
   `Retry-After`. The progress line shows the proxies in rotation; credentials are never logged, and the run record
   keeps the file's name, not its lines.
 - `--user-agent TEXT` and `--random-user-agent` (a random browser User-Agent from pybookget's fake-useragent, a new
-  one for each task, `HTTPFetcher.new_user_agent`) for every http(s) request; default linecaster's own.
+  one for each task, `HTTPFetcher.new_user_agent`) for every http(s) request. The default User-Agent is datatrove's,
+  `HF-Research/1.0` (`linecaster.net.http.USER_AGENT`), where it was `linecaster (+https://github.com/storytracer/linecaster)`.
 - The console of a local run (`linecaster.runtime.console`, `linecaster.runtime.local.LocalExecutor`): one line
   naming the pipeline, a live progress line for the whole run (pages of the total, rate, size, failed pages, task,
   time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
