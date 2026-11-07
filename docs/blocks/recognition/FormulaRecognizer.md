@@ -15,7 +15,7 @@ Recognizes every formula region as LaTeX by a formula engine.
 | Backends | in-process (`InProcess`), served (`Served`), a preset ref (`id@edition`) builds one |
 | Catalog step | `formulas` |
 | Presets | [`pp-formulanet-l@1`](../../catalog/presets/formulas/pp-formulanet-l.md), [`pp-formulanet-plus-l@1`](../../catalog/presets/formulas/pp-formulanet-plus-l.md) |
-| Comes after | any reader, [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md), [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
 | Comes before | - |
 | Used in | [`transcribe_modular.v1`](../../catalog/pipelines/transcribe_modular.v1.md) |
 | Source | [recognizers.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/recognition/recognizers.py) |

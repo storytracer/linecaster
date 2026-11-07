@@ -327,6 +327,16 @@ local task that fails is logged and the others go on (`LocalExecutor`); it runs 
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
 
+**Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
+(`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
+with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
+an HTML page where another format was expected fails and counts toward the breaker) and kept as a raw copy,
+`OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in
+`OUT/resources/<rank>.jsonl.gz` (`ResourceRecordWriter`: source and final URL, status, type, size, `sha256`, ETag,
+Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--hosts FILE`
+gives each host its policy (`linecaster.net.hosts`: rate limits, proxies or direct, User-Agent, deadline, retries,
+`stop_on` statuses and `html` that stop the run without a retry), for `--items` and `--parquet`.
+
 ## The console
 
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the

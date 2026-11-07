@@ -227,11 +227,12 @@ class LocalExecutor(LocalPipelineExecutor):
         total = sum(pages(r, self.tasks) for r in ranks) if pages else None
         done_pages = sum(pages(r, self.tasks) for r in self._completed) if pages else 0
         workers = min(self.workers, max(1, len(todo)))
-        what = f"{count(total)} pages in " if total is not None else ""
+        unit = getattr(self.reader, "unit_label", "pages")
+        what = f"{count(total)} {unit} in " if total is not None else ""
         line = (f"{self.title} → {self.out}: {' → '.join(blocks(self.pipeline))} · {what}{count(self.local_tasks)} "
                 f"task{'s' if self.local_tasks != 1 else ''}, {workers} worker{'s' if workers != 1 else ''}")
         if self._completed:
-            line += f"; {count(len(self._completed))} done before ({count(done_pages)} pages)" if pages else \
+            line += f"; {count(len(self._completed))} done before ({count(done_pages)} {unit})" if pages else \
                     f"; {count(len(self._completed))} done before"
         logger.info(line)
         if self.note:
@@ -255,7 +256,7 @@ class LocalExecutor(LocalPipelineExecutor):
                         if isinstance(o, Progress):
                             o.report = shared
         console = Console(self.title, self.local_tasks, total, done_pages, len(self._completed),
-                          live=sys.stderr.isatty(), shared=shared).open()
+                          live=sys.stderr.isatty(), shared=shared, unit=unit).open()
         if self._completed:                      # their size, read while the run starts
             import threading
 

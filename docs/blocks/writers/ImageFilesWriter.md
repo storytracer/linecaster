@@ -12,7 +12,7 @@ Writes each page's image bytes as they came, one file per page.
 | Reads | `image` |
 | Adds | - |
 | Replaces | `metadata` |
-| Comes after | any reader |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md) |
 | Comes before | - |
 | Used in | [`harvest.v1`](../../catalog/pipelines/harvest.v1.md) |
 | Source | [images.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/writers/images.py) |

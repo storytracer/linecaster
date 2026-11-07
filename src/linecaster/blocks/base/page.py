@@ -92,7 +92,8 @@ class ErrorBudget:
         """One more page failed: logged; a ``PageError`` (it fails the task) once the budget is spent."""
         self.errors += 1
         self.block.stat_update("errors")
-        logger.warning("page {page_id} failed in {block}: {error_type}: {error}", page_id=doc.id,
+        what = "file" if getattr(self.block, "unit_label", "pages") == "files" else "page"   # a resource reader's
+        logger.warning("{what} {page_id} failed in {block}: {error_type}: {error}", what=what, page_id=doc.id,
                        block=entry["block"], error_type=entry["type"], error=entry["error"])
         self._last = (doc.id, entry["block"], cause)
         self._check()

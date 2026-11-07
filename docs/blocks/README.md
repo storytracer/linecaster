@@ -14,6 +14,7 @@ Every public block, by family: one page each with its contract, backends, option
 | [`ManifestReader`](readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
 | [`PageRecordReader`](readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
 | [`PdfReader`](readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
+| [`ResourceReader`](readers/ResourceReader.md) | Fetches the remote files of items as they are served, one document per resource, one item per task. |
 
 ## Layout
 
@@ -114,6 +115,8 @@ Every public block, by family: one page each with its contract, backends, option
 | [`PageJsonlWriter`](writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
 | [`PageParquetWriter`](writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
 | [`RejectWriter`](writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
+| [`ResourceFilesWriter`](writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
+| [`ResourceRecordWriter`](writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
 
 ## Composites
 

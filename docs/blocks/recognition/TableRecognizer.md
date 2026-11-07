@@ -15,7 +15,7 @@ Recognizes the structure of every table region by a table engine.
 | Backends | in-process (`InProcess`), served (`Served`), a preset ref (`id@edition`) builds one |
 | Catalog step | `tables` |
 | Presets | [`slanet-plus@2`](../../catalog/presets/tables/slanet-plus.md) |
-| Comes after | any reader, [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md), [`LayoutDetector`](../layout/LayoutDetector.md), [`ModularTranscriber`](../composites/ModularTranscriber.md) |
 | Comes before | - |
 | Used in | [`transcribe_modular.v1`](../../catalog/pipelines/transcribe_modular.v1.md) |
 | Source | [recognizers.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/recognition/recognizers.py) |

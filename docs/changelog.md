@@ -53,6 +53,15 @@ the tags; the first is `v0.1.0`.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- Resources: `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files as served
+  (`ResourceReader`, `ResourceFilesWriter`, `ResourceRecordWriter`), from URL templates (`--resource KIND=URL` with
+  `{item}`) or a resource table (`--url-key`, `--kind-key`, `--name-key`): raw copies at
+  `OUT/<kind>/<item>/<name>.<ext>`, a fetch record each in `OUT/resources/<rank>.jsonl.gz`, one item per task,
+  `--max-items`, reuse, rejects, `--retry-failed`. Each response is checked (XML, JSON, images; an HTML page where
+  another format was expected fails and counts toward the breaker).
+- Host policies: `--hosts FILE` (`linecaster.net.hosts`) gives each host its rate limits, proxies or a direct
+  connection, User-Agent, deadline, retries and `stop_on` statuses (and `html`) that stop the run without a retry; each
+  host its own fetcher. For `--items` and `--parquet`. `RejectWriter` takes any unit.
 - A failed fetch says what failed: retries used up through proxies raise `MaxRetriesExceeded` naming the last error
   (`after 5 attempts: HTTP 520`, `... ReadTimeout (no message)`), an empty pool `AllProxiesExhausted` with a message,
   and httpx's silent timeouts get one; and the fetch's record (attempts, `tries`, waits) goes with the exception into

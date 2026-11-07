@@ -363,6 +363,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Readers | [`ManifestReader`](docs/blocks/readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
 | Readers | [`PageRecordReader`](docs/blocks/readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
 | Readers | [`PdfReader`](docs/blocks/readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
+| Readers | [`ResourceReader`](docs/blocks/readers/ResourceReader.md) | Fetches the remote files of items as they are served, one document per resource, one item per task. |
 | Layout | [`LayoutDetector`](docs/blocks/layout/LayoutDetector.md) | Detects the layout regions of every page, with their labels and reading order, by a layout engine. |
 | Lines | [`LineAssigner`](docs/blocks/lines/LineAssigner.md) | Assigns the lines detected on the whole page to the layout regions and orders them row by row. |
 | Lines | [`LineDetector`](docs/blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
@@ -393,6 +394,8 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | Writers | [`PageJsonlWriter`](docs/blocks/writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
 | Writers | [`PageParquetWriter`](docs/blocks/writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
 | Writers | [`RejectWriter`](docs/blocks/writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
+| Writers | [`ResourceFilesWriter`](docs/blocks/writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
+| Writers | [`ResourceRecordWriter`](docs/blocks/writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
 | Composites | [`ModularTranscriber`](docs/blocks/composites/ModularTranscriber.md) | Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition. |
 <!-- blocks:end -->
 

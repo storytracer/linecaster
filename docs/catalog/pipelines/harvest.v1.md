@@ -7,9 +7,15 @@ The harvest stage: items' page images (and, with --existing-ocr, the library's o
 (IIIF or METS; a folder, a list of links, or item tables with --manifest-key), or from http(s) image URLs in a page
 table (--parquet), downloaded once into item folders, with page records that keep where everything came from. No
 engine or GPU is needed; the transcribe stage then reads the page records without waiting on the libraries' servers.
+With --items it fetches items' other remote files (resources: catalogue records, API JSON, manifests) as served,
+from URL templates (--resource KIND=URL with {item}) or a resource table, into OUT/<kind>/<item>/<name>.<ext> with a
+record each in OUT/resources/<rank>.jsonl.gz; --hosts gives each host its own policy (rate limits, proxies or direct,
+statuses that stop the run).
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --rate-limit 5/1 --existing-ocr
+    uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --hosts hosts.yaml \
+        --resource marcxml=https://lccn.loc.gov/{item}/marcxml
     uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
         --rate-limit 150/60 --rate-limit 3/1
     uv run pipelines/harvest.py ... SMOKE --rate-limit 150/60 --rate-limit 3/1 --max-pages 2000     # a smoke test

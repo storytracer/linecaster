@@ -76,8 +76,12 @@ def mark_reused(doc) -> None:
 
 
 def is_reused(doc) -> bool:
-    """Whether ``doc`` is a page read from its existing image file (``mark_reused``)."""
+    """Whether ``doc`` is a page read from its existing image file (``mark_reused``), or a resource read back from its
+    copy (``linecaster.blocks.readers.resources``)."""
     from ...data.page import PAGE_KEY
 
+    resource = doc.metadata.get("resource")
+    if resource is not None:
+        return bool(resource.get("reused"))
     page = doc.metadata.get(PAGE_KEY) or {}
     return bool(((page.get("image") or {}).get("extra") or {}).get("reused"))

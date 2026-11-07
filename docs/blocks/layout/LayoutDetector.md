@@ -15,7 +15,7 @@ Detects the layout regions of every page, with their labels and reading order, b
 | Backends | in-process (`InProcess`), served (`Served`), a preset ref (`id@edition`) builds one |
 | Catalog step | `layout` |
 | Presets | [`pp-doclayout-plus-l@2`](../../catalog/presets/layout/pp-doclayout-plus-l.md), [`pp-doclayoutv3@1`](../../catalog/presets/layout/pp-doclayoutv3.md), [`single-region@1`](../../catalog/presets/layout/single-region.md) |
-| Comes after | any reader |
+| Comes after | [`ImageFolderReader`](../readers/ImageFolderReader.md), [`ImageParquetReader`](../readers/ImageParquetReader.md), [`ManifestReader`](../readers/ManifestReader.md), [`PageRecordReader`](../readers/PageRecordReader.md), [`PdfReader`](../readers/PdfReader.md) |
 | Comes before | [`LineAssigner`](../lines/LineAssigner.md), [`FormulaRecognizer`](../recognition/FormulaRecognizer.md), [`RegionRecognizer`](../recognition/RegionRecognizer.md), [`TableRecognizer`](../recognition/TableRecognizer.md), [`Composer`](../composition/Composer.md), [`Recomposer`](../composition/Recomposer.md), [`Typographer`](../composition/Typographer.md) |
 | Used in | [`transcribe_modular.v1`](../../catalog/pipelines/transcribe_modular.v1.md), [`transcribe_vlm.v1`](../../catalog/pipelines/transcribe_vlm.v1.md) |
 | Source | [detector.py](https://github.com/storytracer/linecaster/blob/main/src/linecaster/blocks/layout/detector.py) |
