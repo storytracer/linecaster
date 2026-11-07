@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../schemas/preset-1.json
 schema: linecaster.preset/1
 id: pp-doclayout-plus-l
-edition: 1
+edition: 2
 step: layout
 model:
   id: pp-doclayout-plus-l-onnx
@@ -34,6 +34,7 @@ options:
   nms: true
   merge_mode: large
   max_containment: 0.8
+  reading_order: xy-cut++
 labels:
   paragraph_title: section_header
   image: picture
@@ -63,5 +64,6 @@ provenance:
   derived_from:
   - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
     --layout-model PP-DocLayout_plus-L'
+  - 'XY-Cut++ (reading_order): arXiv:2504.10258v3 and the authors'' implementation, liushuai35/PaddleXrc@7873ab3'
   created: 2026-11-03
 support: experimental
