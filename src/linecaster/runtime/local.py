@@ -6,9 +6,19 @@ its task start, pipeline listing and stats block, in its full line format) and s
 console output is replaced (its task logger swapped for ``task_logger`` while a task runs, as
 ``linecaster.runtime.jobs.JobsExecutor`` swaps it for JSON logs). The completion markers are listed once per launch,
 not looked up task by task.
+
+A task that fails (a ``PageError`` of an error budget, a storage error) is logged and the others go on, as they would
+not with datatrove alone (its pool stops at the first exception): without a completion marker it runs again on the
+next launch, and the summary counts it. An error that is not the pages' (``NOT_THE_PAGES``: the configuration, the
+catalog, a server) and ``FAILED_IN_A_ROW`` failed tasks in a row in one worker still stop the run. With
+``retry_failed``, finished tasks that left rejects run again (their rejects file removed first; with a reader's
+``reuse_folder`` their pages that are there are read back, only the failed ones fetched). ``kill -USR1 <pid>`` writes
+every thread's stack to the terminal (``faulthandler``), for a run that seems stuck.
 """
 from __future__ import annotations
 
+import faulthandler
+import signal
 import sys
 
 from datatrove.executor import LocalPipelineExecutor
@@ -55,6 +65,22 @@ def close_task_logger(logfile) -> None:
     logfile.close()
 
 
+#: failed tasks in a row, in one worker, that stop the run (something is wrong with every task, not with some)
+FAILED_IN_A_ROW = 20
+#: the failed tasks in a row of this worker process
+_FAILED = [0]
+
+
+def stack_dumps() -> None:
+    """``kill -USR1 <pid>`` writes every thread's stack to stderr (the terminal), in this process."""
+    if not hasattr(signal, "SIGUSR1"):
+        return
+    try:
+        faulthandler.register(signal.SIGUSR1, file=sys.__stderr__, all_threads=True)
+    except (AttributeError, OSError, ValueError):    # no real stderr (e.g. captured): no dumps, nothing else changes
+        pass
+
+
 #: stats files read at once for the size before (``size_before``)
 STATS_BATCH = 1000
 
@@ -97,10 +123,20 @@ class LocalExecutor(LocalPipelineExecutor):
     (``linecaster.runtime.run.rate_note``: what a server sees)."""
 
     def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | None = None,
-                 **kwargs):
+                 retry_failed: bool = False, **kwargs):
         super().__init__(pipeline, **kwargs)
         self.title, self.out, self.reader, self.note = title, out, reader, note
+        self.retry_failed = retry_failed
+        self._retry: set[int] = set()
         self._completed: set[int] | None = None
+
+    def get_incomplete_ranks(self, ranks=None, skip_completed=None) -> list[int]:
+        """datatrove's, plus the finished tasks that run again (``retry_failed``): their markers are still there."""
+        incomplete = super().get_incomplete_ranks(ranks, skip_completed)
+        if not self._retry:
+            return incomplete
+        wanted = set(ranks if ranks is not None else range(self.world_size))
+        return sorted(set(incomplete) | (self._retry & wanted))
 
     def is_rank_completed(self, rank: int) -> bool:
         if self._completed is not None:
@@ -109,13 +145,66 @@ class LocalExecutor(LocalPipelineExecutor):
 
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
         import datatrove.executor.base as base
+        from datatrove.utils.stats import PipelineStats
 
+        from ..blocks.base.page import NOT_THE_PAGES
+
+        stack_dumps()
+        if rank in self._retry:                  # a fresh rejects file, or none if no page fails this time
+            self._remove_rejects(rank)
         saved = base.add_task_logger, base.log_pipeline, base.close_task_logger
         base.add_task_logger, base.log_pipeline, base.close_task_logger = task_logger, log_pipeline, close_task_logger
         try:
-            return super()._run_for_rank(rank, local_rank, node_rank)
+            stats = super()._run_for_rank(rank, local_rank, node_rank)
+            _FAILED[0] = 0
+            return stats
+        except NOT_THE_PAGES:
+            raise
+        except Exception as e:  # noqa: BLE001 - one task's failure; the others go on
+            _FAILED[0] += 1
+            logger.error("task {task} failed: {error_type}: {error}; it runs again on the next launch",
+                         task=f"{rank + 1:,}/{self.world_size:,}", error_type=type(e).__name__,
+                         error=str(e).splitlines()[0] if str(e) else "")
+            if _FAILED[0] >= FAILED_IN_A_ROW:
+                raise RuntimeError(f"{_FAILED[0]} tasks in a row failed in this worker, the last with "
+                                   f"{type(e).__name__}: something is wrong with every task; the run stops") from e
+            return PipelineStats()
         finally:
             base.add_task_logger, base.log_pipeline, base.close_task_logger = saved
+
+    def _rejects(self):
+        from datatrove.io import get_datafolder
+
+        return get_datafolder(f"{self.out.rstrip('/')}/rejects")
+
+    def _remove_rejects(self, rank: int) -> None:
+        folder = self._rejects()
+        for name in (f"{rank:05d}.jsonl", f"{rank:05d}.jsonl.gz"):
+            if folder.exists(name):
+                folder.rm(name)
+
+    def _ranks_with_rejects(self) -> set[int]:
+        """The ranks whose tasks left a rejects file (``rejects/<rank>.jsonl``), from one listing."""
+        try:
+            names = self._rejects().list_files()
+        except FileNotFoundError:
+            return set()
+        ranks = set()
+        for name in names:
+            stem = name.rsplit("/", 1)[-1].split(".", 1)[0]
+            if stem.isdigit():
+                ranks.add(int(stem))
+        return ranks
+
+    def _report_unfinished(self, ranks) -> None:
+        """The tasks of this launch that did not finish (failed or stopped), from one listing of the markers."""
+        try:
+            left = len(self.get_incomplete_ranks(ranks))
+        except Exception:  # noqa: BLE001 - only a count for the summary
+            return
+        if left:
+            logger.warning("{left} task{s} not finished: they run again on the next launch", left=f"{left:,}",
+                           s="s" if left != 1 else "")
 
     def run(self):
         from .logs import json_logs
@@ -125,6 +214,11 @@ class LocalExecutor(LocalPipelineExecutor):
         ranks = range(self.local_rank_offset, self.local_rank_offset + self.local_tasks)
         todo = set(self.get_incomplete_ranks(ranks))
         self._completed = {r for r in ranks if r not in todo} if self.skip_completed else set()
+        if self.retry_failed:                    # finished tasks that left rejects run again
+            self._retry = self._ranks_with_rejects() & self._completed
+            self._completed -= self._retry
+            todo |= self._retry
+        stack_dumps()
         if json_logs():
             return super().run()
         logger.remove()
@@ -142,6 +236,8 @@ class LocalExecutor(LocalPipelineExecutor):
         logger.info(line)
         if self.note:
             logger.info(self.note)
+        if self._retry:
+            logger.info("{n} finished tasks with failed pages run again (--retry-failed)", n=f"{len(self._retry):,}")
         if not todo:
             return super().run()
         manager = shared = None
@@ -181,5 +277,10 @@ class LocalExecutor(LocalPipelineExecutor):
         finally:
             console.close()
             logger.info(console.summary(self.out, error))
+            self._retry = set()                  # a retried task that failed again keeps its old marker
+            self._report_unfinished(ranks)
             if manager is not None:
-                manager.shutdown()
+                try:
+                    manager.shutdown()
+                except Exception:  # noqa: BLE001 - the counts' manager is gone already; nothing to keep
+                    pass

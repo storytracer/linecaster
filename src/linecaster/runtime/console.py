@@ -237,13 +237,18 @@ class Console:
         self._render(force=True)
 
     def _sync(self) -> None:
-        """The worker processes' counts (several workers), into this console and its bar. Holds ``_lock``."""
+        """The worker processes' counts (several workers), into this console. Reads the manager without holding
+        ``_lock`` (a manager that does not answer must not block the log lines that need the lock)."""
         if self.shared is None:
             return
         try:
             reports = list(self.shared.values())
         except Exception:  # noqa: BLE001 - the manager is gone (the run is ending): keep the last counts
             return
+        with self._lock:
+            self._apply(reports)
+
+    def _apply(self, reports: list) -> None:
         self.pages = sum(r[0] for r in reports)
         self.failed = sum(r[1] for r in reports)
         self.bytes = sum(r[2] for r in reports)
@@ -281,8 +286,10 @@ class Console:
             parts.append(f"{count(self.failed)} failed")
         if self.reused:
             parts.append(f"{count(self.reused)} reused")
-        from ..net.http import proxy_rotation
+        from ..net.http import paused, proxy_rotation
 
+        if (wait := paused()) is not None:
+            parts.append("paused: server errors, " + (f"next try in {duration(wait)}" if wait else "trying"))
         if (proxies := proxy_rotation()) is not None:
             parts.append(f"proxies {count(proxies[0])}/{count(proxies[1])}")
         if self.shared is not None:
@@ -298,8 +305,8 @@ class Console:
         return "  ·  ".join(parts)
 
     def _render(self, force: bool = False) -> None:
+        self._sync()
         with self._lock:
-            self._sync()
             now = time.monotonic()
             if self._bar is not None:
                 if force or now - self._shown >= 0.5:
@@ -314,8 +321,9 @@ class Console:
         logger.info("{title}: {status}", title=self.title, status=status)
 
     def summary(self, out: str, error: BaseException | None = None) -> str:
-        with self._lock:
-            self._sync()
+        reader = threading.Thread(target=self._sync, daemon=True)   # at most a few seconds for the last counts
+        reader.start()
+        reader.join(5)
         seconds = time.monotonic() - self.start
         what = f"{count(self.pages)} pages"
         if self.failed:

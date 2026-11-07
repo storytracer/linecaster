@@ -44,6 +44,20 @@ the tags; the first is `v0.1.0`.
 - `HTTPFetcher.shared(**config)`: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; `close_shared()`.
 - `--parquet` takes one `.parquet` file as well as a folder.
+- Outages are waited out: each fetcher has a breaker (`linecaster.net.http.Breaker`). When at least half of the
+  attempts in the last minute (20 at least) got a server error (5xx), requests pause; a probe goes out after a minute,
+  then after waits that double up to ten minutes, and the first answer that is not a server error ends the pause. The
+  pages wait instead of failing, and the progress line says `paused: server errors`. Cloudflare's 520-524 are retried
+  like 502-504 (pybookget `91d39e4`).
+- With `--proxies` a server error is retried through another proxy without blacklisting the one it came through
+  (resilient-httpx `blacklist_on={429}`, storytracer's fork 1.5.0 at `f706598`): only a 429, a timeout or a connection
+  or proxy error counts against a proxy, so an outage no longer empties the pool.
+- A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
+  exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
+  summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one
+  worker, still stop the run. `kill -USR1 <pid>` writes every thread's stack to the terminal.
+- `--retry-failed` (local): finished tasks that left rejects run again; with `harvest.py` their images that are there
+  are read back and only the failed pages fetched, and the task's rejects file is written anew.
 - A proxy answered with a 429 or 503 whose `Retry-After` is shorter than the blacklist TTL (3600 s) is left out only
   that long (resilient-httpx's `blacklist_ttl_from_retry_after`, from storytracer's fork, pinned at `238582e` as
   resilient-httpx 1.4.0); everything else keeps 3600 s.

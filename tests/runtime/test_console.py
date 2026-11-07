@@ -167,3 +167,70 @@ def test_size_before_sums_the_readers_media_size_of_finished_tasks(tmp_path):
             {"name": "💽 - WRITER: 🖼️ image files", "stats": {"images": 3}}]))
     assert size_before(str(tmp_path / "logs"), {0, 1}) == 3500
     assert size_before(str(tmp_path / "logs"), {0, 1, 9}) == 3500             # a missing file is left out
+
+
+# ---------------------------------------------------------------- a failed task does not stop the run
+
+
+def _failing(failing_ranks, error=RuntimeError):
+    """A pipeline step that fails on ``failing_ranks``."""
+    def step(data, rank=0, world_size=1):
+        if rank in failing_ranks:
+            raise error("boom")
+        yield from ()
+    return step
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_a_failed_task_is_logged_and_the_others_go_on(tmp_path, capfd, workers):
+    from linecaster.runtime.local import LocalExecutor
+
+    logs = tmp_path / "logs"
+    LocalExecutor([_failing({1})], tasks=4, workers=workers, logging_dir=str(logs), out=str(tmp_path),
+                  title="harvest").run()
+    err = capfd.readouterr().err                                     # a worker process writes to the real stderr
+    assert sorted(p.name for p in (logs / "completions").iterdir()) == ["00000", "00002", "00003"]
+    if workers == 1:                         # a worker process's line goes to its own stderr (the forkserver's)
+        assert "task 2/4 failed: RuntimeError: boom; it runs again on the next launch" in err
+    assert "1 task not finished: they run again on the next launch" in err
+
+
+def test_many_failed_tasks_in_a_row_stop_the_run(tmp_path, monkeypatch):
+    from linecaster.runtime import local
+
+    monkeypatch.setattr(local, "FAILED_IN_A_ROW", 2)
+    monkeypatch.setattr(local, "_FAILED", [0])
+    with pytest.raises(RuntimeError, match="2 tasks in a row failed"):
+        local.LocalExecutor([_failing({0, 1, 2, 3})], tasks=4, workers=1, logging_dir=str(tmp_path / "logs"),
+                            out=str(tmp_path)).run()
+
+
+def test_an_error_that_is_not_the_pages_stops_the_run(tmp_path):
+    from linecaster.errors import PipelineConfigError
+    from linecaster.runtime.local import LocalExecutor
+
+    with pytest.raises(PipelineConfigError):
+        LocalExecutor([_failing({0}, PipelineConfigError)], tasks=2, workers=1, logging_dir=str(tmp_path / "logs"),
+                      out=str(tmp_path)).run()
+
+
+def test_retry_failed_runs_finished_tasks_with_rejects_again(tmp_path, capsys):
+    from linecaster.runtime.local import LocalExecutor
+
+    ran = tmp_path / "ran"
+    ran.mkdir()
+
+    def step(data, rank=0, world_size=1):
+        (ran / str(rank)).touch()
+        yield from ()
+
+    logs, rejects = tmp_path / "logs", tmp_path / "rejects"
+    (logs / "completions").mkdir(parents=True)
+    rejects.mkdir()
+    for r in range(3):
+        (logs / "completions" / f"{r:05d}").touch()
+    (rejects / "00001.jsonl").write_text('{"key": "b_0001"}\n')            # task 1 left a failed page
+    LocalExecutor([step], tasks=3, workers=1, logging_dir=str(logs), out=str(tmp_path), retry_failed=True).run()
+    assert sorted(p.name for p in ran.iterdir()) == ["1"]                    # only the task with rejects
+    assert not (rejects / "00001.jsonl").exists()                            # no page failed this time
+    assert "1 finished tasks with failed pages run again (--retry-failed)" in capsys.readouterr().err

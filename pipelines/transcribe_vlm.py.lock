@@ -14,7 +14,7 @@ requirements = [
     { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
     { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" },
+    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
     { name = "s3fs" },
 ]
 constraints = [
@@ -1030,17 +1030,18 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
+    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "resilient-httpx", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
@@ -1938,7 +1939,7 @@ wheels = [
 [[package]]
 name = "pybookget"
 version = "1.1.0"
-source = { url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" }
+source = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
 dependencies = [
     { name = "fake-useragent" },
     { name = "h2" },
@@ -1947,7 +1948,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "tqdm" },
 ]
-sdist = { hash = "sha256:89172a527116f55b0dfd32e70e033c7d5081dc833fff82afb3cf9caf284671b9" }
+sdist = { hash = "sha256:f4f585c8dcc4fbbee33d5dc2ad8281e3faaa175ca7226e5f9006d7910fd33225" }
 
 [package.metadata]
 requires-dist = [

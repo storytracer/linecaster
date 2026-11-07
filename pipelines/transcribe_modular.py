@@ -37,7 +37,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/bf8eee106edfeef1c7680a6338135960497195e1.tar.gz" }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
 # linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
