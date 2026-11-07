@@ -940,7 +940,7 @@ variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are 
 <tr>
 <td><code>linecaster.http.fetch</code></td>
 <td>the page</td>
-<td>each http(s) request a reader made for it: <code>http.host</code>, <code>http.status</code>, <code>http.attempts</code>, <code>http.retries</code>, <code>http.wait_seconds</code> (the rate limits' wait), <code>http.what</code> (<code>image</code>, <code>ocr</code>)</td>
+<td>each http(s) request a reader made for it: <code>http.host</code>, <code>http.status</code>, <code>http.attempts</code>, <code>http.retries</code>, <code>http.wait_seconds</code> (the rate limits' wait), <code>http.tries</code> (each attempt: a status such as <code>200</code> or <code>429</code> for a response read whole, <code>200-cut</code> for one the deadline per attempt cut, <code>no-response</code> for a timeout or a connection or proxy error), <code>http.what</code> (<code>image</code>, <code>ocr</code>)</td>
 </tr>
 <tr>
 <td><code>linecaster.block</code></td>

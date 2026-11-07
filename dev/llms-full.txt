@@ -2079,7 +2079,7 @@ An image folder's file is one page: its reading is the page's, not a task span.
 | Span | Parent | What it covers |
 |---|---|---|
 | `linecaster.page` (`linecaster.item` for items a binder makes) | none: the trace's root | from the reader (or the earliest fetch for it) to the end of the stage's last block |
-| `linecaster.http.fetch` | the page | each http(s) request a reader made for it: `http.host`, `http.status`, `http.attempts`, `http.retries`, `http.wait_seconds` (the rate limits' wait), `http.what` (`image`, `ocr`) |
+| `linecaster.http.fetch` | the page | each http(s) request a reader made for it: `http.host`, `http.status`, `http.attempts`, `http.retries`, `http.wait_seconds` (the rate limits' wait), `http.tries` (each attempt: a status such as `200` or `429` for a response read whole, `200-cut` for one the deadline per attempt cut, `no-response` for a timeout or a connection or proxy error), `http.what` (`image`, `ocr`) |
 | `linecaster.block` | the page | one per block, from the boundary before it to the one after it: for a served block it includes the time the page waited in the window |
 | `linecaster.request.prepare` | the served block's span | building the request (image encoding), in saturate's prepare threads |
 | `linecaster.request` | the served block's span | from the built request to its result: the wait for a window slot, the HTTP call, retries; `tokens.prompt`, `tokens.completion`, `finish_reason` |

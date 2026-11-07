@@ -939,7 +939,7 @@
 <td><code>http</code></td>
 <td><code>dict \| None</code></td>
 <td><code>None</code></td>
-<td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (<code>linecaster.net.http.prefetched</code>); pages keep the rows' order.</td>
+<td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (<code>linecaster.net.http.prefetched</code>), and pages go on as their images arrive: a slow request (one being retried) delays only its own page. Rows read without a request (bytes, files) keep their order.</td>
 </tr>
 <tr>
 <td><code>max_pages</code></td>

@@ -1007,8 +1007,8 @@ the tags; the first is <code>v0.1.0</code>.</p>
   engines (<code>pipelines/harvest.py</code>) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
   <code>--rate-limit</code>, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
   started with the old default (<code>--tasks 1</code>) needs <code>--tasks 1</code>.</li>
-<li>http(s) requests have a deadline per attempt (<code>HTTP_DEFAULTS</code>: pybookget's <code>attempt_timeout=30</code> and
-  <code>attempt_min_rate=50_000</code>, i.e. 30 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
+<li>http(s) requests have a deadline per attempt (<code>HTTP_DEFAULTS</code>: pybookget's <code>attempt_timeout=15</code> and
+  <code>attempt_min_rate=50_000</code>, i.e. 15 s plus 1 s per 50 kB of Content-Length, counted after the rate limits): an
   attempt past it is cut and retried. A server that needs longer for a response without Content-Length needs
   <code>http={"attempt_timeout": None}</code> (or a longer one). linecaster pins pybookget <code>bf8eee1</code>, which has the setting.</li>
 <li><code>--prefetch</code> and the readers' <code>prefetch=</code> argument are gone: <code>ManifestReader</code> and <code>ImageParquetReader</code> request
@@ -1037,6 +1037,13 @@ the tags; the first is <code>v0.1.0</code>.</p>
   time left), a line per finished task and a summary, in human units; a progress log line every 30 s off a terminal.
   datatrove's pipeline listing (with the builder's boundary steps) and stats blocks go only to the task logs. The
   completion markers are listed once per launch instead of looked up task by task.</li>
+<li><code>ImageParquetReader</code> and <code>ManifestReader</code> pass pages on as their http(s) requests finish, not in row order, so a
+  slow or retried request delays only its own page (<code>prefetched(..., ordered=False)</code>); pages read without a request
+  keep their order. Requests in flight are capped at the rate limits times the deadline per attempt
+  (<code>HTTPFetcher.max_ahead</code>). In a 2,000-page LoC smoke run the oldest request, being retried, held the window full
+  of finished pages for minutes (94 pages/min against 150).</li>
+<li>Fetch records and traces carry each attempt's outcome (<code>tries</code>, the span attribute <code>http.tries</code>): a status for a
+  response read whole, <code>&lt;status&gt;-cut</code> for one the deadline cut, <code>no-response</code> for a timeout or a connection error.</li>
 <li><code>--max-pages N</code> (<code>--parquet</code>, IMAGES; <code>max_pages</code> of <code>ImageParquetReader</code> and <code>ImageFolderReader</code>): the first N pages
   of the input for the whole run, in the same automatic tasks, so a smoke test is the real setup stopped early
   (<code>--limit</code> counts per task).</li>

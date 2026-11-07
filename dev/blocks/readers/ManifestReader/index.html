@@ -978,7 +978,8 @@ response that is not an image is logged and counted (<code>manifests_failed</cod
 <code>pages_not_images</code>, <code>ocr_failed</code>), and the task goes on. Needs the extra <code>[pybookget]</code>.</p>
 <p>Pages are requested ahead, across manifests, as many as keep the rate limits busy
 (<code>linecaster.net.http.prefetched</code>), through one <code>HTTPFetcher.shared</code> per process and configuration, so the
-rate limits hold across the tasks a worker runs one after the other.</p>
+rate limits hold across the tasks a worker runs one after the other; they go on as their images arrive, so a
+slow request delays only its own page (an item's pages can leave out of order; <code>sequence</code> keeps their place).</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["ManifestReader"]
