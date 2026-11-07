@@ -85,6 +85,10 @@
          <lastmod>2026-11-07</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/ResourceReader/</loc>
+         <lastmod>2026-11-07</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/FormulaRecognizer/</loc>
          <lastmod>2026-11-07</lastmod>
     </url>
@@ -158,6 +162,14 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/RejectWriter/</loc>
+         <lastmod>2026-11-07</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ResourceFilesWriter/</loc>
+         <lastmod>2026-11-07</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ResourceRecordWriter/</loc>
          <lastmod>2026-11-07</lastmod>
     </url>
     <url>

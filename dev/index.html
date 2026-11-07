@@ -2010,6 +2010,11 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <td>Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image.</td>
 </tr>
 <tr>
+<td>Readers</td>
+<td><a href="blocks/readers/ResourceReader/"><code>ResourceReader</code></a></td>
+<td>Fetches the remote files of items as they are served, one document per resource, one item per task.</td>
+</tr>
+<tr>
 <td>Layout</td>
 <td><a href="blocks/layout/LayoutDetector/"><code>LayoutDetector</code></a></td>
 <td>Detects the layout regions of every page, with their labels and reading order, by a layout engine.</td>
@@ -2158,6 +2163,16 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <td>Writers</td>
 <td><a href="blocks/writers/RejectWriter/"><code>RejectWriter</code></a></td>
 <td>Writes every page that carries errors to the task's rejects file and passes every page on.</td>
+</tr>
+<tr>
+<td>Writers</td>
+<td><a href="blocks/writers/ResourceFilesWriter/"><code>ResourceFilesWriter</code></a></td>
+<td>Writes each resource's bytes as they came, one file per resource.</td>
+</tr>
+<tr>
+<td>Writers</td>
+<td><a href="blocks/writers/ResourceRecordWriter/"><code>ResourceRecordWriter</code></a></td>
+<td>Writes each resource's record (<code>doc.metadata["resource"]</code>, with its errors) as a JSON line, to <code>&lt;output_folder&gt;/&lt;rank&gt;.jsonl.gz</code>: one file per task, a failed resource included (<code>error</code>, <code>errors</code>).</td>
 </tr>
 <tr>
 <td>Composites</td>

@@ -1095,6 +1095,16 @@ term is added here before it is used.</p>
 <td></td>
 </tr>
 <tr>
+<td><strong>resource</strong></td>
+<td>A remote file of an item or of one of its pages (a catalogue record, an API's item JSON, a manifest, OCR, an image), with a kind (<code>marcxml</code>, <code>item-json</code>, ...): fetched as served by <code>ResourceReader</code> and kept as a raw copy, <code>&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code>, with a fetch record.</td>
+<td>not a datatrove <code>Media</code></td>
+</tr>
+<tr>
+<td><strong>host policy</strong></td>
+<td>How requests to one host go out (rate limits, proxies or direct, User-Agent, deadline, retries, statuses that stop the run), from a host policies file (<code>--hosts</code>, <code>linecaster.net.hosts</code>); each host gets its own fetcher.</td>
+<td></td>
+</tr>
+<tr>
 <td><strong>reject</strong></td>
 <td>A page that failed a check or a step, written to <code>rejects/</code> with the reason; it stays in the page records with its errors.</td>
 <td></td>

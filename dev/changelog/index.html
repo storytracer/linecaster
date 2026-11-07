@@ -1039,6 +1039,15 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li><code>HTTPFetcher.shared(**config)</code>: one fetcher per process and configuration, which the readers use, so the rate
   limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.</li>
 <li><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</li>
+<li>Resources: <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files as served
+  (<code>ResourceReader</code>, <code>ResourceFilesWriter</code>, <code>ResourceRecordWriter</code>), from URL templates (<code>--resource KIND=URL</code> with
+  <code>{item}</code>) or a resource table (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>): raw copies at
+  <code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code>, a fetch record each in <code>OUT/resources/&lt;rank&gt;.jsonl.gz</code>, one item per task,
+  <code>--max-items</code>, reuse, rejects, <code>--retry-failed</code>. Each response is checked (XML, JSON, images; an HTML page where
+  another format was expected fails and counts toward the breaker).</li>
+<li>Host policies: <code>--hosts FILE</code> (<code>linecaster.net.hosts</code>) gives each host its rate limits, proxies or a direct
+  connection, User-Agent, deadline, retries and <code>stop_on</code> statuses (and <code>html</code>) that stop the run without a retry; each
+  host its own fetcher. For <code>--items</code> and <code>--parquet</code>. <code>RejectWriter</code> takes any unit.</li>
 <li>A failed fetch says what failed: retries used up through proxies raise <code>MaxRetriesExceeded</code> naming the last error
   (<code>after 5 attempts: HTTP 520</code>, <code>... ReadTimeout (no message)</code>), an empty pool <code>AllProxiesExhausted</code> with a message,
   and httpx's silent timeouts get one; and the fetch's record (attempts, <code>tries</code>, waits) goes with the exception into

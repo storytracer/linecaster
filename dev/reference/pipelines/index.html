@@ -1518,6 +1518,15 @@ failing. A single server error is retried (through another proxy, without blackl
 local task that fails is logged and the others go on (<code>LocalExecutor</code>); it runs again on the next launch. An error
 that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</code> failed tasks in a row in one worker stop the run.
 <code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.</p>
+<p><strong>Resources.</strong> <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files other than page images
+(<code>ResourceReader</code>): from URL templates per kind (<code>--resource marcxml=https://lccn.loc.gov/{item}/marcxml</code>) or a table
+with one row per resource (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>). Each is checked (XML, JSON or an image must parse;
+an HTML page where another format was expected fails and counts toward the breaker) and kept as a raw copy,
+<code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code> (<code>ResourceFilesWriter</code>), the reference later stages link to, with its fetch record in
+<code>OUT/resources/&lt;rank&gt;.jsonl.gz</code> (<code>ResourceRecordWriter</code>: source and final URL, status, type, size, <code>sha256</code>, ETag,
+Last-Modified, time). One item per task, <code>--max-items</code> for a smoke test, copies already there read back. <code>--hosts FILE</code>
+gives each host its policy (<code>linecaster.net.hosts</code>: rate limits, proxies or direct, User-Agent, deadline, retries,
+<code>stop_on</code> statuses and <code>html</code> that stop the run without a retry), for <code>--items</code> and <code>--parquet</code>.</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
 <p>A local run (<code>--on local</code>, <code>linecaster.runtime.local.LocalExecutor</code>) shows on the terminal: one line naming the
 pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
