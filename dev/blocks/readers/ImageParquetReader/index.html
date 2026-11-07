@@ -861,13 +861,13 @@
 <td><code>limit</code></td>
 <td><code>int</code></td>
 <td><code>-1</code></td>
-<td>datatrove's <code>ParquetReader</code> arguments.</td>
+<td>pages per task, as datatrove's count documents; they apply before anything is read or fetched.</td>
 </tr>
 <tr>
 <td><code>skip</code></td>
 <td><code>int</code></td>
 <td><code>0</code></td>
-<td>datatrove's <code>ParquetReader</code> arguments.</td>
+<td>pages per task, as datatrove's count documents; they apply before anything is read or fetched.</td>
 </tr>
 <tr>
 <td><code>batch_size</code></td>
@@ -933,25 +933,22 @@
 <td><code>shuffle_files</code></td>
 <td><code>bool</code></td>
 <td><code>False</code></td>
-<td>datatrove's <code>ParquetReader</code> arguments.</td>
+<td>read the files of a task's shard in random order.</td>
 </tr>
 <tr>
 <td><code>http</code></td>
 <td><code>dict \| None</code></td>
 <td><code>None</code></td>
-<td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths.</td>
-</tr>
-<tr>
-<td><code>prefetch</code></td>
-<td><code>int</code></td>
-<td><code>8</code></td>
-<td><code>http(s)://</code> images requested ahead of the page being given on, at least 1 (1: one request at a time). Pages keep the files' row order; the rate limits in <code>http</code> hold for all of them together, so one task can use its whole rate limit instead of waiting for each image in turn.</td>
+<td>pybookget <code>Config</code> fields (rate limits, retries) for <code>http(s)://</code> image paths. Their images are requested ahead of the page being given on, as many as keep the rate limits busy (<code>linecaster.net.http.prefetched</code>); pages keep the rows' order.</td>
 </tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
-<p>The files are read through datatrove's <code>ParquetReader</code> and distributed over tasks in turn, so a file should
-hold whole items. Each row adds <code>image</code> and <code>metadata</code> (the page record). The image column holds the image
+<p>The rows of all files, in order, are divided over the tasks in equal shards, read by row group
+(<code>linecaster.blocks.readers.tables</code>), so any table works with any number of tasks; an item's pages can land in
+two tasks where a shard ends. <code>auto_tasks</code> is the task count for shards of about <code>PAGES_PER_TASK</code> pages, which
+<code>linecaster.runtime.run</code> uses for a pipeline without engines. Each row adds <code>image</code> and <code>metadata</code> (the page
+record). The image column holds the image
 as Hugging Face's <code>Image</code> feature stores it (<code>{"bytes", "path"}</code>: the bytes when present, else the path), as
 plain bytes, or as a path: absolute (any fsspec URI, <code>http(s)://</code> through pybookget) or relative to
 <code>image_folder</code>. A row with neither bytes nor a path fails the task (a <code>PageError</code>: the table is wrong).</p>

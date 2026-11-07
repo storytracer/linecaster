@@ -1000,17 +1000,35 @@ the tags; the first is <code>v0.1.0</code>.</p>
   folder needs <code>--new-pipeline</code>. No released recipe is affected.</li>
 <li><code>linecaster.testing.check_engine</code> calls a page engine (recognition, unit <code>page</code>) with an empty transcription
   (no regions, no lines), not the sample layout's regions.</li>
-<li><code>ImageParquetReader</code> requests up to 8 <code>http(s)://</code> images ahead (<code>prefetch=8</code>, <code>--prefetch</code> for <code>--parquet</code>), where
-  it requested one at a time. The rate limits (<code>--rate-limit</code>) still hold per task, but a server now sees up to 8
-  requests in flight from each task; <code>prefetch=1</code> (<code>--prefetch 1</code>) keeps the old behavior.</li>
+<li><code>--rate-limit</code> holds for the whole run, not per task: each task running at once gets its share
+  (<code>linecaster.net.http.divided</code>). A run that gave a per-task limit with several workers gives the total now (e.g.
+  <code>--workers 2 --rate-limit 75/60</code> becomes <code>--rate-limit 150/60</code>).</li>
+<li><code>--tasks</code> and <code>--workers</code> default to an automatic choice (<code>linecaster.runtime.run.allocate</code>): a pipeline without
+  engines (<code>pipelines/harvest.py</code>) runs tasks of about 1,000 pages (or 5 items) from its input, one worker with
+  <code>--rate-limit</code>, one per CPU without; a pipeline with engines keeps one task, every task at once. Resuming a run
+  started with the old default (<code>--tasks 1</code>) needs <code>--tasks 1</code>.</li>
+<li><code>--prefetch</code> and the readers' <code>prefetch=</code> argument are gone: <code>ManifestReader</code> and <code>ImageParquetReader</code> request
+  <code>http(s)://</code> pages ahead in a window that sizes itself; drop the option. <code>linecaster.net.prefetched</code> takes
+  <code>(entries, submit, cancel, future=, fetcher=)</code>.</li>
+<li><code>ImageParquetReader</code> and <code>ManifestReader</code> item tables divide rows, not files, over the tasks; <code>ImageParquetReader</code>
+  no longer splits a task's rows by datatrove's <code>ParquetReader.read_files_shard</code>, so <code>limit</code> and <code>skip</code> apply before
+  anything is fetched, and no Parquet file is a <code>PipelineConfigError</code> (was datatrove's <code>RuntimeError</code>). A table
+  no longer needs splitting into one file per task.</li>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>Nothing to size for a harvest: <code>pipelines/harvest.py --parquet TABLE ... OUT --rate-limit 150/60</code> reads any page
+  table as it is, in tasks of about 1,000 pages, with one worker that keeps the rate limits busy.
+  <code>linecaster.blocks.readers.tables</code> divides Parquet tables over tasks by rows in equal shards (by row group);
+  <code>ImageParquetReader.auto_tasks()</code> and <code>ManifestReader.auto_tasks()</code> suggest a task count from the input.</li>
+<li><code>ImageParquetReader</code> requests <code>http(s)://</code> images ahead, pages in the rows' order. <code>linecaster.net.prefetched</code>, the
+  window both readers use, grows while the first request is out and none waits for the rate limits
+  (<code>HTTPFetcher.waiting</code>), up to <code>MAX_AHEAD</code>, so one task keeps any rate limit busy.</li>
+<li><code>HTTPFetcher.shared(**config)</code>: one fetcher per process and configuration, which the readers use, so the rate
+  limits (and the window learned) hold across the tasks a worker runs one after the other; <code>close_shared()</code>.
+  <code>linecaster.net.divided(rate_limits, tasks)</code>: one task's share of rate limits.</li>
 <li>
-<p><code>ImageParquetReader(prefetch=...)</code>: <code>http(s)://</code> images of a page table requested ahead, pages in the files' row
-  order, so one task of <code>pipelines/harvest.py --parquet</code> can use its whole rate limit instead of waiting for each
-  image; <code>--prefetch</code> now applies to <code>--parquet</code> as to <code>--manifests</code>. <code>linecaster.net.prefetched</code> is the ordered
-  window both readers use (<code>ManifestReader</code> unchanged in behavior).</p>
+<p><code>--parquet</code> takes one <code>.parquet</code> file as well as a folder.</p>
 </li>
 <li>
 <p>The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
@@ -1037,6 +1055,9 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li>The rate limits started afresh with every task (each made its own fetcher), so a worker's next task could
+  send a whole window's requests at once; and <code>ImageParquetReader</code> never closed its fetcher, leaving a thread per
+  task. The readers share one fetcher per process and configuration (<code>HTTPFetcher.shared</code>).</li>
 <li><code>ImageParquetReader</code>: an image that cannot be read (an <code>http(s)</code> error after the retries, a missing file, bytes
   that are not an image) no longer fails the task. The page comes without image and with the error in
   <code>doc.metadata["errors"]</code> (<code>field</code> <code>image</code>, <code>raw_value</code> its URI), so the page records and rejects keep it and a

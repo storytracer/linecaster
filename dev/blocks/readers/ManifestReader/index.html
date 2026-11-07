@@ -912,16 +912,10 @@
 <td>where every manifest read is saved as fetched, <code>&lt;item_id&gt;.json</code> / <code>.xml</code>; default: not saved.</td>
 </tr>
 <tr>
-<td><code>prefetch</code></td>
-<td><code>int</code></td>
-<td><code>8</code></td>
-<td>pages requested ahead, across manifests, while the pipeline works; at least 1.</td>
-</tr>
-<tr>
 <td><code>http</code></td>
 <td><code>dict \| None</code></td>
 <td><code>None</code></td>
-<td>pybookget <code>Config</code> fields over <code>linecaster.net.http.HTTP_DEFAULTS</code> (<code>rate_limits</code> per task, <code>timeout</code>, <code>proxy</code>, <code>iiif_format</code>, <code>iiif_quality</code>, <code>mets_image_groups</code>, ...).</td>
+<td>pybookget <code>Config</code> fields over <code>linecaster.net.http.HTTP_DEFAULTS</code> (<code>rate_limits</code> of this task, <code>timeout</code>, <code>proxy</code>, <code>iiif_format</code>, <code>iiif_quality</code>, <code>mets_image_groups</code>, ...).</td>
 </tr>
 <tr>
 <td><code>file_progress</code></td>
@@ -950,15 +944,19 @@
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
-<p>Entries, distributed over tasks in turn (<code>[rank::world_size]</code>) the way datatrove distributes files:</p>
+<p>Entries:</p>
 <ul>
 <li>without <code>manifest_key</code>: manifests: the files under <code>data_folder</code> matching <code>glob_pattern</code>, or the
-  lines of <code>paths_file</code> (a manifest URL, or a path relative to <code>data_folder</code>);</li>
+  lines of <code>paths_file</code> (a manifest URL, or a path relative to <code>data_folder</code>), distributed over tasks in
+  turn (<code>[rank::world_size]</code>) the way datatrove distributes files;</li>
 <li>with <code>manifest_key</code>: Parquet item tables (the files matching <code>glob_pattern</code>, or a <code>paths_file</code> listing
   them), one item per row: its manifest link in <code>manifest_key</code> (a URL, an absolute fsspec path, or a path
   relative to <code>data_folder</code>), its id in <code>item_key</code> (optional), and, with <code>read_metadata</code>, every other
-  column in the metadata of each of its pages.</li>
+  column in the metadata of each of its pages. The rows of all tables, not the files, are divided over the
+  tasks in equal shards (<code>linecaster.blocks.readers.tables</code>), so one table works with any number of tasks.</li>
 </ul>
+<p><code>auto_tasks</code> is the task count for about <code>ITEMS_PER_TASK</code> items per task, which <code>linecaster.runtime.run</code>
+uses for a pipeline without engines.</p>
 <p>A manifest is one entry, so an item's pages stay in one task (<code>whole_items</code>). An entry that is a IIIF
 Collection stands for its manifests, each an item named by its own link (a table's <code>item_key</code> does not apply
 to them); a collection listed in it, or a paged one, raises <code>NotImplementedError</code> (one level).</p>
@@ -978,6 +976,9 @@ the image service, <code>iiif_format</code>/<code>iiif_quality</code> in <code>h
 <p>A manifest that cannot be read or parsed, an image or OCR file that fails after pybookget's retries, or a
 response that is not an image is logged and counted (<code>manifests_failed</code>, <code>pages_failed</code>,
 <code>pages_not_images</code>, <code>ocr_failed</code>), and the task goes on. Needs the extra <code>[pybookget]</code>.</p>
+<p>Pages are requested ahead, across manifests, as many as keep the rate limits busy
+(<code>linecaster.net.http.prefetched</code>), through one <code>HTTPFetcher.shared</code> per process and configuration, so the
+rate limits hold across the tasks a worker runs one after the other.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["ManifestReader"]

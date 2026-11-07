@@ -1283,13 +1283,18 @@ pipeline reads the previous folder and writes complete page records with one mor
 <p><code>PageRecordReader</code> reads page records of linecaster's writers, fetching images again by URI (<code>uri_map</code> for local
 copies). Checks like <code>PageValidator</code> record on the page why it failed.</p>
 <p><strong>Readers</strong> follow datatrove's conventions (<code>BaseDiskReader</code>: <code>data_folder</code>, <code>paths_file</code>, <code>glob_pattern</code>,
-<code>limit</code>/<code>skip</code> per task; files, or Parquet files, distributed over tasks in turn): <code>ImageFolderReader</code> (image files),
+<code>limit</code>/<code>skip</code> per task; files distributed over tasks in turn, Parquet tables by rows in equal shards,
+<code>linecaster.blocks.readers.tables</code>, so a table needs no splitting): <code>ImageFolderReader</code> (image files),
 <code>ImageParquetReader</code> (an image column: bytes, an HF image struct or a path), <code>ManifestReader</code> (IIIF or METS, parsed
 by pybookget, extra <code>[pybookget]</code>, which also fetches <code>http(s)://</code> images through <code>linecaster.net.http</code>; a manifest,
-or a row of a Parquet item table, is an entry like a file, so an item stays in one task; a IIIF Collection entry is
-its manifests, one level; pages fetched ahead, rate limits per task; <code>existing_ocr</code> fetches a library's OCR as a
-document media, which a <code>TranscriptionConverter</code> reads as <code>ocr_original</code>, the builder adding one when missing),
-<code>PdfReader</code> (PDF files as items, pages rendered with pypdfium2, extra <code>[pypdfium2]</code>) and <code>PageRecordReader</code>.</p>
+or a row of a Parquet item table, is an entry, so an item stays in one task; a IIIF Collection entry is its
+manifests, one level; <code>existing_ocr</code> fetches a library's OCR as a document media, which a <code>TranscriptionConverter</code>
+reads as <code>ocr_original</code>, the builder adding one when missing), <code>PdfReader</code> (PDF files as items, pages rendered with
+pypdfium2, extra <code>[pypdfium2]</code>) and <code>PageRecordReader</code>. Readers that fetch over http(s) request ahead in a window
+that grows while no request waits for the rate limits (<code>linecaster.net.http.prefetched</code>), through one fetcher per
+process and configuration, so the limits hold across a worker's tasks; <code>ImageParquetReader</code> and <code>ManifestReader</code>
+suggest a task count from their input (<code>auto_tasks</code>), which a pipeline without engines runs with
+(<a href="../pipelines/#tasks-workers-and-rate-limits">pipelines</a>).</p>
 <p><strong>The workflow</strong> is harvest → transcribe → bind: <code>pipelines/harvest.py</code> downloads images (and OCR, manifests) once
 into item folders plus page records, the transcribe pipelines read those with <code>--pages</code>, <code>pipelines/bind.py</code> makes
 item texts and documents. An item's pages can land in different tasks; item-level steps are a second stage over item

@@ -541,6 +541,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tasks, workers and rate limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -992,6 +1003,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tasks, workers and rate limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1376,7 +1398,7 @@ server is reached. <code>pipeline_sha256</code> covers the functional ones (<cod
 <td>where things are</td>
 </tr>
 <tr>
-<td>which input files a task reads and how: <code>paths_file</code>, <code>glob_pattern</code>, <code>recursive</code>, <code>limit</code>, <code>skip</code>, <code>shuffle_files</code>, <code>batch_size</code> (a reader's), <code>prefetch</code>, <code>http</code> (rate limits, the IIIF format asked for), <code>uri_map</code>, progress bars</td>
+<td>which input files a task reads and how: <code>paths_file</code>, <code>glob_pattern</code>, <code>recursive</code>, <code>limit</code>, <code>skip</code>, <code>shuffle_files</code>, <code>batch_size</code> (a reader's), <code>http</code> (rate limits, the IIIF format asked for), <code>uri_map</code>, progress bars</td>
 <td>the pages themselves are recorded per page</td>
 </tr>
 <tr>
@@ -1413,6 +1435,42 @@ current process without its engines: the script is loaded as a module, its optio
 without checking that their engines are installed, nothing loaded or started. <code>describe_recipe(ref)</code> describes a
 recipe edition that way (its pipeline script by the recipe's pipeline id, <code>--recipe REF</code>, placeholder folders):
 what <code>linecaster catalog release</code> records in the lock and <code>verify</code> compares (<a href="../catalog/">catalog</a>).</p>
+<h2 id="tasks-workers-and-rate-limits">Tasks, workers and rate limits<a class="headerlink" href="#tasks-workers-and-rate-limits" title="Permanent link">&para;</a></h2>
+<p><code>--tasks</code> and <code>--workers</code> are chosen when the command line leaves them open (<code>linecaster.runtime.run.allocate</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Pipeline</th>
+<th><code>--tasks</code></th>
+<th><code>--workers</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>with engines</td>
+<td>1</td>
+<td>every task</td>
+</tr>
+<tr>
+<td>without engines, with <code>--rate-limit</code></td>
+<td>the reader's <code>auto_tasks</code> (from the input), else 1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>without engines, without <code>--rate-limit</code></td>
+<td>the reader's <code>auto_tasks</code>, else 1</td>
+<td>one per CPU, at most the tasks</td>
+</tr>
+</tbody>
+</table>
+<p><code>auto_tasks</code> is about 1,000 pages per task for <code>ImageParquetReader</code> and about 5 items per task for <code>ManifestReader</code>
+(<code>linecaster.blocks.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. Parquet tables are
+divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.</p>
+<p><code>--rate-limit</code> is what the servers see from the whole run: each task running at once gets its share
+(<code>linecaster.net.http.divided</code>: a window's requests divided, at least one, the window stretched to keep the average
+rate). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
+(<code>linecaster.net.http.prefetched</code>, at most <code>MAX_AHEAD</code>), and the fetcher, with its limits and the window it has
+grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFetcher.shared</code>).</p>
 <h2 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h2>
 <p><code>linecaster.runtime.secrets.EnvVar("NAME")</code> names an environment variable; the value is read in the task
 (<code>resolve()</code>), never stored: an <code>EnvVar</code> pickles by name, <code>to_dict()</code> writes <code>{"env": "NAME"}</code>.
