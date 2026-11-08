@@ -152,3 +152,34 @@ def test_a_url_that_keeps_failing_still_fails_after_its_waits(fast, tmp_path, mo
         assert failed(docs[0]) and docs[0].metadata["errors"][0]["type"] == "HTTPStatusError"
     finally:
         httpd.shutdown()
+
+
+def test_a_request_waits_out_an_outage_its_errors_opened_although_a_probe_closed_it_since(monkeypatch):
+    """The race behind the outage test's flaky page: the request's last server error opened the breaker, and another
+    request's probe was answered (closing it) before that error got back to the fetch. The fetch tries again (the
+    breaker opened during its attempts), instead of failing with the 520."""
+    import httpx
+    import pybookget.http
+
+    from linecaster.net.http import HTTPFetcher
+
+    fetcher = HTTPFetcher(trust_env=False)
+    calls = []
+
+    async def fetch(client, url, config, fallback_url=None):
+        request = httpx.Request("GET", url)
+        calls.append(url)
+        if len(calls) == 1:
+            for _ in range(fetcher.breaker.in_a_row):
+                fetcher.breaker.record(520)                       # this request's errors open the breaker ...
+            fetcher.breaker._probe = time.monotonic()
+            fetcher.breaker.record(200)                           # ... and a probe's answer closes it again
+            assert not fetcher.breaker.paused
+            raise httpx.HTTPStatusError("520", request=request, response=httpx.Response(520, request=request))
+        return httpx.Response(200, request=request)
+
+    monkeypatch.setattr(pybookget.http, "fetch", fetch)
+    try:
+        assert fetcher.get("http://127.0.0.1:9/x").status_code == 200 and len(calls) == 2
+    finally:
+        fetcher.close()

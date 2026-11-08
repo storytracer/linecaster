@@ -429,6 +429,7 @@ class Breaker:
         self.opened_at: float | None = None
         self._wait = BREAKER_FIRST_WAIT
         self._probe: float | None = None                 # when the probe went out
+        self.openings = 0                                # how often it opened
 
     @property
     def paused(self) -> bool:
@@ -465,6 +466,7 @@ class Breaker:
         if (len(self._outcomes) >= BREAKER_MIN_ATTEMPTS and failed >= BREAKER_SHARE * len(self._outcomes)
                 or self.in_a_row and self._errors_in_a_row >= self.in_a_row):
             self.opened_at, self.open_until = now, now + self._wait
+            self.openings += 1
             logger.warning("server errors in {failed} of the last {n} attempts: requests pause, next try in {wait}",
                            failed=failed, n=len(self._outcomes), wait=f"{self._wait:.0f} s")
 
@@ -622,7 +624,9 @@ class HTTPFetcher:
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
         try:
-            for waits in range(BREAKER_WAITS + 1):
+            waits = 0
+            while True:
+                openings = self.breaker.openings
                 try:
                     if self._proxies is None:
                         response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
@@ -630,9 +634,12 @@ class HTTPFetcher:
                         response = await self._through_proxies(url, fallback_url)
                     break
                 except Exception as e:
-                    # retries used up on a server error while the server is down (the breaker paused, at the
-                    # latest by this request's last error): wait the outage out and try again, instead of failing
-                    if waits < BREAKER_WAITS and self.breaker.paused and _server_error(e):
+                    # retries used up on a server error while the server is down (the breaker opened during these
+                    # attempts, at the latest at this request's last error, even if a probe has closed it since):
+                    # wait the outage out and try again, instead of failing
+                    if (waits < BREAKER_WAITS and _server_error(e)
+                            and (self.breaker.paused or self.breaker.openings != openings)):
+                        waits += 1
                         await self.breaker.wait_out()
                         continue
                     raise

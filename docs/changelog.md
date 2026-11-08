@@ -193,6 +193,10 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- A page could fail with HTTP 520 during an outage the breaker had seen: when the request's last server error opened
+  the breaker and another request's probe was answered (closing it) before that error got back to the fetch, the fetch
+  found the breaker closed and gave up. It now tries again whenever the breaker opened during its attempts
+  (`Breaker.openings`).
 - The rate limits started afresh with every task (each made its own fetcher), so a worker's next task could
   send a whole window's requests at once; and `ImageParquetReader` never closed its fetcher, leaving a thread per
   task. The readers share one fetcher per process and configuration (`HTTPFetcher.shared`).
