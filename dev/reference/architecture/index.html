@@ -1231,7 +1231,7 @@ satisfied by <code>stubs/opencv-contrib-python</code> (the headless build of the
 </tr>
 <tr>
 <td><code>ray</code></td>
-<td><code>RayGPUExecutor</code> for stages with servers (one task per GPU), datatrove's <code>RayPipelineExecutor</code> otherwise (extra <code>[ray]</code>)</td>
+<td><code>RayGPUExecutor</code> for stages with servers and single-stage pipelines with engines (one task per GPU), datatrove's <code>RayPipelineExecutor</code> otherwise, on CPUs (an item stage, a harvest; extra <code>[ray]</code>)</td>
 </tr>
 <tr>
 <td><code>hf-jobs</code></td>

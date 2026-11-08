@@ -1089,6 +1089,8 @@ the tags; the first is <code>v0.1.0</code>.</p>
   <code>blacklist_ttl</code>). A block no longer uses up one of the request's attempts, and the next proxy is tried without a
   backoff wait; the pool bounds the blocks. linecaster pins resilient-httpx 1.7.0 (storytracer's fork, <code>bc9de0a</code>:
   <code>blocks_count_as_attempts</code>, <code>block_exceptions</code>, <code>blacklist_on_exception</code>).</li>
+<li><code>--on ray</code>: a pipeline without engines (<code>pipelines/harvest.py</code>) runs on datatrove's <code>RayPipelineExecutor</code>, so on
+  CPU-only Ray workers (<code>--cpus-per-task</code>, <code>--mem-per-cpu-gb</code>); every single-stage pipeline asked for a GPU per task.</li>
 <li>A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
   exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
   summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one

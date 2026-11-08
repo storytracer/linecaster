@@ -939,7 +939,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers (one task per GPU), datatrove's `RayPipelineExecutor` otherwise (extra `[ray]`) |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), datatrove's `RayPipelineExecutor` otherwise, on CPUs (an item stage, a harvest; extra `[ray]`) |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
@@ -1146,7 +1146,7 @@ record lists the stages. Each stage gets its own executor, and the later one `de
 | `--on` | Executors | Stages |
 |---|---|---|
 | `local` | `LocalPipelineExecutor` | the second starts when the first is complete |
-| `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage | the same, through `depends=` |
+| `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage and pipelines without engines (CPUs only) | the same, through `depends=` |
 | `hf-jobs` | `JobsExecutor` (datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
 
 **Partial runs** (blocks named by their datatrove `name`, their class name, or a composite's name for its last
