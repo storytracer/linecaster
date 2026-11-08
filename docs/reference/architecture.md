@@ -151,7 +151,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers (one task per GPU), datatrove's `RayPipelineExecutor` otherwise (extra `[ray]`) |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), datatrove's `RayPipelineExecutor` otherwise, on CPUs (an item stage, a harvest; extra `[ray]`) |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the

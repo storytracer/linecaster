@@ -157,7 +157,7 @@ record lists the stages. Each stage gets its own executor, and the later one `de
 | `--on` | Executors | Stages |
 |---|---|---|
 | `local` | `LocalPipelineExecutor` | the second starts when the first is complete |
-| `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage | the same, through `depends=` |
+| `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage and pipelines without engines (CPUs only) | the same, through `depends=` |
 | `hf-jobs` | `JobsExecutor` (datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
 
 **Partial runs** (blocks named by their datatrove `name`, their class name, or a composite's name for its last

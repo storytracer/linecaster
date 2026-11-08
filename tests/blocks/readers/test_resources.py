@@ -477,3 +477,22 @@ def test_a_timeout_through_a_proxy_leaves_it_in_rotation(tmp_path):
         assert reader._last.proxies_in_rotation() == (1, 1)
     finally:
         proxy.shutdown()
+
+
+def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
+    """A pipeline without engines (pipelines/harvest.py) gets datatrove's RayPipelineExecutor, no GPU per task."""
+    pytest.importorskip("ray")
+    from linecaster.blocks.writers.rejects import RejectWriter
+    from linecaster.runtime import run
+
+    ap = run.parser(None)
+    out = str(tmp_path / "out")
+    a = run.check(ap, ap.parse_args(["--items", items_table(tmp_path, ["a1", "b2"]), "--item-key", "lccn", out,
+                                     "--resource", "json=https://www.loc.gov/item/{item}/?fo=json", "--on", "ray",
+                                     "--tasks", "2", "--cpus-per-task", "1", "--mem-per-cpu-gb", "2"]))
+    a.has_engines = False
+    blocks = [run.reader(a), RejectWriter(f"{out}/rejects"), ResourceFilesWriter(out),
+              ResourceRecordWriter(f"{out}/resources")]
+    executor = run._executors(a, run.build_plan(a, blocks), out, None, ["linecaster"])
+    assert type(executor).__name__ == "RayPipelineExecutor" and executor.gpus_per_task == 0
+    assert (executor.cpus_per_task, executor.workers, run.executor_name(a)) == (1, 2, "RayPipelineExecutor")
