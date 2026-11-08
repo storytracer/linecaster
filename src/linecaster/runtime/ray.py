@@ -1,7 +1,8 @@
 """Ray for linecaster pipelines.
 
 ``RayExecutor`` is datatrove's ``RayPipelineExecutor`` that stops as a local run does (``LocalExecutor``): an error
-that is not the pages' (``NOT_THE_PAGES``: the configuration, the catalog, a server, e.g. a host's ``stop_on``) in one
+that is not the pages' (``NOT_THE_PAGES``: the configuration, the catalog, a server: a host's ``stop_on``, no proxy
+left, a pause beyond ``max_pause``; a 429 only pauses the worker that got it, ``linecaster.net.http.Pause``) in one
 task stops the whole run, where datatrove only ends that task and starts the next one (whose first request would go
 straight into the block that stopped the first). The task writes a stop marker to the logging folder
 (``STOP_MARKER``, as datatrove marks finished tasks), every task after it finds the marker and ends before its
