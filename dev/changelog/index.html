@@ -1045,9 +1045,11 @@ the tags; the first is <code>v0.1.0</code>.</p>
   <code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code>, a fetch record each in <code>OUT/resources/&lt;rank&gt;.jsonl.gz</code>, one item per task,
   <code>--max-items</code>, reuse, rejects, <code>--retry-failed</code>. Each response is checked (XML, JSON, images; an HTML page where
   another format was expected fails and counts toward the breaker).</li>
-<li>Host policies: <code>--hosts FILE</code> (<code>linecaster.net.hosts</code>) gives each host its rate limits, proxies or a direct
-  connection, User-Agent, deadline, retries and <code>stop_on</code> statuses (and <code>html</code>) that stop the run without a retry; each
-  host its own fetcher. For <code>--items</code> and <code>--parquet</code>. <code>RejectWriter</code> takes any unit.</li>
+<li>The HTTP policy: <code>--http-policy FILE</code> (<code>linecaster.net.policy.HTTPPolicy</code>) gives the run's requests their settings
+  from one YAML file, for every host at its root and per host under <code>hosts:</code> (an entry replaces the root's fields it
+  names; the run's own options go between the two): rate limits, proxies or a direct connection, User-Agent, deadline,
+  retries (<code>max_retries</code>), the proxy blocks folder (root only) and <code>stop_on</code> statuses (and <code>html</code>) that stop the run
+  without a retry; each host's settings their own fetcher. Readers take it as <code>http_policy=</code>. For <code>--items</code> and <code>--parquet</code>. <code>RejectWriter</code> takes any unit.</li>
 <li>A failed fetch says what failed: retries used up through proxies raise <code>MaxRetriesExceeded</code> naming the last error
   (<code>after 5 attempts: HTTP 520</code>, <code>... ReadTimeout (no message)</code>), an empty pool <code>AllProxiesExhausted</code> with a message,
   and httpx's silent timeouts get one; and the fetch's record (attempts, <code>tries</code>, waits) goes with the exception into
@@ -1064,13 +1066,14 @@ the tags; the first is <code>v0.1.0</code>.</p>
   or proxy error counts against a proxy, so an outage no longer empties the pool.</li>
 <li>With <code>--proxies</code> (or a host's <code>proxies</code>), an HTML page where another format was expected is that proxy's block:
   the proxy is left out and the item goes on through the next one (<code>linecaster.net.http.ProxyBlocked</code>;
-  <code>HTTPFetcher.submit(..., expect=)</code>), with no breaker pause. Without proxies such a page fails as before. A host's
+  <code>HTTPFetcher.submit(..., expect=)</code>), with no breaker pause. Without proxies such a page fails as before. The HTTP
   policy sets how long a blocked proxy is left out and after how many failures (<code>blacklist_ttl: 72h</code>,
   <code>blacklist_threshold</code>; durations in s, m, h or d). A host with no proxy left stops the run (<code>StopRequests</code>, a
   <code>ServerError</code>) naming when the first returns, where every following item failed with <code>AllProxiesExhausted</code>.</li>
-<li>A host's policy can name statuses besides 429 that leave the proxy they came through out (<code>blacklist_on: [403]</code>,
+<li>The HTTP policy can name statuses besides 429 that leave the proxy they came through out (<code>blacklist_on: [403]</code>,
   resilient-httpx's <code>blacklist_on</code>); they are retried through the next proxy instead of failing the item.</li>
-<li>Proxy blocks are shared through a folder of markers (<code>--proxy-blocks FOLDER</code>, default <code>OUT/logs/proxy-blocks</code>;
+<li>Proxy blocks are shared through a folder of markers (<code>--proxy-blocks FOLDER</code> or the HTTP policy's <code>proxy_blocks</code>,
+  default <code>OUT/logs/proxy-blocks</code>;
   <code>linecaster.net.proxy_blocks</code>), as datatrove shares finished tasks: each block is a marker written once and never
   changed, and every fetcher reads a host's markers at its first request there and every 30 s after. Every worker in
   every deployment mode, and every later run pointed at the same folder, leaves the blocked proxies out; a restarted

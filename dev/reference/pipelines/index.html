@@ -1508,7 +1508,7 @@ grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFe
 <code>resilient-httpx</code>): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
 or proxy error, a 429) is left out for an hour, and the attempt goes out again through another. An HTML page where
 another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
-goes on through the next one, without counting toward the breaker. A host's policy can leave a blocked proxy out
+goes on through the next one, without counting toward the breaker. An HTTP policy can leave a blocked proxy out
 longer or after more failures (<code>blacklist_ttl: 72h</code>, <code>blacklist_threshold</code>), and name further statuses that leave a
 proxy out and are retried through the next one (<code>blacklist_on: [403]</code>). With no proxy left for a host the run
 stops (<code>StopRequests</code>) and says when the first one returns. Proxy blocks are shared as datatrove shares finished
@@ -1534,10 +1534,13 @@ an HTML page where another format was expected fails and counts toward the break
 proxy out) and kept as a raw copy,
 <code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code> (<code>ResourceFilesWriter</code>), the reference later stages link to, with its fetch record in
 <code>OUT/resources/&lt;rank&gt;.jsonl.gz</code> (<code>ResourceRecordWriter</code>: source and final URL, status, type, size, <code>sha256</code>, ETag,
-Last-Modified, time). One item per task, <code>--max-items</code> for a smoke test, copies already there read back. <code>--hosts FILE</code>
-gives each host its policy (<code>linecaster.net.hosts</code>: rate limits, proxies or direct, User-Agent, deadline, retries,
-how long a blocked proxy is left out, <code>stop_on</code> statuses and <code>html</code> that stop the run without a retry), for <code>--items</code>
-and <code>--parquet</code>.</p>
+Last-Modified, time). One item per task, <code>--max-items</code> for a smoke test, copies already there read back. <code>--http-policy FILE</code>
+gives the run's requests their settings from one YAML file (<code>linecaster.net.policy</code>): for every host at the root, and
+under <code>hosts:</code> an entry for each host that differs, whose fields replace the root's; the run's own options go between
+the two. The settings: rate limits, proxies or direct, User-Agent, deadline, retries (<code>max_retries</code>), the proxy blocks
+folder (root only), how long and when a proxy is left out (<code>blacklist_ttl</code>, <code>blacklist_threshold</code>, <code>blacklist_on</code>),
+and <code>stop_on</code> statuses and <code>html</code> that stop the run without a retry. For <code>--items</code> and <code>--parquet</code>; with rate limits in
+the file a run keeps one worker.</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
 <p>A local run (<code>--on local</code>, <code>linecaster.runtime.local.LocalExecutor</code>) shows on the terminal: one line naming the
 pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a

@@ -739,11 +739,11 @@ table (--parquet), downloaded once into item folders, with page records that kee
 engine or GPU is needed; the transcribe stage then reads the page records without waiting on the libraries' servers.
 With --items it fetches items' other remote files (resources: catalogue records, API JSON, manifests) as served,
 from URL templates (--resource KIND=URL with {item}) or a resource table, into OUT/<kind>/<item>/<name>.<ext> with a
-record each in OUT/resources/<rank>.jsonl.gz; --hosts gives each host its own policy (rate limits, proxies or direct,
-statuses that stop the run).</p>
+record each in OUT/resources/<rank>.jsonl.gz; --http-policy gives settings for every host and overrides per host
+(rate limits, proxies or direct, retries, statuses that stop the run).</p>
 <div class="highlight"><pre><span></span><code>uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
     --rate-limit 5/1 --existing-ocr
-uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --hosts hosts.yaml \
+uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --http-policy http-policy.yaml \
     --resource marcxml=https://lccn.loc.gov/{item}/marcxml
 uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
     --rate-limit 150/60 --rate-limit 3/1

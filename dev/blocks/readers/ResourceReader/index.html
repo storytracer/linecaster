@@ -876,10 +876,10 @@
 <td><code>linecaster.net.http.HTTPFetcher</code> settings for every host (rate limits, proxies, ...).</td>
 </tr>
 <tr>
-<td><code>hosts</code></td>
+<td><code>http_policy</code></td>
 <td><code>str \| None</code></td>
 <td><code>None</code></td>
-<td>a host policies file (<code>linecaster.net.hosts</code>) laid over <code>http</code> per host.</td>
+<td>an HTTP policy file (<code>linecaster.net.policy</code>): settings for every host under <code>http</code>'s, a host's own over both.</td>
 </tr>
 <tr>
 <td><code>reuse_folder</code></td>
@@ -954,7 +954,7 @@
 <code>name_key</code>), or rows naming items and <code>templates</code> that give each item's URL per kind (<code>{item}</code> is replaced
 by the item id). The copy's name is <code>name_key</code>'s value, else the item id (with <code>templates</code>) or the URL's last
 path segment. <code>auto_tasks</code> is the number of items. See the module docstring for the record, the checks, the
-host policies and the reuse.</p>
+HTTP policy and the reuse.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["ResourceReader"]
