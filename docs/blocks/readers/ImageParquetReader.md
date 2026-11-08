@@ -44,7 +44,7 @@ The contract is that of `ImageParquetReader(data_folder='pages/')`; the comes-af
 | `max_pages` | `int \| None` | `None` | only the first `max_pages` rows of the input, for the whole run: the tables are read as if they ended there, divided over the tasks (and `auto_tasks` counted) the same way; default: every row. |
 | `task_per_item` | `bool` | `False` | the tasks divide the items (the `item_key` values, needs it; an item's rows need not be together), not the rows, and `auto_tasks` is one task per item: each item whole in its task, a task that fails costs one item (`pipelines/harvest.py`). Default: rows in equal shards. |
 | `reuse_folder` | `DataFolderLike \| None` | `None` | where `ImageFilesWriter` writes the images (`pipelines/harvest.py`: `OUT/images`): a page whose file is already there is read from it instead of from the source (`linecaster.blocks.readers.existing`: one listing per item), so a resumed harvest does not fetch it again; its record is complete and says `image.extra["reused"]`. A copy that cannot be read is fetched from the source. Default: none. |
-| `hosts` | `str \| None` | `None` | a host policies file (`linecaster.net.hosts`) laid over `http` per host of the image URLs. |
+| `http_policy` | `str \| None` | `None` | an HTTP policy file (`linecaster.net.policy`): settings for every host of the image URLs under `http`'s, a host's own over both. |
 
 ## Behavior
 

@@ -59,9 +59,11 @@ the tags; the first is `v0.1.0`.
   `OUT/<kind>/<item>/<name>.<ext>`, a fetch record each in `OUT/resources/<rank>.jsonl.gz`, one item per task,
   `--max-items`, reuse, rejects, `--retry-failed`. Each response is checked (XML, JSON, images; an HTML page where
   another format was expected fails and counts toward the breaker).
-- Host policies: `--hosts FILE` (`linecaster.net.hosts`) gives each host its rate limits, proxies or a direct
-  connection, User-Agent, deadline, retries and `stop_on` statuses (and `html`) that stop the run without a retry; each
-  host its own fetcher. For `--items` and `--parquet`. `RejectWriter` takes any unit.
+- The HTTP policy: `--http-policy FILE` (`linecaster.net.policy.HTTPPolicy`) gives the run's requests their settings
+  from one YAML file, for every host at its root and per host under `hosts:` (an entry replaces the root's fields it
+  names; the run's own options go between the two): rate limits, proxies or a direct connection, User-Agent, deadline,
+  retries (`max_retries`), the proxy blocks folder (root only) and `stop_on` statuses (and `html`) that stop the run
+  without a retry; each host's settings their own fetcher. Readers take it as `http_policy=`. For `--items` and `--parquet`. `RejectWriter` takes any unit.
 - A failed fetch says what failed: retries used up through proxies raise `MaxRetriesExceeded` naming the last error
   (`after 5 attempts: HTTP 520`, `... ReadTimeout (no message)`), an empty pool `AllProxiesExhausted` with a message,
   and httpx's silent timeouts get one; and the fetch's record (attempts, `tries`, waits) goes with the exception into
@@ -78,13 +80,14 @@ the tags; the first is `v0.1.0`.
   or proxy error counts against a proxy, so an outage no longer empties the pool.
 - With `--proxies` (or a host's `proxies`), an HTML page where another format was expected is that proxy's block:
   the proxy is left out and the item goes on through the next one (`linecaster.net.http.ProxyBlocked`;
-  `HTTPFetcher.submit(..., expect=)`), with no breaker pause. Without proxies such a page fails as before. A host's
+  `HTTPFetcher.submit(..., expect=)`), with no breaker pause. Without proxies such a page fails as before. The HTTP
   policy sets how long a blocked proxy is left out and after how many failures (`blacklist_ttl: 72h`,
   `blacklist_threshold`; durations in s, m, h or d). A host with no proxy left stops the run (`StopRequests`, a
   `ServerError`) naming when the first returns, where every following item failed with `AllProxiesExhausted`.
-- A host's policy can name statuses besides 429 that leave the proxy they came through out (`blacklist_on: [403]`,
+- The HTTP policy can name statuses besides 429 that leave the proxy they came through out (`blacklist_on: [403]`,
   resilient-httpx's `blacklist_on`); they are retried through the next proxy instead of failing the item.
-- Proxy blocks are shared through a folder of markers (`--proxy-blocks FOLDER`, default `OUT/logs/proxy-blocks`;
+- Proxy blocks are shared through a folder of markers (`--proxy-blocks FOLDER` or the HTTP policy's `proxy_blocks`,
+  default `OUT/logs/proxy-blocks`;
   `linecaster.net.proxy_blocks`), as datatrove shares finished tasks: each block is a marker written once and never
   changed, and every fetcher reads a host's markers at its first request there and every 30 s after. Every worker in
   every deployment mode, and every later run pointed at the same folder, leaves the blocked proxies out; a restarted

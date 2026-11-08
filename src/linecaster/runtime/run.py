@@ -127,9 +127,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                                     "the URL's last segment)")
     g.add_argument("--max-items", type=int, default=None, metavar="N",
                    help="--items: only the first N items of the input for the whole run (a smoke test)")
-    g.add_argument("--hosts", default=None, metavar="FILE",
-                   help="--items, --parquet: a host policies file (YAML: hosts -> rate_limits, proxies, direct, "
-                        "user_agent, stop_on, ...; linecaster.net.hosts) laid over the run's own HTTP settings")
+    g.add_argument("--http-policy", default=None, metavar="FILE",
+                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, proxies, max_retries, stop_on, "
+                        "... for every host at the root, overrides per host under hosts:; linecaster.net.policy); "
+                        "the run's own options go over its root, a host's entry over both")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")
@@ -221,13 +222,13 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--resource and --max-items are for --items")
     if a.max_items is not None and a.max_items < 1:
         ap.error("--max-items needs at least 1")
-    if a.hosts and (a.manifests or a.pages):
-        ap.error("--hosts is for --items and --parquet so far")
-    if a.hosts:
-        from ..net.hosts import HostPolicies
+    if a.http_policy and (a.manifests or a.pages):
+        ap.error("--http-policy is for --items and --parquet so far")
+    if a.http_policy:
+        from ..net.policy import HTTPPolicy
 
         try:
-            HostPolicies(a.hosts)
+            HTTPPolicy(a.http_policy)
         except PipelineConfigError as e:
             ap.error(e.problems[0])
     if getattr(a, "after", None) and not a.pages:
@@ -281,13 +282,13 @@ def has_engines(a: argparse.Namespace) -> bool:
 
 def rate_note(a: argparse.Namespace) -> str | None:
     """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
-    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``, and the host policies (``--hosts``); None
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``, and the HTTP policy (``--http-policy``); None
     without either."""
     hosts = None
-    if getattr(a, "hosts", None):
-        from ..net.hosts import HostPolicies
+    if getattr(a, "http_policy", None):
+        from ..net.policy import HTTPPolicy
 
-        hosts = "host policies per worker: " + HostPolicies(a.hosts).describe()
+        hosts = "HTTP policy per worker: " + HTTPPolicy(a.http_policy).describe()
     if not getattr(a, "rate_limits", None):
         return hosts
     workers = min(a.workers or a.tasks or 1, a.tasks or 1)
@@ -306,14 +307,15 @@ def rate_note(a: argparse.Namespace) -> str | None:
 def http(a: argparse.Namespace) -> dict:
     """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
     worker's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and where proxy blocks are marked
-    (``--proxy-blocks``, with proxies or a hosts file, whose hosts may have proxies)."""
+    (``--proxy-blocks``; else ``default_proxy_blocks``, ``OUT/logs/proxy-blocks``, with proxies or an HTTP policy,
+    whose ``proxy_blocks`` goes over it)."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "proxies", None):
         out["proxy_file"] = a.proxies
     if getattr(a, "proxy_blocks", None):
         out["proxy_blocks"] = a.proxy_blocks
-    elif (getattr(a, "proxies", None) or getattr(a, "hosts", None)) and getattr(a, "out", None):
-        out["proxy_blocks"] = f"{a.out.rstrip('/')}/logs/proxy-blocks"
+    if (getattr(a, "proxies", None) or getattr(a, "http_policy", None)) and getattr(a, "out", None):
+        out["default_proxy_blocks"] = f"{a.out.rstrip('/')}/logs/proxy-blocks"
     if getattr(a, "user_agent", None):
         out["user_agent"] = a.user_agent
     if getattr(a, "random_user_agent", False):
@@ -321,6 +323,14 @@ def http(a: argparse.Namespace) -> dict:
     if getattr(a, "rate_limits", None):
         out["rate_limits"] = a.rate_limits
     return out
+
+
+def _policy_rate_limited(a: argparse.Namespace) -> bool:
+    if not getattr(a, "http_policy", None):
+        return False
+    from ..net.policy import HTTPPolicy
+
+    return HTTPPolicy(a.http_policy).rate_limited()
 
 
 def allocate(a: argparse.Namespace, pipeline: list) -> None:
@@ -337,7 +347,7 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     if a.workers is None:
         if has_engines(a):
             a.workers = a.tasks
-        elif getattr(a, "rate_limits", None) or getattr(a, "hosts", None):
+        elif getattr(a, "rate_limits", None) or _policy_rate_limited(a):
             a.workers = 1
         else:
             a.workers = min(a.tasks, os.cpu_count() or 1)
@@ -361,7 +371,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
             folder, glob = parent or ".", name
         return ResourceReader(folder, item_key=a.item_key, templates=getattr(a, "templates", None) or None,
                               url_key=a.url_key, kind_key=a.kind_key, name_key=a.name_key, http=http(a),
-                              hosts=a.hosts, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
+                              http_policy=a.http_policy, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
                               limit=a.limit, skip=a.skip)
     if getattr(a, "manifests", None):
         from ..blocks.readers.manifests import ManifestReader
@@ -391,7 +401,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
-                                  reuse_folder=reuse_folder, hosts=getattr(a, "hosts", None))
+                                  reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None))
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file)

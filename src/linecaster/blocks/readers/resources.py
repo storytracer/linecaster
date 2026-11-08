@@ -14,10 +14,10 @@ a media, and its fetch record in ``doc.metadata["resource"]``: ``item``, ``kind`
 
 A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open, and an HTML
 page where another format was expected (an error page, a CAPTCHA sent with 200) is a failure that also counts toward
-the host's breaker as a server error, or stops the run where the host's policy says ``stop_on: [html]``. A failed
+the host's breaker as a server error, or stops the run where the HTTP policy says ``stop_on: [html]`` for the host. A failed
 resource is the item's error (``doc.metadata["errors"]``, rejects), within the error budget, as for pages.
 
-Requests go out per host (``hosts``: a ``linecaster.net.hosts`` file), each with its own fetcher, rate limits and
+Requests go out per host (``http_policy``: a ``linecaster.net.policy`` file), each with its own fetcher, rate limits and
 breaker; a status in a host's ``stop_on`` stops the run (a ``ServerError``) without a retry. With ``reuse_folder`` a
 resource whose copy is there already (one listing of ``<kind>/<item>/`` per item) is read back instead of fetched.
 """
@@ -105,7 +105,7 @@ class ResourceReader(Contracted, BaseDiskReader):
     ``name_key``), or rows naming items and ``templates`` that give each item's URL per kind (``{item}`` is replaced
     by the item id). The copy's name is ``name_key``'s value, else the item id (with ``templates``) or the URL's last
     path segment. ``auto_tasks`` is the number of items. See the module docstring for the record, the checks, the
-    host policies and the reuse.
+    HTTP policy and the reuse.
 
     Args:
         data_folder: the Parquet files (a folder, or the folder of ``glob_pattern``'s file).
@@ -114,7 +114,8 @@ class ResourceReader(Contracted, BaseDiskReader):
         url_key, kind_key, name_key: the table's columns for a resource's URL, kind and copy name (without
             ``templates``; ``name_key`` optional).
         http: ``linecaster.net.http.HTTPFetcher`` settings for every host (rate limits, proxies, ...).
-        hosts: a host policies file (``linecaster.net.hosts``) laid over ``http`` per host.
+        http_policy: an HTTP policy file (``linecaster.net.policy``): settings for every host under ``http``'s, a
+            host's own over both.
         reuse_folder: where ``ResourceFilesWriter`` writes (``OUT``): a resource whose copy is there is read back.
         max_items: only the first ``max_items`` items of the input, for the whole run (a smoke test).
         limit, skip: resources per task, as datatrove's count documents; they apply before anything is fetched.
@@ -135,7 +136,7 @@ class ResourceReader(Contracted, BaseDiskReader):
 
     def __init__(self, data_folder: DataFolderLike, item_key: str, templates: dict[str, str] | None = None,
                  url_key: str = "url", kind_key: str = "kind", name_key: str | None = None, http: dict | None = None,
-                 hosts: str | None = None, reuse_folder: DataFolderLike | None = None, max_items: int | None = None,
+                 http_policy: str | None = None, reuse_folder: DataFolderLike | None = None, max_items: int | None = None,
                  paths_file: DataFileLike | None = None, glob_pattern: str = "**/*.parquet", recursive: bool = True,
                  limit: int = -1, skip: int = 0, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False):
@@ -148,7 +149,8 @@ class ResourceReader(Contracted, BaseDiskReader):
             raise PipelineConfigError("max_items must be at least 1")
         self.item_key, self.templates = item_key, dict(templates or {})
         self.url_key, self.kind_key, self.name_key = url_key, kind_key, name_key
-        self.http, self.hosts, self.reuse_folder, self.max_items = dict(http or {}), hosts, reuse_folder, max_items
+        self.http, self.http_policy = dict(http or {}), http_policy
+        self.reuse_folder, self.max_items = reuse_folder, max_items
         self._layout = self._items = None
         self._policies = None
         self._fetchers: set = set()
@@ -236,11 +238,11 @@ class ResourceReader(Contracted, BaseDiskReader):
     # ---------------------------------------------------------------- fetching
 
     def _fetcher(self, url: str):
-        from ...net.hosts import HostPolicies
         from ...net.http import HTTPFetcher
+        from ...net.policy import HTTPPolicy
 
-        if self.hosts and self._policies is None:
-            self._policies = HostPolicies(self.hosts, self.http)
+        if self.http_policy and self._policies is None:
+            self._policies = HTTPPolicy(self.http_policy, self.http)
         config = self._policies.http_for(url) if self._policies else self.http
         fetcher = HTTPFetcher.shared(**config)
         if fetcher not in self._fetchers:            # a task's first request to it: its own random User-Agent
@@ -340,7 +342,7 @@ class ResourceReader(Contracted, BaseDiskReader):
             if problem is not None:
                 if fetcher is not None:
                     if problem.startswith("html") and self._policies and self._policies.stops_on_html(url):
-                        raise ServerError(f"{url}: {problem}; its host's policy stops the run here (stop_on: html)")
+                        raise ServerError(f"{url}: {problem}; the HTTP policy stops the run here (stop_on: html)")
                     fetcher._loop.call_soon_threadsafe(fetcher.breaker.record, 520)   # counts like a server error
                 raise ValueError(problem)
             record.update(content_type=ctype or None, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())

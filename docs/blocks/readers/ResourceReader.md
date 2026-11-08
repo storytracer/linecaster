@@ -30,7 +30,7 @@ The contract is that of `ResourceReader(data_folder='items/', item_key='lccn', t
 | `kind_key` | `str` | `'kind'` | the table's columns for a resource's URL, kind and copy name (without `templates`; `name_key` optional). |
 | `name_key` | `str \| None` | `None` | the table's columns for a resource's URL, kind and copy name (without `templates`; `name_key` optional). |
 | `http` | `dict \| None` | `None` | `linecaster.net.http.HTTPFetcher` settings for every host (rate limits, proxies, ...). |
-| `hosts` | `str \| None` | `None` | a host policies file (`linecaster.net.hosts`) laid over `http` per host. |
+| `http_policy` | `str \| None` | `None` | an HTTP policy file (`linecaster.net.policy`): settings for every host under `http`'s, a host's own over both. |
 | `reuse_folder` | `DataFolderLike \| None` | `None` | where `ResourceFilesWriter` writes (`OUT`): a resource whose copy is there is read back. |
 | `max_items` | `int \| None` | `None` | only the first `max_items` items of the input, for the whole run (a smoke test). |
 | `paths_file` | `DataFileLike \| None` | `None` | datatrove's `BaseDiskReader` arguments. |
@@ -49,7 +49,7 @@ The input is Parquet (`data_folder`): one row per resource (`url_key` and `kind_
 `name_key`), or rows naming items and `templates` that give each item's URL per kind (`{item}` is replaced
 by the item id). The copy's name is `name_key`'s value, else the item id (with `templates`) or the URL's last
 path segment. `auto_tasks` is the number of items. See the module docstring for the record, the checks, the
-host policies and the reuse.
+HTTP policy and the reuse.
 
 ## Contract
 

@@ -49,12 +49,12 @@ class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
     ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honor
     ``Retry-After``; ``http`` sets its ``Config`` fields; one ``linecaster.net.http.HTTPFetcher.shared`` per process
-    and configuration, so its rate limits hold across a worker's tasks; with ``hosts``, a host policies file
-    (``linecaster.net.hosts``), one per host policy)."""
+    and configuration, so its rate limits hold across a worker's tasks; with ``http_policy``, an HTTP policy file
+    (``linecaster.net.policy``), one per host's settings)."""
 
-    def __init__(self, http: dict | None = None, hosts: str | None = None):
+    def __init__(self, http: dict | None = None, http_policy: str | None = None):
         self._folders: dict = {}
-        self.http, self.hosts, self._fetcher = dict(http or {}), hosts, None
+        self.http, self.http_policy, self._fetcher = dict(http or {}), http_policy, None
         self._policies, self._used = None, set()
 
     def __getstate__(self):                      # pipelines are pickled for their executors; the fetchers'
@@ -76,11 +76,11 @@ class _Opener:
             from ...net.http import HTTPFetcher
 
             config = self.http
-            if self.hosts:
-                from ...net.hosts import HostPolicies
+            if self.http_policy:
+                from ...net.policy import HTTPPolicy
 
                 if self._policies is None:
-                    self._policies = HostPolicies(self.hosts, self.http)
+                    self._policies = HTTPPolicy(self.http_policy, self.http)
                 config = self._policies.http_for(uri)
             fetcher = HTTPFetcher.shared(**config)
             if fetcher not in self._used:               # a task's first request to it: its own random User-Agent
@@ -269,7 +269,8 @@ class ImageParquetReader(Contracted, ParquetReader):
             fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
         paths_file, glob_pattern, recursive, file_progress, doc_progress: datatrove's ``ParquetReader`` arguments.
         shuffle_files: read the files of a task's shard in random order.
-        hosts: a host policies file (``linecaster.net.hosts``) laid over ``http`` per host of the image URLs.
+        http_policy: an HTTP policy file (``linecaster.net.policy``): settings for every host of the image URLs
+            under ``http``'s, a host's own over both.
     """
 
     name = "🖼️ image parquet"
@@ -286,7 +287,7 @@ class ImageParquetReader(Contracted, ParquetReader):
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
                  max_pages: int | None = None, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None, hosts: str | None = None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
@@ -299,7 +300,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         self._starts = None
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
-        self._opener = _Opener(http, hosts)
+        self._opener = _Opener(http, http_policy)
         self._layout: list | None = None
 
     def layout(self) -> list[tuple[str, tuple[int, ...]]]:

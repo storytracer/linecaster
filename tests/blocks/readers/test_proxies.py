@@ -126,7 +126,7 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
                                      "--proxies", str(tmp_path / "proxies.txt")]))
     a.has_engines = False
     assert run.reader(a)._opener.http["proxy_file"] == str(tmp_path / "proxies.txt")    # the file, not its lines
-    assert run.reader(a)._opener.http["proxy_blocks"] == "OUT/logs/proxy-blocks"      # shared by workers and runs
+    assert run.reader(a)._opener.http["default_proxy_blocks"] == "OUT/logs/proxy-blocks"   # shared by workers, runs
     shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
                                           str(tmp_path / "proxies.txt"), "--proxy-blocks", "s3://b/proxy-blocks"]))
     assert run.reader(shared)._opener.http["proxy_blocks"] == "s3://b/proxy-blocks"

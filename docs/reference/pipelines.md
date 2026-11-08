@@ -315,7 +315,7 @@ grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher
 `resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
 or proxy error, a 429) is left out for an hour, and the attempt goes out again through another. An HTML page where
 another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
-goes on through the next one, without counting toward the breaker. A host's policy can leave a blocked proxy out
+goes on through the next one, without counting toward the breaker. An HTTP policy can leave a blocked proxy out
 longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`), and name further statuses that leave a
 proxy out and are retried through the next one (`blacklist_on: [403]`). With no proxy left for a host the run
 stops (`StopRequests`) and says when the first one returns. Proxy blocks are shared as datatrove shares finished
@@ -343,10 +343,13 @@ an HTML page where another format was expected fails and counts toward the break
 proxy out) and kept as a raw copy,
 `OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in
 `OUT/resources/<rank>.jsonl.gz` (`ResourceRecordWriter`: source and final URL, status, type, size, `sha256`, ETag,
-Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--hosts FILE`
-gives each host its policy (`linecaster.net.hosts`: rate limits, proxies or direct, User-Agent, deadline, retries,
-how long a blocked proxy is left out, `stop_on` statuses and `html` that stop the run without a retry), for `--items`
-and `--parquet`.
+Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--http-policy FILE`
+gives the run's requests their settings from one YAML file (`linecaster.net.policy`): for every host at the root, and
+under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
+the two. The settings: rate limits, proxies or direct, User-Agent, deadline, retries (`max_retries`), the proxy blocks
+folder (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
+and `stop_on` statuses and `html` that stop the run without a retry. For `--items` and `--parquet`; with rate limits in
+the file a run keeps one worker.
 
 ## The console
 

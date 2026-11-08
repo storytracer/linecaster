@@ -335,7 +335,7 @@ async def _after(request) -> None:              # after the rate limits' hook: t
 
 
 class StopRequests(ServerError):
-    """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.hosts``), raised
+    """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.policy``), raised
     before any retry since a retry would only prolong its block; or every proxy of a host is left out. A
     ``ServerError``: it stops the run (``NOT_THE_PAGES``)."""
 
@@ -506,7 +506,8 @@ class HTTPFetcher:
 
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
-                 proxy_blocks: str | None = None, stop_on: list[int] | None = None, **config):
+                 proxy_blocks: str | None = None, default_proxy_blocks: str | None = None,
+                 stop_on: list[int] | None = None, **config):
         _pybookget()
         from pybookget.config import Config
 
@@ -527,10 +528,10 @@ class HTTPFetcher:
             proxies = read_proxies(proxy_file)
             self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl,
                                           proxy_blacklist_on)
-            if proxy_blocks:
+            if proxy_blocks or default_proxy_blocks:     # the default: where the run keeps its logs
                 from .proxy_blocks import ProxyBlocks, proxy_id
 
-                self._blocks = ProxyBlocks(proxy_blocks)
+                self._blocks = ProxyBlocks(proxy_blocks or default_proxy_blocks)
                 self._proxy_ids = {proxy_id(p): p for p in proxies}
                 self._block_poll = asyncio.run_coroutine_threadsafe(self._poll_blocks(), self._loop)
 
