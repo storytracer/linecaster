@@ -1091,6 +1091,8 @@ the tags; the first is <code>v0.1.0</code>.</p>
   <code>blocks_count_as_attempts</code>, <code>block_exceptions</code>, <code>blacklist_on_exception</code>).</li>
 <li><code>--on ray</code>: a pipeline without engines (<code>pipelines/harvest.py</code>) runs on datatrove's <code>RayPipelineExecutor</code>, so on
   CPU-only Ray workers (<code>--cpus-per-task</code>, <code>--mem-per-cpu-gb</code>); every single-stage pipeline asked for a GPU per task.</li>
+<li><code>--address</code> joins the Ray cluster it names (<code>linecaster.runtime.run.connect_ray</code>: <code>auto</code>, <code>HOST:6379</code>,
+  <code>ray://HOST:10001</code>); it was read but not used, so a run only found a cluster started on its own machine.</li>
 <li>A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
   exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
   summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one
