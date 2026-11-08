@@ -2,694 +2,694 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/LICENSE-linecaster-image/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/changelog/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/binding/Binder/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/binding/Splitter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/composites/ModularTranscriber/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/composition/Composer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/composition/Recomposer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/composition/Typographer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/conversion/ImageConverter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/conversion/ImageFetcher/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/conversion/TranscriptionConverter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/layout/LayoutDetector/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/lines/LineAssigner/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/lines/LineDetector/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/ImageFolderReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/ImageParquetReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/ManifestReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/PageRecordReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/PdfReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/readers/ResourceReader/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/FormulaRecognizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/LineRecognizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/PageRecognizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/RegionRecognizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/recognition/TableRecognizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/servers/ChatModelServer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/servers/ModelServer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/servers/ServiceServer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/text/CharacterNormalizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/text/UnicodeNormalizer/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/validation/PageValidator/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/validation/RecipeStamper/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ImageFilesWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ItemDocumentWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ItemTextWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/PageFileWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/PageJsonlWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/PageParquetWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/RejectWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ResourceFilesWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/blocks/writers/ResourceRecordWriter/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/chat.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/composition.docling.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/falcon.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/image.webp-lossless.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/indra.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/kraken.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/layout.single-region.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/normalization.by-script.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/normalization.latin-historic.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/oxr.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/paddlex.formulas.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/paddlex.layout.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/paddlex.lines.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/paddlex.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/paddlex.tables.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/recomposition.by-script.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/recomposition.unicode.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/surya.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/tesseract.recognition.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/engines/typography.ratios.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/chandra-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/deepseek-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/deepseek-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/dots-mocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/dots-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/falcon-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/glm-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/indra-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/kraken-ppocrv6-medium/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/kraken-ppocrv6-small/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/kraken-ppocrv6-tiny/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/lightonocr-2-1b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/lightonocr-3-0.8b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/lightonocr-3-4b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/minicpm-ocr-1.0-dspark/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/minicpm-ocr-1.0/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/nemotron-3.5-parse/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/olmocr-2-7b-1025-fp8/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/ovisocr2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/ovisocr3/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/oxr-1.0/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/paddleocr-vl-1.6/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-doclayout-plus-l-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-doclayoutv3-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-formulanet-l-safetensors/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-formulanet-plus-l-safetensors/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-lcnet-x1-0-table-cls-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-medium-det-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-medium-rec-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-small-det-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-small-rec-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-tiny-det-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/pp-ocrv6-tiny-rec-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/qianfan-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/qwen3.5-9b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/rt-detr-l-wired-table-cell-det-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/rt-detr-l-wireless-table-cell-det-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/slanet-plus-onnx/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/smoldocling-256m-preview/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/surya-ocr-2.5/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/tessdata-best/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/tessdata-fast/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/unlimited-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/models/unlimited-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/bind.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/harvest.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/transcribe_modular.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/transcribe_page.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/pipelines/transcribe_vlm.v1/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/composition/docling-composition/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/formulas/pp-formulanet-l/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/formulas/pp-formulanet-plus-l/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/image/working-image/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/layout/pp-doclayout-plus-l/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/layout/pp-doclayoutv3/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/layout/single-region/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/lines/pp-ocrv6-medium-det/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/lines/pp-ocrv6-small-det/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/lines/pp-ocrv6-tiny-det/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/normalization/latin-historic/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/chandra-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/deepseek-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/deepseek-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/dots-mocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/dots-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/falcon-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/glm-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/indra-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/kraken-ppocrv6-medium/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/kraken-ppocrv6-small/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/kraken-ppocrv6-tiny/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/lightonocr-2-1b-regions/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/lightonocr-2-1b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/lightonocr-3-0.8b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/lightonocr-3-4b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/minicpm-ocr-1.0/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/nemotron-3.5-parse/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/olmocr-2-7b-1025-fp8/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/ovisocr2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/ovisocr3/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/oxr-1.0/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/paddleocr-vl-1.6/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/paddlex-ppocrv6-medium/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/paddlex-ppocrv6-small/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/paddlex-ppocrv6-tiny/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/qianfan-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/qwen3.5-9b/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/smoldocling-256m-preview/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/surya-ocr-2.5/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/tesseract-best-eng/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/tesseract-best-latin/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/tesseract-fast-eng/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/tesseract-fast-latin/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/unlimited-ocr-2/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recognition/unlimited-ocr/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/recomposition/unicode-recomposition/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/tables/slanet-plus/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/presets/typography/ratios/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/recipes/item-texts/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/catalog/recipes/squiddle/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/architecture/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/catalog/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/compatibility/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/conventions/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/data-model/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/glossary/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/pipelines/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/serialization/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/dev/reference/tracing/</loc>
-         <lastmod>2026-11-07</lastmod>
+         <lastmod>2026-11-08</lastmod>
     </url>
 </urlset>
