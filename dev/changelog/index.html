@@ -995,6 +995,19 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>A 429 pauses the worker that got it instead of stopping the run or failing the page: an HTTP policy has a new
+  per-host key <code>pause_on</code> (statuses that pause the worker's requests to the host until the response's <code>Retry-After</code>
+  has passed, then retry the request; default <code>[429]</code>) and <code>max_pause</code> (default 6 h in all since the host's last
+  successful response; beyond it the run stops). A policy with <code>429</code> in <code>stop_on</code> is refused (<code>429 both in stop_on and
+  pause_on</code>): move it to <code>pause_on</code> (<code>lccn.loc.gov: {direct: true, stop_on: [429, html]}</code> becomes
+  <code>{direct: true, pause_on: [429], stop_on: [html]}</code>), or keep it in <code>stop_on</code> with <code>pause_on: []</code> to still stop the
+  run on it; there is no alias. Without a policy the default applies as well: on a direct connection a 429 used to be
+  retried per request by pybookget (each retry after the longer of its backoff and the <code>Retry-After</code>, at most 300 s,
+  up to <code>max_retries</code>), the other requests going on meanwhile, and the page or resource failed with
+  <code>HTTPStatusError</code> once its retries were used up; now the worker's requests to the host wait out the <code>Retry-After</code>
+  (a minute doubling to an hour without one), the request is tried again without using up a retry, and the page does
+  not fail. <code>http={"pause_on": []}</code> keeps the old behavior. Through a proxy list nothing changes: a 429 leaves that
+  proxy out.</li>
 <li><code>max_retries</code> (<code>http={"max_retries": ...}</code>, an HTTP policy's) counts retries after the first attempt, as its name
   says, where it counted attempts: <code>max_retries: n</code> now makes <code>n + 1</code> attempts, and <code>0</code> is a single attempt. The
   default is 4 (still 5 attempts). A setting written for the old meaning gets one attempt more; lower it by one to keep
@@ -1182,6 +1195,10 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li>A page could fail with HTTP 520 during an outage the breaker had seen: when the request's last server error opened
+  the breaker and another request's probe was answered (closing it) before that error got back to the fetch, the fetch
+  found the breaker closed and gave up. It now tries again whenever the breaker opened during its attempts
+  (<code>Breaker.openings</code>).</li>
 <li>The rate limits started afresh with every task (each made its own fetcher), so a worker's next task could
   send a whole window's requests at once; and <code>ImageParquetReader</code> never closed its fetcher, leaving a thread per
   task. The readers share one fetcher per process and configuration (<code>HTTPFetcher.shared</code>).</li>

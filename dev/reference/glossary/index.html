@@ -1101,13 +1101,23 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>HTTP policy</strong>, <strong>host entry</strong></td>
-<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>, <code>linecaster.net.policy</code>): settings for every host at its root (rate limits, proxies or direct, User-Agent, deadline, retries, proxy blocks, statuses that stop the run), and a host entry under <code>hosts:</code> for each host that differs, which replaces the root's fields it names. The run's own options go between the root and the host entries; each host's settings get their own fetcher.</td>
+<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>, <code>linecaster.net.policy</code>): settings for every host at its root (rate limits, proxies or direct, User-Agent, deadline, retries, proxy blocks, statuses that pause the requests and that stop the run), and a host entry under <code>hosts:</code> for each host that differs, which replaces the root's fields it names. The run's own options go between the root and the host entries; each host's settings get their own fetcher.</td>
 <td>not several policies</td>
 </tr>
 <tr>
 <td><strong>proxy block</strong></td>
 <td>A proxy left out for a host until a set time because the host turned it away (a 429, a block page, a status in <code>blacklist_on</code>). Shared through a folder of markers, one per block, written once and never changed (<code>--proxy-blocks</code>, default <code>OUT/logs/proxy-blocks</code>, <code>linecaster.net.proxy_blocks</code>): every worker, and every later run pointed at the folder, leaves the proxy out until the block ends.</td>
 <td>not a block of a pipeline</td>
+</tr>
+<tr>
+<td><strong>pause</strong></td>
+<td>A time in which a fetcher (one per worker and host settings) sends no request, and its requests wait instead of failing. Two things start one: a status in the host's <code>pause_on</code> (429 by default) on a direct connection, until the response's <code>Retry-After</code> has passed, after which the request that got it is tried again (<code>linecaster.net.http.Pause</code>; beyond <code>max_pause</code> the run stops); and the breaker during an outage. Other workers' fetchers go on.</td>
+<td>not a stop of the run</td>
+</tr>
+<tr>
+<td><strong>breaker</strong></td>
+<td>A fetcher's guard against an outage (<code>linecaster.net.http.Breaker</code>): when most recent attempts got a server error it pauses the fetcher's requests, sends a probe now and then, and ends the pause with the first answer that is not a server error.</td>
+<td>not the pause after a 429</td>
 </tr>
 <tr>
 <td><strong>reject</strong></td>
