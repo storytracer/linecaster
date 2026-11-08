@@ -202,8 +202,8 @@ def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path, monkeypatch
         reader.max_page_errors = None
         (doc,) = list(reader.run())
         error = doc.metadata["errors"][0]
-        assert error["type"] == "MaxRetriesExceeded" and error["error"] == "after 3 attempts: HTTP 520"
-        assert doc.metadata["trace"]["fetch"][0]["tries"] == ["520", "520", "520"]
+        assert error["type"] == "MaxRetriesExceeded" and error["error"] == "after 4 attempts: HTTP 520"
+        assert doc.metadata["trace"]["fetch"][0]["tries"] == ["520"] * 4                 # max_retries 3: 3 retries
         assert reader._opener._fetcher.proxies_in_rotation() == (1, 1)     # a server error left the proxy in
     finally:
         httpd.shutdown()

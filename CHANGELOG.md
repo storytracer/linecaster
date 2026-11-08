@@ -8,6 +8,10 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- `max_retries` (`http={"max_retries": ...}`, an HTTP policy's) counts retries after the first attempt, as its name
+  says, where it counted attempts: `max_retries: n` now makes `n + 1` attempts, and `0` is a single attempt. The
+  default is 4 (still 5 attempts). A setting written for the old meaning gets one attempt more; lower it by one to keep
+  the old count. linecaster pins pybookget 1.2.0 (`45814da`), which counts this way too.
 - `pp-doclayout-plus-l` without an edition resolves to edition 2, which orders the regions with XY-Cut++ instead of
   plain XY-cut. A run that must keep the old order names `pp-doclayout-plus-l@1`.
 - `pipeline_sha256` leaves an in-process engine's `endpoint` and `timeout` options out (`ENGINE_OPERATIONAL`: where
@@ -92,6 +96,12 @@ the tags; the first is `v0.1.0`.
   every deployment mode, and every later run pointed at the same folder, leaves the blocked proxies out; a restarted
   run no longer sends requests into the blocks it found. linecaster pins resilient-httpx 1.6.0 (storytracer's fork,
   `cdebe7d`, `block_proxy`).
+- Through proxies, only a proxy's own failures leave it out: a block (a 429, a status in `blacklist_on`, an HTML block
+  page) or a broken proxy (`PROXY_ERRORS`: a proxy error, no connection to it). A timeout, mostly a slow server, is
+  retried through another proxy and leaves this one in, where it was left out for an hour (or a host's
+  `blacklist_ttl`). A block no longer uses up one of the request's attempts, and the next proxy is tried without a
+  backoff wait; the pool bounds the blocks. linecaster pins resilient-httpx 1.7.0 (storytracer's fork, `bc9de0a`:
+  `blocks_count_as_attempts`, `block_exceptions`, `blacklist_on_exception`).
 - A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
   exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
   summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one

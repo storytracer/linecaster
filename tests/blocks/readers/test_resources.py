@@ -423,3 +423,57 @@ def test_the_http_policy_option(tmp_path):
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--items", "d", "--item-key", "lccn", "OUT", "--resource", "m=u/{item}",
                                      "--http-policy", policy_file(tmp_path, "default: {}\n")]))
+
+
+def test_blocks_do_not_use_up_attempts(tmp_path):
+    """max_retries 0 (a single attempt): three proxies send block pages, and the item still comes through the fourth."""
+    blocking = [fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html") for _ in range(3)]
+    good, good_seen = fake_proxy(XML, "application/xml")
+    try:
+        (tmp_path / "proxies.txt").write_text(
+            "".join(f"127.0.0.1:{s.server_address[1]}\n" for s, _ in blocking) + f"127.0.0.1:{good.server_address[1]}\n")
+        hosts = policy_file(tmp_path, f"proxies: {tmp_path / 'proxies.txt'}\nmax_retries: 0\n")
+        reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn", http=FAST, http_policy=hosts,
+                                templates={"marcxml": "http://catalog.test/{item}/marcxml"})
+        (doc,) = run_all(reader, tmp_path / "out")
+        assert not doc.metadata.get("errors") and len(good_seen) == 1
+        assert [len(seen) for _, seen in blocking] == [1, 1, 1] and reader._last.proxies_in_rotation() == (1, 4)
+    finally:
+        for s, _ in blocking:
+            s.shutdown()
+        good.shutdown()
+
+
+def test_a_timeout_through_a_proxy_leaves_it_in_rotation(tmp_path):
+    """A slow answer (past the deadline) is the server's, not the proxy's: retried, and the proxy stays in."""
+    import time
+
+    seen = []
+
+    class Slow(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)
+            if len(seen) == 1:
+                time.sleep(1.5)                              # past the 0.3 s deadline: the attempt is cut
+            self.send_response(200)
+            self.send_header("Content-Type", "application/xml")
+            self.send_header("Content-Length", str(len(XML)))
+            self.end_headers()
+            self.wfile.write(XML)
+
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), Slow)
+    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{proxy.server_address[1]}\n")
+        reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn",
+                                templates={"marcxml": "http://catalog.test/{item}/marcxml"},
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "attempt_timeout": 0.3,
+                                      "attempt_min_rate": None})
+        (doc,) = run_all(reader, tmp_path / "out")
+        assert not doc.metadata.get("errors") and len(seen) == 2
+        assert reader._last.proxies_in_rotation() == (1, 1)
+    finally:
+        proxy.shutdown()

@@ -120,7 +120,7 @@ def harvest(tmp_path, base: str, pages: int):
     pq.write_table(pa.table({"book": ["b"] * pages, "page": list(range(1, pages + 1)),
                              "image": [f"{base}/p{i}.png" for i in range(pages)]}), tmp_path / "data" / "p.parquet")
     reader = ImageParquetReader(str(tmp_path / "data"), item_key="book", sequence_key="page",
-                                http={"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 3, "trust_env": False})
+                                http={"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False})
     return reader, list(reader.run())
 
 

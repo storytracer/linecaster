@@ -14,7 +14,8 @@ A host's settings are, from the lowest precedence up: linecaster's defaults, the
 (``--rate-limit``, ``--proxies``, ``--user-agent``, ...), the host's entry under ``hosts:``. The fields, at the root and
 per host: ``rate_limits`` (``REQUESTS/SECONDS`` strings, per worker), ``proxies`` (a proxy file, ``read_proxies``),
 ``direct`` (no proxy, neither a file nor the environment's), ``user_agent``, ``random_user_agent``,
-``attempt_timeout``, ``max_retries``, ``blacklist_ttl`` and ``blacklist_threshold`` (how long a proxy is left out, and
+``attempt_timeout``, ``max_retries`` (retries after the first attempt: 0 is a single attempt; a proxy's block is
+not one of them), ``blacklist_ttl`` and ``blacklist_threshold`` (how long a proxy is left out, and
 after how many failures in a row, e.g. ``72h`` for a host whose block lasts three days; default
 ``linecaster.net.http``'s 3600 s after 1), ``blacklist_on`` (statuses that leave the proxy they came through out,
 besides 429, and are retried through the next one: e.g. ``[403]`` for a host that turns away single proxy IPs), and

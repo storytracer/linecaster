@@ -10,8 +10,8 @@ resolution-markers = [
 [manifest]
 requirements = [
     { name = "linecaster", extras = ["ray", "pybookget", "resilient-httpx"], editable = "../" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
-    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" },
+    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
+    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" },
     { name = "s3fs" },
 ]
 
@@ -831,12 +831,12 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" },
+    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
@@ -1339,8 +1339,8 @@ wheels = [
 
 [[package]]
 name = "pybookget"
-version = "1.1.0"
-source = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
+version = "1.2.0"
+source = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
 dependencies = [
     { name = "fake-useragent" },
     { name = "h2" },
@@ -1349,7 +1349,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "tqdm" },
 ]
-sdist = { hash = "sha256:f4f585c8dcc4fbbee33d5dc2ad8281e3faaa175ca7226e5f9006d7910fd33225" }
+sdist = { hash = "sha256:59cc69d2900821d1e90f1f6f43bfa86df4b1ca78f2e0585c5eaa35b209be875d" }
 
 [package.metadata]
 requires-dist = [
@@ -1607,14 +1607,14 @@ wheels = [
 
 [[package]]
 name = "resilient-httpx"
-version = "1.6.0"
-source = { url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" }
+version = "1.7.0"
+source = { url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" }
 dependencies = [
     { name = "httpx" },
     { name = "structlog" },
     { name = "tenacity" },
 ]
-sdist = { hash = "sha256:aea98b92190e15ee7d60bb1160a87f41b7be9e6613dcda8dd6ce233348d2632f" }
+sdist = { hash = "sha256:0e336738015efd9ec6b8903d6dbbace4893f49b7930ad36c9a59cf8959062a33" }
 
 [package.metadata]
 requires-dist = [

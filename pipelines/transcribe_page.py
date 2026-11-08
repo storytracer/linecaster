@@ -39,7 +39,7 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
+# pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
 # linecaster-indra = { path = "../engines/indra", editable = true }
 # linecaster-services = { path = "../engines/services", editable = true }
 # linecaster-surya = { path = "../engines/surya", editable = true }

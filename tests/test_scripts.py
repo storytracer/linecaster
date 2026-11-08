@@ -125,14 +125,14 @@ def test_pipelines_feed_the_jobs_helper():
     for script in (modular, vlm):
         deps = dependencies("abc123", script)
         assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
-        assert "pybookget @ https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" in deps                       # an archive, no git (the vLLM image has none)
+        assert "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" in deps                       # an archive, no git (the vLLM image has none)
         assert not any(" @ ." in d or "path" in d for d in deps)
     assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in dependencies("abc123", modular)
     assert not any(_name(d) in ("lightning", "torch", "kraken") for d in dependencies("abc123", vlm))
     # without engines: linecaster with its extras and the archive-source packages, no engines, no pins
     assert dependencies("abc123", vlm, engines=False) == [
         "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz",
-        "pybookget @ https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz"]
+        "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"]
 
 
 def test_serve_command_for_a_pipeline():

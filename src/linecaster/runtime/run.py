@@ -103,8 +103,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "windows apply; a server sees the workers running at once times this")
     g.add_argument("--proxies", default=None, metavar="FILE",
                    help="http(s) requests through these proxies in turn (linecaster[resilient-httpx]): one per line, a "
-                        "URL or host:port[:user:pass] as Webshare lists them; a proxy that fails an attempt is left "
-                        "out for an hour; the environment's HTTPS_PROXY then does not apply to them")
+                        "URL or host:port[:user:pass] as Webshare lists them; a proxy that is blocked (429, a block "
+                        "page) or broken is left out for an hour, a timeout is retried through the next; the "
+                        "environment's HTTPS_PROXY then does not apply to them")
     g.add_argument("--proxy-blocks", default=None, metavar="FOLDER",
                    help="where proxies found blocked are marked, so that every worker and every later run pointed "
                         "here leaves them out (linecaster.net.proxy_blocks; default OUT/logs/proxy-blocks)")

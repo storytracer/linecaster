@@ -13,11 +13,15 @@ Readers take pages as their requests finish, not in row order, so a slow request
 itself.
 
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) requests go through resilient-httpx
-(``linecaster[resilient-httpx]``): each attempt through the next proxy in turn, a proxy that fails an attempt (a
-timeout, a connection or proxy error, a retryable status) blacklisted for ``PROXY_BLACKLIST_TTL`` seconds after
-``PROXY_BLACKLIST_THRESHOLD`` failures, or for a shorter ``Retry-After`` a 429 or 503 asks for (storytracer's fork of
-resilient-httpx, ``blacklist_ttl_from_retry_after``), the retries resilient-httpx's (pybookget's counts and waits; no
-``Retry-After``: the next attempt goes out through another proxy). Each proxy's client is made by pybookget's
+(``linecaster[resilient-httpx]``): each attempt through the next proxy in turn. What blacklists a proxy (for
+``PROXY_BLACKLIST_TTL`` seconds after ``PROXY_BLACKLIST_THRESHOLD`` failures, or for a shorter ``Retry-After`` a 429
+asks for: storytracer's fork of resilient-httpx, ``blacklist_ttl_from_retry_after``) is what is the proxy's fault: a
+block (a 429, a status in a host's ``blacklist_on``, an HTML page where another format was expected) and a broken
+proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy). A timeout, mostly a slow server, is retried
+through another proxy without blacklisting the one it came through. A block does not count as an attempt: the request
+goes on through the next proxy at once (no backoff wait), and since each block blacklists its proxy, the pool bounds
+the blocks. The retries are pybookget's counts and waits: ``max_retries`` retries after the first attempt, so
+``max_retries + 1`` attempts that were not blocks. Each proxy's client is made by pybookget's
 ``create_client``, so the rate limits (shared by all proxies), the deadline per attempt and the records below hold
 as without. Proxy URLs are never logged with their credentials (``redact``).
 
@@ -26,12 +30,13 @@ A fetcher pauses while its server fails (``Breaker``): when most recent attempts
 first probe the server answers ends the pause. Requests waiting there count as waiting for the rate limits, so the
 window does not grow, and their pages are delayed, not failed. The retries themselves are pybookget's (520-524
 included); with a proxy list a server error is retried through another proxy without blacklisting the one it came
-through (resilient-httpx's ``blacklist_on``: only a 429 counts against a proxy, besides timeouts and connection or
-proxy errors, and the statuses of a host's ``blacklist_on``, which are then retried through the next proxy).
+through (resilient-httpx's ``blacklist_on``: of the statuses only a 429 and a host's ``blacklist_on`` count against a
+proxy).
 
 A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
-``ReadTimeout (no message)``), where resilient-httpx's or httpx's own can be empty.
+``ReadTimeout (no message)``; blocks are not among the attempts it counts), where resilient-httpx's or httpx's own
+can be empty.
 
 With a proxy list an HTML page where another format was expected (``submit(..., expect=...)``: a resource's format,
 an image) is that proxy's block, as a 429 is: the attempt fails (``ProxyBlocked``), the proxy is left out (its host's
@@ -71,11 +76,12 @@ S = TypeVar("S")
 
 #: the User-Agent sent by default: datatrove's (``HTTPFetchReader``'s ``custom_agent``)
 USER_AGENT = "HF-Research/1.0"
-#: pybookget ``Config`` settings for bulk work: datatrove's user agent, reused connections, patient retries, and a
+#: pybookget ``Config`` settings for bulk work: datatrove's user agent, reused connections, patient retries (4 after the
+#: first attempt), and a
 #: deadline per attempt (15 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
 #: connection that hangs or trickles (a slow proxy exit) is cut and retried within seconds
 HTTP_DEFAULTS = dict(use_fake_user_agent=False, user_agent=USER_AGENT, max_keepalive_connections=16,
-                     max_retries=5, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=15.0,
+                     max_retries=4, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=15.0,
                      attempt_min_rate=50_000, show_progress=False)
 
 
@@ -90,6 +96,9 @@ def _pybookget():
 PROXY_BLACKLIST_THRESHOLD = 1
 #: ... for this many seconds
 PROXY_BLACKLIST_TTL = 3600.0
+#: the httpx errors that are a broken proxy's (besides blocks), so they blacklist it: the proxy refused or failed the
+#: tunnel, or could not be reached; a timeout reading the server's answer (a slow server) does not
+PROXY_ERRORS = ("ProxyError", "ConnectError", "ConnectTimeout")
 
 
 def read_proxies(path: str) -> list[str]:
@@ -177,11 +186,12 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
             return self._clients[proxy]
 
     client = Client(proxies=proxies, retry=RetryPolicy(
-        max_attempts=config.max_retries, backoff="exponential", min_wait=config.retry_wait_min,
+        max_attempts=config.max_retries + 1, backoff="exponential", min_wait=config.retry_wait_min,
         max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES | blacklisting),
         retry_on_exception=[httpx.TransportError]),
         timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, blacklist_ttl_from_retry_after=True,
-        blacklist_on=blacklisting, on_blacklist=blacklisted)
+        blacklist_on=blacklisting, blacklist_on_exception=[getattr(httpx, name) for name in PROXY_ERRORS], block_exceptions=[ProxyBlocked],
+        blocks_count_as_attempts=False, on_blacklist=blacklisted)
     client._log = _QuietLog()
     return client
 
@@ -513,7 +523,7 @@ class HTTPFetcher:
 
         self.config = Config(**{**HTTP_DEFAULTS, **config})
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
-        self.breaker = Breaker(in_a_row=self.config.max_retries)
+        self.breaker = Breaker(in_a_row=self.config.max_retries + 1)      # as many as a request's attempts
         self.stop_on = frozenset(stop_on or ())
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
