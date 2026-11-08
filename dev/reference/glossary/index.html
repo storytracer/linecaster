@@ -1105,6 +1105,11 @@ term is added here before it is used.</p>
 <td></td>
 </tr>
 <tr>
+<td><strong>proxy block</strong></td>
+<td>A proxy left out for a host until a set time because the host turned it away (a 429, a block page, a status in <code>blacklist_on</code>). Shared through a folder of markers, one per block, written once and never changed (<code>--proxy-blocks</code>, default <code>OUT/logs/proxy-blocks</code>, <code>linecaster.net.proxy_blocks</code>): every worker, and every later run pointed at the folder, leaves the proxy out until the block ends.</td>
+<td>not a block of a pipeline</td>
+</tr>
+<tr>
 <td><strong>reject</strong></td>
 <td>A page that failed a check or a step, written to <code>rejects/</code> with the reason; it stays in the page records with its errors.</td>
 <td></td>
