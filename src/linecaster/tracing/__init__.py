@@ -57,8 +57,8 @@ RUN_ENV, TASK_ENV = "LINECASTER_RUN", "LINECASTER_TASK"
 ATTRIBUTES = ("block", "block.name", "block.family", "unit", "page.id", "item.id", "preset", "edition", "engine",
               "model", "backend", "server", "step", "lines", "regions", "words", "tokens.prompt",
               "tokens.completion", "finish_reason", "error.type", "region", "file", "pages", "seconds.own",
-              "http.host", "http.status", "http.attempts", "http.retries", "http.wait_seconds", "http.tries", "task",
-              "stage")
+              "http.host", "http.status", "http.attempts", "http.retries", "http.wait_seconds", "http.pause_seconds",
+              "http.tries", "task", "stage")
 
 PAGE_ID, ITEM_ID = "linecaster.page.id", "linecaster.item.id"
 
@@ -481,7 +481,7 @@ class Tracing(Observer):
             self._end_unit(u, unfinished=True)
 
     def _fetch_span(self, u: _Unit, f: dict) -> None:
-        attrs = {f"linecaster.http.{k}": f[k] for k in ("host", "status", "attempts", "wait_seconds")
+        attrs = {f"linecaster.http.{k}": f[k] for k in ("host", "status", "attempts", "wait_seconds", "pause_seconds")
                  if f.get(k) is not None}
         if f.get("attempts"):
             attrs["linecaster.http.retries"] = max(0, int(f["attempts"]) - 1)

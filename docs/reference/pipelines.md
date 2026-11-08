@@ -335,6 +335,14 @@ credentials (`linecaster.net.http.redact`).
 server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
 from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
 failing. A single server error is retried (through another proxy, without blacklisting the one it came through). A
+429 (a status in the host's `pause_on`) on a direct connection pauses the worker that got it
+(`linecaster.net.http.Pause`): its requests to that host wait until the response's `Retry-After` has passed (seconds
+or an HTTP-date; without one a minute, doubling while 429s keep coming, up to an hour), then the request that got it
+is tried again, without using up one of its retries; 429s for requests already in flight extend the pause, never
+shorten it. The pages wait instead of failing, and other workers go on. The log says when a pause starts (host,
+status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
+(`pause_seconds`). A worker that would pause more than the host's `max_pause` (6 hours) since its last successful
+response stops the run. Through proxies a 429 leaves that proxy out instead (above). A
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
@@ -355,8 +363,10 @@ gives the run's requests their settings from one YAML file (`linecaster.net.poli
 under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
 the two. The settings: rate limits, proxies or direct, User-Agent, deadline, retries (`max_retries`), the proxy blocks
 folder (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
-and `stop_on` statuses and `html` that stop the run without a retry. For `--items` and `--parquet`; with rate limits in
-the file a run keeps one worker.
+`pause_on` statuses that pause the worker's requests until `Retry-After` has passed (default `[429]`) with
+`max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
+default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and
+`--parquet`; with rate limits in the file a run keeps one worker.
 
 ## The console
 

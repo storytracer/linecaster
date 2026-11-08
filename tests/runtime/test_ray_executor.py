@@ -70,10 +70,11 @@ def test_an_error_that_is_not_the_pages_stops_every_later_task(tmp_path, monkeyp
     pipeline starts, so no request of it reaches the host."""
     from linecaster.errors import LinecasterError, ServerError
 
-    ex, calls = _stop_executor(tmp_path, monkeypatch, ServerError("HTTP 429 from www.loc.gov: its policy stops the run"))
+    ex, calls = _stop_executor(tmp_path, monkeypatch,
+                               ServerError("HTTP 403 from www.loc.gov: its policy stops the run"))
     with pytest.raises(ServerError):
         ex._run_for_rank(0)
-    assert ex.stopped()["rank"] == 0 and ex.stopped()["type"] == "ServerError" and "429" in ex.stopped()["error"]
+    assert ex.stopped()["rank"] == 0 and ex.stopped()["type"] == "ServerError" and "403" in ex.stopped()["error"]
     with pytest.raises(LinecasterError, match="task 2 not started: the run stopped at task 1"):
         ex._run_for_rank(1)
     assert calls == [0]                                   # the second task's pipeline never ran
@@ -91,14 +92,14 @@ def test_a_page_error_does_not_stop_the_run(tmp_path, monkeypatch):
 def test_a_launch_fails_when_the_run_stopped_or_tasks_did_not_finish(tmp_path, monkeypatch):
     from linecaster.errors import LinecasterError, ServerError
 
-    ex, _ = _stop_executor(tmp_path, monkeypatch, ServerError("HTTP 429 from www.loc.gov"))
+    ex, _ = _stop_executor(tmp_path, monkeypatch, ServerError("HTTP 403 from www.loc.gov"))
 
     def launch(self):                                     # one task stops the run, as on the cluster
         with pytest.raises(ServerError):
             self._run_for_rank(1)
 
     monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor.run", launch)
-    with pytest.raises(LinecasterError, match=r"the run stopped: task 2/3 had ServerError: HTTP 429"):
+    with pytest.raises(LinecasterError, match=r"the run stopped: task 2/3 had ServerError: HTTP 403"):
         ex.run()
     monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor.run", lambda self: None)
     with pytest.raises(LinecasterError, match="3 of 3 tasks did not finish"):

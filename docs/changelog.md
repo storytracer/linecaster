@@ -9,6 +9,19 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- A 429 pauses the worker that got it instead of stopping the run or failing the page: an HTTP policy has a new
+  per-host key `pause_on` (statuses that pause the worker's requests to the host until the response's `Retry-After`
+  has passed, then retry the request; default `[429]`) and `max_pause` (default 6 h in all since the host's last
+  successful response; beyond it the run stops). A policy with `429` in `stop_on` is refused (`429 both in stop_on and
+  pause_on`): move it to `pause_on` (`lccn.loc.gov: {direct: true, stop_on: [429, html]}` becomes
+  `{direct: true, pause_on: [429], stop_on: [html]}`), or keep it in `stop_on` with `pause_on: []` to still stop the
+  run on it; there is no alias. Without a policy the default applies as well: on a direct connection a 429 used to be
+  retried per request by pybookget (each retry after the longer of its backoff and the `Retry-After`, at most 300 s,
+  up to `max_retries`), the other requests going on meanwhile, and the page or resource failed with
+  `HTTPStatusError` once its retries were used up; now the worker's requests to the host wait out the `Retry-After`
+  (a minute doubling to an hour without one), the request is tried again without using up a retry, and the page does
+  not fail. `http={"pause_on": []}` keeps the old behavior. Through a proxy list nothing changes: a 429 leaves that
+  proxy out.
 - `max_retries` (`http={"max_retries": ...}`, an HTTP policy's) counts retries after the first attempt, as its name
   says, where it counted attempts: `max_retries: n` now makes `n + 1` attempts, and `0` is a single attempt. The
   default is 4 (still 5 attempts). A setting written for the old meaning gets one attempt more; lower it by one to keep
@@ -193,6 +206,10 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- A page could fail with HTTP 520 during an outage the breaker had seen: when the request's last server error opened
+  the breaker and another request's probe was answered (closing it) before that error got back to the fetch, the fetch
+  found the breaker closed and gave up. It now tries again whenever the breaker opened during its attempts
+  (`Breaker.openings`).
 - The rate limits started afresh with every task (each made its own fetcher), so a worker's next task could
   send a whole window's requests at once; and `ImageParquetReader` never closed its fetcher, leaving a thread per
   task. The readers share one fetcher per process and configuration (`HTTPFetcher.shared`).

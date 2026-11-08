@@ -33,6 +33,17 @@ included); with a proxy list a server error is retried through another proxy wit
 through (resilient-httpx's ``blacklist_on``: of the statuses only a 429 and a host's ``blacklist_on`` count against a
 proxy).
 
+A fetcher also pauses when its server says it gets too many requests (``Pause``): a status in its host's ``pause_on``
+(429 by default, ``PAUSE_ON``) on a direct connection (without a proxy list; through proxies a 429 leaves that proxy
+out instead, above) stops the fetcher's requests until the response's ``Retry-After`` has passed (seconds or an
+HTTP-date; without one ``PAUSE_FIRST_WAIT``, doubling while the status keeps coming, up to ``PAUSE_MAX_WAIT``). The
+request that got it waits out the pause and is tried again, without using up one of its retries (pybookget never sees
+the status: the response hook takes it first), and a status that comes back for a request already in flight extends
+the pause, never shortens it. Requests waiting in a pause count as waiting for the rate limits, so the window does not
+grow. Other fetchers (other workers, other host settings) go on. A fetcher that would pause more than its host's
+``max_pause`` (``MAX_PAUSE``, 6 hours) in all since its last successful response stops the run instead
+(``StopRequests``).
+
 A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
 ``ReadTimeout (no message)``; blocks are not among the attempts it counts), where resilient-httpx's or httpx's own
@@ -50,8 +61,9 @@ Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another 
 connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
 
 Every fetch records what it took (``fetch_record``): start and end, the host, the status, the attempts (retries and
-redirects count) and the time spent waiting for the rate limits. Readers put the records on the page they fetched
-(``doc.metadata["trace"]["fetch"]``), which the tracing turns into ``linecaster.http.fetch`` spans.
+redirects count), the time spent waiting for the rate limits and the time spent in pauses. Readers put the records on
+the page they fetched (``doc.metadata["trace"]["fetch"]``), which the tracing turns into ``linecaster.http.fetch``
+spans.
 """
 from __future__ import annotations
 
@@ -304,7 +316,8 @@ def failed_fetch(error: BaseException) -> dict | None:
 
 def fetch_record(response) -> dict | None:
     """What fetching ``response`` took: ``{"start", "end"}`` (ns since the epoch), ``host``, ``status``, ``attempts``,
-    ``wait_seconds`` (rate limits); None for a response that was not fetched here."""
+    ``wait_seconds`` (rate limits, the breaker), ``pause_seconds`` (pauses, ``Pause``; only when the fetch paused);
+    None for a response that was not fetched here."""
     return getattr(response, "extensions", {}).get(FETCH_KEY) if response is not None else None
 
 
@@ -318,6 +331,7 @@ class _Ticket:
 
     def __init__(self, fetcher: HTTPFetcher, expect: str | None = None):
         self.fetcher, self.queued, self.expect = fetcher, False, expect
+        self.generation = 0                      # the fetcher's pauses begun when its attempt went out
 
     def queue(self, queued: bool) -> None:
         with self.fetcher._lock:
@@ -346,8 +360,15 @@ async def _after(request) -> None:              # after the rate limits' hook: t
 
 class StopRequests(ServerError):
     """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.policy``), raised
-    before any retry since a retry would only prolong its block; or every proxy of a host is left out. A
-    ``ServerError``: it stops the run (``NOT_THE_PAGES``)."""
+    before any retry since a retry would only prolong its block; a fetcher would pause longer than its host's
+    ``max_pause`` (``Pause``); or every proxy of a host is left out. A ``ServerError``: it stops the run
+    (``NOT_THE_PAGES``)."""
+
+
+class Paused(Exception):
+    """An attempt got a status that pauses its fetcher (``pause_on``, ``Pause``): raised by the response hook, so
+    pybookget does not retry it (neither an ``httpx.HTTPStatusError`` nor a ``TransportError``), and the fetch tries
+    again once the pause is over (``HTTPFetcher._fetch``)."""
 
 
 class ProxyBlocked(Exception):
@@ -368,10 +389,19 @@ def _is_html(response) -> bool:
 
 async def _headers(response) -> None:          # the first response hook: the headers are in
     if (ticket := _TICKET.get()) is not None:
-        if response.status_code in ticket.fetcher.stop_on:
-            raise StopRequests(f"HTTP {response.status_code} from {response.request.url.host}: its policy stops "
+        fetcher, status = ticket.fetcher, response.status_code
+        if status in fetcher.stop_on:
+            raise StopRequests(f"HTTP {status} from {response.request.url.host}: its policy stops "
                                "the run here (stop_on), without a retry")
-        ticket.fetcher.breaker.record(response.status_code)
+        if status in fetcher.pause_on and fetcher._proxies is None:
+            if (record := _FETCH.get()) is not None and record["tries"]:
+                record["tries"][-1] = str(status)
+            fetcher.pause.hit(status, response.headers.get("retry-after"), ticket.generation,
+                              response.request.url.host)
+            raise Paused(f"HTTP {status} from {response.request.url.host}: requests pause")
+        if status < 400:
+            fetcher.pause.answered(ticket.generation)
+        fetcher.breaker.record(status)
     record = _FETCH.get()
     if record is not None and record["tries"]:
         record["tries"][-1] = f"{response.status_code}-cut"
@@ -429,6 +459,7 @@ class Breaker:
         self.opened_at: float | None = None
         self._wait = BREAKER_FIRST_WAIT
         self._probe: float | None = None                 # when the probe went out
+        self.openings = 0                                # how often it opened
 
     @property
     def paused(self) -> bool:
@@ -465,6 +496,7 @@ class Breaker:
         if (len(self._outcomes) >= BREAKER_MIN_ATTEMPTS and failed >= BREAKER_SHARE * len(self._outcomes)
                 or self.in_a_row and self._errors_in_a_row >= self.in_a_row):
             self.opened_at, self.open_until = now, now + self._wait
+            self.openings += 1
             logger.warning("server errors in {failed} of the last {n} attempts: requests pause, next try in {wait}",
                            failed=failed, n=len(self._outcomes), wait=f"{self._wait:.0f} s")
 
@@ -488,9 +520,169 @@ class Breaker:
                                 else min(BREAKER_POLL, max(0.01, self.open_until - now)))
 
 
-async def _breaker_turn(request) -> None:       # a request hook, before the rate limits'
+#: the statuses that pause a fetcher's requests by default (a host's ``pause_on``): the server's "too many requests"
+PAUSE_ON = (429,)
+#: a pause without a ``Retry-After`` lasts this long at first, doubling while the status keeps coming, up to
+#: ``PAUSE_MAX_WAIT``
+PAUSE_FIRST_WAIT = 60.0
+PAUSE_MAX_WAIT = 3600.0
+#: the shortest pause, whatever ``Retry-After`` says (0, a date gone by)
+PAUSE_MIN_WAIT = 1.0
+#: the most a fetcher pauses in all since its last successful response (a host's ``max_pause``); a pause beyond it
+#: stops the run
+MAX_PAUSE = 21600.0
+#: how often a request waiting in a pause looks again (at the latest)
+PAUSE_POLL = 1.0
+
+
+def retry_after(value: str | None, now: float | None = None) -> float | None:
+    """The seconds a ``Retry-After`` header asks for (delta-seconds or an HTTP-date, counted from ``now``, seconds
+    since the epoch, default the time now), at least 0; None without one or for one that is neither."""
+    from email.utils import parsedate_to_datetime
+
+    if not value or not value.strip():
+        return None
+    value = value.strip()
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:                      # an HTTP-date is GMT
+        from datetime import timezone
+
+        when = when.replace(tzinfo=timezone.utc)
+    return max(0.0, when.timestamp() - (time.time() if now is None else now))
+
+
+def _at(epoch: float) -> str:
+    from datetime import datetime, timezone
+
+    return datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+class Pause:
+    """Pauses a fetcher's requests after a status its host pauses on (``pause_on``): ``hit`` starts the pause, until
+    the response's ``Retry-After`` has passed (``retry_after``; at least ``PAUSE_MIN_WAIT``), or without one for
+    ``first_wait``, doubled for each status that comes for a request sent after the pause before (up to
+    ``max_wait``); a status for a request already in flight when the pause began extends the pause to its own end,
+    never shortens it. While it lasts no request goes out (``wait``, in the request hooks before and after the rate
+    limits). ``max_total``: the most it pauses in all since the last successful response (``answered``) before the
+    next status stops the run (``StopRequests``); a pause that would pass it is not taken. Kept apart from the
+    ``Breaker`` (an outage: a share of server errors, probes): here the server says how long. ``clock`` (monotonic)
+    and ``wall_clock`` (seconds since the epoch, for an HTTP-date) can be replaced in tests. Used from the fetcher's
+    event loop only."""
+
+    def __init__(self, first_wait: float = PAUSE_FIRST_WAIT, max_wait: float = PAUSE_MAX_WAIT,
+                 max_total: float = MAX_PAUSE, clock: Callable[[], float] = time.monotonic,
+                 wall_clock: Callable[[], float] = time.time):
+        self.first_wait, self.max_wait, self.max_total = first_wait, max_wait, max_total
+        self._clock, self._wall = clock, wall_clock
+        self.until: float | None = None          # monotonic; None: no pause (or its end announced)
+        self.status: int | None = None           # the status of the pause now
+        self.host = ""
+        self.generation = 0                      # the pauses begun
+        self.spent = 0.0                         # seconds paused since the last successful response
+        self._wait: float | None = None          # the last wait without Retry-After; None: none since that response
+        self._began: float | None = None
+
+    def remaining(self) -> float:
+        """Seconds until the pause ends (0: none)."""
+        return max(0.0, self.until - self._clock()) if self.until is not None else 0.0
+
+    @property
+    def paused(self) -> bool:
+        return self.remaining() > 0
+
+    def hit(self, status: int, retry_after_header: str | None, generation: int, host: str = "") -> None:
+        """A response with ``status`` (one to pause on) and its ``Retry-After`` header, to a request that went out
+        when ``generation`` pauses had begun: start the pause or extend it; ``StopRequests`` instead when it would
+        take the pauses since the last successful response past ``max_total``."""
+        self._announce_end()
+        now = self._clock()
+        fresh = generation == self.generation and not self.paused    # sent after the pause before, if any
+        asked = retry_after(retry_after_header, self._wall())
+        if asked is None:
+            if self._wait is None:
+                self._wait = self.first_wait
+            elif fresh:
+                self._wait = min(self._wait * 2, self.max_wait)
+            asked = self._wait
+        else:
+            asked = max(asked, PAUSE_MIN_WAIT)
+        ongoing = self.paused
+        added = now + asked - (self.until if ongoing else now)
+        if added <= 0:                           # within the pause already
+            return
+        if self.spent + added > self.max_total:
+            raise StopRequests(
+                f"HTTP {status} from {host}: paused {_duration(self.spent)} since its last successful response, and "
+                f"another {_duration(added)} would pass max_pause ({_duration(self.max_total)}): the run stops")
+        self.spent += added
+        if ongoing:
+            logger.debug("HTTP {status} from {host}: the pause lasts until {until}", status=status, host=host,
+                         until=_at(self._wall() + asked))
+        else:
+            self.generation += 1
+            self._began, self.status, self.host = now, status, host
+            logger.warning("HTTP {status} from {host}: requests pause for {wait}, until {until}", status=status,
+                           host=host, wait=_duration(asked), until=_at(self._wall() + asked))
+        self.until = now + asked
+
+    def answered(self, generation: int) -> None:
+        """A successful response to a request that went out when ``generation`` pauses had begun: if it went out
+        after the last pause, the count toward ``max_total`` and the doubling start again."""
+        if generation == self.generation and not self.paused:
+            self.spent, self._wait = 0.0, None
+
+    def _announce_end(self) -> None:
+        if self.until is not None and self._clock() >= self.until:
+            logger.warning("requests to {host} go on after a pause of {paused}", host=self.host,
+                           paused=_duration(self.until - (self._began or self.until)))
+            self.until = None
+
+    async def wait(self) -> float:
+        """Return when no pause holds, with the seconds waited (0.0 without a pause)."""
+        start, waited = time.perf_counter(), False
+        while (left := self.remaining()) > 0:
+            waited = True
+            await asyncio.sleep(min(PAUSE_POLL, max(0.01, left)))
+        self._announce_end()
+        return time.perf_counter() - start if waited else 0.0
+
+
+def _paused_for(seconds: float) -> None:
+    """Note a wait in a pause on the fetch's record: in ``pause_seconds``, not in the rate limits' ``wait_seconds``."""
+    record = _FETCH.get()
+    if record is not None and seconds > 0:
+        record["pause_seconds"] = round(record.get("pause_seconds", 0.0) + seconds, 4)
+        if "_t" in record:
+            record["_t"] += seconds
+
+
+async def _turn(request) -> None:               # a request hook, before the rate limits': the pause, the breaker
     if (ticket := _TICKET.get()) is not None:
-        await ticket.fetcher.breaker.wait_turn()
+        fetcher = ticket.fetcher
+        _paused_for(await fetcher.pause.wait())
+        await fetcher.breaker.wait_turn()
+        _paused_for(await fetcher.pause.wait())   # one begun while the breaker held the request
+
+
+async def _hold(request) -> None:               # a request hook, right after the rate limits'
+    """A pause that began while the request waited for the rate limits holds it too; after the pause it waits for
+    them again, so the requests held do not go out at once."""
+    if (ticket := _TICKET.get()) is not None:
+        fetcher = ticket.fetcher
+        while fetcher.pause.paused:
+            _paused_for(await fetcher.pause.wait())
+            if fetcher.config.rate_limits:
+                from pybookget.http.ratelimit import wait_for_rate_limit
+
+                await wait_for_rate_limit(fetcher.config)
+        ticket.generation = fetcher.pause.generation
 
 
 _SHARED: dict[tuple, HTTPFetcher] = {}
@@ -517,7 +709,8 @@ class HTTPFetcher:
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
                  proxy_blocks: str | None = None, default_proxy_blocks: str | None = None,
-                 stop_on: list[int] | None = None, **config):
+                 stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
+                 pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
         _pybookget()
         from pybookget.config import Config
 
@@ -525,6 +718,8 @@ class HTTPFetcher:
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
         self.breaker = Breaker(in_a_row=self.config.max_retries + 1)      # as many as a request's attempts
         self.stop_on = frozenset(stop_on or ())
+        self.pause_on = frozenset(PAUSE_ON if pause_on is None else pause_on) - self.stop_on
+        self.pause = Pause(pause_wait, pause_max_wait, max_pause)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()
@@ -589,7 +784,9 @@ class HTTPFetcher:
             config._limiters = self.config._limiters
         c = create_client(config)
         hooks = dict(c.event_hooks)
-        hooks["request"] = [_before, _breaker_turn, *hooks.get("request", []), _after]
+        theirs = list(hooks.get("request", []))         # pybookget's: the rate limits, then the attempt's deadline
+        limits = next((i + 1 for i, h in enumerate(theirs) if getattr(h, "__name__", "") == "_wait_for_rate_limit"), 0)
+        hooks["request"] = [_before, _turn, *theirs[:limits], _hold, *theirs[limits:], _after]
         hooks["response"] = [_headers, *hooks.get("response", []), _read]
         c.event_hooks = hooks
         return c
@@ -622,17 +819,24 @@ class HTTPFetcher:
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
         try:
-            for waits in range(BREAKER_WAITS + 1):
+            waits = 0
+            while True:
+                openings = self.breaker.openings
                 try:
                     if self._proxies is None:
                         response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
                     else:
                         response = await self._through_proxies(url, fallback_url)
                     break
+                except Paused:
+                    continue                   # again once the pause is over (the next attempt waits in a hook)
                 except Exception as e:
-                    # retries used up on a server error while the server is down (the breaker paused, at the
-                    # latest by this request's last error): wait the outage out and try again, instead of failing
-                    if waits < BREAKER_WAITS and self.breaker.paused and _server_error(e):
+                    # retries used up on a server error while the server is down (the breaker opened during these
+                    # attempts, at the latest at this request's last error, even if a probe has closed it since):
+                    # wait the outage out and try again, instead of failing
+                    if (waits < BREAKER_WAITS and _server_error(e)
+                            and (self.breaker.paused or self.breaker.openings != openings)):
+                        waits += 1
                         await self.breaker.wait_out()
                         continue
                     raise
@@ -742,6 +946,14 @@ def paused() -> float | None:
     with _SHARED_LOCK:
         waits = [f.breaker.next_try() for f in _SHARED.values() if f.breaker.paused]
     return min(waits) if waits else None
+
+
+def pause_left() -> tuple[float, int] | None:
+    """(seconds until it ends, its status) of the pause of this process's fetchers that ends first (``Pause``); None
+    when none is paused."""
+    with _SHARED_LOCK:
+        pauses = [(f.pause.remaining(), f.pause.status) for f in _SHARED.values() if f.pause.paused]
+    return min(pauses) if pauses else None
 
 
 def close_shared() -> None:
