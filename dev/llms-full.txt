@@ -1301,8 +1301,11 @@ server`). One worker keeps any rate limit busy: a reader's requests ahead grow w
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
 
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
-`resilient-httpx`): each attempt through the next proxy in turn; a proxy that fails an attempt (a timeout, a connection
-or proxy error, a 429) is left out for an hour, and the attempt goes out again through another. An HTML page where
+`resilient-httpx`): each attempt through the next proxy in turn. A proxy is left out for an hour when the failure is
+its own: a block (a 429, a status in `blacklist_on`, a block page) or a broken proxy (a proxy error, no connection to
+it); the request then goes on through the next one. A block does not count as an attempt and the next proxy is tried
+without a wait, so `max_retries` (retries after the first attempt) counts only the attempts that reached the server and
+failed there. A timeout is mostly a slow server: it is retried through another proxy and leaves this one in. An HTML page where
 another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
 goes on through the next one, without counting toward the breaker. An HTTP policy can leave a blocked proxy out
 longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`), and name further statuses that leave a
