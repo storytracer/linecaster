@@ -1315,7 +1315,7 @@ record lists the stages. Each stage gets its own executor, and the later one <co
 </tr>
 <tr>
 <td><code>ray</code></td>
-<td><code>RayGPUExecutor</code> for stages with servers, <code>RayPipelineExecutor</code> for the item stage and pipelines without engines (CPUs only)</td>
+<td><code>RayGPUExecutor</code> for stages with servers, <code>RayExecutor</code> for the item stage and pipelines without engines (CPUs only)</td>
 <td>the same, through <code>depends=</code></td>
 </tr>
 <tr>
@@ -1529,7 +1529,11 @@ from one to ten minutes), and the first answer that is not a server error lets t
 failing. A single server error is retried (through another proxy, without blacklisting the one it came through). A
 local task that fails is logged and the others go on (<code>LocalExecutor</code>); it runs again on the next launch. An error
 that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</code> failed tasks in a row in one worker stop the run.
-<code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.</p>
+<code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.
+On Ray (<code>linecaster.runtime.ray.RayExecutor</code>) the same error stops the run through a marker in the logging folder
+(<code>stopped.json</code>): every task after it ends before its pipeline starts, so none sends a request into the block that
+stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
+Ray job does not end as succeeded. A new launch removes the marker.</p>
 <p><strong>Resources.</strong> <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files other than page images
 (<code>ResourceReader</code>): from URL templates per kind (<code>--resource marcxml=https://lccn.loc.gov/{item}/marcxml</code>) or a table
 with one row per resource (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>). Each is checked (XML, JSON or an image must parse;

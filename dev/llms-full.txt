@@ -939,7 +939,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), datatrove's `RayPipelineExecutor` otherwise, on CPUs (an item stage, a harvest; extra `[ray]`) |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages' and fail a launch that left tasks unfinished |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
@@ -1146,7 +1146,7 @@ record lists the stages. Each stage gets its own executor, and the later one `de
 | `--on` | Executors | Stages |
 |---|---|---|
 | `local` | `LocalPipelineExecutor` | the second starts when the first is complete |
-| `ray` | `RayGPUExecutor` for stages with servers, `RayPipelineExecutor` for the item stage and pipelines without engines (CPUs only) | the same, through `depends=` |
+| `ray` | `RayGPUExecutor` for stages with servers, `RayExecutor` for the item stage and pipelines without engines (CPUs only) | the same, through `depends=` |
 | `hf-jobs` | `JobsExecutor` (datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
 
 **Partial runs** (blocks named by their datatrove `name`, their class name, or a composite's name for its last
@@ -1327,6 +1327,10 @@ failing. A single server error is retried (through another proxy, without blackl
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
+On Ray (`linecaster.runtime.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
+(`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the block that
+stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
+Ray job does not end as succeeded. A new launch removes the marker.
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
