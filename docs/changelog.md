@@ -84,6 +84,12 @@ the tags; the first is `v0.1.0`.
   `ServerError`) naming when the first returns, where every following item failed with `AllProxiesExhausted`.
 - A host's policy can name statuses besides 429 that leave the proxy they came through out (`blacklist_on: [403]`,
   resilient-httpx's `blacklist_on`); they are retried through the next proxy instead of failing the item.
+- Proxy blocks are shared through a folder of markers (`--proxy-blocks FOLDER`, default `OUT/logs/proxy-blocks`;
+  `linecaster.net.proxy_blocks`), as datatrove shares finished tasks: each block is a marker written once and never
+  changed, and every fetcher reads a host's markers at its first request there and every 30 s after. Every worker in
+  every deployment mode, and every later run pointed at the same folder, leaves the blocked proxies out; a restarted
+  run no longer sends requests into the blocks it found. linecaster pins resilient-httpx 1.6.0 (storytracer's fork,
+  `cdebe7d`, `block_proxy`).
 - A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
   exception, and the launch then hung): it is logged, the others go on, it runs again on the next launch, and the
   summary counts the unfinished tasks. Configuration, catalog and server errors, and 20 failed tasks in a row in one

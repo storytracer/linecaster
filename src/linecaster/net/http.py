@@ -37,7 +37,8 @@ With a proxy list an HTML page where another format was expected (``submit(..., 
 an image) is that proxy's block, as a 429 is: the attempt fails (``ProxyBlocked``), the proxy is left out (its host's
 ``blacklist_ttl``) and the request goes on through the next one; it does not count toward the breaker. A host whose
 proxies are all left out stops the run (``StopRequests``, naming when the first one returns) instead of failing every
-item that follows.
+item that follows. With ``proxy_blocks`` (a folder) the blocks are shared: each is written there as a marker, and a
+fetcher leaves out the proxies other workers, or earlier runs, found blocked (``linecaster.net.proxy_blocks``).
 
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
 ``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
@@ -161,6 +162,13 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
         log = logger.warning if left < max(1, total // 10) else logger.debug
         log("proxy {proxy} left out for {ttl:.0f} s; {left} of {total} in rotation", proxy=redact(proxy), ttl=ttl,
             left=left, total=total)
+        if fetcher._blocks is not None:
+            record = _FETCH.get() or {}
+            remaining = max((p["ttl_remaining_seconds"] or 0.0 for p in client.blacklist_snapshot().get(pool, ())
+                             if p["proxy"] == proxy), default=ttl)
+            status = (record.get("tries") or [None])[-1]
+            asyncio.get_running_loop().run_in_executor(
+                None, fetcher._write_block, record.get("host") or "", proxy, remaining or ttl, status)
 
     class Client(AsyncProxyHttpClient):
         def _get_client(self, proxy, impersonate=False):
@@ -498,7 +506,7 @@ class HTTPFetcher:
 
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
-                 stop_on: list[int] | None = None, **config):
+                 proxy_blocks: str | None = None, stop_on: list[int] | None = None, **config):
         _pybookget()
         from pybookget.config import Config
 
@@ -514,11 +522,48 @@ class HTTPFetcher:
             return self._new_client(self.config.proxy)
 
         self._client = asyncio.run_coroutine_threadsafe(client(), self._loop).result()
-        self._proxies = None
+        self._proxies, self._blocks, self._block_hosts, self._block_poll = None, None, set(), None
         if proxy_file:
             proxies = read_proxies(proxy_file)
             self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl,
                                           proxy_blacklist_on)
+            if proxy_blocks:
+                from .proxy_blocks import ProxyBlocks, proxy_id
+
+                self._blocks = ProxyBlocks(proxy_blocks)
+                self._proxy_ids = {proxy_id(p): p for p in proxies}
+                self._block_poll = asyncio.run_coroutine_threadsafe(self._poll_blocks(), self._loop)
+
+    def _write_block(self, host: str, proxy: str, ttl: float, status: str | None) -> None:
+        try:
+            self._blocks.write(host, proxy, ttl, status)
+        except Exception as e:  # noqa: BLE001 - the block still holds in this process
+            logger.warning("proxy block of {proxy} not written to {folder}: {error}", proxy=redact(proxy),
+                           folder=self._blocks.path, error=e)
+
+    async def _apply_blocks(self, live: dict[str, float]) -> None:
+        for pid, remaining in live.items():
+            proxy = self._proxy_ids.get(pid)
+            if proxy is not None and await self._proxies.block_proxy(proxy, remaining):
+                logger.info("proxy {proxy} left out for {left}: found blocked by another worker or an earlier run",
+                            proxy=redact(proxy), left=_duration(remaining))
+
+    def _read_blocks(self, host: str) -> dict[str, float]:
+        try:
+            return self._blocks.live(host)
+        except Exception as e:  # noqa: BLE001 - read again at the next poll
+            logger.warning("proxy blocks in {folder} not read: {error}", folder=self._blocks.path, error=e)
+            return {}
+
+    async def _poll_blocks(self) -> None:
+        """Every ``POLL_SECONDS``, the blocks other workers found at the hosts this fetcher sends requests to."""
+        from .proxy_blocks import POLL_SECONDS
+
+        loop = asyncio.get_running_loop()
+        while True:
+            await asyncio.sleep(POLL_SECONDS)
+            for host in list(self._block_hosts):
+                await self._apply_blocks(await loop.run_in_executor(None, self._read_blocks, host))
 
     def _new_client(self, proxy: str | None):
         """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client
@@ -627,6 +672,12 @@ class HTTPFetcher:
     def submit(self, url: str, fallback_url: str | None = None, expect: str | None = None) -> Future:
         """A future of ``url``'s response. ``expect``: the format it should have (``xml``, ``json``, ``image``):
         through a proxy, an HTML page instead is that proxy's block (see the module docstring)."""
+        if self._blocks is not None:
+            host = urlsplit(url).hostname or ""
+            if host not in self._block_hosts:              # the first request there: its blocks first
+                self._block_hosts.add(host)
+                live = self._read_blocks(host)
+                asyncio.run_coroutine_threadsafe(self._apply_blocks(live), self._loop).result()
         ticket = _Ticket(self, expect)
         ticket.queue(True)
         future = asyncio.run_coroutine_threadsafe(self._fetch(url, fallback_url, ticket), self._loop)
@@ -657,6 +708,8 @@ class HTTPFetcher:
     def close(self) -> None:
         if self._loop.is_closed():
             return
+        if self._block_poll is not None:
+            self._block_poll.cancel()
         asyncio.run_coroutine_threadsafe(self._client.aclose(), self._loop).result()
         if self._proxies is not None:
             asyncio.run_coroutine_threadsafe(self._proxies.aclose(), self._loop).result()

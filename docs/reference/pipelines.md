@@ -318,7 +318,12 @@ another format was expected (a resource's format, an image) is a proxy's block t
 goes on through the next one, without counting toward the breaker. A host's policy can leave a blocked proxy out
 longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`), and name further statuses that leave a
 proxy out and are retried through the next one (`blacklist_on: [403]`). With no proxy left for a host the run
-stops (`StopRequests`) and says when the first one returns. A 429 or 503 with a shorter `Retry-After` leaves the
+stops (`StopRequests`) and says when the first one returns. Proxy blocks are shared as datatrove shares finished
+tasks, through a folder of markers (`--proxy-blocks FOLDER`, default `OUT/logs/proxy-blocks`): one per block, written
+once and never changed, with its duration counted from the time the storage gives it. A fetcher reads a host's markers
+at its first request there and every 30 s after, so every worker, and every later run pointed at the same folder,
+leaves out the proxies any of them found blocked; a restarted run does not send requests into a block it found
+before. A 429 or 503 with a shorter `Retry-After` leaves the
 proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, storytracer's fork). The file holds one proxy per line, a URL or
 `host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
 credentials (`linecaster.net.http.redact`).

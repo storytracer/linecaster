@@ -105,6 +105,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="http(s) requests through these proxies in turn (linecaster[resilient-httpx]): one per line, a "
                         "URL or host:port[:user:pass] as Webshare lists them; a proxy that fails an attempt is left "
                         "out for an hour; the environment's HTTPS_PROXY then does not apply to them")
+    g.add_argument("--proxy-blocks", default=None, metavar="FOLDER",
+                   help="where proxies found blocked are marked, so that every worker and every later run pointed "
+                        "here leaves them out (linecaster.net.proxy_blocks; default OUT/logs/proxy-blocks)")
     ua = g.add_mutually_exclusive_group()
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: datatrove's, HF-Research/1.0)")
@@ -302,10 +305,15 @@ def rate_note(a: argparse.Namespace) -> str | None:
 
 def http(a: argparse.Namespace) -> dict:
     """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
-    worker's), ``--user-agent`` or ``--random-user-agent``."""
+    worker's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and where proxy blocks are marked
+    (``--proxy-blocks``, with proxies or a hosts file, whose hosts may have proxies)."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "proxies", None):
         out["proxy_file"] = a.proxies
+    if getattr(a, "proxy_blocks", None):
+        out["proxy_blocks"] = a.proxy_blocks
+    elif (getattr(a, "proxies", None) or getattr(a, "hosts", None)) and getattr(a, "out", None):
+        out["proxy_blocks"] = f"{a.out.rstrip('/')}/logs/proxy-blocks"
     if getattr(a, "user_agent", None):
         out["user_agent"] = a.user_agent
     if getattr(a, "random_user_agent", False):

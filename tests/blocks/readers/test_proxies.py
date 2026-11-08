@@ -121,10 +121,15 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
 
     (tmp_path / "proxies.txt").write_text("1.2.3.4:8080\n5.6.7.8:8080\n")
     ap = run.parser(None)
-    a = run.check(ap, ap.parse_args(["--parquet", page_table(tmp_path, 1), "OUT", "--rate-limit", "150/60",
+    table = page_table(tmp_path, 1)
+    a = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--rate-limit", "150/60",
                                      "--proxies", str(tmp_path / "proxies.txt")]))
     a.has_engines = False
     assert run.reader(a)._opener.http["proxy_file"] == str(tmp_path / "proxies.txt")    # the file, not its lines
+    assert run.reader(a)._opener.http["proxy_blocks"] == "OUT/logs/proxy-blocks"      # shared by workers and runs
+    shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
+                                          str(tmp_path / "proxies.txt"), "--proxy-blocks", "s3://b/proxy-blocks"]))
+    assert run.reader(shared)._opener.http["proxy_blocks"] == "s3://b/proxy-blocks"
     run.allocate(a, [run.reader(a)])
     assert run.rate_note(a).endswith("through 2 proxies (left out for 3600 s after 1 failure)")
     with pytest.raises(SystemExit):

@@ -11,7 +11,7 @@ resolution-markers = [
 requirements = [
     { name = "linecaster", extras = ["ray", "pybookget", "resilient-httpx"], editable = "../" },
     { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
-    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" },
+    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" },
     { name = "s3fs" },
 ]
 
@@ -836,7 +836,7 @@ requires-dist = [
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" },
+    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
@@ -1607,14 +1607,14 @@ wheels = [
 
 [[package]]
 name = "resilient-httpx"
-version = "1.5.0"
-source = { url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" }
+version = "1.6.0"
+source = { url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" }
 dependencies = [
     { name = "httpx" },
     { name = "structlog" },
     { name = "tenacity" },
 ]
-sdist = { hash = "sha256:19a454ed65576c1add275c2e0813bf2b61226e9b1899b99f84adadc8557a216c" }
+sdist = { hash = "sha256:aea98b92190e15ee7d60bb1160a87f41b7be9e6613dcda8dd6ce233348d2632f" }
 
 [package.metadata]
 requires-dist = [

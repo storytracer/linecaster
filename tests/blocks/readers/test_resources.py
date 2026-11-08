@@ -325,3 +325,60 @@ def test_blacklist_on_in_a_hosts_file(tmp_path):
         HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [200]}\n"))
     with pytest.raises(PipelineConfigError, match="403 both in stop_on and blacklist_on"):
         HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [403], stop_on: [403]}\n"))
+
+
+def _markers(folder, timeout=5.0):
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        found = sorted(folder.rglob("*.json")) if folder.exists() else []
+        if found:
+            return found
+        time.sleep(0.05)
+    return []
+
+
+def test_a_proxy_block_is_marked_and_honoured_after_a_restart(tmp_path):
+    """The proxy that sent a block page is marked in the proxy-blocks folder; a fresh fetcher (another worker, or the
+    run started again) leaves it out from its first request."""
+    blocking, blocked_seen = fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html")
+    good, good_seen = fake_proxy(XML, "application/xml")
+    try:
+        (tmp_path / "proxies.txt").write_text(
+            f"127.0.0.1:{blocking.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
+        hosts = hosts_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
+                                     "blacklist_ttl: 72h}\n")
+        blocks = tmp_path / "proxy-blocks"
+        http = {**FAST, "proxy_blocks": str(blocks)}
+        template = {"marcxml": "http://catalog.test/{item}/marcxml"}
+        run_all(ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=http, hosts=hosts,
+                               templates=template), tmp_path / "out")
+        assert len(blocked_seen) == 1
+        (marker,) = _markers(blocks)
+        assert marker.parent.parent.name == "catalog.test" and json.loads(marker.read_text())["ttl"] > 71 * 3600
+        close_shared()                                       # as a new process would start
+        (tmp_path / "items").rename(tmp_path / "items-1")
+        docs = run_all(ResourceReader(items_table(tmp_path, ["d4", "e5"]), item_key="lccn", http=http, hosts=hosts,
+                                      templates=template), tmp_path / "out")
+        assert not any(d.metadata.get("errors") for d in docs)
+        assert len(blocked_seen) == 1 and len(good_seen) == 5
+    finally:
+        blocking.shutdown()
+        good.shutdown()
+
+
+def test_every_proxy_marked_blocked_stops_the_run_at_its_first_request(tmp_path):
+    from linecaster.net.proxy_blocks import ProxyBlocks
+
+    proxies = ["127.0.0.1:9", "127.0.0.1:10"]
+    (tmp_path / "proxies.txt").write_text("\n".join(proxies) + "\n")
+    elsewhere = ProxyBlocks(str(tmp_path / "proxy-blocks"))
+    for p in proxies:
+        elsewhere.write("catalog.test", f"http://{p}", 72 * 3600)
+    hosts = hosts_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}}}\n")
+    reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn", hosts=hosts,
+                            http={**FAST, "proxy_blocks": str(tmp_path / "proxy-blocks")},
+                            templates={"marcxml": "http://catalog.test/{item}/marcxml"})
+    with pytest.raises(ServerError, match=r"no proxy left for catalog\.test.*first returns in 7[12] h"):
+        run_all(reader, tmp_path / "out")

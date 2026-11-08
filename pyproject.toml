@@ -43,7 +43,7 @@ ray = ["ray[default]>=2.40"]
 # (rate limits, retries that honor Retry-After); its core install, without its CLI
 pybookget = ["pybookget>=1.1"]
 # lists of proxies (--proxies, linecaster.net.http): retries through the next proxy, failing proxies left out a while
-resilient-httpx = ["resilient-httpx>=1.5"]
+resilient-httpx = ["resilient-httpx>=1.6"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
 
@@ -67,7 +67,7 @@ required-version = ">=0.13.6"
 # not on PyPI yet; GitHub's source archive at a commit (Jobs images without git can install it)
 pybookget = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
 # storytracer's fork (blacklist_ttl_from_retry_after), GitHub's source archive at a commit
-resilient-httpx = { url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" }
+resilient-httpx = { url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

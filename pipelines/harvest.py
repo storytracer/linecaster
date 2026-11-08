@@ -13,7 +13,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # pybookget = { url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" }
-# resilient-httpx = { url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" }
+# resilient-httpx = { url = "https://github.com/storytracer/resilient-httpx/archive/cdebe7d9f461f086d883e02cbebafb863f3a12e5.tar.gz" }
 # ///
 r"""The harvest stage: items' page images (and, with --existing-ocr, the library's own OCR) from their manifests
 (IIIF or METS; a folder, a list of links, or item tables with --manifest-key), or from http(s) image URLs in a page
