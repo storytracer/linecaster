@@ -8,7 +8,7 @@ the root, and overrides for single hosts under ``hosts:``, because one run can n
     proxy_blocks: s3://bucket/proxy-blocks
     hosts:
       tile.loc.gov: {rate_limits: ["150/60", "3/1"]}
-      lccn.loc.gov: {rate_limits: ["25/60"], direct: true, stop_on: [429, html]}
+      lccn.loc.gov: {rate_limits: ["25/60"], direct: true, pause_on: [429], stop_on: [html]}
 
 A host's settings are, from the lowest precedence up: linecaster's defaults, the file's root, the run's own options
 (``--rate-limit``, ``--proxies``, ``--user-agent``, ...), the host's entry under ``hosts:``. The fields, at the root and
@@ -18,10 +18,15 @@ per host: ``rate_limits`` (``REQUESTS/SECONDS`` strings, per worker), ``proxies`
 not one of them), ``blacklist_ttl`` and ``blacklist_threshold`` (how long a proxy is left out, and
 after how many failures in a row, e.g. ``72h`` for a host whose block lasts three days; default
 ``linecaster.net.http``'s 3600 s after 1), ``blacklist_on`` (statuses that leave the proxy they came through out,
-besides 429, and are retried through the next one: e.g. ``[403]`` for a host that turns away single proxy IPs), and
-``stop_on``: statuses (and ``html``, an HTML page where another format was expected: a CAPTCHA) that stop the run at
-once, without a retry, for a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and starts the
-block again with every request during it). At the root only: ``proxy_blocks``, the folder where proxy blocks are
+besides 429, and are retried through the next one: e.g. ``[403]`` for a host that turns away single proxy IPs),
+``pause_on``: statuses that pause the worker's requests to the host until the response's ``Retry-After`` has passed,
+then retry the request that got one (default ``[429]``; on a direct connection, without a proxy list:
+``linecaster.net.http.Pause``), ``max_pause``: the most a worker pauses in all since the host's last successful
+response before the run stops instead (default 6 h), and ``stop_on``: statuses (and ``html``, an HTML page where
+another format was expected: a CAPTCHA) that stop the run at once, without a retry, for a host whose block outlasts
+its retries (lccn.loc.gov blocks for 72 hours and starts the block again with every request during it). A status
+either pauses or stops: one in both ``pause_on`` (or its default) and ``stop_on`` is refused (``pause_on: []`` with
+``stop_on: [429]`` stops on a 429). At the root only: ``proxy_blocks``, the folder where proxy blocks are
 marked (``linecaster.net.proxy_blocks``). A host's entry replaces a field of the root, it does not merge into it
 (``stop_on: [403]`` under a host drops the root's ``stop_on``). Each host's settings get their own fetcher
 (``HTTPFetcher.shared``), so each host its own rate limits, breaker and window.
@@ -33,7 +38,7 @@ from urllib.parse import urlsplit
 from ..errors import PipelineConfigError
 
 FIELDS = ("rate_limits", "proxies", "direct", "user_agent", "random_user_agent", "attempt_timeout", "max_retries",
-          "stop_on", "blacklist_ttl", "blacklist_threshold", "blacklist_on")
+          "pause_on", "max_pause", "stop_on", "blacklist_ttl", "blacklist_threshold", "blacklist_on")
 #: what the root may hold besides ``FIELDS`` and ``hosts``
 ROOT_FIELDS = (*FIELDS, "proxy_blocks")
 
@@ -88,6 +93,23 @@ class HTTPPolicy:
             raise PipelineConfigError(f"{path}: `hosts:` maps a host to its settings")
         self.root = self._check({k: v for k, v in doc.items() if k != "hosts"}, path, ROOT_FIELDS)
         self.hosts = {str(h).lower(): self._check(p, f"{path}: hosts: {h}", FIELDS) for h, p in hosts.items()}
+        self._pause_or_stop(self.root, path)
+        for host, entry in self.hosts.items():
+            self._pause_or_stop({**self.root, **entry}, f"{path}: hosts: {host}")
+
+    @staticmethod
+    def _pause_or_stop(policy: dict, where: str) -> None:
+        """A status either pauses or stops: refuse one in both ``pause_on`` (or its default) and ``stop_on``."""
+        from .http import PAUSE_ON
+
+        pause = policy["pause_on"] if "pause_on" in policy else PAUSE_ON
+        both = set(pause or ()) & set(policy.get("stop_on") or ())
+        if both:
+            statuses = ", ".join(map(str, sorted(both)))
+            default = "" if "pause_on" in policy else " (pause_on's default)"
+            raise PipelineConfigError(
+                f"{where}: {statuses} both in stop_on and pause_on{default}: a status pauses the requests or stops the "
+                f"run; take it out of stop_on to pause on it, or set pause_on without it (pause_on: []) to stop on it")
 
     @staticmethod
     def _check(policy, where: str, fields: tuple[str, ...]) -> dict:
@@ -109,6 +131,11 @@ class HTTPPolicy:
         for status in policy.get("stop_on") or ():
             if status != "html" and not (isinstance(status, int) and 100 <= status < 600):
                 raise PipelineConfigError(f"{where}: stop_on holds HTTP statuses and `html`, not {status!r}")
+        for status in policy.get("pause_on") or ():
+            if not (isinstance(status, int) and not isinstance(status, bool) and 400 <= status < 600):
+                raise PipelineConfigError(f"{where}: pause_on holds HTTP error statuses (4xx, 5xx), not {status!r}")
+        if "max_pause" in policy:
+            seconds(policy["max_pause"], where)
         for status in policy.get("blacklist_on") or ():
             if not (isinstance(status, int) and not isinstance(status, bool) and 400 <= status < 600):
                 raise PipelineConfigError(f"{where}: blacklist_on holds HTTP error statuses (4xx, 5xx), not {status!r}")
@@ -159,6 +186,10 @@ class HTTPPolicy:
             out["proxy_blacklist_on"] = sorted(policy["blacklist_on"] or ())
         if "stop_on" in policy:
             out["stop_on"] = [s for s in policy["stop_on"] or () if isinstance(s, int)]
+        if "pause_on" in policy:
+            out["pause_on"] = sorted(policy["pause_on"] or ())
+        if "max_pause" in policy:
+            out["max_pause"] = seconds(policy["max_pause"], self.path)
 
     def stops_on_html(self, url: str) -> bool:
         return "html" in (self.policy(url).get("stop_on") or ())
@@ -178,6 +209,11 @@ class HTTPPolicy:
                 parts.append(f"a blocked proxy left out {p['blacklist_ttl']}")
             if p.get("proxies") and p.get("blacklist_on"):
                 parts.append(f"a proxy left out on {', '.join(map(str, sorted(p['blacklist_on'])))}")
+            if "pause_on" in p:
+                pause = ", ".join(map(str, sorted(p["pause_on"] or ())))
+                parts.append(f"pauses on {pause}" if pause else "no pause")
+            if most := p.get("max_pause"):
+                parts.append(f"pauses at most {most}")
             if p.get("stop_on"):
                 parts.append("stops on " + ", ".join(map(str, p["stop_on"])))
             return f"{name}: " + ", ".join(x for x in parts if x)

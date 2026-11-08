@@ -17,8 +17,10 @@ page where another format was expected (an error page, a CAPTCHA sent with 200) 
 the host's breaker as a server error, or stops the run where the HTTP policy says ``stop_on: [html]`` for the host. A failed
 resource is the item's error (``doc.metadata["errors"]``, rejects), within the error budget, as for pages.
 
-Requests go out per host (``http_policy``: a ``linecaster.net.policy`` file), each with its own fetcher, rate limits and
-breaker; a status in a host's ``stop_on`` stops the run (a ``ServerError``) without a retry. With ``reuse_folder`` a
+Requests go out per host (``http_policy``: a ``linecaster.net.policy`` file), each with its own fetcher, rate limits,
+breaker and pause; a status in a host's ``pause_on`` (429 by default) pauses its requests until the server's
+``Retry-After`` has passed and the resource is then fetched again, a status in its ``stop_on`` stops the run (a
+``ServerError``) without a retry. With ``reuse_folder`` a
 resource whose copy is there already (one listing of ``<kind>/<item>/`` per item) is read back instead of fetched.
 """
 from __future__ import annotations

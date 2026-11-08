@@ -129,9 +129,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-items", type=int, default=None, metavar="N",
                    help="--items: only the first N items of the input for the whole run (a smoke test)")
     g.add_argument("--http-policy", default=None, metavar="FILE",
-                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, proxies, max_retries, stop_on, "
-                        "... for every host at the root, overrides per host under hosts:; linecaster.net.policy); "
-                        "the run's own options go over its root, a host's entry over both")
+                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, proxies, max_retries, pause_on, "
+                        "stop_on, ... for every host at the root, overrides per host under hosts:; "
+                        "linecaster.net.policy); the run's own options go over its root, a host's entry over both")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")

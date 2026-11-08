@@ -2,7 +2,7 @@
 items' remote files fetched as served, one item per task, from URL templates or a resource table; each response
 checked (XML, JSON, an image; an HTML page where another format was expected fails); copies at
 ``<kind>/<item>/<name>.<ext>`` with a record each; copies already there read back; host policies per host, with
-``stop_on`` statuses that stop the run without a retry."""
+``pause_on`` statuses that pause the requests and ``stop_on`` statuses that stop the run without a retry."""
 import gzip
 import json
 import threading
@@ -33,7 +33,8 @@ def fresh_fetchers():
 
 @pytest.fixture
 def server():
-    """``/marc/<id>``: MARCXML (``bad``: an HTML page, ``blocked``: 429); ``/json/<id>``: JSON; requests counted."""
+    """``/marc/<id>``: MARCXML (``bad``: an HTML page, ``blocked``: 429, ``once``: 429 with ``Retry-After: 1`` the
+    first time); ``/json/<id>``: JSON; requests counted."""
     seen = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -43,8 +44,10 @@ def server():
         def do_GET(self):
             seen.append(self.path)
             kind, _, item = self.path.strip("/").partition("/")
-            if item == "blocked":
+            if item == "blocked" or item == "once" and seen.count(self.path) == 1:
                 self.send_response(429)
+                if item == "once":
+                    self.send_header("Retry-After", "1")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
@@ -145,12 +148,20 @@ def policy_file(tmp_path, text):
 
 
 def test_a_status_in_stop_on_stops_the_run_without_a_retry(server, tmp_path):
-    hosts = policy_file(tmp_path, "hosts:\n  127.0.0.1: {stop_on: [429], rate_limits: ['600/60']}\n")
+    hosts = policy_file(tmp_path, "hosts:\n  127.0.0.1: {pause_on: [], stop_on: [429], rate_limits: ['600/60']}\n")
     reader = ResourceReader(items_table(tmp_path, ["blocked"]), item_key="lccn", http=FAST, http_policy=hosts,
                             templates={"marcxml": server["base"] + "/marc/{item}"})
     with pytest.raises(ServerError, match="HTTP 429"):
         run_all(reader, tmp_path / "out")
     assert server["seen"] == ["/marc/blocked"]                         # not retried
+
+
+def test_a_429_pauses_the_requests_and_the_item_goes_on_without_a_policy(server, tmp_path):
+    reader = ResourceReader(items_table(tmp_path, ["once"]), item_key="lccn", http={**FAST, "max_retries": 0},
+                            templates={"marcxml": server["base"] + "/marc/{item}"})
+    (doc,) = run_all(reader, tmp_path / "out")
+    assert not doc.metadata.get("errors") and doc.metadata["resource"]["attempts"] == 2
+    assert server["seen"] == ["/marc/once", "/marc/once"]              # paused, then tried again
 
 
 def test_stop_on_html_stops_the_run_on_a_captcha_page(server, tmp_path):
@@ -167,10 +178,10 @@ rate_limits: ["60/60"]
 max_retries: 7
 proxies: root.txt
 proxy_blocks: s3://b/proxy-blocks
-stop_on: [429]
+stop_on: [403]
 hosts:
   tile.loc.gov: {rate_limits: ["150/60", "3/1"], proxies: p.txt}
-  lccn.loc.gov: {rate_limits: ["25/60"], direct: true, max_retries: 0, stop_on: [html]}
+  lccn.loc.gov: {rate_limits: ["25/60"], direct: true, max_retries: 0, pause_on: [429], max_pause: 2h, stop_on: [html]}
 """), base={"proxy_file": "run.txt", "user_agent": "HF-Research/1.0"})
     tile = policy.http_for("https://tile.loc.gov/storage-services/x.jp2")
     lccn = policy.http_for("https://lccn.loc.gov/02011712/marcxml")
@@ -180,11 +191,13 @@ hosts:
     assert other["max_retries"] == tile["max_retries"] == 7 and lccn["max_retries"] == 0
     assert all(c["proxy_blocks"] == "s3://b/proxy-blocks" for c in (tile, lccn, other))
     assert lccn["rate_limits"] == [(25, 60.0)] and "proxy_file" not in lccn and lccn["trust_env"] is False
-    assert other["stop_on"] == [429] and lccn["stop_on"] == []                # an entry replaces the root's field
+    assert other["stop_on"] == [403] and lccn["stop_on"] == []                # an entry replaces the root's field
+    assert lccn["pause_on"] == [429] and lccn["max_pause"] == 7200.0 and "pause_on" not in other
     assert policy.stops_on_html("https://lccn.loc.gov/x") and not policy.stops_on_html("https://example.org/x")
     assert all(c["user_agent"] == "HF-Research/1.0" for c in (tile, lccn, other))
-    assert "lccn.loc.gov: 25/60, direct, 0 retries, stops on html" in policy.describe()
-    assert "other hosts: 60/60, through proxies, 7 retries, stops on 429" in policy.describe()
+    assert ("lccn.loc.gov: 25/60, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
+            in policy.describe())
+    assert "other hosts: 60/60, through proxies, 7 retries, stops on 403" in policy.describe()
     assert policy.rate_limited()
 
 
@@ -346,6 +359,29 @@ def test_blacklist_on_in_a_hosts_file(tmp_path):
         HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [200]}\n"))
     with pytest.raises(PipelineConfigError, match="403 both in stop_on and blacklist_on"):
         HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [403], stop_on: [403]}\n"))
+
+
+def test_pause_on_in_a_policy_and_its_checks(tmp_path):
+    policy = HTTPPolicy(policy_file(tmp_path, "pause_on: [429, 503]\nmax_pause: 30m\n"
+                                              "hosts:\n  a.org: {pause_on: []}\n"))
+    assert policy.http_for("https://b.org/")["pause_on"] == [429, 503]
+    assert policy.http_for("https://b.org/")["max_pause"] == 1800.0
+    assert policy.http_for("https://a.org/")["pause_on"] == []
+    assert "a.org: no rate limit, no pause, pauses at most 30m" in policy.describe()
+    assert "pause_on" not in HTTPPolicy(policy_file(tmp_path, "max_retries: 1\n")).http_for("https://b.org/")
+    with pytest.raises(PipelineConfigError, match="pause_on holds HTTP error statuses"):
+        HTTPPolicy(policy_file(tmp_path, "pause_on: [html]\n"))
+    with pytest.raises(PipelineConfigError, match="pause_on holds HTTP error statuses"):
+        HTTPPolicy(policy_file(tmp_path, "pause_on: [200]\n"))
+    with pytest.raises(PipelineConfigError, match="a duration"):
+        HTTPPolicy(policy_file(tmp_path, "max_pause: soon\n"))
+    with pytest.raises(PipelineConfigError, match="503 both in stop_on and pause_on: "):
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {pause_on: [503], stop_on: [503]}\n"))
+    with pytest.raises(PipelineConfigError, match=r"429 both in stop_on and pause_on \(pause_on's default\)"):
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {stop_on: [429, html]}\n"))   # the old way to stop
+    with pytest.raises(PipelineConfigError, match="hosts: a.org: 429 both"):           # the root's pause_on holds
+        HTTPPolicy(policy_file(tmp_path, "pause_on: [429]\nhosts:\n  a.org: {stop_on: [429]}\n"))
+    HTTPPolicy(policy_file(tmp_path, "pause_on: []\nhosts:\n  a.org: {stop_on: [429]}\n"))   # stops on a 429
 
 
 def _markers(folder, timeout=5.0):
