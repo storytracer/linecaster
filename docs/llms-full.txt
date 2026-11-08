@@ -1304,7 +1304,8 @@ grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher
 or proxy error, a 429) is left out for an hour, and the attempt goes out again through another. An HTML page where
 another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
 goes on through the next one, without counting toward the breaker. A host's policy can leave a blocked proxy out
-longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`). With no proxy left for a host the run
+longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`), and name further statuses that leave a
+proxy out and are retried through the next one (`blacklist_on: [403]`). With no proxy left for a host the run
 stops (`StopRequests`) and says when the first one returns. A 429 or 503 with a shorter `Retry-After` leaves the
 proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, storytracer's fork). The file holds one proxy per line, a URL or
 `host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without

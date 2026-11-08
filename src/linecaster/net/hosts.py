@@ -12,7 +12,9 @@ A host's policy (else ``default``, else none) is laid over the run's own HTTP se
 ``proxies`` (a proxy file, ``read_proxies``), ``direct`` (no proxy, neither a file nor the environment's),
 ``user_agent``, ``random_user_agent``, ``attempt_timeout``, ``max_retries``, ``blacklist_ttl`` and
 ``blacklist_threshold`` (how long a proxy is left out, and after how many failures in a row, e.g. ``72h`` for a host
-whose block lasts three days; default ``linecaster.net.http``'s 3600 s after 1), and ``stop_on``: statuses (and
+whose block lasts three days; default ``linecaster.net.http``'s 3600 s after 1), ``blacklist_on`` (statuses that
+leave the proxy they came through out, besides 429, and are retried through the next one: e.g. ``[403]`` for a host
+that turns away single proxy IPs), and ``stop_on``: statuses (and
 ``html``, an HTML page where another format was expected: a CAPTCHA) that stop the run at once, without a retry, for
 a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and starts the block again with every
 request during it). Each policy gets its own fetcher (``HTTPFetcher.shared``), so each host its own rate limits,
@@ -25,7 +27,7 @@ from urllib.parse import urlsplit
 from ..errors import PipelineConfigError
 
 FIELDS = ("rate_limits", "proxies", "direct", "user_agent", "random_user_agent", "attempt_timeout", "max_retries",
-          "stop_on", "blacklist_ttl", "blacklist_threshold")
+          "stop_on", "blacklist_ttl", "blacklist_threshold", "blacklist_on")
 
 
 def seconds(value, where: str) -> float:
@@ -91,6 +93,12 @@ class HostPolicies:
         for status in policy.get("stop_on") or ():
             if status != "html" and not (isinstance(status, int) and 100 <= status < 600):
                 raise PipelineConfigError(f"{where}: stop_on holds HTTP statuses and `html`, not {status!r}")
+        for status in policy.get("blacklist_on") or ():
+            if not (isinstance(status, int) and not isinstance(status, bool) and 400 <= status < 600):
+                raise PipelineConfigError(f"{where}: blacklist_on holds HTTP error statuses (4xx, 5xx), not {status!r}")
+        both = set(policy.get("blacklist_on") or ()) & set(policy.get("stop_on") or ())
+        if both:
+            raise PipelineConfigError(f"{where}: {', '.join(map(str, sorted(both)))} both in stop_on and blacklist_on")
         return dict(policy)
 
     def policy(self, url: str) -> dict:
@@ -119,6 +127,8 @@ class HostPolicies:
             out["proxy_blacklist_ttl"] = seconds(policy["blacklist_ttl"], self.path)
         if "blacklist_threshold" in policy:
             out["proxy_blacklist_threshold"] = int(policy["blacklist_threshold"])
+        if policy.get("blacklist_on"):
+            out["proxy_blacklist_on"] = sorted(policy["blacklist_on"])
         statuses = [s for s in policy.get("stop_on") or () if isinstance(s, int)]
         if statuses:
             out["stop_on"] = statuses
@@ -134,6 +144,8 @@ class HostPolicies:
             parts.append("direct" if p.get("direct") else "through proxies" if p.get("proxies") else "")
             if p.get("proxies") and p.get("blacklist_ttl"):
                 parts.append(f"a blocked proxy left out {p['blacklist_ttl']}")
+            if p.get("proxies") and p.get("blacklist_on"):
+                parts.append(f"a proxy left out on {', '.join(map(str, sorted(p['blacklist_on'])))}")
             if p.get("stop_on"):
                 parts.append("stops on " + ", ".join(map(str, p["stop_on"])))
             return f"{name}: " + ", ".join(x for x in parts if x)

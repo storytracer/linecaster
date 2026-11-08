@@ -234,8 +234,8 @@ def test_the_harvest_pipeline_runs_through_the_builder_and_counts_files(server, 
     assert [(r["key"], r["field"]) for r in rejected] == [("bad/marcxml/bad", "resource")]
 
 
-def fake_proxy(body: bytes, ctype: str):
-    """An 'http proxy' answering every absolute-URI request itself with ``body``; requests counted."""
+def fake_proxy(body: bytes, ctype: str, status: int = 200):
+    """An 'http proxy' answering every absolute-URI request itself with ``status`` and ``body``; requests counted."""
     seen = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -244,7 +244,7 @@ def fake_proxy(body: bytes, ctype: str):
 
         def do_GET(self):
             seen.append(self.path)
-            self.send_response(200)
+            self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -293,3 +293,35 @@ def test_blacklist_settings_per_host(tmp_path):
     assert (seconds("30m", "x"), seconds(45, "x"), seconds("3d", "x")) == (1800, 45, 259200)
     with pytest.raises(PipelineConfigError, match="duration"):
         HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_ttl: soon}\n"))
+
+
+def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_next(tmp_path):
+    """A host's blacklist_on: [403]: the proxy that got the 403 is left out and the items come through the other."""
+    refusing, refused_seen = fake_proxy(b"<html>Forbidden</html>", "text/html", status=403)
+    good, good_seen = fake_proxy(XML, "application/xml")
+    try:
+        (tmp_path / "proxies.txt").write_text(
+            f"127.0.0.1:{refusing.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
+        hosts = hosts_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
+                                     "blacklist_on: [403]}\n")
+        out = tmp_path / "out"
+        reader = ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=FAST, hosts=hosts,
+                                templates={"marcxml": "http://catalog.test/{item}/marcxml"})
+        docs = run_all(reader, out)
+        assert not any(d.metadata.get("errors") for d in docs) and len(docs) == 3
+        assert len(refused_seen) == 1 and len(good_seen) == 3
+        assert reader._last.proxies_in_rotation() == (1, 2)
+    finally:
+        refusing.shutdown()
+        good.shutdown()
+
+
+def test_blacklist_on_in_a_hosts_file(tmp_path):
+    hosts = HostPolicies(hosts_file(tmp_path, "hosts:\n  www.loc.gov: {proxies: p.txt, blacklist_on: [403, 451]}\n"))
+    assert hosts.http_for("https://www.loc.gov/item/1/")["proxy_blacklist_on"] == [403, 451]
+    plain = HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {}\n"))
+    assert "proxy_blacklist_on" not in plain.http_for("https://a.org/")
+    with pytest.raises(PipelineConfigError, match="error statuses"):
+        HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [200]}\n"))
+    with pytest.raises(PipelineConfigError, match="403 both in stop_on and blacklist_on"):
+        HostPolicies(hosts_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [403], stop_on: [403]}\n"))

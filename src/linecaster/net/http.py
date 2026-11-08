@@ -27,7 +27,7 @@ first probe the server answers ends the pause. Requests waiting there count as w
 window does not grow, and their pages are delayed, not failed. The retries themselves are pybookget's (520-524
 included); with a proxy list a server error is retried through another proxy without blacklisting the one it came
 through (resilient-httpx's ``blacklist_on``: only a 429 counts against a proxy, besides timeouts and connection or
-proxy errors).
+proxy errors, and the statuses of a host's ``blacklist_on``, which are then retried through the next proxy).
 
 A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
@@ -139,10 +139,12 @@ class _QuietLog:
         return lambda *args, **kwargs: None
 
 
-def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl: float):
+def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl: float,
+                  blacklist_on: list[int] | None = None):
     """resilient-httpx's ``AsyncProxyHttpClient`` over ``proxies`` whose per-proxy clients are pybookget's
     ``create_client`` (with ``fetcher``'s hooks and its shared rate limiter), retrying as pybookget's ``Config``
-    says."""
+    says. ``blacklist_on``: statuses besides 429 that leave a proxy out; they are retried (through the next
+    proxy)."""
     try:
         import httpx
         from resilient_httpx import AsyncProxyHttpClient, RetryPolicy
@@ -152,6 +154,7 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
 
     config = fetcher.config
     total = len(proxies)
+    blacklisting = {429, *(blacklist_on or ())}
 
     def blacklisted(pool: str, proxy: str) -> None:
         left = sum(1 for p in client.blacklist_snapshot().get(pool, ()) if p["in_rotation"])
@@ -167,10 +170,10 @@ def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl:
 
     client = Client(proxies=proxies, retry=RetryPolicy(
         max_attempts=config.max_retries, backoff="exponential", min_wait=config.retry_wait_min,
-        max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES),
+        max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES | blacklisting),
         retry_on_exception=[httpx.TransportError]),
         timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, blacklist_ttl_from_retry_after=True,
-        blacklist_on={429}, on_blacklist=blacklisted)
+        blacklist_on=blacklisting, on_blacklist=blacklisted)
     client._log = _QuietLog()
     return client
 
@@ -494,7 +497,8 @@ class HTTPFetcher:
             return fetcher
 
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
-                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, stop_on: list[int] | None = None, **config):
+                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
+                 stop_on: list[int] | None = None, **config):
         _pybookget()
         from pybookget.config import Config
 
@@ -513,7 +517,8 @@ class HTTPFetcher:
         self._proxies = None
         if proxy_file:
             proxies = read_proxies(proxy_file)
-            self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl)
+            self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl,
+                                          proxy_blacklist_on)
 
     def _new_client(self, proxy: str | None):
         """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client
