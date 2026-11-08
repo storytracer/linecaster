@@ -33,3 +33,16 @@ def test_task_moves_to_its_gpu_port(monkeypatch, tmp_path):
 def test_one_gpu_per_task(tmp_path):
     with pytest.raises(PipelineConfigError):
         RayGPUExecutor([], tasks=1, gpus_per_task=2, logging_dir=str(tmp_path))
+
+
+def test_connect_ray_joins_the_given_cluster_once(monkeypatch):
+    import ray
+
+    from linecaster.runtime import run
+
+    calls = []
+    monkeypatch.setattr(ray, "is_initialized", lambda: bool(calls))
+    monkeypatch.setattr(ray, "init", lambda address: calls.append(address))
+    run.connect_ray("ray-head:6379")
+    run.connect_ray("ray-head:6379")
+    assert calls == ["ray-head:6379"]

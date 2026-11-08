@@ -174,7 +174,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "(default: in-process here, served on Ray and HF Jobs)")
     g.add_argument("--endpoint", default=None, help="a running server for the engines")
     g = ap.add_argument_group("Ray")
-    g.add_argument("--address", default="auto", help="the Ray cluster")
+    g.add_argument("--address", default="auto",
+                   help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
     g.add_argument("--cpus-per-task", type=int, default=12)
     g.add_argument("--mem-per-cpu-gb", type=float, default=4)
     g = ap.add_argument_group("Hugging Face Jobs")
@@ -697,9 +698,20 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         from loguru import logger
 
         logger.info(note)
+    if a.on == "ray":
+        connect_ray(a.address)
     _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
+
+
+def connect_ray(address: str) -> None:
+    """Joins the Ray cluster at ``address`` (``--address``: ``auto``, the cluster on this machine or ``RAY_ADDRESS``;
+    ``host:6379``; ``ray://host:10001``), unless this process has joined one already (inside a Ray job)."""
+    import ray
+
+    if not ray.is_initialized():
+        ray.init(address=address)
 
 
 def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
