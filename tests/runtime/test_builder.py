@@ -585,7 +585,7 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     assert (first.logging_dir.path.endswith("/logs/pages"), last.logging_dir.path.endswith("/logs/items")) == (True, True)
     assert first.pipeline is p.stages[0].pipeline and last.pipeline is p.stages[1].pipeline
     if on == "ray":
-        assert (type(first).__name__, type(last).__name__) == ("RayGPUExecutor", "RayPipelineExecutor")
+        assert (type(first).__name__, type(last).__name__) == ("RayGPUExecutor", "RayExecutor")
     if on == "hf-jobs":
         assert (first.job_name, last.job_name) == ("linecaster-stages-hf-jobs-pages", "linecaster-stages-hf-jobs-items")
         assert type(first).__name__ == "JobsExecutor" and first.env["LINECASTER_LOG_JSON"] == "1"  # JSON lines

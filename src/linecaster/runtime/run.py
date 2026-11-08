@@ -506,7 +506,7 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
 def executor_name(a: argparse.Namespace) -> str:
     if getattr(a, "page", None):
         return "run_pages"
-    ray = "RayGPUExecutor" if has_engines(a) else "RayPipelineExecutor"
+    ray = "RayGPUExecutor" if has_engines(a) else "RayExecutor"
     return {"local": "LocalPipelineExecutor", "ray": ray}.get(a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsExecutor")
 
 
@@ -633,7 +633,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             if servers or (not many and has_engines(a)):
                 from .ray import RayGPUExecutor as Ray
             else:                                    # a stage without models (an item stage, a harvest) needs no GPU
-                from datatrove.executor.ray import RayPipelineExecutor as Ray
+                from .ray import RayExecutor as Ray
 
             previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
                            cpus_per_task=a.cpus_per_task,

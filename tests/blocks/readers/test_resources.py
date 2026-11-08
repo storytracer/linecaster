@@ -480,7 +480,8 @@ def test_a_timeout_through_a_proxy_leaves_it_in_rotation(tmp_path):
 
 
 def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
-    """A pipeline without engines (pipelines/harvest.py) gets datatrove's RayPipelineExecutor, no GPU per task."""
+    """A pipeline without engines (pipelines/harvest.py) gets RayExecutor (datatrove's, stopping as a local run does),
+    no GPU per task."""
     pytest.importorskip("ray")
     from linecaster.blocks.writers.rejects import RejectWriter
     from linecaster.runtime import run
@@ -494,5 +495,5 @@ def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
     blocks = [run.reader(a), RejectWriter(f"{out}/rejects"), ResourceFilesWriter(out),
               ResourceRecordWriter(f"{out}/resources")]
     executor = run._executors(a, run.build_plan(a, blocks), out, None, ["linecaster"])
-    assert type(executor).__name__ == "RayPipelineExecutor" and executor.gpus_per_task == 0
-    assert (executor.cpus_per_task, executor.workers, run.executor_name(a)) == (1, 2, "RayPipelineExecutor")
+    assert type(executor).__name__ == "RayExecutor" and executor.gpus_per_task == 0
+    assert (executor.cpus_per_task, executor.workers, run.executor_name(a)) == (1, 2, "RayExecutor")

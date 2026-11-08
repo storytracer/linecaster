@@ -105,6 +105,12 @@ the tags; the first is `v0.1.0`.
   `blocks_count_as_attempts`, `block_exceptions`, `blacklist_on_exception`).
 - `--on ray`: a pipeline without engines (`pipelines/harvest.py`) runs on datatrove's `RayPipelineExecutor`, so on
   CPU-only Ray workers (`--cpus-per-task`, `--mem-per-cpu-gb`); every single-stage pipeline asked for a GPU per task.
+- A Ray run stops as a local one does (`linecaster.runtime.ray.RayExecutor`, also under `RayGPUExecutor`): an error
+  that is not the pages' (a host's `stop_on`, a server, the configuration) in one task writes a stop marker to the
+  logging folder (`stopped.json`), every later task ends before its pipeline starts, and the launch fails with that
+  error. datatrove only ended the task and started the next, whose first request went straight into the block
+  (a JSON API run sent about 990 requests into LoC's 429 block that way). A launch with unfinished tasks fails too,
+  where the Ray job ended as succeeded with "Only 8/1000 tasks completed".
 - `--address` joins the Ray cluster it names (`linecaster.runtime.run.connect_ray`: `auto`, `HOST:6379`,
   `ray://HOST:10001`); it was read but not used, so a run only found a cluster started on its own machine.
 - A task that fails no longer stops a local run with several workers (datatrove's pool stopped at the first
