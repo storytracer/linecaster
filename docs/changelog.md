@@ -32,7 +32,8 @@ the tags; the first is `v0.1.0`.
 - `linecaster.runtime.local.LocalExecutor`'s `note` may be a list of lines; `linecaster.runtime.run.rate_note`
   counts the proxies in use (`1 of 2 proxies in use (1 proxy per worker)`) when the workers hold fewer than the list.
 - A worker process no longer claims the lowest free worker slot of its machine: it takes a handed-over slot first,
-  then the k-th free slot (one without a valid slot lease), k its executor's worker index
+  then the k-th free slot (one without a valid slot lease claimed more than a minute before, so a stopped run's
+  slots are passed over and its peers' are not), k its executor's worker index
   (`linecaster.broker.set_worker_index`, set by `LocalExecutor`, `RayExecutor` and `JobsExecutor`; else random), and
   probes upward from there, so slot numbers no longer say in which order the processes came. Code that starts brokers
   itself and expects `<machine>-0` first passes `Broker(..., worker_index=(0, 1))`.
