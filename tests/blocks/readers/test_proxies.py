@@ -131,7 +131,11 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
     shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
                                           str(tmp_path / "proxies.txt"), "--broker", "s3://b/broker"]))
     assert run.reader(shared)._opener.http["broker"] == "s3://b/broker"
-    run.allocate(a, [run.reader(a)])
+    run.allocate(a, [run.reader(a)])                                  # one task: one worker, one proxy in use
+    assert run.workers_note(a) == "2 proxies available, 1 task → 1 worker, 1 proxy each"
+    assert run.rate_note(a) == ("rate limits per proxy: 150/60 · 1 of 2 proxies in use (1 proxy per worker) → up to "
+                                "150/min at a server")
+    a.workers = a.tasks = 2
     assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))

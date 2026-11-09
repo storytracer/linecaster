@@ -121,10 +121,11 @@ def blocks(pipeline) -> list[str]:
 class LocalExecutor(LocalPipelineExecutor):
     """``LocalPipelineExecutor`` whose console is linecaster's: ``title`` names the run on it, ``out`` is the run
     folder the summary points at, and ``reader`` (a block with ``task_pages(rank, world_size)``, optional) gives the
-    pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line
-    (``linecaster.runtime.run.rate_note``: what a server sees)."""
+    pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line,
+    a line or a list of lines (``linecaster.runtime.run.run_notes``: why it has the workers it has, what a server
+    sees)."""
 
-    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | None = None,
+    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | list[str] | None = None,
                  retry_failed: bool = False, **kwargs):
         super().__init__(pipeline, **kwargs)
         self.title, self.out, self.reader, self.note = title, out, reader, note
@@ -240,8 +241,8 @@ class LocalExecutor(LocalPipelineExecutor):
             line += f"; {count(len(self._completed))} done before ({count(done_pages)} {unit})" if pages else \
                     f"; {count(len(self._completed))} done before"
         logger.info(line)
-        if self.note:
-            logger.info(self.note)
+        for note in [self.note] if isinstance(self.note, str) else self.note or []:
+            logger.info(note)
         if self._retry:
             logger.info("{n} finished tasks with failed pages run again (--retry-failed)", n=f"{len(self._retry):,}")
         if not todo:

@@ -177,10 +177,15 @@ class HTTPPolicy:
     def http_for(self, url: str) -> dict:
         """The fetcher settings (``HTTPFetcher``'s) for ``url``: the file's root, the run's options over it, the
         host's entry over both."""
+        return self.settings((urlsplit(url).hostname or "").lower())
+
+    def settings(self, host: str | None) -> dict:
+        """The fetcher settings (``HTTPFetcher``'s) for ``host`` (None: a host without an entry): the file's root, the
+        run's options over it, the host's entry over both."""
         out: dict = {}
         self._lay(out, self.root)
         out.update(self.base)
-        self._lay(out, self.hosts.get((urlsplit(url).hostname or "").lower(), {}))
+        self._lay(out, self.hosts.get(host, {}) if host is not None else {})
         return out
 
     def _lay(self, out: dict, policy: dict) -> None:
