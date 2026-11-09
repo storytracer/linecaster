@@ -9,9 +9,8 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget", "resilient-httpx"], editable = "../" },
+    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
     { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
-    { name = "resilient-httpx", url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" },
     { name = "s3fs" },
 ]
 
@@ -816,9 +815,6 @@ pybookget = [
 ray = [
     { name = "ray", extra = ["default"] },
 ]
-resilient-httpx = [
-    { name = "resilient-httpx" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -836,13 +832,12 @@ requires-dist = [
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "resilient-httpx", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
@@ -1606,32 +1601,6 @@ wheels = [
 ]
 
 [[package]]
-name = "resilient-httpx"
-version = "1.7.0"
-source = { url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" }
-dependencies = [
-    { name = "httpx" },
-    { name = "structlog" },
-    { name = "tenacity" },
-]
-sdist = { hash = "sha256:0e336738015efd9ec6b8903d6dbbace4893f49b7930ad36c9a59cf8959062a33" }
-
-[package.metadata]
-requires-dist = [
-    { name = "curl-cffi", marker = "extra == 'dev'", specifier = ">=0.16.0" },
-    { name = "curl-cffi", marker = "extra == 'impersonate'", specifier = ">=0.16.0" },
-    { name = "httpx", specifier = ">=0.28.0" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "respx", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "structlog", specifier = ">=25.0.0" },
-    { name = "tenacity", specifier = ">=9.1.0" },
-]
-provides-extras = ["impersonate", "dev"]
-
-[[package]]
 name = "rich"
 version = "15.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1745,15 +1714,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/56/1d/5d401eeef68919274e1df4e90d1c24f18b2408ffc49a4d6e952afa548219/smart_open-9.0.2.tar.gz", hash = "sha256:adfe6413bfb39c2895cf9d066c8bea326aeb8b3b717306e6a10c9efa931ae796", size = 65083, upload-time = "2026-11-03T07:57:32.382Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/f0/905ab7bccf8b5beb95580a62573d80e8010e8931568e3492f9de8cba4d50/smart_open-9.0.2-py3-none-any.whl", hash = "sha256:945216f3360166fdb42fdee0e19b37f032caaf9429d5797bc06b01d2c75a71a4", size = 76047, upload-time = "2026-11-03T07:57:30.978Z" },
-]
-
-[[package]]
-name = "structlog"
-version = "26.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
 ]
 
 [[package]]
