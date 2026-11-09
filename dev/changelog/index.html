@@ -1313,6 +1313,9 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li>The run's description of its HTTP policy includes the run's own <code>--rate-limit</code>, <code>--proxies</code> and
+  <code>--random-user-agent</code>, which hold between the file's root and its hosts' entries; before, a file without rate limits
+  read "no rate limit" although the options' limits applied.</li>
 <li>A blocked or broken proxy is marked in the broker and logged once per block: the requests already on their way
   through it come back blocked too and go on through another proxy without a mark, a message or a failure of their own
   (before, each rewrote the mark and logged the block again).</li>
