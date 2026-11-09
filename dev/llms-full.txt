@@ -1312,7 +1312,9 @@ process with its own memory).
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
 (`pipelines/harvest.py`) asks its reader for one item per task (`task_per_item`): the tasks divide the items, an
 item's rows wherever they are in the table (`tables.item_runs`), so every item is whole in its task and a task that
-fails costs one item. Its reader also gets `reuse_folder` (`OUT/images`): when it reaches an item it lists the item's
+fails costs one item. With `--reuse` (off by default: on some object storage a listing is slow even for an empty
+folder, and only the items a stopped launch was in have anything to reuse) its reader also gets `reuse_folder`
+(`OUT/images`): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
 fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items are read back, so
 egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels

@@ -1025,6 +1025,11 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li><code>pipelines/harvest.py</code> no longer lists each item's folder in OUT for images to reuse unless <code>--reuse</code> is given. On some
+  object storage the listing took over a minute even for empty folders, so every item waited before its pages were
+  fetched; only the items a stopped launch was in have anything to reuse. Without <code>--reuse</code> their pages are fetched
+  again and the files overwritten. The flag changes the pipeline's hash: a resume into an OUT of an earlier launch
+  needs <code>--new-pipeline</code>.</li>
 <li>How many proxies of a list a worker holds is the new HTTP-policy key <code>proxies_per_worker</code> (per host or at the root;
   also <code>HTTPFetcher</code>'s and <code>ProxyPool</code>'s parameter): <code>share</code> (the default) a fair share of the free ones, rebalanced
   as before, except that a worker claims at most 2 when it looks for proxies and grows to its share only by
