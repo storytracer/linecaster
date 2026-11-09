@@ -72,6 +72,7 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
+- An extra `s3fs` for `s3://` paths in the `linecaster` command and code run in the project's environment (`uv sync --extra s3fs`, or `--all-extras`); the pipeline scripts bring their own. `linecaster broker` names a missing filesystem package in one line instead of a traceback.
 - The broker (`linecaster.broker`, [broker](docs/reference/broker.md)): a shared folder, any `DataFolder`, through
   which workers across tasks, runs and machines agree on who holds which shared resource (leases, renewed within
   180 s, claims decided by listing) and what is unavailable until when (marks per scope). A worker is a slot of its

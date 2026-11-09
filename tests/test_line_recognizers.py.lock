@@ -857,18 +857,18 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/91d39e4a56fb7bb3c1d5737fc66f824ab0dd3c9e.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/f706598bb13cf6351f5426bf8292c777702d38be.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2025.3" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "resilient-httpx", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2", "s3fs"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
