@@ -287,7 +287,7 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
 | with engines | 1 | every task |
-| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
+| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`), local or Ray (`--on hf-jobs`: as below) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
 | without engines, with `--rate-limit` (a host with rate limits and no proxies) | the reader's `auto_tasks`, else 1 | 1 |
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
 

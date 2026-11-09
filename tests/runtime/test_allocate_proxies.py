@@ -83,3 +83,11 @@ def test_up_to_n_per_worker_divides_the_available_proxies(tmp_path, no_cpus):
                                                                  "proxies_per_worker: share\n"))
     run.allocate(shared, [])
     assert shared.workers == 1 and run.workers_note(shared) is None                 # a fair share: as before
+
+
+def test_on_hf_jobs_the_proxies_do_not_set_the_workers(tmp_path, no_cpus):
+    """Each worker of an HF Jobs run is a Job: a proxy list never turns into a Job per proxy."""
+    a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"),
+                "--on", "hf-jobs", "--commit", "abc1234")
+    run.allocate(a, [])
+    assert a.workers == 1

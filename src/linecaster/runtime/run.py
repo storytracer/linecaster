@@ -444,7 +444,8 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     task and never capped by the CPUs (the workers mostly wait on the network), the reason in ``workers_note``; a
     host with rate limits and no proxy list, or a list shared fairly (``proxies_per_worker: share``) with rate
     limits, one worker (one task keeps them busy, ``linecaster.net.http.prefetched``); one per CPU otherwise. A
-    pipeline with engines: one task, every task at once. ``--page``: one of each."""
+    pipeline with engines: one task, every task at once. ``--page``: one of each. The proxy rule holds for local
+    and Ray runs only: on HF Jobs each worker is a Job, so its count is never derived from a proxy list."""
     if getattr(a, "page", None):
         a.tasks, a.workers = 1, 1
         return
@@ -456,7 +457,7 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
             a.workers = a.tasks
             return
         direct, lists = _proxy_plan(a)
-        if lists and not direct:
+        if lists and not direct and getattr(a, "on", "local") in ("local", "ray"):   # not a Job per proxy on HF Jobs
             workers, why = _proxy_workers(a, lists)
             if workers is not None:
                 a.workers, a.workers_note = workers, why

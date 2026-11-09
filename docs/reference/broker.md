@@ -124,7 +124,8 @@ list is set) works on the broker:
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
 (`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
 with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
-`linecaster.broker.survey_kind`), divided by `proxies_per_worker`.
+`linecaster.broker.survey_kind`), divided by `proxies_per_worker`; on local and Ray runs only (on HF Jobs each worker is a Job,
+so a proxy list never sets their number).
 
 ## The command
 
