@@ -313,6 +313,8 @@
       
         
       
+        
+      
     
     
     
@@ -513,6 +515,34 @@
     
   
     Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
   
 
     
@@ -1101,17 +1131,37 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>HTTP policy</strong>, <strong>host entry</strong></td>
-<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>, <code>linecaster.net.policy</code>): settings for every host at its root (rate limits, proxies or direct, User-Agent, deadline, retries, proxy blocks, statuses that pause the requests and that stop the run), and a host entry under <code>hosts:</code> for each host that differs, which replaces the root's fields it names. The run's own options go between the root and the host entries; each host's settings get their own fetcher.</td>
+<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>, <code>linecaster.net.policy</code>): settings for every host at its root (rate limits, proxies or direct, User-Agent, deadline, retries, the broker, statuses that pause the requests and that stop the run), and a host entry under <code>hosts:</code> for each host that differs, which replaces the root's fields it names. The run's own options go between the root and the host entries; each host's settings get their own fetcher.</td>
 <td>not several policies</td>
 </tr>
 <tr>
+<td><strong>broker</strong></td>
+<td>A shared folder (any <code>DataFolder</code>: local, S3, ...) through which workers across tasks, runs and machines agree on who uses which shared resource and what is unavailable until when, with leases and marks (<code>linecaster.broker</code>, <code>--broker</code>, default <code>OUT/logs/broker</code>; <a href="../broker/">broker</a>). Proxies are its first kind of resource.</td>
+<td>not a message broker (no server, no queue)</td>
+</tr>
+<tr>
+<td><strong>lease</strong></td>
+<td>A worker's claim on one resource in the broker (<code>&lt;kind&gt;/&lt;id&gt;/leases/</code>): it holds the resource while it renews the lease within the lease time (180 s); one worker holds a resource at a time, and a crashed worker's leases expire on their own.</td>
+<td>not a lock with a server</td>
+</tr>
+<tr>
+<td><strong>mark</strong></td>
+<td>A note in the broker that something holds for a resource in a scope until a time (<code>&lt;kind&gt;/&lt;id&gt;/marks/&lt;scope&gt;/</code>), written once and never changed, deleted by whoever sees it expired: a proxy's block at a host (scope the host), a broken proxy (scope <code>*</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>worker identity</strong>, <strong>worker slot</strong></td>
+<td>Who holds leases in the broker: a datatrove worker as a slot of its machine (<code>&lt;machine&gt;-&lt;n&gt;</code>), not a process. A process claims the lowest free slot of its machine at its first use and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process).</td>
+<td>not a process, not a task</td>
+</tr>
+<tr>
 <td><strong>proxy block</strong></td>
-<td>A proxy left out for a host until a set time because the host turned it away (a 429, a block page, a status in <code>blacklist_on</code>). Shared through a folder of markers, one per block, written once and never changed (<code>--proxy-blocks</code>, default <code>OUT/logs/proxy-blocks</code>, <code>linecaster.net.proxy_blocks</code>): every worker, and every later run pointed at the folder, leaves the proxy out until the block ends.</td>
+<td>A proxy left out for a host until a set time because the host turned it away (a 429 until its <code>Retry-After</code>, a block page, a status in <code>blacklist_on</code>): a mark in the broker. The proxy's owner stops using it there at once, and whoever claims it later sees the mark.</td>
 <td>not a block of a pipeline</td>
 </tr>
 <tr>
 <td><strong>pause</strong></td>
-<td>A time in which a fetcher (one per worker and host settings) sends no request, and its requests wait instead of failing. Two things start one: a status in the host's <code>pause_on</code> (429 by default) on a direct connection, until the response's <code>Retry-After</code> has passed, after which the request that got it is tried again (<code>linecaster.net.http.Pause</code>; beyond <code>max_pause</code> the run stops); and the breaker during an outage. Other workers' fetchers go on.</td>
+<td>A time in which a fetcher (one per worker and host settings) sends no request, and its requests wait instead of failing. Three things start one: a status in the host's <code>pause_on</code> (429 by default) on a direct connection, until the response's <code>Retry-After</code> has passed, after which the request that got it is tried again (<code>linecaster.net.http.Pause</code>; beyond <code>max_pause</code> the run stops); the breaker during an outage; and, with a proxy list, no proxy usable for the host (every one the worker holds blocked there, none free to claim) until a block ends or another worker gives one back (beyond <code>max_pause</code> the run stops). Other workers' fetchers go on.</td>
 <td>not a stop of the run</td>
 </tr>
 <tr>

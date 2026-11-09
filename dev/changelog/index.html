@@ -309,6 +309,8 @@
       
         
       
+        
+      
     
     
     
@@ -509,6 +511,34 @@
     
   
     Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
   
 
     
@@ -995,6 +1025,25 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>Proxies are shared through the broker (<code>linecaster.broker</code>, <a href="../reference/broker/">broker</a>): <code>--proxy-blocks
+  FOLDER</code> and an HTTP policy's root key <code>proxy_blocks</code> are gone; use <code>--broker PATH</code> and the root key <code>broker</code> (default
+  <code>OUT/logs/broker</code>; runs pointed at one path share the proxies and their blocks). The old folder of block markers is
+  not read; blocks found before are found again at the first request through each proxy. There is no alias.</li>
+<li>With a proxy list the rate limits (<code>--rate-limit</code>, an HTTP policy's <code>rate_limits</code> for a host through proxies) hold
+  per proxy, not per worker: each proxy is used by one worker at a time, which spaces its requests through the proxy
+  by the strictest limit. A server sees up to the proxies times the limits, whatever the worker count, so a limit
+  meant for all proxies together is now too high by the proxy count: give the limit one IP may send. Direct
+  connections keep the limits per worker.</li>
+<li>A host whose proxies are all blocked (or broken) no longer stops the run at once: its requests wait until a block
+  ends or another worker gives a proxy back, up to the host's <code>max_pause</code> (6 h by default), and stop the run only when
+  the first block ends later than that. A 429's <code>Retry-After</code> sets how long its proxy is blocked at the host, also
+  when it is longer than <code>blacklist_ttl</code> (it was capped there).</li>
+<li>The extra <code>resilient-httpx</code> is gone: a proxy list needs only <code>linecaster[pybookget]</code>. Scripts that list
+  <code>linecaster[...,resilient-httpx]</code> drop it (<code>pipelines/harvest.py</code> does), or their install fails on the unknown
+  extra. <code>HTTPFetcher.proxies_in_rotation()</code> and <code>linecaster.net.http.proxy_rotation()</code> are
+  <code>HTTPFetcher.proxy_counts()</code> and <code>proxy_counts()</code> (held, blocked, free); <code>HTTPFetcher</code>'s <code>proxy_blocks</code> and
+  <code>default_proxy_blocks</code> are <code>broker</code> and <code>default_broker</code>; a request through proxies that used up its attempts raises
+  <code>linecaster.net.http.MaxRetriesExceeded</code> (was resilient-httpx's, of the same name).</li>
 <li>A 429 pauses the worker that got it instead of stopping the run or failing the page: an HTTP policy has a new
   per-host key <code>pause_on</code> (statuses that pause the worker's requests to the host until the response's <code>Retry-After</code>
   has passed, then retry the request; default <code>[429]</code>) and <code>max_pause</code> (default 6 h in all since the host's last
@@ -1040,6 +1089,14 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>The broker (<code>linecaster.broker</code>, <a href="../reference/broker/">broker</a>): a shared folder, any <code>DataFolder</code>, through
+  which workers across tasks, runs and machines agree on who holds which shared resource (leases, renewed within
+  180 s, claims decided by listing) and what is unavailable until when (marks per scope). A worker is a slot of its
+  machine that outlives its processes: on Ray the next task on a machine takes over the slot the last one handed over,
+  with its leases. Proxies are its first kind (<code>linecaster.net.proxies.ProxyPool</code>): each proxy has one worker at a
+  time, each worker its fair share (rebalanced as workers join and leave), a block is a mark seen by whoever claims
+  the proxy next, without the 30-s polling of the proxy-blocks folder it replaces, and the rate limits hold per proxy.
+  The console shows the proxies held, blocked and free.</li>
 <li>XY-Cut++ reading order (Liu, Li and Wei, arXiv:2504.10258) for layout models without one:
   <code>linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)</code>, pure and
   deterministic, the paper's β, θ_v, τ_overlap, centering tolerance and edge weights as keyword arguments, its

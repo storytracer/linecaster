@@ -313,6 +313,8 @@
       
         
       
+        
+      
     
     
     
@@ -670,6 +672,34 @@
     
   
     Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
   
 
     
@@ -1067,6 +1097,14 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 <td><code>linecaster serve</code></td>
 </tr>
 <tr>
+<td><code>linecaster.net</code></td>
+<td>http(s) fetching (<code>linecaster.net.http</code>), the HTTP policy, the proxy pools</td>
+</tr>
+<tr>
+<td><code>linecaster.broker</code></td>
+<td>the <a href="../broker/">broker</a>: leases, marks and worker slots in a shared folder</td>
+</tr>
+<tr>
 <td><code>linecaster.runtime</code></td>
 <td>the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs</td>
 </tr>
@@ -1090,8 +1128,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 </table>
 <p>The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (<code>tests/test_import_rule.py</code>),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget, resilient-httpx (proxy lists) and PDFium are not (engine packages
-and extras).</p>
+required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).</p>
 <h2 id="blocks-and-backends">Blocks and backends<a class="headerlink" href="#blocks-and-backends" title="Permanent link">&para;</a></h2>
 <p>A block is a datatrove <code>PipelineStep</code> with a contract; a pipeline is a list of blocks run by a datatrove executor.
 Each family is a subpackage of <code>linecaster.blocks</code> (<a href="../../blocks/">blocks</a> has a page per block).</p>
@@ -1244,6 +1281,10 @@ Jobs run the same Python minor version (3.12). <code>uv run --with</code> drops 
 <code>linecaster.runtime.jobs.dependencies(commit, script)</code> spells out a pipeline's dependencies, sources (as URLs; the
 commit must be pushed) and pins (<a href="../pipelines/#hf-jobs-helpers">pipelines</a>). A private derivative ships its code as
 a wheel mounted from a bucket folder (<code>WheelJobsExecutor</code>, <code>wheel_volume</code>).</p>
+<p>Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
+does) agree through the <a href="../broker/">broker</a>, a folder any executor's workers can reach, on any storage datatrove
+supports: leases say who holds what, marks what is unavailable until when, and a worker is a slot of its machine that
+outlives the processes (on Ray every task is one) that take it over.</p>
 <h2 id="the-run-layout">The run layout<a class="headerlink" href="#the-run-layout" title="Permanent link">&para;</a></h2>
 <p>One job is one pipeline for one batch on one executor; resume is datatrove's, per task, so tasks stay small. A
 pipeline reads the previous folder and writes complete page records with one more part filled in:</p>
@@ -1269,7 +1310,7 @@ pipeline reads the previous folder and writes complete page records with one mor
 </tr>
 <tr>
 <td><code>OUT/logs/</code></td>
-<td>datatrove's completion markers, logs and stats</td>
+<td>datatrove's completion markers, logs and stats; <code>OUT/logs/broker/</code>, the <a href="../broker/">broker</a> by default</td>
 </tr>
 <tr>
 <td><code>OUT/traces/</code></td>
