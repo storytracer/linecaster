@@ -293,6 +293,9 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- The run's description of its HTTP policy includes the run's own `--rate-limit`, `--proxies` and
+  `--random-user-agent`, which hold between the file's root and its hosts' entries; before, a file without rate limits
+  read "no rate limit" although the options' limits applied.
 - A blocked or broken proxy is marked in the broker and logged once per block: the requests already on their way
   through it come back blocked too and go on through another proxy without a mark, a message or a failure of their own
   (before, each rewrote the mark and logged the block again).

@@ -206,6 +206,8 @@ def test_the_http_policy_root_alone_and_its_checks(tmp_path):
     policy = HTTPPolicy(policy_file(tmp_path, "max_retries: 2\nattempt_timeout: 60\n"), base={"max_retries": 4})
     assert policy.http_for("https://a.org/x") == {"max_retries": 4, "attempt_timeout": 60}   # the run's option wins
     assert policy.describe() == "every host: no rate limit, 2 retries" and not policy.rate_limited()
+    described = policy.describe({"rate_limits": ["100/60", "2/1"], "proxies": "p.txt"})   # the run's options
+    assert described.startswith("every host: 100/60, 2/1 per proxy, through proxies") and "no rate limit" not in described
     with pytest.raises(PipelineConfigError, match="unknown speed"):
         HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {speed: 3}\n"))
     with pytest.raises(PipelineConfigError, match="unknown broker"):              # a folder for the whole run

@@ -228,8 +228,14 @@ class HTTPPolicy:
         """Whether the file sets rate limits anywhere (the run then keeps one worker)."""
         return any(p.get("rate_limits") for p in (self.root, *self.hosts.values()))
 
-    def describe(self) -> str:
-        """One line per host (with the root's settings it keeps) for the start of a run."""
+    def describe(self, options: dict | None = None) -> str:
+        """One line per host for the start of a run, with what holds there: the root's settings, the run's
+        ``options`` over them, the host's entry over both (as ``settings`` lays them).
+
+        Args:
+            options: the run's own options, as the file's fields (``rate_limits`` as ``"N/S"`` strings,
+                ``proxies``, ``random_user_agent``); None: none.
+        """
         def one(name: str, p: dict) -> str:
             proxied = p.get("proxies") and not p.get("direct")
             limits = ", ".join(p.get("rate_limits") or [])
@@ -253,7 +259,8 @@ class HTTPPolicy:
             if p.get("stop_on"):
                 parts.append("stops on " + ", ".join(map(str, p["stop_on"])))
             return f"{name}: " + ", ".join(x for x in parts if x)
-        lines = [one(h, {**self.root, **p}) for h, p in self.hosts.items()]
-        if self.root:
-            lines.append(one("other hosts" if self.hosts else "every host", self.root))
+        base = {**self.root, **(options or {})}
+        lines = [one(h, {**base, **p}) for h, p in self.hosts.items()]
+        if base:
+            lines.append(one("other hosts" if self.hosts else "every host", base))
         return "; ".join(lines)

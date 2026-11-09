@@ -303,7 +303,12 @@ def rate_note(a: argparse.Namespace) -> str | None:
     if getattr(a, "http_policy", None):
         from ..net.policy import HTTPPolicy
 
-        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy).describe()
+        options = {"rate_limits": [f"{n}/{s:g}" for n, s in a.rate_limits]} if getattr(a, "rate_limits", None) else {}
+        if getattr(a, "proxies", None):
+            options["proxies"] = a.proxies
+        if getattr(a, "random_user_agent", False):
+            options["random_user_agent"] = True
+        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy).describe(options)
     if not getattr(a, "rate_limits", None):
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
