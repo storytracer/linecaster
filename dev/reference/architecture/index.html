@@ -1190,12 +1190,14 @@ linecaster's catalog. They import from linecaster only <code>linecaster.data</co
 (<code>linecaster.engines.api</code>: the <code>Engine</code> protocol, <code>Capabilities</code>, the weight helpers), have versions of their own
 with a range of linecaster releases, and their tests in <code>engines/&lt;engine&gt;/tests/</code> (<a href="../catalog/#engines">catalog</a>).</p>
 <h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
-<p><code>uv run pytest</code> runs the core's tests; tests marked <code>gpu</code> or <code>network</code> (<code>linecaster.testing.markers</code>: <code>gpu</code>,
-<code>network</code>, <code>slow</code>, <code>parity</code>; <code>--strict-markers</code>) skip where the device or the network is missing. The CI workflow
-(<code>.github/workflows/ci.yml</code>, CPU only, no secrets) runs <code>uv sync --locked --all-extras</code> (the extras' readers are
-tested and documented too), <code>uv run pytest -m "not gpu and not network and not parity"</code>, <code>linecaster docs
---check</code>, <code>linecaster catalog verify</code> and the site's strict build. The docs workflow (<code>.github/workflows/docs.yml</code>)
-publishes the site with mike on the <code>gh-pages</code> branch, which GitHub Pages serves
+<p><code>uv run pytest</code> runs the core's tests, one after the other; <code>uv run pytest -n auto</code> (pytest-xdist, in the <code>dev</code>
+group) runs them on every core. Tests marked <code>gpu</code> or <code>network</code> (<code>linecaster.testing.markers</code>: <code>gpu</code>, <code>network</code>,
+<code>slow</code>, <code>parity</code>; <code>--strict-markers</code>) skip where the device or the network is missing. The CI workflow
+(<code>.github/workflows/ci.yml</code>, CPU only, no secrets, uv's cache kept between runs) runs <code>uv sync --locked
+--all-extras</code> (the extras' readers are tested and documented too), <code>uv run pytest -n auto -m "not gpu and not
+network and not parity"</code>, <code>linecaster catalog verify</code>, <code>linecaster docs</code> and the site's strict build (the generated
+pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
+(<code>.github/workflows/docs.yml</code>) writes them too and publishes the site with mike on the <code>gh-pages</code> branch, which GitHub Pages serves
 (<code>https://storytracer.github.io/linecaster/</code>): a release tag <code>v&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</code> as version <code>&lt;major&gt;.&lt;minor&gt;</code>,
 with <code>latest</code> (the site's default) moved to it, and every push to <code>main</code> as version <code>dev</code>. The engines' environments are too large for it
 (torch): their tests (<code>engines/&lt;engine&gt;/tests/</code>) and the PEP 723 test

@@ -1025,6 +1025,14 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>The generated docs (the block and catalog pages, <code>docs/index.md</code>, <code>docs/changelog.md</code>, <code>docs/llms*.txt</code>) are no
+  longer in git: <code>linecaster docs</code> writes them when the site is built, and git ignores them. Run <code>linecaster docs</code>
+  before <code>mkdocs serve</code> or <code>mkdocs build</code>. <code>linecaster docs --check</code> and <code>linecaster.docs.check</code> are gone (nothing to
+  compare against), and so are the README's generated preset and block tables with their markers
+  (<code>linecaster.catalog.docs.readme_tables</code>, <code>readme_section</code>, <code>MARK_START</code>/<code>MARK_END</code>,
+  <code>linecaster.docs.blocks.readme_table</code>, and <code>linecaster.catalog.docs.write</code>'s <code>readme</code>): the README links to the
+  site's catalog and blocks pages instead.
+  A derivative that called <code>linecaster docs --check</code> drops the call; none of the known derivatives does.</li>
 <li><code>pipelines/harvest.py</code> no longer lists each item's folder in OUT for images to reuse unless <code>--reuse</code> is given. On some
   object storage the listing took over a minute even for empty folders, so every item waited before its pages were
   fetched; only the items a stopped launch was in have anything to reuse. Without <code>--reuse</code> their pages are fetched
@@ -1300,9 +1308,13 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li>Versioned docs: the docs workflow publishes the site with mike to the <code>gh-pages</code> branch, served by GitHub Pages:
   every release tag as version <code>&lt;major&gt;.&lt;minor&gt;</code> (<code>latest</code> the newest release, the default), every push to <code>main</code>
   as <code>dev</code>; <code>mike</code> joins the dependency group <code>docs</code>.</li>
+<li><code>pytest-xdist</code> joins the dependency group <code>dev</code>: <code>uv run pytest -n auto</code> runs the tests on every core, as CI does;
+  a plain <code>uv run pytest</code> stays serial. CI keeps uv's cache between runs.</li>
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li><code>ServiceServer</code> notices a service that exits while it boots at once, instead of at its next look at the health
+  URLs (every 2 s).</li>
 <li>A resumed harvest's listing of an item's folder in <code>OUT/images</code> (the images already written, to reuse) could hang
   forever on object storage, and with it the worker: with 250 workers writing to S3-compatible storage only 28 got
   to fetch. The readers now wait at most <code>linecaster.blocks.readers.existing.LISTING_TIMEOUT</code> (60 s) for it (fsspec
