@@ -9,6 +9,11 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- `pipelines/harvest.py` no longer lists each item's folder in OUT for images to reuse unless `--reuse` is given. On some
+  object storage the listing took over a minute even for empty folders, so every item waited before its pages were
+  fetched; only the items a stopped launch was in have anything to reuse. Without `--reuse` their pages are fetched
+  again and the files overwritten. The flag changes the pipeline's hash: a resume into an OUT of an earlier launch
+  needs `--new-pipeline`.
 - How many proxies of a list a worker holds is the new HTTP-policy key `proxies_per_worker` (per host or at the root;
   also `HTTPFetcher`'s and `ProxyPool`'s parameter): `share` (the default) a fair share of the free ones, rebalanced
   as before, except that a worker claims at most 2 when it looks for proxies and grows to its share only by
