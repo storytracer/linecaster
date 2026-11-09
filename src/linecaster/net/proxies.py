@@ -5,19 +5,22 @@ that shares the broker, on any executor and machine, and across runs pointed at 
 How many proxies a worker holds is its ``per_worker`` setting (a host's ``proxies_per_worker``,
 ``linecaster.net.policy``):
 
-- ``1`` (the default): **one proxy per worker**. The worker claims one free proxy usable for the host it fetches and
-  sends every request through it. When it is blocked (``block``: a 429, a status in the host's ``blacklist_on``, an
-  HTML page where another format was expected) or broken (``broken``: a proxy error, no connection to it, after
-  ``threshold`` failures in a row), the worker marks it, releases it and claims another free usable one at once; with
-  none free its requests pause until a block it knows of ends (or another worker gives one back; it looks every
-  ``FILL_SECONDS``). No fair share and no rebalancing: the host's rate limits per proxy are the worker's own.
-- ``N`` (a whole number above 1): **up to N per worker**, the same, claimed one by one (one when it has none usable,
-  then one more at each check of its pool, ``rebalance``) up to N, never more.
-- ``"share"``: **a fair share per worker**, ``ceil(free / live workers)`` of the proxies not marked blocked for the
-  host it fetches (at least one if any is free). A worker claims at most ``FIRST_FILL`` when it looks for proxies
-  (``fill``) and grows to its share only at the checks of its pool (``rebalance``, at most doubling each time), where
-  it also gives back the ones beyond its share (the ones blocked for its hosts first), so a worker that joins gets its
-  part within seconds and early workers do not take the proxies of those still starting.
+- ``"share"`` (the default, ``DEFAULT_PER_WORKER``): **a fair share per worker**, ``ceil(free / live workers)`` of the
+  proxies not marked blocked for the host it fetches (at least one if any is free). A worker claims at most
+  ``FIRST_FILL`` when it looks for proxies (``fill``) and grows to its share only at the checks of its pool
+  (``rebalance``, at most doubling each time), where it also gives back the ones beyond its share (the ones blocked
+  for its hosts first), so a worker that joins gets its part within seconds and early workers do not take the proxies
+  of those still starting. Few workers then use many proxies, which suits output on object storage, where more
+  workers do not make a run faster.
+- ``1``: **one proxy per worker**. The worker claims one free proxy usable for the host it fetches and sends every
+  request through it. When it is blocked (``block``: a 429, a status in the host's ``blacklist_on``, an HTML page
+  where another format was expected) or broken (``broken``: a proxy error, no connection to it, after ``threshold``
+  failures in a row), the worker marks it, releases it and claims another free usable one at once; with none free its
+  requests pause until a block it knows of ends (or another worker gives one back; it looks every ``FILL_SECONDS``).
+  No fair share and no rebalancing: the host's rate limits per proxy are the worker's own. Using every proxy then
+  takes as many workers as proxies.
+- ``N`` (a whole number above 1): **up to N per worker**, as with ``1``, claimed one by one (one when it has none
+  usable, then one more at each check of its pool, ``rebalance``) up to N, never more.
 
 A block is a mark on the proxy for that host until the end the server asked for, a broken proxy one for every host
 (scope ``*``); the owner stops using the proxy there and releases it once it is blocked for every host the worker uses,
@@ -48,6 +51,8 @@ from ..errors import PipelineConfigError
 KIND = "proxies"
 #: the ``per_worker`` setting of a fair share per worker
 SHARE = "share"
+#: the ``per_worker`` setting when none is given: a fair share per worker
+DEFAULT_PER_WORKER = SHARE
 #: the most proxies a worker sharing them (``SHARE``) claims when it looks for proxies; it grows to its fair share at
 #: the checks of its pool (``ProxyPool.rebalance``)
 FIRST_FILL = 2
@@ -69,7 +74,7 @@ def proxy_id(proxy: str) -> str:
 
 
 def per_worker_setting(value, where: str = "proxies_per_worker") -> int | str:
-    """Returns a ``proxies_per_worker`` setting checked: a whole number, at least 1, or ``"share"``; raises
+    """Returns a ``proxies_per_worker`` setting checked: ``"share"`` or a whole number, at least 1; raises
     ``PipelineConfigError`` for anything else.
 
     Args:
@@ -78,8 +83,8 @@ def per_worker_setting(value, where: str = "proxies_per_worker") -> int | str:
     """
     if value == SHARE or (isinstance(value, int) and not isinstance(value, bool) and value >= 1):
         return value
-    raise PipelineConfigError(f"{where}: proxies_per_worker is a whole number of proxies, at least 1, or `share` "
-                              f"(a fair share per worker), not {value!r}")
+    raise PipelineConfigError(f"{where}: proxies_per_worker is `share` (a fair share per worker, the default) or a "
+                              f"whole number of proxies, at least 1 (1: one proxy per worker), not {value!r}")
 
 
 def describe_per_worker(value: int | str) -> str:
@@ -111,12 +116,13 @@ class ProxyPool:
         clock: monotonic seconds, for the turns (``time.monotonic``).
         fill_seconds: how often ``fill`` lists the broker, at most (None: ``FILL_SECONDS``).
         keep_alive: whether to renew and rebalance in the broker's background thread.
-        per_worker: how many proxies the worker holds: 1 (the default), up to N, or ``"share"`` (``SHARE``: a fair
-            share); see the module docstring.
+        per_worker: how many proxies the worker holds: ``"share"`` (``SHARE``, the default: a fair share), 1, or up
+            to N; see the module docstring.
     """
 
     def __init__(self, broker: Broker, proxies: list[str], clock: Callable[[], float] = time.monotonic,
-                 fill_seconds: float | None = None, keep_alive: bool = True, per_worker: int | str = 1):
+                 fill_seconds: float | None = None, keep_alive: bool = True,
+                 per_worker: int | str = DEFAULT_PER_WORKER):
         self.broker, self.clock, self.fill_seconds = broker, clock, fill_seconds
         self.per_worker = per_worker_setting(per_worker)
         self.proxies = {proxy_id(p): p for p in proxies}
@@ -485,7 +491,7 @@ _POOLS: dict[tuple, ProxyPool] = {}
 _POOLS_LOCK = threading.Lock()
 
 
-def shared_pool(broker: Broker, proxies: list[str], per_worker: int | str = 1) -> ProxyPool:
+def shared_pool(broker: Broker, proxies: list[str], per_worker: int | str = DEFAULT_PER_WORKER) -> ProxyPool:
     """Returns this process's pool for ``proxies`` in ``broker``, made at the first use (every fetcher of the process
     with that list shares it, so the worker's leases and turns are one). Fetchers that share a list must agree on
     ``per_worker``: ``PipelineConfigError`` otherwise.
@@ -493,7 +499,7 @@ def shared_pool(broker: Broker, proxies: list[str], per_worker: int | str = 1) -
     Args:
         broker: the broker (``linecaster.broker.shared``).
         proxies: the proxy list.
-        per_worker: how many proxies the worker holds (``ProxyPool``).
+        per_worker: how many proxies the worker holds (``ProxyPool``; default a fair share).
     """
     key = (os.getpid(), id(broker), tuple(proxies))
     with _POOLS_LOCK:

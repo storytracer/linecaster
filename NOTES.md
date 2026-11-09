@@ -2,6 +2,25 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Many harvest workers writing to object storage (2026-11-09, a cloud VM, 250 proxies)
+
+Observed on one harvest (`pipelines/harvest.py`, a proxy list of 250, OUT on S3-compatible object storage), not a
+benchmark:
+- One proxy per worker (`proxies_per_worker: 1`, then the default) with 250 workers: the workers hung. A stack dump
+  (`kill -USR1`) showed the main thread waiting in `ExistingImages._list` → fsspec dirfs `ls` → `fsspec.asyn.sync`
+  (the listing of `OUT/images/<item>/` that a resumed harvest does to reuse images), fsspec's IO thread idle in
+  `select`. Only 28 of the 250 workers ever reached the broker; throughput fell to about 100–250 pages/min.
+- 100 workers, one proxy each: 150 proxies idle, throughput lower than 64 workers sharing the proxies.
+- `proxies_per_worker: share` with `--workers 64`: a clean start (slots 0–63 claimed at once, all 250 proxies held
+  within minutes). The limit was the object storage, not the proxies.
+- A relaunch within 3 minutes of stopping a run (before the old slot leases expired): the new workers started their
+  slot search at their worker index inside the still-taken range and raced upward for the same slots.
+
+Decisions: `share` is the default again; a run through proxies gets at most `OBJECT_STORAGE_WORKERS` (64) workers by
+default with OUT on object storage; the reuse listing has a timeout (`LISTING_TIMEOUT`, 60 s); a worker with index k
+takes the k-th free slot. The cause of the hung listing itself (botocore's own connect and read timeouts are 60 s by
+default, yet it hung longer) is not known.
+
 ## XY-Cut++ reading order (2026-11-07, spark)
 
 Layout models without a learned reading order (PP-DocLayout_plus-L) can now be ordered with XY-Cut++ instead of

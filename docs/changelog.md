@@ -9,27 +9,34 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
-- With a proxy list each worker holds **one proxy at a time** by default, not a fair share of the free ones: it sends
-  every request through it and, when it is blocked or broken, releases it and claims another free one at once. A
-  run that relied on several proxies per worker (few workers, many proxies) uses only as many proxies as it has
-  workers now; give it more workers (below), or set the new HTTP-policy key `proxies_per_worker` (per host or at the
-  root; also `HTTPFetcher`'s and `ProxyPool`'s parameter): a whole number `N` (up to N per worker, claimed one by
-  one) or `share` (the fair share with rebalancing as before, except that a worker claims at most 2 when it looks
-  for proxies and grows to its share only by rebalancing, so the first workers no longer take the proxies of those
-  still starting). Hosts that use one proxy list must set the same value.
-- The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies follows the
-  proxies: one worker per available proxy (those in the file, less those blocked or broken in the broker for the
-  run's hosts and those held by another run's live workers), at most one per task, divided by `proxies_per_worker`
-  (`ceil(available / N)`; `share` keeps one worker), and no longer capped by the CPUs. A harvest with 250 proxies and
-  no `--workers` now runs 250 worker processes; give `--workers` to run fewer. The run states the count and why
-  (`250 proxies available → 250 workers, 1 proxy each`). A host with rate limits and no proxy list keeps one worker.
+- How many proxies of a list a worker holds is the new HTTP-policy key `proxies_per_worker` (per host or at the root;
+  also `HTTPFetcher`'s and `ProxyPool`'s parameter): `share` (the default) a fair share of the free ones, rebalanced
+  as before, except that a worker claims at most 2 when it looks for proxies and grows to its share only by
+  rebalancing, so the first workers no longer take the proxies of those still starting; `1` one proxy per worker, which
+  sends every request through it and, when it is blocked or broken, releases it and claims another free one at once
+  (useful with output on local disk or few proxies, with a worker per proxy); or a whole number `N`, up to N per
+  worker, claimed one by one. Hosts that use one proxy list must set the same value. The default was `1` on main for a
+  few hours and is `share` again: with one proxy per worker, using 250 proxies took 250 workers, and 250 workers
+  writing to object storage hung in their listings of `OUT/images` (below); a run that wants one proxy per worker
+  sets `proxies_per_worker: 1`.
+- The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies, on a local
+  or Ray run, follows the proxies available (those in the file, less those blocked or broken in the broker for the
+  run's hosts and those held by another run's live workers), at most one per task: sharing them fairly (`share`, the
+  default) one worker per available proxy and at most one per CPU, where such a run kept one worker; with
+  `proxies_per_worker` 1 or N one per available proxy divided by N (`ceil(available / N)`), not capped by the CPUs.
+  With OUT on object storage (any fsspec protocol but a local one: `s3://`, `gs://`, `hf://`, `az://`, ...) the count
+  stops at 64 (`linecaster.runtime.run.OBJECT_STORAGE_WORKERS`) in both modes: in one setup 250 workers writing to
+  S3-compatible object storage hung where 64 ran cleanly. Give `--workers` for another count. The run states the
+  count and why (`250 proxies available, OUT on object storage → 64 workers, a fair share each`). A host with rate
+  limits and no proxy list keeps one worker; HF Jobs keep their rule (a worker is a Job).
 - `linecaster.runtime.local.LocalExecutor`'s `note` may be a list of lines; `linecaster.runtime.run.rate_note`
   counts the proxies in use (`1 of 2 proxies in use (1 proxy per worker)`) when the workers hold fewer than the list.
-- A worker process no longer claims the lowest free worker slot of its machine: it starts at its executor's worker
-  index (`linecaster.broker.set_worker_index`, set by `LocalExecutor`, `RayExecutor` and `JobsExecutor`), else at a
-  random slot, takes a handed-over slot first and probes upward from there, so slot numbers no longer say in which
-  order the processes came. Code that starts brokers itself and expects `<machine>-0` first passes
-  `Broker(..., worker_index=(0, 1))`.
+- A worker process no longer claims the lowest free worker slot of its machine: it takes a handed-over slot first,
+  then the k-th free slot (one without a valid slot lease claimed more than a minute before, so a stopped run's
+  slots are passed over and its peers' are not), k its executor's worker index
+  (`linecaster.broker.set_worker_index`, set by `LocalExecutor`, `RayExecutor` and `JobsExecutor`; else random), and
+  probes upward from there, so slot numbers no longer say in which order the processes came. Code that starts brokers
+  itself and expects `<machine>-0` first passes `Broker(..., worker_index=(0, 1))`.
 - A broker's renew logs a lost claim race (two claims at once both believed they won) at INFO, `worker X lost a claim
   race for proxies/<id> to Y; it takes another`; the WARNING `... lease on proxies/<id> expired (no renew within the
   lease time); it gives it up` is only for a lease that really expired (its file gone or older than the lease time),
@@ -99,8 +106,9 @@ the tags; the first is `v0.1.0`.
 ### Added
 
 - Worker slots are claimed fast: processes started together (a local run's pool, Ray tasks, a multi-GPU Job's
-  tasks) start their search at different slots (`linecaster.broker.set_worker_index`), so they register in about one
-  claim each instead of racing for slot 0, then slot 1, ...; a run's first minutes no longer see early workers
+  tasks) each take a different free slot (the k-th, k their `linecaster.broker.set_worker_index`), so they register
+  in one claim each instead of racing for slot 0, then slot 1, ..., also when relaunched while a stopped run's slot
+  leases are still valid; a run's first minutes no longer see early workers
   computing their share against the few registered so far. `linecaster.broker.survey_kind` lists who holds the
   resources of a kind (with their runs) and their live marks, from one listing.
 - An extra `s3fs` for `s3://` paths in the `linecaster` command and code run in the project's environment (`uv sync --extra s3fs`, or `--all-extras`); the pipeline scripts bring their own. `linecaster broker` names a missing filesystem package in one line instead of a traceback.
@@ -271,6 +279,13 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- A resumed harvest's listing of an item's folder in `OUT/images` (the images already written, to reuse) could hang
+  forever on object storage, and with it the worker: with 250 workers writing to S3-compatible storage only 28 got
+  to fetch. The readers now wait at most `linecaster.blocks.readers.existing.LISTING_TIMEOUT` (60 s) for it (fsspec
+  is given the timeout too, so it cancels the listing on its IO loop); one that times out or fails is a WARNING
+  (`listing <folder> for files to reuse took over 60 s; its pages are fetched again`) and a stat
+  (`reuse_listing_timeouts`, `reuse_listing_errors`), and the item's pages are fetched again (their files are
+  overwritten, which is safe).
 - A page could fail with HTTP 520 during an outage the breaker had seen: when the request's last server error opened
   the breaker and another request's probe was answered (closing it) before that error got back to the fetch, the fetch
   found the breaker closed and gave up. It now tries again whenever the breaker opened during its attempts

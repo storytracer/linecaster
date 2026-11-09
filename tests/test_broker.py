@@ -175,10 +175,10 @@ class Counting(Broker):
         super()._write(path, record)
 
 
-def start_together(tmp_path, n: int, index) -> list[Counting]:
+def start_together(tmp_path, n: int, index, **kwargs) -> list[Counting]:
     """``n`` brokers of one machine that ask for their worker at once (threads past a barrier); ``index(i)`` is the
-    worker index of the i-th."""
-    brokers_ = [Counting(str(tmp_path), machine="m", worker_index=index(i)) for i in range(n)]
+    worker index of the i-th; ``kwargs`` go to each broker."""
+    brokers_ = [Counting(str(tmp_path), machine="m", worker_index=index(i), **kwargs) for i in range(n)]
     barrier = threading.Barrier(n, timeout=30)
 
     def start(b):
@@ -203,6 +203,29 @@ def test_brokers_started_together_claim_distinct_slots_in_one_attempt_each(tmp_p
     racing = start_together(tmp_path / "all-at-0", n, lambda i: (0, 1))        # every one starting at slot 0
     assert sorted(b.worker for b in racing) == sorted(f"m-{i}" for i in range(n))
     assert sum(b.slot_claims for b in racing) > n                               # claims raced for the same slots
+
+
+def test_a_quick_relaunch_takes_the_free_slots_past_a_stopped_runs_leases(tmp_path):
+    """A run of 100 workers, started an hour ago, stopped a minute ago (its slot leases are still valid, nobody handed
+    over): 64 processes of the relaunch, worker indexes 0-63, each take the k-th free slot, 64 distinct slots at one
+    claim each, instead of starting inside the taken range and racing upward for the same slots."""
+    hour_ago = lambda: time.time() - 3600                                          # noqa: E731
+    for _ in range(100):                                                           # the stopped run: slots 0-99
+        assert Broker(str(tmp_path), machine="m", worker_index=(0, 1), clock=hour_ago).worker
+    age(tmp_path, 120)                                                             # its last renew 2 min ago
+    n = 64
+    started = start_together(tmp_path, n, lambda i: (i, n))
+    assert sorted(b.worker for b in started) == sorted(f"m-{100 + i}" for i in range(n))
+    assert [b.slot_claims for b in started] == [1] * n
+
+
+def test_processes_that_start_one_after_the_other_take_their_own_slots(tmp_path):
+    """A pool whose processes look for a slot one after the other (each sees the slots of those before it): each still
+    takes the slot of its worker index, its peers' fresh leases count as free, so nobody races."""
+    n = 8
+    started = [Counting(str(tmp_path), machine="m", worker_index=(i, n)) for i in (3, 0, 5, 1, 7, 2, 6, 4)]
+    assert [b.worker for b in started] == [f"m-{i}" for i in (3, 0, 5, 1, 7, 2, 6, 4)]
+    assert [b.slot_claims for b in started] == [1] * n
 
 
 def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, monkeypatch):

@@ -31,10 +31,12 @@ to processes would change hands with every task. At its first use a process clai
 process on the same machine that claims the same slot once it is free is the same worker again, and holds (and renews)
 that worker's leases, which are named after the worker. A process that ends hands its slot over (``hand_over``) and
 leaves its other leases to the slot's next process; leases nobody renews expire after ``LEASE_TTL``. The search for a
-slot starts at one of the process's own, so processes started together do not race for the same slots: the
-executor's worker index (``set_worker_index``; linecaster's executors set it), else a random one. It takes a
-handed-over slot first (a live heartbeat, no slot lease: its leases wait for a successor), then probes upward from its
-start, wrapping.
+slot starts at a place of the process's own, so processes started together do not race for the same slots: the
+executor's worker index k (``set_worker_index``; linecaster's executors set it), else a random one. It takes a
+handed-over slot first (a live heartbeat, no slot lease: its leases wait for a successor), then the k-th free slot
+(free: no valid slot lease claimed more than ``SLOT_PEERS_SECONDS`` ago, so the slots its peers claim meanwhile still
+count), so a relaunch while a stopped run's slot leases are still valid does not race through them, then probes
+upward, past every valid lease.
 
 The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``survey_kind`` which resources of a
 kind are held by whom and marked, ``clean`` removes what has expired (or, after a hard kill, every lease), ``purge``
@@ -68,6 +70,9 @@ LEASE_TTL = 180.0
 RENEW_SECONDS = 60.0
 #: the kind of the worker slots
 SLOTS = "slots"
+#: slot leases claimed within this many seconds before a process looks for a slot are its peers' (processes started
+#: with it); older valid ones belong to a run before it (one stopped moments ago), whose slots its search skips
+SLOT_PEERS_SECONDS = 60.0
 #: the scope of a mark that holds in every scope
 EVERY_SCOPE = "*"
 _STAMP = len("20261109T101500123Z")
@@ -269,14 +274,20 @@ class Broker:
     def _claim_slot(self) -> None:
         """Claims a free slot of this machine, from one listing of its slots and one of the heartbeats: a handed-over
         slot first (its worker's heartbeat is live and no process holds the slot, so its leases wait for a successor),
-        then the slots from this process's start (``_slot_order``) upward, wrapping. Processes started together start
-        at different slots, so their claims do not race."""
-        taken, orphans = set(), []
+        then the k-th free slot, k this process's start (``_slot_order``), and upward from there, skipping every slot
+        with a valid lease. Free counts the slots not held since before this launch (no valid lease claimed more than
+        ``SLOT_PEERS_SECONDS`` ago): the slots of a run stopped moments ago are skipped in the count, those its peers
+        claimed meanwhile are not, so processes started together, all at once or one after the other, take different
+        slots and their claims do not race."""
+        taken, earlier, orphans = set(), set(), []
+        launch = _stamp(self.clock() - SLOT_PEERS_SECONDS)
         for path, info in self._list(f"{SLOTS}/{self.machine}").items():
             e = parse_path(path)
             n = e.rid.rpartition("/")[2]
             if e.category == "lease" and n.isdigit() and self._age(info) < self.lease_ttl:
                 taken.add(int(n))
+                if e.lease is not None and e.lease[0] < launch:     # held since before this launch
+                    earlier.add(int(n))
         prefix = f"{self.machine}-"
         for path, info in self._list("workers").items():
             e = parse_path(path)
@@ -284,7 +295,7 @@ class Broker:
             if n.isdigit() and int(n) not in taken and self._age(info) < self.lease_ttl:
                 orphans.append(int(n))
         tried = set()
-        for n in self._slot_order(taken, sorted(orphans)):
+        for n in self._slot_order(earlier, sorted(orphans)):
             if n in taken or n in tried:
                 continue
             tried.add(n)
@@ -296,24 +307,26 @@ class Broker:
                              worker=self._worker, tries=len(tried))
                 return
 
-    def _slot_order(self, taken: set[int], orphans: list[int]):
+    def _slot_order(self, held: set[int], orphans: list[int]):
         """The slots to try, in order: the handed-over ones (``orphans``) from this process's place among them, then
-        from its start up to the slots likely in use, wrapping, then upward. The start is its worker index
-        (``set_worker_index``), else random among the slots likely in use (the taken ones and one more, at least one
-        per CPU)."""
+        the free slots (those not in ``held``) from the k-th on, k this process's start, up to those its peers likely
+        take, then the free ones below the k-th, then upward without end. Processes started together take distinct
+        slots at the first claim, also where the leases of a run stopped moments ago are still valid. The start is its
+        worker index (``set_worker_index``), else random among one free slot per CPU."""
         index = self._worker_index or _WORKER_INDEX[0]
         if index is None:
-            size = max(len(taken) + 1, os.cpu_count() or 1)
+            size = max(1, os.cpu_count() or 1)
             start = random.randrange(size)
         else:
             start, workers = index
-            size = max(len(taken) + 1, workers, start + 1)
+            size = max(workers, start + 1)
         if orphans:
             k = start % len(orphans)
             yield from orphans[k:] + orphans[:k]
-        yield from range(start, size)
-        yield from range(0, start)
-        yield from itertools.count(size)
+        free = list(itertools.islice((n for n in itertools.count() if n not in held), size))
+        yield from free[start:]
+        yield from free[:start]
+        yield from itertools.count(free[-1] + 1)
 
     def heartbeat(self) -> None:
         """Writes this worker's heartbeat (``workers/<worker>.json``: machine, slot, run, started, renewed)."""

@@ -28,9 +28,11 @@ items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the o
 image through the pipeline in this process (``linecaster page``).
 ``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
 engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input); its
-workers are one per available proxy with a proxy list (the proxies not blocked and not held by another run's workers,
-divided by a host's ``proxies_per_worker``), one when a host has rate limits without proxies (one task keeps them
-busy), and one per CPU otherwise; a pipeline with engines one task, and as many workers as tasks. ``--rate-limit``
+workers, with a proxy list, follow the available proxies (those not blocked and not held by another run's workers):
+one per available proxy and at most one per CPU when the workers share them fairly (``proxies_per_worker: share``,
+the default), one per available proxy divided by N with ``proxies_per_worker`` 1 or N, at most
+``OBJECT_STORAGE_WORKERS`` with OUT on object storage; one when a host has rate limits without proxies (one task keeps
+them busy), and one per CPU otherwise; a pipeline with engines one task, and as many workers as tasks. ``--rate-limit``
 holds per worker: a server sees the workers running at once times it, which the run states before it starts
 (``rate_note``, with why it has the workers it has, ``workers_note``); with ``--proxies`` it holds per proxy, each
 proxy used by one worker at a time (the workers share them through ``--broker``, ``linecaster.broker``).
@@ -52,6 +54,10 @@ from ..errors import CatalogError, LinecasterError, PipelineConfigError, exit_co
 ON = ("local", "ray", "hf-jobs")
 RUN_RECORD = "run.yaml"
 ENGINE_PORT = 8100
+#: the most workers a run through proxies gets by default with OUT on object storage (``allocate``): 250 workers
+#: writing to S3-compatible object storage hung in their listings of OUT/images where 64 ran cleanly, an observation
+#: from one setup, not a guarantee; ``--workers`` overrides
+OBJECT_STORAGE_WORKERS = 64
 #: Ray's own `uv run` support does not handle scripts (workers come up without the script's packages)
 RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
 
@@ -170,9 +176,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "tasks of about 1,000 pages (or 5 items) from its input (harvest.py: one item each), one "
                         "otherwise")
     g.add_argument("--workers", type=int, default=None,
-                   help="tasks at once; default: a pipeline without engines one per available proxy with "
-                        "--proxies (divided by proxies_per_worker), one with --rate-limit without proxies, one per "
-                        "CPU otherwise; all tasks with engines")
+                   help="tasks at once; default: a pipeline without engines with --proxies one per available "
+                        "proxy, at most one per CPU (proxies_per_worker: share, the default) or divided by "
+                        f"proxies_per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
+                        "one with --rate-limit without proxies, one per CPU otherwise; all tasks with engines")
     g.add_argument("--backend", choices=["in-process", "served"], default=None,
                    help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
@@ -301,9 +308,9 @@ def rate_note(a: argparse.Namespace) -> str | None:
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
     if count := getattr(a, "proxy_count", None):     # one worker per proxy at a time: the limits hold per proxy
-        from ..net.proxies import describe_per_worker
+        from ..net.proxies import DEFAULT_PER_WORKER, describe_per_worker
 
-        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", 1)
+        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", DEFAULT_PER_WORKER)
         workers = min(a.workers or a.tasks or 1, a.tasks or 1) if a.workers or a.tasks else None
         used = min(count, workers * per_worker) if workers and isinstance(per_worker, int) else count
         proxies = f"{count:,} prox{'ies' if count != 1 else 'y'}"
@@ -365,10 +372,13 @@ def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
         entries = [(None, policy.settings(None)), *((h, policy.settings(h)) for h in policy.hosts)]
     else:
         entries = [(None, base)]
+    from ..net.proxies import DEFAULT_PER_WORKER
+
     direct, lists = False, {}
     for host, s in entries:
         if s.get("proxy_file"):
-            g = lists.setdefault(s["proxy_file"], {"hosts": set(), "per_worker": s.get("proxies_per_worker", 1),
+            g = lists.setdefault(s["proxy_file"], {"hosts": set(),
+                                                   "per_worker": s.get("proxies_per_worker", DEFAULT_PER_WORKER),
                                                    "broker": s.get("broker") or s.get("default_broker"),
                                                    "run": s.get("broker_run")})
             g["hosts"].add(host)
@@ -409,43 +419,70 @@ def available_proxies(path: str, hosts: set, broker: str | None, run: str | None
     return {"proxies": len(ids), "blocked": blocked, "held": held, "available": len(ids) - blocked - held}
 
 
-def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int | None, str]:
-    """The workers the proxy lists allow (None: a list shared fairly, which keeps the rule without proxies) and why:
-    the fewest over the lists of ``ceil(available / proxies_per_worker)``, at least one."""
+def on_object_storage(path: str | None) -> bool:
+    """Whether ``path`` is on object storage: any fsspec protocol but a local one (``s3://``, ``gs://``, ``hf://``,
+    ``az://``, ...; not a plain path, ``file://``, ``local://`` or ``memory://``).
+
+    Args:
+        path: a folder, any fsspec path; None counts as local.
+    """
+    from fsspec.core import split_protocol
+
+    protocol = split_protocol(str(path or ""))[0]
+    return protocol not in (None, "file", "local", "memory")
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n:,} {word}{'s' if n != 1 else ''}"
+
+
+def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int, str]:
+    """The workers the proxy lists allow and why. Per list: one per available proxy divided by its
+    ``proxies_per_worker`` (``ceil(available / N)``), or, sharing them fairly (``share``), the available proxies and
+    at most one per CPU; the fewest over the lists, at least one. Then at most one per task and, with OUT on object
+    storage (``on_object_storage``), at most ``OBJECT_STORAGE_WORKERS``. The reason names the limits that decided."""
     import math
 
     from ..net.proxies import SHARE, describe_per_worker
 
-    best, why = None, ""
+    best, why, each, shared = None, "", "", False
     for path, g in lists.items():
-        if g["per_worker"] == SHARE:
-            return None, ""
         counts = available_proxies(path, g["hosts"], g["broker"], g["run"])
-        n = max(1, math.ceil(counts["available"] / g["per_worker"]))
+        available = counts["available"]
+        left = [f"{counts[k]:,} {what}" for k, what in (("blocked", "blocked or broken"),
+                                                         ("held", "held by other runs")) if counts[k]]
+        reason = (f"{available:,} prox{'ies' if available != 1 else 'y'} available"
+                  + (f" ({counts['proxies']:,} in the list, {', '.join(left)})" if left else ""))
+        share = g["per_worker"] == SHARE
+        n = max(1, available if share else math.ceil(available / g["per_worker"]))
         if best is None or n < best:
-            left = [f"{counts[k]:,} {what}" for k, what in (("blocked", "blocked or broken"),
-                                                             ("held", "held by other runs")) if counts[k]]
-            source = f" ({counts['proxies']:,} in the list, {', '.join(left)})" if left else ""
-            each = "1 proxy each" if g["per_worker"] == 1 else describe_per_worker(g["per_worker"]).replace(
-                "per worker", "each")
-            best, why = n, (f"{counts['available']:,} prox{'ies' if counts['available'] != 1 else 'y'} available"
-                            f"{source}", each)
-    workers = min(best, a.tasks)
-    tasks = f", {a.tasks:,} task{'s' if a.tasks != 1 else ''}" if a.tasks < best else ""
-    return workers, f"{why[0]}{tasks} → {workers:,} worker{'s' if workers != 1 else ''}, {why[1]}"
+            best, why, shared = n, reason, share
+            each = ("a fair share each" if share else "1 proxy each" if g["per_worker"] == 1
+                    else describe_per_worker(g["per_worker"]).replace("per worker", "each"))
+    caps = [(a.tasks, _plural(a.tasks, "task"))]
+    if shared:                                          # a fair share needs no worker per proxy: one per CPU at most
+        cpus = os.cpu_count() or 1
+        caps.append((cpus, _plural(cpus, "CPU")))
+    if on_object_storage(getattr(a, "out", None)):
+        caps.append((OBJECT_STORAGE_WORKERS, "OUT on object storage"))
+    workers = min(best, *(n for n, _ in caps))
+    why += "".join(f", {text}" for n, text in caps if n == workers and n < best)
+    return workers, f"{why} → {_plural(workers, 'worker')}, {each}"
 
 
 def allocate(a: argparse.Namespace, pipeline: list) -> None:
     """``--tasks`` and ``--workers`` where the command line leaves them open. A pipeline without engines: the task
     count its reader suggests (``auto_tasks``, from the input; one if it has none), and as workers: with a proxy list
-    for every host that has rate limits, one per available proxy (``available_proxies``: the proxies in the file
+    for every host that has rate limits, from the proxies available (``available_proxies``: the proxies in the file
     less those blocked or broken for the run's hosts and those held by another run's live workers, from one listing
-    of the broker at launch), divided by the hosts' ``proxies_per_worker`` (``ceil(available / N)``), at most one per
-    task and never capped by the CPUs (the workers mostly wait on the network), the reason in ``workers_note``; a
-    host with rate limits and no proxy list, or a list shared fairly (``proxies_per_worker: share``) with rate
-    limits, one worker (one task keeps them busy, ``linecaster.net.http.prefetched``); one per CPU otherwise. A
-    pipeline with engines: one task, every task at once. ``--page``: one of each. The proxy rule holds for local
-    and Ray runs only: on HF Jobs each worker is a Job, so its count is never derived from a proxy list."""
+    of the broker at launch): sharing them fairly (``proxies_per_worker: share``, the default) one per available
+    proxy and at most one per CPU; with ``proxies_per_worker`` 1 or N one per available proxy divided by N
+    (``ceil(available / N)``), never capped by the CPUs (the workers mostly wait on the network); either way at most
+    one per task and, with OUT on object storage, at most ``OBJECT_STORAGE_WORKERS``, the reason in
+    ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,
+    ``linecaster.net.http.prefetched``); one per CPU otherwise. A pipeline with engines: one task, every task at once.
+    ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
+    count is never derived from a proxy list."""
     if getattr(a, "page", None):
         a.tasks, a.workers = 1, 1
         return
@@ -458,10 +495,8 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
             return
         direct, lists = _proxy_plan(a)
         if lists and not direct and getattr(a, "on", "local") in ("local", "ray"):   # not a Job per proxy on HF Jobs
-            workers, why = _proxy_workers(a, lists)
-            if workers is not None:
-                a.workers, a.workers_note = workers, why
-                return
+            a.workers, a.workers_note = _proxy_workers(a, lists)
+            return
         if direct or getattr(a, "rate_limits", None) or _policy_rate_limited(a):
             a.workers = 1
         else:

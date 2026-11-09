@@ -14,8 +14,8 @@ slow request (one being retried) delays only itself.
 
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) the workers share the proxies through the
 broker (``broker``, any fsspec folder; ``linecaster.broker``, ``linecaster.net.proxies``): each proxy has one worker
-at a time, which holds its lease, and each worker holds one proxy (``proxies_per_worker``: 1, the default; up to N;
-or ``"share"``, a fair share of the free ones). The host's rate limits then hold per proxy, so per IP, as servers
+at a time, which holds its lease, and each worker holds a fair share of the free ones (``proxies_per_worker``:
+``"share"``, the default), one (``1``) or up to N. The host's rate limits then hold per proxy, so per IP, as servers
 count them: its owner spaces the requests through it to a host by the strictest limit (``HTTPFetcher.interval``), and
 each attempt goes through the owned proxy whose turn comes first. Each proxy has its
 own pybookget client (``create_client``: the deadline per attempt and the records below hold as without). What leaves
@@ -669,7 +669,7 @@ class HTTPFetcher:
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
                  broker: str | None = None, default_broker: str | None = None, broker_run: str | None = None,
-                 proxies_per_worker: int | str = 1, stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
+                 proxies_per_worker: int | str = "share", stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
                  pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
         _pybookget()
         from pybookget.config import Config

@@ -155,8 +155,10 @@ class ManifestReader(Contracted, BaseDiskReader):
             ``ITEMS_PER_TASK`` items per task.
         reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
             page whose file is already there is read from it instead of from the source
-            (``linecaster.blocks.readers.existing``); the manifest is still read. Not with ``existing_ocr`` (its OCR
-            files would need fetching anyway).
+            (``linecaster.blocks.readers.existing``); the manifest is still read. An item's listing that takes over
+            ``LISTING_TIMEOUT`` (60 s) or fails is a warning and a stat (``reuse_listing_timeouts``,
+            ``reuse_listing_errors``), and its pages are fetched again. Not with ``existing_ocr`` (its OCR files would
+            need fetching anyway).
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -353,7 +355,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         item_id, item, extra, page = entry
         base = item["url"]
         if self._existing is not None:
-            copy = self._existing.get(item_id, f"{item_id}_{page.index:04d}")
+            copy = self._existing.get(item_id, f"{item_id}_{page.index:04d}", self.stat_update)
             if copy is not None:                    # already written by an earlier launch: read, not fetched
                 from concurrent.futures import Future
 

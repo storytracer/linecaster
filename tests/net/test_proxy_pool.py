@@ -1,11 +1,11 @@
-"""Proxies shared through the broker (``linecaster.net.proxies.ProxyPool``). One proxy per worker (the default): each
-worker holds exactly one, never another's; a block swaps it for a free one at once and nobody takes the blocked one
-until its mark ends; all blocked pauses until a mark ends; a claim race lost is replaced, said at INFO. Up to N per
-worker: claimed one by one, never more. A fair share (``share``): two workers never use one proxy at once, so the rate
-limits per proxy hold across them; a block by one worker is seen by the other at once; a crashed worker's proxies come
-free after the lease time; no hoarding at the start, a worker that joins gets its share by rebalancing. Turns run on
-a fake clock; time passes for the broker's files by moving their modification times back, or by the broker's
-clock."""
+"""Proxies shared through the broker (``linecaster.net.proxies.ProxyPool``). One proxy per worker (``1``): each worker
+holds exactly one, never another's; a block swaps it for a free one at once and nobody takes the blocked one until
+its mark ends; all blocked pauses until a mark ends; a claim race lost is replaced, said at INFO. Up to N per worker:
+claimed one by one, never more. A fair share (``share``, the default): two workers never use one proxy at once, so
+the rate limits per proxy hold across them; a block by one worker is seen by the other at once; a crashed worker's
+proxies come free after the lease time; no hoarding at the start, a worker that joins gets its share by rebalancing.
+Turns run on a fake clock; time passes for the broker's files by moving their modification times back, or by the
+broker's clock."""
 import os
 import time
 from collections import defaultdict
@@ -158,7 +158,7 @@ def test_sharing_does_not_hoard_at_the_start_and_converges_by_rebalancing(tmp_pa
     assert len(owned(b)) == 4 and not owned(a) & owned(b)
 
 
-# ---------------------------------------------------------------- one proxy per worker (the default), up to N
+# ---------------------------------------------------------------- one proxy per worker, up to N
 
 
 def one(tmp_path, name: str, proxies=PROXIES, **kwargs) -> ProxyPool:

@@ -263,7 +263,9 @@ class ImageParquetReader(Contracted, ParquetReader):
             page whose file is already there is read from it instead of from the source
             (``linecaster.blocks.readers.existing``: one listing per item), so a resumed harvest does not fetch it
             again; its record is complete and says ``image.extra["reused"]``. A copy that cannot be read is fetched
-            from the source. Default: none.
+            from the source. An item's listing that takes over ``LISTING_TIMEOUT`` (60 s) or fails is a warning and a
+            stat (``reuse_listing_timeouts``, ``reuse_listing_errors``), and its pages are fetched again. Default:
+            none.
         task_per_item: the tasks divide the items (the ``item_key`` values, needs it; an item's rows need not be
             together), not the rows, and ``auto_tasks`` is one task per item: each item whole in its task, a task that
             fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
@@ -422,7 +424,8 @@ class ImageParquetReader(Contracted, ParquetReader):
     def _read_file(self, filepath: str, slices: list | None):
         def submit(entry):
             page_id, item = entry[0], entry[1]
-            copy = self._existing.get(None if item is None else str(item), page_id) if self._existing else None
+            copy = (self._existing.get(None if item is None else str(item), page_id, self.stat_update)
+                    if self._existing else None)
             if copy is not None:                    # already written by an earlier launch: read, not fetched
                 try:
                     data = self._opener.read(copy[0])

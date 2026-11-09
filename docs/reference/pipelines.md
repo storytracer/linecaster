@@ -287,17 +287,23 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
 | with engines | 1 | every task |
-| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`), local or Ray (`--on hf-jobs`: as below) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
+| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`), local or Ray (`--on hf-jobs`: as below) | the reader's `auto_tasks` (from the input), else 1 | sharing them fairly (`proxies_per_worker: share`, the default): one per available proxy, at most one per CPU; with `proxies_per_worker` 1 or N: one per available proxy divided by N (`ceil(available / N)`), not capped by the CPUs; either way at most the tasks and, with OUT on object storage, at most 64 (`OBJECT_STORAGE_WORKERS`) |
 | without engines, with `--rate-limit` (a host with rate limits and no proxies) | the reader's `auto_tasks`, else 1 | 1 |
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
 
 The available proxies are counted once at launch from one listing of the broker
 (`linecaster.runtime.run.available_proxies`): those in the file, less those with a live block or broken mark for the
 run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
-(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. The run
-states the count and why (`linecaster.runtime.run.workers_note`, e.g. `250 proxies available → 250 workers, 1 proxy
-each`). The workers mostly wait on the network, so their count is not capped by the CPUs; `--workers` gives fewer
-(each worker is a process with its own memory).
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. Sharing
+the proxies fairly, a few workers use them all, so their count stops at the CPUs; with one proxy per worker (or up to
+N) using them all takes a worker per proxy (per N), and the workers mostly wait on the network, so their count is not
+capped by the CPUs. With OUT on object storage (any fsspec protocol but a local one: `s3://`, `gs://`, `hf://`,
+`az://`, ...) the count stops at `linecaster.runtime.run.OBJECT_STORAGE_WORKERS` (64) in both modes: in one setup,
+250 workers writing to S3-compatible object storage hung in their listings of `OUT/images` and fetched less than 64
+did, which ran cleanly; an observation from that setup, not a guarantee for others. The run states the count and why
+(`linecaster.runtime.run.workers_note`, e.g. `250 proxies available, OUT on object storage → 64 workers, a fair
+share each`, or `250 proxies available → 250 workers, 1 proxy each`). `--workers` overrides it (each worker is a
+process with its own memory).
 
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
@@ -306,7 +312,9 @@ item's rows wherever they are in the table (`tables.item_runs`), so every item i
 fails costs one item. Its reader also gets `reuse_folder` (`OUT/images`): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
 fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items are read back, so
-egress stays small. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
+egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
+it then on its IO loop): one that times out or fails is a warning and a stat (`reuse_listing_timeouts`,
+`reuse_listing_errors`), and the item's pages are fetched again, their files overwritten. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
 the rate. On a restart the console's size starts with the finished tasks' `media_size` from datatrove's stats files
 (`linecaster.runtime.local.size_before`, read in the background). Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
@@ -325,11 +333,13 @@ limits hold per proxy instead (below), and the run states that (`rate limits per
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies, shared by the workers through the
 [broker](broker.md) (`--broker PATH`, any fsspec folder, default `OUT/logs/broker`; runs pointed at one path share
 the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
-holds one proxy (`linecaster.net.proxies.ProxyPool`): it claims a free one usable for the host and, when that one is
-blocked or broken, releases it and claims another at once. An HTTP policy's `proxies_per_worker` (per host or at the
-root; hosts that share a list share the setting) gives a worker up to N, claimed one by one, or `share`: a fair share
-of the proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by
-rebalancing, which also gives back what is beyond it when another worker joins. The host's rate limits hold per
+holds a fair share of them (`linecaster.net.proxies.ProxyPool`, `proxies_per_worker: share`, the default): of the
+proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by rebalancing,
+which also gives back what is beyond it when another worker joins. An HTTP policy's `proxies_per_worker` (per host or
+at the root; hosts that share a list share the setting) gives a worker one proxy instead (`1`: it claims a free one
+usable for the host and, when that one is blocked or broken, releases it and claims another at once), or up to N,
+claimed one by one; with output on local disk or a short list, one per worker and a worker per proxy is the simplest
+way to use them all. The host's rate limits hold per
 proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
 limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
 its own. A block (a 429, until its `Retry-After`, else for the host's `blacklist_ttl`, an hour by default; a status in
@@ -383,12 +393,12 @@ gives the run's requests their settings from one YAML file (`linecaster.net.poli
 under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
 the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
 (`max_retries`), the broker (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
-how many proxies a worker holds (`proxies_per_worker`: 1, N or `share`),
+how many proxies a worker holds (`proxies_per_worker`: `share`, the default, 1 or N),
 `pause_on` statuses that pause the worker's requests until `Retry-After` has passed (default `[429]`) with
 `max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
 default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and
 `--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
-rate-limited host it gets one per available proxy (above).
+rate-limited host its workers follow the available proxies (above).
 
 ## The console
 

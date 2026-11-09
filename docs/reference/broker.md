@@ -66,7 +66,7 @@ renew within the lease time)`.
 modification time. It is written once and never changed; whoever sees it expired deletes it. A reader reads a mark's
 file once (it never changes) and keeps its end.
 
-**Fair share.** Sharing them fairly (proxies with `proxies_per_worker: share`), a worker holds `ceil(free / live
+**Fair share.** Sharing them fairly (proxies with `proxies_per_worker: share`, the default), a worker holds `ceil(free / live
 workers)` resources of a kind (at least one if any is free), where the live workers are the valid heartbeats. Proxies
 count as free for a host when no mark blocks them there.
 
@@ -76,9 +76,13 @@ few seconds. At its first use a process claims a free slot of its machine (`slot
 process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
 do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
 rank in a local run's pool, the rank modulo the tasks at once on Ray, the task's GPU in a multi-GPU Job), else a random
-slot. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
-heartbeat whose slot no process holds: its leases wait for a successor), then the free slots from its start upward,
-wrapping. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
+place. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
+heartbeat whose slot no process holds: its leases wait for a successor), then, with worker index k, the k-th free
+slot, then the free slots upward from there, past every valid lease. Free counts the slots not held since before this
+launch: those without a valid slot lease claimed more than a minute ago (`SLOT_PEERS_SECONDS`; a lease keeps its claim
+time across renews). The slots of a run stopped moments ago, whose leases are still valid, are left out of the count,
+so a relaunch takes the slots past them at one claim per process instead of racing upward through them; the slots its
+peers claimed meanwhile are not, so a pool whose processes look one after the other still takes slots 0 to n−1. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
 machine claims that slot (handed-over slots come first), is the same worker, finds the worker's leases (named after
 it) and renews them. On Ray each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
@@ -90,20 +94,23 @@ process takes over.
 A worker's proxy pool (`linecaster.net.proxies.ProxyPool`, used by `linecaster.net.http.HTTPFetcher` when a proxy
 list is set) works on the broker:
 
-- **One proxy per worker** (the default; a host's `proxies_per_worker: 1`). The worker claims one free proxy usable
-  for the host it fetches, in an order of its own (so workers claiming at once try different proxies first), and
-  sends every request through it. When the proxy is blocked or broken (below), the worker marks it, releases it and
-  claims another free usable one at once. No fair share and no rebalancing: the host's rate limits per proxy are the
-  worker's own. With several hosts, a worker whose proxy is blocked at one of them keeps it for the others and swaps
-  it for a free proxy usable at every host it uses, if there is one.
-- **Up to N per worker** (`proxies_per_worker: N`). The same, the proxies claimed one by one: one when the worker
-  holds none usable, then one more at each check of its pool (every 10 s in use, `REBALANCE_SECONDS`, and after each
-  renew), up to N and never more (more inherited from its slot's earlier process are given back).
-- **A fair share per worker** (`proxies_per_worker: share`). The worker claims at most 2 when it looks for proxies
-  (`FIRST_FILL`) and grows toward its fair share of the proxies not blocked for its hosts at each check of its pool
-  (at most doubling each time), where it also gives back the ones beyond its share, those blocked for its hosts
-  first. A worker that joins gets its part within seconds, one that leaves frees its part within the lease time, and
-  the first workers of a launch do not take the proxies of those still starting.
+- **A fair share per worker** (the default; a host's `proxies_per_worker: share`). The worker claims at most 2 when
+  it looks for proxies (`FIRST_FILL`) and grows toward its fair share of the proxies not blocked for its hosts at
+  each check of its pool (every 10 s in use, `REBALANCE_SECONDS`, and after each renew; at most doubling each time),
+  where it also gives back the ones beyond its share, those blocked for its hosts first. A worker that joins gets its
+  part within seconds, one that leaves frees its part within the lease time, and the first workers of a launch do not
+  take the proxies of those still starting. A few workers then use every proxy, which suits a run whose limit is not
+  the proxies, such as one writing to object storage.
+- **One proxy per worker** (`proxies_per_worker: 1`). The worker claims one free proxy usable for the host it
+  fetches, in an order of its own (so workers claiming at once try different proxies first), and sends every request
+  through it. When the proxy is blocked or broken (below), the worker marks it, releases it and claims another free
+  usable one at once. No fair share and no rebalancing: the host's rate limits per proxy are the worker's own. With
+  several hosts, a worker whose proxy is blocked at one of them keeps it for the others and swaps it for a free proxy
+  usable at every host it uses, if there is one. Using every proxy takes as many workers as proxies, which suits
+  output on local disk or a short proxy list.
+- **Up to N per worker** (`proxies_per_worker: N`). As with one, the proxies claimed one by one: one when the worker
+  holds none usable, then one more at each check of its pool, up to N and never more (more inherited from its slot's
+  earlier process are given back).
 - **Rate limits per proxy.** With a proxy list the host's rate limits hold per proxy (per IP). The owner spaces the
   requests through a proxy to a host by the strictest limit and sends each request through the owned proxy whose turn
   comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker.
@@ -122,10 +129,11 @@ list is set) works on the broker:
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
-(`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
-with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
-`linecaster.broker.survey_kind`), divided by `proxies_per_worker`; on local and Ray runs only (on HF Jobs each worker is a Job,
-so a proxy list never sets their number).
+(`linecaster.runtime.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
+a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
+`linecaster.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
+with `proxies_per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](pipelines.md#tasks-workers-and-rate-limits));
+on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).
 
 ## The command
 
