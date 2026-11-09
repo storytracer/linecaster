@@ -221,8 +221,8 @@ def test_the_rate_limits_hold_across_tasks_that_run_one_after_the_other(slow_ser
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3", "p4"]),
                                 item_key="book", sequence_key="page", http={**FAST, "rate_limits": [(2, 1)]})
     t = time.perf_counter()
-    first = [page_of(d).page_id for d in reader.run(rank=0, world_size=2)]
-    second = [page_of(d).page_id for d in reader.run(rank=1, world_size=2)]
+    first = sorted(page_of(d).page_id for d in reader.run(rank=0, world_size=2))     # in the order they arrive
+    second = sorted(page_of(d).page_id for d in reader.run(rank=1, world_size=2))
     assert (first, second) == (["b_0001", "b_0002"], ["b_0003", "b_0004"])
     assert time.perf_counter() - t >= 0.9
 
@@ -231,7 +231,7 @@ def test_an_image_that_cannot_be_read_is_that_pages_error_and_the_task_goes_on(s
     names = ["p1", "missing", "p3", "html", "p5"]
     reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], names), item_key="book",
                                 sequence_key="page", http=FAST)
-    docs = list(reader.run())
+    docs = sorted(reader.run(), key=lambda d: page_of(d).page_id)      # in the order they arrive
     assert [page_of(d).page_id for d in docs] == [f"b_{i:04d}" for i in range(1, 6)]
     assert [failed(d) for d in docs] == [False, True, False, True, False]
     assert [bool(d.media) for d in docs] == [True, False, True, False, True]

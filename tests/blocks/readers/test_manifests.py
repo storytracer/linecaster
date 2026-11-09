@@ -325,7 +325,7 @@ def test_a_iiif_collection_is_read_as_its_manifests(server, tmp_path):
     (tmp_path / "m.txt").write_text(top)
     reader = ManifestReader(paths_file=str(tmp_path / "m.txt"), http={**FAST, "iiif_format": "png"},
                             manifest_folder=str(tmp_path / "manifests"))
-    got = pages(reader)
+    got = sorted(pages(reader), key=lambda p: p.page_id)                  # in the order they arrive
     assert [(p.item_id, p.page_id) for p in got] == [("a1", "a1_0001"), ("b2", "b2_0001"), ("b2", "b2_0002")]
     assert got[1].metadata["manifest"]["url"] == b and reader.stats["collections"].total == 1
     assert sorted(f.name for f in (tmp_path / "manifests").iterdir()) == ["a1.json", "b2.json"]
@@ -361,8 +361,8 @@ def test_item_tables_name_items_and_carry_their_columns(server, tmp_path):
     pq.write_table(pa.table({"item_id": ["book/1", "book 2", "book-3"], "manifest_url": [*urls, None],
                              "title": ["Flora", "Fauna", "None"], "year": [1840, 1841, 1842]}),
                    tmp_path / "items" / "part-0.parquet")
-    got = pages(ManifestReader(str(tmp_path / "items"), manifest_key="manifest_url", item_key="item_id",
-                               http={**FAST, "iiif_format": "png"}))
+    got = sorted(pages(ManifestReader(str(tmp_path / "items"), manifest_key="manifest_url", item_key="item_id",
+                                      http={**FAST, "iiif_format": "png"})), key=lambda p: p.page_id)
     assert [(p.item_id, p.page_id) for p in got] == [("book_1", "book_1_0001"), ("book_2", "book_2_0001")]
     assert (got[0].metadata["title"], got[0].metadata["year"]) == ("Flora", 1840)
     assert [p.metadata["manifest"]["format"] for p in got] == ["iiif", "mets"]
@@ -382,7 +382,7 @@ def test_one_item_table_is_divided_over_tasks_by_rows_with_whole_items(server, t
                    row_group_size=2)
     reader = lambda: ManifestReader(str(tmp_path / "items"), manifest_key="manifest_url",  # noqa: E731
                                     item_key="item_id", http={**FAST, "iiif_format": "png"})
-    tasks = [[p.page_id for p in pages(reader(), r, 2)] for r in range(2)]
+    tasks = [sorted(p.page_id for p in pages(reader(), r, 2)) for r in range(2)]        # in the order they arrive
     assert tasks == [["i1_0001", "i1_0002", "i2_0001", "i2_0002"],
                      ["i3_0001", "i3_0002", "i4_0001", "i4_0002", "i5_0001", "i5_0002"]]
     assert reader().auto_tasks() == 1                                      # 5 items: ITEMS_PER_TASK
