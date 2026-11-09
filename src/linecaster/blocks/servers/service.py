@@ -19,6 +19,8 @@ from ..base.contract import Contracted
 
 #: variables of the pipeline's environment a service never inherits: it runs in its image's own environments
 PIPELINE_ENV = ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME", "UV_PROJECT_ENVIRONMENT")
+#: seconds between two looks at a health URL that has not answered 200 yet
+HEALTH_POLL = 2.0
 
 
 class ServiceServer(Contracted, PipelineStep):
@@ -168,7 +170,10 @@ class ServiceServer(Contracted, PipelineStep):
                     last = e
                 if time.monotonic() > deadline:
                     raise ServerError(f"service of {self.ref}: {url} not ready after {self.boot_timeout} s: {last}")
-                time.sleep(2)
+                try:
+                    proc.wait(timeout=HEALTH_POLL)   # returns at once when the service exits
+                except subprocess.TimeoutExpired:
+                    pass
         logger.info("service of {preset} ready", preset=self.ref)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
