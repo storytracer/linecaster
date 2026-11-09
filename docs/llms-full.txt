@@ -422,7 +422,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 
 | To | Run or write |
 |---|---|
-| test the core | `uv run pytest` (GPU and network tests skip where those are missing) |
+| test the core | `uv run pytest` (GPU and network tests skip where those are missing; `-n auto` on every core) |
 | test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
 | regenerate the docs | `uv run linecaster docs` (`--check` in CI) |
 | check released catalog editions | `uv run linecaster catalog verify` |
@@ -903,10 +903,12 @@ with a range of linecaster releases, and their tests in `engines/<engine>/tests/
 
 ## Tests
 
-`uv run pytest` runs the core's tests; tests marked `gpu` or `network` (`linecaster.testing.markers`: `gpu`,
-`network`, `slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
-(`.github/workflows/ci.yml`, CPU only, no secrets) runs `uv sync --locked --all-extras` (the extras' readers are
-tested and documented too), `uv run pytest -m "not gpu and not network and not parity"`, `linecaster docs
+`uv run pytest` runs the core's tests, one after the other; `uv run pytest -n auto` (pytest-xdist, in the `dev`
+group) runs them on every core. Tests marked `gpu` or `network` (`linecaster.testing.markers`: `gpu`, `network`,
+`slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
+(`.github/workflows/ci.yml`, CPU only, no secrets, uv's cache kept between runs) runs `uv sync --locked
+--all-extras` (the extras' readers are tested and documented too), `uv run pytest -n auto -m "not gpu and not
+network and not parity"`, `linecaster docs
 --check`, `linecaster catalog verify` and the site's strict build. The docs workflow (`.github/workflows/docs.yml`)
 publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,

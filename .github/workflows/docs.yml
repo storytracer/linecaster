@@ -20,14 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v6
+      # setup-uv publishes no major tags since v8: an exact release
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           # the project's [tool.uv] required-version
           version: "0.13.6"
           python-version: "3.12"
+          # uv's cache (the wheels it downloaded and built), kept until uv.lock changes
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       - run: git fetch origin gh-pages --depth=1 || true
       - run: |
           git config user.name "github-actions[bot]"

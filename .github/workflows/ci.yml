@@ -16,12 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      # setup-uv publishes no major tags since v8: an exact release
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           # the project's [tool.uv] required-version
           version: "0.13.6"
           python-version: "3.12"
+          # uv's cache (the wheels it downloaded and built), kept until uv.lock changes
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       # every extra: the readers and adapters they serve are tested and documented (pybookget, PDFium, Ray)
       - run: uv sync --locked --all-extras
       - run: uv run pytest -n auto -m "not gpu and not network and not parity"

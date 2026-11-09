@@ -420,7 +420,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 
 | To | Run or write |
 |---|---|
-| test the core | `uv run pytest` (GPU and network tests skip where those are missing) |
+| test the core | `uv run pytest` (GPU and network tests skip where those are missing; `-n auto` on every core) |
 | test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
 | regenerate the docs | `uv run linecaster docs` (`--check` in CI) |
 | check released catalog editions | `uv run linecaster catalog verify` |
