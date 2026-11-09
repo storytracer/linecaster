@@ -45,7 +45,7 @@ def proxy_server(served: list):
             self.wfile.write(body)
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     return httpd
 
 
@@ -175,7 +175,7 @@ def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_lo
 
     servers = [ThreadingHTTPServer(("127.0.0.1", 0), Handler) for _ in range(2)]
     for s in servers:
-        threading.Thread(target=s.serve_forever, daemon=True).start()
+        threading.Thread(target=s.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     try:
         (tmp_path / "proxies.txt").write_text("".join(f"127.0.0.1:{s.server_address[1]}\n" for s in servers))
         fetcher = HTTPFetcher.shared(**FAST, proxy_file=str(tmp_path / "proxies.txt"))
@@ -205,7 +205,7 @@ def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path, monkeypatch
             self.end_headers()
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     try:
         (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{httpd.server_address[1]}\n")
         reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
@@ -247,7 +247,7 @@ def test_no_proxy_usable_pauses_the_requests_until_its_block_ends(tmp_path):
             self.wfile.write(body)
 
     proxy = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    threading.Thread(target=proxy.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     lines = []
     sink = logger.add(lines.append, level="INFO")
     try:
@@ -305,7 +305,7 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
                 self.wfile.write(xml)
 
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         return httpd
 
     servers = [proxy_server(n) for n in range(4)]

@@ -65,7 +65,7 @@ def server():
             self.wfile.write(body)
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     yield {"base": f"http://127.0.0.1:{httpd.server_address[1]}", "seen": seen}
     httpd.shutdown()
 
@@ -286,7 +286,7 @@ def fake_proxy(body: bytes, ctype: str, status: int = 200):
             self.wfile.write(body)
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     return httpd, seen
 
 
@@ -500,7 +500,7 @@ def test_a_timeout_through_a_proxy_leaves_it_in_rotation(tmp_path):
             self.wfile.write(XML)
 
     proxy = ThreadingHTTPServer(("127.0.0.1", 0), Slow)
-    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    threading.Thread(target=proxy.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     try:
         (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{proxy.server_address[1]}\n")
         reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn",
