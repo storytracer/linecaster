@@ -72,7 +72,7 @@ public name of `linecaster.engines.api` and `linecaster.testing`:
 - Inline code in double or single backticks; the generated pages render both as code. Engine options are described
   in their `Options` model (`Field(description=...)`), not in a docstring.
 
-Reason: the generated block pages and tables come from the docstrings, so the reference is only as good as they
+Reason: the generated block pages come from the docstrings, so the reference is only as good as they
 are, and a test keeps them complete as signatures change.
 
 ## Contracts

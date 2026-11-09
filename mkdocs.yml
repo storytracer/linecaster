@@ -1,6 +1,6 @@
-# The docs site: uv run --group docs mkdocs build --strict (into site/). The pages are docs/: the hand-written
-# reference (docs/reference/) and what `linecaster docs` generates (index.md from the README, changelog.md,
-# blocks/, catalog/, llms.txt).
+# The docs site: uv run linecaster docs, then uv run --group docs mkdocs build --strict (into site/). The pages are
+# docs/: the hand-written reference (docs/reference/) and what `linecaster docs` generates, not in git (index.md from
+# the README, changelog.md, blocks/, catalog/, llms.txt).
 site_name: Linecaster
 site_description: Modular OCR pipelines you can run anywhere
 site_url: https://storytracer.github.io/linecaster/

@@ -112,9 +112,9 @@ group) runs them on every core. Tests marked `gpu` or `network` (`linecaster.tes
 `slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
 (`.github/workflows/ci.yml`, CPU only, no secrets, uv's cache kept between runs) runs `uv sync --locked
 --all-extras` (the extras' readers are tested and documented too), `uv run pytest -n auto -m "not gpu and not
-network and not parity"`, `linecaster docs
---check`, `linecaster catalog verify` and the site's strict build. The docs workflow (`.github/workflows/docs.yml`)
-publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
+network and not parity"`, `linecaster catalog verify`, `linecaster docs` and the site's strict build (the generated
+pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
+(`.github/workflows/docs.yml`) writes them too and publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
 with `latest` (the site's default) moved to it, and every push to `main` as version `dev`. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test

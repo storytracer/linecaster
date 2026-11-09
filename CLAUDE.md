@@ -118,10 +118,11 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Docs
 
-- **Generated files are written by `linecaster docs`, never by hand**: the catalog's and the blocks' pages, the
-  README's tables between their markers, `docs/index.md`, `docs/changelog.md` and `docs/llms*.txt`. Run it after
-  changing docstrings, blocks, the catalog, the README or the changelog; `linecaster docs --check` must pass
-  (`tests/test_docs.py`). The reference then cannot drift from the code.
+- **Generated docs are written by `linecaster docs` at build time, never by hand and never committed**: the
+  catalog's and the blocks' pages, `docs/index.md`, `docs/changelog.md` and `docs/llms*.txt` (git ignores them; CI
+  and the docs workflow run it before building the site). Run `linecaster docs` before `mkdocs serve` to preview.
+  Committed files outside `docs/` link to generated pages on the site (`latest`), never by relative path. The
+  reference then cannot drift from the code, and no commit carries a regenerated page.
 - **Reference docs (`docs/reference/`) describe what is, without history**; history belongs in `CHANGELOG.md` (with
   upgrade notes first) and NOTES.md. A reader needs the current state, and git keeps the rest.
 - **Breaking changes follow the [compatibility](docs/reference/compatibility.md) statement**: while the version is

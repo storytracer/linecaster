@@ -344,7 +344,7 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and their expanded pipelines, and evidence |
 | `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
-| `linecaster docs [--out docs] [--readme README.md] [--check]` | the generated docs (the catalog's pages among them) and the README's tables; `--check` writes nothing and fails naming each file that differs |
+| `linecaster docs [--out docs] [--readme README.md]` | writes the generated docs (the catalog's pages among them; not in git, written before the site is built) |
 
 The catalog's generated pages are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
 recipes}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
