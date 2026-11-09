@@ -5,31 +5,33 @@ the root, and overrides for single hosts under ``hosts:``, because one run can n
     rate_limits: ["60/60"]
     max_retries: 5
     proxies: proxies.txt
-    proxy_blocks: s3://bucket/proxy-blocks
+    broker: s3://bucket/broker
     hosts:
       tile.loc.gov: {rate_limits: ["150/60", "3/1"]}
       lccn.loc.gov: {rate_limits: ["25/60"], direct: true, pause_on: [429], stop_on: [html]}
 
 A host's settings are, from the lowest precedence up: linecaster's defaults, the file's root, the run's own options
 (``--rate-limit``, ``--proxies``, ``--user-agent``, ...), the host's entry under ``hosts:``. The fields, at the root and
-per host: ``rate_limits`` (``REQUESTS/SECONDS`` strings, per worker), ``proxies`` (a proxy file, ``read_proxies``),
-``direct`` (no proxy, neither a file nor the environment's), ``user_agent``, ``random_user_agent``,
-``attempt_timeout``, ``max_retries`` (retries after the first attempt: 0 is a single attempt; a proxy's block is
-not one of them), ``blacklist_ttl`` and ``blacklist_threshold`` (how long a proxy is left out, and
-after how many failures in a row, e.g. ``72h`` for a host whose block lasts three days; default
-``linecaster.net.http``'s 3600 s after 1), ``blacklist_on`` (statuses that leave the proxy they came through out,
-besides 429, and are retried through the next one: e.g. ``[403]`` for a host that turns away single proxy IPs),
-``pause_on``: statuses that pause the worker's requests to the host until the response's ``Retry-After`` has passed,
-then retry the request that got one (default ``[429]``; on a direct connection, without a proxy list:
-``linecaster.net.http.Pause``), ``max_pause``: the most a worker pauses in all since the host's last successful
-response before the run stops instead (default 6 h), and ``stop_on``: statuses (and ``html``, an HTML page where
-another format was expected: a CAPTCHA) that stop the run at once, without a retry, for a host whose block outlasts
-its retries (lccn.loc.gov blocks for 72 hours and starts the block again with every request during it). A status
-either pauses or stops: one in both ``pause_on`` (or its default) and ``stop_on`` is refused (``pause_on: []`` with
-``stop_on: [429]`` stops on a 429). At the root only: ``proxy_blocks``, the folder where proxy blocks are
-marked (``linecaster.net.proxy_blocks``). A host's entry replaces a field of the root, it does not merge into it
-(``stop_on: [403]`` under a host drops the root's ``stop_on``). Each host's settings get their own fetcher
-(``HTTPFetcher.shared``), so each host its own rate limits, breaker and window.
+per host: ``rate_limits`` (``REQUESTS/SECONDS`` strings: per worker on a direct connection, per proxy with a proxy
+list, where each proxy has one worker at a time), ``proxies`` (a proxy file, ``read_proxies``), ``direct`` (no proxy,
+neither a file nor the environment's), ``user_agent``, ``random_user_agent``, ``attempt_timeout``, ``max_retries``
+(retries after the first attempt: 0 is a single attempt; a proxy's block is not one of them), ``blacklist_ttl`` (how
+long a proxy blocked at the host without a ``Retry-After``, or a broken proxy, is left out, e.g. ``72h`` for a host
+whose block lasts three days; default ``linecaster.net.http``'s 3600 s) and ``blacklist_threshold`` (after how many
+failures of the proxy itself in a row it is left out; default 1), ``blacklist_on`` (statuses that block the proxy they
+came through at the host, besides 429, and are retried through another one: e.g. ``[403]`` for a host that turns away
+single proxy IPs), ``pause_on``: statuses that pause the worker's requests to the host until the response's
+``Retry-After`` has passed, then retry the request that got one (default ``[429]``; on a direct connection, without a
+proxy list: ``linecaster.net.http.Pause``), ``max_pause``: the most a worker pauses in all since the host's last
+successful response before the run stops instead (default 6 h; with a proxy list also the longest wait for a usable
+proxy), and ``stop_on``: statuses (and ``html``, an HTML page where another format was expected: a CAPTCHA) that stop
+the run at once, without a retry, for a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and
+starts the block again with every request during it). A status either pauses or stops: one in both ``pause_on`` (or
+its default) and ``stop_on`` is refused (``pause_on: []`` with ``stop_on: [429]`` stops on a 429). At the root only:
+``broker``, the folder through which the workers share the proxies and their blocks (``linecaster.broker``; default
+``OUT/logs/broker``). A host's entry replaces a field of the root, it does not merge into it (``stop_on: [403]``
+under a host drops the root's ``stop_on``). Each host's settings get their own fetcher (``HTTPFetcher.shared``), so
+each host its own rate limits, breaker and window; the proxies of one list are shared by a worker's fetchers.
 """
 from __future__ import annotations
 
@@ -40,7 +42,7 @@ from ..errors import PipelineConfigError
 FIELDS = ("rate_limits", "proxies", "direct", "user_agent", "random_user_agent", "attempt_timeout", "max_retries",
           "pause_on", "max_pause", "stop_on", "blacklist_ttl", "blacklist_threshold", "blacklist_on")
 #: what the root may hold besides ``FIELDS`` and ``hosts``
-ROOT_FIELDS = (*FIELDS, "proxy_blocks")
+ROOT_FIELDS = (*FIELDS, "broker")
 
 
 def seconds(value, where: str) -> float:
@@ -142,8 +144,8 @@ class HTTPPolicy:
         both = set(policy.get("blacklist_on") or ()) & set(policy.get("stop_on") or ())
         if both:
             raise PipelineConfigError(f"{where}: {', '.join(map(str, sorted(both)))} both in stop_on and blacklist_on")
-        if "proxy_blocks" in policy and not isinstance(policy["proxy_blocks"], str):
-            raise PipelineConfigError(f"{where}: proxy_blocks is a folder (any fsspec path)")
+        if "broker" in policy and not isinstance(policy["broker"], str):
+            raise PipelineConfigError(f"{where}: broker is a folder (any fsspec path)")
         return dict(policy)
 
     def policy(self, url: str) -> dict:
@@ -173,7 +175,7 @@ class HTTPPolicy:
             out.pop("proxy", None)
         if policy.get("proxies"):
             out["proxy_file"] = policy["proxies"]
-        for key in ("user_agent", "attempt_timeout", "max_retries", "proxy_blocks"):
+        for key in ("user_agent", "attempt_timeout", "max_retries", "broker"):
             if key in policy:
                 out[key] = policy[key]
         if "random_user_agent" in policy:
@@ -201,7 +203,9 @@ class HTTPPolicy:
     def describe(self) -> str:
         """One line per host (with the root's settings it keeps) for the start of a run."""
         def one(name: str, p: dict) -> str:
-            parts = [", ".join(p.get("rate_limits") or []) or "no rate limit"]
+            proxied = p.get("proxies") and not p.get("direct")
+            limits = ", ".join(p.get("rate_limits") or [])
+            parts = [f"{limits} per {'proxy' if proxied else 'worker'}" if limits else "no rate limit"]
             parts.append("direct" if p.get("direct") else "through proxies" if p.get("proxies") else "")
             if p.get("max_retries") is not None:
                 parts.append(f"{p['max_retries']} retries")

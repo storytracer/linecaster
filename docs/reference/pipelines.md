@@ -309,32 +309,40 @@ server sees the workers running at once times the limits; the run states it befo
 (`linecaster.runtime.run.rate_note`, e.g. `rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
 server`). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
-grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`).
+grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`). With `--proxies` the
+limits hold per proxy instead (below), and the run states that (`rate limits per proxy: 150/60 · 100 proxies → up to
+15,000/min at a server`).
 
-**Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies with resilient-httpx (the extra
-`resilient-httpx`): each attempt through the next proxy in turn. A proxy is left out for an hour when the failure is
-its own: a block (a 429, a status in `blacklist_on`, a block page) or a broken proxy (a proxy error, no connection to
-it); the request then goes on through the next one. A block does not count as an attempt and the next proxy is tried
-without a wait, so `max_retries` (retries after the first attempt) counts only the attempts that reached the server and
-failed there. A timeout is mostly a slow server: it is retried through another proxy and leaves this one in. An HTML page where
-another format was expected (a resource's format, an image) is a proxy's block too: the proxy is left out and the item
-goes on through the next one, without counting toward the breaker. An HTTP policy can leave a blocked proxy out
-longer or after more failures (`blacklist_ttl: 72h`, `blacklist_threshold`), and name further statuses that leave a
-proxy out and are retried through the next one (`blacklist_on: [403]`). With no proxy left for a host the run
-stops (`StopRequests`) and says when the first one returns. Proxy blocks are shared as datatrove shares finished
-tasks, through a folder of markers (`--proxy-blocks FOLDER`, default `OUT/logs/proxy-blocks`): one per block, written
-once and never changed, with its duration counted from the time the storage gives it. A fetcher reads a host's markers
-at its first request there and every 30 s after, so every worker, and every later run pointed at the same folder,
-leaves out the proxies any of them found blocked; a restarted run does not send requests into a block it found
-before. A 429 or 503 with a shorter `Retry-After` leaves the
-proxy out only that long (resilient-httpx's `blacklist_ttl_from_retry_after`, storytracer's fork). The file holds one proxy per line, a URL or
-`host:port[:user:pass]` as Webshare lists them; the run record keeps its name, and logs show proxies without
-credentials (`linecaster.net.http.redact`).
+**Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies, shared by the workers through the
+[broker](broker.md) (`--broker PATH`, any fsspec folder, default `OUT/logs/broker`; runs pointed at one path share
+the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
+claims its fair share (the proxies not blocked for the host, divided by the live workers, at least one) and gives back
+what is beyond it when another worker joins (`linecaster.net.proxies.ProxyPool`). The host's rate limits hold per
+proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
+limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
+its own. A block (a 429, until its `Retry-After`, else for the host's `blacklist_ttl`, an hour by default; a status in
+`blacklist_on`; an HTML page where another format was expected, a resource's format or an image) is a mark in the
+broker for that host: the owner stops using the proxy there at once, releases it once it is blocked for every host it
+uses, and whoever claims it later sees the mark, so no worker sends a request into another's block, and a restarted
+run none into a block it found before. A broken proxy (a proxy error, no connection to it, `blacklist_threshold`
+failures in a row) is marked for every host for `blacklist_ttl`. A block does not count as an attempt and the request
+goes on through another proxy at once, so `max_retries` (retries after the first attempt) counts only the attempts
+that reached the server and failed there; a block page does not count toward the breaker either. A timeout is mostly
+a slow server: it is retried and leaves the proxy in. When none of a worker's proxies is usable for a host and none
+is free to claim, its requests to the host pause until a block ends or another worker gives a proxy back (one warning
+when the pause starts, one when it ends; the wait is in the fetch record's `pause_seconds`); a pause that would pass
+the host's `max_pause` (6 hours) stops the run (`StopRequests`) and says when the first proxy returns. An HTTP policy
+can set `blacklist_ttl: 72h`, `blacklist_threshold` and further statuses that block a proxy at the host
+(`blacklist_on: [403]`). The console shows the proxies the worker holds, those blocked and those free. On Ray each
+task is a process of its own; the next task on a machine takes over the worker slot the last one handed over, and
+with it its proxies. The file holds one proxy per line, a URL or `host:port[:user:pass]` as Webshare lists them; the
+run record keeps its name, logs show proxies without credentials (`linecaster.net.http.redact`), and the broker names
+them by a hash of host and port.
 
 **Failures.** Each fetcher has a breaker (`linecaster.net.http.Breaker`): when most attempts of the last minute got a
 server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
 from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
-failing. A single server error is retried (through another proxy, without blacklisting the one it came through). A
+failing. A single server error is retried (with a proxy list without counting against the proxy it came through). A
 429 (a status in the host's `pause_on`) on a direct connection pauses the worker that got it
 (`linecaster.net.http.Pause`): its requests to that host wait until the response's `Retry-After` has passed (seconds
 or an HTTP-date; without one a minute, doubling while 429s keep coming, up to an hour), then the request that got it
@@ -342,7 +350,7 @@ is tried again, without using up one of its retries; 429s for requests already i
 shorten it. The pages wait instead of failing, and other workers go on. The log says when a pause starts (host,
 status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
 (`pause_seconds`). A worker that would pause more than the host's `max_pause` (6 hours) since its last successful
-response stops the run. Through proxies a 429 leaves that proxy out instead (above). A
+response stops the run. Through proxies a 429 blocks that proxy at the host instead (above). A
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
@@ -354,15 +362,15 @@ Ray job does not end as succeeded. A new launch removes the marker.
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
 with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
-an HTML page where another format was expected fails and counts toward the breaker, or through proxies leaves that
-proxy out) and kept as a raw copy,
+an HTML page where another format was expected fails and counts toward the breaker, or through proxies blocks that
+proxy at the host) and kept as a raw copy,
 `OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in
 `OUT/resources/<rank>.jsonl.gz` (`ResourceRecordWriter`: source and final URL, status, type, size, `sha256`, ETag,
 Last-Modified, time). One item per task, `--max-items` for a smoke test, copies already there read back. `--http-policy FILE`
 gives the run's requests their settings from one YAML file (`linecaster.net.policy`): for every host at the root, and
 under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
-the two. The settings: rate limits, proxies or direct, User-Agent, deadline, retries (`max_retries`), the proxy blocks
-folder (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
+the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
+(`max_retries`), the broker (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
 `pause_on` statuses that pause the worker's requests until `Retry-After` has passed (default `[429]`) with
 `max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
 default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and

@@ -25,6 +25,8 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.backends` | `InProcess`, `Served`, `Chat` |
 | `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
 | `linecaster.serve` | `linecaster serve` |
+| `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools |
+| `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder |
 | `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
@@ -33,8 +35,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget, resilient-httpx (proxy lists) and PDFium are not (engine packages
-and extras).
+required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).
 
 ## Blocks and backends
 
@@ -160,6 +161,11 @@ Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.s
 commit must be pushed) and pins ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
 a wheel mounted from a bucket folder (`WheelJobsExecutor`, `wheel_volume`).
 
+Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
+does) agree through the [broker](broker.md), a folder any executor's workers can reach, on any storage datatrove
+supports: leases say who holds what, marks what is unavailable until when, and a worker is a slot of its machine that
+outlives the processes (on Ray every task is one) that take it over.
+
 ## The run layout
 
 One job is one pipeline for one batch on one executor; resume is datatrove's, per task, so tasks stay small. A
@@ -170,7 +176,7 @@ pipeline reads the previous folder and writes complete page records with one mor
 | `originals/` | the delivered images and files; never modified |
 | `OUT/pages/` | page records (`PageJsonlWriter`, `PageParquetWriter`), bucketed by item id: a whole item in one file, so no joins |
 | `OUT/rejects/` | every page that carries errors (`RejectWriter`, put before the first writer by the builder): key, field, error, raw value |
-| `OUT/logs/` | datatrove's completion markers, logs and stats |
+| `OUT/logs/` | datatrove's completion markers, logs and stats; `OUT/logs/broker/`, the [broker](broker.md) by default |
 | `OUT/traces/` | the traces ([tracing](tracing.md)) |
 | `OUT/run.yaml` | the run record ([pipelines](pipelines.md#the-run-record)) |
 

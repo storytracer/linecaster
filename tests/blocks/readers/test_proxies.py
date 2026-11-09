@@ -1,7 +1,8 @@
-"""A proxy list (``--proxies``, ``linecaster.net.http.read_proxies``) through resilient-httpx: proxy files as URLs or
-in Webshare's formats; each attempt through the next proxy; a proxy that fails an attempt left out of the rotation
-(threshold 1), the attempt retried through another; no proxy left fails the page; credentials never logged. The
+"""A proxy list (``--proxies``, ``linecaster.net.http.read_proxies``) through the worker's proxy pool
+(``linecaster.net.proxies``): proxy files as URLs or in Webshare's formats; a broken proxy left out (threshold 1), the
+attempt retried through another; no proxy usable within max_pause stops the run; credentials never logged. The
 proxies here are loopback servers that answer absolute-URI requests themselves (an http proxy's view)."""
+import gzip
 import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -9,7 +10,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 pytest.importorskip("pybookget")
-pytest.importorskip("resilient_httpx")
 
 from loguru import logger  # noqa: E402
 
@@ -97,20 +97,20 @@ def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_pa
         assert sorted(served) == [f"http://library.test/p{i}.png" for i in range(1, 5)]   # all through the good one
         tries = [t for d in docs for t in d.metadata["trace"]["fetch"][0]["tries"]]
         assert tries.count("no-response") == 1 and tries.count("200") == 4                 # the dead one, once
-        assert reader._opener._fetcher.proxies_in_rotation() == (1, 2)
+        assert reader._opener._fetcher.proxy_counts() == (1, 1, 0)            # held, blocked, free
         logged = "".join(str(x) for x in lines)
-        assert "left out for 3600 s" in logged and "secret" not in logged and "***@127.0.0.1" in logged
+        assert "blocked everywhere for 3600 s" in logged and "secret" not in logged and "***@127.0.0.1" in logged
     finally:
         good.shutdown()
 
 
 def test_no_proxy_left_stops_the_run_and_says_when_one_returns(tmp_path):
-    """Every proxy left out: the run stops (a ServerError) instead of failing every page that follows."""
+    """Every proxy left out for longer than max_pause: the run stops (a ServerError) instead of pausing past it."""
     from linecaster.errors import ServerError
 
     (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n127.0.0.1:{dead_port()}\n")
     reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
-                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "max_pause": 60})
     with pytest.raises(ServerError, match=r"no proxy left for library\.test: every one is left out \(the first "
                                           r"returns in 59 min"):
         list(reader.run())
@@ -126,18 +126,18 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
                                      "--proxies", str(tmp_path / "proxies.txt")]))
     a.has_engines = False
     assert run.reader(a)._opener.http["proxy_file"] == str(tmp_path / "proxies.txt")    # the file, not its lines
-    assert run.reader(a)._opener.http["default_proxy_blocks"] == "OUT/logs/proxy-blocks"   # shared by workers, runs
+    assert run.reader(a)._opener.http["default_broker"] == "OUT/logs/broker"      # shared by workers, runs
     shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
-                                          str(tmp_path / "proxies.txt"), "--proxy-blocks", "s3://b/proxy-blocks"]))
-    assert run.reader(shared)._opener.http["proxy_blocks"] == "s3://b/proxy-blocks"
+                                          str(tmp_path / "proxies.txt"), "--broker", "s3://b/broker"]))
+    assert run.reader(shared)._opener.http["broker"] == "s3://b/broker"
     run.allocate(a, [run.reader(a)])
-    assert run.rate_note(a).endswith("through 2 proxies (left out for 3600 s after 1 failure)")
+    assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))
 
 
 def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_long(tmp_path):
-    """resilient-httpx's blacklist_ttl_from_retry_after (storytracer's fork): Retry-After 30 instead of an hour."""
+    """A 429's Retry-After (30 s) is how long its proxy is blocked at the host, not the blacklist_ttl (an hour)."""
     from linecaster.net.http import HTTPFetcher
 
     body = sample_png()
@@ -168,9 +168,8 @@ def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_lo
         (tmp_path / "proxies.txt").write_text("".join(f"127.0.0.1:{s.server_address[1]}\n" for s in servers))
         fetcher = HTTPFetcher.shared(**FAST, proxy_file=str(tmp_path / "proxies.txt"))
         assert fetcher.get("http://library.test/p1.png").status_code == 200
-        ttl = [p["ttl_remaining_seconds"] for pool in fetcher._proxies.blacklist_snapshot().values() for p in pool
-               if p["ttl_remaining_seconds"] is not None]
-        assert len(ttl) == 1 and 25 < ttl[0] <= 30                     # not 3600
+        first, _, _ = fetcher._proxies.outlook("library.test")
+        assert 25 < first <= 30 and fetcher.proxy_counts() == (1, 1, 0)       # not 3600
     finally:
         for s in servers:
             s.shutdown()
@@ -204,6 +203,145 @@ def test_used_up_retries_and_an_empty_pool_say_what_failed(tmp_path, monkeypatch
         error = doc.metadata["errors"][0]
         assert error["type"] == "MaxRetriesExceeded" and error["error"] == "after 4 attempts: HTTP 520"
         assert doc.metadata["trace"]["fetch"][0]["tries"] == ["520"] * 4                 # max_retries 3: 3 retries
-        assert reader._opener._fetcher.proxies_in_rotation() == (1, 1)     # a server error left the proxy in
+        assert reader._opener._fetcher.proxy_counts() == (1, 0, 0)        # a server error left the proxy in
     finally:
         httpd.shutdown()
+
+
+def test_no_proxy_usable_pauses_the_requests_until_its_block_ends(tmp_path):
+    """The only proxy gets a 429 with Retry-After 1: it is blocked at the host for a second, the request waits (a
+    pause, one warning at its start and one at its end) and then comes through it, without using up an attempt."""
+    from linecaster.net.http import HTTPFetcher, fetch_record
+
+    body = sample_png()
+    calls = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            calls.append(self.path)
+            if len(calls) == 1:
+                self.send_response(429)
+                self.send_header("Retry-After", "1")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    lines = []
+    sink = logger.add(lines.append, level="INFO")
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{proxy.server_address[1]}\n")
+        fetcher = HTTPFetcher.shared(**{**FAST, "max_retries": 0}, proxy_file=str(tmp_path / "proxies.txt"),
+                                     broker=str(tmp_path / "broker"))
+        response = fetcher.get("http://library.test/p1.png")
+        record = fetch_record(response)
+        assert response.status_code == 200 and record["tries"] == ["429", "200"]
+        assert 0.5 < record["pause_seconds"] < 3
+        logged = "".join(str(x) for x in lines)
+        assert logged.count("no proxy usable for library.test") == 1
+        assert logged.count("a proxy is usable for library.test again") == 1
+    finally:
+        logger.remove(sink)
+        proxy.shutdown()
+
+
+def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypatch):
+    """A local run with two worker processes through four proxies (one broker): every item comes through, the
+    requests are spread over the proxies, and the requests through each proxy keep its rate limit (one per 0.2 s)
+    although both workers send through the proxies."""
+    import json
+    import time
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from linecaster.blocks.readers.resources import ResourceReader
+    from linecaster.blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
+    from linecaster.net import proxies as netproxies
+    from linecaster.runtime.builder import build
+    from linecaster.runtime.local import LocalExecutor
+
+    monkeypatch.setattr(netproxies, "REBALANCE_SECONDS", 0.5)        # the workers are forked: they see these
+    monkeypatch.setattr(netproxies, "FILL_SECONDS", 0.2)
+    seen: dict[int, list[float]] = {}
+    xml = b'<?xml version="1.0"?><record/>'
+
+    def proxy_server(n):
+        seen[n] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                seen[n].append(time.monotonic())
+                self.send_response(200)
+                self.send_header("Content-Type", "application/xml")
+                self.send_header("Content-Length", str(len(xml)))
+                self.end_headers()
+                self.wfile.write(xml)
+
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        return httpd
+
+    servers = [proxy_server(n) for n in range(4)]
+    try:
+        (tmp_path / "proxies.txt").write_text("".join(f"127.0.0.1:{s.server_address[1]}\n" for s in servers))
+        (tmp_path / "items").mkdir()
+        items = [f"i{n:02d}" for n in range(24)]
+        pq.write_table(pa.table({"lccn": items}), tmp_path / "items" / "p.parquet")
+        out = tmp_path / "out"
+        reader = ResourceReader(str(tmp_path / "items"), item_key="lccn",
+                                templates={"marcxml": "http://catalog.test/{item}/marcxml"},
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "rate_limits": [(5, 1)],
+                                      "broker": str(tmp_path / "broker")})
+        plan = build([reader, ResourceFilesWriter(str(out)), ResourceRecordWriter(str(out / "resources"))],
+                     tasks=len(items), run_folder=str(out))
+        LocalExecutor(plan.stages[0].pipeline, tasks=len(items), workers=2, logging_dir=str(out / "logs"),
+                      out=str(out), reader=reader, title="harvest", start_method="fork").run()
+        records = [json.loads(line) for p in (out / "resources").iterdir() for line in gzip.open(p, "rt")]
+        assert len(records) == len(items) and not any(r.get("error") for r in records)
+        assert sum(len(t) for t in seen.values()) == len(items) and all(len(t) >= 2 for t in seen.values())
+        for times in seen.values():
+            gaps = [b - a for a, b in zip(times, times[1:])]
+            assert min(gaps) > 0.15, gaps                  # 0.2 s per proxy, less the jitter of loopback
+        workers = sorted(p.name for p in (tmp_path / "broker" / "workers").iterdir())
+        assert len(workers) == 2                           # two worker slots of this machine
+    finally:
+        for s in servers:
+            s.shutdown()
+
+
+def test_a_task_that_ends_hands_its_proxies_to_the_next_process_in_its_slot(tmp_path):
+    """A Ray task's process ends (``linecaster.runtime.ray.hand_over``): its slot is free, its proxy leases stay, and
+    the next process on the machine claims the slot, is the same worker and holds the proxies before its first
+    request."""
+    from linecaster import broker as brokers
+    from linecaster.net.http import HTTPFetcher
+    from linecaster.runtime.ray import hand_over
+
+    served = []
+    good = proxy_server(served)
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{good.server_address[1]}\n")
+        config = {**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "broker": str(tmp_path / "broker")}
+        assert HTTPFetcher.shared(**config).get("http://library.test/p1.png").status_code == 200
+        worker = brokers.shared(str(tmp_path / "broker")).worker
+        hand_over()                                              # the task ends
+        assert not list((tmp_path / "broker" / "slots").rglob("*.json"))
+        assert len(list((tmp_path / "broker" / "proxies").rglob("leases/*.json"))) == 1
+        successor = HTTPFetcher.shared(**config)                 # the next task's process
+        assert successor.proxy_counts() == (1, 0, 0) and brokers.shared(str(tmp_path / "broker")).worker == worker
+        assert successor.get("http://library.test/p2.png").status_code == 200 and len(served) == 2
+    finally:
+        good.shutdown()

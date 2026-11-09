@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 
 from datatrove.executor.ray import RayPipelineExecutor
@@ -37,6 +38,15 @@ def assigned_gpu() -> int:
     if not first.isdigit():
         raise PipelineConfigError(f"no GPU index for this task (CUDA_VISIBLE_DEVICES={value!r}); run with gpus_per_task=1")
     return int(first)
+
+
+def hand_over() -> None:
+    """The task's process ends: its fetchers are closed and its worker slot in the broker handed over, so the next
+    process on this machine is the same worker and goes on with its proxies (``linecaster.broker``)."""
+    if "linecaster.net.http" in sys.modules:
+        from ..net.http import close_shared
+
+        close_shared()
 
 
 class RayExecutor(RayPipelineExecutor):
@@ -69,6 +79,8 @@ class RayExecutor(RayPipelineExecutor):
             if self.stopped() is None:
                 self._mark_stop(rank, e)
             raise
+        finally:
+            hand_over()
 
     def stopped(self) -> dict | None:
         """The stop marker (``rank``, ``type``, ``error``, ``time``) if a task stopped the run, else None."""

@@ -177,7 +177,7 @@ def test_the_http_policy_root_then_the_runs_options_then_the_hosts_entry(tmp_pat
 rate_limits: ["60/60"]
 max_retries: 7
 proxies: root.txt
-proxy_blocks: s3://b/proxy-blocks
+broker: s3://b/broker
 stop_on: [403]
 hosts:
   tile.loc.gov: {rate_limits: ["150/60", "3/1"], proxies: p.txt}
@@ -189,15 +189,15 @@ hosts:
     assert tile["rate_limits"] == [(150, 60.0), (3, 1.0)] and tile["proxy_file"] == "p.txt"   # the host's entry wins
     assert other["rate_limits"] == [(60, 60.0)] and other["proxy_file"] == "run.txt"         # the run's over the root
     assert other["max_retries"] == tile["max_retries"] == 7 and lccn["max_retries"] == 0
-    assert all(c["proxy_blocks"] == "s3://b/proxy-blocks" for c in (tile, lccn, other))
+    assert all(c["broker"] == "s3://b/broker" for c in (tile, lccn, other))
     assert lccn["rate_limits"] == [(25, 60.0)] and "proxy_file" not in lccn and lccn["trust_env"] is False
     assert other["stop_on"] == [403] and lccn["stop_on"] == []                # an entry replaces the root's field
     assert lccn["pause_on"] == [429] and lccn["max_pause"] == 7200.0 and "pause_on" not in other
     assert policy.stops_on_html("https://lccn.loc.gov/x") and not policy.stops_on_html("https://example.org/x")
     assert all(c["user_agent"] == "HF-Research/1.0" for c in (tile, lccn, other))
-    assert ("lccn.loc.gov: 25/60, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
+    assert ("lccn.loc.gov: 25/60 per worker, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
             in policy.describe())
-    assert "other hosts: 60/60, through proxies, 7 retries, stops on 403" in policy.describe()
+    assert "other hosts: 60/60 per proxy, through proxies, 7 retries, stops on 403" in policy.describe()
     assert policy.rate_limited()
 
 
@@ -207,8 +207,8 @@ def test_the_http_policy_root_alone_and_its_checks(tmp_path):
     assert policy.describe() == "every host: no rate limit, 2 retries" and not policy.rate_limited()
     with pytest.raises(PipelineConfigError, match="unknown speed"):
         HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {speed: 3}\n"))
-    with pytest.raises(PipelineConfigError, match="unknown proxy_blocks"):        # a folder for the whole run
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {proxy_blocks: x}\n"))
+    with pytest.raises(PipelineConfigError, match="unknown broker"):              # a folder for the whole run
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {broker: x}\n"))
     with pytest.raises(PipelineConfigError, match="`default:` is gone"):
         HTTPPolicy(policy_file(tmp_path, "default: {rate_limits: [\"60/60\"]}\n"))
     with pytest.raises(PipelineConfigError, match="max_retries is a whole number"):
@@ -308,9 +308,8 @@ def test_an_html_page_through_a_proxy_blocks_that_proxy_for_its_hosts_ttl(tmp_pa
         assert sorted(p.name for p in (out / "marcxml").iterdir()) == ["a1", "b2", "c3"]
         assert len(blocked_seen) == 1 and len(good_seen) == 3       # blocked once, then left out
         fetcher = reader._last
-        ttl = [p["ttl_remaining_seconds"] for pool in fetcher._proxies.blacklist_snapshot().values() for p in pool
-               if p["ttl_remaining_seconds"] is not None]
-        assert len(ttl) == 1 and 72 * 3600 - 60 < ttl[0] <= 72 * 3600
+        first, _, _ = fetcher._proxies.outlook("catalog.test")
+        assert 72 * 3600 - 60 < first <= 72 * 3600 and fetcher.proxy_counts() == (1, 1, 0)
         assert not fetcher.breaker.paused
     finally:
         blocking.shutdown()
@@ -344,7 +343,7 @@ def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_n
         docs = run_all(reader, out)
         assert not any(d.metadata.get("errors") for d in docs) and len(docs) == 3
         assert len(refused_seen) == 1 and len(good_seen) == 3
-        assert reader._last.proxies_in_rotation() == (1, 2)
+        assert reader._last.proxy_counts() == (1, 1, 0)
     finally:
         refusing.shutdown()
         good.shutdown()
@@ -384,21 +383,9 @@ def test_pause_on_in_a_policy_and_its_checks(tmp_path):
     HTTPPolicy(policy_file(tmp_path, "pause_on: []\nhosts:\n  a.org: {stop_on: [429]}\n"))   # stops on a 429
 
 
-def _markers(folder, timeout=5.0):
-    import time
-
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        found = sorted(folder.rglob("*.json")) if folder.exists() else []
-        if found:
-            return found
-        time.sleep(0.05)
-    return []
-
-
-def test_a_proxy_block_is_marked_and_honoured_after_a_restart(tmp_path):
-    """The proxy that sent a block page is marked in the proxy-blocks folder; a fresh fetcher (another worker, or the
-    run started again) leaves it out from its first request."""
+def test_a_proxy_block_is_marked_and_honored_after_a_restart(tmp_path):
+    """The proxy that sent a block page is marked in the broker; a fresh process (another worker, or the run started
+    again) leaves it out from its first request."""
     blocking, blocked_seen = fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html")
     good, good_seen = fake_proxy(XML, "application/xml")
     try:
@@ -406,14 +393,14 @@ def test_a_proxy_block_is_marked_and_honoured_after_a_restart(tmp_path):
             f"127.0.0.1:{blocking.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
         hosts = policy_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
                                      "blacklist_ttl: 72h}\n")
-        blocks = tmp_path / "proxy-blocks"
-        http = {**FAST, "proxy_blocks": str(blocks)}
+        broker = tmp_path / "broker"
+        http = {**FAST, "broker": str(broker)}
         template = {"marcxml": "http://catalog.test/{item}/marcxml"}
         run_all(ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=http, http_policy=hosts,
                                templates=template), tmp_path / "out")
         assert len(blocked_seen) == 1
-        (marker,) = _markers(blocks)
-        assert marker.parent.parent.name == "catalog.test" and json.loads(marker.read_text())["ttl"] > 71 * 3600
+        (mark,) = (broker / "proxies").rglob("marks/catalog.test/*.json")
+        assert json.loads(mark.read_text())["ttl"] > 71 * 3600 and "127.0.0.1" not in str(mark)
         close_shared()                                       # as a new process would start
         (tmp_path / "items").rename(tmp_path / "items-1")
         docs = run_all(ResourceReader(items_table(tmp_path, ["d4", "e5"]), item_key="lccn", http=http, http_policy=hosts,
@@ -426,16 +413,20 @@ def test_a_proxy_block_is_marked_and_honoured_after_a_restart(tmp_path):
 
 
 def test_every_proxy_marked_blocked_stops_the_run_at_its_first_request(tmp_path):
-    from linecaster.net.proxy_blocks import ProxyBlocks
+    """Every proxy marked blocked at the host by another worker for longer than max_pause: the run stops."""
+    import time
+
+    from linecaster.broker import Broker
+    from linecaster.net.proxies import KIND, proxy_id
 
     proxies = ["127.0.0.1:9", "127.0.0.1:10"]
     (tmp_path / "proxies.txt").write_text("\n".join(proxies) + "\n")
-    elsewhere = ProxyBlocks(str(tmp_path / "proxy-blocks"))
+    elsewhere = Broker(str(tmp_path / "broker"), worker="elsewhere-0")
     for p in proxies:
-        elsewhere.write("catalog.test", f"http://{p}", 72 * 3600)
+        elsewhere.mark(KIND, proxy_id(p), "catalog.test", time.time() + 72 * 3600, status=429)
     hosts = policy_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}}}\n")
     reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn", http_policy=hosts,
-                            http={**FAST, "proxy_blocks": str(tmp_path / "proxy-blocks")},
+                            http={**FAST, "broker": str(tmp_path / "broker")},
                             templates={"marcxml": "http://catalog.test/{item}/marcxml"})
     with pytest.raises(ServerError, match=r"no proxy left for catalog\.test.*first returns in 7[12] h"):
         run_all(reader, tmp_path / "out")
@@ -451,29 +442,30 @@ def test_the_http_policy_option(tmp_path):
                                      "--http-policy", policy]))
     a.has_engines = False
     reader = run.reader(a)
-    assert reader.http_policy == policy and reader.http["default_proxy_blocks"] == "OUT/logs/proxy-blocks"
+    assert reader.http_policy == policy and reader.http["default_broker"] == "OUT/logs/broker"
     run.allocate(a, [reader])
     assert a.workers == 1                                  # the file sets rate limits, which hold per worker
-    assert run.rate_note(a) == "HTTP policy per worker: lccn.loc.gov: 25/60, 3 retries; other hosts: no rate limit, " \
-                               "3 retries"
+    assert run.rate_note(a) == "HTTP policy: lccn.loc.gov: 25/60 per worker, 3 retries; other hosts: no rate " \
+                               "limit, 3 retries"
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--items", "d", "--item-key", "lccn", "OUT", "--resource", "m=u/{item}",
                                      "--http-policy", policy_file(tmp_path, "default: {}\n")]))
 
 
 def test_blocks_do_not_use_up_attempts(tmp_path):
-    """max_retries 0 (a single attempt): three proxies send block pages, and the item still comes through the fourth."""
+    """max_retries 0 (a single attempt): three proxies send block pages, and every item still comes through the
+    fourth; each blocking proxy is tried once (the turns spread the requests over the proxies), then left out."""
     blocking = [fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html") for _ in range(3)]
     good, good_seen = fake_proxy(XML, "application/xml")
     try:
         (tmp_path / "proxies.txt").write_text(
             "".join(f"127.0.0.1:{s.server_address[1]}\n" for s, _ in blocking) + f"127.0.0.1:{good.server_address[1]}\n")
         hosts = policy_file(tmp_path, f"proxies: {tmp_path / 'proxies.txt'}\nmax_retries: 0\n")
-        reader = ResourceReader(items_table(tmp_path, ["a1"]), item_key="lccn", http=FAST, http_policy=hosts,
-                                templates={"marcxml": "http://catalog.test/{item}/marcxml"})
-        (doc,) = run_all(reader, tmp_path / "out")
-        assert not doc.metadata.get("errors") and len(good_seen) == 1
-        assert [len(seen) for _, seen in blocking] == [1, 1, 1] and reader._last.proxies_in_rotation() == (1, 4)
+        reader = ResourceReader(items_table(tmp_path, ["a1", "a2", "a3", "a4"]), item_key="lccn", http=FAST,
+                                http_policy=hosts, templates={"marcxml": "http://catalog.test/{item}/marcxml"})
+        docs = run_all(reader, tmp_path / "out")
+        assert not any(d.metadata.get("errors") for d in docs) and len(good_seen) == 4
+        assert [len(seen) for _, seen in blocking] == [1, 1, 1] and reader._last.proxy_counts() == (1, 3, 0)
     finally:
         for s, _ in blocking:
             s.shutdown()
@@ -510,7 +502,7 @@ def test_a_timeout_through_a_proxy_leaves_it_in_rotation(tmp_path):
                                       "attempt_min_rate": None})
         (doc,) = run_all(reader, tmp_path / "out")
         assert not doc.metadata.get("errors") and len(seen) == 2
-        assert reader._last.proxies_in_rotation() == (1, 1)
+        assert reader._last.proxy_counts() == (1, 0, 0)
     finally:
         proxy.shutdown()
 
