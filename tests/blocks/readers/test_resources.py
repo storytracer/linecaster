@@ -197,7 +197,8 @@ hosts:
     assert all(c["user_agent"] == "HF-Research/1.0" for c in (tile, lccn, other))
     assert ("lccn.loc.gov: 25/60 per worker, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
             in policy.describe())
-    assert "other hosts: 60/60 per proxy, through proxies, 7 retries, stops on 403" in policy.describe()
+    assert ("other hosts: 60/60 per proxy, through proxies, 1 proxy per worker, 7 retries, stops on 403"
+            in policy.describe())
     assert policy.rate_limited()
 
 
@@ -299,7 +300,7 @@ def test_an_html_page_through_a_proxy_blocks_that_proxy_for_its_hosts_ttl(tmp_pa
         (tmp_path / "proxies.txt").write_text(
             f"127.0.0.1:{blocking.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
         hosts = policy_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
-                                     "blacklist_ttl: 72h}\n")
+                                     "blacklist_ttl: 72h, proxies_per_worker: share}\n")   # both held
         out = tmp_path / "out"
         reader = ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=FAST, http_policy=hosts,
                                 templates={"marcxml": "http://catalog.test/{item}/marcxml"})
@@ -336,7 +337,7 @@ def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_n
         (tmp_path / "proxies.txt").write_text(
             f"127.0.0.1:{refusing.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
         hosts = policy_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
-                                     "blacklist_on: [403]}\n")
+                                     "blacklist_on: [403], proxies_per_worker: share}\n")   # both held
         out = tmp_path / "out"
         reader = ResourceReader(items_table(tmp_path, ["a1", "b2", "c3"]), item_key="lccn", http=FAST, http_policy=hosts,
                                 templates={"marcxml": "http://catalog.test/{item}/marcxml"})
@@ -392,7 +393,7 @@ def test_a_proxy_block_is_marked_and_honored_after_a_restart(tmp_path):
         (tmp_path / "proxies.txt").write_text(
             f"127.0.0.1:{blocking.server_address[1]}\n127.0.0.1:{good.server_address[1]}\n")
         hosts = policy_file(tmp_path, f"hosts:\n  catalog.test: {{proxies: {tmp_path / 'proxies.txt'}, "
-                                     "blacklist_ttl: 72h}\n")
+                                     "blacklist_ttl: 72h, proxies_per_worker: share}\n")   # both held
         broker = tmp_path / "broker"
         http = {**FAST, "broker": str(broker)}
         template = {"marcxml": "http://catalog.test/{item}/marcxml"}
@@ -452,20 +453,28 @@ def test_the_http_policy_option(tmp_path):
                                      "--http-policy", policy_file(tmp_path, "default: {}\n")]))
 
 
-def test_blocks_do_not_use_up_attempts(tmp_path):
+@pytest.mark.parametrize("per_worker", [1, "share"])
+def test_blocks_do_not_use_up_attempts(tmp_path, per_worker):
     """max_retries 0 (a single attempt): three proxies send block pages, and every item still comes through the
-    fourth; each blocking proxy is tried once (the turns spread the requests over the proxies), then left out."""
+    fourth; each blocking proxy is tried once at most, then left out. One proxy per worker: the worker swaps each
+    blocked one for a free one until it holds the good one; a fair share: it holds all four, and the turns spread the
+    requests over them, so each blocking one is tried once."""
     blocking = [fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html") for _ in range(3)]
     good, good_seen = fake_proxy(XML, "application/xml")
     try:
         (tmp_path / "proxies.txt").write_text(
             "".join(f"127.0.0.1:{s.server_address[1]}\n" for s, _ in blocking) + f"127.0.0.1:{good.server_address[1]}\n")
-        hosts = policy_file(tmp_path, f"proxies: {tmp_path / 'proxies.txt'}\nmax_retries: 0\n")
+        hosts = policy_file(tmp_path, f"proxies: {tmp_path / 'proxies.txt'}\nmax_retries: 0\n"
+                                      f"proxies_per_worker: {per_worker}\n")
         reader = ResourceReader(items_table(tmp_path, ["a1", "a2", "a3", "a4"]), item_key="lccn", http=FAST,
                                 http_policy=hosts, templates={"marcxml": "http://catalog.test/{item}/marcxml"})
         docs = run_all(reader, tmp_path / "out")
         assert not any(d.metadata.get("errors") for d in docs) and len(good_seen) == 4
-        assert [len(seen) for _, seen in blocking] == [1, 1, 1] and reader._last.proxy_counts() == (1, 3, 0)
+        tried = [len(seen) for _, seen in blocking]
+        if per_worker == 1:
+            assert max(tried) <= 1 and reader._last.proxy_counts() == (1, sum(tried), 3 - sum(tried))
+        else:
+            assert tried == [1, 1, 1] and reader._last.proxy_counts() == (1, 3, 0)
     finally:
         for s, _ in blocking:
             s.shutdown()
@@ -525,3 +534,20 @@ def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
     executor = run._executors(a, run.build_plan(a, blocks), out, None, ["linecaster"])
     assert type(executor).__name__ == "RayExecutor" and executor.gpus_per_task == 0
     assert (executor.cpus_per_task, executor.workers, run.executor_name(a)) == (1, 2, "RayExecutor")
+
+
+def test_proxies_per_worker_in_a_policy_and_its_checks(tmp_path):
+    policy = HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nrate_limits: [\"60/60\"]\nproxies_per_worker: 3\n"
+                                              "hosts:\n  a.org: {proxies: q.txt, proxies_per_worker: share}\n"
+                                              "  b.org: {direct: true}\n"))
+    assert policy.http_for("https://x.org/")["proxies_per_worker"] == 3
+    assert policy.http_for("https://a.org/")["proxies_per_worker"] == "share"
+    described = policy.describe()
+    assert "a.org: 60/60 per proxy, through proxies, a fair share per worker" in described
+    assert "other hosts: 60/60 per proxy, through proxies, up to 3 per worker" in described
+    assert "b.org: 60/60 per worker, direct" in described                      # no proxies: no count
+    for bad in ("0", "many", "true", "1.5"):
+        with pytest.raises(PipelineConfigError, match="proxies_per_worker is a whole number"):
+            HTTPPolicy(policy_file(tmp_path, f"proxies_per_worker: {bad}\n"))
+    with pytest.raises(PipelineConfigError, match="the hosts that use p.txt set proxies_per_worker 1, 2"):
+        HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nhosts:\n  a.org: {proxies_per_worker: 2}\n"))
