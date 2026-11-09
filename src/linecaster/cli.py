@@ -49,6 +49,108 @@ def _traces(a) -> None:
     print(json.dumps(report, indent=1) if a.json else render(report), end="" if not a.json else "\n")
 
 
+def _ago(seconds: float) -> str:
+    from .runtime.console import duration
+
+    return duration(seconds).replace(" ", "")
+
+
+def _table(rows: list[tuple]) -> list[str]:
+    widths = [max(len(str(r[i])) for r in rows) for i in range(len(rows[0]))]
+    return ["  " + "  ".join(str(x).ljust(w) for x, w in zip(r, widths)).rstrip() for r in rows]
+
+
+def render_broker(report: dict) -> str:
+    """Returns ``linecaster broker status``'s text for a ``linecaster.broker.survey_all`` report: the format, the
+    workers, the slots per machine and per kind its resources held, free, blocked per scope and broken."""
+    from .broker import FORMAT
+
+    now = report["now"]
+    fmt = report["format"] or "none (no broker.json)"
+    lines = [f"broker {report['path']}", f"  format {fmt}" + ("" if report["format"] in (FORMAT, None) else
+                                                           f" (this linecaster knows {FORMAT})")
+             + f", lease time {_ago(report['lease_ttl'])}", ""]
+    workers = report["workers"]
+    live = sum(w["live"] for w in workers)
+    lines.append(f"workers: {live} live, {len(workers) - live} stale")
+    if workers:
+        lines += _table([("worker", "machine", "run", "renewed", "")]
+                        + [(w["worker"], w["machine"] or "-", w["run"] or "-", f"{_ago(w['age'])} ago",
+                            "" if w["live"] else "stale") for w in workers])
+    lines.append("")
+    slots = report["slots"]
+    lines.append(f"slots: {sum(c['live'] for c in slots.values())} live, "
+                 f"{sum(c['stale'] for c in slots.values())} stale")
+    if slots:
+        lines += _table([("machine", "live", "stale")] + [(m, c["live"], c["stale"]) for m, c in slots.items()])
+    for kind, k in report["kinds"].items():
+        lines += ["", f"{kind}: {k['resources']} known"]
+        broken = k["broken"]
+        lines += _table([("held", "stale", "free", "broken", "expired marks"),
+                         (k["held"]["live"], k["held"]["stale"], k["free"],
+                          f"{broken['resources']} (until in {_ago(broken['until'] - now)})" if broken else 0,
+                          k["expired_marks"])])
+        if k["blocked"]:
+            lines += _table([("blocked at", kind, "until")]
+                            + [(scope, b["resources"], f"in {_ago(b['until'] - now)}")
+                               for scope, b in k["blocked"].items()])
+    return "\n".join(lines) + "\n"
+
+
+def _broker(a) -> None:
+    from . import broker
+
+    if a.action == "status":
+        report = broker.survey_all(a.path)
+        print(json.dumps(report, indent=1) if a.json else render_broker(report), end="\n" if a.json else "")
+        return
+
+    if a.action == "purge":
+        def confirm_purge(result: dict) -> bool:
+            removed = result["removed"]
+            print(f"purge {result['path']}: " + ", ".join(f"{len(removed[c])} {c}" for c in broker.PURGED)
+                  + f"; live: {result['live_workers']} workers, {result['live_marks']} marks", file=sys.stderr)
+            if result["live_workers"]:
+                print("live workers: a run may still use the broker", file=sys.stderr)
+            return _ask(a, "Remove all of them?")
+
+        result = broker.purge(a.path, dry_run=a.dry_run, confirm=confirm_purge)
+        _report_removed(a, result, broker.PURGED)
+        return
+
+    def confirm(live: list[dict]) -> bool:
+        print(f"{len(live)} live files (renewed within the lease time, or marks not expired); a run may still use "
+              f"the broker:", file=sys.stderr)
+        for f in live:
+            print(f"  {f['path']} ({_ago(f['age'])} old)", file=sys.stderr)
+        return _ask(a, "Remove them?")
+
+    result = broker.clean(a.path, leases=a.leases, marks=a.marks, dry_run=a.dry_run, confirm=confirm)
+    _report_removed(a, result, broker.CLEANED)
+
+
+def _ask(a, question: str) -> bool:
+    """``linecaster broker``'s confirmation: yes with ``--yes``, else the answer on a terminal; refused without one."""
+    if a.yes:
+        return True
+    if not sys.stdin.isatty():
+        print(f"linecaster broker {a.action}: refused (no terminal to confirm on); stop the runs first, or pass "
+              f"--yes", file=sys.stderr)
+        return False
+    return input(f"{question} [y/N] ").strip().lower() in ("y", "yes")
+
+
+def _report_removed(a, result: dict, categories: tuple[str, ...]) -> None:
+    if result["aborted"]:
+        sys.exit(1)
+    verb = "would remove" if result["dry_run"] else "removed"
+    removed = result["removed"]
+    for category in categories:
+        for f in removed[category] if (a.verbose or a.dry_run) else []:
+            print(f"{verb} {f['path']}" + (" (live)" if f["live"] else ""))
+    print(f"{verb}: " + ", ".join(f"{len(removed[c])} {c}" for c in categories))
+
+
 def _models(a) -> None:
     from .catalog.registry import catalog
 
@@ -209,6 +311,29 @@ def main(argv: list[str] | None = None) -> None:
                    help="group the time per page by block, preset edition or task")
     t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
     t.add_argument("--json", action="store_true", help="the report as JSON")
+    b = sub.add_parser("broker", help="what a broker's folder holds (status); remove its expired files or, after "
+                                      "a hard kill, all leases (clean); reset it (purge) (docs/reference/broker.md)")
+    bsub = b.add_subparsers(dest="action", required=True)
+    bs = bsub.add_parser("status", help="the workers, slots, and per kind the resources held, free, blocked, broken")
+    bs.add_argument("path", help="the broker's folder, any fsspec path (e.g. OUT/logs/broker, s3://bucket/broker)")
+    bs.add_argument("--json", action="store_true", help="one JSON object with the same content")
+    bc = bsub.add_parser("clean", help="remove expired heartbeats, leases and marks (safe while a run goes on); "
+                                       "--leases after a hard kill")
+    bc.add_argument("path", help="the broker's folder, any fsspec path")
+    bc.add_argument("--leases", action="store_true",
+                    help="also remove every heartbeat, slot lease and resource lease, live or not (after a hard "
+                         "kill; only when no run uses the broker); marks are kept")
+    bc.add_argument("--marks", action="store_true", help="also remove every mark, live or not (blocked proxies are "
+                                                         "tried again at once)")
+    bc.add_argument("--dry-run", action="store_true", help="list what would be removed; remove nothing")
+    bc.add_argument("--yes", action="store_true", help="remove live files without asking")
+    bc.add_argument("-v", "--verbose", action="store_true", help="list each removed file")
+    bp = bsub.add_parser("purge", help="reset the broker: remove every file of its layout, broker.json among them, "
+                                       "live or not (asks first)")
+    bp.add_argument("path", help="the broker's folder, any fsspec path")
+    bp.add_argument("--dry-run", action="store_true", help="list what would be removed; remove nothing")
+    bp.add_argument("--yes", action="store_true", help="remove without asking")
+    bp.add_argument("-v", "--verbose", action="store_true", help="list each removed file")
     a, rest = ap.parse_known_args(argv)
     if rest and a.command != "page":
         ap.error(f"unrecognized arguments: {' '.join(rest)}")
@@ -225,6 +350,8 @@ def main(argv: list[str] | None = None) -> None:
             _docs(a)
         elif a.command == "traces":
             _traces(a)
+        elif a.command == "broker":
+            _broker(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))

@@ -101,6 +101,41 @@ list is set) works on the broker:
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks.
 
+## The command
+
+`linecaster broker` reads and tidies a broker's folder (`PATH`: any fsspec path, e.g. `OUT/logs/broker` or
+`s3://bucket/broker`). The code is `linecaster.broker.survey_all`, `clean` and `purge`, usable from code with a
+`now` to judge liveness by.
+
+| Command | Does |
+|---|---|
+| `linecaster broker status PATH [--json]` | from one listing: the format; the workers (machine, run, time since the last renew), live and stale; the worker slots per machine; per kind of resource how many there are, held by a live lease, held only by expired ones (stale), free, blocked per scope with the latest end, broken (`*`), and the expired marks. Ids only, no credential (proxies are hashes). `--json`: one JSON object with the same content |
+| `linecaster broker clean PATH` | removes what has expired: heartbeats and leases (slots and resources) not renewed within the lease time, marks past their end. Safe while a run uses the broker |
+| `linecaster broker clean PATH --leases` | also every heartbeat, slot lease and resource lease, live or not; the marks (blocks) stay |
+| `linecaster broker clean PATH --marks` | also every mark, live or not: blocked and broken proxies are tried again at once |
+| `linecaster broker purge PATH` | resets the broker: removes every file of its layout, `broker.json` among them, so the next run starts as on an empty folder |
+
+`clean` and `purge` take `--dry-run` (list what would be removed, remove nothing) and `-v` (list each removed file);
+`clean` prints the counts per category otherwise. **Confirmation**: `clean --leases` or `--marks` that would remove
+something live (renewed within the lease time, a mark not expired), and `purge` always, list what they would remove
+and ask on a terminal; without one they refuse. `--yes` skips the question. Both refuse a folder that is not a
+broker's (`clean`: no `broker.json` of this format; `purge`: neither `broker.json` nor `workers/` or `slots/`), and
+neither removes a file outside the broker's layout. Exit codes: 0 done (or nothing to do), 1 refused or aborted, 2 a
+usage error.
+
+**After a hard kill** (`kill -9`, a crash, a local run whose worker processes are terminated) nothing hands over:
+the dead workers' heartbeats, slots and proxy leases look valid for up to the lease time (3 min). A run started again
+within that time gets new slot numbers, finds every proxy held and pauses until the leases expire. Once no process of
+the killed run is left, `linecaster broker clean PATH --leases` removes them, and the next run gets slot 0 and claims
+the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add `--marks` only
+when the blocks themselves are wrong (a fixed proxy list, a host that lifted its block).
+
+**Which to use**: plain `clean` any time, also as a cron job beside running workers (it only deletes what a worker
+would delete when it sees it); `clean --leases` after a hard kill; `clean --leases --marks` to start the proxies
+afresh while keeping the folder; `purge` to reset a broker completely (a test folder, a broker of an older format, a
+folder to hand over empty). `clean --leases --marks` and `purge` remove the same live files; `purge` also removes
+`broker.json` and the folders left empty.
+
 ## Guarantees and limits
 
 - **One owner per resource**, as long as workers renew within the lease time. A worker stalled for longer than that

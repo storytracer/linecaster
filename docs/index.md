@@ -426,6 +426,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
 | regenerate the docs | `uv run linecaster docs` (`--check` in CI) |
 | check released catalog editions | `uv run linecaster catalog verify` |
+| see or tidy a broker (after a hard kill: `clean --leases`) | `linecaster broker status PATH`, `clean`, `purge` ([broker](reference/broker.md#the-command)) |
 | build the docs site | `uv run --group docs mkdocs build --strict` |
 | add a model | `linecaster catalog pin <id> --hf <repo>`, a preset in `presets/<step>/`, `linecaster catalog release <id>` |
 | add an engine | a package under `engines/` that imports only `linecaster.data` and `linecaster.engines.api`; test it with `linecaster.testing.check_engine` |

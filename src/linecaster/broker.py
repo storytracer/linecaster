@@ -30,6 +30,9 @@ later process on the same machine that claims the same slot once it is free is t
 renews) that worker's leases, which are named after the worker. A process that ends hands its slot over
 (``hand_over``) and leaves its other leases to the slot's next process; leases nobody renews expire after
 ``LEASE_TTL``.
+
+The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``clean`` removes what has expired
+(or, after a hard kill, every lease), ``purge`` resets it.
 """
 from __future__ import annotations
 
@@ -47,6 +50,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from loguru import logger
+
+from .errors import LinecasterError
 
 #: the broker's format, in ``broker.json``
 FORMAT = "linecaster.broker/1"
@@ -94,6 +99,51 @@ def modified(info: dict) -> float | None:
 def machine_name() -> str:
     """Returns this machine's name as the broker uses it: the host name's first label, safe for a file name."""
     return _safe(socket.gethostname().split(".")[0].lower())
+
+
+@dataclass(frozen=True)
+class Entry:
+    """One file of the broker's folder, as its path (relative to the folder) names it: ``category`` is ``format``
+    (``broker.json``), ``heartbeat`` (``workers/<worker>.json``; ``rid`` is the worker), ``lease``
+    (``<kind>/<id>/leases/<name>``; the slots are kind ``slots``, id ``<machine>/<n>``), ``mark``
+    (``<kind>/<id>/marks/<scope>/<name>``) or ``other`` (not the broker's)."""
+
+    path: str
+    category: str
+    kind: str = ""
+    rid: str = ""
+    scope: str = ""
+    name: str = ""
+
+    @property
+    def lease(self) -> tuple[str, str] | None:
+        """A lease's (claimed, holder) from its name, or None for a name that is not a lease's."""
+        if self.category != "lease" or not self.name.endswith(".json") or len(self.name) < _STAMP + 6:
+            return None
+        return self.name[:_STAMP], self.name[_STAMP + 1:-5]
+
+
+def parse_path(path: str) -> Entry:
+    """Returns what a file of the broker's folder is, from its path (``Entry``).
+
+    Args:
+        path: the file's path relative to the broker's folder, as a listing of it shows it.
+    """
+    if path == "broker.json":
+        return Entry(path, "format")
+    head, _, rest = path.partition("/")
+    if head == "workers" and rest.endswith(".json") and "/" not in rest:
+        return Entry(path, "heartbeat", rid=rest[:-5], name=rest)
+    for part in ("/leases/", "/marks/"):
+        rid, sep, tail = rest.partition(part)
+        if not sep or not rid:
+            continue
+        if part == "/leases/" and tail and "/" not in tail:
+            return Entry(path, "lease", head, rid, name=tail)
+        scope, _, name = tail.partition("/")
+        if part == "/marks/" and scope and name and "/" not in name:
+            return Entry(path, "mark", head, rid, scope, name)
+    return Entry(path, "other")
 
 
 @dataclass
@@ -193,9 +243,9 @@ class Broker:
     def _claim_slot(self) -> None:
         taken = set()
         for path, info in self._list(f"{SLOTS}/{self.machine}").items():
-            n, _, rest = path[len(SLOTS) + len(self.machine) + 2:].partition("/leases/")
-            if rest and self._age(info) < self.lease_ttl:
-                taken.add(n)
+            e = parse_path(path)
+            if e.category == "lease" and self._age(info) < self.lease_ttl:
+                taken.add(e.rid.rpartition("/")[2])
         for n in itertools.count():
             if str(n) in taken:
                 continue
@@ -218,11 +268,11 @@ class Broker:
         of the others."""
         live = []
         for path, info in self._list("workers").items():
-            name = path.rpartition("/")[2]
-            if not name.endswith(".json"):
+            e = parse_path(path)
+            if e.category != "heartbeat":
                 continue
             if self._age(info) < self.lease_ttl:
-                live.append(name[:-5])
+                live.append(e.rid)
             else:
                 self._rm(path)
         return sorted(live)
@@ -232,19 +282,29 @@ class Broker:
     def _lease_name(self, holder: str) -> str:
         return f"{_stamp(self.clock())}-{holder}.json"
 
-    def _valid(self, listing: dict[str, dict], prefix: str, own: str | None = None) -> list[tuple[str, str, str]]:
-        """The valid leases under ``prefix`` (a resource's ``leases/``) as (claimed, holder, name), earliest first;
-        ``own`` (a name) counts as valid whatever its age (it was just written). Expired ones are deleted."""
-        out = []
+    def _leases(self, listing: dict[str, dict], prefix: str,
+                own: str | None = None) -> tuple[list[tuple[str, str, str]], list[str]]:
+        """The leases under ``prefix`` (a resource's ``leases/``): the valid ones as (claimed, holder, name), earliest
+        first, and the paths of the expired ones; ``own`` (a name) counts as valid whatever its age (it was just
+        written). Deletes nothing."""
+        valid, expired = [], []
         for path, info in listing.items():
-            name = path.rpartition("/")[2]
-            if not path.startswith(prefix) or not name.endswith(".json") or len(name) < _STAMP + 6:
+            parts = parse_path(path).lease if path.startswith(prefix) else None
+            if parts is None:
                 continue
+            name = path[len(prefix):]
             if name != own and self._age(info) >= self.lease_ttl:
-                self._rm(path)
+                expired.append(path)
                 continue
-            out.append((name[:_STAMP], name[_STAMP + 1:-5], name))
-        return sorted(out)
+            valid.append((*parts, name))
+        return sorted(valid), expired
+
+    def _valid(self, listing: dict[str, dict], prefix: str, own: str | None = None) -> list[tuple[str, str, str]]:
+        """The valid leases under ``prefix`` as ``_leases`` finds them; the expired ones are deleted."""
+        valid, expired = self._leases(listing, prefix, own)
+        for path in expired:
+            self._rm(path)
+        return valid
 
     def _claim(self, kind: str, rid: str, holder: str) -> str | None:
         """Claims ``kind``/``rid`` for ``holder``: the lease's name if it won, else None."""
@@ -312,8 +372,9 @@ class Broker:
         listing = self._list(kind) if listing is None else listing
         mine = f"-{self._worker}.json"
         for path in listing:
-            rid, sep, name = path[len(kind) + 1:].partition("/leases/")
-            if not sep or not name.endswith(mine) or (kind, rid) in self._held:
+            e = parse_path(path)
+            rid, name = e.rid, e.name
+            if e.category != "lease" or e.kind != kind or not name.endswith(mine) or (kind, rid) in self._held:
                 continue
             prefix = f"{kind}/{rid}/leases/"
             valid = self._valid({p: i for p, i in listing.items() if p.startswith(prefix)}, prefix)
@@ -441,13 +502,10 @@ class Broker:
         out: dict[str, Resource] = {}
         groups: dict[tuple[str, str, str], dict[str, dict]] = {}
         for path, info in listing.items():
-            rest = path[len(kind) + 1:]
-            for part in ("/leases/", "/marks/"):
-                rid, sep, tail = rest.partition(part)
-                if sep:
-                    scope = tail.partition("/")[0] if part == "/marks/" else ""
-                    groups.setdefault((rid, part, scope), {})[path] = info
-                    break
+            e = parse_path(path)
+            if e.kind == kind and e.category in ("lease", "mark"):
+                part = "/leases/" if e.category == "lease" else "/marks/"
+                groups.setdefault((e.rid, part, e.scope), {})[path] = info
         for (rid, part, scope), entries in groups.items():
             prefix = f"{kind}/{rid}{part}" + (f"{scope}/" if scope else "")
             if part == "/leases/":
@@ -527,6 +585,260 @@ class Broker:
         if worker is not None:
             self._rm(f"workers/{worker}.json")
         self.hand_over()
+
+
+# ---------------------------------------------------------------------- the folder as a whole (``linecaster broker``)
+
+#: the categories ``clean`` removes, in the order it reports them
+CLEANED = ("heartbeats", "slots", "leases", "marks")
+
+
+def _inspector(folder, now: float | None, lease_ttl: float) -> Broker:
+    """A broker that only reads and deletes: an explicit worker (it claims no slot, writes no heartbeat) and a clock
+    fixed at ``now`` if given."""
+    clock = time.time if now is None else (lambda: now)
+    return Broker(folder, worker="inspector", clock=clock, lease_ttl=lease_ttl)
+
+
+def _scan(b: Broker) -> list[dict]:
+    """Every file of the broker's folder from one listing, with what it is and whether it is live: per file the
+    ``Entry`` (``entry``), its ``age`` (seconds since its last write, by the storage's modification time), ``live``
+    (a heartbeat or lease written within the lease time, a mark not expired; None for a mark whose end could not be
+    read) and, for a mark, its ``end``."""
+    out = []
+    for path, info in sorted(b._list("").items()):
+        e = parse_path(path)
+        if e.category == "lease" and e.lease is None:
+            e = Entry(path, "other")
+        age = b._age(info)
+        row = {"entry": e, "age": age, "live": None, "end": None}
+        if e.category in ("heartbeat", "lease"):
+            row["live"] = age < b.lease_ttl
+        elif e.category == "mark":
+            row["end"] = b._mark_end(path, info)
+            row["live"] = None if row["end"] is None else row["end"] > b.clock()
+        out.append(row)
+    return out
+
+
+def _read_json(b: Broker, path: str) -> dict:
+    """A small JSON file of the folder (a heartbeat, ``broker.json``) as a dict, or {} if it cannot be read."""
+    try:
+        with b.folder.open(path) as f:
+            record = json.load(f)
+        return record if isinstance(record, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def survey_all(folder, now: float | None = None, lease_ttl: float = LEASE_TTL) -> dict:
+    """Returns what a broker's folder holds, from one listing, without changing anything: its format, the workers
+    (live or stale), the worker slots per machine and, per kind of resource, how many are held, free, blocked per
+    scope and marked for every scope. Ids only: no credential is in the folder (proxies are hashes).
+
+    The result (JSON values): ``path``, ``format`` (``broker.json``'s, None without one), ``now``, ``lease_ttl``;
+    ``workers``: one dict per heartbeat (``worker``, ``machine``, ``slot``, ``run``, ``age`` in seconds since its
+    last renew, ``live``), live first; ``slots``: machine -> ``{"live": n, "stale": n}`` (a slot is live while a lease
+    of it was renewed within the lease time, stale when it has only expired ones); ``kinds``: kind -> ``resources``
+    (the ids with a lease or a mark file), ``held`` (``live``: a valid lease; ``stale``: only expired leases, free in
+    effect until ``clean`` removes them), ``free`` (no lease file), ``holders`` (worker -> resources it holds),
+    ``blocked`` (scope -> ``{"resources": n, "until": latest end}``, live marks for one scope), ``broken`` (the same
+    for scope ``*``, or None) and ``expired_marks``.
+
+    Args:
+        folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
+        now: the time to judge liveness by, seconds since the epoch; None: the clock now.
+        lease_ttl: how long a lease and a heartbeat stay valid without a renew (``LEASE_TTL``).
+
+    Example:
+        survey_all("OUT/logs/broker")["kinds"]["proxies"]["free"]
+    """
+    b = _inspector(folder, now, lease_ttl)
+    rows = _scan(b)
+    fmt = None
+    workers, slots, kinds = [], {}, {}
+    leases: dict[tuple[str, str], list[tuple[str, str, bool]]] = {}
+    for row in rows:
+        e = row["entry"]
+        if e.category == "format":
+            fmt = _read_json(b, e.path).get("format")
+        elif e.category == "heartbeat":
+            record = _read_json(b, e.path)
+            workers.append({"worker": e.rid, "machine": record.get("machine") or e.rid.rpartition("-")[0] or None,
+                            "slot": record.get("slot"), "run": record.get("run"), "age": round(row["age"], 3),
+                            "live": row["live"]})
+        elif e.category == "lease":
+            leases.setdefault((e.kind, e.rid), []).append((*e.lease, row["live"]))
+        elif e.category == "mark":
+            k = kinds.setdefault(e.kind, {"rids": set(), "blocked": {}, "expired_marks": 0})
+            k["rids"].add(e.rid)
+            if row["live"]:
+                ends = k["blocked"].setdefault(e.scope, {})
+                ends[e.rid] = max(ends.get(e.rid, 0.0), row["end"])
+            elif row["live"] is False:
+                k["expired_marks"] += 1
+    out_kinds = {}
+    for (kind, rid), found in sorted(leases.items()):
+        valid = sorted((claimed, holder) for claimed, holder, live in found if live)
+        if kind == SLOTS:
+            machine, _, _ = rid.rpartition("/")
+            counts = slots.setdefault(machine, {"live": 0, "stale": 0})
+            counts["live" if valid else "stale"] += 1
+            continue
+        k = kinds.setdefault(kind, {"rids": set(), "blocked": {}, "expired_marks": 0})
+        k["rids"].add(rid)
+        k.setdefault("leases", {})[rid] = valid[0][1] if valid else None
+    for kind, k in sorted(kinds.items()):
+        held = k.get("leases", {})
+        holders: dict[str, int] = {}
+        for holder in held.values():
+            if holder is not None:
+                holders[holder] = holders.get(holder, 0) + 1
+        live = sum(1 for h in held.values() if h is not None)
+        blocked = {scope: {"resources": len(ends), "until": max(ends.values())}
+                   for scope, ends in sorted(k["blocked"].items())}
+        out_kinds[kind] = {"resources": len(k["rids"]), "held": {"live": live, "stale": len(held) - live},
+                           "free": len(k["rids"]) - len(held), "holders": dict(sorted(holders.items())),
+                           "blocked": {s: v for s, v in blocked.items() if s != EVERY_SCOPE},
+                           "broken": blocked.get(EVERY_SCOPE), "expired_marks": k["expired_marks"]}
+    workers.sort(key=lambda w: (not w["live"], w["worker"]))
+    return {"path": b.path, "format": fmt, "now": b.clock(), "lease_ttl": lease_ttl, "workers": workers,
+            "slots": dict(sorted(slots.items())), "kinds": out_kinds}
+
+
+def clean(folder, *, leases: bool = False, marks: bool = False, dry_run: bool = False, now: float | None = None,
+          confirm: Callable[[list[dict]], bool] | None = None, lease_ttl: float = LEASE_TTL) -> dict:
+    """Removes what a broker's folder no longer needs, from one listing: by default only what has expired (safe while
+    a run uses the broker): heartbeats and leases (worker slots and resources) not renewed within the lease time,
+    and marks past their end. ``broker.json`` and files that are not the broker's are never removed.
+
+    ``leases`` also removes every heartbeat, slot lease and resource lease, live or not: the cleanup after a hard
+    kill (a killed run's leases look valid for up to the lease time, so a relaunch gets new slots and finds every
+    proxy held). ``marks`` also removes every mark (blocked proxies are tried again at once). Both are safe only when
+    no run uses the broker: when they would remove something live, ``confirm`` is asked first.
+
+    Raises ``LinecasterError`` (removing nothing) when the folder has no ``broker.json`` of this ``FORMAT``, so a
+    wrong path never loses files.
+
+    Returns ``path``, ``dry_run``, ``aborted`` (``confirm`` said no: nothing was removed), ``removed`` (category of
+    ``CLEANED`` -> one dict per file: ``path``, ``age``, ``live``; what would be removed with ``dry_run``) and
+    ``live`` (the live files among them).
+
+    Args:
+        folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
+        leases: also remove the live heartbeats, slot leases and resource leases.
+        marks: also remove the live marks.
+        dry_run: remove nothing; report what would be removed.
+        now: the time to judge liveness by, seconds since the epoch; None: the clock now.
+        confirm: called with the live files about to be removed (when there are any, and not ``dry_run``); False
+            aborts and nothing is removed. None removes them without asking.
+        lease_ttl: how long a lease and a heartbeat stay valid without a renew (``LEASE_TTL``).
+
+    Example:
+        clean("OUT/logs/broker", leases=True)["removed"]["slots"]
+    """
+    b = _inspector(folder, now, lease_ttl)
+    rows = _scan(b)
+    fmt = next((_read_json(b, r["entry"].path).get("format") for r in rows if r["entry"].category == "format"), None)
+    if fmt != FORMAT:
+        raise LinecasterError(f"{b.path} is not a broker of format {FORMAT} (broker.json: "
+                              f"{fmt or 'missing or unreadable'}); nothing removed")
+    removed: dict[str, list[dict]] = {c: [] for c in CLEANED}
+    for row in rows:
+        e, live = row["entry"], row["live"]
+        category = _category(e)
+        if category not in CLEANED:
+            continue
+        forced = marks if category == "marks" else leases
+        if live is False or forced:
+            removed[category].append({"path": e.path, "age": round(row["age"], 3), "live": live is not False})
+    live = [f for c in CLEANED for f in removed[c] if f["live"]]
+    result = {"path": b.path, "dry_run": dry_run, "aborted": False, "removed": removed, "live": live}
+    if dry_run:
+        return result
+    if live and confirm is not None and not confirm(live):
+        return {**result, "aborted": True}
+    for c in CLEANED:
+        for f in removed[c]:
+            b._rm(f["path"])
+    return result
+
+
+#: the categories ``purge`` removes: ``broker.json`` and ``CLEANED``
+PURGED = ("broker.json", *CLEANED)
+
+
+def _category(e: Entry) -> str | None:
+    """The category of ``PURGED`` a file of the broker's folder belongs to, or None for a file that is not the
+    broker's."""
+    if e.category == "lease":
+        return "slots" if e.kind == SLOTS else "leases"
+    return {"format": "broker.json", "heartbeat": "heartbeats", "mark": "marks"}.get(e.category)
+
+
+def purge(folder, *, dry_run: bool = False, now: float | None = None,
+          confirm: Callable[[dict], bool] | None = None, lease_ttl: float = LEASE_TTL) -> dict:
+    """Resets a broker: removes every file of its layout, ``broker.json``, heartbeats, slot leases, resource leases
+    and marks of every kind, live or not, so the next run starts as on an empty folder. Files that are not the
+    broker's stay. Safe only when no run uses the broker; ``clean`` with ``leases`` and ``marks`` keeps the format
+    file and is enough after a hard kill.
+
+    Raises ``LinecasterError`` (removing nothing) when the folder does not look like a broker's (neither
+    ``broker.json`` nor ``workers/`` or ``slots/`` files), so a wrong path never loses files.
+
+    Returns ``path``, ``dry_run``, ``aborted`` (``confirm`` said no: nothing was removed), ``removed`` (category of
+    ``PURGED`` -> one dict per file: ``path``, ``age``, ``live``; what would be removed with ``dry_run``),
+    ``live_workers`` and ``live_marks`` (how many of them are live).
+
+    Args:
+        folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
+        dry_run: remove nothing; report what would be removed.
+        now: the time to judge liveness by, seconds since the epoch; None: the clock now.
+        confirm: called with the result before anything is removed (unless ``dry_run``, or there is nothing to
+            remove); False aborts and nothing is removed. None removes without asking.
+        lease_ttl: how long a lease and a heartbeat stay valid without a renew (``LEASE_TTL``).
+
+    Example:
+        purge("OUT/logs/broker", dry_run=True)["removed"]["marks"]
+    """
+    b = _inspector(folder, now, lease_ttl)
+    rows = _scan(b)
+    if not any(r["entry"].category == "format" or r["entry"].path.partition("/")[0] in ("workers", SLOTS)
+               for r in rows):
+        raise LinecasterError(f"{b.path} does not look like a broker's folder (no broker.json, workers/ or "
+                              f"{SLOTS}/); nothing removed")
+    removed: dict[str, list[dict]] = {c: [] for c in PURGED}
+    for row in rows:
+        category = _category(row["entry"])
+        if category is not None:
+            removed[category].append({"path": row["entry"].path, "age": round(row["age"], 3),
+                                      "live": row["live"] is not False and category != "broker.json"})
+    result = {"path": b.path, "dry_run": dry_run, "aborted": False, "removed": removed,
+              "live_workers": sum(f["live"] for f in removed["heartbeats"]),
+              "live_marks": sum(f["live"] for f in removed["marks"])}
+    if dry_run or not any(removed.values()):
+        return result
+    if confirm is not None and not confirm(result):
+        return {**result, "aborted": True}
+    for c in reversed(PURGED):                                # broker.json last: an interrupted purge stays one
+        for f in removed[c]:
+            b._rm(f["path"])
+    _remove_empty_folders(b)
+    return result
+
+
+def _remove_empty_folders(b: Broker) -> None:
+    """Removes the folders left empty under the broker's folder (on storage that has folders), deepest first."""
+    try:
+        found = b.folder.find("", withdirs=True, detail=True)
+    except (FileNotFoundError, OSError):
+        return
+    for path in sorted((p for p, info in found.items() if info.get("type") == "directory" and p),
+                       key=lambda p: p.count("/"), reverse=True):
+        try:
+            b.folder.rmdir(path)
+        except (FileNotFoundError, OSError):
+            pass                                              # not empty: a file that is not the broker's
 
 
 _SHARED: dict[tuple, Broker] = {}
