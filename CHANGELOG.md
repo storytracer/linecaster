@@ -8,6 +8,14 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- The generated docs (the block and catalog pages, `docs/index.md`, `docs/changelog.md`, `docs/llms*.txt`) are no
+  longer in git: `linecaster docs` writes them when the site is built, and git ignores them. Run `linecaster docs`
+  before `mkdocs serve` or `mkdocs build`. `linecaster docs --check` and `linecaster.docs.check` are gone (nothing to
+  compare against), and so are the README's generated preset and block tables with their markers
+  (`linecaster.catalog.docs.readme_tables`, `readme_section`, `MARK_START`/`MARK_END`,
+  `linecaster.docs.blocks.readme_table`, and `linecaster.catalog.docs.write`'s `readme`): the README links to the
+  site's catalog and blocks pages instead.
+  A derivative that called `linecaster docs --check` drops the call; none of the known derivatives does.
 - `pipelines/harvest.py` no longer lists each item's folder in OUT for images to reuse unless `--reuse` is given. On some
   object storage the listing took over a minute even for empty folders, so every item waited before its pages were
   fetched; only the items a stopped launch was in have anything to reuse. Without `--reuse` their pages are fetched
@@ -280,9 +288,13 @@ the tags; the first is `v0.1.0`.
 - Versioned docs: the docs workflow publishes the site with mike to the `gh-pages` branch, served by GitHub Pages:
   every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
   as `dev`; `mike` joins the dependency group `docs`.
+- `pytest-xdist` joins the dependency group `dev`: `uv run pytest -n auto` runs the tests on every core, as CI does;
+  a plain `uv run pytest` stays serial. CI keeps uv's cache between runs.
 
 ### Fixed
 
+- `ServiceServer` notices a service that exits while it boots at once, instead of at its next look at the health
+  URLs (every 2 s).
 - A resumed harvest's listing of an item's folder in `OUT/images` (the images already written, to reuse) could hang
   forever on object storage, and with it the worker: with 250 workers writing to S3-compatible storage only 28 got
   to fetch. The readers now wait at most `linecaster.blocks.readers.existing.LISTING_TIMEOUT` (60 s) for it (fsspec
