@@ -30,6 +30,9 @@ later process on the same machine that claims the same slot once it is free is t
 renews) that worker's leases, which are named after the worker. A process that ends hands its slot over
 (``hand_over``) and leaves its other leases to the slot's next process; leases nobody renews expire after
 ``LEASE_TTL``.
+
+The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``clean`` removes what has expired
+(or, after a hard kill, every lease), ``purge`` resets it.
 """
 from __future__ import annotations
 

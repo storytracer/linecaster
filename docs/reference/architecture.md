@@ -26,7 +26,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
 | `linecaster.serve` | `linecaster serve` |
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools |
-| `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder |
+| `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
 | `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
