@@ -1097,6 +1097,13 @@ the tags; the first is <code>v0.1.0</code>.</p>
   time, each worker its fair share (rebalanced as workers join and leave), a block is a mark seen by whoever claims
   the proxy next, without the 30-s polling of the proxy-blocks folder it replaces, and the rate limits hold per proxy.
   The console shows the proxies held, blocked and free.</li>
+<li><code>linecaster broker status PATH [--json]</code>, <code>clean PATH [--leases] [--marks]</code> and <code>purge PATH</code>
+  (<a href="../reference/broker/#the-command">broker</a>): what a broker's folder holds (workers, slots, per kind the
+  resources held, free, blocked per scope, broken); removing what has expired (safe beside running workers), after a
+  hard kill every heartbeat and lease (<code>--leases</code>: a relaunch gets slot 0 and the proxies at once instead of waiting
+  up to 3 min for them to expire), every mark (<code>--marks</code>), or the whole layout (<code>purge</code>). Removing live files asks on
+  a terminal and is refused without one (<code>--yes</code>, <code>--dry-run</code>). In code: <code>linecaster.broker.survey_all</code>, <code>clean</code> and
+  <code>purge</code>.</li>
 <li>XY-Cut++ reading order (Liu, Li and Wei, arXiv:2504.10258) for layout models without one:
   <code>linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)</code>, pure and
   deterministic, the paper's β, θ_v, τ_overlap, centering tolerance and edge weights as keyword arguments, its

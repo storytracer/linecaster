@@ -639,6 +639,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The command
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#guarantees-and-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -912,6 +923,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The command
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#guarantees-and-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1058,6 +1080,58 @@ list is set) works on the broker:</p>
 </ul>
 <p><code>--broker PATH</code> (or an HTTP policy's root key <code>broker</code>) names the folder; the default is <code>OUT/logs/broker</code>. Runs
 pointed at one path share the proxies and their blocks.</p>
+<h2 id="the-command">The command<a class="headerlink" href="#the-command" title="Permanent link">&para;</a></h2>
+<p><code>linecaster broker</code> reads and tidies a broker's folder (<code>PATH</code>: any fsspec path, e.g. <code>OUT/logs/broker</code> or
+<code>s3://bucket/broker</code>). The code is <code>linecaster.broker.survey_all</code>, <code>clean</code> and <code>purge</code>, usable from code with a
+<code>now</code> to judge liveness by.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>linecaster broker status PATH [--json]</code></td>
+<td>from one listing: the format; the workers (machine, run, time since the last renew), live and stale; the worker slots per machine; per kind of resource how many there are, held by a live lease, held only by expired ones (stale), free, blocked per scope with the latest end, broken (<code>*</code>), and the expired marks. Ids only, no credential (proxies are hashes). <code>--json</code>: one JSON object with the same content</td>
+</tr>
+<tr>
+<td><code>linecaster broker clean PATH</code></td>
+<td>removes what has expired: heartbeats and leases (slots and resources) not renewed within the lease time, marks past their end. Safe while a run uses the broker</td>
+</tr>
+<tr>
+<td><code>linecaster broker clean PATH --leases</code></td>
+<td>also every heartbeat, slot lease and resource lease, live or not; the marks (blocks) stay</td>
+</tr>
+<tr>
+<td><code>linecaster broker clean PATH --marks</code></td>
+<td>also every mark, live or not: blocked and broken proxies are tried again at once</td>
+</tr>
+<tr>
+<td><code>linecaster broker purge PATH</code></td>
+<td>resets the broker: removes every file of its layout, <code>broker.json</code> among them, so the next run starts as on an empty folder</td>
+</tr>
+</tbody>
+</table>
+<p><code>clean</code> and <code>purge</code> take <code>--dry-run</code> (list what would be removed, remove nothing) and <code>-v</code> (list each removed file);
+<code>clean</code> prints the counts per category otherwise. <strong>Confirmation</strong>: <code>clean --leases</code> or <code>--marks</code> that would remove
+something live (renewed within the lease time, a mark not expired), and <code>purge</code> always, list what they would remove
+and ask on a terminal; without one they refuse. <code>--yes</code> skips the question. Both refuse a folder that is not a
+broker's (<code>clean</code>: no <code>broker.json</code> of this format; <code>purge</code>: neither <code>broker.json</code> nor <code>workers/</code> or <code>slots/</code>), and
+neither removes a file outside the broker's layout. Exit codes: 0 done (or nothing to do), 1 refused or aborted, 2 a
+usage error.</p>
+<p><strong>After a hard kill</strong> (<code>kill -9</code>, a crash, a local run whose worker processes are terminated) nothing hands over:
+the dead workers' heartbeats, slots and proxy leases look valid for up to the lease time (3 min). A run started again
+within that time gets new slot numbers, finds every proxy held and pauses until the leases expire. Once no process of
+the killed run is left, <code>linecaster broker clean PATH --leases</code> removes them, and the next run gets slot 0 and claims
+the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add <code>--marks</code> only
+when the blocks themselves are wrong (a fixed proxy list, a host that lifted its block).</p>
+<p><strong>Which to use</strong>: plain <code>clean</code> any time, also as a cron job beside running workers (it only deletes what a worker
+would delete when it sees it); <code>clean --leases</code> after a hard kill; <code>clean --leases --marks</code> to start the proxies
+afresh while keeping the folder; <code>purge</code> to reset a broker completely (a test folder, a broker of an older format, a
+folder to hand over empty). <code>clean --leases --marks</code> and <code>purge</code> remove the same live files; <code>purge</code> also removes
+<code>broker.json</code> and the folders left empty.</p>
 <h2 id="guarantees-and-limits">Guarantees and limits<a class="headerlink" href="#guarantees-and-limits" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>One owner per resource</strong>, as long as workers renew within the lease time. A worker stalled for longer than that
