@@ -332,9 +332,10 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
             assert len(used) == 2                          # one proxy per worker: one each, never the same
         else:
             assert len(used) == 4 and min(used) >= 2       # a fair share: spread over the four
-        for times in seen.values():
-            gaps = [b - a for a, b in zip(times, times[1:])]
-            assert not gaps or min(gaps) > 0.15, gaps      # 0.2 s per proxy, less the jitter of loopback
+        jitter = 0.08                                      # of a request's arrival, on a loaded machine
+        for times in seen.values():                        # 0.2 s per proxy: k requests on take at least k * 0.2 s
+            assert all(times[j] - times[i] > (j - i) * 0.2 - jitter
+                       for i in range(len(times)) for j in range(i + 1, len(times))), times
         workers = sorted(p.name for p in (tmp_path / "broker" / "workers").iterdir())
         assert [w.rsplit("-", 1)[1] for w in workers] == ["0.json", "1.json"]   # the pool's worker indexes
     finally:
