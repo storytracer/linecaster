@@ -1035,13 +1035,13 @@ requires-dist = [
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
-    { name = "resilient-httpx", marker = "extra == 'resilient-httpx'", url = "https://github.com/storytracer/resilient-httpx/archive/bc9de0a042b68578a52258e0f411adc5749018c5.tar.gz" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2025.3" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "resilient-httpx", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2", "s3fs"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
