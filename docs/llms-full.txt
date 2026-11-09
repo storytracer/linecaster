@@ -528,7 +528,7 @@ term is added here before it is used.
 | **lease** | A worker's claim on one resource in the broker (`<kind>/<id>/leases/`): it holds the resource while it renews the lease within the lease time (180 s); one worker holds a resource at a time, and a crashed worker's leases expire on their own. | not a lock with a server |
 | **mark** | A note in the broker that something holds for a resource in a scope until a time (`<kind>/<id>/marks/<scope>/`), written once and never changed, deleted by whoever sees it expired: a proxy's block at a host (scope the host), a broken proxy (scope `*`). | |
 | **worker identity**, **worker slot** | Who holds leases in the broker: a datatrove worker as a slot of its machine (`<machine>-<n>`), not a process. A process claims a free slot of its machine at its first use (its search starting at its executor's worker index, so processes started together do not race) and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process). | not a process, not a task |
-| **proxies per worker** | How many proxies of a list a worker holds at a time (`proxies_per_worker`, per host in an HTTP policy, `linecaster.net.proxies`): by default `share`, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go; `1`, one, swapped for a free one when it is blocked; or up to N, claimed one by one. The run's default worker count follows it (with `1` or N one worker per available proxy, divided by N). | not proxies per task |
+| **proxies per worker** | How many proxies of a list a worker holds at a time (`proxies_per_worker`, per host in an HTTP policy, `linecaster.net.proxies`): by default `share`, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go; `1`, one, swapped for a free one when it is blocked; or up to N, claimed one by one. The run's default worker count follows it (sharing them, one worker per available proxy up to one per CPU; with `1` or N one per available proxy, divided by N; at most 64 with OUT on object storage). | not proxies per task |
 | **proxy block** | A proxy left out for a host until a set time because the host turned it away (a 429 until its `Retry-After`, a block page, a status in `blacklist_on`): a mark in the broker. The proxy's owner stops using it there at once, and whoever claims it later sees the mark. | not a block of a pipeline |
 | **pause** | A time in which a fetcher (one per worker and host settings) sends no request, and its requests wait instead of failing. Three things start one: a status in the host's `pause_on` (429 by default) on a direct connection, until the response's `Retry-After` has passed, after which the request that got it is tried again (`linecaster.net.http.Pause`; beyond `max_pause` the run stops); the breaker during an outage; and, with a proxy list, no proxy usable for the host (every one the worker holds blocked there, none free to claim) until a block ends or another worker gives one back (beyond `max_pause` the run stops). Other workers' fetchers go on. | not a stop of the run |
 | **breaker** | A fetcher's guard against an outage (`linecaster.net.http.Breaker`): when most recent attempts got a server error it pauses the fetcher's requests, sends a probe now and then, and ends the pause with the first answer that is not a server error. | not the pause after a 429 |
@@ -1290,17 +1290,23 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
 | with engines | 1 | every task |
-| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`), local or Ray (`--on hf-jobs`: as below) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
+| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`), local or Ray (`--on hf-jobs`: as below) | the reader's `auto_tasks` (from the input), else 1 | sharing them fairly (`proxies_per_worker: share`, the default): one per available proxy, at most one per CPU; with `proxies_per_worker` 1 or N: one per available proxy divided by N (`ceil(available / N)`), not capped by the CPUs; either way at most the tasks and, with OUT on object storage, at most 64 (`OBJECT_STORAGE_WORKERS`) |
 | without engines, with `--rate-limit` (a host with rate limits and no proxies) | the reader's `auto_tasks`, else 1 | 1 |
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
 
 The available proxies are counted once at launch from one listing of the broker
 (`linecaster.runtime.run.available_proxies`): those in the file, less those with a live block or broken mark for the
 run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
-(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. The run
-states the count and why (`linecaster.runtime.run.workers_note`, e.g. `250 proxies available → 250 workers, 1 proxy
-each`). The workers mostly wait on the network, so their count is not capped by the CPUs; `--workers` gives fewer
-(each worker is a process with its own memory).
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. Sharing
+the proxies fairly, a few workers use them all, so their count stops at the CPUs; with one proxy per worker (or up to
+N) using them all takes a worker per proxy (per N), and the workers mostly wait on the network, so their count is not
+capped by the CPUs. With OUT on object storage (any fsspec protocol but a local one: `s3://`, `gs://`, `hf://`,
+`az://`, ...) the count stops at `linecaster.runtime.run.OBJECT_STORAGE_WORKERS` (64) in both modes: in one setup,
+250 workers writing to S3-compatible object storage hung in their listings of `OUT/images` and fetched less than 64
+did, which ran cleanly; an observation from that setup, not a guarantee for others. The run states the count and why
+(`linecaster.runtime.run.workers_note`, e.g. `250 proxies available, OUT on object storage → 64 workers, a fair
+share each`, or `250 proxies available → 250 workers, 1 proxy each`). `--workers` overrides it (each worker is a
+process with its own memory).
 
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
@@ -1393,7 +1399,7 @@ how many proxies a worker holds (`proxies_per_worker`: `share`, the default, 1 o
 `max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
 default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and
 `--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
-rate-limited host it gets one per available proxy (above).
+rate-limited host its workers follow the available proxies (above).
 
 ## The console
 
@@ -2449,10 +2455,11 @@ list is set) works on the broker:
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
-(`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
-with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
-`linecaster.broker.survey_kind`), divided by `proxies_per_worker`; on local and Ray runs only (on HF Jobs each worker is a Job,
-so a proxy list never sets their number).
+(`linecaster.runtime.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
+a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
+`linecaster.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
+with `proxies_per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](pipelines.md#tasks-workers-and-rate-limits));
+on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).
 
 ## The command
 

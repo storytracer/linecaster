@@ -19,12 +19,16 @@ the tags; the first is `v0.1.0`.
   few hours and is `share` again: with one proxy per worker, using 250 proxies took 250 workers, and 250 workers
   writing to object storage hung in their listings of `OUT/images` (below); a run that wants one proxy per worker
   sets `proxies_per_worker: 1`.
-- The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies follows the
-  proxies: one worker per available proxy (those in the file, less those blocked or broken in the broker for the
-  run's hosts and those held by another run's live workers), at most one per task, divided by `proxies_per_worker`
-  (`ceil(available / N)`; `share` keeps one worker), and no longer capped by the CPUs. A harvest with 250 proxies and
-  no `--workers` now runs 250 worker processes; give `--workers` to run fewer. The run states the count and why
-  (`250 proxies available → 250 workers, 1 proxy each`). A host with rate limits and no proxy list keeps one worker.
+- The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies, on a local
+  or Ray run, follows the proxies available (those in the file, less those blocked or broken in the broker for the
+  run's hosts and those held by another run's live workers), at most one per task: sharing them fairly (`share`, the
+  default) one worker per available proxy and at most one per CPU, where such a run kept one worker; with
+  `proxies_per_worker` 1 or N one per available proxy divided by N (`ceil(available / N)`), not capped by the CPUs.
+  With OUT on object storage (any fsspec protocol but a local one: `s3://`, `gs://`, `hf://`, `az://`, ...) the count
+  stops at 64 (`linecaster.runtime.run.OBJECT_STORAGE_WORKERS`) in both modes: in one setup 250 workers writing to
+  S3-compatible object storage hung where 64 ran cleanly. Give `--workers` for another count. The run states the
+  count and why (`250 proxies available, OUT on object storage → 64 workers, a fair share each`). A host with rate
+  limits and no proxy list keeps one worker; HF Jobs keep their rule (a worker is a Job).
 - `linecaster.runtime.local.LocalExecutor`'s `note` may be a list of lines; `linecaster.runtime.run.rate_note`
   counts the proxies in use (`1 of 2 proxies in use (1 proxy per worker)`) when the workers hold fewer than the list.
 - A worker process no longer claims the lowest free worker slot of its machine: it starts at its executor's worker

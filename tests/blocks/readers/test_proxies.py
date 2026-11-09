@@ -132,7 +132,7 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
                                           str(tmp_path / "proxies.txt"), "--broker", "s3://b/broker"]))
     assert run.reader(shared)._opener.http["broker"] == "s3://b/broker"
     run.allocate(a, [run.reader(a)])                                  # one task: one worker, a fair share: both
-    assert a.workers == 1
+    assert run.workers_note(a) == "2 proxies available, 1 task → 1 worker, a fair share each"
     assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
     (tmp_path / "one.yaml").write_text("proxies_per_worker: 1\n")
     one = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--rate-limit", "150/60", "--proxies",

@@ -125,10 +125,11 @@ list is set) works on the broker:
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
-(`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
-with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
-`linecaster.broker.survey_kind`), divided by `proxies_per_worker`; on local and Ray runs only (on HF Jobs each worker is a Job,
-so a proxy list never sets their number).
+(`linecaster.runtime.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
+a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
+`linecaster.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
+with `proxies_per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](pipelines.md#tasks-workers-and-rate-limits));
+on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).
 
 ## The command
 
