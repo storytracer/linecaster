@@ -1313,6 +1313,9 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li>A blocked or broken proxy is marked in the broker and logged once per block: the requests already on their way
+  through it come back blocked too and go on through another proxy without a mark, a message or a failure of their own
+  (before, each rewrote the mark and logged the block again).</li>
 <li><code>ServiceServer</code> notices a service that exits while it boots at once, instead of at its next look at the health
   URLs (every 2 s).</li>
 <li>A resumed harvest's listing of an item's folder in <code>OUT/images</code> (the images already written, to reuse) could hang
