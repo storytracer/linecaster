@@ -31,11 +31,11 @@ the tags; the first is `v0.1.0`.
   limits and no proxy list keeps one worker; HF Jobs keep their rule (a worker is a Job).
 - `linecaster.runtime.local.LocalExecutor`'s `note` may be a list of lines; `linecaster.runtime.run.rate_note`
   counts the proxies in use (`1 of 2 proxies in use (1 proxy per worker)`) when the workers hold fewer than the list.
-- A worker process no longer claims the lowest free worker slot of its machine: it starts at its executor's worker
-  index (`linecaster.broker.set_worker_index`, set by `LocalExecutor`, `RayExecutor` and `JobsExecutor`), else at a
-  random slot, takes a handed-over slot first and probes upward from there, so slot numbers no longer say in which
-  order the processes came. Code that starts brokers itself and expects `<machine>-0` first passes
-  `Broker(..., worker_index=(0, 1))`.
+- A worker process no longer claims the lowest free worker slot of its machine: it takes a handed-over slot first,
+  then the k-th free slot (one without a valid slot lease), k its executor's worker index
+  (`linecaster.broker.set_worker_index`, set by `LocalExecutor`, `RayExecutor` and `JobsExecutor`; else random), and
+  probes upward from there, so slot numbers no longer say in which order the processes came. Code that starts brokers
+  itself and expects `<machine>-0` first passes `Broker(..., worker_index=(0, 1))`.
 - A broker's renew logs a lost claim race (two claims at once both believed they won) at INFO, `worker X lost a claim
   race for proxies/<id> to Y; it takes another`; the WARNING `... lease on proxies/<id> expired (no renew within the
   lease time); it gives it up` is only for a lease that really expired (its file gone or older than the lease time),
@@ -105,8 +105,9 @@ the tags; the first is `v0.1.0`.
 ### Added
 
 - Worker slots are claimed fast: processes started together (a local run's pool, Ray tasks, a multi-GPU Job's
-  tasks) start their search at different slots (`linecaster.broker.set_worker_index`), so they register in about one
-  claim each instead of racing for slot 0, then slot 1, ...; a run's first minutes no longer see early workers
+  tasks) each take a different free slot (the k-th, k their `linecaster.broker.set_worker_index`), so they register
+  in one claim each instead of racing for slot 0, then slot 1, ..., also when relaunched while a stopped run's slot
+  leases are still valid; a run's first minutes no longer see early workers
   computing their share against the few registered so far. `linecaster.broker.survey_kind` lists who holds the
   resources of a kind (with their runs) and their live marks, from one listing.
 - An extra `s3fs` for `s3://` paths in the `linecaster` command and code run in the project's environment (`uv sync --extra s3fs`, or `--all-extras`); the pipeline scripts bring their own. `linecaster broker` names a missing filesystem package in one line instead of a traceback.

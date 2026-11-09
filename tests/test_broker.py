@@ -175,10 +175,10 @@ class Counting(Broker):
         super()._write(path, record)
 
 
-def start_together(tmp_path, n: int, index) -> list[Counting]:
+def start_together(tmp_path, n: int, index, **kwargs) -> list[Counting]:
     """``n`` brokers of one machine that ask for their worker at once (threads past a barrier); ``index(i)`` is the
-    worker index of the i-th."""
-    brokers_ = [Counting(str(tmp_path), machine="m", worker_index=index(i)) for i in range(n)]
+    worker index of the i-th; ``kwargs`` go to each broker."""
+    brokers_ = [Counting(str(tmp_path), machine="m", worker_index=index(i), **kwargs) for i in range(n)]
     barrier = threading.Barrier(n, timeout=30)
 
     def start(b):
@@ -205,6 +205,18 @@ def test_brokers_started_together_claim_distinct_slots_in_one_attempt_each(tmp_p
     assert sum(b.slot_claims for b in racing) > n                               # claims raced for the same slots
 
 
+def test_a_quick_relaunch_takes_the_free_slots_past_a_stopped_runs_leases(tmp_path):
+    """A run of 100 workers stopped a minute ago (its slot leases are still valid, nobody handed over): 64 processes
+    of the relaunch, worker indexes 0-63, each take the k-th free slot, 64 distinct slots at one claim each, instead
+    of starting inside the taken range and racing upward for the same slots."""
+    for _ in range(100):
+        assert Broker(str(tmp_path), machine="m", worker_index=(0, 1)).worker      # the stopped run: slots 0-99
+    n = 64
+    started = start_together(tmp_path, n, lambda i: (i, n), clock=lambda: time.time() + 60)    # a minute later
+    assert sorted(b.worker for b in started) == sorted(f"m-{100 + i}" for i in range(n))
+    assert [b.slot_claims for b in started] == [1] * n
+
+
 def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, monkeypatch):
     import random
 
@@ -219,7 +231,7 @@ def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, mon
 def test_a_successor_takes_a_handed_over_slot_before_a_free_one(tmp_path):
     """Two processes hand over their slots (their heartbeats are live, their leases wait); the next two, started with
     worker indexes 1 and 0, take those slots (one each) and hold their leases."""
-    first, second = (Broker(str(tmp_path), machine="m", worker_index=(i, 2)) for i in range(2))
+    first, second = (Broker(str(tmp_path), machine="m", worker_index=(0, 1)) for _ in range(2))
     assert (first.worker, second.worker) == ("m-0", "m-1")
     assert first.claim("proxies", "a") and second.claim("proxies", "b")
     first.hand_over()

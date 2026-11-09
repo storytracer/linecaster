@@ -76,9 +76,11 @@ few seconds. At its first use a process claims a free slot of its machine (`slot
 process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
 do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
 rank in a local run's pool, the rank modulo the tasks at once on Ray, the task's GPU in a multi-GPU Job), else a random
-slot. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
-heartbeat whose slot no process holds: its leases wait for a successor), then the free slots from its start upward,
-wrapping. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
+place. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
+heartbeat whose slot no process holds: its leases wait for a successor), then, with worker index k, the k-th free
+slot (one without a valid slot lease), then the free slots upward from there. A relaunch within the lease time of a
+stopped run, whose slot leases are still valid, then takes the free slots past them at one claim per process instead
+of racing upward through them. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
 machine claims that slot (handed-over slots come first), is the same worker, finds the worker's leases (named after
 it) and renews them. On Ray each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
