@@ -1,5 +1,5 @@
 """The catalog's generated pages (``linecaster docs``, ``docs/catalog/``), one folder per kind: ``engines/``,
-``models/``, ``presets/<step>/``, ``pipelines/``, ``recipes/``, an index (``README.md``), and the README's tables.
+``models/``, ``presets/<step>/``, ``pipelines/``, ``recipes/``, and an index (``README.md``).
 
 Nothing here is written by hand twice: facts come from the model, preset and recipe entries and from the
 engines' and pipelines' source (``catalog.code``), numbers from the evidence records (each with its source),
@@ -7,7 +7,6 @@ prose from the documents' bodies.
 """
 from __future__ import annotations
 
-import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -20,11 +19,10 @@ from .schema import STEPS
 STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
                "formulas": "➗ Formulas", "image": "🖼️ Image", "normalization": "🔤 Normalization",
                "typography": "🔠 Typography", "recomposition": "📝 Recomposition", "composition": "📄 Composition"}
-#: the preset sections of the index and the README: one per step, page presets (VLMs reading whole pages) last
+#: the preset sections of the index: one per step, page presets (VLMs reading whole pages) last
 SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language models, whole pages", "recognition", True))
 SOURCE_NAMES = {"own-run": "Linecaster run", "board": "BHL board", "card-claim": "model card claim",
                 "vendor-benchmark": "vendor benchmark"}
-MARK_START, MARK_END = "<!-- catalog:start -->", "<!-- catalog:end -->"
 KINDS = ("engines", "models", "presets", "pipelines", "recipes")
 
 
@@ -236,30 +234,6 @@ def index_page(c: Catalog, evs: dict, engines: dict, pipelines: dict) -> str:
     return "\n".join(lines)
 
 
-def readme_tables(c: Catalog, docs_rel: str) -> str:
-    """The README's tables: one section per step, one preset per row, then the recipes."""
-    lines = []
-    for title, step, page in SECTIONS:
-        ps = sorted(pid for pid, (_, p) in c.presets.items()
-                    if p.step == step and p.page_preset == page and p.support != "legacy")
-        if not ps:
-            continue
-        rows = []
-        for pid in ps:
-            p = c.preset(pid)
-            model = "-"
-            if p.model is not None:
-                m = c.model(p.model.id)
-                model = f"[{m.version or m.id}]({_model_url(c, p)})"
-            rows.append((f"[`{pid}`]({docs_rel}/{preset_path(c, pid)})", model))
-        lines += [f"### {title}", "", *_table(("Preset", "Model"), rows)]
-    if c.recipes:
-        lines += ["### 🍳 Recipes", "", *_table(("Recipe", "Pipeline", "Presets"), [
-            (f"[`{rid}`]({docs_rel}/recipes/{rid}.md)", f"`{r.pipeline}`", ", ".join(f"`{x}`" for x in r.presets.values()))
-            for rid, (_, r) in sorted(c.recipes.items())])]
-    return "\n".join(lines).rstrip("\n")
-
-
 def pages(c: Catalog, out: str | Path, links: Links | None = None, repo: Path | None = code.REPO) -> dict[str, str]:
     """Every page of the catalog by its path below ``out`` (the catalog's folder of the docs), each with the generated
     header. Engine and pipeline pages need the repository checkout (``repo``); ``links`` default to links relative
@@ -284,17 +258,7 @@ def pages(c: Catalog, out: str | Path, links: Links | None = None, repo: Path | 
     return {rel: f"{HEADER}\n{text.rstrip(chr(10))}\n" for rel, text in sorted(found.items())}
 
 
-def readme_section(text: str, start: str, end: str, content: str) -> str:
-    """``text`` with what stands between its markers ``start`` and ``end`` replaced by ``content`` (unchanged
-    without both markers)."""
-    if start not in text or end not in text:
-        return text
-    head, rest = text.split(start, 1)
-    _, tail = rest.split(end, 1)
-    return f"{head}{start}\n{content}\n{end}{tail}"
-
-
-def write(c: Catalog, out: str | Path, readme: str | Path | None = None, repo: Path | None = code.REPO) -> list[Path]:
+def write(c: Catalog, out: str | Path, repo: Path | None = code.REPO) -> list[Path]:
     """Every page, into ``out``; the folders of the kinds are generated and replaced. Engine and pipeline pages
     need the repository checkout (``repo``). ``linecaster docs`` writes these with the rest of the docs
     (``linecaster.docs``)."""
@@ -307,11 +271,4 @@ def write(c: Catalog, out: str | Path, readme: str | Path | None = None, repo: P
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         written.append(path)
-    if readme is not None:
-        readme = Path(readme)
-        text = readme.read_text(encoding="utf-8")
-        new = readme_section(text, MARK_START, MARK_END, readme_tables(c, os.path.relpath(out, readme.parent)))
-        if new != text or MARK_START in text:
-            readme.write_text(new, encoding="utf-8")
-            written.append(readme)
     return written

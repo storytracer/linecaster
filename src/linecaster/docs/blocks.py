@@ -1,6 +1,5 @@
 """The block pages (``linecaster docs``, ``docs/blocks/``): an index with one table per family and the base classes,
-and a page per public block (the classes exported from ``linecaster.blocks.<family>``), and the README's block
-table.
+and a page per public block (the classes exported from ``linecaster.blocks.<family>``).
 
 Every row comes from code: the summary, behavior and example from the docstring (``linecaster.docs.docstrings``),
 the contract from an instance (built with the defaults, or with the block's ``docs_args``), the options from the
@@ -31,7 +30,6 @@ TITLES = {"readers": "Readers", "layout": "Layout", "lines": "Lines", "recogniti
           "validation": "Validation", "servers": "Servers", "writers": "Writers", "composites": "Composites"}
 #: the backends a model block's ``backend`` annotation names
 BACKENDS = {"InProcess": "in-process", "Served": "served", "Chat": "chat"}
-MARK_START, MARK_END = "<!-- blocks:start -->", "<!-- blocks:end -->"
 #: the part every reader may bring (``PageRecordReader`` without ``provides``): left out of the derived positions
 ANYTHING = Part("*")
 
@@ -326,13 +324,6 @@ def index_page(families: dict[str, list[BlockDoc]], base: list[BlockDoc], links:
                   *table(("Class", "What it is for"), [(f"[`{b.name}`]({links.to(b.source, root)})",
                                                         markdown(b.doc.summary)) for b in base])]
     return "\n".join(lines)
-
-
-def readme_table(families: dict[str, list[BlockDoc]], rel: str) -> str:
-    """The README's block table: family, block (linked to its page), summary."""
-    rows = [(TITLES[f], f"[`{b.name}`]({rel}/{b.page})", markdown(b.doc.summary))
-            for f, blocks in families.items() for b in blocks]
-    return "\n".join(table(("Family", "Block", "What it does"), rows)).rstrip("\n")
 
 
 def build(repo: Path | None = code.REPO):

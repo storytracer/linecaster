@@ -9,7 +9,7 @@ from pathlib import Path
 
 import regex
 
-from .common import GITHUB, HEADER, Links
+from .common import GITHUB, HEADER, SITE, Links
 
 #: the raw Markdown of the repository's files, for llms.txt
 RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"
@@ -159,16 +159,17 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
              "layout, line, text, table and formula recognizers and post-processing as blocks of datatrove "
              "pipelines that run in-process or against model servers, on a laptop, a cluster or Hugging Face Jobs.",
              "", "Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. "
-             "The pages below are Markdown.", "", "## Start", "",
+             "The pages below are Markdown, except the generated Blocks and Catalog, which are the site's pages "
+             "(llms-full.txt holds their indexes).", "", "## Start", "",
              f"- [README]({raw(readme)}): why, quick start, how it works, running anywhere, outputs", "",
              "## Reference", ""]
     for p in ref:
         title, summary = _title_and_summary(text_of(p))
         lines.append(f"- [{title}]({raw(p)}): {summary}")
     lines += ["", "## Generated", "",
-              f"- [Blocks]({raw(out / 'blocks' / 'README.md')}): every block by family, with a page each "
+              f"- [Blocks]({SITE}/blocks/): every block by family, with a page each "
               "(contract, backends, options, behavior)",
-              f"- [Catalog]({raw(out / 'catalog' / 'README.md')}): engines, models, presets, pipelines and recipes, "
+              f"- [Catalog]({SITE}/catalog/): engines, models, presets, pipelines and recipes, "
               "with a page each and their evidence", "", "## Optional", "",
               f"- [Changelog]({raw(repo / 'CHANGELOG.md')}): upgrade notes and changes",
               f"- [Repository]({GITHUB.rsplit('/blob/', 1)[0]}): the source", ""]

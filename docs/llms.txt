@@ -2,7 +2,7 @@
 
 > Modular OCR pipelines you can run anywhere: text recognition (OCR and HTR) for print and handwriting, with layout, line, text, table and formula recognizers and post-processing as blocks of datatrove pipelines that run in-process or against model servers, on a laptop, a cluster or Hugging Face Jobs.
 
-Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. The pages below are Markdown.
+Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. The pages below are Markdown, except the generated Blocks and Catalog, which are the site's pages (llms-full.txt holds their indexes).
 
 ## Start
 
@@ -23,8 +23,8 @@ Every model configuration is a catalog preset at a pinned revision; tested combi
 
 ## Generated
 
-- [Blocks](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/blocks/README.md): every block by family, with a page each (contract, backends, options, behavior)
-- [Catalog](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/catalog/README.md): engines, models, presets, pipelines and recipes, with a page each and their evidence
+- [Blocks](https://storytracer.github.io/linecaster/latest/blocks/): every block by family, with a page each (contract, backends, options, behavior)
+- [Catalog](https://storytracer.github.io/linecaster/latest/catalog/): engines, models, presets, pipelines and recipes, with a page each and their evidence
 
 ## Optional
 

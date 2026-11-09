@@ -182,15 +182,6 @@ def _docs(a) -> None:
     from . import docs
 
     files = docs.generate(a.out, a.readme)
-    if a.check:
-        differ = docs.check(files, a.out)
-        for path in differ:
-            print(f"differs: {path}")
-        if differ:
-            print("linecaster docs: the docs are not current; run `linecaster docs`", file=sys.stderr)
-            sys.exit(1)
-        print("docs current")
-        return
     for path in docs.write(files, a.out):
         print(path)
 
@@ -301,12 +292,11 @@ def main(argv: list[str] | None = None) -> None:
                    help="release: record a released recipe edition's expanded pipeline anew (a catalog migration: the "
                         "pipeline's code changed, its behavior did not)")
     c.add_argument("--out", help="schemas: output folder (default: the package's schemas/)")
-    d = sub.add_parser("docs", help="write the generated docs: the catalog's and the blocks' pages, the README's tables, "
-                                    "the site's index and llms.txt")
+    d = sub.add_parser("docs", help="write the generated docs (not in git; before building the site): the catalog's "
+                                    "and the blocks' pages, the site's index and changelog, and llms.txt")
     d.add_argument("--out", default="docs", help="the docs folder (default docs)")
-    d.add_argument("--readme", default="README.md", help="the README with the table markers (default README.md)")
-    d.add_argument("--check", action="store_true", help="write nothing; exit 1 naming each file that differs from a "
-                                                        "fresh generation")
+    d.add_argument("--readme", default="README.md", help="the README the site's index is made from (default "
+                                                         "README.md)")
     p = sub.add_parser("page", help="run a pipeline script's blocks on one page image in this process, without an "
                                     "executor; the pipeline's options follow (--recipe R, --lines ..., --files DIR)")
     p.add_argument("image", help="the page image")

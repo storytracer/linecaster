@@ -133,11 +133,9 @@ def test_docs_from_the_catalog(tmp_path):
     write_entry(root / "evidence" / "e.yaml", {
         "schema": "linecaster.evidence/1", "preset": "p@1", "source": "own-run", "dataset": "d@r",
         "metrics": {"cer_reading": 0.0312}, "date": dt.date(2026, 11, 3)})
-    readme = tmp_path / "README.md"
-    readme.write_text("intro\n<!-- catalog:start -->\nold\n<!-- catalog:end -->\noutro\n")
     (tmp_path / "docs" / "presets").mkdir(parents=True)
     (tmp_path / "docs" / "presets" / "stale.md").write_text("from an earlier run")
-    docs.write(Catalog([root]), tmp_path / "docs", readme=readme)
+    docs.write(Catalog([root]), tmp_path / "docs")
     out = tmp_path / "docs"
     page = (out / "presets" / "recognition" / "p.md").read_text()
     assert "Why these settings." in page and "| 2026-11-03 | 1 | Linecaster run | d@r | - | - | cer_reading 0.0312 |" in page
@@ -149,8 +147,6 @@ def test_docs_from_the_catalog(tmp_path):
     assert not (out / "presets" / "stale.md").exists()
     index = (out / "README.md").read_text()
     assert "| [`p`](presets/recognition/p.md) | `chat.v1` | MIT | 0.0312 |" in index and "(recipes/r.md)" in index
-    text = readme.read_text()
-    assert "old" not in text and "[`p`](docs/presets/recognition/p.md) |" in text and "✅" not in text and text.endswith("outro\n")
 
 
 def test_unknown_engines_are_reported(tmp_path):

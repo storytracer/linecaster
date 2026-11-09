@@ -1,23 +1,22 @@
-"""The generated documentation: ``linecaster docs`` writes every generated file, ``--check`` compares them.
+"""The generated documentation: ``linecaster docs`` writes every generated file, when the site is built (they are
+not in git).
 
 * ``docs/catalog/``: the catalog's pages (``linecaster.catalog.docs``);
 * ``docs/blocks/``: the block pages (``linecaster.docs.blocks``);
-* the README's tables between their markers (``<!-- catalog:start -->``, ``<!-- blocks:start -->``);
 * ``docs/index.md`` (the README for the site), ``docs/changelog.md``, ``docs/llms.txt`` and ``docs/llms-full.txt``
   (``linecaster.docs.site``).
 
 Generated Markdown pages start with ``HEADER``. The folders ``docs/catalog/<kind>/`` and ``docs/blocks/`` hold
-generated pages only: a page there that a fresh generation does not make is removed (``--check``: reported).
+generated pages only: a page there that a fresh generation does not make is removed.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from ..catalog import code
-from .common import GITHUB, HEADER, Links
+from .common import GITHUB, HEADER, SITE, Links
 
-__all__ = ["GITHUB", "HEADER", "Links", "check", "generate", "write"]
+__all__ = ["GITHUB", "HEADER", "SITE", "Links", "generate", "write"]
 
 
 def _folders(out: Path) -> list[Path]:
@@ -33,8 +32,8 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
     Args:
         out: the docs folder (``docs``): the catalog's pages go to ``<out>/catalog``, the block pages to
             ``<out>/blocks``, the site's pages to ``<out>``.
-        readme: the README whose tables are regenerated between their markers and from which ``index.md`` is made;
-            ``None`` (or a missing file): neither.
+        readme: the README, from which ``index.md`` and ``llms.txt`` are made; ``None`` (or a missing file):
+            neither.
         repo: the repository checkout: engines', pipelines' and blocks' sources, ``CHANGELOG.md``, GitHub links.
         catalog: the catalog (default: linecaster's).
     """
@@ -54,12 +53,6 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
     readme = Path(readme) if readme is not None else None
     if readme is not None and readme.exists():
         text = readme.read_text(encoding="utf-8")
-        rel = os.path.relpath(out, readme.parent)
-        text = catalog_docs.readme_section(text, catalog_docs.MARK_START, catalog_docs.MARK_END,
-                                           catalog_docs.readme_tables(c, f"{rel}/catalog"))
-        text = catalog_docs.readme_section(text, blocks.MARK_START, blocks.MARK_END,
-                                           blocks.readme_table(built[0], f"{rel}/blocks"))
-        files[readme] = text
         files[out / "index.md"] = site.index(text, readme, out, links)
         if repo is not None:
             files[out / "llms.txt"], files[out / "llms-full.txt"] = site.llms(text, out, repo, files)
@@ -74,12 +67,6 @@ def _stale(files: dict[Path, str], out: Path) -> list[Path]:
     made = {p.resolve() for p in files}
     return sorted(p for folder in _folders(out) if folder.is_dir()
                   for p in folder.rglob("*") if p.is_file() and p.resolve() not in made)
-
-
-def check(files: dict[Path, str], out: str | Path = "docs") -> list[Path]:
-    """The files that differ from ``files`` (missing, changed, or stale in a generated folder); writes nothing."""
-    differ = [p for p, text in files.items() if not p.exists() or p.read_text(encoding="utf-8") != text]
-    return sorted(differ + _stale(files, Path(out)))
 
 
 def write(files: dict[Path, str], out: str | Path = "docs") -> list[Path]:

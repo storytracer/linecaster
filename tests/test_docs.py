@@ -1,37 +1,31 @@
-"""The generated docs are current (``linecaster docs --check``), and the README's "Your own pipeline" builds."""
+"""``linecaster docs`` writes the generated docs (and removes stale pages), and the README's "Your own pipeline"
+builds."""
 from __future__ import annotations
 
 import re
 
 import datatrove.executor
-import pytest
 
-from linecaster import cli, docs
+from linecaster import cli
 from linecaster.catalog import code
+from linecaster.docs import SITE
 
 README = code.REPO / "README.md"
 
 
-def test_the_docs_are_current():
-    files = docs.generate(code.REPO / "docs", README)
-    assert docs.check(files, code.REPO / "docs") == [], "run `linecaster docs`"
-
-
-def test_check_names_each_differing_file_and_writes_nothing(tmp_path, monkeypatch, capsys):
-    readme = tmp_path / "README.md"
-    readme.write_text("intro\n<!-- blocks:start -->\nold\n<!-- blocks:end -->\n")
-    (tmp_path / "docs" / "blocks").mkdir(parents=True)
-    (tmp_path / "docs" / "blocks" / "stale.md").write_text("from an earlier run")
-    with pytest.raises(SystemExit) as e:
-        cli.main(["docs", "--out", str(tmp_path / "docs"), "--readme", str(readme), "--check"])
-    assert e.value.code == 1
-    out = capsys.readouterr().out
-    assert f"differs: {readme}" in out and "stale.md" in out and "LineRecognizer.md" in out
-    assert readme.read_text().endswith("old\n<!-- blocks:end -->\n") and not (tmp_path / "docs" / "index.md").exists()
-    cli.main(["docs", "--out", str(tmp_path / "docs"), "--readme", str(readme)])
-    assert not (tmp_path / "docs" / "blocks" / "stale.md").exists()
-    cli.main(["docs", "--out", str(tmp_path / "docs"), "--readme", str(readme), "--check"])
-    assert capsys.readouterr().out.strip().endswith("docs current")
+def test_the_generator_writes_every_page_and_removes_stale_ones(tmp_path, capsys):
+    out = tmp_path / "docs"
+    (out / "blocks" / "readers").mkdir(parents=True)
+    (out / "blocks" / "readers" / "stale.md").write_text("from an earlier run")
+    cli.main(["docs", "--out", str(out), "--readme", str(README)])
+    assert not (out / "blocks" / "readers" / "stale.md").exists()
+    for page in ("index.md", "changelog.md", "llms.txt", "llms-full.txt", "blocks/README.md", "catalog/README.md",
+                 "blocks/readers/ImageFolderReader.md"):
+        assert (out / page).is_file(), page
+    assert f"({SITE}/blocks/)" in (out / "llms.txt").read_text()
+    assert "stale.md" in capsys.readouterr().out
+    cli.main(["docs", "--out", str(out), "--readme", str(README)])
+    assert capsys.readouterr().out == ""                       # nothing changed: nothing written
 
 
 def _own_pipeline_snippet() -> str:
