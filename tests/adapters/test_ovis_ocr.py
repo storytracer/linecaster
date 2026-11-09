@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import io
 import math
+import random
 
 import pytest
 from PIL import Image
@@ -17,9 +18,14 @@ REVISIONS = {"ATH-MaaS/OvisOCR2": "65c619d374b55d4152e85150fc1b003700bc1f0c",
              "ATH-MaaS/OvisOCR3": "5f6ce6932efee9ec10c30746db55bd780214b7fd"}
 
 
+FAST_ENCODING = {"WEBP": {"method": 0}, "PNG": {"compress_level": 1}}
+
+
 def image(w: int, h: int, fmt: str = "WEBP", mode: str = "L") -> bytes:
+    """A page of seeded noise; WebP and PNG are encoded at their fastest settings, which the request reads the same."""
+    noise = Image.frombytes("L", (w, h), random.Random(0).randbytes(w * h))
     buf = io.BytesIO()
-    Image.effect_noise((w, h), 60).convert(mode).save(buf, format=fmt)
+    noise.convert(mode).save(buf, format=fmt, **FAST_ENCODING.get(fmt, {}))
     return buf.getvalue()
 
 

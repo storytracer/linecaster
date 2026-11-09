@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import random
 
 import pytest
 from PIL import Image
@@ -17,9 +18,14 @@ OCR_LAYOUT_PROMPT = chat_model("chandra-ocr-2").prompt   # the preset's, verbati
 REVISION = "af93b47dba1b47b6640c86ccf487ed2260ab9a09"
 
 
+FAST_ENCODING = {"WEBP": {"method": 0}, "PNG": {"compress_level": 1}}
+
+
 def image(w: int, h: int, fmt: str = "WEBP", mode: str = "L") -> bytes:
+    """A page of seeded noise; WebP and PNG are encoded at their fastest settings, which the request reads the same."""
+    noise = Image.frombytes("L", (w, h), random.Random(0).randbytes(w * h))
     buf = io.BytesIO()
-    Image.effect_noise((w, h), 60).convert(mode).save(buf, format=fmt)
+    noise.convert(mode).save(buf, format=fmt, **FAST_ENCODING.get(fmt, {}))
     return buf.getvalue()
 
 
