@@ -72,7 +72,7 @@ held by the process itself) and is that worker from then on. A process that ends
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
 machine claims the same slot, is the same worker, finds the worker's leases (named after it) and renews them. On Ray
 each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
-tasks and keep their slots. A slot whose process crashed expires like any lease, and so do the leases of a slot no
+tasks and keep their slots, and a process that ends normally hands over at its exit. A slot whose process crashed expires like any lease, and so do the leases of a slot no
 process takes over.
 
 ## Proxies
