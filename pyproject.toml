@@ -52,7 +52,7 @@ s3fs = ["s3fs>=2025.3"]
 linecaster = "linecaster.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "pytest-xdist>=3.6"]
 # the docs site (mkdocs.yml): uv run --group docs mkdocs build --strict
 docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.6,<10", "mike>=2.1,<3"]
 
@@ -71,7 +71,8 @@ pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # the markers (linecaster.testing.markers): gpu and network tests are skipped where they cannot run (the conftest
-# hook); CI runs -m "not gpu and not network and not parity"
+# hook); CI runs -m "not gpu and not network and not parity" -n auto. Serial by default, so a single test, -s and
+# --pdb behave as usual; -n auto (pytest-xdist) runs the suite on every core
 addopts = ["--strict-markers"]
 markers = [
     "gpu: needs a CUDA device; skipped without one",

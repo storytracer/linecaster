@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
       # every extra: the readers and adapters they serve are tested and documented (pybookget, PDFium, Ray)
       - run: uv sync --locked --all-extras
-      - run: uv run pytest -m "not gpu and not network and not parity"
+      - run: uv run pytest -n auto -m "not gpu and not network and not parity"
       - run: uv run linecaster docs --check
       - run: uv run linecaster catalog verify
       - run: uv run --group docs mkdocs build --strict
