@@ -1151,8 +1151,13 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>worker identity</strong>, <strong>worker slot</strong></td>
-<td>Who holds leases in the broker: a datatrove worker as a slot of its machine (<code>&lt;machine&gt;-&lt;n&gt;</code>), not a process. A process claims the lowest free slot of its machine at its first use and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process).</td>
+<td>Who holds leases in the broker: a datatrove worker as a slot of its machine (<code>&lt;machine&gt;-&lt;n&gt;</code>), not a process. A process claims a free slot of its machine at its first use (its search starting at its executor's worker index, so processes started together do not race) and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process).</td>
 <td>not a process, not a task</td>
+</tr>
+<tr>
+<td><strong>proxies per worker</strong></td>
+<td>How many proxies of a list a worker holds at a time (<code>proxies_per_worker</code>, per host in an HTTP policy, <code>linecaster.net.proxies</code>): one by default, swapped for a free one when it is blocked; up to N, claimed one by one; or <code>share</code>, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go. The run's default worker count follows it (one worker per available proxy, divided by N).</td>
+<td>not proxies per task</td>
 </tr>
 <tr>
 <td><strong>proxy block</strong></td>

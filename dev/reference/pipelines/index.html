@@ -1504,8 +1504,13 @@ what <code>linecaster catalog release</code> records in the lock and <code>verif
 <td>every task</td>
 </tr>
 <tr>
-<td>without engines, with <code>--rate-limit</code></td>
+<td>without engines, every rate-limited host through proxies (<code>--proxies</code>, an HTTP policy's <code>proxies</code>), local or Ray (<code>--on hf-jobs</code>: as below)</td>
 <td>the reader's <code>auto_tasks</code> (from the input), else 1</td>
+<td>one per available proxy, divided by <code>proxies_per_worker</code> (<code>ceil(available / N)</code>), at most the tasks, not capped by the CPUs; with <code>proxies_per_worker: share</code> as without proxies</td>
+</tr>
+<tr>
+<td>without engines, with <code>--rate-limit</code> (a host with rate limits and no proxies)</td>
+<td>the reader's <code>auto_tasks</code>, else 1</td>
 <td>1</td>
 </tr>
 <tr>
@@ -1515,6 +1520,13 @@ what <code>linecaster catalog release</code> records in the lock and <code>verif
 </tr>
 </tbody>
 </table>
+<p>The available proxies are counted once at launch from one listing of the broker
+(<code>linecaster.runtime.run.available_proxies</code>): those in the file, less those with a live block or broken mark for the
+run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. The run
+states the count and why (<code>linecaster.runtime.run.workers_note</code>, e.g. <code>250 proxies available → 250 workers, 1 proxy
+each</code>). The workers mostly wait on the network, so their count is not capped by the CPUs; <code>--workers</code> gives fewer
+(each worker is a process with its own memory).</p>
 <p><code>auto_tasks</code> is about 1,000 pages per task for <code>ImageParquetReader</code> and about 5 items per task for <code>ManifestReader</code>
 (<code>linecaster.blocks.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. The harvest
 (<code>pipelines/harvest.py</code>) asks its reader for one item per task (<code>task_per_item</code>): the tasks divide the items, an
@@ -1535,12 +1547,15 @@ server</code>). One worker keeps any rate limit busy: a reader's requests ahead 
 (<code>linecaster.net.http.prefetched</code>, at most <code>MAX_AHEAD</code>), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFetcher.shared</code>). With <code>--proxies</code> the
 limits hold per proxy instead (below), and the run states that (<code>rate limits per proxy: 150/60 · 100 proxies → up to
-15,000/min at a server</code>).</p>
+15,000/min at a server</code>; with fewer workers than proxies <code>· 10 of 100 proxies in use (1 proxy per worker)</code>).</p>
 <p><strong>Proxies.</strong> <code>--proxies FILE</code> sends the http(s) requests through a list of proxies, shared by the workers through the
 <a href="../broker/">broker</a> (<code>--broker PATH</code>, any fsspec folder, default <code>OUT/logs/broker</code>; runs pointed at one path share
 the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
-claims its fair share (the proxies not blocked for the host, divided by the live workers, at least one) and gives back
-what is beyond it when another worker joins (<code>linecaster.net.proxies.ProxyPool</code>). The host's rate limits hold per
+holds one proxy (<code>linecaster.net.proxies.ProxyPool</code>): it claims a free one usable for the host and, when that one is
+blocked or broken, releases it and claims another at once. An HTTP policy's <code>proxies_per_worker</code> (per host or at the
+root; hosts that share a list share the setting) gives a worker up to N, claimed one by one, or <code>share</code>: a fair share
+of the proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by
+rebalancing, which also gives back what is beyond it when another worker joins. The host's rate limits hold per
 proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
 limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
 its own. A block (a 429, until its <code>Retry-After</code>, else for the host's <code>blacklist_ttl</code>, an hour by default; a status in
@@ -1592,10 +1607,12 @@ gives the run's requests their settings from one YAML file (<code>linecaster.net
 under <code>hosts:</code> an entry for each host that differs, whose fields replace the root's; the run's own options go between
 the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
 (<code>max_retries</code>), the broker (root only), how long and when a proxy is left out (<code>blacklist_ttl</code>, <code>blacklist_threshold</code>, <code>blacklist_on</code>),
+how many proxies a worker holds (<code>proxies_per_worker</code>: 1, N or <code>share</code>),
 <code>pause_on</code> statuses that pause the worker's requests until <code>Retry-After</code> has passed (default <code>[429]</code>) with
 <code>max_pause</code>, and <code>stop_on</code> statuses and <code>html</code> that stop the run without a retry (a status in both <code>pause_on</code>, or its
 default, and <code>stop_on</code> is refused; <code>pause_on: []</code> with <code>stop_on: [429]</code> stops on a 429). For <code>--items</code> and
-<code>--parquet</code>; with rate limits in the file a run keeps one worker.</p>
+<code>--parquet</code>; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
+rate-limited host it gets one per available proxy (above).</p>
 <h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
 <p>A local run (<code>--on local</code>, <code>linecaster.runtime.local.LocalExecutor</code>) shows on the terminal: one line naming the
 pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a

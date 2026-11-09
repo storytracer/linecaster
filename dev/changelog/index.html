@@ -1025,6 +1025,31 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>With a proxy list each worker holds <strong>one proxy at a time</strong> by default, not a fair share of the free ones: it sends
+  every request through it and, when it is blocked or broken, releases it and claims another free one at once. A
+  run that relied on several proxies per worker (few workers, many proxies) uses only as many proxies as it has
+  workers now; give it more workers (below), or set the new HTTP-policy key <code>proxies_per_worker</code> (per host or at the
+  root; also <code>HTTPFetcher</code>'s and <code>ProxyPool</code>'s parameter): a whole number <code>N</code> (up to N per worker, claimed one by
+  one) or <code>share</code> (the fair share with rebalancing as before, except that a worker claims at most 2 when it looks
+  for proxies and grows to its share only by rebalancing, so the first workers no longer take the proxies of those
+  still starting). Hosts that use one proxy list must set the same value.</li>
+<li>The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies follows the
+  proxies: one worker per available proxy (those in the file, less those blocked or broken in the broker for the
+  run's hosts and those held by another run's live workers), at most one per task, divided by <code>proxies_per_worker</code>
+  (<code>ceil(available / N)</code>; <code>share</code> keeps one worker), and no longer capped by the CPUs. A harvest with 250 proxies and
+  no <code>--workers</code> now runs 250 worker processes; give <code>--workers</code> to run fewer. The run states the count and why
+  (<code>250 proxies available → 250 workers, 1 proxy each</code>). A host with rate limits and no proxy list keeps one worker.</li>
+<li><code>linecaster.runtime.local.LocalExecutor</code>'s <code>note</code> may be a list of lines; <code>linecaster.runtime.run.rate_note</code>
+  counts the proxies in use (<code>1 of 2 proxies in use (1 proxy per worker)</code>) when the workers hold fewer than the list.</li>
+<li>A worker process no longer claims the lowest free worker slot of its machine: it starts at its executor's worker
+  index (<code>linecaster.broker.set_worker_index</code>, set by <code>LocalExecutor</code>, <code>RayExecutor</code> and <code>JobsExecutor</code>), else at a
+  random slot, takes a handed-over slot first and probes upward from there, so slot numbers no longer say in which
+  order the processes came. Code that starts brokers itself and expects <code>&lt;machine&gt;-0</code> first passes
+  <code>Broker(..., worker_index=(0, 1))</code>.</li>
+<li>A broker's renew logs a lost claim race (two claims at once both believed they won) at INFO, <code>worker X lost a claim
+  race for proxies/&lt;id&gt; to Y; it takes another</code>; the WARNING <code>... lease on proxies/&lt;id&gt; expired (no renew within the
+  lease time); it gives it up</code> is only for a lease that really expired (its file gone or older than the lease time),
+  which the worker now also gives up when nobody else has claimed the resource.</li>
 <li>Proxies are shared through the broker (<code>linecaster.broker</code>, <a href="../reference/broker/">broker</a>): <code>--proxy-blocks
   FOLDER</code> and an HTTP policy's root key <code>proxy_blocks</code> are gone; use <code>--broker PATH</code> and the root key <code>broker</code> (default
   <code>OUT/logs/broker</code>; runs pointed at one path share the proxies and their blocks). The old folder of block markers is
@@ -1089,6 +1114,11 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>Worker slots are claimed fast: processes started together (a local run's pool, Ray tasks, a multi-GPU Job's
+  tasks) start their search at different slots (<code>linecaster.broker.set_worker_index</code>), so they register in about one
+  claim each instead of racing for slot 0, then slot 1, ...; a run's first minutes no longer see early workers
+  computing their share against the few registered so far. <code>linecaster.broker.survey_kind</code> lists who holds the
+  resources of a kind (with their runs) and their live marks, from one listing.</li>
 <li>An extra <code>s3fs</code> for <code>s3://</code> paths in the <code>linecaster</code> command and code run in the project's environment (<code>uv sync --extra s3fs</code>, or <code>--all-extras</code>); the pipeline scripts bring their own. <code>linecaster broker</code> names a missing filesystem package in one line instead of a traceback.</li>
 <li>The broker (<code>linecaster.broker</code>, <a href="../reference/broker/">broker</a>): a shared folder, any <code>DataFolder</code>, through
   which workers across tasks, runs and machines agree on who holds which shared resource (leases, renewed within
