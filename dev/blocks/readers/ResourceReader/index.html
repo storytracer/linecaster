@@ -915,7 +915,7 @@
 <td><code>reuse_folder</code></td>
 <td><code>DataFolderLike \| None</code></td>
 <td><code>None</code></td>
-<td>where <code>ResourceFilesWriter</code> writes (<code>OUT</code>): a resource whose copy is there is read back.</td>
+<td>where <code>ResourceFilesWriter</code> writes (<code>OUT</code>): a resource whose copy is there is read back (one listing per item and kind, <code>linecaster.blocks.readers.existing</code>; one that takes over <code>LISTING_TIMEOUT</code>, 60 s, or fails is a warning and a stat, <code>reuse_listing_timeouts</code> or <code>reuse_listing_errors</code>, and the item's resources are fetched again).</td>
 </tr>
 <tr>
 <td><code>max_items</code></td>

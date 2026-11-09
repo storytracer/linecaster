@@ -987,7 +987,7 @@
 <td><code>reuse_folder</code></td>
 <td><code>DataFolderLike \| None</code></td>
 <td><code>None</code></td>
-<td>where <code>ImageFilesWriter</code> writes the images (<code>pipelines/harvest.py</code>: <code>OUT/images</code>): a page whose file is already there is read from it instead of from the source (<code>linecaster.blocks.readers.existing</code>: one listing per item), so a resumed harvest does not fetch it again; its record is complete and says <code>image.extra["reused"]</code>. A copy that cannot be read is fetched from the source. Default: none.</td>
+<td>where <code>ImageFilesWriter</code> writes the images (<code>pipelines/harvest.py</code>: <code>OUT/images</code>): a page whose file is already there is read from it instead of from the source (<code>linecaster.blocks.readers.existing</code>: one listing per item), so a resumed harvest does not fetch it again; its record is complete and says <code>image.extra["reused"]</code>. A copy that cannot be read is fetched from the source. An item's listing that takes over <code>LISTING_TIMEOUT</code> (60 s) or fails is a warning and a stat (<code>reuse_listing_timeouts</code>, <code>reuse_listing_errors</code>), and its pages are fetched again. Default: none.</td>
 </tr>
 <tr>
 <td><code>http_policy</code></td>

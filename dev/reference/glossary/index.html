@@ -1156,7 +1156,7 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>proxies per worker</strong></td>
-<td>How many proxies of a list a worker holds at a time (<code>proxies_per_worker</code>, per host in an HTTP policy, <code>linecaster.net.proxies</code>): one by default, swapped for a free one when it is blocked; up to N, claimed one by one; or <code>share</code>, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go. The run's default worker count follows it (one worker per available proxy, divided by N).</td>
+<td>How many proxies of a list a worker holds at a time (<code>proxies_per_worker</code>, per host in an HTTP policy, <code>linecaster.net.proxies</code>): by default <code>share</code>, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go; <code>1</code>, one, swapped for a free one when it is blocked; or up to N, claimed one by one. The run's default worker count follows it (sharing them, one worker per available proxy up to one per CPU; with <code>1</code> or N one per available proxy, divided by N; at most 64 with OUT on object storage).</td>
 <td>not proxies per task</td>
 </tr>
 <tr>

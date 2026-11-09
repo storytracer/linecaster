@@ -981,7 +981,7 @@
 <td><code>reuse_folder</code></td>
 <td><code>DataFolderLike \| None</code></td>
 <td><code>None</code></td>
-<td>where <code>ImageFilesWriter</code> writes the images (<code>pipelines/harvest.py</code>: <code>OUT/images</code>): a page whose file is already there is read from it instead of from the source (<code>linecaster.blocks.readers.existing</code>); the manifest is still read. Not with <code>existing_ocr</code> (its OCR files would need fetching anyway).</td>
+<td>where <code>ImageFilesWriter</code> writes the images (<code>pipelines/harvest.py</code>: <code>OUT/images</code>): a page whose file is already there is read from it instead of from the source (<code>linecaster.blocks.readers.existing</code>); the manifest is still read. An item's listing that takes over <code>LISTING_TIMEOUT</code> (60 s) or fails is a warning and a stat (<code>reuse_listing_timeouts</code>, <code>reuse_listing_errors</code>), and its pages are fetched again. Not with <code>existing_ocr</code> (its OCR files would need fetching anyway).</td>
 </tr>
 </tbody>
 </table>
