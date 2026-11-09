@@ -12,3 +12,11 @@ wheels/
 
 # the docs site (mkdocs build)
 site/
+
+# the generated docs (`linecaster docs`, run before the site is built)
+docs/blocks/
+docs/catalog/
+docs/index.md
+docs/changelog.md
+docs/llms.txt
+docs/llms-full.txt
