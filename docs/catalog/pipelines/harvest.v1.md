@@ -31,8 +31,9 @@ Nothing needs sizing: --rate-limit holds per worker, and with it one worker runs
 server sees before it starts). Each item is a task (a --parquet page table with --item-key: a run of rows with the
 same item, whatever the files; --manifests: a manifest or a row of an item table; without --item-key tasks of about
 1,000 pages), so an item is whole in its task and a rerun into the same OUT repeats at most the item each worker was
-in (datatrove's resume is per task); its pages whose images are already in OUT/images are read from there instead
-of fetched again (one listing of the item's folder; their records are complete and say `image.extra.reused`). The
+in (datatrove's resume is per task); with --reuse, its pages whose images are already in OUT/images are read from
+there instead of fetched again (one listing of the item's folder; their records are complete and say
+`image.extra.reused`); without it (the default) they are fetched again and their files overwritten. The
 worker's requests ahead (manifests' pages and http(s) images alike) grow until the rate limits are kept busy, and the limits hold across its tasks. --tasks and --workers still override; with
 --workers N a server sees N times --rate-limit, so give each worker its part. With --proxies the limits hold per
 proxy instead, and the workers (of this run, and of other runs given the same --broker) share the proxies through the
@@ -45,3 +46,11 @@ the input in the same automatic tasks, a smoke test of the real setup (--limit c
 An outage of the server pauses the requests until it answers again; a book that fails anyway runs again on the next
 launch, and --retry-failed also runs the finished books with failed pages again (only those pages fetched).
 `linecaster.runtime.run` has the options every pipeline shares.
+
+## Options
+
+Besides the options every pipeline shares (`linecaster.runtime.run`).
+
+| Option | Values | Default | Description |
+|---|---|---|---|
+| `--reuse` | flag |  | before fetching an item, list its folder in OUT and read the files an earlier launch wrote instead of fetching them again (one listing per item; off by default, since on some object storage a listing is slow even for an empty folder) |
