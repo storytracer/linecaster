@@ -286,14 +286,14 @@ class Console:
             parts.append(f"{count(self.failed)} failed")
         if self.reused:
             parts.append(f"{count(self.reused)} reused")
-        from ..net.http import pause_left, paused, proxy_rotation
+        from ..net.http import pause_left, paused, proxy_counts
 
         if (wait := paused()) is not None:
             parts.append("paused: server errors, " + (f"next try in {duration(wait)}" if wait else "trying"))
         if (pause := pause_left()) is not None:
             parts.append(f"paused: HTTP {pause[1]}, requests go on in {duration(pause[0])}")
-        if (proxies := proxy_rotation()) is not None:
-            parts.append(f"proxies {count(proxies[0])}/{count(proxies[1])}")
+        if (proxies := proxy_counts()) is not None:
+            parts.append(f"proxies {count(proxies[0])} held, {count(proxies[1])} blocked, {count(proxies[2])} free")
         if self.shared is not None:
             parts.append(f"{count(self.done_tasks)}/{count(self.tasks)} tasks done")
         else:

@@ -3,39 +3,44 @@
 for blocking callers such as datatrove blocks.
 
 Rate limits hold per ``HTTPFetcher``. Readers share one per process and configuration (``HTTPFetcher.shared``), so
-the limits hold per worker, across the tasks it runs one after the other: a server sees the workers running at once
-times the limits.
+on a direct connection the limits hold per worker, across the tasks it runs one after the other: a server sees the
+workers running at once times the limits. With a proxy list they hold per proxy (below).
 
 Readers request ahead (``prefetched``) in a window that sizes itself: it grows while the reader waits for a response
 and no request is waiting for the rate limits (``HTTPFetcher.waiting``), so the limits stay busy, rate times latency
-in flight, without a setting, up to the rate limits times the deadline per attempt (``HTTPFetcher.max_ahead``).
-Readers take pages as their requests finish, not in row order, so a slow request (one being retried) delays only
-itself.
+in flight, without a setting, up to the rate limits times the deadline per attempt (``HTTPFetcher.max_ahead``; with
+a proxy list times the proxies the worker holds). Readers take pages as their requests finish, not in row order, so a
+slow request (one being retried) delays only itself.
 
-With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) requests go through resilient-httpx
-(``linecaster[resilient-httpx]``): each attempt through the next proxy in turn. What blacklists a proxy (for
-``PROXY_BLACKLIST_TTL`` seconds after ``PROXY_BLACKLIST_THRESHOLD`` failures, or for a shorter ``Retry-After`` a 429
-asks for: storytracer's fork of resilient-httpx, ``blacklist_ttl_from_retry_after``) is what is the proxy's fault: a
-block (a 429, a status in a host's ``blacklist_on``, an HTML page where another format was expected) and a broken
-proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy). A timeout, mostly a slow server, is retried
-through another proxy without blacklisting the one it came through. A block does not count as an attempt: the request
-goes on through the next proxy at once (no backoff wait), and since each block blacklists its proxy, the pool bounds
-the blocks. The retries are pybookget's counts and waits: ``max_retries`` retries after the first attempt, so
-``max_retries + 1`` attempts that were not blocks. Each proxy's client is made by pybookget's
-``create_client``, so the rate limits (shared by all proxies), the deadline per attempt and the records below hold
-as without. Proxy URLs are never logged with their credentials (``redact``).
+With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) the workers share the proxies through the
+broker (``broker``, any fsspec folder; ``linecaster.broker``, ``linecaster.net.proxies``): each proxy has one worker
+at a time, which holds its lease, and each worker holds its fair share. The host's rate limits then hold per proxy, so
+per IP, as servers count them: its owner spaces the requests through it to a host by the strictest limit
+(``HTTPFetcher.interval``), and each attempt goes through the owned proxy whose turn comes first. Each proxy has its
+own pybookget client (``create_client``: the deadline per attempt and the records below hold as without). What leaves
+a proxy out is what is the proxy's fault: a block (a 429, until its ``Retry-After`` or for the host's
+``blacklist_ttl``; a status in the host's ``blacklist_on``; an HTML page where another format was expected) is a mark
+in the broker for that host, and a broken proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy, after
+``PROXY_BLACKLIST_THRESHOLD`` failures in a row) one for every host, for ``PROXY_BLACKLIST_TTL`` seconds. The owner
+stops using the proxy there at once and releases it when it is blocked for every host it uses, and whoever claims it
+later sees the mark, so no worker sends a request into another's block. A block does not count as an attempt: the
+request goes on through another proxy at once. A timeout, mostly a slow server, and a server error are retried after
+pybookget's backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
+attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
+requests to that host wait (a pause: one warning when it begins and one when it ends, the wait in ``pause_seconds``)
+until a block ends or another worker gives a proxy back; a pause that would pass the host's ``max_pause`` stops the run
+instead (``StopRequests``). Proxy URLs are never logged or written with their credentials (``redact``; the broker
+names proxies by a hash, ``linecaster.net.proxies.proxy_id``).
 
 A fetcher pauses while its server fails (``Breaker``): when most recent attempts got a server error (5xx, Cloudflare's
 520-524 among them), no request goes out except a probe now and then, with waits that double up to ten minutes; the
 first probe the server answers ends the pause. Requests waiting there count as waiting for the rate limits, so the
 window does not grow, and their pages are delayed, not failed. The retries themselves are pybookget's (520-524
-included); with a proxy list a server error is retried through another proxy without blacklisting the one it came
-through (resilient-httpx's ``blacklist_on``: of the statuses only a 429 and a host's ``blacklist_on`` count against a
-proxy).
+included), or with a proxy list ``HTTPFetcher._through_proxies``'s with the same counts and waits.
 
 A fetcher also pauses when its server says it gets too many requests (``Pause``): a status in its host's ``pause_on``
-(429 by default, ``PAUSE_ON``) on a direct connection (without a proxy list; through proxies a 429 leaves that proxy
-out instead, above) stops the fetcher's requests until the response's ``Retry-After`` has passed (seconds or an
+(429 by default, ``PAUSE_ON``) on a direct connection (without a proxy list; through proxies a 429 blocks that proxy
+instead, above) stops the fetcher's requests until the response's ``Retry-After`` has passed (seconds or an
 HTTP-date; without one ``PAUSE_FIRST_WAIT``, doubling while the status keeps coming, up to ``PAUSE_MAX_WAIT``). The
 request that got it waits out the pause and is tried again, without using up one of its retries (pybookget never sees
 the status: the response hook takes it first), and a status that comes back for a request already in flight extends
@@ -46,24 +51,17 @@ grow. Other fetchers (other workers, other host settings) go on. A fetcher that 
 
 A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
-``ReadTimeout (no message)``; blocks are not among the attempts it counts), where resilient-httpx's or httpx's own
-can be empty.
-
-With a proxy list an HTML page where another format was expected (``submit(..., expect=...)``: a resource's format,
-an image) is that proxy's block, as a 429 is: the attempt fails (``ProxyBlocked``), the proxy is left out (its host's
-``blacklist_ttl``) and the request goes on through the next one; it does not count toward the breaker. A host whose
-proxies are all left out stops the run (``StopRequests``, naming when the first one returns) instead of failing every
-item that follows. With ``proxy_blocks`` (a folder) the blocks are shared: each is written there as a marker, and a
-fetcher leaves out the proxies other workers, or earlier runs, found blocked (``linecaster.net.proxy_blocks``).
+``ReadTimeout (no message)``; blocks are not among the attempts it counts), where httpx's own can be empty.
 
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
-``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"no-response"`` for none (a timeout, a
-connection or proxy error), so a trace tells a slow server from one that answers 429 or 503.
+``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"200-html"`` for a block page through a
+proxy, ``"no-response"`` for none (a timeout, a connection or proxy error), so a trace tells a slow server from one
+that answers 429 or 503.
 
-Every fetch records what it took (``fetch_record``): start and end, the host, the status, the attempts (retries and
-redirects count), the time spent waiting for the rate limits and the time spent in pauses. Readers put the records on
-the page they fetched (``doc.metadata["trace"]["fetch"]``), which the tracing turns into ``linecaster.http.fetch``
-spans.
+Every fetch records what it took (``fetch_record``): start and end, the host, the status, the attempts (retries,
+blocks and redirects count), the time spent waiting for the rate limits (with a proxy list: for a proxy's turn) and
+the time spent in pauses. Readers put the records on the page they fetched (``doc.metadata["trace"]["fetch"]``), which
+the tracing turns into ``linecaster.http.fetch`` spans.
 """
 from __future__ import annotations
 
@@ -76,12 +74,15 @@ import time
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import quote, urlsplit
 
 from loguru import logger
 
 from ..errors import ServerError
+
+if TYPE_CHECKING:
+    from .proxies import ProxyPool
 
 T = TypeVar("T")
 S = TypeVar("S")
@@ -104,12 +105,12 @@ def _pybookget():
         raise ImportError("manifests and http(s) images need pybookget: install linecaster[pybookget]") from e
 
 
-#: a proxy that fails this many attempts in a row is left out of the rotation ...
+#: a proxy that fails this many attempts in a row itself (``PROXY_ERRORS``) is left out for every host ...
 PROXY_BLACKLIST_THRESHOLD = 1
 #: ... for this many seconds
 PROXY_BLACKLIST_TTL = 3600.0
-#: the httpx errors that are a broken proxy's (besides blocks), so they blacklist it: the proxy refused or failed the
-#: tunnel, or could not be reached; a timeout reading the server's answer (a slow server) does not
+#: the httpx errors that are a broken proxy's (besides blocks), so they count against it: the proxy refused or failed
+#: the tunnel, or could not be reached; a timeout reading the server's answer (a slow server) does not
 PROXY_ERRORS = ("ProxyError", "ConnectError", "ConnectTimeout")
 
 
@@ -151,61 +152,6 @@ def redact(proxy: str | None) -> str:
     host = parts.hostname or ""
     port = f":{parts.port}" if parts.port else ""
     return f"{parts.scheme}://{'***@' if parts.username or parts.password else ''}{host}{port}"
-
-
-class _QuietLog:
-    """resilient-httpx's structlog logger, silenced: it logs proxy URLs with their credentials; linecaster logs the
-    blacklisting itself (redacted)."""
-
-    def __getattr__(self, name):
-        return lambda *args, **kwargs: None
-
-
-def _proxy_client(fetcher: HTTPFetcher, proxies: list[str], threshold: int, ttl: float,
-                  blacklist_on: list[int] | None = None):
-    """resilient-httpx's ``AsyncProxyHttpClient`` over ``proxies`` whose per-proxy clients are pybookget's
-    ``create_client`` (with ``fetcher``'s hooks and its shared rate limiter), retrying as pybookget's ``Config``
-    says. ``blacklist_on``: statuses besides 429 that leave a proxy out; they are retried (through the next
-    proxy)."""
-    try:
-        import httpx
-        from resilient_httpx import AsyncProxyHttpClient, RetryPolicy
-    except ImportError as e:
-        raise ImportError("a proxy list needs resilient-httpx: install linecaster[resilient-httpx]") from e
-    from pybookget.http.client import RETRYABLE_STATUS_CODES
-
-    config = fetcher.config
-    total = len(proxies)
-    blacklisting = {429, *(blacklist_on or ())}
-
-    def blacklisted(pool: str, proxy: str) -> None:
-        left = sum(1 for p in client.blacklist_snapshot().get(pool, ()) if p["in_rotation"])
-        log = logger.warning if left < max(1, total // 10) else logger.debug
-        log("proxy {proxy} left out for {ttl:.0f} s; {left} of {total} in rotation", proxy=redact(proxy), ttl=ttl,
-            left=left, total=total)
-        if fetcher._blocks is not None:
-            record = _FETCH.get() or {}
-            remaining = max((p["ttl_remaining_seconds"] or 0.0 for p in client.blacklist_snapshot().get(pool, ())
-                             if p["proxy"] == proxy), default=ttl)
-            status = (record.get("tries") or [None])[-1]
-            asyncio.get_running_loop().run_in_executor(
-                None, fetcher._write_block, record.get("host") or "", proxy, remaining or ttl, status)
-
-    class Client(AsyncProxyHttpClient):
-        def _get_client(self, proxy, impersonate=False):
-            if proxy not in self._clients:
-                self._clients[proxy] = fetcher._new_client(proxy)
-            return self._clients[proxy]
-
-    client = Client(proxies=proxies, retry=RetryPolicy(
-        max_attempts=config.max_retries + 1, backoff="exponential", min_wait=config.retry_wait_min,
-        max_wait=config.retry_wait_max, retry_on=sorted(RETRYABLE_STATUS_CODES | blacklisting),
-        retry_on_exception=[httpx.TransportError]),
-        timeout=config.timeout, blacklist_threshold=threshold, blacklist_ttl=ttl, blacklist_ttl_from_retry_after=True,
-        blacklist_on=blacklisting, blacklist_on_exception=[getattr(httpx, name) for name in PROXY_ERRORS], block_exceptions=[ProxyBlocked],
-        blocks_count_as_attempts=False, on_blacklist=blacklisted)
-    client._log = _QuietLog()
-    return client
 
 
 def is_url(path: str) -> bool:
@@ -289,7 +235,7 @@ def _duration(seconds: float) -> str:
 
 
 def last_error(error: BaseException | None) -> str:
-    """What failed last in resilient-httpx's retries: ``HTTP 520`` for a retried status, else the error's type and
+    """What failed last in a request's retries: ``HTTP 520`` for a retried status, else the error's type and
     message (``ReadTimeout (no message)`` for httpx's silent timeouts)."""
     if error is None:
         return "unknown"
@@ -300,7 +246,8 @@ def last_error(error: BaseException | None) -> str:
 
 
 def _server_error(error: BaseException) -> bool:
-    """Whether ``error`` (pybookget's ``HTTPStatusError``, or resilient-httpx's retries used up) is a server error."""
+    """Whether ``error`` (pybookget's ``HTTPStatusError``, or ``MaxRetriesExceeded`` through proxies) is a server
+    error."""
     for e in (error, error.__cause__):
         response = getattr(e, "response", None)
         status = getattr(response, "status_code", None)
@@ -373,7 +320,14 @@ class Paused(Exception):
 
 class ProxyBlocked(Exception):
     """An HTML page through a proxy where another format was expected: that proxy's block (made a ``TransportError``
-    where it is raised, so resilient-httpx leaves the proxy out and retries through the next)."""
+    where it is raised, so it ends the attempt; ``HTTPFetcher._through_proxies`` marks the proxy blocked for the host
+    and goes on through another)."""
+
+
+class MaxRetriesExceeded(Exception):
+    """A request through the proxies used up its attempts (``max_retries + 1`` that were not blocks); the message
+    names the attempts and what failed last, the cause is the last error (an ``httpx.HTTPStatusError`` for a
+    status)."""
 
 
 def _is_html(response) -> bool:
@@ -533,6 +487,11 @@ PAUSE_MIN_WAIT = 1.0
 MAX_PAUSE = 21600.0
 #: how often a request waiting in a pause looks again (at the latest)
 PAUSE_POLL = 1.0
+#: how often a request waiting for a usable proxy looks again (at the latest; ``ProxyPool.fill`` lists the broker
+#: at most every ``linecaster.net.proxies.FILL_SECONDS``)
+PROXY_POLL = 1.0
+#: how long a request that found a proxy to claim waits for the next ``ProxyPool.fill``
+FILL_WAIT = 0.25
 
 
 def retry_after(value: str | None, now: float | None = None) -> float | None:
@@ -708,7 +667,7 @@ class HTTPFetcher:
 
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
-                 proxy_blocks: str | None = None, default_proxy_blocks: str | None = None,
+                 broker: str | None = None, default_broker: str | None = None, broker_run: str | None = None,
                  stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
                  pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
         _pybookget()
@@ -728,59 +687,29 @@ class HTTPFetcher:
             return self._new_client(self.config.proxy)
 
         self._client = asyncio.run_coroutine_threadsafe(client(), self._loop).result()
-        self._proxies, self._blocks, self._block_hosts, self._block_poll = None, None, set(), None
+        self._proxies: ProxyPool | None = None
+        self._proxy_clients: dict[str, object] = {}
+        self._blacklist_threshold, self._blacklist_ttl = proxy_blacklist_threshold, proxy_blacklist_ttl
+        self._blacklist_on = frozenset({429, *(proxy_blacklist_on or ())})
+        self._no_proxy_since: float | None = None          # monotonic: since when no proxy is usable here
         if proxy_file:
-            proxies = read_proxies(proxy_file)
-            self._proxies = _proxy_client(self, proxies, proxy_blacklist_threshold, proxy_blacklist_ttl,
-                                          proxy_blacklist_on)
-            if proxy_blocks or default_proxy_blocks:     # the default: where the run keeps its logs
-                from .proxy_blocks import ProxyBlocks, proxy_id
+            from .. import broker as brokers
+            from .proxies import shared_pool
 
-                self._blocks = ProxyBlocks(proxy_blocks or default_proxy_blocks)
-                self._proxy_ids = {proxy_id(p): p for p in proxies}
-                self._block_poll = asyncio.run_coroutine_threadsafe(self._poll_blocks(), self._loop)
+            self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
+                                        read_proxies(proxy_file))
 
-    def _write_block(self, host: str, proxy: str, ttl: float, status: str | None) -> None:
-        try:
-            self._blocks.write(host, proxy, ttl, status)
-        except Exception as e:  # noqa: BLE001 - the block still holds in this process
-            logger.warning("proxy block of {proxy} not written to {folder}: {error}", proxy=redact(proxy),
-                           folder=self._blocks.path, error=e)
-
-    async def _apply_blocks(self, live: dict[str, float]) -> None:
-        for pid, remaining in live.items():
-            proxy = self._proxy_ids.get(pid)
-            if proxy is not None and await self._proxies.block_proxy(proxy, remaining):
-                logger.info("proxy {proxy} left out for {left}: found blocked by another worker or an earlier run",
-                            proxy=redact(proxy), left=_duration(remaining))
-
-    def _read_blocks(self, host: str) -> dict[str, float]:
-        try:
-            return self._blocks.live(host)
-        except Exception as e:  # noqa: BLE001 - read again at the next poll
-            logger.warning("proxy blocks in {folder} not read: {error}", folder=self._blocks.path, error=e)
-            return {}
-
-    async def _poll_blocks(self) -> None:
-        """Every ``POLL_SECONDS``, the blocks other workers found at the hosts this fetcher sends requests to."""
-        from .proxy_blocks import POLL_SECONDS
-
-        loop = asyncio.get_running_loop()
-        while True:
-            await asyncio.sleep(POLL_SECONDS)
-            for host in list(self._block_hosts):
-                await self._apply_blocks(await loop.run_in_executor(None, self._read_blocks, host))
-
-    def _new_client(self, proxy: str | None):
+    def _new_client(self, proxy: str | None, rate_limited: bool = True):
         """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client
-        shares this fetcher's rate limiter (pybookget keeps it per ``Config`` and event loop)."""
+        shares this fetcher's rate limiter (pybookget keeps it per ``Config`` and event loop), unless
+        ``rate_limited`` is False (a proxy's client: the proxy pool spaces its requests, ``ProxyPool.pick``)."""
         import dataclasses
 
         from pybookget.http import create_client
 
         config = self.config
-        if proxy != config.proxy:
-            config = dataclasses.replace(config, proxy=proxy)
+        if proxy != config.proxy or not rate_limited:
+            config = dataclasses.replace(config, proxy=proxy, rate_limits=config.rate_limits if rate_limited else None)
             config._limiters = self.config._limiters
         c = create_client(config)
         hooks = dict(c.event_hooks)
@@ -791,25 +720,29 @@ class HTTPFetcher:
         c.event_hooks = hooks
         return c
 
-    def proxies_in_rotation(self) -> tuple[int, int] | None:
-        """(proxies in rotation, proxies) with a proxy list, else None."""
-        if self._proxies is None:
-            return None
-        states = [p for pool in self._proxies.blacklist_snapshot().values() for p in pool]
-        return sum(1 for p in states if p["in_rotation"]), len(states)
+    def proxy_counts(self) -> tuple[int, int, int] | None:
+        """(proxies this worker holds, blocked, free) with a proxy list (``ProxyPool.counts``), else None."""
+        return self._proxies.counts() if self._proxies is not None else None
 
     @property
     def waiting(self) -> int:
         return self._waiting
 
     @property
+    def interval(self) -> float:
+        """The seconds between two requests through one proxy: the strictest rate limit's (0 without limits)."""
+        limits = self.config.rate_limits
+        return max(s / n for n, s in limits) if limits else 0.0
+
+    @property
     def max_ahead(self) -> int:
-        """The most requests worth having in flight: the rate limits' rate (the strictest window's) times the deadline
-        per attempt, since every attempt ends within it; ``MAX_AHEAD`` without either, and never more."""
+        """The most requests worth having in flight: the rate limits' rate (the strictest window's; with a proxy list
+        per proxy, times the proxies this worker holds) times the deadline per attempt, since every attempt ends within
+        it; ``MAX_AHEAD`` without either, and never more."""
         limits, deadline = self.config.rate_limits, getattr(self.config, "attempt_timeout", None)
         if not limits or not deadline:
             return MAX_AHEAD
-        rate = min(n / s for n, s in limits)
+        rate = min(n / s for n, s in limits) * (max(1, self._proxies.held()) if self._proxies is not None else 1)
         return max(1, min(MAX_AHEAD, int(rate * deadline) + 1))
 
     async def _fetch(self, url: str, fallback_url: str | None, ticket: _Ticket):
@@ -859,40 +792,123 @@ class HTTPFetcher:
             _FETCH.reset(token)
             _TICKET.reset(ticket_token)
 
-    async def _through_proxies(self, url: str, fallback_url: str | None):
-        """``url`` through the proxy list (resilient-httpx's retries and blacklist); on 404 ``fallback_url``, as
-        pybookget's ``fetch`` does. A status that is not retried (404, 403, ...) raises ``httpx.HTTPStatusError``;
-        retries used up raise ``MaxRetriesExceeded`` naming the last error, no proxy left ``StopRequests`` (the run
-        stops)."""
-        from resilient_httpx import AllProxiesExhausted, MaxRetriesExceeded
+    def _proxy_client(self, proxy: str):
+        client = self._proxy_clients.get(proxy)
+        if client is None:
+            client = self._proxy_clients[proxy] = self._new_client(proxy, rate_limited=False)
+            if (agent := self._client.headers.get("User-Agent")) is not None:
+                client.headers["User-Agent"] = agent
+        return client
 
+    async def _proxy_turn(self, host: str) -> str:
+        """A proxy for the next attempt to ``host``, at its turn (``ProxyPool.pick``): the wait for the turn counts as
+        waiting for the rate limits; with none usable, claims more (``ProxyPool.fill``), else pauses until a block
+        ends or another worker gives one back (``_no_proxy``)."""
+        pool, record, ticket = self._proxies, _FETCH.get(), _TICKET.get()
+        if ticket is not None:
+            ticket.queue(True)
         try:
-            response = await self._proxies.get(url)
-            if response.status_code == 404 and fallback_url:
-                logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
-                response = await self._proxies.get(fallback_url)
-        except MaxRetriesExceeded as e:
-            record = _FETCH.get() or {}
-            raise MaxRetriesExceeded(f"after {record.get('attempts', '?')} attempts: {last_error(e.__cause__)}") \
-                from e.__cause__
-        except AllProxiesExhausted as e:
-            waits = [p["ttl_remaining_seconds"] for pool in self._proxies.blacklist_snapshot().values() for p in pool
-                     if p["ttl_remaining_seconds"] is not None]
-            back = f"the first returns in {_duration(min(waits))}" if waits else "none returns"
-            raise StopRequests(f"no proxy left for {urlsplit(url).hostname}: every one is left out ({back}); "
-                               "the run stops instead of failing every item that follows") from e
-        response.raise_for_status()
-        return response
+            while True:
+                got = pool.pick(host, self.interval)
+                if got is not None:
+                    proxy, wait = got
+                    if wait > 0:
+                        await asyncio.sleep(wait)
+                        if record is not None:
+                            record["wait_seconds"] = round(record["wait_seconds"] + wait, 4)
+                    if not pool.usable(proxy, host):           # blocked by another request meanwhile
+                        continue
+                    self._proxy_usable(host)
+                    pool.tick()
+                    return proxy
+                if await asyncio.to_thread(pool.fill, host) or pool.has_usable(host):
+                    continue                                   # claimed (here or by a request alongside)
+                started = time.perf_counter()
+                await asyncio.sleep(self._no_proxy(host))
+                _paused_for(time.perf_counter() - started)
+        finally:
+            if ticket is not None:
+                ticket.queue(False)
+
+    def _no_proxy(self, host: str) -> float:
+        """No proxy is usable for ``host``: the pause begins (one warning) or goes on; returns how long to sleep before
+        looking again. ``StopRequests`` when it would pass ``max_pause`` (a block that ends later, and no proxy that
+        other workers hold), or has."""
+        now = time.monotonic()
+        first, others, free = self._proxies.outlook(host)
+        if free:                                         # one to claim at the next fill: no pause
+            return FILL_WAIT
+        if self._no_proxy_since is None:
+            self._no_proxy_since = now
+            log = logger.warning if first is not None else logger.info
+            log("no proxy usable for {host}: {why}; its requests wait{until}", host=host,
+                why=(f"{others} held by other workers" if first is None else
+                     f"the others blocked or held by other workers ({others})"),
+                until=f", the first block ends in {_duration(first)}" if first is not None else "")
+        spent, most = now - self._no_proxy_since, self.pause.max_total
+        if spent > most or (others == 0 and (first is None or spent + first > most)):
+            back = f"the first returns in {_duration(first)}" if first is not None else "none returns"
+            raise StopRequests(f"no proxy left for {host}: every one is left out ({back}), beyond max_pause "
+                               f"({_duration(most)}); the run stops instead of failing every item that follows")
+        return max(0.05, min(PROXY_POLL, first if first is not None else PROXY_POLL))
+
+    def _proxy_usable(self, host: str) -> None:
+        if self._no_proxy_since is not None:
+            logger.warning("a proxy is usable for {host} again after {paused}: its requests go on", host=host,
+                           paused=_duration(time.monotonic() - self._no_proxy_since))
+            self._no_proxy_since = None
+
+    async def _through_proxies(self, url: str, fallback_url: str | None):
+        """``url`` through this worker's proxies (``ProxyPool``); on 404 ``fallback_url``, as pybookget's ``fetch``
+        does. A block (429, a status in ``blacklist_on``, an HTML page where another format was expected) marks the
+        proxy blocked for the host and goes on through another without counting as an attempt; a broken proxy
+        (``PROXY_ERRORS``) counts toward its ``blacklist_threshold``; other failures (a retryable status, a timeout)
+        are retried after pybookget's backoff. A status that is not retried (404, 403, ...) raises
+        ``httpx.HTTPStatusError``; attempts used up raise ``MaxRetriesExceeded`` naming the last error, no proxy
+        usable within ``max_pause`` ``StopRequests`` (the run stops)."""
+        import httpx
+        from pybookget.http.client import RETRYABLE_STATUS_CODES
+
+        host = urlsplit(url).hostname or ""
+        broken = tuple(getattr(httpx, name) for name in PROXY_ERRORS)
+        target, attempts, last = url, 0, None
+        while True:
+            proxy = await self._proxy_turn(host)
+            try:
+                response = await self._proxy_client(proxy).get(target)
+            except ProxyBlocked:
+                self._proxies.block(proxy, host, self._blacklist_ttl, status="html")
+                continue
+            except httpx.TransportError as e:
+                if isinstance(e, broken):
+                    self._proxies.broken(proxy, self._blacklist_threshold, self._blacklist_ttl)
+                last = e
+            else:
+                status = response.status_code
+                if status in self._blacklist_on:
+                    asked = retry_after(response.headers.get("retry-after"))
+                    ttl = self._blacklist_ttl if asked is None else max(asked, PAUSE_MIN_WAIT)
+                    self._proxies.block(proxy, host, ttl, status=status)
+                    continue
+                self._proxies.answered(proxy)
+                if status == 404 and fallback_url and target != fallback_url:
+                    logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
+                    target, attempts = fallback_url, 0
+                    continue
+                if status not in RETRYABLE_STATUS_CODES:
+                    response.raise_for_status()
+                    return response
+                last = httpx.HTTPStatusError(f"HTTP {status}", request=response.request, response=response)
+            attempts += 1
+            if attempts > self.config.max_retries:
+                raise MaxRetriesExceeded(f"after {attempts} attempts: {last_error(last)}") from last
+            wait = min(self.config.retry_wait_max, self.config.retry_wait_min * 2 ** (attempts - 1))
+            if wait > 0:
+                await asyncio.sleep(wait)
 
     def submit(self, url: str, fallback_url: str | None = None, expect: str | None = None) -> Future:
         """A future of ``url``'s response. ``expect``: the format it should have (``xml``, ``json``, ``image``):
         through a proxy, an HTML page instead is that proxy's block (see the module docstring)."""
-        if self._blocks is not None:
-            host = urlsplit(url).hostname or ""
-            if host not in self._block_hosts:              # the first request there: its blocks first
-                self._block_hosts.add(host)
-                live = self._read_blocks(host)
-                asyncio.run_coroutine_threadsafe(self._apply_blocks(live), self._loop).result()
         ticket = _Ticket(self, expect)
         ticket.queue(True)
         future = asyncio.run_coroutine_threadsafe(self._fetch(url, fallback_url, ticket), self._loop)
@@ -913,31 +929,32 @@ class HTTPFetcher:
 
         async def set_header():
             self._client.headers["User-Agent"] = agent
-            for c in (self._proxies._clients.values() if self._proxies is not None else ()):
+            for c in self._proxy_clients.values():
                 c.headers["User-Agent"] = agent
-            if self._proxies is not None:
-                self._proxies._headers = {**self._proxies._headers, "User-Agent": agent}
 
         asyncio.run_coroutine_threadsafe(set_header(), self._loop).result()
 
     def close(self) -> None:
         if self._loop.is_closed():
             return
-        if self._block_poll is not None:
-            self._block_poll.cancel()
-        asyncio.run_coroutine_threadsafe(self._client.aclose(), self._loop).result()
-        if self._proxies is not None:
-            asyncio.run_coroutine_threadsafe(self._proxies.aclose(), self._loop).result()
+
+        async def close_clients():
+            for c in (self._client, *self._proxy_clients.values()):
+                await c.aclose()
+
+        asyncio.run_coroutine_threadsafe(close_clients(), self._loop).result()
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join()
         self._loop.close()
 
 
-def proxy_rotation() -> tuple[int, int] | None:
-    """(proxies in rotation, proxies) over this process's shared fetchers with a proxy list; None without one."""
-    with _SHARED_LOCK:
-        counts = [c for f in _SHARED.values() if (c := f.proxies_in_rotation()) is not None]
-    return (sum(c[0] for c in counts), sum(c[1] for c in counts)) if counts else None
+def proxy_counts() -> tuple[int, int, int] | None:
+    """(proxies held, blocked, free) of this process's proxy pools (``linecaster.net.proxies.ProxyPool.counts``);
+    None without a proxy list."""
+    from .proxies import pools
+
+    counts = [p.counts() for p in pools()]
+    return tuple(sum(c[i] for c in counts) for i in range(3)) if counts else None
 
 
 def paused() -> float | None:
@@ -957,9 +974,13 @@ def pause_left() -> tuple[float, int] | None:
 
 
 def close_shared() -> None:
-    """Close the fetchers ``HTTPFetcher.shared`` keeps (they are daemon threads, so a process may also just end)."""
+    """Close the fetchers ``HTTPFetcher.shared`` keeps (they are daemon threads, so a process may also just end), and
+    hand the worker's proxies over to its slot's next process (``linecaster.net.proxies.close_pools``)."""
     with _SHARED_LOCK:
         fetchers = list(_SHARED.values())
         _SHARED.clear()
     for fetcher in fetchers:
         fetcher.close()
+    from .proxies import close_pools
+
+    close_pools()

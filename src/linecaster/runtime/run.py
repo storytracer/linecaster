@@ -30,7 +30,8 @@ image through the pipeline in this process (``linecaster page``).
 engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input), one
 worker when it has rate limits (one task keeps them busy) and one per CPU without; a pipeline with engines one task,
 and as many workers as tasks. ``--rate-limit`` holds per worker: a server sees the workers running at once times
-it, which the run states before it starts (``rate_note``).
+it, which the run states before it starts (``rate_note``); with ``--proxies`` it holds per proxy, each proxy used by
+one worker at a time (the workers share them through ``--broker``, ``linecaster.broker``).
 ``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
@@ -102,13 +103,13 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="http(s) requests (manifests, images, OCR) each worker may send, e.g. 5/1; repeatable, all "
                         "windows apply; a server sees the workers running at once times this")
     g.add_argument("--proxies", default=None, metavar="FILE",
-                   help="http(s) requests through these proxies in turn (linecaster[resilient-httpx]): one per line, a "
-                        "URL or host:port[:user:pass] as Webshare lists them; a proxy that is blocked (429, a block "
-                        "page) or broken is left out for an hour, a timeout is retried through the next; the "
-                        "environment's HTTPS_PROXY then does not apply to them")
-    g.add_argument("--proxy-blocks", default=None, metavar="FOLDER",
-                   help="where proxies found blocked are marked, so that every worker and every later run pointed "
-                        "here leaves them out (linecaster.net.proxy_blocks; default OUT/logs/proxy-blocks)")
+                   help="http(s) requests through these proxies: one per line, a URL or host:port[:user:pass] as "
+                        "Webshare lists them; each proxy has one worker at a time (--broker), the rate limits hold "
+                        "per proxy, a proxy that is blocked (429, a block page) is left out for that host until the "
+                        "block ends, a broken one for an hour; the environment's HTTPS_PROXY then does not apply")
+    g.add_argument("--broker", default=None, metavar="PATH",
+                   help="the folder (any fsspec path) through which the workers share the proxies and their blocks "
+                        "(linecaster.broker; default OUT/logs/broker); runs pointed at one path share them too")
     ua = g.add_mutually_exclusive_group()
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: datatrove's, HF-Research/1.0)")
@@ -284,40 +285,42 @@ def has_engines(a: argparse.Namespace) -> bool:
 
 def rate_note(a: argparse.Namespace) -> str | None:
     """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
-    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``, and the HTTP policy (``--http-policy``); None
-    without either."""
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; with ``--proxies`` per proxy and the proxies
+    (``rate limits per proxy: 150/60 · 100 proxies → up to 15,000/min at a server``); and the HTTP policy
+    (``--http-policy``); None without either."""
     hosts = None
     if getattr(a, "http_policy", None):
         from ..net.policy import HTTPPolicy
 
-        hosts = "HTTP policy per worker: " + HTTPPolicy(a.http_policy).describe()
+        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy).describe()
     if not getattr(a, "rate_limits", None):
         return hosts
+    limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
+    if getattr(a, "proxy_count", None):              # one worker per proxy at a time: the limits hold per proxy
+        per_minute = min(n / s for n, s in a.rate_limits) * 60 * a.proxy_count
+        note = (f"rate limits per proxy: {limits} · {a.proxy_count:,} prox{'ies' if a.proxy_count != 1 else 'y'} "
+                f"→ up to {per_minute:,.0f}/min at a server")
+        return note + (f" · {hosts}" if hosts else "")
     workers = min(a.workers or a.tasks or 1, a.tasks or 1)
     per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
-    limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
     note = (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
             f"{per_minute:,.0f}/min at a server")
-    if getattr(a, "proxy_count", None):
-        from ..net.http import PROXY_BLACKLIST_THRESHOLD, PROXY_BLACKLIST_TTL
-
-        note += (f" · through {a.proxy_count:,} proxies (left out for {PROXY_BLACKLIST_TTL:.0f} s after "
-                 f"{PROXY_BLACKLIST_THRESHOLD} failure{'s' if PROXY_BLACKLIST_THRESHOLD != 1 else ''})")
     return note + (f" · {hosts}" if hosts else "")
 
 
 def http(a: argparse.Namespace) -> dict:
     """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
-    worker's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and where proxy blocks are marked
-    (``--proxy-blocks``; else ``default_proxy_blocks``, ``OUT/logs/proxy-blocks``, with proxies or an HTTP policy,
-    whose ``proxy_blocks`` goes over it)."""
+    worker's; with ``--proxies`` each proxy's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and the
+    broker through which the workers share them (``--broker``; else ``default_broker``, ``OUT/logs/broker``, with
+    proxies or an HTTP policy, whose ``broker`` goes over it)."""
     out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
     if getattr(a, "proxies", None):
         out["proxy_file"] = a.proxies
-    if getattr(a, "proxy_blocks", None):
-        out["proxy_blocks"] = a.proxy_blocks
+    if getattr(a, "broker", None):
+        out["broker"] = a.broker
     if (getattr(a, "proxies", None) or getattr(a, "http_policy", None)) and getattr(a, "out", None):
-        out["default_proxy_blocks"] = f"{a.out.rstrip('/')}/logs/proxy-blocks"
+        out["default_broker"] = f"{a.out.rstrip('/')}/logs/broker"
+        out["broker_run"] = a.out
     if getattr(a, "user_agent", None):
         out["user_agent"] = a.user_agent
     if getattr(a, "random_user_agent", False):
