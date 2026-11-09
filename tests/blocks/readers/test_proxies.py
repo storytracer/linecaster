@@ -320,3 +320,28 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
     finally:
         for s in servers:
             s.shutdown()
+
+
+def test_a_task_that_ends_hands_its_proxies_to_the_next_process_in_its_slot(tmp_path):
+    """A Ray task's process ends (``linecaster.runtime.ray.hand_over``): its slot is free, its proxy leases stay, and
+    the next process on the machine claims the slot, is the same worker and holds the proxies before its first
+    request."""
+    from linecaster import broker as brokers
+    from linecaster.net.http import HTTPFetcher
+    from linecaster.runtime.ray import hand_over
+
+    served = []
+    good = proxy_server(served)
+    try:
+        (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{good.server_address[1]}\n")
+        config = {**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "broker": str(tmp_path / "broker")}
+        assert HTTPFetcher.shared(**config).get("http://library.test/p1.png").status_code == 200
+        worker = brokers.shared(str(tmp_path / "broker")).worker
+        hand_over()                                              # the task ends
+        assert not list((tmp_path / "broker" / "slots").rglob("*.json"))
+        assert len(list((tmp_path / "broker" / "proxies").rglob("leases/*.json"))) == 1
+        successor = HTTPFetcher.shared(**config)                 # the next task's process
+        assert successor.proxy_counts() == (1, 0, 0) and brokers.shared(str(tmp_path / "broker")).worker == worker
+        assert successor.get("http://library.test/p2.png").status_code == 200 and len(served) == 2
+    finally:
+        good.shutdown()

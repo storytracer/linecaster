@@ -536,7 +536,8 @@ _LOCAL: list[str] = []
 
 def shared(folder: str | None, run: str | None = None) -> Broker:
     """Returns this process's broker for ``folder``, made at the first use; None: a local folder of this process's own
-    (no other worker shares it).
+    (no other worker shares it). A process that ends normally hands its slots over (``hand_over_shared``, at exit);
+    one that is killed leaves them to expire.
 
     Args:
         folder: the broker's folder (any fsspec path), or None.
@@ -552,6 +553,10 @@ def shared(folder: str | None, run: str | None = None) -> Broker:
         key = (os.getpid(), folder)
         broker = _SHARED.get(key)
         if broker is None:
+            if not _SHARED:                                   # a process that ends normally hands its slot over
+                import atexit
+
+                atexit.register(hand_over_shared)
             broker = _SHARED[key] = Broker(folder, run=run)
         return broker
 
