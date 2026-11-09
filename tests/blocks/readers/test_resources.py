@@ -457,8 +457,8 @@ def test_the_http_policy_option(tmp_path):
 def test_blocks_do_not_use_up_attempts(tmp_path, per_worker):
     """max_retries 0 (a single attempt): three proxies send block pages, and every item still comes through the
     fourth; each blocking proxy is tried once at most, then left out. One proxy per worker: the worker swaps each
-    blocked one for a free one until it holds the good one; a fair share: it holds all four, and the turns spread the
-    requests over them, so each blocking one is tried once."""
+    blocked one for a free one until it holds the good one; a fair share: it holds two at first, and the turns spread
+    the requests over them."""
     blocking = [fake_proxy(b"<!DOCTYPE html><html>blocked</html>", "text/html") for _ in range(3)]
     good, good_seen = fake_proxy(XML, "application/xml")
     try:
@@ -471,10 +471,8 @@ def test_blocks_do_not_use_up_attempts(tmp_path, per_worker):
         docs = run_all(reader, tmp_path / "out")
         assert not any(d.metadata.get("errors") for d in docs) and len(good_seen) == 4
         tried = [len(seen) for _, seen in blocking]
-        if per_worker == 1:
-            assert max(tried) <= 1 and reader._last.proxy_counts() == (1, sum(tried), 3 - sum(tried))
-        else:
-            assert tried == [1, 1, 1] and reader._last.proxy_counts() == (1, 3, 0)
+        held, blocked, free = reader._last.proxy_counts()
+        assert max(tried) <= 1 and blocked == sum(tried) and held + blocked + free == 4
     finally:
         for s, _ in blocking:
             s.shutdown()

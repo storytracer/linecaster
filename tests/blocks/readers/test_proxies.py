@@ -329,7 +329,7 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
             gaps = [b - a for a, b in zip(times, times[1:])]
             assert not gaps or min(gaps) > 0.15, gaps      # 0.2 s per proxy, less the jitter of loopback
         workers = sorted(p.name for p in (tmp_path / "broker" / "workers").iterdir())
-        assert len(workers) == 2                           # two worker slots of this machine
+        assert [w.rsplit("-", 1)[1] for w in workers] == ["0.json", "1.json"]   # the pool's worker indexes
     finally:
         for s in servers:
             s.shutdown()

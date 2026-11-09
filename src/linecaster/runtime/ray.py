@@ -9,7 +9,7 @@ straight into the block that stopped the first). The task writes a stop marker t
 pipeline starts, and the launch then fails with the first task's error. A launch with tasks that did not finish fails
 too (they run again on the next launch), so a Ray job that left work undone does not end as succeeded. A new launch
 removes the marker. Each task's process starts its search for a worker slot in the broker at its rank modulo the
-workers (``linecaster.broker.set_worker_index``), so tasks started together claim different slots.
+tasks running at once (``linecaster.broker.set_worker_index``), so tasks started together claim different slots.
 
 ``RayGPUExecutor`` is ``RayExecutor`` with one GPU per task. Ray restricts each task to its GPU through
 ``CUDA_VISIBLE_DEVICES``. Several tasks share a machine, so each task moves the servers its pipeline starts
@@ -72,7 +72,8 @@ class RayExecutor(RayPipelineExecutor):
 
         from ..broker import set_worker_index
 
-        set_worker_index(rank % max(1, self.workers), self.workers)    # tasks at once: distinct, so are their slots
+        at_once = max(1, self.workers * self.tasks_per_job)            # tasks at once: distinct ranks, distinct slots
+        set_worker_index(rank % at_once, at_once)
         stop = self.stopped()
         if stop is not None:                         # the run stops: this task ends before its pipeline starts
             raise LinecasterError(f"task {rank + 1:,} not started: the run stopped at task {stop['rank'] + 1:,} "

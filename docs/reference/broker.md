@@ -75,7 +75,7 @@ task is a new process, and the harvest runs one item per task, so leases tied to
 few seconds. At its first use a process claims a free slot of its machine (`slots/<machine>/<n>`, a lease held by the
 process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
 do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
-rank in a local run's pool, the rank modulo the workers on Ray, the task's GPU in a multi-GPU Job), else a random
+rank in a local run's pool, the rank modulo the tasks at once on Ray, the task's GPU in a multi-GPU Job), else a random
 slot. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
 heartbeat whose slot no process holds: its leases wait for a successor), then the free slots from its start upward,
 wrapping. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
