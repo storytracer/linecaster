@@ -197,7 +197,7 @@ hosts:
     assert all(c["user_agent"] == "HF-Research/1.0" for c in (tile, lccn, other))
     assert ("lccn.loc.gov: 25/60 per worker, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
             in policy.describe())
-    assert ("other hosts: 60/60 per proxy, through proxies, 1 proxy per worker, 7 retries, stops on 403"
+    assert ("other hosts: 60/60 per proxy, through proxies, a fair share per worker, 7 retries, stops on 403"
             in policy.describe())
     assert policy.rate_limited()
 
@@ -545,7 +545,7 @@ def test_proxies_per_worker_in_a_policy_and_its_checks(tmp_path):
     assert "other hosts: 60/60 per proxy, through proxies, up to 3 per worker" in described
     assert "b.org: 60/60 per worker, direct" in described                      # no proxies: no count
     for bad in ("0", "many", "true", "1.5"):
-        with pytest.raises(PipelineConfigError, match="proxies_per_worker is a whole number"):
+        with pytest.raises(PipelineConfigError, match="proxies_per_worker is `share` .* or a whole number"):
             HTTPPolicy(policy_file(tmp_path, f"proxies_per_worker: {bad}\n"))
-    with pytest.raises(PipelineConfigError, match="the hosts that use p.txt set proxies_per_worker 1, 2"):
+    with pytest.raises(PipelineConfigError, match="the hosts that use p.txt set proxies_per_worker 2, share"):
         HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nhosts:\n  a.org: {proxies_per_worker: 2}\n"))

@@ -27,9 +27,9 @@ successful response before the run stops instead (default 6 h; with a proxy list
 proxy), and ``stop_on``: statuses (and ``html``, an HTML page where another format was expected: a CAPTCHA) that stop
 the run at once, without a retry, for a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and
 starts the block again with every request during it), and ``proxies_per_worker``: how many proxies of the list a
-worker holds at a time, ``1`` (the default: one proxy per worker, swapped for a free one when it is blocked), a whole
-number ``N`` (up to N per worker, claimed one by one) or ``share`` (a fair share per worker of the proxies not blocked,
-with rebalancing; ``linecaster.net.proxies``); hosts that use one proxy list must agree on it. A status either pauses
+worker holds at a time, ``share`` (the default: a fair share per worker of the proxies not blocked, with
+rebalancing), ``1`` (one proxy per worker, swapped for a free one when it is blocked) or a whole number ``N`` (up to N
+per worker, claimed one by one; ``linecaster.net.proxies``); hosts that use one proxy list must agree on it. A status either pauses
 or stops: one in both ``pause_on`` (or its default) and ``stop_on`` is refused (``pause_on: []`` with ``stop_on:
 [429]`` stops on a 429). At the root only:
 ``broker``, the folder through which the workers share the proxies and their blocks (``linecaster.broker``; default
@@ -107,10 +107,12 @@ class HTTPPolicy:
 
     def _one_setting_per_list(self, where: str) -> None:
         """Hosts that use one proxy list share its pool, so they must agree on ``proxies_per_worker``."""
+        from .proxies import DEFAULT_PER_WORKER
+
         settings: dict[str, set] = {}
         for p in (self.root, *({**self.root, **e} for e in self.hosts.values())):
             if p.get("proxies") and not p.get("direct"):
-                settings.setdefault(p["proxies"], set()).add(p.get("proxies_per_worker", 1))
+                settings.setdefault(p["proxies"], set()).add(p.get("proxies_per_worker", DEFAULT_PER_WORKER))
         for proxies, values in settings.items():
             if len(values) > 1:
                 raise PipelineConfigError(f"{where}: the hosts that use {proxies} set proxies_per_worker "
@@ -234,9 +236,9 @@ class HTTPPolicy:
             parts = [f"{limits} per {'proxy' if proxied else 'worker'}" if limits else "no rate limit"]
             parts.append("direct" if p.get("direct") else "through proxies" if p.get("proxies") else "")
             if proxied:
-                from .proxies import describe_per_worker
+                from .proxies import DEFAULT_PER_WORKER, describe_per_worker
 
-                parts.append(describe_per_worker(p.get("proxies_per_worker", 1)))
+                parts.append(describe_per_worker(p.get("proxies_per_worker", DEFAULT_PER_WORKER)))
             if p.get("max_retries") is not None:
                 parts.append(f"{p['max_retries']} retries")
             if p.get("proxies") and p.get("blacklist_ttl"):

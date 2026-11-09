@@ -22,9 +22,14 @@ def options(tmp_path, *argv):
     return a
 
 
-def policy(tmp_path, text: str) -> str:
-    (tmp_path / "policy.yaml").write_text(text.replace("PROXIES", str(tmp_path / "proxies.txt")))
-    return str(tmp_path / "policy.yaml")
+def policy(tmp_path, text: str, name: str = "policy.yaml") -> str:
+    (tmp_path / name).write_text(text.replace("PROXIES", str(tmp_path / "proxies.txt")))
+    return str(tmp_path / name)
+
+
+def one_each(tmp_path) -> list[str]:
+    """The options of a run with one proxy per worker (``proxies_per_worker: 1``) through ``PROXIES``."""
+    return ["--http-policy", policy(tmp_path, "proxies: PROXIES\nproxies_per_worker: 1\n", "one.yaml")]
 
 
 @pytest.fixture
@@ -33,11 +38,11 @@ def no_cpus(monkeypatch):
 
 
 def test_a_first_launch_runs_a_worker_per_proxy(tmp_path, no_cpus):
-    a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"))
+    a = options(tmp_path, *one_each(tmp_path), "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"))
     run.allocate(a, [])
     assert a.workers == 7 and run.workers_note(a) == "7 proxies available → 7 workers, 1 proxy each"
     assert run.run_notes(a)[0] == run.workers_note(a)
-    few = options(tmp_path, "--proxies", "PROXIES", "--tasks", "3", "--broker", str(tmp_path / "broker"))
+    few = options(tmp_path, *one_each(tmp_path), "--tasks", "3", "--broker", str(tmp_path / "broker"))
     run.allocate(few, [])
     assert few.workers == 3 and run.workers_note(few) == "7 proxies available, 3 tasks → 3 workers, 1 proxy each"
     given = options(tmp_path, "--proxies", "PROXIES", "--workers", "5")
@@ -55,12 +60,13 @@ def test_blocked_proxies_and_other_runs_leases_are_not_available(tmp_path, no_cp
     assert other.claim(KIND, ids[2])                                                    # another run's
     own = Broker(broker, machine="m", run="OUT", worker_index=(0, 1))
     assert own.claim(KIND, ids[3])                                                      # this run's earlier lease
-    a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", broker)
+    a = options(tmp_path, *one_each(tmp_path), "--rate-limit", "150/60", "--broker", broker)
     run.allocate(a, [])
     assert a.workers == 4
     assert run.workers_note(a) == ("4 proxies available (7 in the list, 2 blocked or broken, 1 held by other runs) "
                                    "→ 4 workers, 1 proxy each")
-    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.loc.gov: {{proxies: PROXIES, rate_limits: [\"5/1\"]}}\n")
+    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.loc.gov: {{proxies: PROXIES, rate_limits: [\"5/1\"], "
+                                f"proxies_per_worker: 1}}\n")
     known = options(tmp_path, "--http-policy", hosts)
     run.allocate(known, [])
     assert known.workers == 5                                     # its only host: the block at tile.loc.gov is not

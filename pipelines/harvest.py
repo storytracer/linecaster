@@ -47,9 +47,9 @@ worker's requests ahead (manifests' pages and http(s) images alike) grow until t
 --workers N a server sees N times --rate-limit, so give each worker its part. With --proxies the limits hold per
 proxy instead, and the workers (of this run, and of other runs given the same --broker) share the proxies through the
 broker (default OUT/logs/broker), each proxy used by one worker at a time and left out where it was blocked; each
-worker holds one proxy (an HTTP policy's proxies_per_worker: N or share for more), and the run gets one worker per
-available proxy (the proxies not blocked and not held by another run, at most one per task, not capped by the CPUs:
-the workers wait on the network), which it states before it starts. --max-pages N runs the first N pages of
+worker holds a fair share of them (an HTTP policy's proxies_per_worker: 1 for one each, or N), and with 1 or N the
+run gets one worker per available proxy (the proxies not blocked and not held by another run, divided by N, at most
+one per task, not capped by the CPUs: the workers wait on the network), which it states before it starts. --max-pages N runs the first N pages of
 the input in the same automatic tasks, a smoke test of the real setup (--limit counts per task, as in datatrove).
 An outage of the server pauses the requests until it answers again; a book that fails anyway runs again on the next
 launch, and --retry-failed also runs the finished books with failed pages again (only those pages fetched).

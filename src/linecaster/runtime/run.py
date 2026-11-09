@@ -301,9 +301,9 @@ def rate_note(a: argparse.Namespace) -> str | None:
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
     if count := getattr(a, "proxy_count", None):     # one worker per proxy at a time: the limits hold per proxy
-        from ..net.proxies import describe_per_worker
+        from ..net.proxies import DEFAULT_PER_WORKER, describe_per_worker
 
-        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", 1)
+        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", DEFAULT_PER_WORKER)
         workers = min(a.workers or a.tasks or 1, a.tasks or 1) if a.workers or a.tasks else None
         used = min(count, workers * per_worker) if workers and isinstance(per_worker, int) else count
         proxies = f"{count:,} prox{'ies' if count != 1 else 'y'}"
@@ -365,10 +365,13 @@ def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
         entries = [(None, policy.settings(None)), *((h, policy.settings(h)) for h in policy.hosts)]
     else:
         entries = [(None, base)]
+    from ..net.proxies import DEFAULT_PER_WORKER
+
     direct, lists = False, {}
     for host, s in entries:
         if s.get("proxy_file"):
-            g = lists.setdefault(s["proxy_file"], {"hosts": set(), "per_worker": s.get("proxies_per_worker", 1),
+            g = lists.setdefault(s["proxy_file"], {"hosts": set(),
+                                                   "per_worker": s.get("proxies_per_worker", DEFAULT_PER_WORKER),
                                                    "broker": s.get("broker") or s.get("default_broker"),
                                                    "run": s.get("broker_run")})
             g["hosts"].add(host)

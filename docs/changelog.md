@@ -9,14 +9,16 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
-- With a proxy list each worker holds **one proxy at a time** by default, not a fair share of the free ones: it sends
-  every request through it and, when it is blocked or broken, releases it and claims another free one at once. A
-  run that relied on several proxies per worker (few workers, many proxies) uses only as many proxies as it has
-  workers now; give it more workers (below), or set the new HTTP-policy key `proxies_per_worker` (per host or at the
-  root; also `HTTPFetcher`'s and `ProxyPool`'s parameter): a whole number `N` (up to N per worker, claimed one by
-  one) or `share` (the fair share with rebalancing as before, except that a worker claims at most 2 when it looks
-  for proxies and grows to its share only by rebalancing, so the first workers no longer take the proxies of those
-  still starting). Hosts that use one proxy list must set the same value.
+- How many proxies of a list a worker holds is the new HTTP-policy key `proxies_per_worker` (per host or at the root;
+  also `HTTPFetcher`'s and `ProxyPool`'s parameter): `share` (the default) a fair share of the free ones, rebalanced
+  as before, except that a worker claims at most 2 when it looks for proxies and grows to its share only by
+  rebalancing, so the first workers no longer take the proxies of those still starting; `1` one proxy per worker, which
+  sends every request through it and, when it is blocked or broken, releases it and claims another free one at once
+  (useful with output on local disk or few proxies, with a worker per proxy); or a whole number `N`, up to N per
+  worker, claimed one by one. Hosts that use one proxy list must set the same value. The default was `1` on main for a
+  few hours and is `share` again: with one proxy per worker, using 250 proxies took 250 workers, and 250 workers
+  writing to object storage hung in their listings of `OUT/images` (below); a run that wants one proxy per worker
+  sets `proxies_per_worker: 1`.
 - The default worker count of a pipeline without engines whose rate-limited hosts all go through proxies follows the
   proxies: one worker per available proxy (those in the file, less those blocked or broken in the broker for the
   run's hosts and those held by another run's live workers), at most one per task, divided by `proxies_per_worker`

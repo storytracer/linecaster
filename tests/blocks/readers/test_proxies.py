@@ -131,12 +131,19 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
     shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
                                           str(tmp_path / "proxies.txt"), "--broker", "s3://b/broker"]))
     assert run.reader(shared)._opener.http["broker"] == "s3://b/broker"
-    run.allocate(a, [run.reader(a)])                                  # one task: one worker, one proxy in use
-    assert run.workers_note(a) == "2 proxies available, 1 task → 1 worker, 1 proxy each"
-    assert run.rate_note(a) == ("rate limits per proxy: 150/60 · 1 of 2 proxies in use (1 proxy per worker) → up to "
-                                "150/min at a server")
-    a.workers = a.tasks = 2
+    run.allocate(a, [run.reader(a)])                                  # one task: one worker, a fair share: both
+    assert a.workers == 1
     assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
+    (tmp_path / "one.yaml").write_text("proxies_per_worker: 1\n")
+    one = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--rate-limit", "150/60", "--proxies",
+                                       str(tmp_path / "proxies.txt"), "--http-policy", str(tmp_path / "one.yaml")]))
+    one.has_engines = False
+    run.allocate(one, [run.reader(one)])                              # one task: one worker, one proxy in use
+    assert run.workers_note(one) == "2 proxies available, 1 task → 1 worker, 1 proxy each"
+    assert run.rate_note(one).startswith("rate limits per proxy: 150/60 · 1 of 2 proxies in use (1 proxy per "
+                                         "worker) → up to 150/min at a server")
+    one.workers = one.tasks = 2
+    assert run.rate_note(one).startswith("rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server")
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))
 
@@ -259,12 +266,12 @@ def test_no_proxy_usable_pauses_the_requests_until_its_block_ends(tmp_path):
         proxy.shutdown()
 
 
-@pytest.mark.parametrize("per_worker", [None, "share"])
+@pytest.mark.parametrize("per_worker", [None, 1])
 def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypatch, per_worker):
     """A local run with two worker processes through four proxies (one broker): every item comes through, and the
     requests through each proxy keep its rate limit (one per 0.2 s) although both workers send through the proxies.
-    One proxy per worker (the default): two proxies carry the requests, one each; a fair share (``share``): the
-    requests are spread over all four."""
+    A fair share (``share``, the default): the requests are spread over all four; one proxy per worker (``1``): two
+    proxies carry the requests, one each."""
     import json
     import time
 
@@ -321,10 +328,10 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
         assert len(records) == len(items) and not any(r.get("error") for r in records)
         assert sum(len(t) for t in seen.values()) == len(items)
         used = [len(t) for t in seen.values() if t]
-        if per_worker is None:
+        if per_worker == 1:
             assert len(used) == 2                          # one proxy per worker: one each, never the same
         else:
-            assert len(used) == 4 and min(used) >= 2       # spread over the four
+            assert len(used) == 4 and min(used) >= 2       # a fair share: spread over the four
         for times in seen.values():
             gaps = [b - a for a, b in zip(times, times[1:])]
             assert not gaps or min(gaps) > 0.15, gaps      # 0.2 s per proxy, less the jitter of loopback
