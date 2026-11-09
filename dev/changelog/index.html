@@ -1089,6 +1089,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li>An extra <code>s3fs</code> for <code>s3://</code> paths in the <code>linecaster</code> command and code run in the project's environment (<code>uv sync --extra s3fs</code>, or <code>--all-extras</code>); the pipeline scripts bring their own. <code>linecaster broker</code> names a missing filesystem package in one line instead of a traceback.</li>
 <li>The broker (<code>linecaster.broker</code>, <a href="../reference/broker/">broker</a>): a shared folder, any <code>DataFolder</code>, through
   which workers across tasks, runs and machines agree on who holds which shared resource (leases, renewed within
   180 s, claims decided by listing) and what is unavailable until when (marks per scope). A worker is a slot of its
