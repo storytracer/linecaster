@@ -276,6 +276,13 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- A resumed harvest's listing of an item's folder in `OUT/images` (the images already written, to reuse) could hang
+  forever on object storage, and with it the worker: with 250 workers writing to S3-compatible storage only 28 got
+  to fetch. The readers now wait at most `linecaster.blocks.readers.existing.LISTING_TIMEOUT` (60 s) for it (fsspec
+  is given the timeout too, so it cancels the listing on its IO loop); one that times out or fails is a WARNING
+  (`listing <folder> for files to reuse took over 60 s; its pages are fetched again`) and a stat
+  (`reuse_listing_timeouts`, `reuse_listing_errors`), and the item's pages are fetched again (their files are
+  overwritten, which is safe).
 - A page could fail with HTTP 520 during an outage the breaker had seen: when the request's last server error opened
   the breaker and another request's probe was answered (closing it) before that error got back to the fetch, the fetch
   found the breaker closed and gave up. It now tries again whenever the breaker opened during its attempts

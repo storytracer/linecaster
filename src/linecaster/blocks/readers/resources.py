@@ -118,7 +118,10 @@ class ResourceReader(Contracted, BaseDiskReader):
         http: ``linecaster.net.http.HTTPFetcher`` settings for every host (rate limits, proxies, ...).
         http_policy: an HTTP policy file (``linecaster.net.policy``): settings for every host under ``http``'s, a
             host's own over both.
-        reuse_folder: where ``ResourceFilesWriter`` writes (``OUT``): a resource whose copy is there is read back.
+        reuse_folder: where ``ResourceFilesWriter`` writes (``OUT``): a resource whose copy is there is read back
+            (one listing per item and kind, ``linecaster.blocks.readers.existing``; one that takes over
+            ``LISTING_TIMEOUT``, 60 s, or fails is a warning and a stat, ``reuse_listing_timeouts`` or
+            ``reuse_listing_errors``, and the item's resources are fetched again).
         max_items: only the first ``max_items`` items of the input, for the whole run (a smoke test).
         limit, skip: resources per task, as datatrove's count documents; they apply before anything is fetched.
         paths_file, glob_pattern, recursive, file_progress, doc_progress, default_metadata, shuffle_files:
@@ -258,7 +261,7 @@ class ResourceReader(Contracted, BaseDiskReader):
             return None
         if kind not in self._existing:
             self._existing[kind] = ExistingImages(posixpath.join(str(self.reuse_folder).rstrip("/"), kind))
-        return self._existing[kind].get(item, name)
+        return self._existing[kind].get(item, name, self.stat_update)
 
     def _submit(self, entry):
         from concurrent.futures import Future

@@ -411,6 +411,46 @@ def test_images_already_written_are_read_back_instead_of_fetched(slow_server, tm
     assert reader.stats["media_size"].total == sum(p.stat().st_size for p in files)   # every page's bytes, read
 
 
+def test_a_reuse_listing_that_hangs_is_given_up_and_the_pages_fetched(slow_server, tmp_path, monkeypatch):
+    """The listing of the item's folder in OUT/images never returns (object storage that hangs): after
+    ``LISTING_TIMEOUT`` the reader goes on as if nothing were there to reuse, fetches every page, says so once and
+    counts it (``reuse_listing_timeouts``)."""
+    from datatrove.io import DataFolder
+    from loguru import logger
+
+    from linecaster.blocks.readers import existing
+
+    class HangingFolder(DataFolder):
+        cachable = False
+
+        def ls(self, path, detail=True, **kwargs):
+            release.wait()
+            return super().ls(path, detail=detail, **kwargs)
+
+    release = threading.Event()
+    monkeypatch.setattr(existing, "LISTING_TIMEOUT", 0.5)
+    slow_server["delay"] = 0
+    images = tmp_path / "images"
+    (images / "b").mkdir(parents=True)
+    (images / "b" / "b_0001.png").write_bytes(sample_png())                   # there, but the listing never says so
+    reader = ImageParquetReader(page_table(tmp_path, slow_server["base"], ["p1", "p2", "p3"]), item_key="book",
+                                sequence_key="page", http=FAST, reuse_folder=HangingFolder(str(images)))
+    lines = []
+    sink = logger.add(lines.append, level="WARNING")
+    try:
+        started = time.monotonic()
+        docs = list(reader.run())
+        took = time.monotonic() - started
+    finally:
+        logger.remove(sink)
+        release.set()
+    assert len(docs) == 3 and not any(failed(d) for d in docs) and took < 5
+    assert sorted(slow_server["requests"]) == ["/p1.png", "/p2.png", "/p3.png"]   # every page fetched
+    assert reader.stats["reuse_listing_timeouts"].total == 1 and reader.stats["reused"].total == 0
+    warned = [line for line in lines if "for files to reuse took over" in line]
+    assert len(warned) == 1 and str(images / "b") in warned[0] and "its pages are fetched again" in warned[0]
+
+
 def test_the_console_counts_reused_pages_as_done_but_not_in_the_rate():
     from linecaster.runtime.console import Console
 

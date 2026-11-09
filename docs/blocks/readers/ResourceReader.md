@@ -31,7 +31,7 @@ The contract is that of `ResourceReader(data_folder='items/', item_key='lccn', t
 | `name_key` | `str \| None` | `None` | the table's columns for a resource's URL, kind and copy name (without `templates`; `name_key` optional). |
 | `http` | `dict \| None` | `None` | `linecaster.net.http.HTTPFetcher` settings for every host (rate limits, proxies, ...). |
 | `http_policy` | `str \| None` | `None` | an HTTP policy file (`linecaster.net.policy`): settings for every host under `http`'s, a host's own over both. |
-| `reuse_folder` | `DataFolderLike \| None` | `None` | where `ResourceFilesWriter` writes (`OUT`): a resource whose copy is there is read back. |
+| `reuse_folder` | `DataFolderLike \| None` | `None` | where `ResourceFilesWriter` writes (`OUT`): a resource whose copy is there is read back (one listing per item and kind, `linecaster.blocks.readers.existing`; one that takes over `LISTING_TIMEOUT`, 60 s, or fails is a warning and a stat, `reuse_listing_timeouts` or `reuse_listing_errors`, and the item's resources are fetched again). |
 | `max_items` | `int \| None` | `None` | only the first `max_items` items of the input, for the whole run (a smoke test). |
 | `paths_file` | `DataFileLike \| None` | `None` | datatrove's `BaseDiskReader` arguments. |
 | `glob_pattern` | `str` | `'**/*.parquet'` | datatrove's `BaseDiskReader` arguments. |

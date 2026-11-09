@@ -42,7 +42,7 @@ The comes-after and comes-before rows are derived from every block's contract.
 | `default_metadata` | `dict \| None` | `None` | goes into every page's metadata. |
 | `shuffle_files` | `bool` | `False` | datatrove's `BaseDiskReader` arguments. |
 | `task_per_item` | `bool` | `False` | `auto_tasks` gives one task per item (`pipelines/harvest.py`); default about `ITEMS_PER_TASK` items per task. |
-| `reuse_folder` | `DataFolderLike \| None` | `None` | where `ImageFilesWriter` writes the images (`pipelines/harvest.py`: `OUT/images`): a page whose file is already there is read from it instead of from the source (`linecaster.blocks.readers.existing`); the manifest is still read. Not with `existing_ocr` (its OCR files would need fetching anyway). |
+| `reuse_folder` | `DataFolderLike \| None` | `None` | where `ImageFilesWriter` writes the images (`pipelines/harvest.py`: `OUT/images`): a page whose file is already there is read from it instead of from the source (`linecaster.blocks.readers.existing`); the manifest is still read. An item's listing that takes over `LISTING_TIMEOUT` (60 s) or fails is a warning and a stat (`reuse_listing_timeouts`, `reuse_listing_errors`), and its pages are fetched again. Not with `existing_ocr` (its OCR files would need fetching anyway). |
 
 ## Behavior
 
