@@ -9,6 +9,25 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- Proxies are shared through the broker (`linecaster.broker`, [broker](reference/broker.md)): `--proxy-blocks
+  FOLDER` and an HTTP policy's root key `proxy_blocks` are gone; use `--broker PATH` and the root key `broker` (default
+  `OUT/logs/broker`; runs pointed at one path share the proxies and their blocks). The old folder of block markers is
+  not read; blocks found before are found again at the first request through each proxy. There is no alias.
+- With a proxy list the rate limits (`--rate-limit`, an HTTP policy's `rate_limits` for a host through proxies) hold
+  per proxy, not per worker: each proxy is used by one worker at a time, which spaces its requests through the proxy
+  by the strictest limit. A server sees up to the proxies times the limits, whatever the worker count, so a limit
+  meant for all proxies together is now too high by the proxy count: give the limit one IP may send. Direct
+  connections keep the limits per worker.
+- A host whose proxies are all blocked (or broken) no longer stops the run at once: its requests wait until a block
+  ends or another worker gives a proxy back, up to the host's `max_pause` (6 h by default), and stop the run only when
+  the first block ends later than that. A 429's `Retry-After` sets how long its proxy is blocked at the host, also
+  when it is longer than `blacklist_ttl` (it was capped there).
+- The extra `resilient-httpx` is gone: a proxy list needs only `linecaster[pybookget]`. Scripts that list
+  `linecaster[...,resilient-httpx]` drop it (`pipelines/harvest.py` does), or their install fails on the unknown
+  extra. `HTTPFetcher.proxies_in_rotation()` and `linecaster.net.http.proxy_rotation()` are
+  `HTTPFetcher.proxy_counts()` and `proxy_counts()` (held, blocked, free); `HTTPFetcher`'s `proxy_blocks` and
+  `default_proxy_blocks` are `broker` and `default_broker`; a request through proxies that used up its attempts raises
+  `linecaster.net.http.MaxRetriesExceeded` (was resilient-httpx's, of the same name).
 - A 429 pauses the worker that got it instead of stopping the run or failing the page: an HTTP policy has a new
   per-host key `pause_on` (statuses that pause the worker's requests to the host until the response's `Retry-After`
   has passed, then retry the request; default `[429]`) and `max_pause` (default 6 h in all since the host's last
@@ -54,6 +73,14 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
+- The broker (`linecaster.broker`, [broker](reference/broker.md)): a shared folder, any `DataFolder`, through
+  which workers across tasks, runs and machines agree on who holds which shared resource (leases, renewed within
+  180 s, claims decided by listing) and what is unavailable until when (marks per scope). A worker is a slot of its
+  machine that outlives its processes: on Ray the next task on a machine takes over the slot the last one handed over,
+  with its leases. Proxies are its first kind (`linecaster.net.proxies.ProxyPool`): each proxy has one worker at a
+  time, each worker its fair share (rebalanced as workers join and leave), a block is a mark seen by whoever claims
+  the proxy next, without the 30-s polling of the proxy-blocks folder it replaces, and the rate limits hold per proxy.
+  The console shows the proxies held, blocked and free.
 - XY-Cut++ reading order (Liu, Li and Wei, arXiv:2504.10258) for layout models without one:
   `linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)`, pure and
   deterministic, the paper's β, θ_v, τ_overlap, centering tolerance and edge weights as keyword arguments, its

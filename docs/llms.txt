@@ -19,6 +19,7 @@ Every model configuration is a catalog preset at a pinned revision; tested combi
 - [The catalog: models, presets, recipes, evidence](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/catalog.md): The catalog describes every model Linecaster can run, how it runs it, the tested combinations, and the measurements behind them.
 - [Tracing](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/tracing.md): Every run is traced with OpenTelemetry (`linecaster.tracing`).
 - [Compatibility](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/compatibility.md): What linecaster keeps stable for derivatives, pipelines and stored outputs, and how a change that breaks it is announced.
+- [Broker](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/broker.md): The broker is a shared folder through which workers across tasks, runs and machines agree on who uses which shared resource and what is unavailable until when.
 
 ## Generated
 
