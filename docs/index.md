@@ -236,172 +236,9 @@ original model card, and settings. Released editions never change. Vision-langua
 SGLang; the other models run inside the pipeline or behind `linecaster serve`, one package per engine:
 `linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
 
-<details markdown="1">
-<summary><b>The presets and recipes</b></summary>
+Every preset and recipe, with its model, settings and evidence: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
 
-<!-- catalog:start -->
-### 🗺️ Layout
-
-| Preset | Model |
-|---|---|
-| [`pp-doclayout-plus-l`](catalog/presets/layout/pp-doclayout-plus-l.md) | [PP-DocLayout_plus-L](https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L_onnx/tree/feb74619326f634e0e883218598096a3733ad9f7) |
-| [`pp-doclayoutv3`](catalog/presets/layout/pp-doclayoutv3.md) | [PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx/tree/46bbdf188bb0a772c08aed74882ce7e51a8f1ea6) |
-| [`single-region`](catalog/presets/layout/single-region.md) | - |
-
-### 📏 Lines
-
-| Preset | Model |
-|---|---|
-| [`pp-ocrv6-medium-det`](catalog/presets/lines/pp-ocrv6-medium-det.md) | [PP-OCRv6_medium_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/tree/61323801669c338b7891481ec7bac61ce31b576a) |
-| [`pp-ocrv6-small-det`](catalog/presets/lines/pp-ocrv6-small-det.md) | [PP-OCRv6_small_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/tree/28fe5895c24fd108c19eb3e8479f4ab385fbfc62) |
-| [`pp-ocrv6-tiny-det`](catalog/presets/lines/pp-ocrv6-tiny-det.md) | [PP-OCRv6_tiny_det](https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/tree/2ba1506c0380b8f0b03dd142459aac66d4421f6c) |
-
-### 👁️ Recognition
-
-| Preset | Model |
-|---|---|
-| [`kraken-ppocrv6-medium`](catalog/presets/recognition/kraken-ppocrv6-medium.md) | [PP-OCRv6 (medium)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium/tree/f7fd70f3fd22b615f41bada4674ac2462f938339) |
-| [`kraken-ppocrv6-small`](catalog/presets/recognition/kraken-ppocrv6-small.md) | [PP-OCRv6 (small)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small/tree/49c249bf81d95ab2c5f699638d066f7935da6f16) |
-| [`kraken-ppocrv6-tiny`](catalog/presets/recognition/kraken-ppocrv6-tiny.md) | [PP-OCRv6 (tiny)](https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny/tree/045d350d5a7664054370539b87bab0e790724ee2) |
-| [`lightonocr-2-1b-regions`](catalog/presets/recognition/lightonocr-2-1b-regions.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
-| [`minicpm-ocr-1.0`](catalog/presets/recognition/minicpm-ocr-1.0.md) | [MiniCPM-OCR 1.0](https://huggingface.co/openbmb/MiniCPM-OCR-1.0/tree/a59a4acf215e34c6d73149e9eafdb88ed2086e39) |
-| [`paddlex-ppocrv6-medium`](catalog/presets/recognition/paddlex-ppocrv6-medium.md) | [PP-OCRv6_medium_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/tree/50c7eacafc52fa7bcf4194e8cd08e46f8558504b) |
-| [`paddlex-ppocrv6-small`](catalog/presets/recognition/paddlex-ppocrv6-small.md) | [PP-OCRv6_small_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/tree/b8f84f0b80c529de40b4fbb3544b84fa7233a513) |
-| [`paddlex-ppocrv6-tiny`](catalog/presets/recognition/paddlex-ppocrv6-tiny.md) | [PP-OCRv6_tiny_rec](https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/tree/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30) |
-| [`tesseract-best-eng`](catalog/presets/recognition/tesseract-best-eng.md) | [tessdata_best](https://github.com/tesseract-ocr/tessdata_best/tree/e12c65a915945e4c28e237a9b52bc4a8f39a0cec) |
-| [`tesseract-best-latin`](catalog/presets/recognition/tesseract-best-latin.md) | [tessdata_best](https://github.com/tesseract-ocr/tessdata_best/tree/e12c65a915945e4c28e237a9b52bc4a8f39a0cec) |
-| [`tesseract-fast-eng`](catalog/presets/recognition/tesseract-fast-eng.md) | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd) |
-| [`tesseract-fast-latin`](catalog/presets/recognition/tesseract-fast-latin.md) | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd) |
-
-### 📊 Tables
-
-| Preset | Model |
-|---|---|
-| [`slanet-plus`](catalog/presets/tables/slanet-plus.md) | [SLANet_plus](https://huggingface.co/PaddlePaddle/SLANet_plus_onnx/tree/7dbe640e127602bf506815e822c09758de73c482) |
-
-### ➗ Formulas
-
-| Preset | Model |
-|---|---|
-| [`pp-formulanet-l`](catalog/presets/formulas/pp-formulanet-l.md) | [PP-FormulaNet-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet-L_safetensors/tree/69869f2891cc61347d230ef234bcc8b8d297c43a) |
-| [`pp-formulanet-plus-l`](catalog/presets/formulas/pp-formulanet-plus-l.md) | [PP-FormulaNet_plus-L](https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L_safetensors/tree/6cc004a8e91ea3f3819b05317f40b290cbe99c2b) |
-
-### 🖼️ Image
-
-| Preset | Model |
-|---|---|
-| [`working-image`](catalog/presets/image/working-image.md) | - |
-
-### 🔤 Normalization
-
-| Preset | Model |
-|---|---|
-| [`latin-historic`](catalog/presets/normalization/latin-historic.md) | - |
-
-### 🔠 Typography
-
-| Preset | Model |
-|---|---|
-| [`ratios`](catalog/presets/typography/ratios.md) | - |
-
-### 📝 Recomposition
-
-| Preset | Model |
-|---|---|
-| [`unicode-recomposition`](catalog/presets/recomposition/unicode-recomposition.md) | - |
-
-### 📄 Composition
-
-| Preset | Model |
-|---|---|
-| [`docling-composition`](catalog/presets/composition/docling-composition.md) | - |
-
-### 🤖 Vision-language models, whole pages
-
-| Preset | Model |
-|---|---|
-| [`chandra-ocr-2`](catalog/presets/recognition/chandra-ocr-2.md) | [Chandra 2](https://huggingface.co/datalab-to/chandra-ocr-2/tree/af93b47dba1b47b6640c86ccf487ed2260ab9a09) |
-| [`deepseek-ocr`](catalog/presets/recognition/deepseek-ocr.md) | [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/9f30c71f441d010e5429c532364a86705536c53a) |
-| [`deepseek-ocr-2`](catalog/presets/recognition/deepseek-ocr-2.md) | [DeepSeek-OCR 2](https://huggingface.co/deepseek-ai/DeepSeek-OCR-2/tree/aaa02f3811945a91062062994c5c4a3f4c0af2b0) |
-| [`dots-mocr`](catalog/presets/recognition/dots-mocr.md) | [dots.mocr](https://huggingface.co/rednote-hilab/dots.mocr/tree/e539fbb52280393adc081b289ec597430a0f9031) |
-| [`dots-ocr`](catalog/presets/recognition/dots-ocr.md) | [dots.ocr](https://huggingface.co/rednote-hilab/dots.ocr/tree/c0111ce6bc07803dbc267932ffef0ae3a51dc951) |
-| [`falcon-ocr`](catalog/presets/recognition/falcon-ocr.md) | [Falcon OCR](https://huggingface.co/tiiuae/Falcon-OCR/tree/177110bf36f6fd492428215baf76d0618854bed3) |
-| [`glm-ocr`](catalog/presets/recognition/glm-ocr.md) | [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR/tree/ca5d8b3e287e52589e37c28385d9655ee4372f9d) |
-| [`indra-ocr`](catalog/presets/recognition/indra-ocr.md) | [Indra OCR](https://huggingface.co/datalab-to/indra-ocr/tree/bd02167fdf2005a19962cc15188f8496a2c87d3b) |
-| [`lightonocr-2-1b`](catalog/presets/recognition/lightonocr-2-1b.md) | [LightOnOCR-2-1B](https://huggingface.co/lightonai/LightOnOCR-2-1B/tree/c97bd377f04481830395218fa8951df9deaba756) |
-| [`lightonocr-3-0.8b`](catalog/presets/recognition/lightonocr-3-0.8b.md) | [LightOnOCR-3-0.8B](https://huggingface.co/lightonai/LightOnOCR-3-0.8B/tree/36d8636925327c671bd8e479c517a004f7566bd9) |
-| [`lightonocr-3-4b`](catalog/presets/recognition/lightonocr-3-4b.md) | [LightOnOCR-3-4B](https://huggingface.co/lightonai/LightOnOCR-3-4B/tree/b71010f095dc3735de7ee6b9969bff8f8f50b39a) |
-| [`nemotron-3.5-parse`](catalog/presets/recognition/nemotron-3.5-parse.md) | [Nemotron 3.5 Parse](https://huggingface.co/nvidia/Nemotron-3.5-Parse/tree/62cb1e4ba153d113ff64aaf2be6e068c377cf53c) |
-| [`olmocr-2-7b-1025-fp8`](catalog/presets/recognition/olmocr-2-7b-1025-fp8.md) | [olmOCR-2-7B-1025-FP8](https://huggingface.co/allenai/olmOCR-2-7B-1025-FP8/tree/40bd7202494b8264ee17ada08b401b5aab7a9ce1) |
-| [`ovisocr2`](catalog/presets/recognition/ovisocr2.md) | [OvisOCR2](https://huggingface.co/ATH-MaaS/OvisOCR2/tree/65c619d374b55d4152e85150fc1b003700bc1f0c) |
-| [`ovisocr3`](catalog/presets/recognition/ovisocr3.md) | [OvisOCR3](https://huggingface.co/ATH-MaaS/OvisOCR3/tree/5f6ce6932efee9ec10c30746db55bd780214b7fd) |
-| [`oxr-1.0`](catalog/presets/recognition/oxr-1.0.md) | [OXR-1.0](https://huggingface.co/SoMarkAI/OXR-1.0/tree/c708407f9d2b4df658f2543d9132b62bb7221df4) |
-| [`paddleocr-vl-1.6`](catalog/presets/recognition/paddleocr-vl-1.6.md) | [PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6/tree/66317acc4c9fc17bd154591ce650735cd2855f3e) |
-| [`qianfan-ocr`](catalog/presets/recognition/qianfan-ocr.md) | [Qianfan-OCR](https://huggingface.co/baidu/Qianfan-OCR/tree/623bf5d20d446abdb36606aa4547cd0c18886fe5) |
-| [`qwen3.5-9b`](catalog/presets/recognition/qwen3.5-9b.md) | [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a) |
-| [`smoldocling-256m-preview`](catalog/presets/recognition/smoldocling-256m-preview.md) | [SmolDocling-256M-preview](https://huggingface.co/ds4sd/SmolDocling-256M-preview/tree/ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8) |
-| [`surya-ocr-2.5`](catalog/presets/recognition/surya-ocr-2.5.md) | [Surya OCR 2.5](https://huggingface.co/datalab-to/surya-ocr-2.5/tree/00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3) |
-| [`unlimited-ocr`](catalog/presets/recognition/unlimited-ocr.md) | [Unlimited-OCR](https://huggingface.co/baidu/Unlimited-OCR/tree/07dea832e22aefee32ad281d4b80551282e1c168) |
-| [`unlimited-ocr-2`](catalog/presets/recognition/unlimited-ocr-2.md) | [Unlimited-OCR 2](https://huggingface.co/baidu/Unlimited-OCR-2/tree/9cf077c4b206e0e2a31879df937b0b0bcba3661c) |
-
-### 🍳 Recipes
-
-| Recipe | Pipeline | Presets |
-|---|---|---|
-| [`item-texts`](catalog/recipes/item-texts.md) | `bind.v1` | `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
-| [`squiddle`](catalog/recipes/squiddle.md) | `transcribe_modular.v1` | `pp-doclayoutv3@1`, `pp-ocrv6-medium-det@1`, `kraken-ppocrv6-medium@1`, `slanet-plus@2`, `pp-formulanet-plus-l@1`, `ratios@1`, `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1` |
-<!-- catalog:end -->
-
-</details>
-
-<details markdown="1">
-<summary><b>The blocks</b></summary>
-
-<!-- blocks:start -->
-| Family | Block | What it does |
-|---|---|---|
-| Readers | [`ImageFolderReader`](blocks/readers/ImageFolderReader.md) | Reads one page per image file of a folder or bucket. |
-| Readers | [`ImageParquetReader`](blocks/readers/ImageParquetReader.md) | Reads one page per row of Parquet files with an image column. |
-| Readers | [`ManifestReader`](blocks/readers/ManifestReader.md) | Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an OAI-PMH response). |
-| Readers | [`PageRecordReader`](blocks/readers/PageRecordReader.md) | Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part. |
-| Readers | [`PdfReader`](blocks/readers/PdfReader.md) | Reads one item per PDF file, one page per PDF page in order, each rendered to a lossless WebP image. |
-| Readers | [`ResourceReader`](blocks/readers/ResourceReader.md) | Fetches the remote files of items as they are served, one document per resource, one item per task. |
-| Layout | [`LayoutDetector`](blocks/layout/LayoutDetector.md) | Detects the layout regions of every page, with their labels and reading order, by a layout engine. |
-| Lines | [`LineAssigner`](blocks/lines/LineAssigner.md) | Assigns the lines detected on the whole page to the layout regions and orders them row by row. |
-| Lines | [`LineDetector`](blocks/lines/LineDetector.md) | Detects the text lines of every page, with their geometry, by a line detection engine. |
-| Recognition | [`FormulaRecognizer`](blocks/recognition/FormulaRecognizer.md) | Recognizes every formula region as LaTeX by a formula engine. |
-| Recognition | [`LineRecognizer`](blocks/recognition/LineRecognizer.md) | Recognizes the text of every line by a line recognition engine. |
-| Recognition | [`PageRecognizer`](blocks/recognition/PageRecognizer.md) | Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription. |
-| Recognition | [`RegionRecognizer`](blocks/recognition/RegionRecognizer.md) | Recognizes each layout region of every page with a chat VLM, one request per region crop. |
-| Recognition | [`TableRecognizer`](blocks/recognition/TableRecognizer.md) | Recognizes the structure of every table region by a table engine. |
-| Conversion | [`ImageConverter`](blocks/conversion/ImageConverter.md) | Converts each page's delivered image into the working image with an image engine and writes it. |
-| Conversion | [`ImageFetcher`](blocks/conversion/ImageFetcher.md) | Loads each page's image again from its address, for the blocks that need pixels. |
-| Conversion | [`TranscriptionConverter`](blocks/conversion/TranscriptionConverter.md) | Reads the transcription file that comes with each page (ALTO, PAGE-XML, hOCR or plain text) into a named transcription. |
-| Text | [`CharacterNormalizer`](blocks/text/CharacterNormalizer.md) | Normalizes the texts of every line, paragraph and table cell by a normalization engine, next to the text as written. |
-| Text | [`UnicodeNormalizer`](blocks/text/UnicodeNormalizer.md) | Normalizes the as-written text of every line and word to one Unicode normalization form, NFC by default. |
-| Composition | [`Composer`](blocks/composition/Composer.md) | Composes the DoclingDocument of a page or an item by a composition engine. |
-| Composition | [`Recomposer`](blocks/composition/Recomposer.md) | Recomposes the running text of a page or an item into paragraphs by a recomposition engine. |
-| Composition | [`Typographer`](blocks/composition/Typographer.md) | Determines the typographic hierarchy of every page by a typography engine. |
-| Binding | [`Binder`](blocks/binding/Binder.md) | Binds each item's page records, in order, into one item record. |
-| Binding | [`Splitter`](blocks/binding/Splitter.md) | Splits each item record into its page records again, in the item's order, with what the item-level blocks added. |
-| Validation | [`PageValidator`](blocks/validation/PageValidator.md) | Marks the page records that do not validate against `Page` or lack a required part with an error each. |
-| Validation | [`RecipeStamper`](blocks/validation/RecipeStamper.md) | Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an item record. |
-| Servers | [`ChatModelServer`](blocks/servers/ChatModelServer.md) | Starts a chat VLM server (vLLM or SGLang) inside the task for its `Chat` backends, through saturate's `Engine`. |
-| Servers | [`ModelServer`](blocks/servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
-| Servers | [`ServiceServer`](blocks/servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
-| Writers | [`ImageFilesWriter`](blocks/writers/ImageFilesWriter.md) | Writes each page's image bytes as they came, one file per page. |
-| Writers | [`ItemDocumentWriter`](blocks/writers/ItemDocumentWriter.md) | Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON. |
-| Writers | [`ItemTextWriter`](blocks/writers/ItemTextWriter.md) | Writes the text variants of each item record as JSON Lines or as files. |
-| Writers | [`PageFileWriter`](blocks/writers/PageFileWriter.md) | Writes one file per page and format: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, JSON and more. |
-| Writers | [`PageJsonlWriter`](blocks/writers/PageJsonlWriter.md) | Writes the page records as JSON Lines, one file per task, or into item shards for a later stage. |
-| Writers | [`PageParquetWriter`](blocks/writers/PageParquetWriter.md) | Writes the page records as Parquet, one file per task. |
-| Writers | [`RejectWriter`](blocks/writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
-| Writers | [`ResourceFilesWriter`](blocks/writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
-| Writers | [`ResourceRecordWriter`](blocks/writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
-| Composites | [`ModularTranscriber`](blocks/composites/ModularTranscriber.md) | Reads a page's lines the modular way: layout, lines on the whole page, line assignment, line recognition. |
-<!-- blocks:end -->
-
-</details>
+Every block by family, with its contract, backends and options: [the blocks](https://storytracer.github.io/linecaster/latest/blocks/).
 
 ## 📚 Reference
 
@@ -416,7 +253,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 | traces | [tracing](reference/tracing.md) |
 | what counts as a breaking change | [compatibility](reference/compatibility.md) |
 | names, spelling, docstrings | [conventions](reference/conventions.md) |
-| every block, engine, model, preset and recipe | [blocks](blocks/README.md), [catalog](catalog/README.md) |
+| every block, engine, model, preset and recipe | [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) |
 
 ## 🛠️ Development
 
@@ -424,7 +261,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 |---|---|
 | test the core | `uv run pytest` (GPU and network tests skip where those are missing; `-n auto` on every core) |
 | test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
-| regenerate the docs | `uv run linecaster docs` (`--check` in CI) |
+| generate the docs (not in git; before `mkdocs serve`) | `uv run linecaster docs` |
 | check released catalog editions | `uv run linecaster catalog verify` |
 | see or tidy a broker (after a hard kill: `clean --leases`) | `linecaster broker status PATH`, `clean`, `purge` ([broker](reference/broker.md#the-command)) |
 | build the docs site | `uv run --group docs mkdocs build --strict` |
