@@ -177,8 +177,10 @@ class JobsExecutor(JobsPipelineExecutor):
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
         import datatrove.executor.jobs as datatrove_jobs
 
+        from ..broker import set_worker_index
         from .logs import add_task_logger
 
+        set_worker_index(local_rank, self.tasks_per_job)    # a multi-GPU Job's tasks run at once on one machine
         original = datatrove_jobs.add_task_logger
         datatrove_jobs.add_task_logger = add_task_logger
         try:

@@ -8,7 +8,8 @@ straight into the block that stopped the first). The task writes a stop marker t
 (``STOP_MARKER``, as datatrove marks finished tasks), every task after it finds the marker and ends before its
 pipeline starts, and the launch then fails with the first task's error. A launch with tasks that did not finish fails
 too (they run again on the next launch), so a Ray job that left work undone does not end as succeeded. A new launch
-removes the marker.
+removes the marker. Each task's process starts its search for a worker slot in the broker at its rank modulo the
+workers (``linecaster.broker.set_worker_index``), so tasks started together claim different slots.
 
 ``RayGPUExecutor`` is ``RayExecutor`` with one GPU per task. Ray restricts each task to its GPU through
 ``CUDA_VISIBLE_DEVICES``. Several tasks share a machine, so each task moves the servers its pipeline starts
@@ -69,6 +70,9 @@ class RayExecutor(RayPipelineExecutor):
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
         from ..blocks.base.page import NOT_THE_PAGES
 
+        from ..broker import set_worker_index
+
+        set_worker_index(rank % max(1, self.workers), self.workers)    # tasks at once: distinct, so are their slots
         stop = self.stopped()
         if stop is not None:                         # the run stops: this task ends before its pipeline starts
             raise LinecasterError(f"task {rank + 1:,} not started: the run stopped at task {stop['rank'] + 1:,} "

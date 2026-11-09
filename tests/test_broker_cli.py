@@ -13,7 +13,7 @@ from linecaster import cli
 from linecaster.broker import LEASE_TTL, Broker, clean, purge, survey_all
 from linecaster.errors import LinecasterError
 
-from test_broker import age
+from test_broker import age, one_worker  # noqa: F401 - the fixture, autouse
 
 
 def files(folder) -> set[str]:

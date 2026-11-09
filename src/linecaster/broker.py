@@ -16,8 +16,10 @@ A **lease** says that one worker holds a resource. It is valid while its file wa
 ``LEASE_TTL`` seconds, by the modification time the storage lists, so a crashed worker's leases expire on their own and
 the writers' clocks do not matter. A claim (``claim``) lists the resource's leases, writes its own if none is valid,
 lists again, and the earliest valid lease wins (by the claim time in its name, then the worker); the losers delete
-theirs. There is no exclusive create: two claims at once are told apart by listing. A holder that finds an earlier
-valid lease than its own at a renew (only after it went more than ``LEASE_TTL`` without one) gives the resource up.
+theirs. There is no exclusive create: two claims at once are told apart by listing. A holder that finds at a renew that
+its own lease is gone or older than ``LEASE_TTL`` (it went that long without a renew) gives the resource up: the lease
+expired. One that finds an earlier valid lease than its own (two claims at once both believed they won, when one
+listed before the other's write had landed) gives it up too: it lost the claim race, and takes another.
 
 A **mark** says that something holds for a resource in a scope (a host, or ``*`` for every scope) until a time: it
 lasts ``ttl`` seconds from its file's modification time. Marks are written once and never changed; whoever sees one
@@ -31,8 +33,9 @@ renews) that worker's leases, which are named after the worker. A process that e
 (``hand_over``) and leaves its other leases to the slot's next process; leases nobody renews expire after
 ``LEASE_TTL``.
 
-The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``clean`` removes what has expired
-(or, after a hard kill, every lease), ``purge`` resets it.
+The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``survey_kind`` which resources of a
+kind are held by whom and marked, ``clean`` removes what has expired (or, after a hard kill, every lease), ``purge``
+resets it.
 """
 from __future__ import annotations
 
@@ -41,6 +44,7 @@ import itertools
 import json
 import math
 import os
+import random
 import re
 import socket
 import threading
@@ -64,6 +68,22 @@ SLOTS = "slots"
 #: the scope of a mark that holds in every scope
 EVERY_SCOPE = "*"
 _STAMP = len("20261109T101500123Z")
+#: this process's worker index among the processes an executor runs at once, and how many those are
+#: (``set_worker_index``)
+_WORKER_INDEX: list[tuple[int, int] | None] = [None]
+
+
+def set_worker_index(index: int, workers: int) -> None:
+    """Tells this process's brokers which of the ``workers`` processes an executor runs at once it is (``index``, from
+    0), so its search for a worker slot starts at a slot of its own (``Broker.worker``). Called by linecaster's
+    executors before a task runs; a process that has its slot keeps it.
+
+    Args:
+        index: this process's worker index: datatrove's local rank (a local run's pool), the task's index among
+            those running at once (Ray, a multi-GPU Job).
+        workers: how many processes run at once on this machine at most.
+    """
+    _WORKER_INDEX[0] = (max(0, int(index)), max(1, int(workers)))
 
 
 def _stamp(t: float) -> str:
@@ -166,21 +186,23 @@ class Broker:
 
     Args:
         folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
-        worker: this worker's identity; None (the default) claims the lowest free slot of this machine at the first
-            use (``worker``).
+        worker: this worker's identity; None (the default) claims a free slot of this machine at the first use
+            (``worker``).
         clock: the time now, seconds since the epoch (``time.time``); compared with the storage's modification times
             and written into names.
         machine: this machine's name (default ``machine_name()``).
         run: what the heartbeat names as the worker's run (e.g. the output folder); informational.
         lease_ttl: how long a lease and a heartbeat stay valid without a renew (``LEASE_TTL``).
         renew_seconds: how often ``keep_alive`` renews (``RENEW_SECONDS``).
+        worker_index: (index, workers) where this process's search for a slot starts (``set_worker_index``); None:
+            the one set for the process, else a random start.
     """
 
     _instances = itertools.count()
 
     def __init__(self, folder, worker: str | None = None, clock: Callable[[], float] = time.time,
                  machine: str | None = None, run: str | None = None, lease_ttl: float = LEASE_TTL,
-                 renew_seconds: float = RENEW_SECONDS):
+                 renew_seconds: float = RENEW_SECONDS, worker_index: tuple[int, int] | None = None):
         from datatrove.io import get_datafolder
 
         self.folder = get_datafolder(folder)
@@ -189,6 +211,7 @@ class Broker:
         self.machine = _safe(machine) if machine else machine_name()
         self.run = run
         self._worker = _safe(worker) if worker else None
+        self._worker_index = worker_index
         self._slot: tuple[str, str] | None = None             # (slot id, lease name) held by this process
         self._token = f"{self.machine}.p{os.getpid()}.{next(self._instances)}"   # the process, for its slot lease
         self._lock = threading.RLock()
@@ -232,7 +255,7 @@ class Broker:
     @property
     def worker(self) -> str:
         """This worker's identity: the one given, or ``<machine>-<n>`` of the slot this process claims at the first
-        use (the lowest free one of its machine)."""
+        use (``_claim_slot``)."""
         with self._lock:
             if self._worker is None:
                 self._init_folder()
@@ -241,20 +264,53 @@ class Broker:
             return self._worker
 
     def _claim_slot(self) -> None:
-        taken = set()
+        """Claims a free slot of this machine, from one listing of its slots and one of the heartbeats: a handed-over
+        slot first (its worker's heartbeat is live and no process holds the slot, so its leases wait for a successor),
+        then the slots from this process's start (``_slot_order``) upward, wrapping. Processes started together start
+        at different slots, so their claims do not race."""
+        taken, orphans = set(), []
         for path, info in self._list(f"{SLOTS}/{self.machine}").items():
             e = parse_path(path)
-            if e.category == "lease" and self._age(info) < self.lease_ttl:
-                taken.add(e.rid.rpartition("/")[2])
-        for n in itertools.count():
-            if str(n) in taken:
+            n = e.rid.rpartition("/")[2]
+            if e.category == "lease" and n.isdigit() and self._age(info) < self.lease_ttl:
+                taken.add(int(n))
+        prefix = f"{self.machine}-"
+        for path, info in self._list("workers").items():
+            e = parse_path(path)
+            n = e.rid[len(prefix):] if e.category == "heartbeat" and e.rid.startswith(prefix) else ""
+            if n.isdigit() and int(n) not in taken and self._age(info) < self.lease_ttl:
+                orphans.append(int(n))
+        tried = set()
+        for n in self._slot_order(taken, sorted(orphans)):
+            if n in taken or n in tried:
                 continue
+            tried.add(n)
             name = self._claim(SLOTS, f"{self.machine}/{n}", self._token)
             if name is not None:
                 self._slot = (f"{self.machine}/{n}", name)
                 self._worker = f"{self.machine}-{n}"
-                logger.debug("broker {path}: this process is worker {worker}", path=self.path, worker=self._worker)
+                logger.debug("broker {path}: this process is worker {worker} ({tries} claim(s))", path=self.path,
+                             worker=self._worker, tries=len(tried))
                 return
+
+    def _slot_order(self, taken: set[int], orphans: list[int]):
+        """The slots to try, in order: the handed-over ones (``orphans``) from this process's place among them, then
+        from its start up to the slots likely in use, wrapping, then upward. The start is its worker index
+        (``set_worker_index``), else random among the slots likely in use (the taken ones and one more, at least one
+        per CPU)."""
+        index = self._worker_index or _WORKER_INDEX[0]
+        if index is None:
+            size = max(len(taken) + 1, os.cpu_count() or 1)
+            start = random.randrange(size)
+        else:
+            start, workers = index
+            size = max(len(taken) + 1, workers, start + 1)
+        if orphans:
+            k = start % len(orphans)
+            yield from orphans[k:] + orphans[:k]
+        yield from range(start, size)
+        yield from range(0, start)
+        yield from itertools.count(size)
 
     def heartbeat(self) -> None:
         """Writes this worker's heartbeat (``workers/<worker>.json``: machine, slot, run, started, renewed)."""
@@ -385,35 +441,41 @@ class Broker:
 
     def renew(self) -> list[tuple[str, str]]:
         """Renews this process's slot, every lease this worker holds and its heartbeat. Gives up a resource whose
-        lease file is gone (it went without a renew past the lease time and another worker deleted it as expired) or
-        whose earliest valid lease is no longer its own. Returns the (kind, id) given up."""
+        lease expired (its file is gone, deleted as expired by another worker, or older than the lease time: a
+        WARNING) or whose earliest valid lease is another worker's (a claim race lost: two claims at once both
+        believed they won; an INFO). Returns the (kind, id) given up."""
         self.worker
         with self._lock:
             held = dict(self._held)
             slot = self._slot
         if slot is not None:
             self._write(f"{SLOTS}/{slot[0]}/leases/{slot[1]}", {"holder": self._token, "renewed": self.clock()})
-        lost = []
+        expired, raced = [], []
         for kind in sorted({k for k, _ in held}):
             listing = self._list(kind)
             for (k, rid), name in held.items():
                 if k != kind:
                     continue
                 path = f"{kind}/{rid}/leases/{name}"
-                if path not in listing:
-                    lost.append((kind, rid))
+                info = listing.get(path)
+                if info is None or self._age(info) >= self.lease_ttl:
+                    expired.append((kind, rid))
                     continue
                 self._write(path, {"holder": self._worker, "renewed": self.clock()})
                 prefix = f"{kind}/{rid}/leases/"
                 valid = self._valid({p: i for p, i in listing.items() if p.startswith(prefix)}, prefix, own=name)
                 if valid and valid[0][2] != name:
-                    lost.append((kind, rid))
+                    raced.append((kind, rid, valid[0][1]))
         self.heartbeat()
-        for kind, rid in lost:
-            logger.warning("broker {path}: worker {worker} lost {kind}/{rid} (no renew within the lease time); it "
-                           "gives it up", path=self.path, kind=kind, rid=rid, worker=self._worker)
+        for kind, rid in expired:
+            logger.warning("broker {path}: worker {worker}'s lease on {kind}/{rid} expired (no renew within the lease "
+                           "time); it gives it up", path=self.path, kind=kind, rid=rid, worker=self._worker)
             self.release(kind, rid)
-        return lost
+        for kind, rid, winner in raced:
+            logger.info("broker {path}: worker {worker} lost a claim race for {kind}/{rid} to {winner}; it takes "
+                        "another", path=self.path, kind=kind, rid=rid, worker=self._worker, winner=winner)
+            self.release(kind, rid)
+        return expired + [(kind, rid) for kind, rid, _ in raced]
 
     # ------------------------------------------------------------------ marks
 
@@ -704,6 +766,47 @@ def survey_all(folder, now: float | None = None, lease_ttl: float = LEASE_TTL) -
     workers.sort(key=lambda w: (not w["live"], w["worker"]))
     return {"path": b.path, "format": fmt, "now": b.clock(), "lease_ttl": lease_ttl, "workers": workers,
             "slots": dict(sorted(slots.items())), "kinds": out_kinds}
+
+
+def survey_kind(folder, kind: str, now: float | None = None, lease_ttl: float = LEASE_TTL) -> dict:
+    """Returns the resources of one kind as a broker's folder holds them, from one listing, without changing anything
+    (what ``linecaster.runtime.run.allocate`` counts before a launch): ``resources``, id -> ``Resource`` (the holder
+    of its winning valid lease, or None; its live marks per scope, the latest end each), for every resource with a
+    lease or a mark file; ``runs``, worker -> the run its live heartbeat names (None when it names none), for the
+    workers that hold one of them. A folder that does not exist yet holds nothing.
+
+    Args:
+        folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
+        kind: the kind of resource (``proxies``).
+        now: the time to judge liveness by, seconds since the epoch; None: the clock now.
+        lease_ttl: how long a lease and a heartbeat stay valid without a renew (``LEASE_TTL``).
+
+    Example:
+        survey_kind("OUT/logs/broker", "proxies")["resources"]
+    """
+    b = _inspector(folder, now, lease_ttl)
+    out: dict[str, Resource] = {}
+    leases: dict[str, list[tuple[str, str]]] = {}
+    beats: dict[str, str] = {}
+    for row in _scan(b):
+        e = row["entry"]
+        if e.category == "heartbeat" and row["live"]:
+            beats[e.rid] = e.path
+        elif e.kind != kind:
+            continue
+        elif e.category == "lease":
+            out.setdefault(e.rid, Resource())
+            if row["live"]:
+                leases.setdefault(e.rid, []).append(e.lease)
+        elif e.category == "mark":
+            r = out.setdefault(e.rid, Resource())
+            if row["live"]:
+                r.marks[e.scope] = max(r.marks.get(e.scope, 0.0), row["end"])
+    for rid, valid in leases.items():
+        out[rid].holder = min(valid)[1]
+    holders = {r.holder for r in out.values() if r.holder is not None}
+    runs = {w: _read_json(b, beats[w]).get("run") for w in sorted(holders) if w in beats}
+    return {"resources": out, "runs": runs}
 
 
 def clean(folder, *, leases: bool = False, marks: bool = False, dry_run: bool = False, now: float | None = None,

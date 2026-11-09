@@ -13,7 +13,9 @@ next launch, and the summary counts it. An error that is not the pages' (``NOT_T
 catalog, a server) and ``FAILED_IN_A_ROW`` failed tasks in a row in one worker still stop the run. With
 ``retry_failed``, finished tasks that left rejects run again (their rejects file removed first; with a reader's
 ``reuse_folder`` their pages that are there are read back, only the failed ones fetched). ``kill -USR1 <pid>`` writes
-every thread's stack to the terminal (``faulthandler``), for a run that seems stuck.
+every thread's stack to the terminal (``faulthandler``), for a run that seems stuck. Each task tells the broker its
+worker index (datatrove's local rank, distinct among the tasks running at once; ``linecaster.broker.set_worker_index``),
+so worker processes that start together claim different worker slots at once.
 """
 from __future__ import annotations
 
@@ -150,6 +152,9 @@ class LocalExecutor(LocalPipelineExecutor):
         from ..blocks.base.page import NOT_THE_PAGES
 
         stack_dumps()
+        from ..broker import set_worker_index
+
+        set_worker_index(local_rank, self.workers)   # the pool's worker index: the broker's slot search starts there
         if rank in self._retry:                  # a fresh rejects file, or none if no page fails this time
             self._remove_rejects(rank)
         saved = base.add_task_logger, base.log_pipeline, base.close_task_logger
