@@ -14,16 +14,17 @@ slow request (one being retried) delays only itself.
 
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) the workers share the proxies through the
 broker (``broker``, any fsspec folder; ``linecaster.broker``, ``linecaster.net.proxies``): each proxy has one worker
-at a time, which holds its lease, and each worker holds its fair share. The host's rate limits then hold per proxy, so
-per IP, as servers count them: its owner spaces the requests through it to a host by the strictest limit
-(``HTTPFetcher.interval``), and each attempt goes through the owned proxy whose turn comes first. Each proxy has its
+at a time, which holds its lease, and each worker holds one proxy (``proxies_per_worker``: 1, the default; up to N;
+or ``"share"``, a fair share of the free ones). The host's rate limits then hold per proxy, so per IP, as servers
+count them: its owner spaces the requests through it to a host by the strictest limit (``HTTPFetcher.interval``), and
+each attempt goes through the owned proxy whose turn comes first. Each proxy has its
 own pybookget client (``create_client``: the deadline per attempt and the records below hold as without). What leaves
 a proxy out is what is the proxy's fault: a block (a 429, until its ``Retry-After`` or for the host's
 ``blacklist_ttl``; a status in the host's ``blacklist_on``; an HTML page where another format was expected) is a mark
 in the broker for that host, and a broken proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy, after
 ``PROXY_BLACKLIST_THRESHOLD`` failures in a row) one for every host, for ``PROXY_BLACKLIST_TTL`` seconds. The owner
-stops using the proxy there at once and releases it when it is blocked for every host it uses, and whoever claims it
-later sees the mark, so no worker sends a request into another's block. A block does not count as an attempt: the
+stops using the proxy there at once and releases it when it is blocked for every host it uses (and claims another
+free one at once), and whoever claims it later sees the mark, so no worker sends a request into another's block. A block does not count as an attempt: the
 request goes on through another proxy at once. A timeout, mostly a slow server, and a server error are retried after
 pybookget's backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
 attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
@@ -668,7 +669,7 @@ class HTTPFetcher:
     def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
                  proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
                  broker: str | None = None, default_broker: str | None = None, broker_run: str | None = None,
-                 stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
+                 proxies_per_worker: int | str = 1, stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
                  pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
         _pybookget()
         from pybookget.config import Config
@@ -697,7 +698,7 @@ class HTTPFetcher:
             from .proxies import shared_pool
 
             self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
-                                        read_proxies(proxy_file))
+                                        read_proxies(proxy_file), proxies_per_worker)
 
     def _new_client(self, proxy: str | None, rate_limited: bool = True):
         """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client

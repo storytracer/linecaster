@@ -6,7 +6,17 @@ import os
 import threading
 import time
 
+import pytest
+
+from linecaster import broker as brokers
 from linecaster.broker import EVERY_SCOPE, LEASE_TTL, Broker
+
+
+@pytest.fixture(autouse=True)
+def one_worker(monkeypatch):
+    """This process is worker 0 of 1 (``set_worker_index``), so its brokers search the slots from 0, lowest free
+    first, and the tests can name them."""
+    monkeypatch.setattr(brokers, "_WORKER_INDEX", [(0, 1)])
 
 
 def age(folder, seconds: float) -> None:
@@ -143,3 +153,117 @@ def test_a_crashed_slot_expires(tmp_path):
     later = Broker(str(tmp_path), machine="m")
     assert later.worker == "m-0" and later.held("proxies") == []         # its leases expired too
     assert later.claim("proxies", "a")
+
+
+class Counting(Broker):
+    """A broker that counts its listings and its writes of slot leases (its claims of a slot), with storage slow
+    enough that claims at once overlap."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.listings, self.slot_claims = 0, 0
+
+    def _list(self, path):
+        self.listings += 1
+        time.sleep(0.005)
+        return super()._list(path)
+
+    def _write(self, path, record):
+        if path.startswith("slots/"):
+            self.slot_claims += 1
+        time.sleep(0.005)
+        super()._write(path, record)
+
+
+def start_together(tmp_path, n: int, index) -> list[Counting]:
+    """``n`` brokers of one machine that ask for their worker at once (threads past a barrier); ``index(i)`` is the
+    worker index of the i-th."""
+    brokers_ = [Counting(str(tmp_path), machine="m", worker_index=index(i)) for i in range(n)]
+    barrier = threading.Barrier(n, timeout=30)
+
+    def start(b):
+        barrier.wait()
+        b.worker
+
+    threads = [threading.Thread(target=start, args=(b,)) for b in brokers_]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return brokers_
+
+
+def test_brokers_started_together_claim_distinct_slots_in_one_attempt_each(tmp_path):
+    """16 processes of one machine start at once, each with its worker index: 16 distinct slots, one claim each and
+    four listings (the machine's slots, the heartbeats, the claim's two), however the storage interleaves them."""
+    n = 16
+    started = start_together(tmp_path / "indexed", n, lambda i: (i, n))
+    assert sorted(b.worker for b in started) == sorted(f"m-{i}" for i in range(n))
+    assert [b.slot_claims for b in started] == [1] * n and [b.listings for b in started] == [4] * n
+    racing = start_together(tmp_path / "all-at-0", n, lambda i: (0, 1))        # every one starting at slot 0
+    assert sorted(b.worker for b in racing) == sorted(f"m-{i}" for i in range(n))
+    assert sum(b.slot_claims for b in racing) > n                               # claims raced for the same slots
+
+
+def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, monkeypatch):
+    import random
+
+    monkeypatch.setattr(brokers, "_WORKER_INDEX", [None])
+    monkeypatch.setattr(brokers.os, "cpu_count", lambda: 64)
+    random.seed(7)
+    started = start_together(tmp_path, 8, lambda i: None)
+    assert len({b.worker for b in started}) == 8
+    assert sum(b.slot_claims for b in started) < 12                             # mostly one claim each
+
+
+def test_a_successor_takes_a_handed_over_slot_before_a_free_one(tmp_path):
+    """Two processes hand over their slots (their heartbeats are live, their leases wait); the next two, started with
+    worker indexes 1 and 0, take those slots (one each) and hold their leases."""
+    first, second = (Broker(str(tmp_path), machine="m", worker_index=(i, 2)) for i in range(2))
+    assert (first.worker, second.worker) == ("m-0", "m-1")
+    assert first.claim("proxies", "a") and second.claim("proxies", "b")
+    first.hand_over()
+    second.hand_over()
+    one = Broker(str(tmp_path), machine="m", worker_index=(1, 4))
+    zero = Broker(str(tmp_path), machine="m", worker_index=(0, 4))
+    assert (one.worker, one.held("proxies")) == ("m-1", ["b"])
+    assert (zero.worker, zero.held("proxies")) == ("m-0", ["a"])
+    assert Broker(str(tmp_path), machine="m", worker_index=(0, 4)).worker == "m-2"   # then from its start, upward
+
+
+def test_a_claim_race_lost_is_settled_at_the_renew_without_a_warning(tmp_path):
+    """Both claims believed they won (one listed before the other's write had landed): at the renew the later one
+    finds the earlier lease, gives the resource up and says so at INFO; a WARNING is only for an expired lease."""
+    from loguru import logger
+
+    lines = []
+    sink = logger.add(lambda m: lines.append((m.record["level"].name, m.record["message"])), level="DEBUG")
+    try:
+        later = Broker(str(tmp_path), worker="w-1")
+        assert later.claim("proxies", "a")
+        earlier = (tmp_path / "proxies" / "a" / "leases" / "20200101T000000000Z-w-0.json")
+        earlier.write_text('{"holder": "w-0"}')                                 # w-0's claim, landed late
+        assert later.renew() == [("proxies", "a")] and later.held("proxies") == []
+        assert leases(tmp_path, "proxies", "a") == [earlier.name]
+        assert [lvl for lvl, m in lines if "lost a claim race for proxies/a to w-0; it takes another" in m] == ["INFO"]
+        assert not [m for lvl, m in lines if lvl == "WARNING"]
+        assert later.claim("proxies", "b")
+        age(tmp_path, LEASE_TTL + 1)                                             # no renew within the lease time
+        assert later.renew() == [("proxies", "b")]
+        assert [lvl for lvl, m in lines if "lease on proxies/b expired" in m] == ["WARNING"]
+    finally:
+        logger.remove(sink)
+
+
+def test_survey_kind_names_holders_their_runs_and_the_marks(tmp_path):
+    from linecaster.broker import survey_kind
+
+    assert survey_kind(str(tmp_path / "none"), "proxies") == {"resources": {}, "runs": {}}   # no broker yet
+    mine, other = Broker(str(tmp_path), machine="m", run="OUT"), Broker(str(tmp_path), machine="n", run="OTHER")
+    assert mine.claim("proxies", "a") and other.claim("proxies", "b")
+    now = time.time()
+    mine.mark("proxies", "c", "example.org", now + 600, status=429)
+    survey = survey_kind(str(tmp_path), "proxies")
+    assert {rid: r.holder for rid, r in survey["resources"].items()} == {"a": "m-0", "b": "n-0", "c": None}
+    assert survey["runs"] == {"m-0": "OUT", "n-0": "OTHER"}
+    assert now + 590 < survey["resources"]["c"].marked("example.org") <= now + 601

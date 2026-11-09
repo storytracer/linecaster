@@ -13,7 +13,9 @@ next launch, and the summary counts it. An error that is not the pages' (``NOT_T
 catalog, a server) and ``FAILED_IN_A_ROW`` failed tasks in a row in one worker still stop the run. With
 ``retry_failed``, finished tasks that left rejects run again (their rejects file removed first; with a reader's
 ``reuse_folder`` their pages that are there are read back, only the failed ones fetched). ``kill -USR1 <pid>`` writes
-every thread's stack to the terminal (``faulthandler``), for a run that seems stuck.
+every thread's stack to the terminal (``faulthandler``), for a run that seems stuck. Each task tells the broker its
+worker index (datatrove's local rank, distinct among the tasks running at once; ``linecaster.broker.set_worker_index``),
+so worker processes that start together claim different worker slots at once.
 """
 from __future__ import annotations
 
@@ -119,10 +121,11 @@ def blocks(pipeline) -> list[str]:
 class LocalExecutor(LocalPipelineExecutor):
     """``LocalPipelineExecutor`` whose console is linecaster's: ``title`` names the run on it, ``out`` is the run
     folder the summary points at, and ``reader`` (a block with ``task_pages(rank, world_size)``, optional) gives the
-    pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line
-    (``linecaster.runtime.run.rate_note``: what a server sees)."""
+    pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line,
+    a line or a list of lines (``linecaster.runtime.run.run_notes``: why it has the workers it has, what a server
+    sees)."""
 
-    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | None = None,
+    def __init__(self, pipeline, *, title: str = "run", out: str = "", reader=None, note: str | list[str] | None = None,
                  retry_failed: bool = False, **kwargs):
         super().__init__(pipeline, **kwargs)
         self.title, self.out, self.reader, self.note = title, out, reader, note
@@ -150,6 +153,9 @@ class LocalExecutor(LocalPipelineExecutor):
         from ..blocks.base.page import NOT_THE_PAGES
 
         stack_dumps()
+        from ..broker import set_worker_index
+
+        set_worker_index(local_rank, self.workers)   # the pool's worker index: the broker's slot search starts there
         if rank in self._retry:                  # a fresh rejects file, or none if no page fails this time
             self._remove_rejects(rank)
         saved = base.add_task_logger, base.log_pipeline, base.close_task_logger
@@ -235,8 +241,8 @@ class LocalExecutor(LocalPipelineExecutor):
             line += f"; {count(len(self._completed))} done before ({count(done_pages)} {unit})" if pages else \
                     f"; {count(len(self._completed))} done before"
         logger.info(line)
-        if self.note:
-            logger.info(self.note)
+        for note in [self.note] if isinstance(self.note, str) else self.note or []:
+            logger.info(note)
         if self._retry:
             logger.info("{n} finished tasks with failed pages run again (--retry-failed)", n=f"{len(self._retry):,}")
         if not todo:

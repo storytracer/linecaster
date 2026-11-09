@@ -53,25 +53,35 @@ kept by NTP agree.
 3. list again: the earliest valid lease wins, by the time in its name, then by the worker id; a loser deletes its own
    lease.
 
-Two workers that claim at once both see both leases in step 3 and agree on the winner. A holder's lease keeps its
-claim time across renews, so it stays the earliest. A holder that went without a renew for longer than the lease time
-(a stalled process) may find at its next renew that its file was deleted, or that another worker's lease is now the
-earliest; it gives the resource up then.
+Two workers that claim at once mostly both see both leases in step 3 and agree on the winner. When one listed before
+the other's write had landed (object storage takes a moment), both may believe they won; the next renew settles it:
+the holder whose lease is not the earliest valid one gives the resource up and logs at INFO `worker X lost a claim
+race for proxies/<id> to Y; it takes another` (a proxy pool then claims a replacement at once). A holder's lease
+keeps its claim time across renews, so it stays the earliest. A holder that went without a renew for longer than the
+lease time (a stalled process) finds at its next renew that its lease file is gone (deleted as expired by another
+worker) or older than the lease time; it gives the resource up and logs a WARNING, `lease on proxies/<id> expired (no
+renew within the lease time)`.
 
 **Marks.** A mark holds for a resource in a scope (a host, or `*` for every scope) for `ttl` seconds from its file's
 modification time. It is written once and never changed; whoever sees it expired deletes it. A reader reads a mark's
 file once (it never changes) and keeps its end.
 
-**Fair share.** A worker holds `ceil(free / live workers)` resources of a kind (at least one if any is free), where
-the live workers are the valid heartbeats. Proxies count as free for a host when no mark blocks them there.
+**Fair share.** Sharing them fairly (proxies with `proxies_per_worker: share`), a worker holds `ceil(free / live
+workers)` resources of a kind (at least one if any is free), where the live workers are the valid heartbeats. Proxies
+count as free for a host when no mark blocks them there.
 
 **Worker identity.** A worker is a datatrove worker slot of its machine, `<machine>-<n>`, not a process: on Ray every
 task is a new process, and the harvest runs one item per task, so leases tied to processes would change hands every
-few seconds. At its first use a process claims the lowest free slot of its machine (`slots/<machine>/<n>`, a lease
-held by the process itself) and is that worker from then on. A process that ends hands its slot over
+few seconds. At its first use a process claims a free slot of its machine (`slots/<machine>/<n>`, a lease held by the
+process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
+do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
+rank in a local run's pool, the rank modulo the tasks at once on Ray, the task's GPU in a multi-GPU Job), else a random
+slot. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
+heartbeat whose slot no process holds: its leases wait for a successor), then the free slots from its start upward,
+wrapping. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
-machine claims the same slot, is the same worker, finds the worker's leases (named after it) and renews them. On Ray
-each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
+machine claims that slot (handed-over slots come first), is the same worker, finds the worker's leases (named after
+it) and renews them. On Ray each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
 tasks and keep their slots, and a process that ends normally hands over at its exit. A slot whose process crashed expires like any lease, and so do the leases of a slot no
 process takes over.
 
@@ -80,9 +90,20 @@ process takes over.
 A worker's proxy pool (`linecaster.net.proxies.ProxyPool`, used by `linecaster.net.http.HTTPFetcher` when a proxy
 list is set) works on the broker:
 
-- **Share.** It claims its fair share of the proxies not blocked for the host it fetches, and every 10 s
-  (`REBALANCE_SECONDS`) and at each renew gives back the ones beyond its share, those blocked for its hosts first,
-  so a worker that joins gets its part within seconds and one that leaves frees its part within the lease time.
+- **One proxy per worker** (the default; a host's `proxies_per_worker: 1`). The worker claims one free proxy usable
+  for the host it fetches, in an order of its own (so workers claiming at once try different proxies first), and
+  sends every request through it. When the proxy is blocked or broken (below), the worker marks it, releases it and
+  claims another free usable one at once. No fair share and no rebalancing: the host's rate limits per proxy are the
+  worker's own. With several hosts, a worker whose proxy is blocked at one of them keeps it for the others and swaps
+  it for a free proxy usable at every host it uses, if there is one.
+- **Up to N per worker** (`proxies_per_worker: N`). The same, the proxies claimed one by one: one when the worker
+  holds none usable, then one more at each check of its pool (every 10 s in use, `REBALANCE_SECONDS`, and after each
+  renew), up to N and never more (more inherited from its slot's earlier process are given back).
+- **A fair share per worker** (`proxies_per_worker: share`). The worker claims at most 2 when it looks for proxies
+  (`FIRST_FILL`) and grows toward its fair share of the proxies not blocked for its hosts at each check of its pool
+  (at most doubling each time), where it also gives back the ones beyond its share, those blocked for its hosts
+  first. A worker that joins gets its part within seconds, one that leaves frees its part within the lease time, and
+  the first workers of a launch do not take the proxies of those still starting.
 - **Rate limits per proxy.** With a proxy list the host's rate limits hold per proxy (per IP). The owner spaces the
   requests through a proxy to a host by the strictest limit and sends each request through the owned proxy whose turn
   comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker.
@@ -94,12 +115,17 @@ list is set) works on the broker:
 - **Broken proxies.** A proxy error or no connection to the proxy, `blacklist_threshold` times in a row, marks it for
   every host (`*`) for `blacklist_ttl`.
 - **No proxy usable.** When every proxy the worker holds is blocked for a host and none is free to claim, the
-  worker's requests to that host pause until a block ends or another worker gives a proxy back (one warning at the
+  worker's requests to that host pause until a block it knows of ends or another worker gives a proxy back (it looks
+  again at once when a block ends, else every 5 s, `FILL_SECONDS`) (one warning at the
   start, one at the end; the time is in the fetch records' `pause_seconds`). A pause that would pass the host's
   `max_pause` stops the run (`StopRequests`).
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
-pointed at one path share the proxies and their blocks.
+pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
+(`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
+with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
+`linecaster.broker.survey_kind`), divided by `proxies_per_worker`; on local and Ray runs only (on HF Jobs each worker is a Job,
+so a proxy list never sets their number).
 
 ## The command
 
@@ -126,8 +152,8 @@ usage error.
 **After a hard kill** (`kill -9`, a crash, a local run whose worker processes are terminated) nothing hands over:
 the dead workers' heartbeats, slots and proxy leases look valid for up to the lease time (3 min). A run started again
 within that time gets new slot numbers, finds every proxy held and pauses until the leases expire. Once no process of
-the killed run is left, `linecaster broker clean PATH --leases` removes them, and the next run gets slot 0 and claims
-the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add `--marks` only
+the killed run is left, `linecaster broker clean PATH --leases` removes them, and the next run gets the slots of its
+worker indexes and claims the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add `--marks` only
 when the blocks themselves are wrong (a fixed proxy list, a host that lifted its block).
 
 **Which to use**: plain `clean` any time, also as a cron job beside running workers (it only deletes what a worker
@@ -146,8 +172,9 @@ folder to hand over empty). `clean --leases --marks` and `purge` remove the same
 - **Liveness comes from storage modification times**, compared with the reader's clock. The storage must list
   modification times (local folders and object stores do); a mark without one falls back to the end written in it.
 - **Costs are listings and small writes**: a renew rewrites the worker's leases and heartbeat and lists each kind it
-  holds once a minute; a worker that looks for proxies lists the kind at most every 5 s (`FILL_SECONDS`). Claims of
-  many workers at once are spread by trying the free resources in an order of each worker's own.
+  holds once a minute; a worker that looks for proxies lists the kind at most every 5 s (`FILL_SECONDS`), at once after
+  it gave one up. Claims of many workers at once are spread by trying the free resources in an order of each
+  worker's own, and slot claims by starting at each process's worker index.
 - **What the broker does not do**: no queue, no ordering of work, no exclusive create, no consistency stronger than the
   storage's own listings. Hugging Face buckets are not checked for the listing consistency the claims rely on.
 

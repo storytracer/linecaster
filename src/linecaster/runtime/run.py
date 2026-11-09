@@ -27,11 +27,13 @@ their contracts (every problem listed, nothing launched), stamps the recipe befo
 items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the one before). ``--page IMAGE`` runs one
 image through the pipeline in this process (``linecaster page``).
 ``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
-engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input), one
-worker when it has rate limits (one task keeps them busy) and one per CPU without; a pipeline with engines one task,
-and as many workers as tasks. ``--rate-limit`` holds per worker: a server sees the workers running at once times
-it, which the run states before it starts (``rate_note``); with ``--proxies`` it holds per proxy, each proxy used by
-one worker at a time (the workers share them through ``--broker``, ``linecaster.broker``).
+engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input); its
+workers are one per available proxy with a proxy list (the proxies not blocked and not held by another run's workers,
+divided by a host's ``proxies_per_worker``), one when a host has rate limits without proxies (one task keeps them
+busy), and one per CPU otherwise; a pipeline with engines one task, and as many workers as tasks. ``--rate-limit``
+holds per worker: a server sees the workers running at once times it, which the run states before it starts
+(``rate_note``, with why it has the workers it has, ``workers_note``); with ``--proxies`` it holds per proxy, each
+proxy used by one worker at a time (the workers share them through ``--broker``, ``linecaster.broker``).
 ``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
 ``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
 page files carry the edition and its hash.
@@ -168,8 +170,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "tasks of about 1,000 pages (or 5 items) from its input (harvest.py: one item each), one "
                         "otherwise")
     g.add_argument("--workers", type=int, default=None,
-                   help="tasks at once; default: a pipeline without engines one with --rate-limit, one per CPU "
-                        "without; all tasks otherwise")
+                   help="tasks at once; default: a pipeline without engines one per available proxy with "
+                        "--proxies (divided by proxies_per_worker), one with --rate-limit without proxies, one per "
+                        "CPU otherwise; all tasks with engines")
     g.add_argument("--backend", choices=["in-process", "served"], default=None,
                    help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
@@ -285,8 +288,9 @@ def has_engines(a: argparse.Namespace) -> bool:
 
 def rate_note(a: argparse.Namespace) -> str | None:
     """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
-    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; with ``--proxies`` per proxy and the proxies
-    (``rate limits per proxy: 150/60 · 100 proxies → up to 15,000/min at a server``); and the HTTP policy
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; with ``--proxies`` per proxy and the proxies in use
+    (``rate limits per proxy: 150/60 · 100 proxies → up to 15,000/min at a server``; with fewer workers than proxies
+    times their count per worker, ``· 2 of 100 proxies in use (1 proxy per worker)``); and the HTTP policy
     (``--http-policy``); None without either."""
     hosts = None
     if getattr(a, "http_policy", None):
@@ -296,16 +300,34 @@ def rate_note(a: argparse.Namespace) -> str | None:
     if not getattr(a, "rate_limits", None):
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
-    if getattr(a, "proxy_count", None):              # one worker per proxy at a time: the limits hold per proxy
-        per_minute = min(n / s for n, s in a.rate_limits) * 60 * a.proxy_count
-        note = (f"rate limits per proxy: {limits} · {a.proxy_count:,} prox{'ies' if a.proxy_count != 1 else 'y'} "
-                f"→ up to {per_minute:,.0f}/min at a server")
+    if count := getattr(a, "proxy_count", None):     # one worker per proxy at a time: the limits hold per proxy
+        from ..net.proxies import describe_per_worker
+
+        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", 1)
+        workers = min(a.workers or a.tasks or 1, a.tasks or 1) if a.workers or a.tasks else None
+        used = min(count, workers * per_worker) if workers and isinstance(per_worker, int) else count
+        proxies = f"{count:,} prox{'ies' if count != 1 else 'y'}"
+        if used < count:
+            proxies = f"{used:,} of {proxies} in use ({describe_per_worker(per_worker)})"
+        per_minute = min(n / s for n, s in a.rate_limits) * 60 * used
+        note = f"rate limits per proxy: {limits} · {proxies} → up to {per_minute:,.0f}/min at a server"
         return note + (f" · {hosts}" if hosts else "")
     workers = min(a.workers or a.tasks or 1, a.tasks or 1)
     per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
     note = (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
             f"{per_minute:,.0f}/min at a server")
     return note + (f" · {hosts}" if hosts else "")
+
+
+def workers_note(a: argparse.Namespace) -> str | None:
+    """Why the run has the workers it has, when ``allocate`` chose them from the proxies (``250 proxies available →
+    250 workers, 1 proxy each``); None otherwise."""
+    return getattr(a, "workers_note", None)
+
+
+def run_notes(a: argparse.Namespace) -> list[str]:
+    """The lines a run states before it starts: ``workers_note`` and ``rate_note``, those it has."""
+    return [n for n in (workers_note(a), rate_note(a)) if n]
 
 
 def http(a: argparse.Namespace) -> dict:
@@ -330,19 +352,100 @@ def http(a: argparse.Namespace) -> dict:
     return out
 
 
-def _policy_rate_limited(a: argparse.Namespace) -> bool:
-    if not getattr(a, "http_policy", None):
-        return False
-    from ..net.policy import HTTPPolicy
+def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
+    """How the run's requests go out, for ``allocate``: whether a host with rate limits goes without proxies (its
+    limits then hold per worker), and the proxy lists, file -> ``hosts`` (the hosts that use it; None: any host
+    without an entry), ``per_worker`` (its ``proxies_per_worker``), ``broker`` (the folder) and ``run`` (what the
+    heartbeats name as the run)."""
+    base = http(a)
+    if getattr(a, "http_policy", None):
+        from ..net.policy import HTTPPolicy
 
-    return HTTPPolicy(a.http_policy).rate_limited()
+        policy = HTTPPolicy(a.http_policy, base)
+        entries = [(None, policy.settings(None)), *((h, policy.settings(h)) for h in policy.hosts)]
+    else:
+        entries = [(None, base)]
+    direct, lists = False, {}
+    for host, s in entries:
+        if s.get("proxy_file"):
+            g = lists.setdefault(s["proxy_file"], {"hosts": set(), "per_worker": s.get("proxies_per_worker", 1),
+                                                   "broker": s.get("broker") or s.get("default_broker"),
+                                                   "run": s.get("broker_run")})
+            g["hosts"].add(host)
+        elif s.get("rate_limits"):
+            direct = True
+    return direct, lists
+
+
+def available_proxies(path: str, hosts: set, broker: str | None, run: str | None) -> dict:
+    """The proxies of the file ``path`` a run can use now, from one listing of the broker
+    (``linecaster.broker.survey_kind``): ``proxies`` (in the file), ``blocked`` (a live block or broken mark there
+    for one of ``hosts``, any host when None is among them), ``held`` (leased by a live worker of another run than
+    ``run``; the run's own earlier leases do not count against it), ``available`` (the rest). Without a broker yet
+    (a first launch), or one that cannot be read (a warning), all are available."""
+    from ..broker import survey_kind
+    from ..net.http import read_proxies
+    from ..net.proxies import KIND, proxy_id
+
+    ids = {proxy_id(p) for p in read_proxies(path)}
+    survey = {"resources": {}, "runs": {}}
+    if broker:
+        try:
+            survey = survey_kind(broker, KIND)
+        except Exception as e:  # noqa: BLE001 - the workers are then counted from the file alone
+            from loguru import logger
+
+            logger.warning("broker {broker} not read for the workers: {error}; every proxy counts as available",
+                           broker=broker, error=e)
+    blocked = held = 0
+    for pid in ids:
+        r = survey["resources"].get(pid)
+        if r is None:
+            continue
+        if r.marks if None in hosts else any(r.marked(h) is not None for h in hosts):
+            blocked += 1
+        elif r.holder is not None and r.holder in survey["runs"] and survey["runs"][r.holder] != run:
+            held += 1
+    return {"proxies": len(ids), "blocked": blocked, "held": held, "available": len(ids) - blocked - held}
+
+
+def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int | None, str]:
+    """The workers the proxy lists allow (None: a list shared fairly, which keeps the rule without proxies) and why:
+    the fewest over the lists of ``ceil(available / proxies_per_worker)``, at least one."""
+    import math
+
+    from ..net.proxies import SHARE, describe_per_worker
+
+    best, why = None, ""
+    for path, g in lists.items():
+        if g["per_worker"] == SHARE:
+            return None, ""
+        counts = available_proxies(path, g["hosts"], g["broker"], g["run"])
+        n = max(1, math.ceil(counts["available"] / g["per_worker"]))
+        if best is None or n < best:
+            left = [f"{counts[k]:,} {what}" for k, what in (("blocked", "blocked or broken"),
+                                                             ("held", "held by other runs")) if counts[k]]
+            source = f" ({counts['proxies']:,} in the list, {', '.join(left)})" if left else ""
+            each = "1 proxy each" if g["per_worker"] == 1 else describe_per_worker(g["per_worker"]).replace(
+                "per worker", "each")
+            best, why = n, (f"{counts['available']:,} prox{'ies' if counts['available'] != 1 else 'y'} available"
+                            f"{source}", each)
+    workers = min(best, a.tasks)
+    tasks = f", {a.tasks:,} task{'s' if a.tasks != 1 else ''}" if a.tasks < best else ""
+    return workers, f"{why[0]}{tasks} → {workers:,} worker{'s' if workers != 1 else ''}, {why[1]}"
 
 
 def allocate(a: argparse.Namespace, pipeline: list) -> None:
     """``--tasks`` and ``--workers`` where the command line leaves them open. A pipeline without engines: the task
-    count its reader suggests (``auto_tasks``, from the input; one if it has none), one worker with rate limits (one
-    task keeps them busy, ``linecaster.net.http.prefetched``), one per CPU without. A pipeline with engines: one task,
-    every task at once. ``--page``: one of each."""
+    count its reader suggests (``auto_tasks``, from the input; one if it has none), and as workers: with a proxy list
+    for every host that has rate limits, one per available proxy (``available_proxies``: the proxies in the file
+    less those blocked or broken for the run's hosts and those held by another run's live workers, from one listing
+    of the broker at launch), divided by the hosts' ``proxies_per_worker`` (``ceil(available / N)``), at most one per
+    task and never capped by the CPUs (the workers mostly wait on the network), the reason in ``workers_note``; a
+    host with rate limits and no proxy list, or a list shared fairly (``proxies_per_worker: share``) with rate
+    limits, one worker (one task keeps them busy, ``linecaster.net.http.prefetched``); one per CPU otherwise. A
+    pipeline with engines: one task, every task at once. ``--page``: one of each. The proxy rule holds for local
+    and Ray runs only: on HF Jobs each worker is a Job, so its count is never derived from a proxy list."""
     if getattr(a, "page", None):
         a.tasks, a.workers = 1, 1
         return
@@ -352,10 +455,25 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     if a.workers is None:
         if has_engines(a):
             a.workers = a.tasks
-        elif getattr(a, "rate_limits", None) or _policy_rate_limited(a):
+            return
+        direct, lists = _proxy_plan(a)
+        if lists and not direct and getattr(a, "on", "local") in ("local", "ray"):   # not a Job per proxy on HF Jobs
+            workers, why = _proxy_workers(a, lists)
+            if workers is not None:
+                a.workers, a.workers_note = workers, why
+                return
+        if direct or getattr(a, "rate_limits", None) or _policy_rate_limited(a):
             a.workers = 1
         else:
             a.workers = min(a.tasks, os.cpu_count() or 1)
+
+
+def _policy_rate_limited(a: argparse.Namespace) -> bool:
+    if not getattr(a, "http_policy", None):
+        return False
+    from ..net.policy import HTTPPolicy
+
+    return HTTPPolicy(a.http_policy).rate_limited()
 
 
 def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
@@ -520,7 +638,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
     from .provenance import run_record
 
     extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
-    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates")
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
@@ -630,7 +748,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
             previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
                                      logging_dir=logs, depends=previous, out=out, reader=reader,
-                                     title=f"{title}/{stage.name}" if many else title, note=rate_note(a),
+                                     title=f"{title}/{stage.name}" if many else title, note=run_notes(a),
                                      retry_failed=getattr(a, "retry_failed", False))
         elif a.on == "ray":
             if servers or (not many and has_engines(a)):
@@ -697,10 +815,11 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         docs = run_plan(p)
         print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
         return
-    if a.on != "local" and (note := rate_note(a)):
+    if a.on != "local":
         from loguru import logger
 
-        logger.info(note)
+        for note in run_notes(a):
+            logger.info(note)
     if a.on == "ray":
         connect_ray(a.address)
     _executors(a, p, out, image, deps, script).run()

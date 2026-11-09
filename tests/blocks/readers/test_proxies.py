@@ -88,7 +88,8 @@ def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_pa
         lines = []
         sink = logger.add(lines.append, level="DEBUG")
         reader = ImageParquetReader(page_table(tmp_path, 4), item_key="book", sequence_key="page",
-                                    http={**FAST, "proxy_file": str(tmp_path / "proxies.txt")})
+                                    http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"),
+                                          "proxies_per_worker": "share"})      # both held, the dead one's turn first
         try:
             docs = list(reader.run())
         finally:
@@ -130,7 +131,11 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
     shared = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--proxies",
                                           str(tmp_path / "proxies.txt"), "--broker", "s3://b/broker"]))
     assert run.reader(shared)._opener.http["broker"] == "s3://b/broker"
-    run.allocate(a, [run.reader(a)])
+    run.allocate(a, [run.reader(a)])                                  # one task: one worker, one proxy in use
+    assert run.workers_note(a) == "2 proxies available, 1 task → 1 worker, 1 proxy each"
+    assert run.rate_note(a) == ("rate limits per proxy: 150/60 · 1 of 2 proxies in use (1 proxy per worker) → up to "
+                                "150/min at a server")
+    a.workers = a.tasks = 2
     assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--parquet", "d", "OUT", "--proxies", str(tmp_path / "missing.txt")]))
@@ -254,10 +259,12 @@ def test_no_proxy_usable_pauses_the_requests_until_its_block_ends(tmp_path):
         proxy.shutdown()
 
 
-def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypatch):
-    """A local run with two worker processes through four proxies (one broker): every item comes through, the
-    requests are spread over the proxies, and the requests through each proxy keep its rate limit (one per 0.2 s)
-    although both workers send through the proxies."""
+@pytest.mark.parametrize("per_worker", [None, "share"])
+def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypatch, per_worker):
+    """A local run with two worker processes through four proxies (one broker): every item comes through, and the
+    requests through each proxy keep its rate limit (one per 0.2 s) although both workers send through the proxies.
+    One proxy per worker (the default): two proxies carry the requests, one each; a fair share (``share``): the
+    requests are spread over all four."""
     import json
     import time
 
@@ -304,19 +311,25 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
         reader = ResourceReader(str(tmp_path / "items"), item_key="lccn",
                                 templates={"marcxml": "http://catalog.test/{item}/marcxml"},
                                 http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "rate_limits": [(5, 1)],
-                                      "broker": str(tmp_path / "broker")})
+                                      "broker": str(tmp_path / "broker"),
+                                      **({"proxies_per_worker": per_worker} if per_worker else {})})
         plan = build([reader, ResourceFilesWriter(str(out)), ResourceRecordWriter(str(out / "resources"))],
                      tasks=len(items), run_folder=str(out))
         LocalExecutor(plan.stages[0].pipeline, tasks=len(items), workers=2, logging_dir=str(out / "logs"),
                       out=str(out), reader=reader, title="harvest", start_method="fork").run()
         records = [json.loads(line) for p in (out / "resources").iterdir() for line in gzip.open(p, "rt")]
         assert len(records) == len(items) and not any(r.get("error") for r in records)
-        assert sum(len(t) for t in seen.values()) == len(items) and all(len(t) >= 2 for t in seen.values())
+        assert sum(len(t) for t in seen.values()) == len(items)
+        used = [len(t) for t in seen.values() if t]
+        if per_worker is None:
+            assert len(used) == 2                          # one proxy per worker: one each, never the same
+        else:
+            assert len(used) == 4 and min(used) >= 2       # spread over the four
         for times in seen.values():
             gaps = [b - a for a, b in zip(times, times[1:])]
-            assert min(gaps) > 0.15, gaps                  # 0.2 s per proxy, less the jitter of loopback
+            assert not gaps or min(gaps) > 0.15, gaps      # 0.2 s per proxy, less the jitter of loopback
         workers = sorted(p.name for p in (tmp_path / "broker" / "workers").iterdir())
-        assert len(workers) == 2                           # two worker slots of this machine
+        assert [w.rsplit("-", 1)[1] for w in workers] == ["0.json", "1.json"]   # the pool's worker indexes
     finally:
         for s in servers:
             s.shutdown()
