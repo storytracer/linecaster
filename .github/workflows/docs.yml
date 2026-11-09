@@ -1,6 +1,6 @@
-# linecaster's docs workflow: the site is built and published with mike on the gh-pages branch, which GitHub Pages
-# serves. A release tag (v<major>.<minor>.<patch>) publishes version <major>.<minor> and moves "latest" to it; a push
-# to main publishes version "dev". No secrets.
+# linecaster's docs workflow: the generated pages are written (linecaster docs), then the site is built and published
+# with mike on the gh-pages branch, which GitHub Pages serves. A release tag (v<major>.<minor>.<patch>) publishes
+# version <major>.<minor> and moves "latest" to it; a push to main publishes version "dev". No secrets.
 name: Docs
 
 on:
@@ -36,6 +36,9 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # the generated pages (not in git), with every extra as in CI: the extras' blocks have pages too
+      - name: Generate the docs
+        run: uv run --locked --all-extras linecaster docs
       - name: Publish a release's version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |

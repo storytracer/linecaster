@@ -29,6 +29,7 @@ jobs:
       # every extra: the readers and adapters they serve are tested and documented (pybookget, PDFium, Ray)
       - run: uv sync --locked --all-extras
       - run: uv run pytest -n auto -m "not gpu and not network and not parity"
-      - run: uv run linecaster docs --check
       - run: uv run linecaster catalog verify
+      # the generated pages are not in git: written here, so a broken reference in them fails the strict build
+      - run: uv run linecaster docs
       - run: uv run --group docs mkdocs build --strict
