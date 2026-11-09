@@ -287,8 +287,17 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
 | with engines | 1 | every task |
-| without engines, with `--rate-limit` | the reader's `auto_tasks` (from the input), else 1 | 1 |
+| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
+| without engines, with `--rate-limit` (a host with rate limits and no proxies) | the reader's `auto_tasks`, else 1 | 1 |
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
+
+The available proxies are counted once at launch from one listing of the broker
+(`linecaster.runtime.run.available_proxies`): those in the file, less those with a live block or broken mark for the
+run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. The run
+states the count and why (`linecaster.runtime.run.workers_note`, e.g. `250 proxies available → 250 workers, 1 proxy
+each`). The workers mostly wait on the network, so their count is not capped by the CPUs; `--workers` gives fewer
+(each worker is a process with its own memory).
 
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
@@ -311,13 +320,16 @@ server`). One worker keeps any rate limit busy: a reader's requests ahead grow w
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`). With `--proxies` the
 limits hold per proxy instead (below), and the run states that (`rate limits per proxy: 150/60 · 100 proxies → up to
-15,000/min at a server`).
+15,000/min at a server`; with fewer workers than proxies `· 10 of 100 proxies in use (1 proxy per worker)`).
 
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies, shared by the workers through the
 [broker](broker.md) (`--broker PATH`, any fsspec folder, default `OUT/logs/broker`; runs pointed at one path share
 the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
-claims its fair share (the proxies not blocked for the host, divided by the live workers, at least one) and gives back
-what is beyond it when another worker joins (`linecaster.net.proxies.ProxyPool`). The host's rate limits hold per
+holds one proxy (`linecaster.net.proxies.ProxyPool`): it claims a free one usable for the host and, when that one is
+blocked or broken, releases it and claims another at once. An HTTP policy's `proxies_per_worker` (per host or at the
+root; hosts that share a list share the setting) gives a worker up to N, claimed one by one, or `share`: a fair share
+of the proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by
+rebalancing, which also gives back what is beyond it when another worker joins. The host's rate limits hold per
 proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
 limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
 its own. A block (a 429, until its `Retry-After`, else for the host's `blacklist_ttl`, an hour by default; a status in
@@ -371,10 +383,12 @@ gives the run's requests their settings from one YAML file (`linecaster.net.poli
 under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
 the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
 (`max_retries`), the broker (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
+how many proxies a worker holds (`proxies_per_worker`: 1, N or `share`),
 `pause_on` statuses that pause the worker's requests until `Retry-After` has passed (default `[429]`) with
 `max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
 default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and
-`--parquet`; with rate limits in the file a run keeps one worker.
+`--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
+rate-limited host it gets one per available proxy (above).
 
 ## The console
 

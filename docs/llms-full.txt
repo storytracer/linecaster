@@ -527,7 +527,8 @@ term is added here before it is used.
 | **broker** | A shared folder (any `DataFolder`: local, S3, ...) through which workers across tasks, runs and machines agree on who uses which shared resource and what is unavailable until when, with leases and marks (`linecaster.broker`, `--broker`, default `OUT/logs/broker`; [broker](broker.md)). Proxies are its first kind of resource. | not a message broker (no server, no queue) |
 | **lease** | A worker's claim on one resource in the broker (`<kind>/<id>/leases/`): it holds the resource while it renews the lease within the lease time (180 s); one worker holds a resource at a time, and a crashed worker's leases expire on their own. | not a lock with a server |
 | **mark** | A note in the broker that something holds for a resource in a scope until a time (`<kind>/<id>/marks/<scope>/`), written once and never changed, deleted by whoever sees it expired: a proxy's block at a host (scope the host), a broken proxy (scope `*`). | |
-| **worker identity**, **worker slot** | Who holds leases in the broker: a datatrove worker as a slot of its machine (`<machine>-<n>`), not a process. A process claims the lowest free slot of its machine at its first use and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process). | not a process, not a task |
+| **worker identity**, **worker slot** | Who holds leases in the broker: a datatrove worker as a slot of its machine (`<machine>-<n>`), not a process. A process claims a free slot of its machine at its first use (its search starting at its executor's worker index, so processes started together do not race) and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process). | not a process, not a task |
+| **proxies per worker** | How many proxies of a list a worker holds at a time (`proxies_per_worker`, per host in an HTTP policy, `linecaster.net.proxies`): one by default, swapped for a free one when it is blocked; up to N, claimed one by one; or `share`, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go. The run's default worker count follows it (one worker per available proxy, divided by N). | not proxies per task |
 | **proxy block** | A proxy left out for a host until a set time because the host turned it away (a 429 until its `Retry-After`, a block page, a status in `blacklist_on`): a mark in the broker. The proxy's owner stops using it there at once, and whoever claims it later sees the mark. | not a block of a pipeline |
 | **pause** | A time in which a fetcher (one per worker and host settings) sends no request, and its requests wait instead of failing. Three things start one: a status in the host's `pause_on` (429 by default) on a direct connection, until the response's `Retry-After` has passed, after which the request that got it is tried again (`linecaster.net.http.Pause`; beyond `max_pause` the run stops); the breaker during an outage; and, with a proxy list, no proxy usable for the host (every one the worker holds blocked there, none free to claim) until a block ends or another worker gives one back (beyond `max_pause` the run stops). Other workers' fetchers go on. | not a stop of the run |
 | **breaker** | A fetcher's guard against an outage (`linecaster.net.http.Breaker`): when most recent attempts got a server error it pauses the fetcher's requests, sends a probe now and then, and ends the pause with the first answer that is not a server error. | not the pause after a 429 |
@@ -1289,8 +1290,17 @@ what `linecaster catalog release` records in the lock and `verify` compares ([ca
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
 | with engines | 1 | every task |
-| without engines, with `--rate-limit` | the reader's `auto_tasks` (from the input), else 1 | 1 |
+| without engines, every rate-limited host through proxies (`--proxies`, an HTTP policy's `proxies`) | the reader's `auto_tasks` (from the input), else 1 | one per available proxy, divided by `proxies_per_worker` (`ceil(available / N)`), at most the tasks, not capped by the CPUs; with `proxies_per_worker: share` as without proxies |
+| without engines, with `--rate-limit` (a host with rate limits and no proxies) | the reader's `auto_tasks`, else 1 | 1 |
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
+
+The available proxies are counted once at launch from one listing of the broker
+(`linecaster.runtime.run.available_proxies`): those in the file, less those with a live block or broken mark for the
+run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. The run
+states the count and why (`linecaster.runtime.run.workers_note`, e.g. `250 proxies available → 250 workers, 1 proxy
+each`). The workers mostly wait on the network, so their count is not capped by the CPUs; `--workers` gives fewer
+(each worker is a process with its own memory).
 
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
 (`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
@@ -1313,13 +1323,16 @@ server`). One worker keeps any rate limit busy: a reader's requests ahead grow w
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`). With `--proxies` the
 limits hold per proxy instead (below), and the run states that (`rate limits per proxy: 150/60 · 100 proxies → up to
-15,000/min at a server`).
+15,000/min at a server`; with fewer workers than proxies `· 10 of 100 proxies in use (1 proxy per worker)`).
 
 **Proxies.** `--proxies FILE` sends the http(s) requests through a list of proxies, shared by the workers through the
 [broker](broker.md) (`--broker PATH`, any fsspec folder, default `OUT/logs/broker`; runs pointed at one path share
 the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
-claims its fair share (the proxies not blocked for the host, divided by the live workers, at least one) and gives back
-what is beyond it when another worker joins (`linecaster.net.proxies.ProxyPool`). The host's rate limits hold per
+holds one proxy (`linecaster.net.proxies.ProxyPool`): it claims a free one usable for the host and, when that one is
+blocked or broken, releases it and claims another at once. An HTTP policy's `proxies_per_worker` (per host or at the
+root; hosts that share a list share the setting) gives a worker up to N, claimed one by one, or `share`: a fair share
+of the proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by
+rebalancing, which also gives back what is beyond it when another worker joins. The host's rate limits hold per
 proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
 limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
 its own. A block (a 429, until its `Retry-After`, else for the host's `blacklist_ttl`, an hour by default; a status in
@@ -1373,10 +1386,12 @@ gives the run's requests their settings from one YAML file (`linecaster.net.poli
 under `hosts:` an entry for each host that differs, whose fields replace the root's; the run's own options go between
 the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
 (`max_retries`), the broker (root only), how long and when a proxy is left out (`blacklist_ttl`, `blacklist_threshold`, `blacklist_on`),
+how many proxies a worker holds (`proxies_per_worker`: 1, N or `share`),
 `pause_on` statuses that pause the worker's requests until `Retry-After` has passed (default `[429]`) with
 `max_pause`, and `stop_on` statuses and `html` that stop the run without a retry (a status in both `pause_on`, or its
 default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on a 429). For `--items` and
-`--parquet`; with rate limits in the file a run keeps one worker.
+`--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
+rate-limited host it gets one per available proxy (above).
 
 ## The console
 
@@ -2360,25 +2375,35 @@ kept by NTP agree.
 3. list again: the earliest valid lease wins, by the time in its name, then by the worker id; a loser deletes its own
    lease.
 
-Two workers that claim at once both see both leases in step 3 and agree on the winner. A holder's lease keeps its
-claim time across renews, so it stays the earliest. A holder that went without a renew for longer than the lease time
-(a stalled process) may find at its next renew that its file was deleted, or that another worker's lease is now the
-earliest; it gives the resource up then.
+Two workers that claim at once mostly both see both leases in step 3 and agree on the winner. When one listed before
+the other's write had landed (object storage takes a moment), both may believe they won; the next renew settles it:
+the holder whose lease is not the earliest valid one gives the resource up and logs at INFO `worker X lost a claim
+race for proxies/<id> to Y; it takes another` (a proxy pool then claims a replacement at once). A holder's lease
+keeps its claim time across renews, so it stays the earliest. A holder that went without a renew for longer than the
+lease time (a stalled process) finds at its next renew that its lease file is gone (deleted as expired by another
+worker) or older than the lease time; it gives the resource up and logs a WARNING, `lease on proxies/<id> expired (no
+renew within the lease time)`.
 
 **Marks.** A mark holds for a resource in a scope (a host, or `*` for every scope) for `ttl` seconds from its file's
 modification time. It is written once and never changed; whoever sees it expired deletes it. A reader reads a mark's
 file once (it never changes) and keeps its end.
 
-**Fair share.** A worker holds `ceil(free / live workers)` resources of a kind (at least one if any is free), where
-the live workers are the valid heartbeats. Proxies count as free for a host when no mark blocks them there.
+**Fair share.** Sharing them fairly (proxies with `proxies_per_worker: share`), a worker holds `ceil(free / live
+workers)` resources of a kind (at least one if any is free), where the live workers are the valid heartbeats. Proxies
+count as free for a host when no mark blocks them there.
 
 **Worker identity.** A worker is a datatrove worker slot of its machine, `<machine>-<n>`, not a process: on Ray every
 task is a new process, and the harvest runs one item per task, so leases tied to processes would change hands every
-few seconds. At its first use a process claims the lowest free slot of its machine (`slots/<machine>/<n>`, a lease
-held by the process itself) and is that worker from then on. A process that ends hands its slot over
+few seconds. At its first use a process claims a free slot of its machine (`slots/<machine>/<n>`, a lease held by the
+process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
+do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
+rank in a local run's pool, the rank modulo the workers on Ray, the task's GPU in a multi-GPU Job), else a random
+slot. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
+heartbeat whose slot no process holds: its leases wait for a successor), then the free slots from its start upward,
+wrapping. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
-machine claims the same slot, is the same worker, finds the worker's leases (named after it) and renews them. On Ray
-each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
+machine claims that slot (handed-over slots come first), is the same worker, finds the worker's leases (named after
+it) and renews them. On Ray each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
 tasks and keep their slots, and a process that ends normally hands over at its exit. A slot whose process crashed expires like any lease, and so do the leases of a slot no
 process takes over.
 
@@ -2387,9 +2412,20 @@ process takes over.
 A worker's proxy pool (`linecaster.net.proxies.ProxyPool`, used by `linecaster.net.http.HTTPFetcher` when a proxy
 list is set) works on the broker:
 
-- **Share.** It claims its fair share of the proxies not blocked for the host it fetches, and every 10 s
-  (`REBALANCE_SECONDS`) and at each renew gives back the ones beyond its share, those blocked for its hosts first,
-  so a worker that joins gets its part within seconds and one that leaves frees its part within the lease time.
+- **One proxy per worker** (the default; a host's `proxies_per_worker: 1`). The worker claims one free proxy usable
+  for the host it fetches, in an order of its own (so workers claiming at once try different proxies first), and
+  sends every request through it. When the proxy is blocked or broken (below), the worker marks it, releases it and
+  claims another free usable one at once. No fair share and no rebalancing: the host's rate limits per proxy are the
+  worker's own. With several hosts, a worker whose proxy is blocked at one of them keeps it for the others and swaps
+  it for a free proxy usable at every host it uses, if there is one.
+- **Up to N per worker** (`proxies_per_worker: N`). The same, the proxies claimed one by one: one when the worker
+  holds none usable, then one more at each check of its pool (every 10 s in use, `REBALANCE_SECONDS`, and after each
+  renew), up to N and never more (more inherited from its slot's earlier process are given back).
+- **A fair share per worker** (`proxies_per_worker: share`). The worker claims at most 2 when it looks for proxies
+  (`FIRST_FILL`) and grows toward its fair share of the proxies not blocked for its hosts at each check of its pool
+  (at most doubling each time), where it also gives back the ones beyond its share, those blocked for its hosts
+  first. A worker that joins gets its part within seconds, one that leaves frees its part within the lease time, and
+  the first workers of a launch do not take the proxies of those still starting.
 - **Rate limits per proxy.** With a proxy list the host's rate limits hold per proxy (per IP). The owner spaces the
   requests through a proxy to a host by the strictest limit and sends each request through the owned proxy whose turn
   comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker.
@@ -2401,12 +2437,16 @@ list is set) works on the broker:
 - **Broken proxies.** A proxy error or no connection to the proxy, `blacklist_threshold` times in a row, marks it for
   every host (`*`) for `blacklist_ttl`.
 - **No proxy usable.** When every proxy the worker holds is blocked for a host and none is free to claim, the
-  worker's requests to that host pause until a block ends or another worker gives a proxy back (one warning at the
+  worker's requests to that host pause until a block it knows of ends or another worker gives a proxy back (it looks
+  again at once when a block ends, else every 5 s, `FILL_SECONDS`) (one warning at the
   start, one at the end; the time is in the fetch records' `pause_seconds`). A pause that would pass the host's
   `max_pause` stops the run (`StopRequests`).
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
-pointed at one path share the proxies and their blocks.
+pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
+(`linecaster.runtime.run.allocate`): one worker per proxy available at launch (the proxies in the file, less those
+with a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
+`linecaster.broker.survey_kind`), divided by `proxies_per_worker`.
 
 ## The command
 
@@ -2433,8 +2473,8 @@ usage error.
 **After a hard kill** (`kill -9`, a crash, a local run whose worker processes are terminated) nothing hands over:
 the dead workers' heartbeats, slots and proxy leases look valid for up to the lease time (3 min). A run started again
 within that time gets new slot numbers, finds every proxy held and pauses until the leases expire. Once no process of
-the killed run is left, `linecaster broker clean PATH --leases` removes them, and the next run gets slot 0 and claims
-the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add `--marks` only
+the killed run is left, `linecaster broker clean PATH --leases` removes them, and the next run gets the slots of its
+worker indexes and claims the proxies at once; the blocks found before stay, so no worker sends requests into a block again. Add `--marks` only
 when the blocks themselves are wrong (a fixed proxy list, a host that lifted its block).
 
 **Which to use**: plain `clean` any time, also as a cron job beside running workers (it only deletes what a worker
@@ -2453,8 +2493,9 @@ folder to hand over empty). `clean --leases --marks` and `purge` remove the same
 - **Liveness comes from storage modification times**, compared with the reader's clock. The storage must list
   modification times (local folders and object stores do); a mark without one falls back to the end written in it.
 - **Costs are listings and small writes**: a renew rewrites the worker's leases and heartbeat and lists each kind it
-  holds once a minute; a worker that looks for proxies lists the kind at most every 5 s (`FILL_SECONDS`). Claims of
-  many workers at once are spread by trying the free resources in an order of each worker's own.
+  holds once a minute; a worker that looks for proxies lists the kind at most every 5 s (`FILL_SECONDS`), at once after
+  it gave one up. Claims of many workers at once are spread by trying the free resources in an order of each
+  worker's own, and slot claims by starting at each process's worker index.
 - **What the broker does not do**: no queue, no ordering of work, no exclusive create, no consistency stronger than the
   storage's own listings. Hugging Face buckets are not checked for the listing consistency the claims rely on.
 

@@ -26,12 +26,15 @@ lasts ``ttl`` seconds from its file's modification time. Marks are written once 
 expired deletes it.
 
 The **worker identity** is a datatrove worker slot, not a process: on Ray every task is a new process, and leases tied
-to processes would change hands with every task. At its first use a process claims the lowest free slot of its
-machine (``slots/<machine>/<n>``, a lease held by the process) and is the worker ``<machine>-<n>`` from then on; a
-later process on the same machine that claims the same slot once it is free is the same worker again, and holds (and
-renews) that worker's leases, which are named after the worker. A process that ends hands its slot over
-(``hand_over``) and leaves its other leases to the slot's next process; leases nobody renews expire after
-``LEASE_TTL``.
+to processes would change hands with every task. At its first use a process claims a free slot of its machine
+(``slots/<machine>/<n>``, a lease held by the process) and is the worker ``<machine>-<n>`` from then on; a later
+process on the same machine that claims the same slot once it is free is the same worker again, and holds (and renews)
+that worker's leases, which are named after the worker. A process that ends hands its slot over (``hand_over``) and
+leaves its other leases to the slot's next process; leases nobody renews expire after ``LEASE_TTL``. The search for a
+slot starts at one of the process's own, so processes started together do not race for the same slots: the
+executor's worker index (``set_worker_index``; linecaster's executors set it), else a random one. It takes a
+handed-over slot first (a live heartbeat, no slot lease: its leases wait for a successor), then probes upward from its
+start, wrapping.
 
 The folder as a whole (``linecaster broker``): ``survey_all`` says what it holds, ``survey_kind`` which resources of a
 kind are held by whom and marked, ``clean`` removes what has expired (or, after a hard kill, every lease), ``purge``
