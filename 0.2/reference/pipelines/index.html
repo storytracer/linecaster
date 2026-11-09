@@ -1,0 +1,1732 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.2/reference/pipelines/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../data-model/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Pipelines - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pipelines-contracts-and-the-builder" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Pipelines
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#block-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block shapes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The builder
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warm-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warm-up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-run-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The run record
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tasks, workers and rate limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-console" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The console
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secrets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-item-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The item stage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#page-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hf-jobs-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HF Jobs helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#block-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block shapes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The builder
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warm-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warm-up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-run-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The run record
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tasks, workers and rate limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-console" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The console
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secrets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-item-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The item stage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#page-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hf-jobs-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HF Jobs helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="pipelines-contracts-and-the-builder">Pipelines: contracts and the builder<a class="headerlink" href="#pipelines-contracts-and-the-builder" title="Permanent link">&para;</a></h1>
+<p>A pipeline is a list of blocks (datatrove <code>PipelineStep</code>s) and composites. Before it runs, the builder
+(<code>linecaster.runtime.builder</code>) checks the blocks' contracts, expands the composites, and cuts the pipeline into
+stages. Every pipeline script goes through it (<code>linecaster.runtime.run</code>). Terms are the <a href="../glossary/">glossary</a>'s.</p>
+<h2 id="contracts">Contracts<a class="headerlink" href="#contracts" title="Permanent link">&para;</a></h2>
+<p>Every block returns its contract from <code>contract()</code> (<code>linecaster.blocks.base.contract</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Part</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># a name of PARTS, or "*" (every part)</span>
+    <span class="n">transcription</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>  <span class="c1"># ocr_new, ocr_original, ...; None: page-level (image, metadata, transcription_file)</span>
+                               <span class="c1"># or the item record's</span>
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Contract</span><span class="p">:</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># "page", "item" (what the input stream carries) or "any" (servers)</span>
+    <span class="n">unit_out</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>       <span class="c1"># set when the block changes the stream's unit (binder: page -&gt; item, splitter: back)</span>
+    <span class="n">reads</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>
+    <span class="n">adds</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>
+    <span class="n">replaces</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>
+    <span class="n">removes</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>   <span class="c1"># parts the block does not pass on (gone for every later block)</span>
+    <span class="n">role</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># reader, writer, server, model, transform, binder, splitter, validator, composite</span>
+</code></pre></div>
+<ul>
+<li><strong>The vocabulary</strong> is <code>PARTS</code> in <code>linecaster.catalog.schema</code>: <code>image</code>, <code>metadata</code> and <code>transcription_file</code> (a
+  library's own transcription delivered with the page, as a document media) (page-level), what presets produce (<code>PRODUCES</code>: <code>regions</code>, <code>reading_order</code>, <code>lines</code>, <code>baselines</code>, <code>text</code>, <code>words</code>, <code>word_confidences</code>,
+  <code>line_confidences</code>, <code>tables</code>, <code>formulas</code>, <code>markdown</code>, <code>html</code>, <code>doctags</code>, <code>layout_json</code>, <code>latex</code>), and
+  <code>line_regions</code>, <code>hierarchy</code>, <code>nfc</code>, <code>document</code>. A part is written <code>transcription:name</code> (<code>ocr_new:lines</code>);
+  <code>ocr_original:*</code> is every part of a transcription.</li>
+<li><strong>Simple blocks</strong> declare class attributes (<code>unit</code>, <code>role</code>, <code>parts_read</code>, <code>parts_added</code>, <code>parts_replaced</code>,
+  <code>parts_removed</code>) that
+  the default <code>contract()</code> of <code>Contracted</code> reads; page-level names stay page-level, the others belong to the
+  block's <code>transcription</code>. Blocks whose parts depend on their options compute <code>contract()</code>.</li>
+<li><strong>Model blocks</strong> read the page image (recognition also <code>lines</code>, tables and formulas <code>regions</code>) and add their
+  preset's <code>capabilities.produces</code>: the preset of the <code>InProcess</code> backend (<code>preset</code>), of the <code>Served</code> backend
+  (<code>preset</code>, set by <code>runtime.run.engines</code>) or of the <code>Chat</code> backend; without a preset the engine class's
+  <code>capabilities</code> (read from its source in the repository, else from the class); without either the step's default.
+  The chat recognizers add <code>text</code> too, <code>RegionRecognizer</code> also <code>lines</code> (and replaces <code>lines</code> and <code>text</code>: the
+  transcription's earlier lines are replaced).</li>
+<li><strong>Readers</strong> add <code>image</code> and <code>metadata</code>; <code>ManifestReader(existing_ocr=True)</code> also <code>transcription_file</code>, which the
+  <code>TranscriptionConverter</code> reads (adding <code>ocr_original:*</code>);
+  <code>PageRecordReader</code> what <code>provides=</code> declares (<code>["ocr_new:lines", ...]</code>), or anything (<code>*</code>, reads after it are
+  not checked) when it declares nothing. With <code>fetch_images=False</code> it brings no <code>image</code>.</li>
+<li><strong>Writers</strong> read what they write and add nothing (<code>ImageFilesWriter</code> replaces <code>metadata</code>: the image's URI then
+  names its copy; <code>PageFileWriter</code>: <code>lines</code> for hOCR, ALTO and PAGE, <code>text</code> for
+  md and txt, <code>document</code> for HTML, DocLang and JSON, <code>image</code> for plots). <strong>Servers</strong> have role <code>server</code> and unit
+  <code>any</code>.</li>
+<li><strong>The <code>Binder</code></strong> changes the unit from pages to items, the <strong><code>Splitter</code></strong> back: an item record holds its page
+  records, so what the pages carried stays available across either (the checks carry the parts over), apart from
+  the page image's bytes (<code>image</code>: an item record has none) at the binder and the item's <code>document</code> at the splitter.</li>
+<li><strong>Item-unit blocks</strong> (<code>Recomposer(unit="item")</code>, <code>CharacterNormalizer(unit="item")</code>, <code>Composer(unit="item")</code>)
+  read item records: one datatrove document per item, <code>doc.metadata["item"]</code> holding the item id and its page records
+  in order (<code>linecaster.blocks.base.item</code>); they read and add the parts of the pages' transcriptions, the item
+  <code>Composer</code> adds the item's <code>document</code> next to the record. <strong>Item writers</strong>: <code>ItemTextWriter</code> reads <code>lines</code> for
+  <code>verbatim_txt</code> and <code>paragraphs</code> and <code>normalized</code> for the readable variants, <code>ItemDocumentWriter</code> the <code>document</code>.
+  <code>RecipeStamper</code> has unit <code>any</code>: before an item writer it stamps the pages of each item record.</li>
+<li>A step without a contract (a plain datatrove step) passes pages and touches no part.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>Reads</th>
+<th>Adds</th>
+<th>Replaces, removes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LineAssigner</code></td>
+<td><code>lines</code>, <code>regions</code></td>
+<td><code>line_regions</code></td>
+<td><code>regions</code>, <code>reading_order</code>, <code>lines</code></td>
+</tr>
+<tr>
+<td><code>UnicodeNormalizer</code></td>
+<td><code>text</code></td>
+<td><code>nfc</code></td>
+<td><code>text</code></td>
+</tr>
+<tr>
+<td><code>CharacterNormalizer</code></td>
+<td><code>text</code></td>
+<td><code>normalized</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>Typographer</code></td>
+<td><code>regions</code>, <code>lines</code></td>
+<td><code>hierarchy</code></td>
+<td><code>regions</code>, <code>lines</code></td>
+</tr>
+<tr>
+<td><code>Recomposer</code></td>
+<td><code>regions</code>, <code>lines</code></td>
+<td><code>paragraphs</code></td>
+<td><code>paragraphs</code> (made anew where they exist)</td>
+</tr>
+<tr>
+<td><code>Composer</code></td>
+<td><code>regions</code>, <code>lines</code> (and <code>paragraphs</code> when there are)</td>
+<td><code>document</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ImageFetcher</code></td>
+<td><code>metadata</code></td>
+<td></td>
+<td><code>image</code></td>
+</tr>
+<tr>
+<td><code>ImageConverter</code></td>
+<td><code>metadata</code></td>
+<td></td>
+<td><code>metadata</code> (with <code>keep_bytes</code> also <code>image</code>; without it removes <code>image</code>)</td>
+</tr>
+<tr>
+<td><code>TranscriptionConverter</code></td>
+<td><code>metadata</code>, <code>transcription_file</code> (with <code>source="media"</code>)</td>
+<td><code>&lt;transcription&gt;:*</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>RecipeStamper</code></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="block-shapes">Block shapes<a class="headerlink" href="#block-shapes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Per-unit transform</strong> (<code>shape = "unit"</code>): <code>process_page(doc, page) -&gt; page | None</code>; <code>PageBlock</code> owns the loop
+  and the stats. In-process model blocks have this shape.</li>
+<li><strong>Stream transform</strong> (<code>shape = "stream"</code>): overrides <code>run(data)</code> and yields each page when it is done, possibly
+  out of order (served model blocks, <code>PageRecognizer</code>, <code>RegionRecognizer</code>). It reports what happens to each page
+  inside it with <code>notify(doc, event)</code>: <code>prepare</code> when a request is built, <code>done</code> when its result came back. The
+  served model blocks share one streaming loop (<code>ModelBlock</code>): a block names its requests (<code>_rows</code>: one per page, one
+  per region for <code>RegionRecognizer</code>), builds and parses each (<code>_request</code>, <code>_parse</code>) and says which pages a finished
+  one completes (<code>_done</code>).</li>
+<li>Only readers and writers see <code>rank</code>, <code>world_size</code> and files (a test walks every block class, with no exceptions):
+  a block that rejects a page records why on the page, and the <code>RejectWriter</code> names the task's file.</li>
+</ul>
+<h2 id="backends">Backends<a class="headerlink" href="#backends" title="Permanent link">&para;</a></h2>
+<p>A model block's backend (<code>linecaster.backends</code>) says where its engine runs:</p>
+<ul>
+<li><code>InProcess("pkg:Class", **options)</code> (or <code>InProcess.from_preset(ref)</code>; a model block given a preset ref,
+  <code>LayoutDetector("single-region@1")</code>, builds one): the engine loads in the worker;</li>
+<li><code>Served(endpoint, model=name, ...)</code>: <code>linecaster serve</code> (or a server speaking its routes) hosts it, reached through
+  saturate on <code>/v1/linecaster/{step}</code>;</li>
+<li><code>Chat(preset, endpoint=None, served_name=None, max_window=32, initial_window=4, read_timeout=600.0, api_key=None,
+  headers=None, prefer="page")</code>: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
+  endpoint) on <code>/v1/chat/completions</code>; <code>preset</code> is a preset ref, a model's Hugging Face id (its preset with unit
+  <code>prefer</code>) or a configured adapter (<code>chat_model</code>); without an endpoint, the task's <code>ChatModelServer</code> on port 8000.
+  <code>PageRecognizer(backend)</code> and <code>RegionRecognizer(backend, labels=..., pad=None)</code> (<code>pad</code>: the adapter's <code>region_pad</code>, else 8) take it (or a chat preset's ref).
+  <code>PageRecognizer</code> also takes a page engine's <code>InProcess</code> or <code>Served</code> backend (or its preset's ref): a stream
+  transform served, a per-unit transform in-process; it reads the page image and adds <code>text</code> and what the preset
+  produces. A page engine's <code>endpoint</code> option (where its service is) is operational.</li>
+</ul>
+<p>The built-in engines (<code>layout.single-region.v1</code> and the rule-based steps') run in the pipeline's process only:
+<code>runtime.run.engines</code> keeps a preset of one in-process when the other models are served, and <code>linecaster serve</code>
+refuses them.</p>
+<h2 id="the-builder">The builder<a class="headerlink" href="#the-builder" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plan</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">tasks</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">taps</span><span class="o">=</span><span class="p">{</span><span class="s2">"LineAssigner"</span><span class="p">:</span> <span class="s2">"OUT/taps/lines"</span><span class="p">},</span>
+             <span class="n">run_folder</span><span class="o">=</span><span class="s2">"OUT"</span><span class="p">,</span> <span class="n">recipe</span><span class="o">=</span><span class="p">(</span><span class="s2">"squiddle@1"</span><span class="p">,</span> <span class="s2">"sha256:..."</span><span class="p">))</span>
+<span class="n">plan</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>          <span class="c1"># PipelineConfigError listing every problem</span>
+<span class="n">plan</span><span class="o">.</span><span class="n">stages</span>           <span class="c1"># [Stage(name, tasks, blocks, pipeline)]: one datatrove pipeline each, run in order</span>
+<span class="n">plan</span><span class="o">.</span><span class="n">graph</span>            <span class="c1"># nodes (blocks; composites expanded, their group kept), edges (part -&gt; the block reading it)</span>
+<span class="n">plan</span><span class="o">.</span><span class="n">mermaid</span><span class="p">()</span>        <span class="c1"># the graph as a Mermaid flowchart: stages and composites as subgraphs</span>
+<span class="n">plan</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>       <span class="c1"># stages with each block's contract, the edges, the problems</span>
+</code></pre></div>
+<p><strong>Checks</strong>, all collected: a stage starts with a reader; every part a block reads is added earlier in its stage
+(or by the stage's reader) and not removed since (<code>removes</code>, even after a reader that provides anything); a part
+is added by one block only, unless a later block declares it in <code>replaces</code>;
+units fit (a page block cannot follow an item stream, an item block needs a binder before it); the parts carry
+across a binder and a splitter (apart from <code>image</code> and the item's <code>document</code>); server blocks go last; a served model
+block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
+<code>OTHERWISE</code> last; names given to <code>until</code>, <code>after</code> and <code>taps</code> fit exactly one block.</p>
+<p><strong>Order</strong> is the given one; the builder checks it and does not reorder. It inserts a <code>TranscriptionConverter</code> (into
+<code>ocr_original</code>) right after a block that adds <code>transcription_file</code> when no later block reads it, the
+<code>RecipeStamper</code> before the first writer when the run follows a recipe, a <code>RejectWriter</code> into
+<code>&lt;run_folder&gt;/rejects</code> before the first writer (or binder) when there is a run folder and the pipeline has none, and moves the server blocks at the end into the
+stage of the model blocks when it cuts. <code>build(..., max_page_errors=SHARE)</code> sets every page block's error budget.</p>
+<p><strong>Branches</strong>: <code>branch(block, when=Condition, group=None)</code> gives a block a condition, a picklable predicate on the
+page record with a <code>describe()</code> (<code>MetadataEquals(key, value)</code>, <code>OTHERWISE</code>). The block processes the pages the
+condition accepts; the others pass unchanged. Blocks with the same <code>group</code> are alternatives: each page goes through
+the first one whose condition accepts it. A per-unit block gets its pages one by one; any other block one stream of
+them, the pages it does not take passed on as it yields.</p>
+<p><strong>Composites</strong>: <code>Composite(name, blocks, contract=None)</code> expands into its blocks (nested composites too); its
+outward contract is derived (what its blocks read that none of them adds, what they add and replace) unless given.
+<code>ModularTranscriber(lines, recognition, layout, formulas_separately=False, transcription="ocr_new")</code> is layout
+(<code>"single-region@1"</code>: the page as one region) → lines → line assignment → line recognition; each step a block, a
+backend or a preset.</p>
+<p><strong>Stages</strong>: with <code>tasks &gt; 1</code>, the first binder (a block whose stream changes from pages to items) cuts the
+pipeline, unless the reader already gives each task whole items (<code>ManifestReader</code>, <code>PageRecordReader(item_shards=
+True)</code>). The first stage writes its page records in item shards into <code>&lt;run_folder&gt;/pages/</code> (the pipeline's own
+<code>PageJsonlWriter</code> there, now with <code>item_shards=N</code>, N = <code>tasks</code> unless it set its own); the second starts with
+<code>PageRecordReader(item_shards=True, fetch_images=False)</code> declaring the parts the first stage added, runs the binder
+and what follows, as N tasks. A <code>Splitter</code> after the binder needs no cut of its own: the items are whole in the
+task, so its pages are too. One stage logs to <code>OUT/logs/</code>, two to <code>OUT/logs/pages/</code> and <code>OUT/logs/items/</code>; the run
+record lists the stages. Each stage gets its own executor, and the later one <code>depends=</code> on the earlier one:</p>
+<table>
+<thead>
+<tr>
+<th><code>--on</code></th>
+<th>Executors</th>
+<th>Stages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>local</code></td>
+<td><code>LocalPipelineExecutor</code></td>
+<td>the second starts when the first is complete</td>
+</tr>
+<tr>
+<td><code>ray</code></td>
+<td><code>RayGPUExecutor</code> for stages with servers, <code>RayExecutor</code> for the item stage and pipelines without engines (CPUs only)</td>
+<td>the same, through <code>depends=</code></td>
+</tr>
+<tr>
+<td><code>hf-jobs</code></td>
+<td><code>JobsExecutor</code> (datatrove's <code>JobsPipelineExecutor</code> with JSON-lines logs; <code>GPUJobsExecutor</code> for multi-GPU flavors on stages with servers)</td>
+<td>consecutive launches: the second launches when the first's Jobs are complete; both on <code>--flavor</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Partial runs</strong> (blocks named by their datatrove <code>name</code>, their class name, or a composite's name for its last
+block):</p>
+<ul>
+<li><code>until=BLOCK</code> (<code>--until</code>): the blocks up to and including BLOCK, then a <code>PageJsonlWriter</code> into
+  <code>&lt;run_folder&gt;/pages</code> (and the server blocks);</li>
+<li><code>after=BLOCK</code> (<code>--after</code>, with <code>--pages DIR</code>): the pipeline's <code>PageRecordReader</code>, then the blocks after BLOCK;
+  the reader declares the parts the blocks up to BLOCK add;</li>
+<li><code>taps={BLOCK: DIR}</code> (<code>--tap-after BLOCK DIR</code>, repeatable): a <code>Tap</code> observer writes every page record as it
+  leaves BLOCK into <code>DIR/&lt;rank&gt;.jsonl.gz</code>.</li>
+</ul>
+<p><strong>In this process</strong>: <code>run_pages(blocks, docs)</code> checks the blocks and runs them on <code>docs</code> (datatrove documents) as
+task 0 of 1, without an executor (a leading reader reads its own input after them); <code>run_plan(plan)</code> runs a plan's
+stages that way. A pipeline script's <code>--page IMAGE OUT</code> runs its pipeline on one image like that, and <code>linecaster
+page IMAGE OUT [--recipe R | --pipeline ID] [pipeline options]</code> finds the script (the recipe's pipeline, else
+<code>transcribe_modular.v1</code>) and runs it so.</p>
+<p><code>--dry-run</code> prints the plan (<code>describe()</code> under <code>plan</code>, with the run record) and the Mermaid graph, and fails like
+a run would when there are problems; a run with problems exits with code 2 before it writes anything.</p>
+<h2 id="observers">Observers<a class="headerlink" href="#observers" title="Permanent link">&para;</a></h2>
+<p><code>linecaster.runtime.observers.Observer</code> has <code>on_task_start(rank, world_size)</code>, <code>on_warm_up(block, seconds)</code>,
+<code>on_enter(block, doc)</code>, <code>on_exit(block, doc, error=None)</code>, <code>on_unit(block, doc, event, **attributes)</code> (from stream
+blocks' <code>notify</code>: <code>prepare</code> and <code>request</code> in saturate's prepare threads, <code>request</code> with a <code>carrier</code> dict for the
+trace context, <code>done</code> with <code>error</code>, tokens and <code>finish_reason</code>; <code>region</code> for a request per region),
+<code>on_task_event(block, event, start_ns, end_ns, **attributes)</code> (from <code>Block.report</code>: a reader's <code>file</code>, a writer's
+<code>flush</code>), <code>on_leave(doc)</code> (a page leaves the stage's last block), <code>on_task_end(error=None)</code> (also when the task
+fails) and <code>environment()</code> (variables for a server a block starts in the task). When a stage has observers
+(<code>build(..., observers=[...])</code>, taps, tracing), the builder puts a <code>Boundary</code> after every block: the boundary
+between block <em>i</em> and <em>i + 1</em> calls <code>on_exit(i)</code> and <code>on_enter(i + 1)</code> for each page, so a block's time per page
+includes waiting in a served window; <code>error</code> is the entry the block added to <code>doc.metadata["errors"]</code>. Boundaries
+are plain callables, not datatrove steps, so they add no stats; a stage without observers has none.</p>
+<p>Every stage with a run folder (or an OTLP endpoint) is traced: the builder adds a <code>linecaster.tracing.Tracing</code>
+observer (<code>build(..., trace_sample=SHARE)</code>, <code>--trace-sample</code>; <a href="../tracing/">tracing</a>).</p>
+<h2 id="warm-up">Warm-up<a class="headerlink" href="#warm-up" title="Permanent link">&para;</a></h2>
+<p>Every block has <code>warm_up()</code> (idempotent): engines load there (<code>InProcess.warm_up()</code>), servers start there
+(<code>ModelServer</code>, <code>ChatModelServer</code>), a served backend reads its secrets there; blocks with nothing to load keep the
+no-op. A block's <code>__call__</code>, which datatrove's executors call, warms it up before its <code>run</code> starts: blocks warm up
+as the stream reaches them, the last one first (the servers before the blocks that call them). The time is the
+block's own stat, <code>warm_up_seconds</code> (per task), and goes to the observers (<code>on_warm_up(block, seconds)</code>); a page's
+measured <code>seconds</code> never include loading. An error in a warm-up fails the task (a server that does not start: a
+<code>ServerError</code>).</p>
+<h2 id="failures">Failures<a class="headerlink" href="#failures" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Per page.</strong> An exception in a per-unit transform's <code>process_page</code> (other than a <code>PipelineConfigError</code>,
+  <code>CatalogError</code> or <code>ServerError</code>, which fail the task) becomes an entry in the page's <code>doc.metadata["errors"]</code>:
+  <code>{"block": class, "step": a model block's step, "preset": its edition or null, "type": the exception's class,
+  "error": the message}</code>; a failed request of a served block is the same with type <code>ServerError</code>; checks
+  (<code>PageValidator</code>, <code>ImageConverter</code>) add <code>field</code> and <code>raw_value</code>. The page goes on as it was.</li>
+<li><strong>Later model blocks pass it by</strong> (<code>skip_on_error</code>, the default for model blocks; stat <code>skipped_after_error</code>), at
+  once: in-process the page leaves the block before the next one enters, served it is put straight onto the
+  block's results (it never waits for the window, nor for the end of the input).</li>
+<li><strong>Rejects.</strong> The <code>RejectWriter</code> writes every page that carries errors to <code>OUT/rejects/&lt;rank&gt;.jsonl</code>, one line
+  per error (<code>key</code>, <code>field</code>, <code>error</code>, <code>raw_value</code>, and the entry's <code>block</code>, <code>step</code>, <code>preset</code>, <code>type</code>), and passes
+  it on: the page records keep failed pages with their errors, so a later pipeline reading them passes them by too.</li>
+<li><strong>The error budget.</strong> A block may fail on <code>max_page_errors</code> of a task's pages (<code>--max-page-errors</code>, default
+  0.01), judged from the 100th page on: from then, more errors than <code>share × pages</code> fail the task with a
+  <code>PageError</code> (with the default: two failures in the first 100 pages, three in 300). Fewer pages are too few to
+  judge. datatrove reruns a failed task whole.</li>
+<li><strong>Errors</strong> (<code>linecaster.errors</code>): library code raises <code>PipelineConfigError</code> (a pipeline, option or input that
+  cannot work; <code>problems</code> lists them), <code>CatalogError</code>, <code>PageError(page_id, block)</code> and <code>ServerError</code>, all
+  <code>LinecasterError</code>s, never <code>SystemExit</code>; the <code>linecaster</code> command and a pipeline script's <code>main</code> turn them into
+  exit codes (2: nothing was launched).</li>
+</ul>
+<h2 id="the-run-record">The run record<a class="headerlink" href="#the-run-record" title="Permanent link">&para;</a></h2>
+<p><code>OUT/run.yaml</code> (schema <code>linecaster.run-record/1</code>, the pydantic model <code>linecaster.runtime.record.RunRecord</code>, JSON
+Schema <code>catalog/schemas/run-record-1.json</code>) records the script, the recipe, the command line, the options, where it
+ran and the software, and:</p>
+<ul>
+<li><code>pipeline</code>: per stage its name, tasks and blocks in order, each block as its <code>to_dict()</code> (below) with its
+  <code>contract</code>, composite, group and condition;</li>
+<li><code>pipeline_sha256</code>: the hash of the pipeline's <strong>functional</strong> parameters.</li>
+</ul>
+<p><strong><code>to_dict()</code></strong> gives a block as it was built: <code>{"block": class name, "class": "module:Class", "params": {...}}</code>,
+every constructor parameter with the value it was given or its default (<code>**kwargs</code> flattened), JSON-compatible:
+backends as <code>{"backend": "in-process", "engine", "options", "preset", "preset_sha256"}</code>, <code>{"backend": "served",
+"endpoint", "model", "max_window", ..., "preset", "engine"}</code> or <code>{"backend": "chat", "adapter", "preset",
+"preset_sha256", "model", "revision", "served_name", "endpoint", "max_window", ...}</code> (a chat adapter's dict plus where
+its server is), nested blocks as their dicts, secrets as <code>{"env": NAME}</code>, folders as paths, callables as <code>module:name</code>. A block
+keeps the arguments it was constructed with; <code>live_params</code> names those the builder may change afterwards (a page
+record reader's <code>provides</code>). A composite's dict is its group: its parameters and its blocks' dicts.</p>
+<p><strong>Functional and operational parameters.</strong> A parameter is <em>functional</em> when changing it can change what a run
+writes for a page or an item (its page records, files and texts) or how they are partitioned (<code>item_shards</code>); it is
+<em>operational</em> when it only changes where things are read and written, how the work is spread and paced, or how a
+server is reached. <code>pipeline_sha256</code> covers the functional ones (<code>provenance.functional_pipeline</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Operational (left out)</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>folders and file names: <code>data_folder</code>, <code>output_folder</code>, <code>output_filename</code>, <code>image_folder</code>, <code>manifest_folder</code>, <code>ocr_folder</code>, <code>folder</code>, <code>suffix</code>, <code>bucket_by_item</code>, <code>prefix</code></td>
+<td>where things are</td>
+</tr>
+<tr>
+<td>which input files a task reads and how: <code>paths_file</code>, <code>glob_pattern</code>, <code>recursive</code>, <code>limit</code>, <code>skip</code>, <code>shuffle_files</code>, <code>batch_size</code> (a reader's), <code>http</code> (rate limits, the IIIF format asked for), <code>uri_map</code>, progress bars</td>
+<td>the pages themselves are recorded per page</td>
+</tr>
+<tr>
+<td>servers and clients: <code>port</code>, <code>host</code>, <code>python</code>, <code>script</code>, <code>vllm</code>, <code>outside_venv</code>, <code>boot_timeout</code>, <code>max_queue</code>, <code>prepare_workers</code>, <code>gpu_memory_utilization</code>, <code>extra_args</code>; an in-process engine's <code>endpoint</code> and <code>timeout</code> (<code>ENGINE_OPERATIONAL</code>: where its service is); a served backend's <code>endpoint</code>, <code>model</code> (the name it is hosted under, unless nothing else names its engine), <code>max_window</code>, <code>initial_window</code>, <code>read_timeout</code>, <code>api_key</code>, <code>headers</code>; a chat backend's <code>served_name</code> and the same (it counts by its adapter, preset edition and hash, model and revision)</td>
+<td>how a server is started and reached</td>
+</tr>
+<tr>
+<td><code>name</code> (datatrove's display name), <code>compression</code>, <code>max_file_size</code>, <code>ImageConverter.keep_bytes</code></td>
+<td>presentation, file handling, memory</td>
+</tr>
+<tr>
+<td>server blocks (<code>ModelServer</code>, <code>ChatModelServer</code>, <code>ServiceServer</code>) as a whole</td>
+<td>their models count through the blocks they serve</td>
+</tr>
+<tr>
+<td>the backend (in-process or served)</td>
+<td>a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs</td>
+</tr>
+</tbody>
+</table>
+<p>Everything else is functional: block classes and their order, transcription names, engine options, presets and
+their hashes, the recipe stamp, conditions and groups, writers' formats and options, <code>item_shards</code>. The base list
+is <code>OPERATIONAL</code> in <code>linecaster.blocks.base.block</code>; a block class adds its own in <code>operational</code>. So a resumed run,
+a run on another executor or backend, or into another folder has the same hash; another preset, option or block
+has another.</p>
+<p><strong>Resume.</strong> A run into an OUT that holds a run record is checked against its newest record (<code>run.yaml</code>, or a later
+<code>run-&lt;time&gt;.yaml</code>): another <code>pipeline_sha256</code> is refused with a <code>PipelineConfigError</code> (finished tasks would be
+skipped and the folder would mix two pipelines' outputs) unless <code>--new-pipeline</code> (the new record is written next
+to the earlier one and is the one the next resume is checked against); another <code>--tasks</code> is always refused (each
+task would read other input). The same hash and tasks: a resume, as datatrove's completion markers make it.
+<code>--dry-run</code> reports the same problems.</p>
+<p><strong>Describe mode.</strong> <code>linecaster.runtime.run.describe_script(script, argv)</code> builds a pipeline script's plan in the
+current process without its engines: the script is loaded as a module, its options parsed, presets resolved
+without checking that their engines are installed, nothing loaded or started. <code>describe_recipe(ref)</code> describes a
+recipe edition that way (its pipeline script by the recipe's pipeline id, <code>--recipe REF</code>, placeholder folders):
+what <code>linecaster catalog release</code> records in the lock and <code>verify</code> compares (<a href="../catalog/">catalog</a>).</p>
+<h2 id="tasks-workers-and-rate-limits">Tasks, workers and rate limits<a class="headerlink" href="#tasks-workers-and-rate-limits" title="Permanent link">&para;</a></h2>
+<p><code>--tasks</code> and <code>--workers</code> are chosen when the command line leaves them open (<code>linecaster.runtime.run.allocate</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Pipeline</th>
+<th><code>--tasks</code></th>
+<th><code>--workers</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>with engines</td>
+<td>1</td>
+<td>every task</td>
+</tr>
+<tr>
+<td>without engines, every rate-limited host through proxies (<code>--proxies</code>, an HTTP policy's <code>proxies</code>), local or Ray (<code>--on hf-jobs</code>: as below)</td>
+<td>the reader's <code>auto_tasks</code> (from the input), else 1</td>
+<td>sharing them fairly (<code>proxies_per_worker: share</code>, the default): one per available proxy, at most one per CPU; with <code>proxies_per_worker</code> 1 or N: one per available proxy divided by N (<code>ceil(available / N)</code>), not capped by the CPUs; either way at most the tasks and, with OUT on object storage, at most 64 (<code>OBJECT_STORAGE_WORKERS</code>)</td>
+</tr>
+<tr>
+<td>without engines, with <code>--rate-limit</code> (a host with rate limits and no proxies)</td>
+<td>the reader's <code>auto_tasks</code>, else 1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>without engines, without <code>--rate-limit</code></td>
+<td>the reader's <code>auto_tasks</code>, else 1</td>
+<td>one per CPU, at most the tasks</td>
+</tr>
+</tbody>
+</table>
+<p>The available proxies are counted once at launch from one listing of the broker
+(<code>linecaster.runtime.run.available_proxies</code>): those in the file, less those with a live block or broken mark for the
+run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
+(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. Sharing
+the proxies fairly, a few workers use them all, so their count stops at the CPUs; with one proxy per worker (or up to
+N) using them all takes a worker per proxy (per N), and the workers mostly wait on the network, so their count is not
+capped by the CPUs. With OUT on object storage (any fsspec protocol but a local one: <code>s3://</code>, <code>gs://</code>, <code>hf://</code>,
+<code>az://</code>, ...) the count stops at <code>linecaster.runtime.run.OBJECT_STORAGE_WORKERS</code> (64) in both modes: in one setup,
+250 workers writing to S3-compatible object storage hung in their listings of <code>OUT/images</code> and fetched less than 64
+did, which ran cleanly; an observation from that setup, not a guarantee for others. The run states the count and why
+(<code>linecaster.runtime.run.workers_note</code>, e.g. <code>250 proxies available, OUT on object storage → 64 workers, a fair
+share each</code>, or <code>250 proxies available → 250 workers, 1 proxy each</code>). <code>--workers</code> overrides it (each worker is a
+process with its own memory).</p>
+<p><code>auto_tasks</code> is about 1,000 pages per task for <code>ImageParquetReader</code> and about 5 items per task for <code>ManifestReader</code>
+(<code>linecaster.blocks.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. The harvest
+(<code>pipelines/harvest.py</code>) asks its reader for one item per task (<code>task_per_item</code>): the tasks divide the items, an
+item's rows wherever they are in the table (<code>tables.item_runs</code>), so every item is whole in its task and a task that
+fails costs one item. With <code>--reuse</code> (off by default: on some object storage a listing is slow even for an empty
+folder, and only the items a stopped launch was in have anything to reuse) its reader also gets <code>reuse_folder</code>
+(<code>OUT/images</code>): when it reaches an item it lists the item's
+folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
+fetching it from the source (<code>linecaster.blocks.readers.existing</code>); only pages of interrupted items are read back, so
+egress stays small. The reader waits at most <code>LISTING_TIMEOUT</code> (60 s) for a listing (on object storage fsspec cancels
+it then on its IO loop): one that times out or fails is a warning and a stat (<code>reuse_listing_timeouts</code>,
+<code>reuse_listing_errors</code>), and the item's pages are fetched again, their files overwritten. Such a record is complete and says <code>image.extra.reused</code>; the console counts it as done but not in
+the rate. On a restart the console's size starts with the finished tasks' <code>media_size</code> from datatrove's stats files
+(<code>linecaster.runtime.local.size_before</code>, read in the background). Parquet tables are
+divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
+<code>--max-pages N</code> (<code>--parquet</code>, IMAGES; the readers' <code>max_pages</code>) reads the input as if it ended after its first N
+pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove.</p>
+<p><code>--rate-limit</code> holds per worker: each worker process has one fetcher with its limits (<code>HTTPFetcher.shared</code>), so a
+server sees the workers running at once times the limits; the run states it before it starts
+(<code>linecaster.runtime.run.rate_note</code>, e.g. <code>rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
+server</code>). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
+(<code>linecaster.net.http.prefetched</code>, at most <code>MAX_AHEAD</code>), and the fetcher, with its limits and the window it has
+grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFetcher.shared</code>). With <code>--proxies</code> the
+limits hold per proxy instead (below), and the run states that (<code>rate limits per proxy: 150/60 · 100 proxies → up to
+15,000/min at a server</code>; with fewer workers than proxies <code>· 10 of 100 proxies in use (1 proxy per worker)</code>).</p>
+<p><strong>Proxies.</strong> <code>--proxies FILE</code> sends the http(s) requests through a list of proxies, shared by the workers through the
+<a href="../broker/">broker</a> (<code>--broker PATH</code>, any fsspec folder, default <code>OUT/logs/broker</code>; runs pointed at one path share
+the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
+holds a fair share of them (<code>linecaster.net.proxies.ProxyPool</code>, <code>proxies_per_worker: share</code>, the default): of the
+proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by rebalancing,
+which also gives back what is beyond it when another worker joins. An HTTP policy's <code>proxies_per_worker</code> (per host or
+at the root; hosts that share a list share the setting) gives a worker one proxy instead (<code>1</code>: it claims a free one
+usable for the host and, when that one is blocked or broken, releases it and claims another at once), or up to N,
+claimed one by one; with output on local disk or a short list, one per worker and a worker per proxy is the simplest
+way to use them all. The host's rate limits hold per
+proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
+limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
+its own. A block (a 429, until its <code>Retry-After</code>, else for the host's <code>blacklist_ttl</code>, an hour by default; a status in
+<code>blacklist_on</code>; an HTML page where another format was expected, a resource's format or an image) is a mark in the
+broker for that host: the owner stops using the proxy there at once, releases it once it is blocked for every host it
+uses, and whoever claims it later sees the mark, so no worker sends a request into another's block, and a restarted
+run none into a block it found before. A broken proxy (a proxy error, no connection to it, <code>blacklist_threshold</code>
+failures in a row) is marked for every host for <code>blacklist_ttl</code>. A block does not count as an attempt and the request
+goes on through another proxy at once, so <code>max_retries</code> (retries after the first attempt) counts only the attempts
+that reached the server and failed there; a block page does not count toward the breaker either. A timeout is mostly
+a slow server: it is retried and leaves the proxy in. When none of a worker's proxies is usable for a host and none
+is free to claim, its requests to the host pause until a block ends or another worker gives a proxy back (one warning
+when the pause starts, one when it ends; the wait is in the fetch record's <code>pause_seconds</code>); a pause that would pass
+the host's <code>max_pause</code> (6 hours) stops the run (<code>StopRequests</code>) and says when the first proxy returns. An HTTP policy
+can set <code>blacklist_ttl: 72h</code>, <code>blacklist_threshold</code> and further statuses that block a proxy at the host
+(<code>blacklist_on: [403]</code>). The console shows the proxies the worker holds, those blocked and those free. On Ray each
+task is a process of its own; the next task on a machine takes over the worker slot the last one handed over, and
+with it its proxies. The file holds one proxy per line, a URL or <code>host:port[:user:pass]</code> as Webshare lists them; the
+run record keeps its name, logs show proxies without credentials (<code>linecaster.net.http.redact</code>), and the broker names
+them by a hash of host and port.</p>
+<p><strong>Failures.</strong> Each fetcher has a breaker (<code>linecaster.net.http.Breaker</code>): when most attempts of the last minute got a
+server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
+from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
+failing. A single server error is retried (with a proxy list without counting against the proxy it came through). A
+429 (a status in the host's <code>pause_on</code>) on a direct connection pauses the worker that got it
+(<code>linecaster.net.http.Pause</code>): its requests to that host wait until the response's <code>Retry-After</code> has passed (seconds
+or an HTTP-date; without one a minute, doubling while 429s keep coming, up to an hour), then the request that got it
+is tried again, without using up one of its retries; 429s for requests already in flight extend the pause, never
+shorten it. The pages wait instead of failing, and other workers go on. The log says when a pause starts (host,
+status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
+(<code>pause_seconds</code>). A worker that would pause more than the host's <code>max_pause</code> (6 hours) since its last successful
+response stops the run. Through proxies a 429 blocks that proxy at the host instead (above). A
+local task that fails is logged and the others go on (<code>LocalExecutor</code>); it runs again on the next launch. An error
+that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</code> failed tasks in a row in one worker stop the run.
+<code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.
+On Ray (<code>linecaster.runtime.ray.RayExecutor</code>) the same error stops the run through a marker in the logging folder
+(<code>stopped.json</code>): every task after it ends before its pipeline starts, so none sends a request into the block that
+stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
+Ray job does not end as succeeded. A new launch removes the marker.</p>
+<p><strong>Resources.</strong> <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files other than page images
+(<code>ResourceReader</code>): from URL templates per kind (<code>--resource marcxml=https://lccn.loc.gov/{item}/marcxml</code>) or a table
+with one row per resource (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>). Each is checked (XML, JSON or an image must parse;
+an HTML page where another format was expected fails and counts toward the breaker, or through proxies blocks that
+proxy at the host) and kept as a raw copy,
+<code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code> (<code>ResourceFilesWriter</code>), the reference later stages link to, with its fetch record in
+<code>OUT/resources/&lt;rank&gt;.jsonl.gz</code> (<code>ResourceRecordWriter</code>: source and final URL, status, type, size, <code>sha256</code>, ETag,
+Last-Modified, time). One item per task, <code>--max-items</code> for a smoke test, copies already there read back. <code>--http-policy FILE</code>
+gives the run's requests their settings from one YAML file (<code>linecaster.net.policy</code>): for every host at the root, and
+under <code>hosts:</code> an entry for each host that differs, whose fields replace the root's; the run's own options go between
+the two. The settings: rate limits (per proxy through proxies), proxies or direct, User-Agent, deadline, retries
+(<code>max_retries</code>), the broker (root only), how long and when a proxy is left out (<code>blacklist_ttl</code>, <code>blacklist_threshold</code>, <code>blacklist_on</code>),
+how many proxies a worker holds (<code>proxies_per_worker</code>: <code>share</code>, the default, 1 or N),
+<code>pause_on</code> statuses that pause the worker's requests until <code>Retry-After</code> has passed (default <code>[429]</code>) with
+<code>max_pause</code>, and <code>stop_on</code> statuses and <code>html</code> that stop the run without a retry (a status in both <code>pause_on</code>, or its
+default, and <code>stop_on</code> is refused; <code>pause_on: []</code> with <code>stop_on: [429]</code> stops on a 429). For <code>--items</code> and
+<code>--parquet</code>; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
+rate-limited host its workers follow the available proxies (above).</p>
+<h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
+<p>A local run (<code>--on local</code>, <code>linecaster.runtime.local.LocalExecutor</code>) shows on the terminal: one line naming the
+pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
+live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
+left) pinned to the terminal's top row, with everything else scrolling below it (a scroll region, <code>Pinned</code>), a line per finished task and a summary, in human units
+(<code>linecaster.runtime.console</code>). The <code>Progress</code> observer, which the runtime puts on every stage, counts the pages
+that leave the pipeline; with several workers each worker process reports its counts to the console about every
+second. Off a terminal the progress is a log line every 30 s instead.
+datatrove's own console output (its pipeline listing and stats block per task, the merged stats) goes only to the
+task logs (<code>OUT/logs/logs/task_&lt;rank&gt;.log</code>, in its full line format) and the stats files, which keep it whole. A launch
+lists the completion markers once instead of looking them up task by task.</p>
+<h2 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h2>
+<p><code>linecaster.runtime.secrets.EnvVar("NAME")</code> names an environment variable; the value is read in the task
+(<code>resolve()</code>), never stored: an <code>EnvVar</code> pickles by name, <code>to_dict()</code> writes <code>{"env": "NAME"}</code>.
+<code>Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})</code> (and
+<code>Chat(preset, endpoint, api_key=..., headers=...)</code> alike) sends <code>Authorization: Bearer &lt;key&gt;</code> and the headers with
+every request through saturate's <code>AdaptiveClient(headers=...)</code>;
+a key given as text is refused. A missing variable fails the block's warm-up.</p>
+<h2 id="the-item-stage">The item stage<a class="headerlink" href="#the-item-stage" title="Permanent link">&para;</a></h2>
+<p>The item-level steps follow a <code>Binder</code>; the usual shape (<code>pipelines/bind.py</code>, and <code>--item-texts</code> of
+<code>pipelines/transcribe_modular.py</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="p">[</span><span class="n">PageRecordReader</span><span class="p">(</span><span class="n">pages</span><span class="p">,</span> <span class="n">fetch_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">item_shards</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+ <span class="n">Binder</span><span class="p">(),</span>                                                  <span class="c1"># page records -&gt; item records</span>
+ <span class="n">Recomposer</span><span class="p">(</span><span class="s2">"unicode-recomposition@1"</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"item"</span><span class="p">),</span>        <span class="c1"># paragraphs continued across page breaks</span>
+ <span class="n">CharacterNormalizer</span><span class="p">(</span><span class="s2">"latin-historic@1"</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"item"</span><span class="p">),</span>      <span class="c1"># normalized lines, paragraphs, table cells</span>
+ <span class="n">Composer</span><span class="p">(</span><span class="s2">"docling-composition@1"</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"item"</span><span class="p">),</span>            <span class="c1"># the item's document</span>
+ <span class="n">ItemTextWriter</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s2">/texts"</span><span class="p">),</span>                            <span class="c1"># texts/&lt;variant&gt;/&lt;rank&gt;.jsonl.gz (format="files": &lt;item&gt;.txt|md)</span>
+ <span class="n">ItemDocumentWriter</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s2">/documents"</span><span class="p">,</span> <span class="n">formats</span><span class="o">=</span><span class="p">(</span><span class="s2">"md"</span><span class="p">,</span> <span class="s2">"txt"</span><span class="p">,</span> <span class="s2">"json"</span><span class="p">),</span> <span class="n">by_format</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>   <span class="c1"># documents/&lt;format&gt;/&lt;item&gt;.&lt;ext&gt;</span>
+</code></pre></div>
+<p>A <code>Splitter</code> after the item-level blocks passes each item's pages on as pages (e.g. to a <code>PageJsonlWriter</code>), with
+the paragraphs of the item recomposition.</p>
+<h2 id="page-records">Page records<a class="headerlink" href="#page-records" title="Permanent link">&para;</a></h2>
+<p>Stored page records are rows <code>{"schema": "linecaster.page/2", "id", "text", "page", "errors"}</code> (<code>PageJsonlWriter</code>,
+<code>PageParquetWriter</code>; <code>PAGE_SCHEMA</code> in <code>linecaster.data.page</code>). <code>PageRecordReader</code> brings older rows to today's format
+(<code>UPGRADES</code>, keyed by the row's <code>schema</code>, one version at a time): a <code>linecaster.page/1</code> row names a transcription's
+steps <code>model</code> (read as <code>steps</code>); a row without <code>schema</code> (the oldest format) names its transcription <code>ocr</code>, read as
+<code>ocr_new</code>; a <code>.../pages</code> folder without records is read from its sibling <code>rows/</code> (the folder's earlier name).</p>
+<h2 id="hf-jobs-helpers">HF Jobs helpers<a class="headerlink" href="#hf-jobs-helpers" title="Permanent link">&para;</a></h2>
+<p><code>linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)</code> spells out what a Job installs from a
+pipeline script's metadata; without a script it raises unless <code>engines=False</code> (linecaster alone). A derivative
+whose own pipeline needs the engine packages passes <code>ENGINE_SCRIPT</code> (the modular pipeline script of the checkout,
+<code>pipelines/transcribe_modular.py</code>), whose metadata lists every engine with its sources and pins.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
