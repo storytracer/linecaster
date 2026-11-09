@@ -1,2 +1,2 @@
 """linecaster: modular text recognition as datatrove pipelines."""
-__version__ = "0.0.1"
+__version__ = "0.2.0"

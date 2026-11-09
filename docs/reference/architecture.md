@@ -116,7 +116,7 @@ network and not parity"`, `linecaster catalog verify`, `linecaster docs` and the
 pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
 (`.github/workflows/docs.yml`) writes them too and publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
-with `latest` (the site's default) moved to it, and every push to `main` as version `dev`. The engines' environments are too large for it
+with `latest` (the site's default) moved to it; nothing else is published. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
 scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
 (`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public

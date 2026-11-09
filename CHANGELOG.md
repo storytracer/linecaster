@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.2.0 (2026-11-09)
 
 ### Upgrade notes
 
@@ -286,10 +286,17 @@ the tags; the first is `v0.1.0`.
   loopback answering given routes. `tests/test_page_engines_catalog.py` checks the page engines in the environment
   of `pipelines/transcribe_page.py`.
 - Versioned docs: the docs workflow publishes the site with mike to the `gh-pages` branch, served by GitHub Pages:
-  every release tag as version `<major>.<minor>` (`latest` the newest release, the default), every push to `main`
-  as `dev`; `mike` joins the dependency group `docs`.
+  every release tag as version `<major>.<minor>` (`latest` the newest release, the default); `mike` joins the
+  dependency group `docs`.
 - `pytest-xdist` joins the dependency group `dev`: `uv run pytest -n auto` runs the tests on every core, as CI does;
   a plain `uv run pytest` stays serial. CI keeps uv's cache between runs.
+
+### Changed
+
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`) 0.1.1 accept
+  linecaster `>=0.1,<0.3`; the engine API only gained the optional `image_input`.
+- The docs site publishes releases only; the reference for `main` is built in a checkout (`linecaster docs`, then
+  `mkdocs serve`).
 
 ### Fixed
 
