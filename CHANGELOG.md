@@ -293,6 +293,9 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- A blocked or broken proxy is marked in the broker and logged once per block: the requests already on their way
+  through it come back blocked too and go on through another proxy without a mark, a message or a failure of their own
+  (before, each rewrote the mark and logged the block again).
 - `ServiceServer` notices a service that exits while it boots at once, instead of at its next look at the health
   URLs (every 2 s).
 - A resumed harvest's listing of an item's folder in `OUT/images` (the images already written, to reuse) could hang

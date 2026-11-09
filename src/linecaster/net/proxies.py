@@ -24,7 +24,9 @@ How many proxies a worker holds is its ``per_worker`` setting (a host's ``proxie
 
 A block is a mark on the proxy for that host until the end the server asked for, a broken proxy one for every host
 (scope ``*``); the owner stops using the proxy there and releases it once it is blocked for every host the worker uses,
-and whoever claims it later sees the mark. With several hosts, a worker at its count whose proxies are all blocked for
+and whoever claims it later sees the mark. A proxy is marked and logged once per block: the requests that were already
+on their way through it when it was blocked come back blocked or broken too, and go on through another proxy without
+a mark or a message of their own. With several hosts, a worker at its count whose proxies are all blocked for
 one host swaps one of them for a free proxy usable for every host it uses, if there is one, and otherwise pauses that
 host's requests. ``pick`` chooses the owned proxy whose turn comes first and reserves its turn: requests through one
 proxy to one host are spread ``interval`` seconds apart (the host's strictest rate limit), and since nobody else uses
@@ -427,7 +429,8 @@ class ProxyPool:
     def block(self, proxy: str, host: str, seconds: float, **data) -> None:
         """Marks ``proxy`` blocked for ``host`` (``*``: every host) for ``seconds``: this worker stops using it there
         at once, and releases it when it is blocked for every host the worker uses (its next ``fill`` then claims
-        another at once).
+        another at once). Nothing happens while a block of the proxy there (or everywhere) holds already: the
+        request was on its way before that block was known.
 
         Args:
             proxy: the proxy URL.
@@ -438,6 +441,8 @@ class ProxyPool:
         pid = proxy_id(proxy)
         until = self.broker.clock() + seconds
         with self._lock:
+            if self._ends(pid, host) is not None:
+                return
             self._blocked[(pid, host)] = max(until, self._blocked.get((pid, host), -math.inf))
             hosts = self._hosts | ({host} if host != EVERY_SCOPE else set())
             everywhere = all(not self._usable(pid, h) for h in hosts)
@@ -461,7 +466,8 @@ class ProxyPool:
 
     def broken(self, proxy: str, threshold: int, seconds: float) -> None:
         """Counts a failure of ``proxy`` itself (a proxy error, no connection); after ``threshold`` in a row it is
-        marked for every host (``*``) for ``seconds``.
+        marked for every host (``*``) for ``seconds``. A failure while the proxy is left out everywhere already does not
+        count: the request was on its way before.
 
         Args:
             proxy: the proxy URL.
@@ -470,6 +476,8 @@ class ProxyPool:
         """
         pid = proxy_id(proxy)
         with self._lock:
+            if self._ends(pid, EVERY_SCOPE) is not None:
+                return
             self._failures[pid] = self._failures.get(pid, 0) + 1
             out = self._failures[pid] >= threshold
             if out:

@@ -97,10 +97,12 @@ def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_pa
         assert not any(failed(d) for d in docs) and len(docs) == 4
         assert sorted(served) == [f"http://library.test/p{i}.png" for i in range(1, 5)]   # all through the good one
         tries = [t for d in docs for t in d.metadata["trace"]["fetch"][0]["tries"]]
-        assert tries.count("no-response") == 1 and tries.count("200") == 4                 # the dead one, once
+        # the dead one: once, or more often if requests were on their way through it before its first failure
+        assert tries.count("no-response") >= 1 and tries.count("200") == 4
         assert reader._opener._fetcher.proxy_counts() == (1, 1, 0)            # held, blocked, free
         logged = "".join(str(x) for x in lines)
-        assert "blocked everywhere for 3600 s" in logged and "secret" not in logged and "***@127.0.0.1" in logged
+        assert logged.count("blocked everywhere for 3600 s") == 1                          # whatever was on its way
+        assert "secret" not in logged and "***@127.0.0.1" in logged
     finally:
         good.shutdown()
 

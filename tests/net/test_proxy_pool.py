@@ -180,6 +180,29 @@ def test_one_proxy_per_worker_each_holds_exactly_one_never_the_same(tmp_path):
     assert a.counts() == (1, 0, 2)                                              # held, blocked, free
 
 
+def test_a_proxy_is_marked_and_logged_once_per_block_whatever_was_on_its_way(tmp_path):
+    """The requests already on their way through a proxy when it is blocked come back blocked (or broken) too: no mark
+    and no message of their own, and no failure counted toward a broken proxy's threshold."""
+    a = worker(tmp_path, "a-0", PROXIES[:2])
+    a.fill("lccn.loc.gov")
+    lines = []
+    sink = logger.add(lines.append, level="INFO")
+    try:
+        for _ in range(5):
+            a.block(PROXIES[0], "lccn.loc.gov", 3600, status=429)
+        for _ in range(5):
+            a.broken(PROXIES[1], 1, 3600)
+        a.block(PROXIES[1], "lccn.loc.gov", 3600, status="html")              # left out everywhere already
+    finally:
+        logger.remove(sink)
+    marks = lambda p, scope: list((tmp_path / KIND / proxy_id(p) / "marks" / scope).iterdir())  # noqa: E731
+    assert len(marks(PROXIES[0], "lccn.loc.gov")) == 1 and len(marks(PROXIES[1], "*")) == 1
+    assert not (tmp_path / KIND / proxy_id(PROXIES[1]) / "marks" / "lccn.loc.gov").exists()
+    assert sum("blocked" in str(x) for x in lines) == 2
+    a.block(PROXIES[0], "www.loc.gov", 3600, status=429)                      # another host: a block of its own
+    assert len(marks(PROXIES[0], "www.loc.gov")) == 1
+
+
 def test_a_block_swaps_to_a_free_proxy_at_once_and_nobody_takes_the_blocked_one_until_its_mark_ends(tmp_path):
     offset = [0.0]
 
