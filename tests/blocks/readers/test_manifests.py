@@ -1,4 +1,4 @@
-"""Manifests (IIIF and METS) and http(s) images through pybookget (``linecaster[pybookget]``), against a small server
+"""Manifests (IIIF and METS) and http(s) images, against a small server
 on loopback: manifests are reader entries distributed over tasks in turn (an item's pages in one task), images at full
 size with the fallback on 404, failures counted, ``limit``/``skip`` before downloading; METS (plain and inside OAI-PMH)
 with its image file groups and existing ALTO; item tables; METS packages with local files; the harvest stage's image,
@@ -12,15 +12,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from PIL import Image
 
-pytest.importorskip("pybookget")
-
-from linecaster.blocks.base.page import image_bytes, page_of  # noqa: E402
-from linecaster.blocks.conversion import TranscriptionConverter  # noqa: E402
+from linecaster.blocks.base.page import image_bytes, page_of
+from linecaster.blocks.conversion import TranscriptionConverter
 from linecaster.blocks.readers.images import ImageFolderReader, ImageParquetReader
-from linecaster.blocks.readers.manifests import OCR_ORIGINAL, ManifestReader, manifest_item_id  # noqa: E402
-from linecaster.blocks.readers.records import PageRecordReader  # noqa: E402
+from linecaster.blocks.readers.manifests import OCR_ORIGINAL, ManifestReader, manifest_item_id
+from linecaster.blocks.readers.records import PageRecordReader
 from linecaster.blocks.writers.images import ImageFilesWriter
-from linecaster.blocks.writers.records import PageJsonlWriter  # noqa: E402
+from linecaster.blocks.writers.records import PageJsonlWriter
 from linecaster.errors import PipelineConfigError
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False}  # no proxy from the environment
@@ -304,13 +302,6 @@ def test_mets_pages_in_order_with_file_groups_and_existing_alto(server, tmp_path
     assert OCR_ORIGINAL not in lost.transcriptions                  # its ALTO failed; the page stays
 
 
-def needs_read_collection():
-    import pybookget.formats.manifest as m
-
-    if not hasattr(m, "read_collection"):
-        pytest.skip("this pybookget has no read_collection (uv run --with-editable ../pybookget)")
-
-
 def collection(base, name, members):
     return {"@context": "http://iiif.io/api/presentation/3/context.json", "id": f"{base}/{name}/manifest",
             "type": "Collection", "label": {"en": [name]},
@@ -318,7 +309,6 @@ def collection(base, name, members):
 
 
 def test_a_iiif_collection_is_read_as_its_manifests(server, tmp_path):
-    needs_read_collection()
     base = server["base"]
     a, b = publish(server, "a1", v3(base, "a1", ["f1"])), publish(server, "b2", v3(base, "b2", ["f1", "f2"]))
     top = publish(server, "flora", collection(base, "flora", [("Manifest", a), ("Manifest", b)]))
@@ -333,7 +323,6 @@ def test_a_iiif_collection_is_read_as_its_manifests(server, tmp_path):
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="one level of IIIF Collections so far")
 def test_a_collection_of_collections_is_read_as_their_manifests(server, tmp_path):
-    needs_read_collection()
     base = server["base"]
     a = publish(server, "a1", v3(base, "a1", ["f1"]))
     sub = publish(server, "sub", collection(base, "sub", [("Manifest", a)]))

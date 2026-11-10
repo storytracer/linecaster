@@ -354,7 +354,6 @@ class _Images(BaseHTTPRequestHandler):
 
 
 def test_fetches_become_spans_of_their_page(tmp_path: Path):
-    pytest.importorskip("pybookget")
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Images)
     threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
     try:

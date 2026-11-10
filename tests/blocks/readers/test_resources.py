@@ -12,13 +12,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-pytest.importorskip("pybookget")
-
-from linecaster.blocks.readers.resources import ResourceReader, check, expected_format  # noqa: E402
-from linecaster.blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter  # noqa: E402
-from linecaster.errors import PipelineConfigError, ServerError  # noqa: E402
-from linecaster.net.policy import HTTPPolicy  # noqa: E402
-from linecaster.net.http import close_shared  # noqa: E402
+from linecaster.blocks.readers.resources import ResourceReader, check, expected_format
+from linecaster.blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
+from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.net.policy import HTTPPolicy
+from linecaster.net.http import close_shared
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False}
 XML = b'<?xml version="1.0"?><record xmlns="http://www.loc.gov/MARC21/slim"><leader>x</leader></record>'

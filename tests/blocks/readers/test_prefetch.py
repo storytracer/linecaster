@@ -116,8 +116,6 @@ def test_stopping_early_cancels_the_window_and_closes_the_entries():
 
 # ---------------------------------------------------------------- ImageParquetReader over http(s)
 
-pytest.importorskip("pybookget")
-
 
 @pytest.fixture
 def slow_server():

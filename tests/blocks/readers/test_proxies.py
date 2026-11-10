@@ -9,14 +9,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-pytest.importorskip("pybookget")
+from loguru import logger
 
-from loguru import logger  # noqa: E402
-
-from linecaster.blocks.base.page import failed, page_of  # noqa: E402
-from linecaster.blocks.readers.images import ImageParquetReader  # noqa: E402
-from linecaster.net.http import close_shared, read_proxies, redact  # noqa: E402
-from linecaster.testing import sample_png  # noqa: E402
+from linecaster.blocks.base.page import failed, page_of
+from linecaster.blocks.readers.images import ImageParquetReader
+from linecaster.net.http import close_shared, read_proxies, redact
+from linecaster.testing import sample_png
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 3, "trust_env": False}
 

@@ -74,7 +74,6 @@ def test_a_file_that_cannot_be_read_is_the_pages_error():
 
 
 def test_the_builder_puts_a_converter_after_a_reader_that_brings_the_file(tmp_path):
-    pytest.importorskip("pybookget")
     from linecaster.blocks.readers import ManifestReader
     from linecaster.blocks.writers import PageJsonlWriter
     from linecaster.runtime.builder import build

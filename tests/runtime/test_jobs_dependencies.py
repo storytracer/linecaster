@@ -49,18 +49,18 @@ def test_git_sources_with_tag_branch_rev_and_subdirectory(tmp_path):
 def test_extras_markers_url_sources_and_plain_requirements(tmp_path):
     """linecaster's extras without ``ray`` (a Job does not use Ray), markers kept, a ``url`` source as it is (with its
     subdirectory), a requirement without a source as it is."""
-    s = script(tmp_path, ["linecaster[ray,pybookget]", "pybookget", "stub ; sys_platform == 'linux'", "tool>=1.0"], {
+    s = script(tmp_path, ["linecaster[ray,urlpkg]", "urlpkg", "stub ; sys_platform == 'linux'", "tool>=1.0"], {
         "linecaster": f'{{ git = "{REPO}", tag = "v0.3.2" }}',
-        "pybookget": '{ url = "https://example.org/pybookget.tar.gz" }',
+        "urlpkg": '{ url = "https://example.org/urlpkg.tar.gz" }',
         "stub": '{ url = "https://example.org/repo.tar.gz", subdirectory = "stubs/stub" }',
     })
     assert jobs.dependencies("abc123", s).requirements == [
-        f"linecaster[pybookget] @ git+{REPO}@v0.3.2",
-        "pybookget @ https://example.org/pybookget.tar.gz",
+        f"linecaster[urlpkg] @ git+{REPO}@v0.3.2",
+        "urlpkg @ https://example.org/urlpkg.tar.gz",
         "stub @ https://example.org/repo.tar.gz#subdirectory=stubs/stub ; sys_platform == 'linux'",
         "tool>=1.0",
     ]
-    assert jobs.dependencies("abc123", s, engines=False).requirements == [f"linecaster[pybookget] @ git+{REPO}@v0.3.2"]
+    assert jobs.dependencies("abc123", s, engines=False).requirements == [f"linecaster[urlpkg] @ git+{REPO}@v0.3.2"]
 
 
 def test_a_path_outside_the_checkout_is_an_error(tmp_path):
@@ -93,7 +93,7 @@ source = {{ git = "{REPO}?tag=v0.3.2#0123456789abcdef" }}
 dependencies = [{{ name = "numpy" }}]
 
 [package.optional-dependencies]
-pybookget = [{{ name = "pybookget" }}]
+urlpkg = [{{ name = "urlpkg" }}]
 ray = [{{ name = "rayish" }}]
 
 [[package]]
@@ -108,9 +108,9 @@ version = "7.1.post18"
 source = {{ git = "https://github.com/storytracer/kraken?rev=48eecb78#48eecb78a8e043b1c658042fcb7c357f68aa786c" }}
 
 [[package]]
-name = "pybookget"
+name = "urlpkg"
 version = "1.2.0"
-source = {{ url = "https://example.org/pybookget.tar.gz" }}
+source = {{ url = "https://example.org/urlpkg.tar.gz" }}
 
 [[package]]
 name = "rayish"
@@ -156,18 +156,18 @@ def test_the_installed_packages_own_sources_come_from_the_lock(tmp_path):
     """The sources the installed packages declare themselves (uv lock applied them, uv run --with would not): every
     package reachable from the script's dependencies that does not come from an index, a git one at its locked
     commit; extras count only when asked for (not ``ray``), and what is not reachable is left out."""
-    s = script(tmp_path, ["linecaster[ray,pybookget]", "linecaster-kraken"], {
+    s = script(tmp_path, ["linecaster[ray,urlpkg]", "linecaster-kraken"], {
         "linecaster": f'{{ git = "{REPO}", tag = "v0.3.2" }}',
         "linecaster-kraken": f'{{ git = "{REPO}", tag = "v0.3.2", subdirectory = "engines/kraken" }}',
     }, lock=LOCK)
     assert jobs.dependencies("abc123", s).requirements == [
-        f"linecaster[pybookget] @ git+{REPO}@v0.3.2",
+        f"linecaster[urlpkg] @ git+{REPO}@v0.3.2",
         f"linecaster-kraken @ git+{REPO}@v0.3.2#subdirectory=engines/kraken",
         "kraken @ git+https://github.com/storytracer/kraken@48eecb78a8e043b1c658042fcb7c357f68aa786c",
-        "pybookget @ https://example.org/pybookget.tar.gz",
+        "urlpkg @ https://example.org/urlpkg.tar.gz",
     ]
     assert jobs.dependencies("abc123", s, engines=False).requirements == [
-        f"linecaster[pybookget] @ git+{REPO}@v0.3.2", "pybookget @ https://example.org/pybookget.tar.gz"]
+        f"linecaster[urlpkg] @ git+{REPO}@v0.3.2", "urlpkg @ https://example.org/urlpkg.tar.gz"]
 
 
 def test_without_a_script():
@@ -180,7 +180,7 @@ def test_the_locks_index_packages_are_constraints_at_their_versions(tmp_path):
     """Every package the lock takes from an index and the requirements reach is pinned at the lock's version (a
     package held at several versions with its resolution markers); what only Ray reaches is not, nor what nothing
     reaches; without engines only what linecaster reaches."""
-    s = script(tmp_path, ["linecaster[ray,pybookget]", "linecaster-kraken"], {
+    s = script(tmp_path, ["linecaster[ray,urlpkg]", "linecaster-kraken"], {
         "linecaster": f'{{ git = "{REPO}", tag = "v0.3.2" }}',
         "linecaster-kraken": f'{{ git = "{REPO}", tag = "v0.3.2", subdirectory = "engines/kraken" }}',
     }, lock=LOCK)
@@ -203,7 +203,7 @@ def test_the_scripts_overrides_come_along(tmp_path):
 
 def test_the_launcher_script_carries_requirements_constraints_and_overrides(tmp_path):
     """``Dependencies.script`` is a uv script whose inline metadata holds the three, readable back as written."""
-    d = jobs.Dependencies([f"linecaster[pybookget] @ git+{REPO}@v0.3.2", "stub ; sys_platform == 'linux'"],
+    d = jobs.Dependencies([f"linecaster[urlpkg] @ git+{REPO}@v0.3.2", "stub ; sys_platform == 'linux'"],
                           ["numpy==2.3.0", "forked==1.0 ; (sys_platform == 'darwin')"], ["pillow==12.3.0"])
     path = tmp_path / "launch.py"
     path.write_text(d.script(jobs.LAUNCHER))
@@ -221,9 +221,9 @@ def test_a_derivatives_script_with_a_git_linecaster_needs_no_commit(tmp_path):
     stays required without a script, for linecaster's own scripts and for a source that points into the checkout."""
     from linecaster.runtime import run
 
-    s = script(tmp_path, ["linecaster[pybookget]"], {"linecaster": f'{{ git = "{REPO}", tag = "v0.3.2" }}'})
+    s = script(tmp_path, ["linecaster[urlpkg]"], {"linecaster": f'{{ git = "{REPO}", tag = "v0.3.2" }}'})
     assert not jobs.needs_commit(s)
-    assert jobs.dependencies(None, s).requirements == [f"linecaster[pybookget] @ git+{REPO}@v0.3.2"]
+    assert jobs.dependencies(None, s).requirements == [f"linecaster[urlpkg] @ git+{REPO}@v0.3.2"]
     own = jobs.ROOT / "pipelines" / "bind.py"
     assert jobs.needs_commit(own) and jobs.needs_commit(None)
     with pytest.raises(PipelineConfigError, match="--commit"):

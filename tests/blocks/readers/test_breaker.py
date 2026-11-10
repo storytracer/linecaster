@@ -8,11 +8,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-pytest.importorskip("pybookget")
-
-from linecaster.net import http as nethttp  # noqa: E402
-from linecaster.net.http import Breaker, close_shared  # noqa: E402
-from linecaster.testing import sample_png  # noqa: E402
+from linecaster.net import http as nethttp
+from linecaster.net.http import Breaker, close_shared
+from linecaster.testing import sample_png
 
 
 @pytest.fixture(autouse=True)
