@@ -2,6 +2,50 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Open items
+
+- A recipe of PaddleX and Tesseract presets for the engine-generalist modular script
+  (`pipelines/transcribe_modular.py`, which has no kraken), once it is decided what "tested" means for a recipe now
+  that evidence has left the catalog: for example a smoke test every recipe must pass (its pipeline built and run on
+  a few generated pages, without failed pages) before it is released.
+
+## Preparing 0.4.0: S3 in the core, reproducible Jobs (2026-11-10, aarch64 GB10)
+
+- `s3://` is core: linecaster depends on `datatrove[io,s3]` (datatrove's `s3` extra is s3fs) and has no `s3fs` extra.
+  Relocked with uv 0.13.6: torch unchanged in every lock (2.14.0 in `tests/test_engines_catalog.py`,
+  `tests/test_page_engines_catalog.py`, `pipelines/transcribe_page.py`, `tools/cuda_probe.py`; none elsewhere). The
+  four scripts that had the extra kept every version. `bind.py`, `launch.py` and the three test scripts gained s3fs
+  (2026.7.0; 2026.6.0 in `tests/test_engines_catalog.py`), aiobotocore 3.10.0, botocore 1.43.117, aioitertools 0.13.0,
+  jmespath 1.1.0 (and wrapt 2.5.2 where it was missing), and moved python-dateutil 4.0.0 → 2.9.0.post0 (botocore's
+  `python-dateutil<3`).
+- How a Job gets the lock's versions. datatrove's `JobsPipelineExecutor` (through `huggingface_hub.run_uv_job`) runs
+  `uv run --with REQ ... --python 3.12 launch_pickled_pipeline.py PIK` and passes nothing else to uv. With uv 0.13.6,
+  `uv run --with` ignored `UV_CONSTRAINT`, `UV_OVERRIDE` and the `constraint-dependencies` and
+  `override-dependencies` of a `UV_CONFIG_FILE`; `--with-requirements` with a `-c` line inside applied constraints,
+  but `run_uv_job` cannot pass it; a script's own `[tool.uv]` applied both. Pins as `--with name==version` would
+  install packages a lock holds only for other platforms (the locks have win32- and darwin-only ones) and cannot
+  override (surya-ocr's `pillow<11` against the lock's 12.3.0). Hence a launcher: a uv script named like datatrove's,
+  its inline metadata the requirements, the lock's index packages as `constraint-dependencies` (which only bound
+  what the requirements bring) and the script's `override-dependencies`, running datatrove's launcher.
+- Checked without a Job, for every pipeline script: `uv pip compile` of the requirements (linecaster and its engine
+  packages from the checkout in place of the archive), `-c` the constraints, `--override` the overrides, Python
+  3.12, linux x86_64 and aarch64 (`aarch64-manylinux_2_34`: onnxruntime-gpu's aarch64 wheels need it): every
+  resolved version is the lock's, nothing outside the lock. `transcribe_page.py` without the override does not
+  resolve; without the constraints 27 of its packages resolve to other versions. The launchers of `bind.py` and
+  `transcribe_page.py` ran with `uv run --python 3.12` (`--help`) and imported the lock's Pillow (13.0.0, 12.3.0)
+  and torch (2.14.0).
+- Not checked on HF Jobs: the launcher in a Job, the Jobs images' uv versions reading a script's `[tool.uv]`, and a
+  script environment in place of `uv run --with`'s, which is layered over the image's Python (the servers the
+  pipelines start come from the image's `PATH`, not from Python imports, so nothing should depend on the layering).
+- `--commit` is required only where it is used: without a script, for a script in the linecaster checkout and for a
+  source that points into the checkout. A derivative's script outside the checkout that takes linecaster from a git
+  tag, branch or rev runs on Jobs without it.
+- The six tests that failed on `main` (five in `test_allocate_proxies.py`, one in `test_tables.py`) patched
+  `os.cpu_count`, but since 0.3.1 the worker count uses `available_cpus` (affinity and cgroup quota): on a machine
+  with more CPUs than the test assumed the counts differed. The code was right; the tests now patch
+  `available_cpus`. `tests/test_engines_catalog.py` failed on `pp-doclayoutv3@1`, released before
+  `paddlex.layout.v1` had `reading_order`; the option is listed as added later, as kraken's `compile_backbone` is.
+
 ## linecaster as a generalist tool (2026-11-10)
 
 - linecaster names no collection, site, institution, project or machine; project-specific code, defaults and names
@@ -39,7 +83,7 @@ Measurements, decisions and open questions, newest first.
   `uv sync --script pipelines/transcribe_modular.py` removed it (then the run stops with the `CatalogError`).
 - The `squiddle` recipe against a server from `tests/test_engines_catalog.py`'s environment (kraken, PaddleX,
   Tesseract; `pipelines/transcribe_modular.py serve --recipe squiddle`) from the kraken-less script with
-  `--backend served --endpoint`: one page of the squiddle test scans, no failed pages. Not compared with an
+  `--backend served --endpoint`: one page of a folder of 17 mixed scans, no failed pages. Not compared with an
   in-process run.
 - The runs recorded here with `pipelines/transcribe_modular.py --recipe squiddle` ran at the linecaster commits they
   name, when the script had kraken.
@@ -195,22 +239,21 @@ furniture left out) scored the leaderboard's way with a fresh clone of the leade
 
 | volume | CERread @1 (XY-cut) | CERread @2 (XY-Cut++) |
 |---|---:|---:|
-| birdsofgreatbrit02butl | 0.0040 | 0.0040 |
-| conchologiaiconi05reev | 0.4712 | 0.2605 |
-| daschitinskelett00prel | 0.0123 | 0.0123 |
-| histoirenaturell10cuvi | 0.0058 | 0.0058 |
-| pisciumquerelaee00sche | 0.1374 | 0.1374 |
-| trudyrusskagoent161881russ | 0.0065 | 0.0065 |
+| book A | 0.0040 | 0.0040 |
+| book B | 0.4712 | 0.2605 |
+| book C | 0.0123 | 0.0123 |
+| book D | 0.0058 | 0.0058 |
+| book E | 0.1374 | 0.1374 |
+| book F | 0.0065 | 0.0065 |
 | all 60 pages: CERdip / CERread / recall | 0.1051 / 0.0924 / 0.9562 | 0.0730 / 0.0601 / 0.9563 |
 
-- The order changed on 16 of 60 pages; the reading CER on 5, all in conchologiaiconi05reev (two columns of species
-  descriptions with centered section titles): 8966818 0.5227 → 0.0089, 8967338 0.4362 → 0.0045, 8967305 0.3684 → 0.3565,
-  8967173 0.4715 → 0.4655, 8966900 (a plate page) 2.2329 → 2.2192. The other 11 changes are among page headers and
-  page numbers (top to bottom, left to right now), which the Markdown leaves out: birdsofgreatbrit02butl 8992407,
-  8992441, 8992463, 8992481, 8992549, 8992642; histoirenaturell10cuvi 4443566, 4443712, 4443732, 4443878;
-  trudyrusskagoent161881russ 12342240.
+- The order changed on 16 of 60 pages; the reading CER on 5, all in book B (two columns of species
+  descriptions with centered section titles): page B1 0.5227 → 0.0089, B2 0.4362 → 0.0045, B3 0.3684 → 0.3565,
+  B4 0.4715 → 0.4655, B5 (a plate page) 2.2329 → 2.2192. The other 11 changes are among page headers and page
+  numbers (top to bottom, left to right now), which the Markdown leaves out: six pages of book A, four of book D,
+  one of book F.
 - The page text (`Transcription.text`, furniture kept) moves the same way: CERread 0.0939 → 0.0617.
-- pisciumquerelaee00sche and the remaining conchologia pages stay far above PP-DocLayoutV3 with its learned order
+- Book E and the remaining pages of book B stay far above PP-DocLayoutV3 with its learned order
   (CERread 0.0270 for all 60 pages in the same chain, "More line recognizers" below);
   whether that is PP-DocLayout_plus-L's regions or what is left of their order was not investigated.
 - squiddle@1 after the change: `compare_goldens.py` 60 of 60 pages exact, 1,560 of 1,560 lines.
@@ -273,11 +316,11 @@ data (RESULTS.md gives the reading lane only).
   models (dots.mocr 550,085 in all, the full-resolution passthrough; LightOnOCR-3 172,552, the 2048-px thumbnail).
   Byte-identical completions: dots.mocr 47 of 60, LightOnOCR-3-4B 34, LightOnOCR-3-0.8B 28 (sampling at temperature
   0.1 and 0.2, no seed, on the leaderboard as here).
-- dots.mocr: the whole difference is one Piscium plate (9684345), for which this run's completion is empty (one
+- dots.mocr: the whole difference is one plate of book E, for which this run's completion is empty (one
   token, finish `stop`; the leaderboard's has the plate's captions, page CER 0.31). Without it, 0.0125 against 0.0125
   (reading) and 0.0247 against 0.0248 (diplomatic). Otherwise 4 pages worse and 4 better, all small.
 - LightOnOCR-3-4B: better than the leaderboard's on 12 pages, worse on 6, all small (at most 0.018 page CER).
-- LightOnOCR-3-0.8B: most of the difference is one Conchologia text page (8967173), where the leaderboard's completion
+- LightOnOCR-3-0.8B: most of the difference is one text page of book B, where the leaderboard's completion
   moves one species' block (synonymy and description) to the end of the page (page CER 0.230 against 0.018 here).
   Without it, 0.0312 against 0.0312 (reading).
 - No page reached its token cap (longest completions 1,320 of 16,384, 1,283 and 1,323 of 4,096), no errors, every
@@ -354,13 +397,13 @@ reading:
 | OXR-1.0 | RTX A6000, the leaderboard's image | 0.0380 | not published | - | 0.1104 |
 | Falcon-OCR | RTX A6000, the vendor image | 0.0775 | 0.1301 | 47 pages | 0.1384 |
 
-- Falcon-OCR: the gap is one plate page (8966788) on which the leaderboard's run looped (a numbered list from 101. to
+- Falcon-OCR: the gap is one plate page of book B on which the leaderboard's run looped (a numbered list from 101. to
   791., 5,466 characters, page CER 66.5) and this run did not (114 characters). Of the other 59 pages, 12 differ, by
   up to 0.07 page CER either way. The service reports no finish reason.
 - OXR-1.0: the leaderboard's outputs for these pages are not published (its bucket has no OXR row), so there is no
-  same-page comparison. Per volume here: Conchologia 0.118 and Piscium 0.116, the other four 0.006 to 0.014; the
-  leaderboard's full-benchmark number carries text read twice on Conchologia pages and runaway leader dots on three
-  Trudy index pages (the leaderboard's RESULTS.md).
+  same-page comparison. Per volume here: book B 0.118 and book E 0.116, the other four 0.006 to 0.014; the
+  leaderboard's full-benchmark number carries text read twice on book B's pages and runaway leader dots on three
+  index pages of book F (the leaderboard's RESULTS.md).
 - Surya: the blocks' confidences differ in the last digits on every page, so the raw JSON is never identical; no page
   fell back to block mode (the leaderboard's run: one).
 - Time per page, one page in flight: Indra 0.3 s (one GB10 core), Falcon-OCR 2.3 s, Surya 4.8 s, OXR 2.6 s. The
@@ -419,7 +462,7 @@ Scored the leaderboard's way with a fresh clone of the leaderboard's scoring har
   bytes on all 60 pages (same Pillow), and the prompt tokens equal the leaderboard's (96,718 in all; 1,372 to 1,786 per
   page). Completion tokens 27,163 against 27,153.
 - Page CER reading: worse than the leaderboard's on 16 pages, better on 5, equal on the rest. The largest difference is
-  one Conchologia plate (8966788), where this run also read the two engraver lines (page CER 0.79 against 0.38);
+  one plate of book B, where this run also read the two engraver lines (page CER 0.79 against 0.38);
   without that page 0.0198 against 0.0193. The others are small (at most 0.064 page CER, on a 61-character page), across all six volumes.
 - No page reached its token cap (longest completion 1,325 of 8,192 tokens), no errors.
 - Time: 291 s for the whole process (the uv environment, vLLM's start of 120 s with 19 s of torch.compile, then the
@@ -502,12 +545,12 @@ item-texts` (`Binder` → `Recomposer(unit="item")` → `CharacterNormalizer` �
 
 | Item | Pages | Paragraphs before | after | Decisions before | after | Differ | Only before | Only after | CER before | after |
 |---|---|---|---|---|---|---|---|---|---|---|
-| birdsofgreatbrit02butl | 341 | 1,392 | 1,521 | 287 | 268 | 54 | 19 | 0 | 0.0288 | 0.0287 |
-| conchologiaiconi05reev | 648 | 6,390 | 8,631 | 2,769 | 2,163 | 186 | 636 | 30 | 0.0705 | 0.0693 |
-| daschitinskelett00prel | 84 | 492 | 600 | 314 | 299 | 1 | 15 | 0 | 0.0388 | 0.0388 |
-| histoirenaturell10cuvi | 516 | 2,426 | 2,847 | 2,082 | 1,980 | 55 | 102 | 0 | 0.0475 | 0.0472 |
-| pisciumquerelaee00sche | 60 | 144 | 206 | 438 | 414 | 1 | 26 | 2 | 0.1491 | 0.1494 |
-| trudyrusskagoent161881russ | 516 | 3,096 | 3,843 | 3,155 | 2,994 | 17 | 163 | 2 | 0.0828 | 0.0827 |
+| book A | 341 | 1,392 | 1,521 | 287 | 268 | 54 | 19 | 0 | 0.0288 | 0.0287 |
+| book B | 648 | 6,390 | 8,631 | 2,769 | 2,163 | 186 | 636 | 30 | 0.0705 | 0.0693 |
+| book C | 84 | 492 | 600 | 314 | 299 | 1 | 15 | 0 | 0.0388 | 0.0388 |
+| book D | 516 | 2,426 | 2,847 | 2,082 | 1,980 | 55 | 102 | 0 | 0.0475 | 0.0472 |
+| book E | 60 | 144 | 206 | 438 | 414 | 1 | 26 | 2 | 0.1491 | 0.1494 |
+| book F | 516 | 3,096 | 3,843 | 3,155 | 2,994 | 17 | 163 | 2 | 0.0828 | 0.0827 |
 | all | 2,165 | 13,940 | 17,648 | 9,045 | 8,118 | 314 | 961 | 34 | 0.0615 | 0.0610 |
 
 - Paragraphs: the readable texts' blocks other than tables (a paragraph continued across regions or pages counts
@@ -520,7 +563,7 @@ item-texts` (`Binder` → `Recomposer(unit="item")` → `CharacterNormalizer` �
   `fusco-nigricante`, `au-dessous`, `Au-devant`, `lui¬|même` → `lui-même`, `semi¬|cercle` → `semi-cercle`; 3 the
   other way (`letter_follows`), marks at the foot of a page whose paragraph continues on the next page.
 - Only before (961): 834 rows ending in a hyphen after which the recomposition starts a new paragraph at an indented
-  row (hanging indents in species descriptions and references, most of them in conchologiaiconi05reev:
+  row (hanging indents in species descriptions and references, most of them in book B:
   `anfractibus nunc per-|paucis`), so the mark stays at the paragraph's end; 82 region ends the recomposition does
   not continue (`olive to red-` at the end of a region); 37 lines the old flow joined side by side within a row
   (index entries, `Calcarius lapponicus-|130`); 8 row ends inside a paragraph without a decision.
@@ -715,8 +758,8 @@ puts the recipe edition and hash into every `ModelInfo`, so page rows and ALTO/P
   pp-ocrv6-medium-det@1, kraken-ppocrv6-medium@1, slanet-plus@2, pp-formulanet-plus-l@1, text reflow. Its evidence:
   the goldens reproduced (sample-60 1,560/1,560 lines and tables-7 651/651, in-process and served).
   `uv run pipelines/chain.py IMAGES OUT --recipe <the derivative's checkout>/catalog/recipes/squiddle.md` on
-  sample-60: goldens 1,560/1,560, `squiddle@1` in every ALTO step and in `run.yaml`. `squiddle ocr` stamps the recipe
-  when its options are the recipe's.
+  sample-60: goldens 1,560/1,560, `squiddle@1` in every ALTO step and in `run.yaml`. The derivative's command stamps the
+  recipe when its options are the recipe's.
 - The recognizer comparison stays preset evidence (it varied one preset), with the rest of the pipeline as
   `context`.
 
@@ -852,7 +895,7 @@ assignment → *recognizer* → NFC → tables → typography → document → M
 | Tesseract best, `script/Latin` | 0.0430 | 0.0364 | 0.9131 | 132 s |
 | Tesseract best, `eng` | 0.0595 | 0.0516 | 0.8570 | 110 s |
 
-- kraken's port reads better than PaddleX's own runtime of the same model family on every volume but one (cuvier); the
+- kraken's port reads better than PaddleX's own runtime of the same model family on every volume but one (book D); the
   likely difference is the line image (kraken's polygon-based extraction against PaddleX's rectangle warp). Not
   investigated further.
 - PaddleX small is as good as medium here (0.0300 vs 0.0315): a 60-page sample, no conclusion about defaults.
@@ -862,8 +905,8 @@ assignment → *recognizer* → NFC → tables → typography → document → M
 
 ## A derivative's features in linecaster (2026-11-03, aarch64 GB10)
 
-Every feature and option of the derivative's 0.3 paddle pipeline (`squiddle legacy ocr --pipeline paddle`), where it
-lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `squiddle legacy`).
+Every feature and option of the derivative's 0.3 paddle pipeline (its legacy command with the paddle pipeline), where it
+lives now. eynollah and kraken's blla pipeline are out of scope (they stay in the derivative's legacy command).
 
 | 0.3 feature or option | status | where |
 |---|---|---|
@@ -889,15 +932,15 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | `-f hocr, alto, page` | already in linecaster | linecaster's lxml serializers (not kraken's, by design) |
 | `--detail word` | already in linecaster | the serializers' default (words are the finest level) |
 | `--detail line` | missing, built | `PageFilesWriter(detail="line")` (a word-less copy to the serializers) |
-| `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; squiddle's default becomes `word` |
+| `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; the derivative's default becomes `word` |
 | `--plots` | missing, built | `linecaster.images.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
 | processing settings in ALTO | already in linecaster | `ModelInfo` per step → ALTO `Processing` |
-| output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | the derivative's `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
-| status lines (typography and reflow counts), failed pages listed at the end | squiddle-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
+| output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | derivative-specific | the derivative's `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
+| status lines (typography and reflow counts), failed pages listed at the end | derivative-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
 
-**Parity.** `squiddle ocr` (the derivative's 0.4, now built from these blocks) against `squiddle legacy ocr` on the same
-machine and environment: sample-60 + tables-7 (67 pages), `squiddletest/scans` (17), `squiddletest/formulas`
-(12), each in 7 configurations (defaults with every format and plots; `--text lines --furniture --sections
+**Parity.** A derivative's command (its 0.4, now built from these blocks) against its legacy command on the same
+machine and environment: sample-60 + tables-7 (67 pages), a folder of 17 mixed scans, a folder of 12 formula
+pages, each in 7 configurations (defaults with every format and plots; `--text lines --furniture --sections
 --dividers --detail line`; `--no-typography --no-tables --no-formulas`; `--layout none`;
 `--layout-model PP-DocLayout_plus-L`; reflow with `--dividers --furniture`; `-m small --det-model
 PP-OCRv6_small_det --unclip-ratio 2.0 --batch-size 4` on scans and formulas), and the 6 books × 10 pages per
@@ -930,11 +973,11 @@ parity only). Scripts and outputs outside the repository.
   own (hOCR, PAGE), collapses double spaces between ALTO Strings, and clips line boxes to width − 1 / height − 1
   (one `--layout none` page whose line reaches the right edge). At `--detail line` kraken's ALTO has one
   box-less String per line, linecaster's one String with the line's box: same text and line boxes.
-- **Served** (`linecaster serve` with `squiddle models-config`, defaults, 96 pages and the 6 books): identical to
+- **Served** (`linecaster serve` with the derivative's models config, defaults, 96 pages and the 6 books): identical to
   in-process.
 - **Per document** (6 books, reflow / lines + sections + dividers / reflow + dividers + furniture / lines +
   furniture): without NFC md, txt, html, doclang and json identical for all 24 (furniture layer aside); with NFC
-  the lines combinations exact after NFC, reflow 4/6 books (histoirenaturell10cuvi, trudyrusskagoent: the NFC
+  the lines combinations exact after NFC, reflow 4/6 books (book D, book F: the NFC
   division marks, as above).
 
 - `--rtl` and `--device cpu` on one page (iiif_page_8, left to right): exact without NFC (kraken on the CPU at
@@ -1070,7 +1113,7 @@ as the leaderboard's row did) and the leaderboard lane (consolidate → normaliz
 - No region hit its token cap (LightOnOCR-2, a page model, looped on 16 % of region crops).
 - One sample-60 plate page has a single `image` region covering the page in linecaster's layout: nothing is read there.
 - tables-7: the 5 content pages score CERread 0.209 (recall 0.985); the aggregate 0.562 comes from the 2 sparse pages of
-  trudyrusskago, where both linecaster and the SDK read about 470 characters the GT does not transcribe (CER 74 on those pages).
+  book F, where both linecaster and the SDK read about 470 characters the GT does not transcribe (CER 74 on those pages).
 
 ## NFC step and item-level documents (2026-11-03, aarch64 GB10)
 
@@ -1088,9 +1131,9 @@ linecaster's NFC output pad identically. (Without `wcwidth`, `len()` would count
 the decomposed golden would pad one space less per such character.)
 
 **Item-level documents (`BindItem`, `ItemExportsWriter`).** Goldens made with the derivative
-itself on the 6 books of sample-60 (10 pages each, in `seq` order): `squiddle_books.py` (the derivative's own
-`build_pipeline` with the `squiddle ocr` command's defaults, then its `--per-document` branch) for four
-combinations; cross-checked against the real command (`squiddle ocr BOOK --per-document --text lines
+itself on the 6 books of sample-60 (10 pages each, in `seq` order): a script (the derivative's own
+`build_pipeline` with its command's defaults, then its `--per-document` branch) for four
+combinations; cross-checked against the derivative's command (`BOOK --per-document --text lines
 --sections --dividers -f md,txt,json`) for all 6 books: 18/18 files byte-identical.
 
 | combination | from the same page rows without NFC (md / txt / JSON) | from the chain with NFC (md / txt) |
@@ -1106,11 +1149,11 @@ combinations; cross-checked against the real command (`squiddle ocr BOOK --per-d
 - With NFC, reflow differs on 2 books, for a reason, not by accident: the derivative's `ends_with_mark`
   requires a letter before the hyphen, and in kraken's decomposed text that character is the combining
   accent (category Mn), so `mâ-`/`choire`, `sé-`/`pare`, `exté¬`/`rieur` kept their division marks.
-  After NFC they are removed (11 decisions: 9 in histoirenaturell10cuvi, 2 in trudyrusskagoent; one
+  After NFC they are removed (11 decisions: 9 in book D, 2 in book F; one
   then continues a paragraph that the golden had broken). NFC before reflow is the consistent choice and
   the better text; it stays. The item JSON also differs after NFC in charspans (lengths of NFC strings).
 - The derivative crashes on `--text reflow --sections` when a page has a title (confirmed with the
-  command on birdsofgreatbrit02butl: "Document hierarchy is inconsistent"): its reflow path re-parents
+  command on book A: "Document hierarchy is inconsistent"): its reflow path re-parents
   the title into a new section without detaching it. linecaster opens the section first and puts the
   title inside, as the lines mode does (a test covers it); this combination has no golden.
 - Docling renders a heading inside a section one `#` deeper (`### ` for level 2); the derivative's goldens
@@ -1171,7 +1214,7 @@ leaderboard's frozen scoring harness along the leaderboard's path (consolidation
 - 29 of the 60 completions are byte-identical to the `pump()` run, and 24 to the leaderboard's. Sampling is at
   temperature 0.2.
 - Run-to-run variance of `pump()` on sample-60 was CERread 0.026–0.030 on the common pages. The ChatPageStep result falls inside that range.
-- All the looped pages (`finish_reason=length`, 4,096 tokens) are in pisciumquerelaee00sche, on every stack.
+- All the looped pages (`finish_reason=length`, 4,096 tokens) are in book E, on every stack.
 
 Throughput, on the same 310 pages (every 7th of the 2,165 ground-truth images), run back to back against the same
 server while kraken-paddlex jobs shared the GPU:
@@ -1280,7 +1323,7 @@ Served is faster than in-process because the three models work on different page
 
 The chain through datatrove + saturate on HF Jobs scores CERdip 0.0551, CERread 0.0451, recall 0.9754 with the
 leaderboard's frozen scoring harness (the derivative's reference on the x86_64 RTX 4000 SFF Ada machine: 0.0587 /
-0.0432 / 0.9756). Most pages score identically; the CERread gap sits in index pages that are tables (conchologia): the
+0.0432 / 0.9756). Most pages score identically; the CERread gap sits in index pages that are tables (book B): the
 derivative's PaddleX table step writes them row by row, matching the ground truth's line structure, while linecaster
 has no table step yet and writes each cell as its own line. The table step is the next block to port.
 
@@ -1360,9 +1403,9 @@ per-page files (`<item>/<page>.hocr|.alto.xml|.page.xml|.txt|.md|.json`) and 18 
 
 - All 60 ALTO and 60 PAGE files validate against the schemas in `tests/schemas/`; the 60 hOCR files
   read back with `from_hocr` (1,560 lines, as recognized).
-- readable variants: ſ folded (`proſtrati` → `prostrati` on pisciumquerelaee), the as-written ſ kept
+- readable variants: ſ folded (`proſtrati` → `prostrati` on book E), the as-written ſ kept
   in verbatim_txt; line-end hyphens resolved (`Verbin-/dung`, `Meso-/pleurit`, `Differen-/zierung`
-  → joined, on daschitinskelett); page headers and numbers (`— 38 —`) gone from readable, kept in
+  → joined, on book C); page headers and numbers (`— 38 —`) gone from readable, kept in
   verbatim; pages separated by form feeds in verbatim only.
 - tables-7 (2 books): table regions appear as HTML tables in readable_md (cells span) and as
   tab-separated rows in readable_txt.
