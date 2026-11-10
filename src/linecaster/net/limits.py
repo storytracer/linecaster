@@ -43,8 +43,8 @@ class RateLimiter:
     def wait(self) -> float:
         """Seconds until every window has room (0: now)."""
         now = self._clock()
-        return max((sent[0] + s - now for (n, s), sent in zip(self.limits, self._sent) if len(sent) == n),
-                   default=0.0)
+        waits = [sent[0] + s - now for (n, s), sent in zip(self.limits, self._sent) if len(sent) == n]
+        return max([0.0, *waits])
 
     async def acquire(self) -> None:
         """Wait until a request may go out, and count it."""
