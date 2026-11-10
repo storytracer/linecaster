@@ -575,7 +575,8 @@ def test_the_cut_keeps_the_pipelines_item_shards_and_its_file_system():
 def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     pytest.importorskip("ray") if on == "ray" else None
     out = f"memory://lc/stages-{on}"
-    a = _args("images", out, "--tasks", "2", "--on", on, *(["--commit", "abc"] if on == "hf-jobs" else []))
+    jobs = ["--namespace", "ns", "--commit", "abc"] if on == "hf-jobs" else []
+    a = _args("images", out, "--tasks", "2", "--on", on, *jobs)
     blocks = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region@1"), run.pages(a), Binder(),
               ItemTextWriter("memory://lc/texts", variants=VERBATIM), ModelServer([])]
     p = run.build_plan(a, blocks)
@@ -589,3 +590,11 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     if on == "hf-jobs":
         assert (first.job_name, last.job_name) == ("linecaster-stages-hf-jobs-pages", "linecaster-stages-hf-jobs-items")
         assert type(first).__name__ == "JobsExecutor" and first.env["LINECASTER_LOG_JSON"] == "1"  # JSON lines
+        assert first.namespace == "ns"
+
+
+def test_hf_jobs_need_a_namespace_and_take_none_from_the_account():
+    with pytest.raises(SystemExit):
+        _args("images", "memory://lc/ns", "--on", "hf-jobs", "--commit", "abc")
+    assert _args("images", "memory://lc/ns", "--on", "hf-jobs", "--commit", "abc", "--namespace", "org").namespace == "org"
+    assert _args("images", "memory://lc/ns").namespace is None

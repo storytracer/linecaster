@@ -3,7 +3,7 @@ that runs one pipeline shape with slots for presets (``linecaster.pipelines``); 
 
     uv run pipelines/transcribe_modular.py IMAGES OUT                              # this machine
     uv run pipelines/transcribe_modular.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
-    uv run pipelines/transcribe_modular.py IMAGES OUT --on hf-jobs --commit <sha>   # Hugging Face Jobs
+    uv run pipelines/transcribe_modular.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha>   # Hugging Face Jobs
     uv run pipelines/transcribe_modular.py serve                                   # linecaster serve with its models
     uv run pipelines/transcribe_modular.py ray start --head                        # Ray's command line, same environment
 
@@ -201,7 +201,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "demand)")
     g = ap.add_argument_group("Hugging Face Jobs")
     g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed)")
-    g.add_argument("--namespace", default="finebooks")
+    g.add_argument("--namespace", default=None,
+                   help="the Hugging Face user or organization the Jobs run under and are billed to (required "
+                        "with --on hf-jobs; there is no default)")
     g.add_argument("--flavor", default="l4x1")
     g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
     g.add_argument("--tasks-per-job", type=int, default=None,
@@ -282,6 +284,8 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
     if a.on == "hf-jobs" and not a.commit:
         ap.error("--on hf-jobs needs --commit (pushed)")
+    if a.on == "hf-jobs" and not a.namespace:
+        ap.error("--on hf-jobs needs --namespace: the Hugging Face user or organization the Jobs run under")
     if a.backend is None:
         a.backend = "in-process" if a.on == "local" and not a.endpoint else "served"
     if getattr(a, "proxies", None):

@@ -11,7 +11,7 @@ GPU is needed: the steps are rule-based, each a preset (`--recipe item-texts` fi
     uv run pipelines/bind.py OUT1/pages OUT2 --recipe item-texts --tasks 64
     ... --set composition.sections=true          # an option over the preset's
     ... --no-documents                           # texts only (then --composition is not needed)
-    ... --on hf-jobs --commit <sha> --flavor cpu-upgrade --tasks 64
+    ... --on hf-jobs --namespace NS --commit <sha> --flavor cpu-upgrade --tasks 64
 
 Texts in OUT2/texts/<variant>/<rank>.jsonl.gz (with --files also OUT2/texts/<variant>/<item>.txt|.md), item
 documents in OUT2/documents/<format>/<item>.<ext>. ``linecaster.runtime.run`` has the options every pipeline shares

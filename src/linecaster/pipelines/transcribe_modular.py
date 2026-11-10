@@ -22,7 +22,7 @@ started from one.
     ... --files OUT/files --formats md,txt,json --naming squiddleocr --furniture    # squiddleocr's per-page files
     uv run pipelines/transcribe_modular.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
     uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8        # then --on ray --tasks 64
-    ... --on hf-jobs --commit <sha> --tasks 64
+    ... --on hf-jobs --namespace NS --commit <sha> --tasks 64
 
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """

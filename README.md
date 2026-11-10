@@ -128,7 +128,7 @@ where the time went.
 | 💻 this machine | none: models load inside the pipeline |
 | 🖥️ this machine, with a model server | `--backend served` |
 | 🧮 a Ray cluster | `--on ray --tasks 64` |
-| ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
+| ☁️ Hugging Face Jobs | `--on hf-jobs --namespace NS --commit <sha>` |
 | 🏛️ a Slurm cluster | from Python, with datatrove's `SlurmPipelineExecutor` ([below](#%EF%B8%8F-your-own-pipeline)) |
 
 On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
@@ -192,7 +192,7 @@ One GPU per Job; each Job installs Linecaster at a pushed commit with the pipeli
 ```bash
 uv run pipelines/transcribe_modular.py s3://bhl-open-data/images hf://buckets/<ns>/<bucket>/<run> $P \
   --paths-file hf://buckets/<ns>/<bucket>/pages.txt --env FSSPEC_S3_ANON=true \
-  --on hf-jobs --commit <sha> --tasks 4000 --workers 64
+  --on hf-jobs --namespace NS --commit <sha> --tasks 4000 --workers 64
 ```
 
 `--workers` Jobs run at once. `--flavor l4x4 --gpus 4` runs four tasks per Job. `--dry-run` launches nothing.

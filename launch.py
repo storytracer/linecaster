@@ -18,7 +18,7 @@ runs in and starts that pipeline's script, in the script's own environment.
                                                        # = pipelines/transcribe_modular.py ... --recipe squiddle, its kraken
                                                        # served from an environment with kraken (squiddleocr: squiddle.py serve)
     uv run launch.py squiddle@1 IMAGES OUT --recognition paddlex-ppocrv6-medium   # a slot on top: recorded as an override
-    uv run launch.py chandra-ocr-2 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
+    uv run launch.py chandra-ocr-2 IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --tasks 64
     uv run launch.py squiddle --help                   # the pipeline's options
 
 Everything after the name goes to the pipeline (``linecaster.runtime.run``), ``serve`` and ``ray`` too. Your own

@@ -482,6 +482,10 @@ steps `model` (read as `steps`); a row without `schema` (the oldest format) name
 
 ## HF Jobs helpers
 
+A launch with `--on hf-jobs` names `--commit` (pushed) and `--namespace`, the Hugging Face user or organization the
+Jobs run under and are billed to; neither has a default, and the namespace is not taken from the logged-in account,
+so the account a run spends is always the one its command line and run record name.
+
 `linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
 pipeline script, linecaster's or a derivative's, as `uv run --with` requirements: the script's dependencies with
 their sources as PEP 508 URLs (`url` as it is; `git` with its `tag`, `branch` or `rev` and its `subdirectory`, as
@@ -490,4 +494,4 @@ their sources as PEP 508 URLs (`url` as it is; `git` with its `tag`, `branch` or
 index (the sources the packages declare themselves: pybookget, the kraken fork at its locked commit, the OpenCV stub).
 linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need;
 without a script it raises unless `engines=False` (linecaster alone). A derivative's pipeline runs on Jobs from its
-own script (squiddleocr's `squiddle.py`, its sources pinned to a linecaster tag), read as it is on disk.
+own script (its sources pinned to a linecaster tag), read as it is on disk.

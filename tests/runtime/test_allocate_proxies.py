@@ -92,11 +92,11 @@ def test_up_to_n_per_worker_divides_the_available_proxies(tmp_path, no_cpus):
 def test_on_hf_jobs_the_proxies_do_not_set_the_workers(tmp_path, no_cpus):
     """Each worker of an HF Jobs run is a Job: a proxy list never turns into a Job per proxy."""
     a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"),
-                "--on", "hf-jobs", "--commit", "abc1234")
+                "--on", "hf-jobs", "--namespace", "ns", "--commit", "abc1234")
     run.allocate(a, [])
     assert a.workers == 1
     s3 = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"),
-                 "--on", "hf-jobs", "--commit", "abc1234", out="s3://bucket/run", proxies=MANY)
+                 "--on", "hf-jobs", "--namespace", "ns", "--commit", "abc1234", out="s3://bucket/run", proxies=MANY)
     run.allocate(s3, [])
     assert s3.workers == 1 and run.workers_note(s3) is None
 
