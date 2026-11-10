@@ -48,8 +48,8 @@ broker's marks hold the ends, not the waits). A timeout, mostly a slow server, a
 the backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
 attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
 requests to that host wait (a pause: one warning when it begins and one when it ends, the wait in ``pause_seconds``)
-until a block ends or another worker gives a proxy back; a pause that would pass the host's ``max_pause`` stops the run
-instead (``StopRequests``). Proxy URLs are never logged or written with their credentials (``redact``; the broker
+until a block ends or another worker gives a proxy back; once the waits since the host's last successful response
+would pass its ``max_pause`` (``PauseTotal``, as direct), the run stops instead (``StopRequests``). Proxy URLs are never logged or written with their credentials (``redact``; the broker
 names proxies by a hash, ``linecaster.net.proxies.proxy_id``).
 
 A fetcher pauses while its server fails (``Breaker``): when most recent attempts got a server error (5xx, Cloudflare's
@@ -58,15 +58,17 @@ first probe the server answers ends the pause. Requests waiting there count as w
 window does not grow, and their pages are delayed, not failed. The retries themselves are ``HTTPFetcher._attempts``'s
 (520-524 included).
 
-A fetcher also pauses at a block on a direct connection (``Pause``; through proxies the proxy is left out instead,
-above): the fetcher's requests wait until the block's end has passed (``block_wait``: ``Retry-After`` in seconds or
-as an HTTP-date, else 60 s doubling while the blocks keep coming, at most ``max_pause``). The request that got it
+A fetcher also pauses at a block on a direct connection (``Pause``, one per host; through proxies the proxy is left
+out instead, above): the fetcher's requests to that host wait until the block's end has passed (``block_wait``:
+``Retry-After`` in seconds or as an HTTP-date, else 60 s doubling while the blocks keep coming, at most
+``max_pause``). The request that got it
 waits out the pause and is tried again, without using up one of its retries (the retries never see the status: the
 response hook takes it first), and a block that comes for a request already in flight extends the pause, never
 shortens it. Requests waiting in a pause count as waiting for the rate limits, so the window does not
-grow. Other fetchers (other workers, other host settings) go on. A fetcher that would pause more than its host's
-``max_pause`` (``MAX_PAUSE``, 6 hours) in all since its last successful response stops the run instead
-(``StopRequests``).
+grow. Requests to other hosts and other fetchers (other workers, other host settings) go on. A fetcher whose requests
+to a host would wait more than the host's ``max_pause`` (``MAX_PAUSE``, 6 hours) in all since its last successful
+response stops the run instead (``StopRequests``): ``PauseTotal`` counts the pauses direct and the waits for a
+usable proxy through proxies, per host.
 
 A fetch that fails keeps its record too: it travels with the exception (``FETCH_KEY`` as an attribute, ``failed_fetch``),
 so a failed page's trace shows its attempts; and its message names what failed last (``after 5 attempts: HTTP 520``,
@@ -362,7 +364,7 @@ class _Ticket:
 
     def __init__(self, fetcher: HTTPFetcher, expect: str | None = None):
         self.fetcher, self.queued, self.expect = fetcher, False, expect
-        self.generation = 0                      # the fetcher's pauses begun when its attempt went out
+        self.generations: dict[str, int] = {}    # host -> its pauses begun when the attempt to it went out
 
     def queue(self, queued: bool) -> None:
         with self.fetcher._lock:
@@ -501,10 +503,12 @@ async def _headers(response) -> None:          # the first response hook: the he
             raise StopRequests(f"HTTP {status} from {response.request.url.host}: its policy stops "
                                "the run here (stop_on), without a retry")
         if status in fetcher.block_on and fetcher._proxies is None:     # a block on the direct path: a pause
+            host = response.request.url.host
             _trace(str(status))
-            fetcher.pause.hit(status, response.headers.get("retry-after"), ticket.generation,
-                              response.request.url.host)
-            raise Paused(f"HTTP {status} from {response.request.url.host}: requests pause")
+            pause = fetcher.pause_for(host)
+            pause.hit(status, response.headers.get("retry-after"), ticket.generations.get(host, pause.generation),
+                      host)
+            raise Paused(f"HTTP {status} from {host}: its requests pause")
         fetcher.breaker.record(status)
     record = _FETCH.get()
     if record is not None and record["tries"]:
@@ -660,7 +664,7 @@ def block_wait(asked: float | None, last: float | None, cap: float,
 
     Args:
         asked: the seconds the response's ``Retry-After`` asks for (``retry_after``), or None without one.
-        last: the last wait without ``Retry-After`` since the doubling started again (None: none).
+        last: the last wait without ``Retry-After`` since the doubling started again (None: none; ``doubling``).
         cap: the longest wait without ``Retry-After`` (``block_ttl`` through proxies, ``max_pause`` direct).
         first: the first wait without ``Retry-After``.
 
@@ -674,6 +678,23 @@ def block_wait(asked: float | None, last: float | None, cap: float,
     return wait, wait
 
 
+def doubling(last: float | None, ended: float | None, now: float) -> float | None:
+    """The doubling's last wait for a block that comes ``now`` (``block_wait``'s ``last``): ``last``, or None (start
+    again at the first wait) once the quiet period has passed: as long as ``last`` again after the last block there
+    ended (``ended``; any block, with ``Retry-After`` or without), with no block in between. A successful response
+    starts it again too (the callers forget ``last``). One rule on both paths: direct per host (``Pause``), through
+    proxies per proxy and host, shared through the broker (``linecaster.net.proxies.ProxyPool.block``).
+
+    Args:
+        last: the last wait without ``Retry-After``, or None.
+        ended: when the last block there ended (the clock of ``now``), or None.
+        now: the time now.
+    """
+    if last is None or ended is None or now - ended <= last:
+        return last
+    return None
+
+
 def _what(status: int | str) -> str:
     return f"HTTP {status}" if isinstance(status, int) else "an HTML page"
 
@@ -684,30 +705,69 @@ def _at(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
+class PauseTotal:
+    """What a host's ``max_pause`` counts, one definition for both paths: the seconds a worker's requests to the host
+    have spent waiting since the host's last successful response (``answered``), direct in pauses (``Pause``: the
+    length each block adds), through proxies waiting for a usable proxy (``HTTPFetcher._no_proxy``: the time no proxy
+    was usable there). Once the next wait would take it past ``max_total`` the run stops (``check``:
+    ``StopRequests``). The breaker's waits (an outage, ``Breaker``) do not count: each request waits one out at most
+    ``BREAKER_WAITS`` times, then fails. One per host and fetcher (``HTTPFetcher.total_for``); used from the
+    fetcher's event loop only."""
+
+    def __init__(self, max_total: float = MAX_PAUSE):
+        self.max_total, self.spent = max_total, 0.0
+
+    def check(self, more: float, why: str, host: str) -> None:
+        """``StopRequests`` if waiting another ``more`` seconds would take the total past ``max_total``; ``why``: what
+        the wait is for (``HTTP 429 from library.test``)."""
+        if self.spent + more > self.max_total:
+            raise StopRequests(
+                f"{why}: {host}'s requests waited {_duration(self.spent)} since its last successful response, and "
+                f"another {_duration(more)} would pass max_pause ({_duration(self.max_total)}): the run stops")
+
+    def add(self, seconds: float) -> None:
+        self.spent += max(0.0, seconds)
+
+    def answered(self) -> None:
+        """A successful response from the host: the count starts again."""
+        self.spent = 0.0
+
+
 class Pause:
-    """Pauses a fetcher's requests after a block on the direct path (a status in its host's ``block_on``, or an HTML
-    page with ``html`` there): ``hit`` starts the pause, for as long as ``block_wait`` says (the response's
+    """Pauses a fetcher's requests to one host after a block there on the direct path (a status in its ``block_on``,
+    or an HTML page with ``html`` there): ``hit`` starts the pause, for as long as ``block_wait`` says (the response's
     ``Retry-After``, else ``first_wait``, doubled for each block that comes for a request sent after the pause
-    before, at most ``max_total``); a block for a request already in flight when the pause began extends the pause to
-    its own end, never shortens it. While it lasts no request goes out (``wait``, in the request hooks before and
-    after the rate limits). ``max_total``: the most it pauses in all since the last successful response
-    (``answered``) before the next block stops the run (``StopRequests``); a pause that would pass it is not taken.
-    Kept apart from the ``Breaker`` (an outage: a share of server errors, probes): here the server says how long.
-    ``clock`` (monotonic), ``wall_clock`` (seconds since the epoch, for an HTTP-date) and ``sleep`` can be replaced in
-    tests. Used from the fetcher's event loop only."""
+    before, until a successful response or the quiet period of ``doubling``, at most ``max_total``); a block for a
+    request already in flight when the pause began extends the pause to its own end, never shortens it. While it lasts
+    no request to the host goes out (``wait``, in the request hooks before and after the rate limits); the fetcher's
+    requests to other hosts go on. ``total``: what counts toward ``max_pause`` (``PauseTotal``); a pause that would
+    take it past ``max_total`` is not taken, the run stops (``StopRequests``). Kept apart from the ``Breaker`` (an
+    outage: a share of server errors, probes): here the server says how long. ``clock`` (monotonic), ``wall_clock``
+    (seconds since the epoch, for an HTTP-date) and ``sleep`` can be replaced in tests. Used from the fetcher's event
+    loop only."""
 
     def __init__(self, first_wait: float = BLOCK_FIRST_WAIT, max_total: float = MAX_PAUSE,
                  clock: Callable[[], float] = time.monotonic, wall_clock: Callable[[], float] = time.time,
-                 sleep: Callable | None = None):
-        self.first_wait, self.max_total = first_wait, max_total
+                 sleep: Callable | None = None, total: PauseTotal | None = None):
+        self.first_wait = first_wait
+        self.total = total if total is not None else PauseTotal(max_total)
         self._clock, self._wall, self._sleep = clock, wall_clock, sleep or asyncio.sleep
         self.until: float | None = None          # monotonic; None: no pause (or its end announced)
         self.status: int | str | None = None     # what began the pause now: a status, or ``html``
         self.host = ""
         self.generation = 0                      # the pauses begun
-        self.spent = 0.0                         # seconds paused since the last successful response
-        self._wait: float | None = None          # the last wait without Retry-After; None: none since that response
+        self._wait: float | None = None          # the last wait without Retry-After; None: the doubling starts again
+        self._ended: float | None = None         # when the last pause ended (monotonic), for ``doubling``
         self._began: float | None = None
+
+    @property
+    def max_total(self) -> float:
+        return self.total.max_total
+
+    @property
+    def spent(self) -> float:
+        """Seconds paused since the host's last successful response (``PauseTotal``)."""
+        return self.total.spent
 
     def remaining(self) -> float:
         """Seconds until the pause ends (0: none)."""
@@ -728,31 +788,30 @@ class Pause:
         if asked is None and self._wait is not None and not fresh:
             asked = self._wait                   # in flight when the pause began: the same wait, not doubled
         else:
-            asked, self._wait = block_wait(asked, self._wait, self.max_total, self.first_wait)
+            last = doubling(self._wait, self._ended, now) if fresh else self._wait
+            asked, self._wait = block_wait(asked, last, self.max_total, self.first_wait)
         ongoing = self.paused
         added = now + asked - (self.until if ongoing else now)
         if added <= 0:                           # within the pause already
             return
-        if self.spent + added > self.max_total:
-            raise StopRequests(
-                f"{_what(status)} from {host}: paused {_duration(self.spent)} since its last successful response, "
-                f"and another {_duration(added)} would pass max_pause ({_duration(self.max_total)}): the run stops")
-        self.spent += added
+        self.total.check(added, f"{_what(status)} from {host or 'the host'}", host or "the host")
+        self.total.add(added)
         if ongoing:
             logger.debug("{what} from {host}: the pause lasts until {until}", what=_what(status), host=host,
                          until=_at(self._wall() + asked))
         else:
             self.generation += 1
             self._began, self.status, self.host = now, status, host
-            logger.warning("{what} from {host}: requests pause for {wait}, until {until}", what=_what(status),
+            logger.warning("{what} from {host}: its requests pause for {wait}, until {until}", what=_what(status),
                            host=host, wait=_duration(asked), until=_at(self._wall() + asked))
-        self.until = now + asked
+        self.until = self._ended = now + asked
 
     def answered(self, generation: int) -> None:
         """A successful response to a request that went out when ``generation`` pauses had begun: if it went out
         after the last pause, the count toward ``max_total`` and the doubling start again."""
         if generation == self.generation and not self.paused:
-            self.spent, self._wait = 0.0, None
+            self.total.answered()
+            self._wait = None
 
     def _announce_end(self) -> None:
         if self.until is not None and self._clock() >= self.until:
@@ -782,21 +841,23 @@ def _paused_for(seconds: float) -> None:
 async def _turn(request) -> None:               # a request hook, before the rate limits': the pause, the breaker
     if (ticket := _TICKET.get()) is not None:
         fetcher = ticket.fetcher
-        _paused_for(await fetcher.pause.wait())
+        pause = fetcher.pause_for(request.url.host)
+        _paused_for(await pause.wait())
         await fetcher.breaker.wait_turn()
-        _paused_for(await fetcher.pause.wait())   # one begun while the breaker held the request
+        _paused_for(await pause.wait())           # one begun while the breaker held the request
 
 
 async def _hold(request) -> None:               # a request hook, right after the rate limits'
-    """A pause that began while the request waited for the rate limits holds it too; after the pause it waits for
-    them again, so the requests held do not go out at once."""
+    """A pause of the request's host that began while it waited for the rate limits holds it too; after the pause it
+    waits for them again, so the requests held do not go out at once."""
     if (ticket := _TICKET.get()) is not None:
-        fetcher = ticket.fetcher
-        while fetcher.pause.paused:
-            _paused_for(await fetcher.pause.wait())
+        fetcher, host = ticket.fetcher, request.url.host
+        pause = fetcher.pause_for(host)
+        while pause.paused:
+            _paused_for(await pause.wait())
             if fetcher._limiter is not None:
                 await fetcher._limiter.acquire()
-        ticket.generation = fetcher.pause.generation
+        ticket.generations[host] = pause.generation
 
 
 _SHARED: dict[tuple, HTTPFetcher] = {}
@@ -853,8 +914,9 @@ class HTTPFetcher:
         self.stop_on = frozenset(stop_on or ())
         self.block_on = frozenset(BLOCK_ON if block_on is None else block_on) - self.stop_on
         self.block_ttl, self.broken_after, self.broken_ttl = block_ttl, broken_after, broken_ttl
-        self.first_wait = first_wait
-        self.pause = Pause(first_wait, max_pause, clock=clock, wall_clock=wall_clock, sleep=self._sleep)
+        self.first_wait, self.max_pause = first_wait, max_pause
+        self._pauses: dict[str, Pause] = {}                 # host -> its pause (direct)
+        self._totals: dict[str, PauseTotal] = {}            # host -> what counts toward its max_pause
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()
@@ -865,7 +927,7 @@ class HTTPFetcher:
         self._client = asyncio.run_coroutine_threadsafe(client(), self._loop).result()
         self._proxies: ProxyPool | None = None
         self._proxy_clients: dict[str, object] = {}
-        self._no_proxy_since: float | None = None          # monotonic: since when no proxy is usable here
+        self._no_proxy_since: dict[str, float] = {}        # host -> since when no proxy is usable there (``clock``)
         if proxy_file:
             from .. import broker as brokers
             from .proxies import shared_pool
@@ -904,6 +966,30 @@ class HTTPFetcher:
                                  follow_redirects=True, http2=True, proxy=proxy, trust_env=config.trust_env,
                                  limits=httpx.Limits(max_keepalive_connections=config.max_keepalive_connections),
                                  event_hooks={"request": request, "response": response})
+
+    def total_for(self, host: str) -> PauseTotal:
+        """What counts toward ``host``'s ``max_pause`` (``PauseTotal``), on either path; changed in the event loop
+        only."""
+        total = self._totals.get(host)
+        if total is None:
+            with self._lock:
+                total = self._totals.setdefault(host, PauseTotal(self.max_pause))
+        return total
+
+    def pause_for(self, host: str) -> Pause:
+        """``host``'s pause (``Pause``; direct, a block pauses only the requests to its host); changed in the event
+        loop only."""
+        pause = self._pauses.get(host)
+        if pause is None:
+            total = self.total_for(host)
+            with self._lock:
+                pause = self._pauses.setdefault(host, Pause(self.first_wait, clock=self._clock, wall_clock=self._wall,
+                                                            sleep=self._sleep, total=total))
+        return pause
+
+    def pauses(self) -> list[Pause]:
+        """The pauses of the hosts this fetcher has sent requests to (direct)."""
+        return list(self._pauses.values())
 
     def proxy_counts(self) -> tuple[int, int, int] | None:
         """(proxies this worker holds, blocked, free) with a proxy list (``ProxyPool.counts``), else None."""
@@ -1011,32 +1097,41 @@ class HTTPFetcher:
                 ticket.queue(False)
 
     def _no_proxy(self, host: str) -> float:
-        """No proxy is usable for ``host``: the pause begins (one warning) or goes on; returns how long to sleep before
-        looking again. ``StopRequests`` when it would pass ``max_pause`` (a block that ends later, and no proxy that
-        other workers hold), or has."""
+        """No proxy is usable for ``host``: the wait begins (one warning) or goes on; returns how long to sleep before
+        looking again. ``StopRequests`` when the wait would take the host's ``PauseTotal`` past ``max_pause``: when no
+        proxy that other workers hold is usable there and the first block ends too late (or none ends), or once it
+        has."""
         now = self._clock()
         first, others, free = self._proxies.outlook(host)
         if free:                                         # one to claim at the next fill: no pause
             return FILL_WAIT
-        if self._no_proxy_since is None:
-            self._no_proxy_since = now
+        since = self._no_proxy_since.get(host)
+        if since is None:
+            since = self._no_proxy_since[host] = now
             log = logger.warning if first is not None else logger.info
             log("no proxy usable for {host}: {why}; its requests wait{until}", host=host,
                 why=(f"{others} held by other workers" if first is None else
                      f"the others blocked or held by other workers ({others})"),
                 until=f", the first block ends in {_duration(first)}" if first is not None else "")
-        spent, most = now - self._no_proxy_since, self.pause.max_total
-        if spent > most or (others == 0 and (first is None or spent + first > most)):
-            back = f"the first returns in {_duration(first)}" if first is not None else "none returns"
-            raise StopRequests(f"no proxy left for {host}: every one is left out ({back}), beyond max_pause "
-                               f"({_duration(most)}); the run stops instead of failing every item that follows")
+        total, waited = self.total_for(host), now - since
+        if others == 0 and first is None:
+            raise StopRequests(f"no proxy left for {host}: every one is left out and none returns; the run stops "
+                               "instead of failing every item that follows")
+        if others == 0:                                  # the wait still to come: until the first block ends
+            ahead, why = first, f"no proxy left for {host}: every one is left out (the first returns in " \
+                                f"{_duration(first)})"
+        else:
+            ahead, why = 0.0, f"no proxy usable for {host}: the others are held by other workers ({others})"
+        total.check(waited + ahead, why, host)
         return max(0.05, min(PROXY_POLL, first if first is not None else PROXY_POLL))
 
     def _proxy_usable(self, host: str) -> None:
-        if self._no_proxy_since is not None:
+        since = self._no_proxy_since.pop(host, None)
+        if since is not None:
+            waited = self._clock() - since
+            self.total_for(host).add(waited)
             logger.warning("a proxy is usable for {host} again after {paused}: its requests go on", host=host,
-                           paused=_duration(self._clock() - self._no_proxy_since))
-            self._no_proxy_since = None
+                           paused=_duration(waited))
 
     def _backoff(self, failed: int, error: BaseException | None) -> float:
         """The wait after the ``failed``-th failed attempt: ``retry_wait_min * 2**(failed-1)``, at most
@@ -1103,8 +1198,11 @@ class HTTPFetcher:
                             pool.block(proxy, host, retry_after(asked, self._wall()), cap=self.block_ttl,
                                        first=self.first_wait, status="html")
                             continue
-                        self.pause.hit("html", asked, ticket.generation if ticket else self.pause.generation, host)
-                        raise Paused(f"an HTML page from {host}: requests pause")
+                        where = response.request.url.host
+                        pause = self.pause_for(where)
+                        generation = ticket.generations.get(where, pause.generation) if ticket else pause.generation
+                        pause.hit("html", asked, generation, where)
+                        raise Paused(f"an HTML page from {where}: its requests pause")
                     last = html
                 else:
                     try:
@@ -1116,8 +1214,11 @@ class HTTPFetcher:
                     else:
                         if proxy is not None:
                             pool.answered(proxy, host)         # the doubling of its blocks there starts again
-                        elif ticket is not None:
-                            self.pause.answered(ticket.generation)
+                            self.total_for(host).answered()
+                        elif ticket is not None:               # every host that answered on the way (redirects)
+                            for r in (*response.history, response):
+                                where = r.request.url.host
+                                self.pause_for(where).answered(ticket.generations.get(where, -1))
                         return response
             attempts += 1
             if attempts > self.config.max_retries:
@@ -1192,7 +1293,7 @@ def pause_left() -> tuple[float, str] | None:
     """(seconds until it ends, what began it: ``HTTP 429``, ``an HTML page``) of the pause of this process's fetchers that ends first (``Pause``); None
     when none is paused."""
     with _SHARED_LOCK:
-        pauses = [(f.pause.remaining(), _what(f.pause.status)) for f in _SHARED.values() if f.pause.paused]
+        pauses = [(p.remaining(), _what(p.status)) for f in _SHARED.values() for p in f.pauses() if p.paused]
     return min(pauses) if pauses else None
 
 

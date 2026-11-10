@@ -70,14 +70,17 @@ def A(status: int = 200, body: str = "png", retry_after=None, location: str | No
 
 class Site:
     """Scripted answers per path (each request takes the next; the last repeats), served directly (``base``) and through
-    two proxies (``proxy_file``), which note the requests they carried (``carried``)."""
+    two proxies (``proxy_file``), which note the requests they carried (``carried``). A key ``(n, path)`` scripts what
+    proxy ``n`` (1 or 2) answers there, counted per proxy. ``address``: the loopback address the servers listen on
+    (``127.0.0.2``: a second host for the direct path)."""
 
-    def __init__(self, tmp_path, clocks: Clocks, script: dict[str, list[dict]]):
+    def __init__(self, tmp_path, clocks: Clocks, script: dict, address: str = "127.0.0.1"):
         self.script, self.clocks, self.lock, self.counts = script, clocks, threading.Lock(), {}
+        self.address = address
         self.carried: dict[int, list[str]] = {0: [], 1: [], 2: []}      # 0: direct
         self.servers = [self._server(n) for n in range(3)]
-        self.base = f"http://127.0.0.1:{self.servers[0].server_address[1]}"
-        self.proxies = [f"127.0.0.1:{s.server_address[1]}" for s in self.servers[1:]]
+        self.base = f"http://{address}:{self.servers[0].server_address[1]}"
+        self.proxies = [f"{address}:{s.server_address[1]}" for s in self.servers[1:]]
         self.proxy_file = str(tmp_path / "proxies.txt")
         (tmp_path / "proxies.txt").write_text("".join(f"{p}\n" for p in self.proxies))
 
@@ -90,10 +93,12 @@ class Site:
 
             def do_GET(self):
                 path = urlsplit(self.path).path
+                own = (n, path) in site.script                # this proxy's own script
                 with site.lock:
                     site.carried[n].append(path)
-                    k = site.counts[path] = site.counts.get(path, 0) + 1
-                answers = site.script.get(path, [A()])
+                    key = (n, path) if own else path
+                    k = site.counts[key] = site.counts.get(key, 0) + 1
+                answers = site.script[(n, path)] if own else site.script.get(path, [A()])
                 a = answers[min(k, len(answers)) - 1]
                 body = {"png": png, "html": HTML, "empty": b""}[a["body"]]
                 self.send_response(a["status"])
@@ -114,7 +119,7 @@ class Site:
                 except OSError:                                # the client cut the attempt
                     pass
 
-        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        httpd = ThreadingHTTPServer((self.address, 0), Handler)
         threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         return httpd
 
@@ -130,8 +135,8 @@ class Site:
 def site(tmp_path):
     made = []
 
-    def make(script: dict[str, list[dict]], clocks: Clocks) -> Site:
-        made.append(Site(tmp_path, clocks, script))
+    def make(script: dict, clocks: Clocks, address: str = "127.0.0.1") -> Site:
+        made.append(Site(tmp_path, clocks, script, address))
         return made[-1]
 
     yield make
@@ -139,10 +144,35 @@ def site(tmp_path):
         s.close()
 
 
-def fetcher(s: Site, via: str, clocks: Clocks, tmp_path, **settings) -> HTTPFetcher:
-    """A fetcher with linecaster's defaults (no policy file), direct or through the two proxies (both held)."""
+def fetcher(s: Site, via: str, clocks: Clocks, tmp_path, clocked_broker: bool = False, **settings) -> HTTPFetcher:
+    """A fetcher with linecaster's defaults (no policy file), direct or through the two proxies (both held).
+    ``clocked_broker``: the broker runs on the clocks' wall clock too (its leases never expire), so the proxies'
+    blocks end as the fetcher's waits pass."""
     proxies = {"proxy_file": s.proxy_file, "broker": str(tmp_path / "broker")} if via == "proxies" else {}
+    if clocked_broker and via == "proxies":
+        pool_on(clocks, proxies["broker"], s.proxy_file)
     return HTTPFetcher(trust_env=False, **proxies, **clocks.kwargs(), **settings)
+
+
+def pool_on(clocks: Clocks, folder: str, proxy_file: str, worker: str | None = None):
+    """The process's shared broker for ``folder`` (``linecaster.broker.shared``) and proxy pool for ``proxy_file``
+    (``linecaster.net.proxies.shared_pool``) on the clocks: the broker on the wall clock, with leases that never
+    expire (they are written and renewed on the real clock), the pool on the monotonic clock, listing the broker at
+    every look for a proxy."""
+    import os
+
+    from linecaster import broker as brokers
+    from linecaster.net import proxies
+    from linecaster.net.http import read_proxies
+
+    b = brokers.Broker(folder, worker=worker, clock=clocks.wall_clock, lease_ttl=1e9)
+    with brokers._SHARED_LOCK:
+        brokers._SHARED[(os.getpid(), folder)] = b
+    listed = read_proxies(proxy_file)
+    pool = proxies.ProxyPool(b, listed, clock=clocks.clock, fill_seconds=0, keep_alive=False)
+    with proxies._POOLS_LOCK:
+        proxies._POOLS[(os.getpid(), id(b), tuple(listed))] = pool
+    return pool
 
 
 def dead_port() -> int:
@@ -199,7 +229,7 @@ def test_a_soft_404_is_a_failed_attempt_retried_then_the_page_fails(site, tmp_pa
         assert "an HTML page (text/html; charset=utf-8, " in str(error) and "where an image was expected" in str(error)
         assert record["tries"] == ["200-html"] * 5 and record["attempts"] == 5
         assert backoffs(clocks) == [2, 4, 8, 16] and "pause_seconds" not in record
-        assert marks(tmp_path) == [] and not f.pause.paused
+        assert marks(tmp_path) == [] and not any(p.paused for p in f.pauses())
     finally:
         f.close()
 
@@ -276,7 +306,7 @@ def test_a_429_without_retry_after_direct_pauses_60_s_then_doubles(site, tmp_pat
         outcome, response, record = fetch(f, s.url("/p1.png", "direct"))
         assert outcome == "ok" and record["tries"] == ["429", "429", "200"]
         assert record["pause_seconds"] == 180 and sum(clocks.sleeps) == 180 and max(clocks.sleeps) <= 1
-        assert f.pause.generation == 2 and not f.pause.paused
+        assert f.pause_for("127.0.0.1").generation == 2 and not f.pause_for("127.0.0.1").paused
         clocks.sleeps.clear()
         assert fetch(f, s.url("/p2.png", "direct"))[2]["pause_seconds"] == 60       # answered: 60 s again
     finally:
@@ -393,6 +423,103 @@ def test_a_broken_proxy_is_left_out_after_broken_after_errors_in_a_row(site, tmp
         assert all(r[0] == "ok" for r in results)
         assert sum(r[2]["tries"].count("no-response") for r in results) == failures
         assert marks(tmp_path) == [("*", 300, "broken")] and backoffs(clocks) == [2] * failures
+    finally:
+        f.close()
+
+
+# ---------------------------------------------------------------- max_pause: one count on both paths
+
+STRICT = {"block_on": [429, "html"]}
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_permanent_html_page_under_the_strict_policy_stops_after_max_pause(site, tmp_path, via):
+    """``block_on: [429, html]`` and a page that is always HTML: direct the worker pauses 60, 120, 240, 480 s; through
+    proxies both are left out as long each time and the requests wait for the first to return. Either way the waits
+    since the host's last successful response add up (900 s), and the next (960 s) would pass ``max_pause`` (1000 s):
+    the run stops, at the same point on both paths, instead of waiting forever."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(body="html")]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, clocked_broker=True, max_pause=1000, **STRICT)
+    try:
+        outcome, error, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "error" and isinstance(error, StopRequests)
+        assert "would pass max_pause (16 min 40 s)" in str(error) and "waited 15 min 00 s" in str(error)
+        assert record["pause_seconds"] == 900 and sum(clocks.sleeps) == 900
+        if via == "direct":
+            assert record["tries"] == ["200-html"] * 5 and str(error).startswith("an HTML page from 127.0.0.1")
+            assert f.total_for("127.0.0.1").spent == 900
+        else:
+            assert record["tries"] == ["200-html"] * 10 and [len(s.carried[n]) for n in (1, 2)] == [5, 5]
+            assert str(error).startswith(f"no proxy left for {HOST}: every one is left out (the first returns in 16 min")
+            assert f.total_for(HOST).spent == 900
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_host_that_recovers_in_time_starts_the_count_again(site, tmp_path, via):
+    """The first page waits 180 s in blocks, then comes through: the count starts again, so the second page may wait
+    another 180 s under a ``max_pause`` of 300 s (360 s in all would pass it)."""
+    clocks = Clocks()
+    if via == "direct":           # pauses of 60 and 120 s
+        script = {"/p1.png": [A(429, "empty"), A(429, "empty"), A()], "/p2.png": [A(429, "empty"), A(429, "empty"), A()]}
+    else:                         # both proxies left out 60 s, then 120 s; through each proxy its own answers
+        script = {(n, p): [A(429, "empty"), A(429, "empty"), A()] for n in (1, 2) for p in ("/p1.png", "/p2.png")}
+    s = site(script, clocks)
+    f = fetcher(s, via, clocks, tmp_path, clocked_broker=True, max_pause=300)
+    host = "127.0.0.1" if via == "direct" else HOST
+    try:
+        first = fetch(f, s.url("/p1.png", via))
+        assert first[0] == "ok" and first[2]["pause_seconds"] == 180 and f.total_for(host).spent == 0
+        second = fetch(f, s.url("/p2.png", via))
+        assert second[0] == "ok" and second[2]["pause_seconds"] >= 120 and f.total_for(host).spent == 0
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_several_hosts_are_counted_separately(site, tmp_path, via):
+    """``max_pause`` 200 s. One host only blocks: it waits 60 and 120 s, and the next wait (240 s) stops the run for
+    it. Then another host blocks before it answers: its own wait counts from 0, so it comes through, where 180 s and
+    its wait together would have passed ``max_pause``; nor did the first host's pauses hold its requests."""
+    clocks = Clocks()
+    if via == "direct":           # the two hosts: two loopback addresses
+        a = site({"/p1.png": [A(429, "empty")]}, clocks)
+        b = site({"/p2.png": [A(429, "empty"), A(429, "empty"), A()]}, clocks, address="127.0.0.2")
+        f = fetcher(a, via, clocks, tmp_path, max_pause=200)
+        urls, hosts, waited = (a.url("/p1.png", via), b.url("/p2.png", via)), ("127.0.0.1", "127.0.0.2"), 180
+    else:                         # the proxies answer for any host
+        a = site({"/p1.png": [A(429, "empty")], "/p2.png": [A(429, "empty"), A(429, "empty"), A()]}, clocks)
+        f = fetcher(a, via, clocks, tmp_path, clocked_broker=True, max_pause=200)
+        urls, hosts, waited = (f"http://{HOST}/p1.png", f"http://images.{HOST}/p2.png"), (HOST, f"images.{HOST}"), 60
+    try:
+        outcome, error, record = fetch(f, urls[0])
+        assert outcome == "error" and isinstance(error, StopRequests) and record["pause_seconds"] == 180
+        assert f.total_for(hosts[0]).spent == 180
+        outcome, response, record = fetch(f, urls[1])
+        assert outcome == "ok" and record["pause_seconds"] == waited and f.total_for(hosts[1]).spent == 0
+        assert f.total_for(hosts[0]).spent == 180                       # the first host's count is its own
+    finally:
+        f.close()
+
+
+def test_a_success_through_another_proxy_starts_the_count_again(site, tmp_path):
+    """Through proxies the count is the host's, not a proxy's. Proxy 1 is left out (60 s, then 120 s) and proxy 2
+    for its ``Retry-After`` (100 s): the requests wait 100 s; then proxy 2 carries a successful response, and the
+    host's count starts again. The next page waits 60 s more (proxy 2 blocked again): fine under a ``max_pause`` of
+    150 s, where 160 s since the first block would have stopped the run."""
+    clocks = Clocks()
+    s = site({(1, "/p1.png"): [A(429, "empty")], (2, "/p1.png"): [A(429, "empty", retry_after="100"), A()],
+              (2, "/p2.png"): [A(429, "empty"), A()]}, clocks)
+    f = fetcher(s, "proxies", clocks, tmp_path, clocked_broker=True, max_pause=150)
+    try:
+        first = fetch(f, s.url("/p1.png", "proxies"))
+        assert first[0] == "ok" and first[2]["pause_seconds"] == 100 and f.total_for(HOST).spent == 0
+        assert s.carried[1] == ["/p1.png", "/p1.png"] and s.carried[2] == ["/p1.png", "/p1.png"]
+        second = fetch(f, s.url("/p2.png", "proxies"))
+        assert second[0] == "ok" and second[2]["pause_seconds"] == 60 and second[2]["tries"] == ["429", "200"]
+        assert s.carried[1] == ["/p1.png", "/p1.png"]                    # proxy 1 still left out
     finally:
         f.close()
 

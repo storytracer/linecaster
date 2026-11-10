@@ -89,6 +89,36 @@ def test_without_retry_after_the_wait_doubles_while_the_status_keeps_coming():
     assert p.remaining() == 10
 
 
+def test_the_doubling_starts_again_after_its_quiet_period():
+    """``doubling``: a block that comes within as long as the last wait after the last block ended doubles it; one
+    that comes later starts at the first wait again (no successful response in between)."""
+    from linecaster.net.http import doubling
+
+    assert doubling(None, None, 0) is None and doubling(120.0, None, 0) == 120.0
+    assert doubling(120.0, 1000.0, 1120.0) == 120.0 and doubling(120.0, 1000.0, 1120.5) is None
+    clocks = Clocks()
+    p = pause(clocks, first_wait=10, max_total=1000)
+    p.hit(429, None, generation=p.generation)
+    clocks.advance(10 + 10)                                           # ended 10 s ago: within the quiet period
+    p.hit(429, None, generation=p.generation)
+    assert p.remaining() == 20
+    clocks.advance(20 + 21)                                           # ended 21 s ago: past it
+    p.hit(429, None, generation=p.generation)
+    assert p.remaining() == 10 and p.spent == 40
+
+
+def test_a_pause_holds_one_hosts_requests_and_counts_toward_its_max_pause_only():
+    """Direct, each host has its own pause and its own count toward ``max_pause`` (``PauseTotal``)."""
+    fetcher = HTTPFetcher(**FAST)
+    try:
+        a, b = fetcher.pause_for("a.library.test"), fetcher.pause_for("b.library.test")
+        assert a is fetcher.pause_for("a.library.test") and a is not b and a.total is fetcher.total_for("a.library.test")
+        a.hit(429, "30", generation=0, host="a.library.test")
+        assert a.paused and not b.paused and a.spent == 30 and b.spent == 0
+    finally:
+        fetcher.close()
+
+
 def test_statuses_for_requests_in_flight_extend_the_pause_and_never_shorten_it():
     clocks = Clocks()
     p = pause(clocks, first_wait=10)
@@ -168,7 +198,7 @@ def test_a_429_pauses_the_fetcher_and_its_request_is_tried_again():
     fetcher = HTTPFetcher(max_retries=0, **FAST)
     try:
         first = fetcher.submit(base + "/a")
-        until(lambda: fetcher.pause.paused)
+        until(lambda: fetcher.pause_for("127.0.0.1").paused)
         hit = seen[0][1]
         later = [fetcher.submit(f"{base}/p{i}") for i in range(3)]
         response = first.result(timeout=10)
@@ -178,7 +208,7 @@ def test_a_429_pauses_the_fetcher_and_its_request_is_tried_again():
         assert 0.8 < record["pause_seconds"] < 2.0 and record["wait_seconds"] < 0.5
         assert all(f.result(timeout=10).status_code == 200 for f in later)
         assert all(t - hit > 0.9 for path, t in seen[1:])               # none went out during the pause
-        assert not fetcher.pause.paused
+        assert not fetcher.pause_for("127.0.0.1").paused
     finally:
         fetcher.close()
         httpd.shutdown()
@@ -205,12 +235,12 @@ def test_a_429_to_one_fetcher_does_not_pause_another():
     paused, other = HTTPFetcher(**FAST), HTTPFetcher(**FAST)          # two workers' fetchers
     try:
         first = paused.submit(base + "/a")
-        until(lambda: paused.pause.paused)
+        until(lambda: paused.pause_for("127.0.0.1").paused)
         t = time.monotonic()
         response = other.get(base + "/b")
         assert response.status_code == 200 and time.monotonic() - t < 0.5
         assert "pause_seconds" not in response.extensions["linecaster.fetch"]   # only a fetch that paused has it
-        assert paused.pause.paused and not other.pause.paused
+        assert paused.pause_for("127.0.0.1").paused and not other.pause_for("127.0.0.1").paused
         assert first.result(timeout=10).status_code == 200
     finally:
         paused.close()
@@ -247,7 +277,7 @@ def test_block_on_empty_leaves_a_429_to_the_retries():
     try:
         with pytest.raises(Exception, match="429"):
             fetcher.get(base + "/a")
-        assert len(seen) == 2 and not fetcher.pause.paused
+        assert len(seen) == 2 and not fetcher.pause_for("127.0.0.1").paused
     finally:
         fetcher.close()
         httpd.shutdown()

@@ -203,7 +203,8 @@ hosts:
     assert ("other hosts: through proxies, a fair share per worker, 60/60 per proxy, 7 retries, User-Agent "
             "HF-Research/1.0, blocks on 429: the proxy left out for the host for Retry-After, else 1 min doubling up "
             "to 1 h, a proxy broken after 3 errors in a row, left out 5 min doubling up to 1 h; no usable proxy: "
-            "waits, at most 6 h, unexpected HTML retried, stops on 403" in described)
+            "waits, at most 6 h since the host's last successful response, unexpected HTML retried, stops on 403"
+            in described)
     assert policy.rate_limited()
 
 

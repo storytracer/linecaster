@@ -358,7 +358,7 @@ def rules(s: dict) -> str:
         after = s.get("broken_after", BROKEN_AFTER)
         parts.append(f"a proxy broken after {after} error{'s' if after != 1 else ''} in a row, left out "
                      f"{duration(s.get('broken_ttl', BROKEN_TTL))} doubling up to {duration(ttl)}; no usable proxy: "
-                     f"waits, at most {duration(pause)}")
+                     f"waits, at most {duration(pause)} since the host's last successful response")
     if "html" not in block and "html" not in stop:
         parts.append("unexpected HTML retried")
     if stop:
