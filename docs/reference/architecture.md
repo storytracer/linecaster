@@ -124,6 +124,10 @@ scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, 
 block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
+An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
+engines/<engine>/tests`. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
+mkdocs serve`.
+
 ## Pipeline scripts
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
