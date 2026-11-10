@@ -2,6 +2,29 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The pipeline shapes in the package (2026-11-10, spark)
+
+Every pipeline script's code moved into `linecaster.pipelines` (`harvest`, `transcribe_modular`, `transcribe_vlm`,
+`transcribe_page`, `bind`); each script is now its PEP 723 block, a docstring and `run.main` with its shape's names,
+so a derivative's script can run a shape (squiddleocr's `squiddle.py` runs `transcribe_modular` with its own
+defaults). Why a package of shapes and not a helper per pipeline: the glossary's "pipeline" is the list of blocks a
+run builds, and the scripts were already "one per pipeline shape"; the term **pipeline shape** names the code, and the
+package and file names follow the pipeline ids (`linecaster.pipelines.transcribe_modular`, `transcribe_modular.v1`).
+
+- `pipeline_sha256` (describe mode) before and after the move, for 13 command lines over the five shapes (the
+  modular pipeline with and without the squiddle recipe, with `--files`, `--item-texts --tasks 2`, served; bind with
+  the item-texts recipe; harvest with manifests and resources; the VLM pipeline per page and per region; the page
+  engine pipeline): all unchanged; `--recipe squiddle` stays `sha256:9ffdb240…3d31`. The help texts of all five,
+  byte-identical. The generated docs: identical apart from the shape now named on each pipeline page.
+  `linecaster catalog verify`: OK.
+- The modular pipeline's `--files` then gained `PageFileWriter(skip_failed=True)` (squiddleocr's
+  `FailedPagesDropped`, as a writer parameter: a block dropping failed pages in front of the files would also keep them
+  from the item stage in one task, but not after the builder's cut, where the item stage reads the page records). Its
+  hash with `--files` changes (`--recipe squiddle --files F`: `sha256:146a4bc5…0479` → `sha256:9e1893f6…833d`);
+  without `--files`, not.
+- The squiddle goldens (7c8a052) with `pipelines/transcribe_modular.py --recipe squiddle` after both changes:
+  sample-60 1,560 of 1,560 lines, 60 of 60 pages exact; tables-7 651 of 651, 7 of 7 exact.
+
 ## Many harvest workers writing to object storage (2026-11-09, a cloud VM, 250 proxies)
 
 Observed on one harvest (`pipelines/harvest.py`, a proxy list of 250, OUT on S3-compatible object storage), not a
