@@ -24,7 +24,7 @@ from ...net.http import fetch_record, is_url, prefetched
 from .existing import ExistingImages, Reused, mark_reused
 from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
-from ..base.page import new_page_document
+from ..base.page import NOT_THE_PAGES, new_page_document
 
 
 #: characters an item id keeps (it names a folder); others become "_"
@@ -323,7 +323,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                 manifest = read_manifest(data, self.manifest_format, iiif_format=c.iiif_format,
                                          iiif_quality=c.iiif_quality, image_groups=tuple(c.mets_image_groups),
                                          ocr_groups=tuple(c.mets_ocr_groups))
-        except NotImplementedError:
+        except (NotImplementedError, *NOT_THE_PAGES):            # the run's problem, not the manifest's: stop
             raise
         except Exception as e:  # noqa: BLE001 - a broken manifest must not stop the task
             logger.warning("manifest {ref}: {error_type}: {error}", ref=ref, error_type=type(e).__name__,
@@ -407,6 +407,10 @@ class ManifestReader(Contracted, BaseDiskReader):
             reused = isinstance(response, Reused)
             if reused:                                 # read from its existing file; the source is still its URI
                 response = _Local(response.data, resolve(page.url, item["url"]))
+        except NOT_THE_PAGES:                         # a stop (stop_on, max_pause, no proxy left), a config error
+            if ocr is not None:
+                ocr.cancel()
+            raise
         except Exception as e:  # noqa: BLE001 - logged and counted; the task goes on
             logger.warning("page {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
                            url=page.url, error_type=type(e).__name__, error=str(e))
@@ -443,6 +447,8 @@ class ManifestReader(Contracted, BaseDiskReader):
                                        url=str(raw.url), media_bytes=raw.content,
                                        metadata={"format": page.ocr_format}))
                 self.stat_update("ocr")
+            except NOT_THE_PAGES:
+                raise
             except Exception as e:  # noqa: BLE001 - the page goes on without it
                 logger.warning("ocr {item_id} {index}: {url}: {error_type}: {error}", item_id=item_id, index=page.index,
                                url=page.ocr_url, error_type=type(e).__name__, error=str(e))

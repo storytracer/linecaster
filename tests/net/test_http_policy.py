@@ -763,3 +763,55 @@ def test_the_http_policy_option_is_taken_by_every_input_that_fetches(tmp_path, o
     import pickle
 
     assert pickle.loads(pickle.dumps(reader))                       # executors pickle it: no fetcher, no thread
+
+
+# ---------------------------------------------------------------- what stops a run stops it from every reader
+
+
+@pytest.mark.parametrize("what", ["manifest", "image", "ocr"])
+def test_a_stop_stops_a_manifests_run_whatever_it_fetches(site, tmp_path, what):
+    """``stop_on: [403]`` and a 403 for the manifest, an image or an OCR file: the run stops (``StopRequests``, a
+    ``ServerError``), it is not one more failed manifest or page."""
+    from linecaster.blocks.readers.manifests import ManifestReader
+    from linecaster.errors import ServerError
+
+    clocks = Clocks()
+    s = site({}, clocks)
+    body = json.loads(manifest(s.base, ["p1"]))
+    body["items"][0]["seeAlso"] = [{"id": f"{s.base}/p1.xml", "type": "Dataset", "format": "application/xml",
+                                    "profile": "http://www.loc.gov/standards/alto/"}]
+    s.script["/item1/manifest"] = [A(403, "empty") if what == "manifest" else A(body=json.dumps(body).encode())]
+    s.script["/p1.png"] = [A(403, "empty") if what == "image" else A()]
+    s.script["/p1.xml"] = [A(403, "empty") if what == "ocr" else A(body=b"<alto/>", ctype="application/xml")]
+    reader = reader_for("manifests", tmp_path, s.base, {"trust_env": False, **clocks.kwargs()},
+                        policy_file(tmp_path, "stop_on: [403]\n"))
+    reader.existing_ocr = True
+    with pytest.raises(ServerError, match="HTTP 403 from 127.0.0.1: its policy stops the run here"):
+        list(reader.run())
+
+
+@pytest.mark.parametrize("kind", ["parquet", "items", "manifests", "pages"])
+@pytest.mark.parametrize("problem", ["missing policy", "unknown field", "missing proxy list"])
+def test_a_configuration_error_stops_every_reader(site, tmp_path, kind, problem):
+    """A policy file that is not there, an HTTP field linecaster does not know (one of pybookget's) or a proxy list
+    that cannot be read: a ``PipelineConfigError`` that stops the run, never a failed page or manifest."""
+    clocks = Clocks()
+    s = site({"/item1/manifest": [A(body=manifest("http://127.0.0.1:9", ["p1"]))]}, clocks)
+    http, policy = {"trust_env": False}, None
+    if problem == "missing policy":
+        policy = str(tmp_path / "nowhere.yaml")
+    elif problem == "unknown field":
+        http["show_progress"] = False
+    else:
+        http.update(proxy_file=str(tmp_path / "no-proxies.txt"), broker=str(tmp_path / "broker"))
+    reader = reader_for(kind, tmp_path, s.base, http, policy)
+    with pytest.raises(PipelineConfigError):
+        list(reader.run())
+
+
+def test_a_fetcher_that_cannot_be_made_leaves_no_thread_behind(tmp_path):
+    before = sum(1 for t in threading.enumerate() if t.name == "linecaster-http")
+    for _ in range(3):
+        with pytest.raises(FileNotFoundError):
+            HTTPFetcher(proxy_file=str(tmp_path / "no-proxies.txt"), broker=str(tmp_path / "broker"))
+    assert sum(1 for t in threading.enumerate() if t.name == "linecaster-http") == before

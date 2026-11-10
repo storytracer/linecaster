@@ -403,7 +403,14 @@ class Fetchers:
         """The fetcher for ``url`` (an http(s) URL), made at its first use in this process."""
         from .http import HTTPFetcher
 
-        fetcher = HTTPFetcher.shared(**self.settings(url))
+        settings = self.settings(url)
+        try:
+            fetcher = HTTPFetcher.shared(**settings)
+        except PipelineConfigError:
+            raise
+        except (TypeError, ValueError, OSError) as e:    # a field it does not know, a proxy list it cannot read
+            raise PipelineConfigError(f"the HTTP settings for {urlsplit(url).hostname or url}: "
+                                      f"{type(e).__name__}: {e}") from e
         if fetcher not in self._used:                    # a task's first request through it: its own User-Agent
             self._used.add(fetcher)
             fetcher.new_user_agent()

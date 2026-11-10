@@ -929,12 +929,17 @@ class HTTPFetcher:
         self._proxies: ProxyPool | None = None
         self._proxy_clients: dict[str, object] = {}
         self._no_proxy_since: dict[str, float] = {}        # host -> since when no proxy is usable there (``clock``)
+        self._no_proxy_waiters: dict[str, int] = {}        # host -> requests waiting for a usable proxy there
         if proxy_file:
             from .. import broker as brokers
             from .proxies import shared_pool
 
-            self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
-                                        read_proxies(proxy_file), per_worker)
+            try:
+                self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
+                                            read_proxies(proxy_file), per_worker)
+            except BaseException:                          # no fetcher: its thread, loop and client go too
+                self.close()
+                raise
 
     def _new_client(self, proxy: str | None, rate_limited: bool = True):
         """An httpx client for ``proxy`` (None: the environment's settings) with linecaster's hooks: before a request
