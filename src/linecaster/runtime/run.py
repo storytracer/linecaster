@@ -51,6 +51,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+from .cpus import available_cpus
 
 ON = ("local", "ray", "hf-jobs")
 RUN_RECORD = "run.yaml"
@@ -188,8 +189,16 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g = ap.add_argument_group("Ray")
     g.add_argument("--address", default="auto",
                    help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
-    g.add_argument("--cpus-per-task", type=int, default=12)
-    g.add_argument("--mem-per-cpu-gb", type=float, default=4)
+    g.add_argument("--cpus-per-task", type=int, default=12,
+                   help="CPUs a task reserves on its Ray node (start the workers with ray start --num-cpus at least this)")
+    g.add_argument("--mem-per-cpu-gb", type=float, default=4,
+                   help="memory a task reserves per CPU, in GiB (ignored with --mem-per-task-gb)")
+    g.add_argument("--mem-per-task-gb", type=float, default=None,
+                   help="memory a task reserves, in GiB, whatever its CPUs (default: --mem-per-cpu-gb per CPU; "
+                        "start the workers with ray start --memory at least this)")
+    g.add_argument("--no-fit-check", dest="fit_check", action="store_false",
+                   help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
+                        "demand)")
     g = ap.add_argument_group("Hugging Face Jobs")
     g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed)")
     g.add_argument("--namespace", default="finebooks")
@@ -467,7 +476,7 @@ def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int, 
                     else describe_per_worker(g["per_worker"]).replace("per worker", "each"))
     caps = [(a.tasks, _plural(a.tasks, "task"))]
     if shared:                                          # a fair share needs no worker per proxy: one per CPU at most
-        cpus = os.cpu_count() or 1
+        cpus = available_cpus()
         caps.append((cpus, _plural(cpus, "CPU")))
     if on_object_storage(getattr(a, "out", None)):
         caps.append((OBJECT_STORAGE_WORKERS, "OUT on object storage"))
@@ -506,7 +515,7 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
         if direct or getattr(a, "rate_limits", None) or _policy_rate_limited(a):
             a.workers = 1
         else:
-            a.workers = min(a.tasks, os.cpu_count() or 1)
+            a.workers = min(a.tasks, available_cpus())
 
 
 def _policy_rate_limited(a: argparse.Namespace) -> bool:
@@ -798,8 +807,9 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
                 from .ray import RayExecutor as Ray
 
             previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
-                           cpus_per_task=a.cpus_per_task,
-                           mem_per_cpu_gb=a.mem_per_cpu_gb, logging_dir=logs, depends=previous)
+                           cpus_per_task=a.cpus_per_task, mem_per_cpu_gb=a.mem_per_cpu_gb,
+                           mem_per_task_gb=getattr(a, "mem_per_task_gb", None),
+                           check_fit=getattr(a, "fit_check", True), logging_dir=logs, depends=previous)
         else:
             from .jobs import GPUJobsExecutor, JobsExecutor
             from .logs import JSON_ENV
