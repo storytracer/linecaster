@@ -238,7 +238,7 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
 
 
 def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
-    """``release`` records the recipe's pipeline, built from its pipeline script without the engines; ``verify``
+    """``release`` records the recipe's pipeline, built from its pipeline shape without the engines; ``verify``
     builds it again and reports drift."""
     from linecaster.catalog import registry
     from linecaster.runtime import provenance, run
@@ -254,10 +254,11 @@ def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
     recognizer = entry.pipeline[1]["params"]
     assert recognizer["backend"]["preset"] == "p@1" and "endpoint" not in recognizer["backend"]
     assert entry.pipeline[2]["params"] == {"recipe": "r@1", "recipe_sha256": entry.sha256}
-    # what the script builds into other folders is the same pipeline (in this process: the catalog put in place)
-    script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_vlm.py"
+    # what the shape builds into other folders is the same pipeline (in this process: the catalog put in place)
+    from linecaster.pipelines import transcribe_vlm
+
     with registry.active(c):
-        plan = run.describe_script(script, ["IN", "ELSEWHERE", "--recipe", "r"], c)
+        plan = run.describe(transcribe_vlm, ["IN", "ELSEWHERE", "--recipe", "r"], c)
     assert provenance.pipeline_sha256(plan) == entry.pipeline_sha256
     assert Catalog([tmp_path]).verify() == []
     # drift: the lock no longer matches what the pipeline script builds
