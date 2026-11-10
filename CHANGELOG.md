@@ -129,6 +129,12 @@ the tags; the first is `v0.1.0`.
 ### Fixed
 
 - A status in `stop_on` is traced as that status (it was `no-response`).
+- The console's progress line could fail with a `TypeError` when a pause or the breaker ended while it read them
+  (`Pause.remaining`, `Breaker.next_try` read their end once).
+- A blocked or broken proxy's marks are written to the broker in a thread, no longer in the fetcher's event loop,
+  where a slow store (object storage) held up all of its requests.
+- A `Retry-After` of `inf` or `nan` is no `Retry-After`, and one beyond about three years is that long; such a value
+  made a proxy's block mark fail to be written.
 
 ## 0.4.0 (2026-11-10)
 
