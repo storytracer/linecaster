@@ -11,12 +11,10 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
     { name = "linecaster", editable = "../" },
     { name = "linecaster-kraken", editable = "../engines/kraken" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
     { name = "linecaster-tesseract", editable = "../engines/tesseract" },
-    { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
     { name = "pytest", specifier = ">=8" },
 ]
 

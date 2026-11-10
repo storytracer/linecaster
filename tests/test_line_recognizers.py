@@ -2,10 +2,9 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     "linecaster",
+#     # the line recognizers the test runs (linecaster-paddlex brings the OpenCV stub)
 #     "linecaster-paddlex",
 #     "linecaster-tesseract",
-#     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
-#     "opencv-contrib-python",
 #     "pytest>=8",
 # ]
 #
@@ -13,7 +12,6 @@
 # linecaster = { path = "..", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
-# opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """The PaddleX and Tesseract line recognizers' geometry, without models. Skipped in the core environment;
 with the engines: ``uv run tests/test_line_recognizers.py``."""

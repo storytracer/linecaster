@@ -82,12 +82,19 @@ def test_every_script_has_a_lock(script):
 
 
 def test_kraken_source_agrees():
-    krakens = set()
-    for script in SCRIPTS:
-        src = script_metadata(script).get("tool", {}).get("uv", {}).get("sources", {}).get("kraken")
-        if src:
-            krakens.add((src["git"], src["rev"]))
-    assert len(krakens) <= 1, krakens
+    """The kraken fork is declared once, by linecaster-kraken; a script that names it too names the same."""
+    krakens = {(s["git"], s["rev"]) for s in [
+        tomllib.loads((ROOT / "engines/kraken/pyproject.toml").read_text())["tool"]["uv"]["sources"]["kraken"],
+        *(script_metadata(p).get("tool", {}).get("uv", {}).get("sources", {}).get("kraken") for p in SCRIPTS)] if s}
+    assert len(krakens) == 1, krakens
+
+
+def test_scripts_list_no_source_their_packages_bring():
+    """A script lists only what it needs itself: pybookget, the kraken fork and the OpenCV stub come with the packages
+    that need them (linecaster, linecaster-kraken, linecaster-paddlex declare their sources, which uv lock applies)."""
+    for p in SCRIPTS:
+        names = {_name(d) for d in script_metadata(p).get("dependencies", [])}
+        assert not names & {"pybookget", "kraken", "opencv-contrib-python", "s3fs"}, p.name
 
 
 #: packages allowed to build from source on one machine, and why that cannot move numerics
@@ -115,18 +122,22 @@ def test_wheels_for_both_machines(script):
 
 
 def test_pipelines_feed_the_jobs_helper():
+    """A Job installs linecaster and the engine packages from the archive at the commit, and the sources the packages
+    declare themselves from the script's lock: pybookget's archive, the kraken fork at its locked commit, the stub."""
     modular, vlm = ROOT / "pipelines/transcribe_modular.py", ROOT / "pipelines/transcribe_vlm.py"
+    repo = "https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
+    pybookget = "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"
     for script in (modular, vlm):
         deps = dependencies("abc123", script)
-        assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
-        assert "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" in deps                       # an archive, no git (the vLLM image has none)
+        assert deps[0] == f"linecaster[pybookget,s3fs] @ {repo}"
+        assert pybookget in deps                       # an archive, no git (the vLLM image has none)
+        assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
-    assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in dependencies("abc123", modular)
+    assert any(d.startswith("kraken @ git+https://github.com/storytracer/kraken@48eecb78")
+               for d in dependencies("abc123", modular))
     assert not any(_name(d) in ("lightning", "torch", "kraken") for d in dependencies("abc123", vlm))
-    # without engines: linecaster with its extras and the archive-source packages, no engines
-    assert dependencies("abc123", vlm, engines=False) == [
-        "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz",
-        "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"]
+    # without engines: linecaster with its extras and the sources they need, no engines
+    assert dependencies("abc123", vlm, engines=False) == [f"linecaster[pybookget,s3fs] @ {repo}", pybookget]
 
 
 def test_serve_command_for_a_pipeline():

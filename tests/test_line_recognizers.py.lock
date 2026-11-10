@@ -14,7 +14,6 @@ requirements = [
     { name = "linecaster", editable = "../" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
     { name = "linecaster-tesseract", editable = "../engines/tesseract" },
-    { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
     { name = "pytest", specifier = ">=8" },
 ]
 

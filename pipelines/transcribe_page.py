@@ -1,15 +1,13 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray (HF Jobs leave it out)
-#     "linecaster[ray,pybookget]",
-#     # manifests (IIIF, METS) and http(s) images (--manifests); direct, so its source applies
-#     "pybookget",
+#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images,
+#     # s3fs for s3:// paths
+#     "linecaster[ray,pybookget,s3fs]",
+#     # the page engines: Indra (ONNX Runtime), the vendors' HTTP APIs (Falcon-OCR, OXR), Surya (on vLLM)
 #     "linecaster-indra",
 #     "linecaster-services",
 #     "linecaster-surya",
-#     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)
-#     "s3fs",
 # ]
 #
 # [tool.uv]
@@ -22,7 +20,6 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
 # linecaster-indra = { path = "../engines/indra", editable = true }
 # linecaster-services = { path = "../engines/services", editable = true }
 # linecaster-surya = { path = "../engines/surya", editable = true }

@@ -1,31 +1,22 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray (HF Jobs leave it out)
-#     "linecaster[ray,pybookget]",
-#     # manifests (IIIF, METS) and http(s) images (--manifests); direct, so its source applies
-#     "pybookget",
+#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images,
+#     # s3fs for s3:// paths
+#     "linecaster[ray,pybookget,s3fs]",
+#     # kraken's line recognizer (it brings the kraken fork and torch)
 #     "linecaster-kraken",
+#     # PaddleX's layout, line, recognition, table and formula engines (it brings the OpenCV stub)
 #     "linecaster-paddlex",
+#     # Tesseract's line recognizer
 #     "linecaster-tesseract",
-#     # direct, so the fork in [tool.uv.sources] applies (sources only apply to a script's own dependencies)
-#     "kraken",
-#     # s3:// image folders (e.g. BHL's public bucket: FSSPEC_S3_ANON=true)
-#     "s3fs",
-#     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
-#     "opencv-contrib-python",
 # ]
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
 # linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
-# # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
-# # line prefetch (storytracer/linecaster#1)
-# kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
-# opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """The modular pipeline (``transcribe_modular.v1``): its blocks, options and slots are the pipeline shape
 ``linecaster.pipelines.transcribe_modular``; this script gives it its environment. ``--help`` lists the options."""

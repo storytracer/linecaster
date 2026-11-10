@@ -11,11 +11,8 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
+    { name = "linecaster", extras = ["ray", "pybookget", "s3fs"], editable = "../" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
-    { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
-    { name = "s3fs" },
 ]
 
 [[package]]
@@ -1002,6 +999,9 @@ pybookget = [
 ]
 ray = [
     { name = "ray", extra = ["default"] },
+]
+s3fs = [
+    { name = "s3fs" },
 ]
 
 [package.metadata]

@@ -11,12 +11,10 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
+    { name = "linecaster", extras = ["ray", "pybookget", "s3fs"], editable = "../" },
     { name = "linecaster-indra", editable = "../engines/indra" },
     { name = "linecaster-services", editable = "../engines/services" },
     { name = "linecaster-surya", editable = "../engines/surya" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
-    { name = "s3fs" },
 ]
 overrides = [
     { name = "pillow", specifier = "==12.3.0" },
@@ -946,6 +944,9 @@ pybookget = [
 ]
 ray = [
     { name = "ray", extra = ["default"] },
+]
+s3fs = [
+    { name = "s3fs" },
 ]
 
 [package.metadata]

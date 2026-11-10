@@ -8,11 +8,7 @@ resolution-markers = [
 ]
 
 [manifest]
-requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
-    { name = "pybookget", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
-    { name = "s3fs" },
-]
+requirements = [{ name = "linecaster", extras = ["ray", "pybookget", "s3fs"], editable = "../" }]
 
 [[package]]
 name = "aiobotocore"
@@ -814,6 +810,9 @@ pybookget = [
 ]
 ray = [
     { name = "ray", extra = ["default"] },
+]
+s3fs = [
+    { name = "s3fs" },
 ]
 
 [package.metadata]

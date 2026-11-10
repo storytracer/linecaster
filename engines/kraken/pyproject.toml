@@ -7,7 +7,8 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
     "linecaster>=0.1,<0.4",
-    # kraken with the PP-OCRv6 code; the script that installs it pins the source (see pipelines/transcribe_modular.py)
+    # kraken with the PP-OCRv6 code: the fork in [tool.uv.sources] below, which uv lock applies to every script
+    # that installs this package
     "kraken>=7.1.0",
     # the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64); 2.14 is kraken's upper bound
     "torch==2.14.0",

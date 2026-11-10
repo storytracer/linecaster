@@ -44,8 +44,7 @@ ray = ["ray[default]>=2.40"]
 pybookget = ["pybookget>=1.2"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
-# s3:// paths (OUT, inputs, a broker on S3) for the linecaster command and code in this environment; the pipeline
-# scripts bring their own
+# s3:// paths (OUT, inputs, a broker on S3)
 s3fs = ["s3fs>=2025.3"]
 
 [project.scripts]

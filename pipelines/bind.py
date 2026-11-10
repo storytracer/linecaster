@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray (HF Jobs leave it out)
+#     # Ray for --on ray and the ray command (a Job leaves it out)
 #     "linecaster[ray]",
 # ]
 #

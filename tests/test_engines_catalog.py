@@ -2,13 +2,10 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     "linecaster",
+#     # the engines whose catalog presets the test loads (they bring the kraken fork and the OpenCV stub)
 #     "linecaster-kraken",
 #     "linecaster-paddlex",
 #     "linecaster-tesseract",
-#     # direct, so the fork in [tool.uv.sources] applies (sources only apply to a script's own dependencies)
-#     "kraken",
-#     # PaddleX pins OpenCV's GUI build; this stub swaps in the headless build of the same version
-#     "opencv-contrib-python",
 #     "pytest>=8",
 # ]
 #
@@ -17,10 +14,6 @@
 # linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
-# # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
-# # line prefetch (storytracer/linecaster#1)
-# kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
-# opencv-contrib-python = { path = "../stubs/opencv-contrib-python" }
 # ///
 """The engine packages in the catalog (docs/reference/catalog.md), without loading any model: every engine's ``Options``
 mirror its constructor, capabilities use the vocabulary, every preset builds through ``InProcess.from_preset``,
