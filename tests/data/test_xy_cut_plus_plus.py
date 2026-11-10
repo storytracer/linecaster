@@ -86,7 +86,7 @@ def test_any_page_gives_a_deterministic_permutation():
         for _ in range(n):
             x0, y0 = rng.uniform(0, 900), rng.uniform(0, 1300)
             boxes.append(BBox(x0, y0, x0 + rng.uniform(1, 600), y0 + rng.uniform(1, 400)))
-        lab = [rng.choice(labels) for _ in range(n)]
-        out = xy_cut_plus_plus_order(boxes, lab, PAGE)
+        drawn = [rng.choice(labels) for _ in range(n)]
+        out = xy_cut_plus_plus_order(boxes, drawn, PAGE)
         assert sorted(out) == list(range(n))
-        assert out == xy_cut_plus_plus_order(boxes, lab, PAGE)
+        assert out == xy_cut_plus_plus_order(boxes, drawn, PAGE)

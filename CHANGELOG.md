@@ -13,11 +13,10 @@ the tags; the first is `v0.1.0`.
   or the `squiddle` recipe with that script or with `uv run launch.py squiddle`, in-process or with `--backend served`
   without `--endpoint`, and HF Jobs of that script with kraken presets. The run now stops before it starts with a
   `CatalogError` that says where kraken is. What to do: run the chain in an environment that adds kraken
-  (squiddleocr's `squiddle.py`, or your own script running `transcribe_modular.v1` with `linecaster-kraken`), or keep
-  this script and pass `--backend served --endpoint URL` with a server started from such an environment
-  (`uv run squiddle.py serve`). An existing script environment keeps kraken installed until
+  (your own script running `transcribe_modular.v1` with `linecaster-kraken`), or keep this script and pass
+  `--backend served --endpoint URL` with a server started from such an environment (that script's `serve`). An existing script environment keeps kraken installed until
   `uv sync --script pipelines/transcribe_modular.py` removes it.
-- `--namespace` has no default (it was a project's namespace) and is required with `--on hf-jobs`. Who is affected:
+- `--namespace` has no default and is required with `--on hf-jobs`. Who is affected:
   every launch on Hugging Face Jobs that left it out. What to do: pass `--namespace NS`, the user or organization the
   Jobs run under and are billed to; it is not taken from the logged-in account.
 - `pipelines/transcribe_modular.py`: `--naming squiddleocr` is gone; `--naming flat` writes the per-page files in one
@@ -37,6 +36,14 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- linecaster is stated as a generalist tool (CLAUDE.md, the architecture reference): it depends on no collection,
+  site, institution or project, and names none. Help texts and docs use `example.org`, the tests `library.test` and
+  `example.org`; docstrings, comments, NOTES.md and this changelog describe behavior and hardware instead of a
+  derivative, a leaderboard or a machine.
+- The presets', recipes' and models' prose and provenance cite the model card or the vendor's documentation, with a
+  departure from the card labelled linecaster's choice. No functional field changed: every edition and hash stays.
+- The User-Agent stays datatrove's `HF-Research/1.0`, now stated as a decision (CLAUDE.md, `USER_AGENT`, the
+  pipelines reference).
 - With `--endpoint` a pipeline no longer needs the served engines installed in its own environment: they run in the
   server's. `pipelines/transcribe_modular.py --recipe squiddle --endpoint URL` runs against a kraken server.
 - A source is declared by the package that needs it: `linecaster-kraken` declares the kraken fork,
@@ -61,8 +68,8 @@ the tags; the first is `v0.1.0`.
 ### Fixed
 
 - `linecaster.runtime.jobs.dependencies` reads git sources with a `tag` or `branch` (it raised `KeyError: 'rev'`) and
-  keeps their `subdirectory` (`git+URL@REF#subdirectory=DIR`), so a derivative's script pinned by tag, such as
-  squiddleocr's `squiddle.py`, runs on HF Jobs. A `path` source outside the linecaster checkout is a
+  keeps their `subdirectory` (`git+URL@REF#subdirectory=DIR`), so a derivative's script pinned by tag runs on HF
+  Jobs. A `path` source outside the linecaster checkout is a
   `PipelineConfigError` instead of a path relative to the checkout; markers are kept.
 
 ## 0.3.2 (2026-11-10)
@@ -76,9 +83,9 @@ the tags; the first is `v0.1.0`.
 
 ### Removed
 
-- squiddleocr's goldens as the reference for the squiddle combination: `tests/parity/compare_goldens.py`,
-  `tests/parity/compare_exports.py` and the `parity` pytest marker. They served the migration from squiddleocr; the
-  last comparison is in NOTES.md.
+- A derivative's goldens as the reference for the squiddle combination: `tests/parity/compare_goldens.py`,
+  `tests/parity/compare_exports.py` and the `parity` pytest marker. They served the migration from that derivative;
+  the last comparison is in NOTES.md.
 
 ## 0.3.1 (2026-11-10)
 
@@ -346,7 +353,7 @@ the tags; the first is `v0.1.0`.
   that is not the pages' (a host's `stop_on`, a server, the configuration) in one task writes a stop marker to the
   logging folder (`stopped.json`), every later task ends before its pipeline starts, and the launch fails with that
   error. datatrove only ended the task and started the next, whose first request went straight into the block
-  (a JSON API run sent about 990 requests into LoC's 429 block that way). A launch with unfinished tasks fails too,
+  (a JSON API run sent about 990 requests into a host's 429 block that way). A launch with unfinished tasks fails too,
   where the Ray job ended as succeeded with "Only 8/1000 tasks completed".
 - `--address` joins the Ray cluster it names (`linecaster.runtime.run.connect_ray`: `auto`, `HOST:6379`,
   `ray://HOST:10001`); it was read but not used, so a run only found a cluster started on its own machine.
@@ -396,7 +403,7 @@ the tags; the first is `v0.1.0`.
 - `ImageParquetReader` and `ManifestReader` pass pages on as their http(s) requests finish, not in row order, so a
   slow or retried request delays only its own page (`prefetched(..., ordered=False)`); pages read without a request
   keep their order. Requests in flight are capped at the rate limits times the deadline per attempt
-  (`HTTPFetcher.max_ahead`). In a 2,000-page LoC smoke run the oldest request, being retried, held the window full
+  (`HTTPFetcher.max_ahead`). In a 2,000-page smoke run the oldest request, being retried, held the window full
   of finished pages for minutes (94 pages/min against 150).
 - Fetch records and traces carry each attempt's outcome (`tries`, the span attribute `http.tries`): a status for a
   response read whole, `<status>-cut` for one the deadline cut, `no-response` for a timeout or a connection error.
@@ -404,13 +411,12 @@ the tags; the first is `v0.1.0`.
   of the input for the whole run, in the same automatic tasks, so a smoke test is the real setup stopped early
   (`--limit` counts per task).
 - A response that trickles no longer holds a task: the deadline per attempt (above) cuts it and fetches it again,
-  usually through another proxy exit. In a LoC smoke run one such response took 150 s while the 199 pages behind it
+  usually through another proxy exit. In a smoke run one such response took 150 s while the 199 pages behind it
   waited; the trace shows a cut attempt as `http.attempts` 2.
 
-- The four BHL OCR board models the catalog lacked, as the board's drivers run them, each run on the board's
-  60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
+- Four more page readers, each run on a 60-page sample (NOTES.md): model entries `surya-ocr-2.5`, `indra-ocr`, `oxr-1.0`, `falcon-ocr` (Falcon OCR pinned at
   the revision its vendor image ships) and their presets `surya-ocr-2.5@1`, `indra-ocr@1`, `oxr-1.0@1`,
-  `falcon-ocr@1` (step `recognition`, unit `page`), with evidence records where they ran.
+  `falcon-ocr@1` (step `recognition`, unit `page`).
 - Page engines: `PageRecognizer` runs an engine whose unit is the page on the `InProcess` or `Served` backend (or a
   page engine's preset by name), besides a chat VLM on `Chat`. Engine packages `linecaster-indra`
   (`indra.recognition.v1`: the `indra-ocr` package on the CPU), `linecaster-surya` (`surya.recognition.v1`: the
@@ -501,8 +507,8 @@ and ids fail.
 - Pipeline scripts: `transcribe_chain.py` → `transcribe_modular.py`; ids `chain.v1` → `transcribe_modular.v1`,
   `vlm.v1` → `transcribe_vlm.v1`, new `harvest.v1`, `bind.v1`.
 - Flags: `--recognizer` → `--recognition`; `--vlm`, `--vlm-endpoint` → `--recognition`, `--recognition-endpoint`;
-  `--texts` → `--item-texts`; `--exports DIR` → `--files DIR --formats md,txt,json --naming squiddleocr
-  --furniture`; `--rows` → `--pages`.
+  `--texts` → `--item-texts`; `--exports DIR` → `--files DIR --formats md,txt,json --naming flat
+  --suffix .paddle --furniture` (in today's terms); `--rows` → `--pages`.
 - Stored output: the default transcription `ocr` → `ocr_new`; page records in `OUT/rows/` → `OUT/pages/`; item text
   fidelity `normalised` → `normalized`; typography measurement `levelled` → `leveled`. Page records written before
   phase 1 keep `ocr`; read them with `transcription="ocr"`.

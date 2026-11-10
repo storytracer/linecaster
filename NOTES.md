@@ -2,6 +2,24 @@
 
 Measurements, decisions and open questions, newest first.
 
+## linecaster as a generalist tool (2026-11-10)
+
+- linecaster names no collection, site, institution, project or machine; project-specific code, defaults and names
+  belong in derivatives. The recipe name `squiddle` is neutral and stays.
+- `--namespace` is required with `--on hf-jobs` rather than taken from the logged-in account
+  (`huggingface_hub.whoami`): a Job is billed to its namespace, and an account's token may reach both a personal and
+  an organization's namespace, so an implicit choice could spend the wrong one silently. A required flag puts the
+  namespace on the command line and in the run record, fails while the options are checked, before anything
+  is launched and without a call to the Hub, and follows "no default presets": a run names what it ran.
+- The User-Agent stays datatrove's `HF-Research/1.0`, deliberately: datatrove is integral to linecaster, and its
+  `HTTPFetchReader` sends the same.
+- The catalog's evidence records left (linecaster is not a data repository); the measurements stay in these notes.
+  The evidence format and the tooling that produces evidence, evaluations and ground truth stay: the run record and
+  the recipe stamps (what a measurement names), page records with per-step `measurements` and the traces (what it
+  measures), `ManifestReader(existing_ocr=True)` and the `TranscriptionConverter` (reference transcriptions as
+  `ocr_original` or `ground_truth`) and the writers (datasets). Scoring stays with the evaluation.
+- `--naming squiddleocr` became `--naming flat --suffix .paddle`.
+
 ## Dependencies cleaned up; the modular script without kraken (2026-11-10, aarch64 GB10)
 
 - `uv lock` (and `uv lock --script`, uv 0.13.6) applies the `[tool.uv.sources]` of path and git dependencies, not only a

@@ -162,14 +162,14 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
     async def metrics(request):
         lines = ["# TYPE vllm:num_requests_waiting gauge", "# TYPE vllm:num_requests_running gauge"]
         for h in hosted:
-            lab = f'{{model_name="{h.name}"}}'
-            lines.append(f"vllm:num_requests_waiting{lab} {max(h.admitted - h.running, 0)}")
-            lines.append(f"vllm:num_requests_running{lab} {h.running}")
+            tag = f'{{model_name="{h.name}"}}'
+            lines.append(f"vllm:num_requests_waiting{tag} {max(h.admitted - h.running, 0)}")
+            lines.append(f"vllm:num_requests_running{tag} {h.running}")
         for h in hosted:
-            lab = f'{{model_name="{h.name}"}}'
-            lines.append(f"linecaster_requests_served_total{lab} {h.served}")
-            lines.append(f"linecaster_requests_failed_total{lab} {h.failed}")
-            lines.append(f"linecaster_model_busy_seconds_total{lab} {h.busy_seconds:.3f}")
+            tag = f'{{model_name="{h.name}"}}'
+            lines.append(f"linecaster_requests_served_total{tag} {h.served}")
+            lines.append(f"linecaster_requests_failed_total{tag} {h.failed}")
+            lines.append(f"linecaster_model_busy_seconds_total{tag} {h.busy_seconds:.3f}")
         return web.Response(text="\n".join(lines) + "\n", content_type="text/plain")
 
     async def run_step(request):

@@ -17,6 +17,8 @@ Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
 - 🌍 **Any machine.** Only the command line changes, never the pipeline.
 - 🎯 **The same result everywhere.** A page's text depends only on that page and the pinned models.
 - 🔁 **Built for long runs.** Interrupted runs resume; failed pages are set aside with the reason.
+- 🏛️ **Built on standards, not on one collection.** Folders, buckets, IIIF and METS manifests, OAI-PMH; ALTO,
+  PAGE-XML, hOCR, Parquet and JSON Lines out. Project-specific code belongs in projects built on it.
 
 📖 **Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/): the reference, a page
 for every block and catalog entry, and [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt) for
@@ -43,12 +45,13 @@ You get one page record per page in `out/pages/`. Add `--files out/files --forma
 
 ## 🧭 Three ways to transcribe
 
-**1. A recipe**: a tested combination of presets, one per step, with its own edition and evidence. The `squiddle`
-recipe reads lines with kraken, which the modular pipeline's script leaves out: it runs with [SquiddleOCR]'s
-`squiddle.py`, which adds kraken.
+**1. A recipe**: a tested combination of presets, one per step, with its own edition. The `squiddle` recipe reads
+lines with kraken, which the modular pipeline's script leaves out: it runs in an environment that adds kraken (a
+script of your own that runs the modular pipeline with `linecaster-kraken`), or against a kraken server started from
+one:
 
 ```bash
-uv run squiddle.py scans/ out/
+uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
 ```
 
 **2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
@@ -143,9 +146,9 @@ uv run pipelines/transcribe_modular.py serve $P
 uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
 ```
 
-A server from another environment works too: `uv run squiddle.py serve` serves the `squiddle` recipe with kraken,
-and `uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1` runs the recipe
-against it.
+A server from another environment works too: a script with kraken serves the `squiddle` recipe (its `serve`
+command), and `uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1` runs the
+recipe against it.
 
 For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
 Servers listen on loopback only.
@@ -190,7 +193,7 @@ run a task, and stops with what a task needs and what the nodes have. It also lo
 One GPU per Job; each Job installs Linecaster at a pushed commit with the pipeline's pinned dependencies.
 
 ```bash
-uv run pipelines/transcribe_modular.py s3://bhl-open-data/images hf://buckets/<ns>/<bucket>/<run> $P \
+uv run pipelines/transcribe_modular.py s3://<bucket>/images hf://buckets/<ns>/<bucket>/<run> $P \
   --paths-file hf://buckets/<ns>/<bucket>/pages.txt --env FSSPEC_S3_ANON=true \
   --on hf-jobs --namespace NS --commit <sha> --tasks 4000 --workers 64
 ```
@@ -273,7 +276,7 @@ original model card, and settings. Released editions never change. Vision-langua
 SGLang; the other models run inside the pipeline or behind `linecaster serve`, one package per engine:
 `linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
 
-Every preset and recipe, with its model, settings and evidence: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
+Every preset and recipe, with its model and settings: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
 
 Every block by family, with its contract, backends and options: [the blocks](https://storytracer.github.io/linecaster/latest/blocks/).
 
@@ -286,7 +289,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
 | [data model](docs/reference/data-model.md) | what a page's transcription holds: `Item`, `Page`, `Transcription`, regions, lines, words, text variants |
 | [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR |
-| [catalog](docs/reference/catalog.md) | models, presets, recipes, editions and the evidence behind them |
+| [catalog](docs/reference/catalog.md) | models, presets, recipes and editions, and where measurements live |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
 | [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a sample of pages |
 | [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
@@ -325,7 +328,6 @@ purposes. The Apache-2.0 license of the code does not apply to it. The same cred
 
 <!-- links -->
 [kraken]: https://github.com/mittagessen/kraken
-[SquiddleOCR]: https://github.com/storytracer/squiddleocr
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [Tesseract]: https://github.com/tesseract-ocr/tesseract
 [datatrove]: https://github.com/huggingface/datatrove
