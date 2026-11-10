@@ -101,6 +101,16 @@ the tags; the first is `v0.1.0`.
   settings, or uses these names. What to do: rename as above; `http={"broken_after": 1, "broken_ttl": 3600}` and
   `http={"block_on": [429, "html"]}` restore the earlier proxy behavior.
 
+- `--http-policy` holds for every input fetched over http(s): `--manifests` (the manifests, their images and OCR
+  files) and `--pages` (the images it fetches again) take it too, as `--items` and `--parquet` did
+  (`ManifestReader(http_policy=...)`, `PageRecordReader(http_policy=...)`; every reader goes through
+  `linecaster.net.policy.Fetchers`, one fetcher per host's settings). Who is affected: runs with `--manifests` or
+  `--pages` and a policy (refused at startup before) and their workers (with proxies in the policy, the default worker
+  count follows them, as for the other inputs); `ManifestReader` now has one fetcher per host's settings and takes a
+  random User-Agent per task and fetcher. The recipe `item-texts@1`'s expanded pipeline gains `http_policy: null` (a
+  catalog migration; its behavior is unchanged). What to do: nothing; a derivative that pinned the old pipeline hash
+  of `item-texts@1` reads the new one from the lock.
+
 ### Added
 
 - `docs/reference/http.md`: the defaults, blocks on both paths, unexpected HTML, retries and deadlines, the trace

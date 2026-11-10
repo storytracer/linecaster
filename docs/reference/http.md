@@ -114,8 +114,10 @@ record also has the time spent waiting for the rate limits (`wait_seconds`) and 
 
 ## The HTTP policy
 
-`--http-policy FILE` (`--items`, `--parquet`; `linecaster.net.policy.HTTPPolicy`) gives a run's requests their
-settings from one YAML file, in three levels, each inheriting from the one above:
+`--http-policy FILE` (`linecaster.net.policy.HTTPPolicy`) gives a run's requests their settings from one YAML file,
+in three levels, each inheriting from the one above. It holds for every reader that fetches over http(s), the same
+way (`linecaster.net.policy.Fetchers`): `--items`, `--parquet` with http(s) image URLs, `--manifests` (the
+manifests, their images and OCR files) and `--pages` (the images it fetches again).
 
 ```yaml
 # 1. general: every request, direct or through a proxy

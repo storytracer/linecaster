@@ -411,9 +411,11 @@ the run's own options go between the two. The settings: rate limits (per proxy t
 another format was expected) and what stops the run without a retry (`stop_on`: statuses and `html`; something in
 both `block_on`, or its default, and `stop_on` is refused, so `block_on: []` with `stop_on: [429]` stops on a 429),
 `max_pause`, `direct`, the proxy path's own section (`proxies: {file, per_worker, block_ttl, broken_after,
-broken_ttl}`) and the broker (root only). The run states the rules that hold per host before it starts. For `--items`
-and `--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
-rate-limited host its workers follow the available proxies (above).
+broken_ttl}`) and the broker (root only). The run states the rules that hold per host before it starts. For every
+input fetched over http(s): `--items`, `--parquet` with http(s) image URLs, `--manifests` (the manifests, their
+images and OCR files) and `--pages` (the images it fetches again); with rate limits in the file for a host without
+proxies a run keeps one worker, with proxies for every rate-limited host its workers follow the available proxies
+(above).
 
 The default User-Agent is datatrove's, `HF-Research/1.0` (`linecaster.net.http.USER_AGENT`), deliberately: datatrove
 is integral to linecaster, and its media fetcher (`HTTPFetchReader`) sends the same, so a run that fetches through
