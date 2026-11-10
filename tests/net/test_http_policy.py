@@ -161,7 +161,7 @@ def pool_on(clocks: Clocks, folder: str, proxy_file: str, worker: str | None = N
     """The process's shared broker for ``folder`` (``linecaster.broker.shared``) and proxy pool for ``proxy_file``
     (``linecaster.net.proxies.shared_pool``) on the clocks: the broker on the wall clock, with leases that never
     expire (they are written and renewed on the real clock), the pool on the monotonic clock, listing the broker at
-    every look for a proxy."""
+    every look for a proxy, without rebalancing in the background (``tick``)."""
     import os
 
     from linecaster import broker as brokers
@@ -173,6 +173,7 @@ def pool_on(clocks: Clocks, folder: str, proxy_file: str, worker: str | None = N
         brokers._SHARED[(os.getpid(), folder)] = b
     listed = read_proxies(proxy_file)
     pool = proxies.ProxyPool(b, listed, clock=clocks.clock, fill_seconds=0, keep_alive=False)
+    pool.tick = lambda: None                    # no rebalancing in a thread of its own: the rounds stay as scripted
     with proxies._POOLS_LOCK:
         proxies._POOLS[(os.getpid(), id(b), tuple(listed))] = pool
     return pool

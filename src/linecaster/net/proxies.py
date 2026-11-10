@@ -139,9 +139,10 @@ class ProxyPool:
         self._blocked: dict[tuple[str, str], float] = {}      # (proxy id, scope) -> end (broker's clock)
         self._turn: dict[tuple[str, str], float] = {}         # (proxy id, host) -> next free turn (``clock``)
         self._failures: dict[str, int] = {}
-        # (proxy id, scope) -> (the last wait without Retry-After or None, when the last block ended), known by this
-        # worker since it claimed the proxy; otherwise the broker's last mark says (``_doubling``)
-        self._waits: dict[tuple[str, str], tuple[float | None, float | None]] = {}
+        # (proxy id, scope) -> (the last wait without Retry-After or None, when: the end of the block this worker
+        # marked, or the time of the successful response that started the doubling again); the broker's last mark
+        # says otherwise, and the later of the two holds (``_doubling``)
+        self._waits: dict[tuple[str, str], tuple[float | None, float]] = {}
         self._hosts: set[str] = set()
         self._survey: dict[str, Resource] = {}
         self._filled, self._filled_wall = -math.inf, -math.inf
@@ -343,25 +344,28 @@ class ProxyPool:
                     self._owned.add(pid)
                     self._failures.pop(pid, None)
                     for key in [k for k in self._waits if k[0] == pid]:    # other workers may have used it since:
-                        del self._waits[key]                               # the broker's marks say
+                        del self._waits[key]                               # the listing just made says
                 got += 1
         return got
 
     def _doubling(self, pid: str, scope: str) -> tuple[float | None, float | None]:
-        """(the last wait without Retry-After, when the last block ended) of ``pid`` at ``scope``: what this worker
-        knows since it claimed the proxy, else what the last mark in the broker says (its ``last_wait`` and end; a
-        mark without ``last_wait``, an earlier version's, says None). Called with the lock held."""
+        """(the last wait without Retry-After, when the last block ended) of ``pid`` at ``scope``, from the later of
+        what this worker did since it claimed the proxy (its last block's end, or the successful response that
+        started the doubling again; forgotten at a claim, which lists the broker first) and the broker's last mark
+        (its ``last_wait`` and end, as the last listing showed it; a mark without ``last_wait``, an earlier version's,
+        says None). Called with the lock held."""
         known = self._waits.get((pid, scope))
-        if known is not None:
-            return known
         r = self._survey.get(pid)
-        last = r.last_mark(scope) if r is not None else None
-        if last is None:
+        mark = r.last_mark(scope) if r is not None else None
+        if mark is not None and (known is None or mark[0] > known[1]):
+            end, data = mark
+            wait = data.get("last_wait")
+            ok = isinstance(wait, int | float) and not isinstance(wait, bool) and wait > 0
+            return (float(wait) if ok else None), end
+        if known is None:
             return None, None
-        end, data = last
-        wait = data.get("last_wait")
-        return (float(wait) if isinstance(wait, int | float) and not isinstance(wait, bool) and wait > 0 else None,
-                end)
+        last, when = known
+        return last, (when if last is not None else None)
 
     def fill(self, host: str, force: bool = False) -> int:
         """Claims proxies usable for ``host`` (see the module docstring): with a count per worker one when it holds
@@ -545,12 +549,11 @@ class ProxyPool:
             for scope in (EVERY_SCOPE, *((host,) if host is not None else ())):
                 if self._blocked.get((pid, scope), -math.inf) > now:
                     continue                                   # sent before that block, which holds
-                last, ended = self._doubling(pid, scope)
-                if last is None and ended is None:
+                last, _ = self._doubling(pid, scope)
+                if last is None:
                     continue
-                self._waits[(pid, scope)] = (None, None)
-                if last is not None:
-                    forget.append(scope)
+                self._waits[(pid, scope)] = (None, now)          # later than every block there so far
+                forget.append(scope)
         if forget:
             threading.Thread(target=self._forget, args=(proxy, pid, forget), name="linecaster-proxies",
                              daemon=True).start()
