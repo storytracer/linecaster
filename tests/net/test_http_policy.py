@@ -1,0 +1,515 @@
+"""The HTTP policy's behavior (``linecaster.net.http``, ``linecaster.net.proxies``, ``linecaster.net.policy``), each case
+on both paths, direct and through proxies, without a policy file: an HTML page where an image was expected (a soft
+404), a 503 maintenance page in HTML, a redirect to an HTML login page, sporadic 500s, a slow server past the deadline
+per attempt, a 429 without ``Retry-After`` and with one (seconds and an HTTP-date). Then the opt-ins (``block_on:
+[429, html]``, ``stop_on``, ``block_ttl``, ``broken_after``), the doubling of blocks and of a broken proxy's time out,
+the inheritance (root, command line, host; the ``proxies:`` section per level) and the errors for the fields of
+earlier versions.
+
+Every case asserts the attempts, the waits, the trace entries (``tries``), the proxies marked in the broker (with how
+long), whether the page fails cleanly or comes through, and whether the run goes on, pauses or stops. The waits run on
+injected clocks (``HTTPFetcher``'s ``clock``, ``wall_clock``, ``sleep``): nothing sleeps for real but the slow server.
+The servers are local: one answers directly, two more act as http proxies (they answer absolute-URI requests
+themselves), for the host ``library.test``."""
+import asyncio
+import json
+import threading
+import time
+from email.utils import formatdate
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+
+import pytest
+
+from linecaster.errors import PipelineConfigError
+from linecaster.net.http import (MaxRetriesExceeded, StopRequests, UnexpectedHTML, close_shared, failed_fetch,
+                                 fetch_record, HTTPFetcher)
+from linecaster.net.policy import HTTPPolicy
+from linecaster.testing import sample_png
+
+HTML = b"<!DOCTYPE html><html><head><title>Not here</title></head><body>Sorry</body></html>"
+HOST = "library.test"
+
+
+@pytest.fixture(autouse=True)
+def fresh_fetchers():
+    close_shared()
+    yield
+    close_shared()
+
+
+class Clocks:
+    """A monotonic clock and a wall clock that move only by the fetcher's sleeps, which are noted (``sleeps``) and
+    return at once."""
+
+    def __init__(self):
+        self.t, self.wall, self.sleeps = 1000.0, 1_800_000_000.0, []
+
+    def clock(self) -> float:
+        return self.t
+
+    def wall_clock(self) -> float:
+        return self.wall
+
+    async def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.t += seconds
+        self.wall += seconds
+        await asyncio.sleep(0)
+
+    def kwargs(self) -> dict:
+        return {"clock": self.clock, "wall_clock": self.wall_clock, "sleep": self.sleep}
+
+
+def A(status: int = 200, body: str = "png", retry_after=None, location: str | None = None, slow: float = 0.0):
+    """One answer of the scripted server: ``body`` ``png`` (an image), ``html`` or ``empty``; ``retry_after`` a value or
+    a callable of the wall clock (an HTTP-date); ``location`` a path to redirect to; ``slow`` seconds to send the body
+    after the headers."""
+    return {"status": status, "body": body, "retry_after": retry_after, "location": location, "slow": slow}
+
+
+class Site:
+    """Scripted answers per path (each request takes the next; the last repeats), served directly (``base``) and through
+    two proxies (``proxy_file``), which note the requests they carried (``carried``)."""
+
+    def __init__(self, tmp_path, clocks: Clocks, script: dict[str, list[dict]]):
+        self.script, self.clocks, self.lock, self.counts = script, clocks, threading.Lock(), {}
+        self.carried: dict[int, list[str]] = {0: [], 1: [], 2: []}      # 0: direct
+        self.servers = [self._server(n) for n in range(3)]
+        self.base = f"http://127.0.0.1:{self.servers[0].server_address[1]}"
+        self.proxies = [f"127.0.0.1:{s.server_address[1]}" for s in self.servers[1:]]
+        self.proxy_file = str(tmp_path / "proxies.txt")
+        (tmp_path / "proxies.txt").write_text("".join(f"{p}\n" for p in self.proxies))
+
+    def _server(self, n: int):
+        site, png = self, sample_png()
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                path = urlsplit(self.path).path
+                with site.lock:
+                    site.carried[n].append(path)
+                    k = site.counts[path] = site.counts.get(path, 0) + 1
+                answers = site.script.get(path, [A()])
+                a = answers[min(k, len(answers)) - 1]
+                body = {"png": png, "html": HTML, "empty": b""}[a["body"]]
+                self.send_response(a["status"])
+                self.send_header("Content-Type", {"png": "image/png", "html": "text/html; charset=utf-8",
+                                                  "empty": "text/plain"}[a["body"]])
+                if a["retry_after"] is not None:
+                    value = a["retry_after"]
+                    self.send_header("Retry-After", value(site.clocks.wall) if callable(value) else str(value))
+                if a["location"]:
+                    self.send_header("Location", f"http://{self.headers['Host']}{a['location']}")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                if a["slow"]:
+                    self.wfile.flush()
+                    time.sleep(a["slow"])
+                try:
+                    self.wfile.write(body)
+                except OSError:                                # the client cut the attempt
+                    pass
+
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
+        return httpd
+
+    def url(self, path: str, via: str) -> str:
+        return f"{self.base}{path}" if via == "direct" else f"http://{HOST}{path}"
+
+    def close(self) -> None:
+        for s in self.servers:
+            s.shutdown()
+
+
+@pytest.fixture
+def site(tmp_path):
+    made = []
+
+    def make(script: dict[str, list[dict]], clocks: Clocks) -> Site:
+        made.append(Site(tmp_path, clocks, script))
+        return made[-1]
+
+    yield make
+    for s in made:
+        s.close()
+
+
+def fetcher(s: Site, via: str, clocks: Clocks, tmp_path, **settings) -> HTTPFetcher:
+    """A fetcher with linecaster's defaults (no policy file), direct or through the two proxies (both held)."""
+    proxies = {"proxy_file": s.proxy_file, "broker": str(tmp_path / "broker")} if via == "proxies" else {}
+    return HTTPFetcher(trust_env=False, **proxies, **clocks.kwargs(), **settings)
+
+
+def dead_port() -> int:
+    """A loopback port nothing listens on (a proxy that refuses connections)."""
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def fetch(f: HTTPFetcher, url: str, expect: str | None = "image"):
+    """("ok", response, record) or ("error", exception, record)."""
+    try:
+        r = f.get(url, expect=expect)
+        return "ok", r, fetch_record(r)
+    except Exception as e:  # noqa: BLE001 - the outcome under test
+        return "error", e, failed_fetch(e)
+
+
+def marks(tmp_path) -> list[tuple[str, float, object]]:
+    """(scope, seconds, status) of every mark in the broker: the proxies left out, for how long."""
+    out = []
+    for p in sorted((tmp_path / "broker").glob("proxies/*/marks/*/*.json")):
+        m = json.loads(p.read_text())
+        out.append((p.parent.name, round(m["ttl"]), m.get("status")))
+    return out
+
+
+def backoffs(clocks: Clocks) -> list[float]:
+    return list(clocks.sleeps)
+
+
+VIA = ["direct", "proxies"]
+
+
+# ---------------------------------------------------------------- the defaults, on both paths
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_soft_404_is_a_failed_attempt_retried_then_the_page_fails(site, tmp_path, via):
+    """200 with an HTML page where an image was expected: every attempt counts and is retried after the backoff (2, 4,
+    8, 16 s); after the fifth the page fails with an error that names the expected format and the content type. No
+    proxy is left out, nothing pauses, the run goes on."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(body="html")]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path)
+    try:
+        outcome, error, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "error"
+        cause = error if via == "direct" else error.__cause__
+        assert isinstance(cause, UnexpectedHTML) and isinstance(error, UnexpectedHTML if via == "direct" else
+                                                                 MaxRetriesExceeded)
+        assert "an HTML page (text/html; charset=utf-8, " in str(error) and "where an image was expected" in str(error)
+        assert record["tries"] == ["200-html"] * 5 and record["attempts"] == 5
+        assert backoffs(clocks) == [2, 4, 8, 16] and "pause_seconds" not in record
+        assert marks(tmp_path) == [] and not f.pause.paused
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_503_maintenance_page_in_html_is_a_503_retried(site, tmp_path, via):
+    """503 with an HTML page, twice, then the image: a 503 (only a successful response is judged by its content),
+    retried after 2 and 4 s; the page comes through, no proxy is left out."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(503, "html"), A(503, "html"), A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path)
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "ok" and response.status_code == 200
+        assert record["tries"] == ["503", "503", "200"] and record["attempts"] == 3
+        assert backoffs(clocks) == [2, 4] and marks(tmp_path) == [] and not f.breaker.paused
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_redirect_to_an_html_login_page_fails_after_its_attempts(site, tmp_path, via):
+    """A 302 to a login page (200, HTML) on every attempt: each attempt is the redirect and the page (both counted in
+    ``attempts``), traced ``302`` and ``200-html``; the error names the login page's URL."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(302, "empty", location="/login")], "/login": [A(body="html")]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, max_retries=2)
+    try:
+        outcome, error, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "error" and "/login" in str(error) and "where an image was expected" in str(error)
+        assert record["tries"] == ["302", "200-html"] * 3 and record["attempts"] == 6
+        assert backoffs(clocks) == [2, 4] and marks(tmp_path) == []
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_sporadic_500s_are_retried_and_the_page_comes_through(site, tmp_path, via):
+    clocks = Clocks()
+    s = site({"/p1.png": [A(500, "empty"), A(500, "empty"), A()], "/p2.png": [A(500, "empty"), A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path)
+    try:
+        first, second = fetch(f, s.url("/p1.png", via)), fetch(f, s.url("/p2.png", via))
+        assert first[0] == second[0] == "ok"
+        assert first[2]["tries"] == ["500", "500", "200"] and second[2]["tries"] == ["500", "200"]
+        assert backoffs(clocks) == [2, 4, 2] and marks(tmp_path) == [] and not f.breaker.paused
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_a_slow_server_past_the_deadline_is_cut_and_retried(site, tmp_path, via):
+    """The first answer sends its headers, then its body after 1 s: past the deadline per attempt (0.3 s here), so the
+    attempt is cut (``200-cut``) and retried after 2 s; the server's slowness is not the proxy's (no mark)."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(slow=1.0), A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, attempt_timeout=0.3, attempt_min_rate=None)
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "ok" and record["tries"] == ["200-cut", "200"] and record["attempts"] == 2
+        assert backoffs(clocks) == [2] and marks(tmp_path) == []
+    finally:
+        f.close()
+
+
+def test_a_429_without_retry_after_direct_pauses_60_s_then_doubles(site, tmp_path):
+    """Direct: a 429 pauses the worker's requests to the host for 60 s, a second one (for the request sent after the
+    pause) for 120 s; the request is tried again each time without using up an attempt, and comes through. A
+    successful response starts the doubling again."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(429, "empty"), A(429, "empty"), A()], "/p2.png": [A(429, "empty"), A()]}, clocks)
+    f = fetcher(s, "direct", clocks, tmp_path, max_retries=0)
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", "direct"))
+        assert outcome == "ok" and record["tries"] == ["429", "429", "200"]
+        assert record["pause_seconds"] == 180 and sum(clocks.sleeps) == 180 and max(clocks.sleeps) <= 1
+        assert f.pause.generation == 2 and not f.pause.paused
+        clocks.sleeps.clear()
+        assert fetch(f, s.url("/p2.png", "direct"))[2]["pause_seconds"] == 60       # answered: 60 s again
+    finally:
+        f.close()
+
+
+def test_a_429_without_retry_after_through_proxies_leaves_the_proxy_out_60_s(site, tmp_path):
+    """Through proxies: the proxy that got the 429 is left out at the host for 60 s, and the request goes on at once
+    through the other one, without using up an attempt and without a wait."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(429, "empty"), A()]}, clocks)
+    f = fetcher(s, "proxies", clocks, tmp_path, max_retries=0)
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", "proxies"))
+        assert outcome == "ok" and record["tries"] == ["429", "200"] and clocks.sleeps == []
+        assert marks(tmp_path) == [(HOST, 60, 429)]
+        assert sorted(len(c) for n, c in s.carried.items() if n) == [1, 1]     # one request through each proxy
+        assert f.proxy_counts() == (1, 1, 0)
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+@pytest.mark.parametrize("form", ["seconds", "http-date"])
+def test_a_429_with_retry_after_waits_exactly_that(site, tmp_path, via, form):
+    """``Retry-After: 30``, or an HTTP-date 45 s ahead: direct, the worker pauses exactly that long; through proxies,
+    the proxy is left out at the host exactly that long and the request goes on through the other at once."""
+    clocks = Clocks()
+    value, seconds = ("30", 30) if form == "seconds" else (lambda wall: formatdate(wall + 45, usegmt=True), 45)
+    s = site({"/p1.png": [A(429, "empty", retry_after=value), A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, max_retries=0)
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "ok" and record["tries"] == ["429", "200"]
+        if via == "direct":
+            assert record["pause_seconds"] == seconds and sum(clocks.sleeps) == seconds and marks(tmp_path) == []
+        else:
+            assert "pause_seconds" not in record and clocks.sleeps == [] and marks(tmp_path) == [(HOST, seconds, 429)]
+    finally:
+        f.close()
+
+
+def test_a_block_past_max_pause_stops_the_run_direct(site, tmp_path):
+    """Direct: a 429 whose wait would take the pauses past ``max_pause`` stops the run (``StopRequests``)."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(429, "empty", retry_after="86400")]}, clocks)
+    f = fetcher(s, "direct", clocks, tmp_path)
+    try:
+        outcome, error, record = fetch(f, s.url("/p1.png", "direct"))
+        assert outcome == "error" and isinstance(error, StopRequests) and "max_pause" in str(error)
+        assert record["tries"] == ["429"] and clocks.sleeps == []
+    finally:
+        f.close()
+
+
+# ---------------------------------------------------------------- the opt-ins
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_html_in_block_on_makes_an_html_page_a_block(site, tmp_path, via):
+    """``block_on: [429, html]``: an HTML page where an image was expected blocks: direct the worker pauses 60 s and
+    the request is tried again; through proxies the proxy is left out at the host for 60 s and the request goes on
+    through the other at once. Neither uses up an attempt (``max_retries: 0``)."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(body="html"), A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, max_retries=0, block_on=[429, "html"])
+    try:
+        outcome, response, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "ok" and record["tries"] == ["200-html", "200"]
+        if via == "direct":
+            assert record["pause_seconds"] == 60 and marks(tmp_path) == []
+        else:
+            assert clocks.sleeps == [] and marks(tmp_path) == [(HOST, 60, "html")]
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+@pytest.mark.parametrize("stop, answer, entry", [("html", A(body="html"), "200-html"), (503, A(503, "html"), "503")])
+def test_stop_on_stops_the_run_at_once(site, tmp_path, via, stop, answer, entry):
+    clocks = Clocks()
+    s = site({"/p1.png": [answer]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, stop_on=[stop])
+    try:
+        outcome, error, record = fetch(f, s.url("/p1.png", via))
+        assert outcome == "error" and isinstance(error, StopRequests) and "stop_on" in str(error)
+        assert record["tries"] == [entry] and clocks.sleeps == [] and marks(tmp_path) == []
+    finally:
+        f.close()
+
+
+def test_block_ttl_caps_a_proxys_block_without_retry_after(site, tmp_path):
+    clocks = Clocks()
+    s = site({"/p1.png": [A(429, "empty"), A()]}, clocks)
+    f = fetcher(s, "proxies", clocks, tmp_path, block_ttl=30)
+    try:
+        assert fetch(f, s.url("/p1.png", "proxies"))[0] == "ok" and marks(tmp_path) == [(HOST, 30, 429)]
+    finally:
+        f.close()
+
+
+@pytest.mark.parametrize("broken_after, failures", [(None, 3), (1, 1)])
+def test_a_broken_proxy_is_left_out_after_broken_after_errors_in_a_row(site, tmp_path, broken_after, failures):
+    """One proxy refuses connections, the other works; six pages one after the other. The dead one takes every other
+    attempt until it is left out for every host: after 3 errors in a row by default, after 1 with ``broken_after:
+    1``; first for 300 s (``broken_ttl``). Every page comes through."""
+    clocks = Clocks()
+    s = site({}, clocks)
+    (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n{s.proxies[0]}\n")
+    settings = {} if broken_after is None else {"broken_after": broken_after}
+    f = fetcher(s, "proxies", clocks, tmp_path, **settings)
+    try:
+        results = [fetch(f, s.url(f"/p{i}.png", "proxies")) for i in range(6)]
+        assert all(r[0] == "ok" for r in results)
+        assert sum(r[2]["tries"].count("no-response") for r in results) == failures
+        assert marks(tmp_path) == [("*", 300, "broken")] and backoffs(clocks) == [2] * failures
+    finally:
+        f.close()
+
+
+# ---------------------------------------------------------------- the doubling, on a proxy pool
+
+
+def test_a_proxys_blocks_and_breaks_double_until_it_answers(tmp_path):
+    """``ProxyPool.block`` without ``Retry-After``: 60, 120, 240 s for repeats, at most ``block_ttl`` (here 200 s); a
+    successful response from the host starts it again; ``Retry-After`` is taken as it is and keeps the doubling. A
+    broken proxy: 300, 600 s, at most ``block_ttl``; any answer through it starts that again."""
+    from linecaster.broker import Broker
+    from linecaster.net.proxies import ProxyPool, proxy_id
+
+    now = [1_800_000_000.0]
+    broker = Broker(str(tmp_path), worker="a-0", clock=lambda: now[0])
+    proxy = "http://10.0.0.1:8080"
+    pool = ProxyPool(broker, [proxy], keep_alive=False)
+
+    def ends(scope: str) -> float:
+        end = pool._blocked[(proxy_id(proxy), scope)] - now[0]
+        now[0] += end                                    # the block ends
+        return round(end)
+
+    waits = []
+    for _ in range(3):
+        pool.block(proxy, HOST, cap=200, status=429)
+        waits.append(ends(HOST))
+    pool.block(proxy, HOST, 30, cap=200, status=429)    # Retry-After: 30
+    waits.append(ends(HOST))
+    pool.block(proxy, HOST, cap=200, status=429)
+    waits.append(ends(HOST))
+    pool.answered(proxy, HOST)
+    pool.block(proxy, HOST, cap=200, status=429)
+    waits.append(ends(HOST))
+    assert waits == [60, 120, 200, 30, 200, 60]
+    broken = []
+    for _ in range(3):
+        pool.broken(proxy, after=1, first=300, cap=1000)
+        broken.append(ends("*"))
+    pool.answered(proxy)
+    pool.broken(proxy, after=1, first=300, cap=1000)
+    broken.append(ends("*"))
+    assert broken == [300, 600, 1000, 300]
+
+
+# ---------------------------------------------------------------- the schema
+
+
+def policy_file(tmp_path, text: str, name: str = "policy.yaml") -> str:
+    (tmp_path / name).write_text(text)
+    return str(tmp_path / name)
+
+
+def test_the_levels_inherit_root_then_command_line_then_host(tmp_path):
+    """Level 1: the root's, the run's options over them, the host's over both. The ``proxies:`` section: the root's,
+    then the host's, field by field (``--proxies`` between them for the file). ``direct: true``: no proxies there."""
+    policy = HTTPPolicy(policy_file(tmp_path, """
+rate_limits: ["100/60", "2/1"]
+attempt_timeout: 120
+max_retries: 6
+random_user_agent: true
+block_on: [429, 403]
+max_pause: 2h
+proxies: {file: root.txt, per_worker: share, block_ttl: 1h, broken_after: 2, broken_ttl: 10m}
+broker: s3://bucket/broker
+hosts:
+  catalog.example.org: {direct: true, rate_limits: ["25/60"], stop_on: [html]}
+  images.example.org: {proxies: {block_ttl: 72h}, max_retries: 2}
+  files.example.org: {proxies: {file: host.txt}, block_on: [429, html]}
+"""), base={"rate_limits": [(50, 60.0)], "proxy_file": "cli.txt"})
+    catalog, images, files, other = (policy.http_for(f"https://{h}/x") for h in (
+        "catalog.example.org", "images.example.org", "files.example.org", "elsewhere.example.org"))
+    assert other["rate_limits"] == [(50, 60.0)] and other["proxy_file"] == "cli.txt"          # the command line's
+    assert (other["attempt_timeout"], other["max_retries"], other["use_fake_user_agent"]) == (120, 6, True)
+    assert other["block_on"] == [403, 429] and other["max_pause"] == 7200 and other["broker"] == "s3://bucket/broker"
+    assert (other["per_worker"], other["block_ttl"], other["broken_after"], other["broken_ttl"]) == ("share", 3600, 2, 600)
+    assert catalog["rate_limits"] == [(25, 60.0)] and "proxy_file" not in catalog and catalog["stop_on"] == ["html"]
+    assert images["block_ttl"] == 259200 and images["broken_after"] == 2 and images["proxy_file"] == "cli.txt"
+    assert images["max_retries"] == 2 and images["rate_limits"] == [(50, 60.0)]
+    assert files["proxy_file"] == "host.txt" and files["block_on"] == [429, "html"] and files["block_ttl"] == 3600
+    described = policy.describe()
+    assert "catalog.example.org: direct, 25/60 per worker" in described
+    assert "stops when the wait would pass 2 h, stops on html" in described
+    assert "images.example.org: through proxies, a fair share per worker, 50/60 per proxy, 2 retries" in described
+    assert "the proxy left out for the host for Retry-After, else 1 min doubling up to 72 h" in described
+    assert "files.example.org: through proxies" in described and "blocks on 429, html" in described
+    assert "left out 10 min doubling up to 1 h" in described
+
+
+@pytest.mark.parametrize("old, new", [
+    ("pause_on: [429, 503]", "block_on: [429, 503]"),
+    ("pause_on: []", "block_on: []"),
+    ("blacklist_on: [403]", "block_on: [403, 429]"),
+    ("blacklist_ttl: 72h", "proxies: {block_ttl: 72h}"),
+    ("blacklist_threshold: 2", "proxies: {broken_after: 2}"),
+    ("proxies: p.txt", "proxies: {file: p.txt}"),
+    ("proxies_per_worker: 1", "proxies: {per_worker: 1}"),
+    ("{proxies: p.txt, proxies_per_worker: 1, blacklist_ttl: 72h}",
+     "proxies: {file: p.txt, per_worker: 1, block_ttl: 72h}"),
+])
+@pytest.mark.parametrize("where", ["root", "host"])
+def test_the_fields_of_earlier_versions_name_the_line_to_write(tmp_path, old, new, where):
+    text = old[1:-1].replace(", ", "\n") if old.startswith("{") else old
+    if where == "host":
+        text = "hosts:\n  a.example.org: {" + text.replace("\n", ", ") + "}"
+    with pytest.raises(PipelineConfigError, match="no longer read; write `" + new.replace("[", r"\[").replace(
+            "{", r"\{") + "` instead"):
+        HTTPPolicy(policy_file(tmp_path, text + "\n"))
+
+
+def test_the_proxies_section_and_its_checks(tmp_path):
+    for text, problem in [("proxies: {files: p.txt}", "unknown files"),
+                          ("proxies: {broken_after: 0}", "broken_after is a whole number"),
+                          ("proxies: {broken_ttl: soon}", "a duration"),
+                          ("proxies: [p.txt]", "proxies: a mapping"),
+                          ("direct: yes please", "direct is true or false"),
+                          ("stop_on: [captcha]", "stop_on holds HTTP statuses and `html`")]:
+        with pytest.raises(PipelineConfigError, match=problem):
+            HTTPPolicy(policy_file(tmp_path, text + "\n"))
