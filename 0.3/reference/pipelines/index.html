@@ -1685,8 +1685,8 @@ block, a docstring and the call that runs the shape:</p>
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
     <span class="n">run</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">options</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">models</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">PIPELINE</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">SLOTS</span><span class="p">)</span>
 </code></pre></div>
-<p>A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need, the
-same constraint list), and may lay its own defaults over the shape's options: an <code>options</code> that calls the shape's and
+<p>A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need), and
+may lay its own defaults over the shape's options: an <code>options</code> that calls the shape's and
 then <code>ap.set_defaults(...)</code> (<code>--recipe</code> too, which <code>run</code> adds before the script's options), and a <code>pipeline</code> that
 fills a default depending on other options before it calls the shape's. Its run records name its script; its
 <code>pipeline_sha256</code> is the shape's for the same options.</p>
@@ -1713,7 +1713,7 @@ steps <code>model</code> (read as <code>steps</code>); a row without <code>schem
 <p><code>linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)</code> spells out what a Job installs from a
 pipeline script's metadata; without a script it raises unless <code>engines=False</code> (linecaster alone). A derivative
 whose own pipeline needs the engine packages passes <code>ENGINE_SCRIPT</code> (the modular pipeline script of the checkout,
-<code>pipelines/transcribe_modular.py</code>), whose metadata lists every engine with its sources and pins.</p>
+<code>pipelines/transcribe_modular.py</code>), whose metadata lists every engine with its sources.</p>
 
 
 

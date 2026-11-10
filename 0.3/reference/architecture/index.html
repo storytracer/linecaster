@@ -1196,17 +1196,16 @@ with a range of linecaster releases, and their tests in <code>engines/&lt;engine
 <h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
 <p><code>uv run pytest</code> runs the core's tests, one after the other; <code>uv run pytest -n auto</code> (pytest-xdist, in the <code>dev</code>
 group) runs them on every core. Tests marked <code>gpu</code> or <code>network</code> (<code>linecaster.testing.markers</code>: <code>gpu</code>, <code>network</code>,
-<code>slow</code>, <code>parity</code>; <code>--strict-markers</code>) skip where the device or the network is missing. The CI workflow
+<code>slow</code>; <code>--strict-markers</code>) skip where the device or the network is missing. The CI workflow
 (<code>.github/workflows/ci.yml</code>, CPU only, no secrets, uv's cache kept between runs) runs <code>uv sync --locked
 --all-extras</code> (the extras' readers are tested and documented too), <code>uv run pytest -n auto -m "not gpu and not
-network and not parity"</code>, <code>linecaster catalog verify</code>, <code>linecaster docs</code> and the site's strict build (the generated
+network"</code>, <code>linecaster catalog verify</code>, <code>linecaster docs</code> and the site's strict build (the generated
 pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
 (<code>.github/workflows/docs.yml</code>) writes them too and publishes the site with mike on the <code>gh-pages</code> branch, which GitHub Pages serves
 (<code>https://storytracer.github.io/linecaster/</code>): a release tag <code>v&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</code> as version <code>&lt;major&gt;.&lt;minor&gt;</code>,
 with <code>latest</code> (the site's default) moved to it; nothing else is published. The engines' environments are too large for it
 (torch): their tests (<code>engines/&lt;engine&gt;/tests/</code>) and the PEP 723 test
-scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_page_engines_catalog.py</code>, <code>tests/test_line_recognizers.py</code>) run locally, the goldens compare
-(<code>tests/parity/compare_goldens.py</code>) on the machines that have the goldens. Every built-in engine and every public
+scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_page_engines_catalog.py</code>, <code>tests/test_line_recognizers.py</code>) run locally. Every built-in engine and every public
 block passes the conformance checks of <code>linecaster.testing</code> (<code>check_engine</code>: the engine protocol; <code>check_block</code>:
 the contract against what the block does to sample pages, <code>to_dict()</code>, pickling, <code>warm_up()</code>, failed pages).</p>
 <p>An engine package's tests run in an environment that has the engine: <code>uv run tests/test_engines_catalog.py
@@ -1260,8 +1259,7 @@ in-process|served</code>, <code>--endpoint</code> (a running server), <code>serv
 them (<code>--recipe</code>); <code>launch.py</code> runs a recipe or a page preset by name (<a href="../catalog/#pipelines-recipes-and-launchpy">catalog</a>).
 Each script's page in the <a href="../../catalog/">catalog's docs</a> lists its slots and options.</p>
 <p>Script environments: the repository is not a uv workspace (engine pins conflict). Sources apply only to a script's
-direct dependencies, so scripts with kraken list the fork directly; the numerically relevant versions are pinned with
-<code>constraint-dependencies</code>, the same list in every engine script. <code>tests/test_scripts.py</code> checks pins, sources, locks
+direct dependencies, so scripts with kraken list the fork directly. <code>tests/test_scripts.py</code> checks sources, locks
 and wheels for both machines (uv's <code>required-environments</code> does not work in scripts). PaddleX's GUI OpenCV pin is
 satisfied by <code>stubs/opencv-contrib-python</code> (the headless build of the same version; one cv2).</p>
 <h2 id="executors-and-jobs">Executors and Jobs<a class="headerlink" href="#executors-and-jobs" title="Permanent link">&para;</a></h2>
@@ -1290,7 +1288,7 @@ satisfied by <code>stubs/opencv-contrib-python</code> (the headless build of the
 <p>datatrove's <code>JobsPipelineExecutor</code> is experimental and dill-pickles the pipeline, so the launching machine and the
 Jobs run the same Python minor version (3.12). <code>uv run --with</code> drops <code>[tool.uv.sources]</code>:
 <code>linecaster.runtime.jobs.dependencies(commit, script)</code> spells out a pipeline's dependencies, sources (as URLs; the
-commit must be pushed) and pins (<a href="../pipelines/#hf-jobs-helpers">pipelines</a>). A private derivative ships its code as
+commit must be pushed) (<a href="../pipelines/#hf-jobs-helpers">pipelines</a>). A private derivative ships its code as
 a wheel mounted from a bucket folder (<code>WheelJobsExecutor</code>, <code>wheel_volume</code>).</p>
 <p>Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
 does) agree through the <a href="../broker/">broker</a>, a folder any executor's workers can reach, on any storage datatrove

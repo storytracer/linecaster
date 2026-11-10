@@ -289,7 +289,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.3.1`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.3.2`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a release may break things without a deprecation period. The
 [docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest.
 For `main`, run `uv run linecaster docs` and then `uv run --group docs mkdocs serve` in a checkout.
@@ -478,7 +478,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **engine API** | What an engine package may import from linecaster besides the data model: `linecaster.engines.api` (the `Engine` protocol, `Capabilities`, the weight helpers). | not the HTTP routes of `linecaster serve` |
 | **fake engine** | A deterministic CPU engine of `linecaster.testing` for tests, one per model step, registered under `fake.<step>.v1` by `register_fakes()` only. | never in a catalog preset |
 | **conformance check** | `check_engine` (the engine protocol) or `check_block` (a block's contract against what it does, its `to_dict()`, pickling, `warm_up()` and failed pages), from `linecaster.testing`. | not a parity check |
-| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`, `parity`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
+| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
 | **CI workflow** | `.github/workflows/ci.yml`: the core's tests and checks on a CPU, on every push and pull request to main. | not a workflow |
 
 ## Docs and changes
@@ -597,7 +597,7 @@ are, and a test keeps them complete as signatures change.
   `engines/<engine>/tests/`. Reason: the protocol and the contracts hold for every implementation, not only the
   ones a pipeline happens to run.
 - A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
-  over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
+  over about 10 s `slow` (`--strict-markers`). Reason: the default
   run skips what a machine cannot run, and CI runs what a CPU can.
 - Tests use the fake engines, the fake chat server and the fake service of `linecaster.testing`, not copies of their
   own. Reason: one fake per step behaves the same in every test.
@@ -759,17 +759,16 @@ with a range of linecaster releases, and their tests in `engines/<engine>/tests/
 
 `uv run pytest` runs the core's tests, one after the other; `uv run pytest -n auto` (pytest-xdist, in the `dev`
 group) runs them on every core. Tests marked `gpu` or `network` (`linecaster.testing.markers`: `gpu`, `network`,
-`slow`, `parity`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
+`slow`; `--strict-markers`) skip where the device or the network is missing. The CI workflow
 (`.github/workflows/ci.yml`, CPU only, no secrets, uv's cache kept between runs) runs `uv sync --locked
 --all-extras` (the extras' readers are tested and documented too), `uv run pytest -n auto -m "not gpu and not
-network and not parity"`, `linecaster catalog verify`, `linecaster docs` and the site's strict build (the generated
+network"`, `linecaster catalog verify`, `linecaster docs` and the site's strict build (the generated
 pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
 (`.github/workflows/docs.yml`) writes them too and publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
 with `latest` (the site's default) moved to it; nothing else is published. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
-scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally, the goldens compare
-(`tests/parity/compare_goldens.py`) on the machines that have the goldens. Every built-in engine and every public
+scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally. Every built-in engine and every public
 block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
@@ -800,8 +799,7 @@ them (`--recipe`); `launch.py` runs a recipe or a page preset by name ([catalog]
 Each script's page in the [catalog's docs](../catalog/README.md) lists its slots and options.
 
 Script environments: the repository is not a uv workspace (engine pins conflict). Sources apply only to a script's
-direct dependencies, so scripts with kraken list the fork directly; the numerically relevant versions are pinned with
-`constraint-dependencies`, the same list in every engine script. `tests/test_scripts.py` checks pins, sources, locks
+direct dependencies, so scripts with kraken list the fork directly. `tests/test_scripts.py` checks sources, locks
 and wheels for both machines (uv's `required-environments` does not work in scripts). PaddleX's GUI OpenCV pin is
 satisfied by `stubs/opencv-contrib-python` (the headless build of the same version; one cv2).
 
@@ -816,7 +814,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
 Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.sources]`:
 `linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies, sources (as URLs; the
-commit must be pushed) and pins ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
+commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
 a wheel mounted from a bucket folder (`WheelJobsExecutor`, `wheel_volume`).
 
 Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
@@ -1313,8 +1311,8 @@ if __name__ == "__main__":
     run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
 ```
 
-A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need, the
-same constraint list), and may lay its own defaults over the shape's options: an `options` that calls the shape's and
+A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need), and
+may lay its own defaults over the shape's options: an `options` that calls the shape's and
 then `ap.set_defaults(...)` (`--recipe` too, which `run` adds before the script's options), and a `pipeline` that
 fills a default depending on other options before it calls the shape's. Its run records name its script; its
 `pipeline_sha256` is the shape's for the same options.
@@ -1350,7 +1348,7 @@ steps `model` (read as `steps`); a row without `schema` (the oldest format) name
 `linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
 pipeline script's metadata; without a script it raises unless `engines=False` (linecaster alone). A derivative
 whose own pipeline needs the engine packages passes `ENGINE_SCRIPT` (the modular pipeline script of the checkout,
-`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources and pins.
+`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources.
 
 <!-- docs/reference/data-model.md -->
 
@@ -1843,7 +1841,7 @@ are written by `linecaster catalog pin`.
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
-Measurements of a whole run (goldens, the pipeline's CER) are the recipe's evidence. A derivative's recipe
+Measurements of a whole run (the pipeline's CER, its speed) are the recipe's evidence. A derivative's recipe
 lives in this catalog too (squiddleocr's `squiddle`); the derivative names it by id.
 
 ### Evidence (`evidence/<date>-<subject>-<dataset>.yaml`)

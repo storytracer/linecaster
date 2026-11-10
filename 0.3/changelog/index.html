@@ -764,6 +764,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#032-2026-11-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.3.2 (2026-11-10)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.3.2 (2026-11-10)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#031-2026-11-10" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -776,7 +815,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes" class="md-nav__link">
+  <a href="#upgrade-notes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -826,7 +865,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_1" class="md-nav__link">
+  <a href="#upgrade-notes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -876,7 +915,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_2" class="md-nav__link">
+  <a href="#upgrade-notes_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -937,7 +976,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_3" class="md-nav__link">
+  <a href="#upgrade-notes_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -1009,6 +1048,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#032-2026-11-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.3.2 (2026-11-10)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.3.2 (2026-11-10)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#031-2026-11-10" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1021,7 +1099,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes" class="md-nav__link">
+  <a href="#upgrade-notes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -1071,7 +1149,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_1" class="md-nav__link">
+  <a href="#upgrade-notes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -1121,7 +1199,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_2" class="md-nav__link">
+  <a href="#upgrade-notes_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -1182,7 +1260,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#upgrade-notes_3" class="md-nav__link">
+  <a href="#upgrade-notes_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Upgrade notes
@@ -1244,8 +1322,22 @@
 <p>All notable changes to linecaster. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>;
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is <code>v0.1.0</code>.</p>
-<h2 id="031-2026-11-10">0.3.1 (2026-11-10)<a class="headerlink" href="#031-2026-11-10" title="Permanent link">&para;</a></h2>
+<h2 id="032-2026-11-10">0.3.2 (2026-11-10)<a class="headerlink" href="#032-2026-11-10" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The scripts no longer pin the numerically relevant versions (<code>constraint-dependencies</code>: ONNX Runtime, the CUDA
+  libraries, cuDNN, transformers, tokenizers, Lightning, Pillow, SciPy, scikit-image). The locks still hold the same
+  versions; a relock with <code>--upgrade</code> now moves them. HF Jobs (<code>linecaster.runtime.jobs.dependencies</code>) no longer add
+  those pins to <code>uv run --with</code>, so a Job resolves their newest versions. torch stays at 2.14 (linecaster-kraken's pin).</li>
+</ul>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>squiddleocr's goldens as the reference for the squiddle combination: <code>tests/parity/compare_goldens.py</code>,
+  <code>tests/parity/compare_exports.py</code> and the <code>parity</code> pytest marker. They served the migration from squiddleocr; the
+  last comparison is in NOTES.md.</li>
+</ul>
+<h2 id="031-2026-11-10">0.3.1 (2026-11-10)<a class="headerlink" href="#031-2026-11-10" title="Permanent link">&para;</a></h2>
+<h3 id="upgrade-notes_1">Upgrade notes<a class="headerlink" href="#upgrade-notes_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>A Ray launch (<code>--on ray</code>) now stops with a <code>PipelineConfigError</code> before it submits a task if no live node has what
   a task reserves (CPUs, memory, a GPU for a stage with models). Ray used to keep such tasks waiting without an error.
@@ -1272,7 +1364,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   with <code>--reuse</code>, and every page of it without (since <code>--reuse</code> is off by default).</li>
 </ul>
 <h2 id="030-2026-11-10">0.3.0 (2026-11-10)<a class="headerlink" href="#030-2026-11-10" title="Permanent link">&para;</a></h2>
-<h3 id="upgrade-notes_1">Upgrade notes<a class="headerlink" href="#upgrade-notes_1" title="Permanent link">&para;</a></h3>
+<h3 id="upgrade-notes_2">Upgrade notes<a class="headerlink" href="#upgrade-notes_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The pipeline scripts' code moved into the package: each script in <code>pipelines/</code> runs the pipeline shape of its name
   in <code>linecaster.pipelines</code> (<code>harvest</code>, <code>transcribe_modular</code>, <code>transcribe_vlm</code>, <code>transcribe_page</code>, <code>bind</code>). Their
@@ -1309,7 +1401,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   linecaster <code>&gt;=0.1,&lt;0.4</code>.</li>
 </ul>
 <h2 id="020-2026-11-09">0.2.0 (2026-11-09)<a class="headerlink" href="#020-2026-11-09" title="Permanent link">&para;</a></h2>
-<h3 id="upgrade-notes_2">Upgrade notes<a class="headerlink" href="#upgrade-notes_2" title="Permanent link">&para;</a></h3>
+<h3 id="upgrade-notes_3">Upgrade notes<a class="headerlink" href="#upgrade-notes_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The generated docs (the block and catalog pages, <code>docs/index.md</code>, <code>docs/changelog.md</code>, <code>docs/llms*.txt</code>) are no
   longer in git: <code>linecaster docs</code> writes them when the site is built, and git ignores them. Run <code>linecaster docs</code>
@@ -1637,7 +1729,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   the task.</li>
 </ul>
 <h2 id="010-2026-11-06">0.1.0 (2026-11-06)<a class="headerlink" href="#010-2026-11-06" title="Permanent link">&para;</a></h2>
-<h3 id="upgrade-notes_3">Upgrade notes<a class="headerlink" href="#upgrade-notes_3" title="Permanent link">&para;</a></h3>
+<h3 id="upgrade-notes_4">Upgrade notes<a class="headerlink" href="#upgrade-notes_4" title="Permanent link">&para;</a></h3>
 <p>The first release, after the refactoring of November 2026 in six phases; each phase's renames are listed
 here, and all of them in one table at the end of these notes. There are no compatibility aliases: old imports, flags
 and ids fail.</p>

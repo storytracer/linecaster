@@ -1219,7 +1219,7 @@ are, and a test keeps them complete as signatures change.</p>
   <code>engines/&lt;engine&gt;/tests/</code>. Reason: the protocol and the contracts hold for every implementation, not only the
   ones a pipeline happens to run.</li>
 <li>A test that needs a CUDA device is marked <code>gpu</code>, one that downloads weights or reaches the internet <code>network</code>, one
-  over about 10 s <code>slow</code>, one that compares against the goldens <code>parity</code> (<code>--strict-markers</code>). Reason: the default
+  over about 10 s <code>slow</code> (<code>--strict-markers</code>). Reason: the default
   run skips what a machine cannot run, and CI runs what a CPU can.</li>
 <li>Tests use the fake engines, the fake chat server and the fake service of <code>linecaster.testing</code>, not copies of their
   own. Reason: one fake per step behaves the same in every test.</li>
