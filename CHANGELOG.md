@@ -4,6 +4,26 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- The pipeline scripts' code moved into the package: each script in `pipelines/` runs the pipeline shape of its name
+  in `linecaster.pipelines` (`harvest`, `transcribe_modular`, `transcribe_vlm`, `transcribe_page`, `bind`). Their
+  command lines, help texts and `pipeline_sha256` are unchanged; the run record's `script` hash changes with the
+  script file. Code that loaded a script as a module imports its shape instead
+  (`from linecaster.pipelines import transcribe_modular`).
+- `linecaster.runtime.run.describe_script(script, argv)` and `load_script(script)` are gone: `run.describe(shape,
+  argv, c=None, script=None)` builds a shape in the describe mode. `describe_recipe` finds the recipe's shape by its
+  pipeline id (`linecaster.pipelines.shape`), so it no longer needs the repository checkout.
+- `linecaster.catalog.code.pipelines()` imports the shapes instead of reading the scripts: a `Pipeline`'s `source`
+  is its script in the checkout (`None` without one) and its new field `shape` the shape's source file.
+
+### Added
+
+- `linecaster.pipelines`: the pipeline shapes as library code, with `shapes()` and `shape(pipeline_id)`; a
+  derivative's script imports one and runs it with `run.main` in its own environment, with its own defaults.
+
 ## 0.2.0 (2026-11-09)
 
 ### Upgrade notes

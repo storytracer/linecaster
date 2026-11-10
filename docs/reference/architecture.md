@@ -28,6 +28,7 @@ evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are 
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools |
 | `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
 | `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
+| `linecaster.pipelines` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |
 | `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
@@ -126,8 +127,10 @@ the contract against what the block does to sample pages, `to_dict()`, pickling,
 ## Pipeline scripts
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
-`<script>.py.lock` next to it, `uv run <script>`) that builds one pipeline shape with slots, one script per shape,
-never one per machine:
+`<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline shape with slots, one script per shape,
+never one per machine. The shape is library code, `linecaster.pipelines.<name>` (its options, engines, blocks,
+pipeline id and slots), so a derivative's script can run it in its own environment with its own defaults
+([pipelines](pipelines.md#pipeline-shapes)):
 
 | Script | Pipeline id | Does |
 |---|---|---|

@@ -167,11 +167,11 @@ folders, in-process, one task) and records `pipeline`, every block with its clas
 pipeline again and reports drift: a block, a parameter or a default that changed in code changes the hash, and
 `verify` names the blocks that differ.
 
-Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe_script`) loads the pipeline
-script as a module of the current process (its PEP 723 environment is not used), and blocks and backends import
-no engine before `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's
-engine packages (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the
-script with its engines records. It needs the pipeline scripts of the checkout.
+Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe`) builds the recipe's pipeline
+shape (`linecaster.pipelines`) in the current process, and blocks and backends import no engine before
+`warm_up()`; a preset whose engine is not installed names the engine's class from the repository's engine packages
+(`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the pipeline script
+with its engines records.
 
 Drift is resolved like any change of a released edition: a change that can change outputs gives the recipe a new
 edition; a change of the code that keeps behavior (a renamed parameter, a new option whose default keeps the old

@@ -274,11 +274,11 @@ to the earlier one and is the one the next resume is checked against); another `
 task would read other input). The same hash and tasks: a resume, as datatrove's completion markers make it.
 `--dry-run` reports the same problems.
 
-**Describe mode.** `linecaster.runtime.run.describe_script(script, argv)` builds a pipeline script's plan in the
-current process without its engines: the script is loaded as a module, its options parsed, presets resolved
-without checking that their engines are installed, nothing loaded or started. `describe_recipe(ref)` describes a
-recipe edition that way (its pipeline script by the recipe's pipeline id, `--recipe REF`, placeholder folders):
-what `linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
+**Describe mode.** `linecaster.runtime.run.describe(shape, argv)` builds a pipeline shape's plan in the current
+process without its engines: its options parsed, presets resolved without checking that their engines are
+installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe edition that way (the shape of the
+recipe's pipeline id, `linecaster.pipelines.shape(id)`, with `--recipe REF` and placeholder folders): what
+`linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
 
 ## Tasks, workers and rate limits
 
@@ -423,6 +423,28 @@ lists the completion markers once instead of looking them up task by task.
 `Chat(preset, endpoint, api_key=..., headers=...)` alike) sends `Authorization: Bearer <key>` and the headers with
 every request through saturate's `AdaptiveClient(headers=...)`;
 a key given as text is refused. A missing variable fails the block's warm-up.
+
+## Pipeline shapes
+
+A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest`, `transcribe_modular`,
+`transcribe_vlm`, `transcribe_page`, `bind`): its docstring (the help text), `options(ap)`, `models(a)`,
+`pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.pipelines.shapes()` lists them by
+pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
+block, a docstring and the call that runs the shape:
+
+```python
+from linecaster.pipelines import transcribe_modular as shape
+from linecaster.runtime import run
+
+if __name__ == "__main__":
+    run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
+```
+
+A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need, the
+same constraint list), and may lay its own defaults over the shape's options: an `options` that calls the shape's and
+then `ap.set_defaults(...)` (`--recipe` too, which `run` adds before the script's options), and a `pipeline` that
+fills a default depending on other options before it calls the shape's. Its run records name its script; its
+`pipeline_sha256` is the shape's for the same options.
 
 ## The item stage
 
