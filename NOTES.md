@@ -2,12 +2,19 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Slurm: untested (2026-11-10)
+
+The README says a pipeline (a list of blocks) runs on Slurm through datatrove's `SlurmPipelineExecutor`, from Python;
+the pipeline scripts have no `--on slurm` (`run.ON`: local, ray, hf-jobs). Neither has run on a Slurm cluster: no
+machine here has one. To validate on a cluster: the README's example (one GPU per task, `venv_path` with the engines),
+then whether `--on slurm` is worth adding (the builder's stages as dependent array jobs, `depends=`).
+
 ## The pipeline shapes in the package (2026-11-10, spark)
 
 Every pipeline script's code moved into `linecaster.pipelines` (`harvest`, `transcribe_modular`, `transcribe_vlm`,
 `transcribe_page`, `bind`); each script is now its PEP 723 block, a docstring and `run.main` with its shape's names,
-so a derivative's script can run a shape (squiddleocr's `squiddle.py` runs `transcribe_modular` with its own
-defaults). Why a package of shapes and not a helper per pipeline: the glossary's "pipeline" is the list of blocks a
+so a derivative's script can run a shape (squiddleocr's `squiddle.py` runs `transcribe_modular` with the squiddle
+recipe and nothing else). Why a package of shapes and not a helper per pipeline: the glossary's "pipeline" is the list of blocks a
 run builds, and the scripts were already "one per pipeline shape"; the term **pipeline shape** names the code, and the
 package and file names follow the pipeline ids (`linecaster.pipelines.transcribe_modular`, `transcribe_modular.v1`).
 
