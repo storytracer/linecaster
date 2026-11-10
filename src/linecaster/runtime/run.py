@@ -844,7 +844,12 @@ def check_commit(a: argparse.Namespace, script: str | None) -> None:
     """``--on hf-jobs`` needs ``--commit`` for linecaster's own scripts (``jobs.needs_commit``): their Jobs install
     linecaster at that commit. A derivative's script outside the checkout that takes linecaster from a git tag,
     branch or rev runs without one."""
-    if a.on != "hf-jobs" or a.commit:
+    if a.on != "hf-jobs":
+        return
+    if a.commit:
+        from .jobs import resolve_commit
+
+        a.commit = resolve_commit(a.commit)
         return
     from .jobs import needs_commit
 

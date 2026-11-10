@@ -204,14 +204,14 @@ hosts:
 
 def test_the_http_policy_root_alone_and_its_checks(tmp_path):
     policy = HTTPPolicy(policy_file(tmp_path, "max_retries: 2\nattempt_timeout: 60\n"), base={"max_retries": 4})
-    assert policy.http_for("https://a.org/x") == {"max_retries": 4, "attempt_timeout": 60}   # the run's option wins
+    assert policy.http_for("https://a.library.test/x") == {"max_retries": 4, "attempt_timeout": 60}   # the run's option wins
     assert policy.describe() == "every host: no rate limit, 2 retries" and not policy.rate_limited()
     described = policy.describe({"rate_limits": ["100/60", "2/1"], "proxies": "p.txt"})   # the run's options
     assert described.startswith("every host: 100/60, 2/1 per proxy, through proxies") and "no rate limit" not in described
     with pytest.raises(PipelineConfigError, match="unknown speed"):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {speed: 3}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {speed: 3}\n"))
     with pytest.raises(PipelineConfigError, match="unknown broker"):              # a folder for the whole run
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {broker: x}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {broker: x}\n"))
     with pytest.raises(PipelineConfigError, match="`default:` is gone"):
         HTTPPolicy(policy_file(tmp_path, "default: {rate_limits: [\"60/60\"]}\n"))
     with pytest.raises(PipelineConfigError, match="max_retries is a whole number"):
@@ -328,7 +328,7 @@ def test_blacklist_settings_per_host(tmp_path):
     assert config["proxy_blacklist_ttl"] == 259200 and config["proxy_blacklist_threshold"] == 2
     assert (seconds("30m", "x"), seconds(45, "x"), seconds("3d", "x")) == (1800, 45, 259200)
     with pytest.raises(PipelineConfigError, match="duration"):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {blacklist_ttl: soon}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {blacklist_ttl: soon}\n"))
 
 
 def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_next(tmp_path):
@@ -355,22 +355,22 @@ def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_n
 def test_blacklist_on_in_a_hosts_file(tmp_path):
     hosts = HTTPPolicy(policy_file(tmp_path, "hosts:\n  www.library.test: {proxies: p.txt, blacklist_on: [403, 451]}\n"))
     assert hosts.http_for("https://www.library.test/item/1/")["proxy_blacklist_on"] == [403, 451]
-    plain = HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {}\n"))
-    assert "proxy_blacklist_on" not in plain.http_for("https://a.org/")
+    plain = HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {}\n"))
+    assert "proxy_blacklist_on" not in plain.http_for("https://a.library.test/")
     with pytest.raises(PipelineConfigError, match="error statuses"):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [200]}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {blacklist_on: [200]}\n"))
     with pytest.raises(PipelineConfigError, match="403 both in stop_on and blacklist_on"):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {blacklist_on: [403], stop_on: [403]}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {blacklist_on: [403], stop_on: [403]}\n"))
 
 
 def test_pause_on_in_a_policy_and_its_checks(tmp_path):
     policy = HTTPPolicy(policy_file(tmp_path, "pause_on: [429, 503]\nmax_pause: 30m\n"
-                                              "hosts:\n  a.org: {pause_on: []}\n"))
-    assert policy.http_for("https://b.org/")["pause_on"] == [429, 503]
-    assert policy.http_for("https://b.org/")["max_pause"] == 1800.0
-    assert policy.http_for("https://a.org/")["pause_on"] == []
-    assert "a.org: no rate limit, no pause, pauses at most 30m" in policy.describe()
-    assert "pause_on" not in HTTPPolicy(policy_file(tmp_path, "max_retries: 1\n")).http_for("https://b.org/")
+                                              "hosts:\n  a.library.test: {pause_on: []}\n"))
+    assert policy.http_for("https://b.library.test/")["pause_on"] == [429, 503]
+    assert policy.http_for("https://b.library.test/")["max_pause"] == 1800.0
+    assert policy.http_for("https://a.library.test/")["pause_on"] == []
+    assert "a.library.test: no rate limit, no pause, pauses at most 30m" in policy.describe()
+    assert "pause_on" not in HTTPPolicy(policy_file(tmp_path, "max_retries: 1\n")).http_for("https://b.library.test/")
     with pytest.raises(PipelineConfigError, match="pause_on holds HTTP error statuses"):
         HTTPPolicy(policy_file(tmp_path, "pause_on: [html]\n"))
     with pytest.raises(PipelineConfigError, match="pause_on holds HTTP error statuses"):
@@ -378,12 +378,12 @@ def test_pause_on_in_a_policy_and_its_checks(tmp_path):
     with pytest.raises(PipelineConfigError, match="a duration"):
         HTTPPolicy(policy_file(tmp_path, "max_pause: soon\n"))
     with pytest.raises(PipelineConfigError, match="503 both in stop_on and pause_on: "):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {pause_on: [503], stop_on: [503]}\n"))
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {pause_on: [503], stop_on: [503]}\n"))
     with pytest.raises(PipelineConfigError, match=r"429 both in stop_on and pause_on \(pause_on's default\)"):
-        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {stop_on: [429, html]}\n"))   # the old way to stop
-    with pytest.raises(PipelineConfigError, match="hosts: a.org: 429 both"):           # the root's pause_on holds
-        HTTPPolicy(policy_file(tmp_path, "pause_on: [429]\nhosts:\n  a.org: {stop_on: [429]}\n"))
-    HTTPPolicy(policy_file(tmp_path, "pause_on: []\nhosts:\n  a.org: {stop_on: [429]}\n"))   # stops on a 429
+        HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.library.test: {stop_on: [429, html]}\n"))   # the old way to stop
+    with pytest.raises(PipelineConfigError, match="hosts: a.library.test: 429 both"):           # the root's pause_on holds
+        HTTPPolicy(policy_file(tmp_path, "pause_on: [429]\nhosts:\n  a.library.test: {stop_on: [429]}\n"))
+    HTTPPolicy(policy_file(tmp_path, "pause_on: []\nhosts:\n  a.library.test: {stop_on: [429]}\n"))   # stops on a 429
 
 
 def test_a_proxy_block_is_marked_and_honored_after_a_restart(tmp_path):
@@ -538,16 +538,16 @@ def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
 
 def test_proxies_per_worker_in_a_policy_and_its_checks(tmp_path):
     policy = HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nrate_limits: [\"60/60\"]\nproxies_per_worker: 3\n"
-                                              "hosts:\n  a.org: {proxies: q.txt, proxies_per_worker: share}\n"
-                                              "  b.org: {direct: true}\n"))
-    assert policy.http_for("https://x.org/")["proxies_per_worker"] == 3
-    assert policy.http_for("https://a.org/")["proxies_per_worker"] == "share"
+                                              "hosts:\n  a.library.test: {proxies: q.txt, proxies_per_worker: share}\n"
+                                              "  b.library.test: {direct: true}\n"))
+    assert policy.http_for("https://x.library.test/")["proxies_per_worker"] == 3
+    assert policy.http_for("https://a.library.test/")["proxies_per_worker"] == "share"
     described = policy.describe()
-    assert "a.org: 60/60 per proxy, through proxies, a fair share per worker" in described
+    assert "a.library.test: 60/60 per proxy, through proxies, a fair share per worker" in described
     assert "other hosts: 60/60 per proxy, through proxies, up to 3 per worker" in described
-    assert "b.org: 60/60 per worker, direct" in described                      # no proxies: no count
+    assert "b.library.test: 60/60 per worker, direct" in described                      # no proxies: no count
     for bad in ("0", "many", "true", "1.5"):
         with pytest.raises(PipelineConfigError, match="proxies_per_worker is `share` .* or a whole number"):
             HTTPPolicy(policy_file(tmp_path, f"proxies_per_worker: {bad}\n"))
     with pytest.raises(PipelineConfigError, match="the hosts that use p.txt set proxies_per_worker 2, share"):
-        HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nhosts:\n  a.org: {proxies_per_worker: 2}\n"))
+        HTTPPolicy(policy_file(tmp_path, "proxies: p.txt\nhosts:\n  a.library.test: {proxies_per_worker: 2}\n"))

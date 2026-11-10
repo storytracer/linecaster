@@ -159,10 +159,10 @@ def pages(reader, rank=0, world_size=1):
 
 @pytest.mark.parametrize("entry, item", [
     ("https://www.library.test/item/ltf90007547/manifest.json", "ltf90007547"),
-    ("https://iiif.wellcomecollection.org/presentation/v3/b18035723", "b18035723"),
-    ("https://www.e-rara.ch/i3f/v20/12345/manifest", "12345"),
-    ("https://iiif.lib.harvard.edu/manifests/drs:427015", "drs_427015"),
-    ("https://iiif.bodleian.ox.ac.uk/iiif/manifest/e32a277e.json?x=1", "e32a277e"),
+    ("https://iiif.library.test/presentation/v3/b18035723", "b18035723"),
+    ("https://www.example.org/i3f/v20/12345/manifest", "12345"),
+    ("https://iiif.example.org/manifests/drs:427015", "drs_427015"),
+    ("https://images.library.test/iiif/manifest/e32a277e.json?x=1", "e32a277e"),
     ("manifests/flora-1.json", "flora-1"),
 ])
 def test_item_ids_from_manifest_entries(entry, item):

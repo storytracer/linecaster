@@ -273,3 +273,15 @@ def test_a_pinned_job_runs_the_launcher_script(monkeypatch):
     unpinned = jobs.JobsExecutor([], dependencies=jobs.Dependencies([f"linecaster @ {ARCHIVE}"]), **kw)
     unpinned._submit_array_index(0, "hf://buckets/example/run/executor.pik", "token")
     assert calls.pop()["dependencies"] == [f"linecaster @ {ARCHIVE}"]   # nothing to pin: datatrove's way
+
+
+def test_a_commit_is_resolved_to_the_full_sha_the_checkout_knows():
+    import subprocess
+
+    from linecaster.runtime.jobs import ROOT, resolve_commit
+
+    head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    if not head:
+        pytest.skip("not a git checkout")
+    assert resolve_commit("HEAD") == head and resolve_commit(head[:10]) == head
+    assert resolve_commit("0" * 40) == "0" * 40                  # unknown here: as given, GitHub resolves it

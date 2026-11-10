@@ -50,10 +50,10 @@ def test_retry_after_is_seconds_or_an_http_date():
 def test_a_pause_lasts_as_long_as_retry_after_says():
     clocks = Clocks()
     p = pause(clocks)
-    p.hit(429, "30", generation=0, host="a.org")
+    p.hit(429, "30", generation=0, host="a.library.test")
     assert p.paused and p.remaining() == 30.0 and p.generation == 1 and p.status == 429
     p2 = pause(clocks)
-    p2.hit(429, formatdate(clocks.wall + 45, usegmt=True), generation=0, host="a.org")   # an HTTP-date
+    p2.hit(429, formatdate(clocks.wall + 45, usegmt=True), generation=0, host="a.library.test")   # an HTTP-date
     assert p2.remaining() == 45.0
     p3 = pause(clocks)
     p3.hit(429, "0", generation=0)                                     # at least PAUSE_MIN_WAIT
@@ -98,11 +98,11 @@ def test_statuses_for_requests_in_flight_extend_the_pause_and_never_shorten_it()
 def test_beyond_max_pause_the_run_stops_and_a_success_starts_the_count_again():
     clocks = Clocks()
     p = pause(clocks, max_total=100)
-    p.hit(429, "60", generation=0, host="a.org")
+    p.hit(429, "60", generation=0, host="a.library.test")
     clocks.advance(60)
     p.answered(0)                                                     # sent before the pause: no reset
     with pytest.raises(StopRequests, match="max_pause"):
-        p.hit(429, "60", generation=p.generation, host="a.org")      # 120 s in all
+        p.hit(429, "60", generation=p.generation, host="a.library.test")      # 120 s in all
     p.answered(p.generation)                                          # sent after the pause and answered
     p.hit(429, "60", generation=p.generation)
     assert p.remaining() == 60.0

@@ -75,6 +75,17 @@ class Dependencies:
                 "overrides": list(self.overrides)}
 
 
+def resolve_commit(commit: str) -> str:
+    """``commit`` as the full sha the checkout knows it by (``HEAD``, a branch, a tag or a short sha), so the Jobs'
+    archive URL and the run record name one commit; as it is when the checkout does not know it (not fetched, or
+    not a git checkout), since GitHub resolves it then."""
+    import subprocess
+
+    r = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else commit
+
+
 def at_commit(path: str | Path, commit: str | None) -> str:
     """The text of ``path`` as it is at linecaster ``commit``, so a Job's dependencies come from the commit it
     installs and not from whatever the checkout holds now. A file outside the checkout (a derivative's own), or a
