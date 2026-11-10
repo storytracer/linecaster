@@ -2,7 +2,7 @@
 
 Measurements, decisions and open questions, newest first.
 
-## Dependencies cleaned up; the modular script without kraken (2026-11-10, spark)
+## Dependencies cleaned up; the modular script without kraken (2026-11-10, aarch64 GB10)
 
 - `uv lock` (and `uv lock --script`, uv 0.13.6) applies the `[tool.uv.sources]` of path and git dependencies, not only a
   project's or script's own: a script with `linecaster[pybookget]` from a path or a git tag and no direct `pybookget`
@@ -23,25 +23,25 @@ Measurements, decisions and open questions, newest first.
   Tesseract; `pipelines/transcribe_modular.py serve --recipe squiddle`) from the kraken-less script with
   `--backend served --endpoint`: one page of the squiddle test scans, no failed pages. Not compared with an
   in-process run.
-- The catalog's evidence records that name `pipelines/transcribe_modular.py --recipe squiddle` stay as they are: they
-  record what ran at the linecaster commit they name, when the script had kraken.
+- The runs recorded here with `pipelines/transcribe_modular.py --recipe squiddle` ran at the linecaster commits they
+  name, when the script had kraken.
 
 ## The goldens retired (2026-11-10)
 
-squiddleocr's goldens (7c8a052) were the check that the modular pipeline reproduces squiddleocr line for line; they
-did that through the migration (sample-60 1,560/1,560 lines, tables-7 651/651, in-process and served, spark and
-forge). With the migration done they are retired: no standing check replaces them, and a change that moves numerics
-is judged when it is made. Removed: `tests/parity/` (`compare_goldens.py`, `compare_exports.py`), the `parity`
-marker, and the `constraint-dependencies` list in every script, which held the goldens' versions. Relocking without
-the list kept every third-party version (only the constraint entries left the locks; the test scripts' locks also
-caught up with the local packages' versions). HF Jobs no longer pin those packages in `uv run --with`.
+A derivative's goldens were the check that the modular pipeline reproduces that derivative line for line; they did
+that through the migration (sample-60 1,560/1,560 lines, tables-7 651/651, in-process and served, on an aarch64 GB10
+and an x86_64 RTX 4000 SFF Ada machine). With the migration done they are retired: no standing check replaces them,
+and a change that moves numerics is judged when it is made. Removed: `tests/parity/` (`compare_goldens.py`,
+`compare_exports.py`), the `parity` marker, and the `constraint-dependencies` list in every script, which held the
+goldens' versions. Relocking without the list kept every third-party version (only the constraint entries left the
+locks; the test scripts' locks also caught up with the local packages' versions). HF Jobs no longer pin those packages
+in `uv run --with`.
 
-The last comparison, on a CoreWeave A40 (driver 535 with NVIDIA's CUDA 13 forward-compatibility library, x86_64,
-`--on ray`, served, one task) against spark's goldens for sample-60: 1,560/1,560 lines present, 1,552 line boxes equal
-(the other eight within 1 to 6 px), 1,513 lines equal in text and every word box, 32/60 pages exact; 14 character
-edits in 85,206 characters (CER 0.00016), all single uncertain glyphs (quote styles, a space before a colon, ſ/s,
-¬/-, â/á). The catalog's evidence records and provenance that name the goldens stay as they are: they record what
-was measured.
+The last comparison, on a cloud A40 (driver 535 with NVIDIA's CUDA 13 forward-compatibility library, x86_64, `--on
+ray`, served, one task) against the goldens recorded on the aarch64 GB10 machine for sample-60: 1,560/1,560 lines
+present, 1,552 line boxes equal (the other eight within 1 to 6 px), 1,513 lines equal in text and every word box,
+32/60 pages exact; 14 character edits in 85,206 characters (CER 0.00016), all single uncertain glyphs (quote styles, a
+space before a colon, ſ/s, ¬/-, â/á).
 
 ## Ray on Kubernetes: task reservations and threads (2026-11-10)
 
@@ -64,11 +64,11 @@ the pipeline scripts have no `--on slurm` (`run.ON`: local, ray, hf-jobs). Neith
 machine here has one. To validate on a cluster: the README's example (one GPU per task, `venv_path` with the engines),
 then whether `--on slurm` is worth adding (the builder's stages as dependent array jobs, `depends=`).
 
-## The pipeline shapes in the package (2026-11-10, spark)
+## The pipeline shapes in the package (2026-11-10, aarch64 GB10)
 
 Every pipeline script's code moved into `linecaster.pipelines` (`harvest`, `transcribe_modular`, `transcribe_vlm`,
 `transcribe_page`, `bind`); each script is now its PEP 723 block, a docstring and `run.main` with its shape's names,
-so a derivative's script can run a shape (squiddleocr's `squiddle.py` runs `transcribe_modular` with the squiddle
+so a derivative's script can run a shape (a derivative's `squiddle.py` runs `transcribe_modular` with the squiddle
 recipe and nothing else). Why a package of shapes and not a helper per pipeline: the glossary's "pipeline" is the list of blocks a
 run builds, and the scripts were already "one per pipeline shape"; the term **pipeline shape** names the code, and the
 package and file names follow the pipeline ids (`linecaster.pipelines.transcribe_modular`, `transcribe_modular.v1`).
@@ -79,12 +79,12 @@ package and file names follow the pipeline ids (`linecaster.pipelines.transcribe
   engine pipeline): all unchanged; `--recipe squiddle` stays `sha256:9ffdb240…3d31`. The help texts of all five,
   byte-identical. The generated docs: identical apart from the shape now named on each pipeline page.
   `linecaster catalog verify`: OK.
-- The modular pipeline's `--files` then gained `PageFileWriter(skip_failed=True)` (squiddleocr's
+- The modular pipeline's `--files` then gained `PageFileWriter(skip_failed=True)` (the derivative's
   `FailedPagesDropped`, as a writer parameter: a block dropping failed pages in front of the files would also keep them
   from the item stage in one task, but not after the builder's cut, where the item stage reads the page records). Its
   hash with `--files` changes (`--recipe squiddle --files F`: `sha256:146a4bc5…0479` → `sha256:9e1893f6…833d`);
   without `--files`, not.
-- The squiddle goldens (7c8a052) with `pipelines/transcribe_modular.py --recipe squiddle` after both changes:
+- The squiddle goldens with `pipelines/transcribe_modular.py --recipe squiddle` after both changes:
   sample-60 1,560 of 1,560 lines, 60 of 60 pages exact; tables-7 651 of 651, 7 of 7 exact.
 
 ## Many harvest workers writing to object storage (2026-11-09, a cloud VM, 250 proxies)
@@ -106,7 +106,7 @@ default with OUT on object storage; the reuse listing has a timeout (`LISTING_TI
 takes the k-th free slot. The cause of the hung listing itself (botocore's own connect and read timeouts are 60 s by
 default, yet it hung longer) is not known.
 
-## XY-Cut++ reading order (2026-11-07, spark)
+## XY-Cut++ reading order (2026-11-07, aarch64 GB10)
 
 Layout models without a learned reading order (PP-DocLayout_plus-L) can now be ordered with XY-Cut++ instead of
 plain XY-cut: `linecaster.data.geometry.xy_cut_plus_plus.xy_cut_plus_plus_order(boxes, labels, page_size)`, the
@@ -170,11 +170,10 @@ DocBench-100 (the paper's benchmark, 0.988 mean BLEU-4 for XY-Cut++, 0.797 for X
 repositories have the evaluation script with local paths only, and no copy was found on GitHub or Hugging Face. Not
 scored.
 
-Sample-60 (`finebooks/bhl-ocr-eval-sample-60@41ff3475`), `--recipe squiddle --layout pp-doclayout-plus-l@1` and
-`@2` (everything else from squiddle@1), in-process, one task, one run each; page Markdown (`--files md`, furniture
-left out) scored the board's way with a fresh clone of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs`
-postproc 3 as `kraken/PP-OCRv6-medium`, strip only → `score_dataset`). Evidence:
-`2026-11-07-pp-doclayout-plus-l-{1,2}-sample-60.yaml`.
+Sample-60 (a 60-page sample of 19th-century scientific print), `--recipe squiddle --layout pp-doclayout-plus-l@1`
+and `@2` (everything else from squiddle@1), in-process, one task, one run each; page Markdown (`--files md`,
+furniture left out) scored the leaderboard's way with a fresh clone of the leaderboard's scoring harness
+(consolidate → `normalize_outputs` postproc 3 as `kraken/PP-OCRv6-medium`, strip only → `score_dataset`).
 
 | volume | CERread @1 (XY-cut) | CERread @2 (XY-Cut++) |
 |---|---:|---:|
@@ -194,15 +193,15 @@ postproc 3 as `kraken/PP-OCRv6-medium`, strip only → `score_dataset`). Evidenc
   trudyrusskagoent161881russ 12342240.
 - The page text (`Transcription.text`, furniture kept) moves the same way: CERread 0.0939 → 0.0617.
 - pisciumquerelaee00sche and the remaining conchologia pages stay far above PP-DocLayoutV3 with its learned order
-  (CERread 0.0270 for all 60 pages in the same chain, `2026-11-03-kraken-ppocrv6-medium-bhl-ocr-eval-sample-60.yaml`);
+  (CERread 0.0270 for all 60 pages in the same chain, "More line recognizers" below);
   whether that is PP-DocLayout_plus-L's regions or what is left of their order was not investigated.
 - squiddle@1 after the change: `compare_goldens.py` 60 of 60 pages exact, 1,560 of 1,560 lines.
-- Not measured: forge (x86), tables-7, the full ground truth, other layouts (newspapers, many columns), DocBench-100,
+- Not measured: x86_64, tables-7, the full ground truth, other layouts (newspapers, many columns), DocBench-100,
   speed of the ordering alone (both runs 79 s for 60 pages with model loading).
 
 ## dots.mocr and LightOnOCR-3 on an RTX 4000 SFF Ada (2026-11-06)
 
-The presets `dots-mocr@1` (board row 1), `lightonocr-3-4b@1` (row 4) and `lightonocr-3-0.8b@1` (row 11), first
+The presets `dots-mocr@1` (leaderboard row 1), `lightonocr-3-4b@1` (row 4) and `lightonocr-3-0.8b@1` (row 11), first
 runs through linecaster, on the 60-page sample, one after another on one RTX 4000 SFF Ada 20 GB (x86_64, compute
 capability 8.9). One run each.
 
@@ -212,147 +211,149 @@ Setup:
   `ninja`).
   `ChatModelServer` started `vllm serve` on loopback with the preset's flags, the revision pinned; it stopped vLLM
   at the end of each run, before the next.
-- dots.mocr: vLLM 0.26.0 (the board's), the venv of the olmOCR-2 run (`uv pip install --exclude-newer
+- dots.mocr: vLLM 0.26.0 (the leaderboard's), the venv of the olmOCR-2 run (`uv pip install --exclude-newer
   2026-07-26T00:00:00Z vllm==0.26.0`: torch 2.11.0+cu130, transformers 5.14.1). `--window 4 --initial-window 4
-  --gpu-memory-utilization 0.6` and `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: the board's scored run
+  --gpu-memory-utilization 0.6` and `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: the leaderboard's scored run
   (`--max-window 4 --gpu-memory-utilization 0.6` on an L40S, the job's environment), not the driver's defaults (12
   and 0.9), which its docstring says ran out of memory in the vision encoder. The driver's transformers-v5 boot
   hazard did not occur (vLLM 0.26.0 itself needs transformers 5.5.3 or later).
-- LightOnOCR-3-4B and -0.8B: vLLM 0.30.0 (the board's exception for these rows), a new venv made the same way
+- LightOnOCR-3-4B and -0.8B: vLLM 0.30.0 (the leaderboard's exception for these rows), a new venv made the same way
   (`--exclude-newer 2026-09-23T00:00:00Z vllm==0.30.0`, the day after the release: torch 2.13.0+cu130, transformers
   5.17.0, flashinfer-python 0.6.18.post1). `--window 12 --initial-window 4` (the driver's `Auto(initial=4,
   max_limit=12)`) and `--gpu-memory-utilization 0.8` (the driver's).
-- Memory: no change to `--max-model-len`, and none to the memory share beyond the board's own. dots.mocr: weights
-  5.69 GiB, KV cache 5.86 GiB (219,536 tokens, 6.7 full contexts), but 15.6 of 20 GB in use at the peak, about 3 GB
-  above vLLM's 12 GB budget: the vision encoder's activations on full-size pages, which is why the board lowered the
-  share. At the pipeline's default 0.8 (a 16 GB budget) that would have left well under 1 GB free.
+- Memory: no change to `--max-model-len`, and none to the memory share beyond the leaderboard's own. dots.mocr:
+  weights 5.69 GiB, KV cache 5.86 GiB (219,536 tokens, 6.7 full contexts), but 15.6 of 20 GB in use at the peak, about
+  3 GB above vLLM's 12 GB budget: the vision encoder's activations on full-size pages, which is why the leaderboard
+  lowered the share. At the pipeline's default 0.8 (a 16 GB budget) that would have left well under 1 GB free.
   LightOnOCR-3-4B: weights 8.61 GiB, KV cache 4.56 GiB (132,476 tokens, 8.1 full contexts), 15.7 GB peak.
   LightOnOCR-3-0.8B: weights 1.72 GiB, KV cache 11.98 GiB, 15.6 GB peak.
 - Kernels: FlashAttention 2 for the language model and the vision tower; LightOnOCR-3's linear-attention layers on
   the Triton/FLA GDN prefill kernel and the CUDA decode kernel.
 
-Scored the board's way with the bhl-ocr-eval clone at 76bc19d (consolidate → `normalize_outputs` postproc 3 →
-`score_dataset`), next to the board's raw completions for the same pages (`rows/<row>/raw.parquet`, column
-`raw_verbatim`) put through the same three steps. For these three rows the board's published `normalized.parquet`
-scores the same as its raw completions re-normalized (both postproc 3, after the front-matter fix).
+Scored the leaderboard's way with the same clone of the leaderboard's scoring harness (consolidate →
+`normalize_outputs` postproc 3 → `score_dataset`), next to the leaderboard's raw completions for the same pages
+(`rows/<row>/raw.parquet`, column `raw_verbatim`) put through the same three steps. For these three rows the
+leaderboard's published `normalized.parquet` scores the same as its raw completions re-normalized (both postproc 3,
+after the front-matter fix).
 
 | run | CER dip | CER reading | recall | loops |
 |---|---:|---:|---:|---:|
 | dots.mocr, linecaster, RTX 4000 SFF Ada | 0.0299 | 0.0178 | 0.9589 | 0 of 60 |
-| dots.mocr, board, L40S, same 60 pages | 0.0264 | 0.0141 | 0.9633 | 0 of 60 |
-| dots.mocr, board, 2,165 pages | 0.0503 | 0.0211 | 0.9836 | 0.88 % |
+| dots.mocr, leaderboard, L40S, same 60 pages | 0.0264 | 0.0141 | 0.9633 | 0 of 60 |
+| dots.mocr, leaderboard, 2,165 pages | 0.0503 | 0.0211 | 0.9836 | 0.88 % |
 | LightOnOCR-3-4B, linecaster | 0.0324 | 0.0199 | 0.9553 | 0 of 60 |
-| LightOnOCR-3-4B, board, A10G, same 60 pages | 0.0331 | 0.0207 | 0.9544 | 0 of 60 |
-| LightOnOCR-3-4B, board, 2,165 pages | 0.0546 | 0.0247 | 0.9711 | 0.42 % |
+| LightOnOCR-3-4B, leaderboard, A10G, same 60 pages | 0.0331 | 0.0207 | 0.9544 | 0 of 60 |
+| LightOnOCR-3-4B, leaderboard, 2,165 pages | 0.0546 | 0.0247 | 0.9711 | 0.42 % |
 | LightOnOCR-3-0.8B, linecaster | 0.0549 | 0.0307 | 0.9526 | 0 of 60 |
-| LightOnOCR-3-0.8B, board, A10G, same 60 pages | 0.0633 | 0.0393 | 0.9521 | 0 of 60 |
-| LightOnOCR-3-0.8B, board, 2,165 pages | 0.0896 | 0.0363 | 0.9659 | 0.88 % |
+| LightOnOCR-3-0.8B, leaderboard, A10G, same 60 pages | 0.0633 | 0.0393 | 0.9521 | 0 of 60 |
+| LightOnOCR-3-0.8B, leaderboard, 2,165 pages | 0.0896 | 0.0363 | 0.9659 | 0.88 % |
 
 The 2,165-page rows: CER reading, recall and loop rate from RESULTS.md, CER diplomatic from the leaderboard page's
 data (RESULTS.md gives the reading lane only).
 
-- The request is the board's on every page: prompt tokens equal the board's on all 60 pages for all three models
-  (dots.mocr 550,085 in all, the full-resolution passthrough; LightOnOCR-3 172,552, the 2048-px thumbnail).
-  Byte-identical completions: dots.mocr 47 of 60, LightOnOCR-3-4B 34, LightOnOCR-3-0.8B 28 (sampling at
-  temperature 0.1 and 0.2, no seed, on the board as here).
+- The request is the leaderboard's on every page: prompt tokens equal the leaderboard's on all 60 pages for all three
+  models (dots.mocr 550,085 in all, the full-resolution passthrough; LightOnOCR-3 172,552, the 2048-px thumbnail).
+  Byte-identical completions: dots.mocr 47 of 60, LightOnOCR-3-4B 34, LightOnOCR-3-0.8B 28 (sampling at temperature
+  0.1 and 0.2, no seed, on the leaderboard as here).
 - dots.mocr: the whole difference is one Piscium plate (9684345), for which this run's completion is empty (one
-  token, finish `stop`; the board's has the plate's captions, page CER 0.31). Without it, 0.0125 against 0.0125
+  token, finish `stop`; the leaderboard's has the plate's captions, page CER 0.31). Without it, 0.0125 against 0.0125
   (reading) and 0.0247 against 0.0248 (diplomatic). Otherwise 4 pages worse and 4 better, all small.
-- LightOnOCR-3-4B: better than the board's on 12 pages, worse on 6, all small (at most 0.018 page CER).
-- LightOnOCR-3-0.8B: most of the difference is one Conchologia text page (8967173), where the board's completion
+- LightOnOCR-3-4B: better than the leaderboard's on 12 pages, worse on 6, all small (at most 0.018 page CER).
+- LightOnOCR-3-0.8B: most of the difference is one Conchologia text page (8967173), where the leaderboard's completion
   moves one species' block (synonymy and description) to the end of the page (page CER 0.230 against 0.018 here).
   Without it, 0.0312 against 0.0312 (reading).
 - No page reached its token cap (longest completions 1,320 of 16,384, 1,283 and 1,323 of 4,096), no errors, every
-  finish reason `stop`, on the board's 60 as on these.
+  finish reason `stop`, on the leaderboard's 60 as on these.
 - Time (whole process: uv environment, vLLM's start, the pages; the pages alone from the first request to the
   last, with the window's pages in flight):
 
-| model | process | before the first page | pages | s per page | board job, 2,165 pages |
+| model | process | before the first page | pages | s per page | leaderboard job, 2,165 pages |
 |---|---:|---:|---:|---:|---:|
 | dots.mocr (4 in flight) | 807 s | 75 s | 732 s | 12.2 | 8,406 s on an L40S, 3.9 s per page |
 | LightOnOCR-3-4B (up to 12) | 433 s | 191 s | 242 s | 4.0 | 5,252 s on an A10G, 2.4 s per page |
 | LightOnOCR-3-0.8B (up to 12) | 155 s | 106 s | 49 s | 0.82 | 2,302 s on an A10G, 1.1 s per page |
 
-  The board's times include its jobs' start. dots.mocr is prefill-bound here (about 9,200 image tokens a page, some
-  880 prompt tokens per second). LightOnOCR-3's start includes vLLM's CUDA graph capture and the first Triton
+  The leaderboard's times include its jobs' start. dots.mocr is prefill-bound here (about 9,200 image tokens a page,
+  some 880 prompt tokens per second). LightOnOCR-3's start includes vLLM's CUDA graph capture and the first Triton
   compile of the GDN kernels (148 s of engine init for the 4B).
 
-Not checked: the board's images themselves (their vLLM builds, transformers, Pillow); a second run of each (no
+Not checked: the leaderboard's images themselves (their vLLM builds, transformers, Pillow); a second run of each (no
 run-to-run variation measured, so the empty dots.mocr page may or may not recur).
 
-## The four board models the catalog lacked: Surya OCR 2.5, Indra OCR, Falcon-OCR, OXR-1.0 (2026-11-06, spark and an x86_64 A6000 machine)
+## Four more page readers: Surya OCR 2.5, Indra OCR, Falcon-OCR, OXR-1.0 (2026-11-06, aarch64 GB10 and x86_64 A6000)
 
-The BHL OCR board's rows 10 (`datalab-to/surya-ocr-2.5`), 22 (`datalab-to/indra-ocr`), 25 (`SoMarkAI/OXR-1.0`) and 26
-(`tiiuae/Falcon-OCR`) as presets that run them the way the board's drivers do (`drivers/{surya-ocr25,indra-ocr,oxr,
-falcon-ocr}-port.py` of finebooks/bhl-ocr-eval at 76bc19d). None of them is a chat model, so none fits `chat.v1`.
+A public OCR leaderboard's rows 10 (`datalab-to/surya-ocr-2.5`), 22 (`datalab-to/indra-ocr`), 25 (`SoMarkAI/OXR-1.0`)
+and 26 (`tiiuae/Falcon-OCR`) as presets that run them the way the leaderboard's drivers do
+(`drivers/{surya-ocr25,indra-ocr,oxr,falcon-ocr}-port.py` of the leaderboard's repository). None of them is a chat
+model, so none fits `chat.v1`.
 
 Decisions:
 
 - **Page engines.** An engine whose unit is the page, run by `PageRecognizer` like any model block (`InProcess`, or
   `Served` behind `linecaster serve`), next to the `Chat` backend; its raw output verbatim in `extra["raw"]`, as for
-  chat presets, and the board's post-processing left to the harness. One pipeline shape for all four:
+  chat presets, and the leaderboard's post-processing left to the harness. One pipeline shape for all four:
   `pipelines/transcribe_page.py` (reader → `PageRecognizer` → writer → the service), a new script rather than
   `transcribe_vlm.py` because its environment differs (surya-ocr brings torch; `transcribe_vlm.py`'s lock stays as
   it was).
 - **Engine packages**: `linecaster-indra` (`indra-ocr==1.1.2`), `linecaster-surya` (`surya-ocr==0.23.0`) and
   `linecaster-services` (Falcon-OCR's and OXR's clients, standard library HTTP, no dependency of their own). The
   vendor services' clients are in-process engines, not a new backend: one page per request, one request in flight
-  per task (the board's drivers had up to 8 and 16 in flight). More tasks share one running service with
+  per task (the leaderboard's drivers had up to 8 and 16 in flight). More tasks share one running service with
   `--recognition-endpoint`; the engine's `endpoint` is operational (left out of `pipeline_sha256`).
 - **`ServiceServer`** starts what a page preset's `serve` block names: `vllm serve` on the fetched pin (Surya) or the
   vendor image's entrypoint (`serve.server: vendor`: `command`, `health`, `weights_dir`, new optional schema
   fields), without the pipeline's environment. The pipeline runs inside the vendor's image (on HF Jobs the preset's
   `serve.image`; here `docker run` of the same image digest, with uv mounted).
-- **One environment for both packages**: surya-ocr pins OpenCV 4.11.0.86, indra-ocr takes any, so both get 4.11
-  (the board's Indra job resolved the newest of its day). surya-ocr declares `pillow<11`, linecaster `Pillow>=11`:
-  the script overrides Pillow with the shared pin (12.3.0; the board's Surya run had 10.4.0) and keeps torch at the
-  2.14.0 build every other script has (surya-ocr would resolve 2.15.0; with the vLLM backend surya uses torch only to
-  detect the device). No existing script or lock changed.
-- **An engine may take the image file's bytes** (`image_input = "bytes"`): the board's Indra driver gave the package
-  the dataset's own file. On the sample, Indra from the file reproduced the board's Markdown on 54 of 60 pages;
-  from a PNG of the decoded RGB pixels on 26 (CER reading 0.0486 against 0.0489; spark and the x86_64 machine
-  agreed on all 60 pages).
+- **One environment for both packages**: surya-ocr pins OpenCV 4.11.0.86, indra-ocr takes any, so both get 4.11 (the
+  leaderboard's Indra job resolved the newest of its day). surya-ocr declares `pillow<11`, linecaster `Pillow>=11`:
+  the script overrides Pillow with the shared pin (12.3.0; the leaderboard's Surya run had 10.4.0) and keeps torch at
+  the 2.14.0 build every other script has (surya-ocr would resolve 2.15.0; with the vLLM backend surya uses torch only
+  to detect the device). No existing script or lock changed.
+- **An engine may take the image file's bytes** (`image_input = "bytes"`): the leaderboard's Indra driver gave the
+  package the dataset's own file. On the sample, Indra from the file reproduced the leaderboard's Markdown on 54 of 60
+  pages; from a PNG of the decoded RGB pixels on 26 (CER reading 0.0486 against 0.0489; the aarch64 and the x86_64
+  machine agreed on all 60 pages).
 - **Falcon OCR is pinned at `177110bf`**, not the repository's head: every file of `/models/Falcon-OCR` in the
-  board's image (`ghcr.io/tiiuae/falcon-ocr@sha256:2ec80252...`) has the git blob of that revision (2026-03-09),
+  leaderboard's image (`ghcr.io/tiiuae/falcon-ocr@sha256:2ec80252...`) has the git blob of that revision (2026-03-09),
   `model.safetensors` its sha256 (`6e7f73a5...`); head (Falcon OCR v1.5, 2026-09-11) has other weights.
-- **OXR's form**: `output_formats` goes as one field per format, as httpx (the board's saturate 0.2.0) encodes a
+- **OXR's form**: `output_formats` goes as one field per format, as httpx (the leaderboard's saturate 0.2.0) encodes a
   list. saturate 0.3.0's multipart sends `str(value)` (`"['markdown', 'json']"`), so OXR is not streamed through
   saturate. `OXR_API_HOST` is set to 127.0.0.1 (the entrypoint's vLLM and layout services bind loopback anyway);
   Falcon's entrypoint binds both its services to every address of the container and has no setting for it.
-- **Surya's server flags** are the package launcher's for `VLLM_GPU_TYPE=a100-80` (the board's A100 80 GB), checked
-  against the installed package (`linecaster_surya.package_flags`, a test); vLLM serves the fetched pin under the
-  package's model name, and the package attaches through `SURYA_INFERENCE_URL`.
+- **Surya's server flags** are the package launcher's for `VLLM_GPU_TYPE=a100-80` (the leaderboard's A100 80 GB),
+  checked against the installed package (`linecaster_surya.package_flags`, a test); vLLM serves the fetched pin under
+  the package's model name, and the package attaches through `SURYA_INFERENCE_URL`.
 
-Runs on the 60-page sample (`finebooks/bhl-ocr-eval-sample-60@41ff3475`), scored the board's way with a fresh clone
-of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs` postproc 3 → `score_dataset`; the normalizer run from
-outside the project, as its run note says), next to the board's own outputs for the same pages
-(`hf://buckets/finebooks/bhl-ocr-outputs/rows/<row>/normalized.parquet`). CER reading:
+Runs on the 60-page sample, scored the leaderboard's way with a fresh clone of its scoring harness (consolidate →
+`normalize_outputs` postproc 3 → `score_dataset`; the normalizer run from outside the project, as its run note
+says), next to the leaderboard's own outputs for the same pages (its published `rows/<row>/normalized.parquet`). CER
+reading:
 
-| Model | Where | linecaster | board, same 60 pages | identical to the board | board, 2,165 pages |
+| Model | Where | linecaster | leaderboard, same 60 pages | identical to the leaderboard | leaderboard, 2,165 pages |
 |---|---|---|---|---|---|
 | Surya OCR 2.5 | RTX A6000, vLLM 0.25.1 image | 0.0262 | 0.0251 | HTML of 52 pages, full-page completion of 30 | 0.0351 |
-| Indra OCR | spark CPU, one task | 0.0489 | 0.0489 | 54 pages | 0.0621 |
-| OXR-1.0 | RTX A6000, the board's image | 0.0380 | not published | - | 0.1104 |
+| Indra OCR | GB10 machine's CPU (aarch64), one task | 0.0489 | 0.0489 | 54 pages | 0.0621 |
+| OXR-1.0 | RTX A6000, the leaderboard's image | 0.0380 | not published | - | 0.1104 |
 | Falcon-OCR | RTX A6000, the vendor image | 0.0775 | 0.1301 | 47 pages | 0.1384 |
 
-- Falcon-OCR: the gap is one plate page (8966788) on which the board's run looped (a numbered list from 101. to 791.,
-  5,466 characters, page CER 66.5) and this run did not (114 characters). Of the other 59 pages, 12 differ, by up to
-  0.07 page CER either way. The service reports no finish reason.
-- OXR-1.0: the board's outputs for these pages are not published (its bucket has no OXR row), so there is no
+- Falcon-OCR: the gap is one plate page (8966788) on which the leaderboard's run looped (a numbered list from 101. to
+  791., 5,466 characters, page CER 66.5) and this run did not (114 characters). Of the other 59 pages, 12 differ, by
+  up to 0.07 page CER either way. The service reports no finish reason.
+- OXR-1.0: the leaderboard's outputs for these pages are not published (its bucket has no OXR row), so there is no
   same-page comparison. Per volume here: Conchologia 0.118 and Piscium 0.116, the other four 0.006 to 0.014; the
-  board's full-benchmark number carries text read twice on Conchologia pages and runaway leader dots on three Trudy
-  index pages (bhl-ocr-eval RESULTS.md).
+  leaderboard's full-benchmark number carries text read twice on Conchologia pages and runaway leader dots on three
+  Trudy index pages (the leaderboard's RESULTS.md).
 - Surya: the blocks' confidences differ in the last digits on every page, so the raw JSON is never identical; no page
-  fell back to block mode (the board's run: one).
+  fell back to block mode (the leaderboard's run: one).
 - Time per page, one page in flight: Indra 0.3 s (one GB10 core), Falcon-OCR 2.3 s, Surya 4.8 s, OXR 2.6 s. The
   services took 68 s (Falcon-OCR), 336 s (vLLM for Surya, with torch.compile) and 185 s (OXR, the weights
   downloaded) to start.
 
-Not verified: any of them on HF Jobs (the Falcon-OCR image has Python 3.10 and no uv, so the pipeline cannot run in
-it there as it is); `GPUJobsExecutor` and Ray with these services (a vendor entrypoint's ports are fixed, so
-`point_to_gpu` cannot move them); the page engines behind `linecaster serve`; on forge. The engines return text-only
-transcriptions; the geometry the vendors return (Surya's and Indra's blocks with boxes, Falcon's regions, OXR's
-blocks) is kept in `extra`, not made into regions and lines.
+Not verified: any of them on HF Jobs (the Falcon-OCR image has Python 3.10 and no uv, so the pipeline cannot run in it
+there as it is); `GPUJobsExecutor` and Ray with these services (a vendor entrypoint's ports are fixed, so
+`point_to_gpu` cannot move them); the page engines behind `linecaster serve`; on the x86_64 RTX 4000 SFF Ada machine.
+The engines return text-only transcriptions; the geometry the vendors return (Surya's and Indra's blocks with boxes,
+Falcon's regions, OXR's blocks) is kept in `extra`, not made into regions and lines.
 
 Licenses: Surya OCR 2.5 and Indra OCR weights under modified OpenRAIL-M licenses (the "AI Pubs Open RAIL-M License
 (Modified)": free for research and personal use and below USD 5 million (Surya) or 20 million (Indra) of revenue and
@@ -362,55 +363,55 @@ and of revenue, never for a competing hosted API); Falcon OCR Apache-2.0.
 
 ## olmOCR-2-7B-1025-FP8 on native FP8 (2026-11-06, RTX 4000 SFF Ada)
 
-The preset `olmocr-2-7b-1025-fp8@1` (board row 5) on the 60-page sample, on an RTX 4000 SFF Ada 20 GB (x86_64,
-compute capability 8.9), which runs FP8 natively. The board's run was one HF Jobs `a10g-small` job (A10G, Ampere: no
-FP8 tensor cores, so vLLM dequantizes the weights; the driver's docstring calls it the Marlin path).
+The preset `olmocr-2-7b-1025-fp8@1` (leaderboard row 5) on the 60-page sample, on an RTX 4000 SFF Ada 20 GB (x86_64,
+compute capability 8.9), which runs FP8 natively. The leaderboard's run was one HF Jobs `a10g-small` job (A10G,
+Ampere: no FP8 tensor cores, so vLLM dequantizes the weights; the driver's docstring calls it the Marlin path).
 
 Setup:
 - linecaster at 2b26d5d (a fresh clone): `pipelines/transcribe_vlm.py OUT --parquet <sample>/data --id-key PageID
   --recognition olmocr-2-7b-1025-fp8@1 --window 12 --initial-window 4`. `ChatModelServer` started `vllm serve
   allenai/olmOCR-2-7B-1025-FP8 --revision 40bd720... --max-model-len 16384 --no-enable-prefix-caching
   --mm-processor-cache-gb 0 --limit-mm-per-prompt {"image": 1} --gpu-memory-utilization 0.8`, on loopback: the
-  board driver's flags exactly. At most 12 pages in flight, 4 at the start, as the driver's saturate window
+  leaderboard driver's flags exactly. At most 12 pages in flight, 4 at the start, as the driver's saturate window
   (`Auto(initial=4, target_waiting=4, max_limit=12)`).
-- vLLM 0.26.0 (the board's version) from PyPI in its own venv: `uv venv --python 3.12`, then `uv pip install
+- vLLM 0.26.0 (the leaderboard's version) from PyPI in its own venv: `uv venv --python 3.12`, then `uv pip install
   --exclude-newer 2026-07-26T00:00:00Z vllm==0.26.0` (the day after the release, to approximate the image's
   resolve): torch 2.11.0+cu130, transformers 5.14.1, flashinfer-python 0.6.14, compressed-tensors 0.17.0. Its
-  `bin` goes first on `PATH` (`vllm` and `ninja`). Not the board's image `vllm/vllm-openai:v0.26.0` (no Docker
+  `bin` goes first on `PATH` (`vllm` and `ninja`). Not the leaderboard's image `vllm/vllm-openai:v0.26.0` (no Docker
   here), whose package versions were not compared. The venv of the MiniCPM-OCR run (a vLLM nightly, 0.32.1rc1, with
-  a transformers dev build) was not used: it is not the board's version.
+  a transformers dev build) was not used: it is not the leaderboard's version.
 - vLLM picked `CutlassFP8ScaledMMLinearKernel` for the FP8 layers (W8A8) and FlashAttention 2.
 - Memory: no change needed. Weights 9.56 GiB, KV cache 5.72 GiB (107,040 tokens, 6.5 times one full context),
   17.5 of 20 GB in use.
 
-Scored the board's way with a fresh clone of bhl-ocr-eval at 76bc19d (consolidate → `normalize_outputs` postproc 3 →
-`score_dataset`), next to the board's raw completions for the same pages (`rows/olmocr2/normalized.parquet`, column
-`raw_verbatim`) put through the same three steps:
+Scored the leaderboard's way with a fresh clone of the leaderboard's scoring harness (consolidate →
+`normalize_outputs` postproc 3 → `score_dataset`), next to the leaderboard's raw completions for the same pages
+(`rows/olmocr2/normalized.parquet`, column `raw_verbatim`) put through the same three steps:
 
 | run | CER dip | CER reading | recall | loops |
 |---|---:|---:|---:|---:|
 | linecaster, RTX 4000 SFF Ada (FP8 W8A8) | 0.0350 | 0.0204 | 0.9431 | 0 of 60 |
-| board, A10G, same 60 pages | 0.0345 | 0.0196 | 0.9436 | 0 of 60 |
-| board, 2,165 pages (RESULTS.md) | 0.0576 | 0.0279 | 0.9573 | 0.55 % |
+| leaderboard, A10G, same 60 pages | 0.0345 | 0.0196 | 0.9436 | 0 of 60 |
+| leaderboard, 2,165 pages (RESULTS.md) | 0.0576 | 0.0279 | 0.9573 | 0.55 % |
 
-- The board's published `markdown` column for this row predates its front-matter fix of 2026-10-30 (made without a
+- The leaderboard's published `markdown` column for this row predates its front-matter fix of 2026-10-30 (made without a
   postproc bump): on 9 of these pages, all blank, it holds the YAML front matter alone, which scores 0.0461 / 0.0304
   / 0.9436. Compare against the raw completions re-normalized, not against that column.
-- 34 of the 60 completions are byte-identical to the board's. linecaster's image encoding gives the driver's PNG
-  bytes on all 60 pages (same Pillow), and the prompt tokens equal the board's (96,718 in all; 1,372 to 1,786 per
+- 34 of the 60 completions are byte-identical to the leaderboard's. linecaster's image encoding gives the driver's PNG
+  bytes on all 60 pages (same Pillow), and the prompt tokens equal the leaderboard's (96,718 in all; 1,372 to 1,786 per
   page). Completion tokens 27,163 against 27,153.
-- Page CER reading: worse than the board's on 16 pages, better on 5, equal on the rest. The largest difference is
+- Page CER reading: worse than the leaderboard's on 16 pages, better on 5, equal on the rest. The largest difference is
   one Conchologia plate (8966788), where this run also read the two engraver lines (page CER 0.79 against 0.38);
   without that page 0.0198 against 0.0193. The others are small (at most 0.064 page CER, on a 61-character page), across all six volumes.
 - No page reached its token cap (longest completion 1,325 of 8,192 tokens), no errors.
 - Time: 291 s for the whole process (the uv environment, vLLM's start of 120 s with 19 s of torch.compile, then the
-  pages); the 60 pages took 167 s, 2.8 s per page with up to 12 in flight. The board's job ran 3,527 s for 2,165
+  pages); the 60 pages took 167 s, 2.8 s per page with up to 12 in flight. The leaderboard's job ran 3,527 s for 2,165
   pages on the A10G (1.6 s per page, its start included).
 - Scoring: `normalize_outputs` needs `uv run --no-project --no-config <clone>/runners/normalize_outputs.py`; with uv
   0.13.6, `--no-project` alone still applied the clone's `exclude-newer` (2026-07-05), under which `docling-core>=2.89`
   does not resolve.
 
-Not checked: the board's image itself (its own vLLM build, transformers and Pillow); a second run (sampling at
+Not checked: the leaderboard's image itself (its own vLLM build, transformers and Pillow); a second run (sampling at
 temperature 0.1, so run-to-run variation on these pages is not measured).
 
 ## The refactoring of November 2026 (2026-11-06)
@@ -421,7 +422,7 @@ steps as catalog engines, recomposition and binding; backends and families (the 
 skeletons); docs; tests and engine hygiene. The plan and the per-phase designs were working documents under
 `docs/plan/`, removed at `v0.1.0`; they are in the history at 9c7fe4e. Every rename is in `CHANGELOG.md` (0.1.0).
 
-## Ray Data instead of an executor: a spike (2026-11-06, spark)
+## Ray Data instead of an executor: a spike (2026-11-06, aarch64 GB10)
 
 Could a pipeline's per-page blocks run as Ray Data `map_batches` stages (an actor per block, pages streaming
 between them) instead of datatrove's executors? `tests/integration/ray_data_spike.py` builds the `squiddle@1`
@@ -432,7 +433,7 @@ block (`ActorPoolStrategy(size=1)`), each `warm_up()` once and then `block.run` 
 `num_gpus=0.2` and 3 CPUs each, the rule blocks 0.5 CPU. A page travels between stages as a row (id, text, metadata
 as JSON, the image media's fields as JSON, the image bytes); the round trip is exact for all 60 pages. Ray 2.59.0
 from the `transcribe_modular.py` environment (extra `[ray]`), nothing installed, no lock changed, torch
-2.14.0+cu130 before and after. Pages: `bhl-ocr-eval/sample-60`, one run each, no warm-up run.
+2.14.0+cu130 before and after. Pages: sample-60, one run each, no warm-up run.
 
 | | datatrove, local, 1 task | Ray Data |
 |---|---|---|
@@ -475,9 +476,9 @@ all of it comes from overlapping the blocks, and resume, logs, stats, rejects, t
 cutting would each have to be rebuilt on Ray. With served or two tasks per GPU, datatrove
 gets within 6 s of it on these 60 pages; revisit only when one GPU per task is clearly underused on Jobs.
 
-## Readable item texts from the item recomposition (2026-11-06, spark)
+## Readable item texts from the item recomposition (2026-11-06, aarch64 GB10)
 
-The six whole items of the BHL ground truth (2,165 pages), from the squiddle recipe's page records of the parity run
+The six whole items of the 2,165-page ground-truth set, from the squiddle recipe's page records of the parity run
 above (531a422). Before: `ItemTexts` (its own line flow, `join_lines`), recorded at ff3328f. After: `bind.py --recipe
 item-texts` (`Binder` → `Recomposer(unit="item")` → `CharacterNormalizer` → `ItemTextWriter`).
 
@@ -511,7 +512,7 @@ item-texts` (`Binder` → `Recomposer(unit="item")` → `CharacterNormalizer` �
   2.105.0), whose JSON says `version` 1.11.0 instead of 1.10.0, md and txt identical.
 - The squiddle recipe after the change: `compare_goldens.py` 60 of 60 pages exact, 1,560 of 1,560 lines.
 
-## Rule-based steps on their engines: parity (2026-11-06, spark)
+## Rule-based steps on their engines: parity (2026-11-06, aarch64 GB10)
 
 The squiddle recipe before (531a422) and after the rule-based steps moved onto their engines and presets
 (`ratios@1`, `unicode-recomposition@1`, `docling-composition@1`), in-process:
@@ -523,13 +524,13 @@ The squiddle recipe before (531a422) and after the rule-based steps moved onto t
   from the steps and, with `reflow`, the paragraphs the `Recomposer` adds. The documents replayed from the same page
   records with sections and dividers on and off: 5,360 files, all identical.
 - `compare_goldens.py`: 60 of 60 pages exact, 1,560 of 1,560 lines.
-- Item documents (`BindItem`, reflow) of the six whole items of the BHL ground truth (2,165 pages) from the same page
+- Item documents (`BindItem`, reflow) of the six whole items of the 2,165-page ground-truth set from the same page
   records: md, txt, html, doclang, json identical. Item texts (`--item-texts`) of two whole items run again: the
   text files identical; the JSONL rows differ only in their trace context.
 
-## Daniel's four kraken changes measured one by one (#1, 2026-11-04, HF Jobs L4)
+## Four kraken changes measured one by one (#1, 2026-11-04, HF Jobs L4)
 
-Each change alone against the same baseline, full ground truth (bhl-impact-gt, 2,165 pages), one `l4x1` Job
+Each change alone against the same baseline, the 2,165-page ground-truth set, one `l4x1` Job
 per variant (one server reads every page), `--recipe squiddle`. Branches: kraken fork `perf/line-prefetch`
 (b4f651aa), `perf/early-seq-lens` (cf21c0cd), stock 3d235ee8; linecaster `perf/kraken-sort-by-width`,
 `perf/kraken-compile`; each variant a `measure/...` branch whose only commit is the kraken pin.
@@ -567,14 +568,14 @@ Ideas, none measured:
   GGUF files as `converted` / `quantized` model documents, each with its own evidence. GGUF does not suit
   kraken (no graph importer in ggml; a reimplementation).
 
-## kraken: batching by line width and torch.compile (#1, 2026-11-04: spark, HF Jobs L4)
+## kraken: batching by line width and torch.compile (#1, 2026-11-04: aarch64 GB10, HF Jobs L4)
 
-Daniel van Strien's changes 3 and 4 as options of `kraken.recognition.v1`, off by default: `sort_by_width` (a
+Changes 3 and 4 of that issue as options of `kraken.recognition.v1`, off by default: `sort_by_width` (a
 page's lines go to kraken widest first, by box width / height, and come back in line order) and
 `compile_backbone` (`torch.compile(dynamic=True)` of the PP-OCRv6 backbone). Measured with `--recipe squiddle
 --set recognition....`, against the same commit without them (93bac25, kraken fork 48eecb78).
 
-Full ground truth (bhl-impact-gt, 2,165 pages), HF Jobs `l4x1`, 4 tasks of 541 pages each, served:
+The 2,165-page ground-truth set, HF Jobs `l4x1`, 4 tasks of 541 pages each, served:
 
 | | recognition, steady state | compile warm-up | characters changed | CERdip | CERread | recall | furniture |
 |---|---|---|---|---|---|---|---|
@@ -582,10 +583,10 @@ Full ground truth (bhl-impact-gt, 2,165 pages), HF Jobs `l4x1`, 4 tasks of 541 p
 | + sort_by_width | 0.650 s/page (−10 %) | | 0.220 % | 0.0577 | 0.0416 | 0.9752 | 0.8441 |
 | + sort_by_width + compile_backbone | 0.529 s/page (−27 %) | about 167 s per server | 0.223 % | 0.0578 | 0.0416 | 0.9752 | 0.8437 |
 
-- Scored with the frozen bhl-ocr-eval harness (board lane). sample-60 and tables-7 move the same way (sample-60
-  CERread 0.0268 → 0.0265). On sample-60 locally (spark, in-process): 0.716 → 0.631 → 0.530 s/page, compile
-  warm-up about 52 s.
-- Characters change much more than on Daniel's single book (0.03 %): other batches pad differently, which
+- Scored with the leaderboard's frozen scoring harness (leaderboard lane). sample-60 and tables-7 move the same way
+  (sample-60 CERread 0.0268 → 0.0265). On sample-60 locally (aarch64 GB10, in-process): 0.716 → 0.631 → 0.530 s/page,
+  compile warm-up about 52 s.
+- Characters change much more than on the single book of the issue (0.03 %): other batches pad differently, which
   flips CTC near-ties; word boxes move more often than text.
 - The furniture drop is the typography step: it removes 70–72 page numbers as uncertain instead of 61, because
   short page-number lines come out with other text or confidence in other batches. Its rule was tuned on the
@@ -613,9 +614,9 @@ sorting (17; 6 the other way): `viii` (0.97) → `rii` (0.60), `vii` (0.99) → 
 confidence below 0.75) only reveals it; lowering it would keep the wrong readings.
 
 
-## kraken line prefetch (#1, 2026-11-04: spark, forge, HF Jobs L4)
+## kraken line prefetch (#1, 2026-11-04: aarch64 GB10, x86_64 RTX 4000 SFF Ada, HF Jobs L4)
 
-Daniel van Strien's issue #1: kraken's recognition loop makes the CPU wait for the GPU on every line (the
+Issue #1: kraken's recognition loop makes the CPU wait for the GPU on every line (the
 empty-line check on a tensor built on the device) and once per batch (`seq_lens` copied after the backbone is
 queued). Fork commit `48eecb78` (storytracer/kraken, `perf/recognition-prefetch`): lines are extracted,
 transformed and checked on the CPU in a producer thread, `seq_lens` goes to the device before the forward pass,
@@ -625,18 +626,18 @@ before, so the output is unchanged.
 
 | machine | recognition, pinned `3d235ee8` | patched `48eecb78` | output |
 |---|---|---|---|
-| spark GB10, sample-60 in-process | 0.73 s/page | 0.77 s/page (noise) | goldens 1,560/1,560 lines |
-| forge RTX 4000 Ada, sample-60 in-process | 0.647 s/page (warm) | 0.61 s/page (−6 %) | goldens 1,560/1,560 lines |
-| HF Jobs `l4x1`, bhl-impact-gt first 300 pages, served | 0.903 s/page | 0.793 s/page (−12 %) | 300/300 pages, 7,276/7,276 lines identical |
+| aarch64 GB10, sample-60 in-process | 0.73 s/page | 0.77 s/page (noise) | goldens 1,560/1,560 lines |
+| x86_64 RTX 4000 SFF Ada, sample-60 in-process | 0.647 s/page (warm) | 0.61 s/page (−6 %) | goldens 1,560/1,560 lines |
+| HF Jobs `l4x1`, the ground-truth set's first 300 pages, served | 0.903 s/page | 0.793 s/page (−12 %) | 300/300 pages, 7,276/7,276 lines identical |
 
 The GB10 gains nothing: its CPU does not stall the GPU the way an L4 host does. On the L4 recognition sets the
 pace (served wall 274 s → 242 s). Not done yet (they change 0.02–0.03 % of characters): batching by line width
-and `torch.compile` of the backbone, Daniel's changes 3 and 4.
+and `torch.compile` of the backbone, changes 3 and 4 of the issue.
 
 Same change set: TablesStep and FormulasStep send no image for a page without their regions (the engines still
 record the step), a malformed served answer is that page's error, the readiness probe uses the step route, and
 `HFImageDatasetReader` raises when a repository has no Parquet files (an image folder such as
-`finebooks/bhl-impact-gt` silently read 0 pages with `--dataset`; it is read as `hf://datasets/...` IMAGES).
+the ground-truth set silently read 0 pages with `--dataset`; it is read as `hf://datasets/...` IMAGES).
 
 ## Specs are reference documents (2026-11-04)
 
@@ -645,14 +646,14 @@ record the step), a malformed served answer is that page's error, the readiness 
 - The catalog's role models: HTRMoPo v1 and Hugging Face model cards (Markdown with YAML front matter),
   OCR-D (functional steps, declared resources, provenance per processing step), Docling (typed options per
   engine, one factory per stage), spaCy (versioned registry names that stay resolvable), Datalab's marker,
-  surya and chandra (configuration declared once, evidence with its source), Daniel van Strien's
-  `uv-scripts/ocr/models.json` (one catalog, support levels), ocrscout's profiles (label mappings as data).
-- WebP encoding effort, one measurement on spark, a 3996 × 5964 newspaper JPEG: decode 0.09 s; encode effort
-  0: 1.67 s / 17.2 MB, 25: 1.99 s / 17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4× faster
-  for 4 % more bytes; left at Pillow's default (80) until measured on a broader sample.
+  surya and chandra (configuration declared once, evidence with its source), the uv-scripts
+  `ocr/models.json` (one catalog, support levels), ocrscout's profiles (label mappings as data).
+- WebP encoding effort, one measurement on an aarch64 GB10 machine, a 3996 × 5964 newspaper JPEG: decode 0.09 s;
+  encode effort 0: 1.67 s / 17.2 MB, 25: 1.99 s / 17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4×
+  faster for 4 % more bytes; left at Pillow's default (80) until measured on a broader sample.
 - The kraken source lesson (a source applies only to direct dependencies) is under "Lessons" below.
 
-## launch.py: recipes and models by name (2026-11-04, spark)
+## launch.py: recipes and models by name (2026-11-04, aarch64 GB10)
 
 `uv run launch.py squiddle IMAGES OUT` and `uv run launch.py chandra-ocr-2 IMAGES OUT`: a recipe names its
 pipeline (`chain.v1`), a whole-page preset runs in `vlm.v1`; `launch.py` finds the script declaring that
@@ -665,10 +666,10 @@ and a recipe. A preset that is one step (a line recognizer, a region reader) get
 and flag, and the recipes that use it. Checked: `--dry-run` builds the squiddle chain with its recipe record and
 chandra-ocr-2's vLLM command at the pinned revision.
 
-## One catalog (2026-11-04, spark)
+## One catalog (2026-11-04, aarch64 GB10)
 
 The catalog is one folder, `src/linecaster/catalog/data/`: the engine packages' catalogs (kraken, PaddleX,
-Tesseract: 21 models, 18 presets, their evidence) and squiddleocr's (the recipe `squiddle` and its 4 evidence
+Tesseract: 21 models, 18 presets, their evidence) and the derivative's (the recipe `squiddle` and its 4 evidence
 records) were moved into it, and the entry-point group `linecaster.catalog`, `--with-dir` and recipe file paths
 went. Presets are grouped by step (`presets/<step>/<id>.md`, the folder checked against `step`). "kind" is gone: a
 preset names its engine, `engine: kraken.recognition.v1`, with `options:` beside it; a recipe its pipeline,
@@ -681,7 +682,7 @@ source with `ast`, since no environment has every engine.
   `slanet-plus@1` was dropped from the lock; no run had recorded it. This is the last re-baselining before runs
   record editions in earnest; from now on a released edition changes only as a new edition.
 
-## Pipelines and recipes (2026-11-03, spark)
+## Pipelines and recipes (2026-11-03, aarch64 GB10)
 
 "Recipes" were pipeline shapes with slots, and since the defaults went they chose nothing: renamed `pipelines/`
 (`chain.py`, kind `chain/1`; `vlm.py`, `vlm/1`; `cuda_probe.py` to `tools/`; since 2026-11-05
@@ -692,16 +693,16 @@ preset editions. `--recipe id[@edition]` or a recipe file fills the slots and op
 what the command line gives instead goes into the run record as overrides. `RecipeStamp` (before the first writer)
 puts the recipe edition and hash into every `ModelInfo`, so page rows and ALTO/PAGE/hOCR name it.
 
-- squiddleocr ships `squiddle@1` (its catalog, entry point `linecaster.catalog`): pp-doclayoutv3@1,
+- The derivative ships `squiddle@1` (its catalog, entry point `linecaster.catalog`): pp-doclayoutv3@1,
   pp-ocrv6-medium-det@1, kraken-ppocrv6-medium@1, slanet-plus@2, pp-formulanet-plus-l@1, text reflow. Its evidence:
   the goldens reproduced (sample-60 1,560/1,560 lines and tables-7 651/651, in-process and served).
-  `uv run pipelines/chain.py IMAGES OUT --recipe ../squiddleocr/src/squiddleocr/catalog/recipes/squiddle.md` on
+  `uv run pipelines/chain.py IMAGES OUT --recipe <the derivative's checkout>/catalog/recipes/squiddle.md` on
   sample-60: goldens 1,560/1,560, `squiddle@1` in every ALTO step and in `run.yaml`. `squiddle ocr` stamps the recipe
   when its options are the recipe's.
 - The recognizer comparison stays preset evidence (it varied one preset), with the rest of the pipeline as
   `context`.
 
-## The catalog: models, presets, evidence (2026-11-03, spark)
+## The catalog: models, presets, evidence (2026-11-03, aarch64 GB10)
 
 `docs/reference/catalog.md` is the design; built in parallel by three agents (engines, VLMs, provenance) on top of the
 foundation (`linecaster.catalog`). In the checkout: 39 models with their upstream cards copied verbatim, 39 presets
@@ -721,17 +722,17 @@ released as edition 1 (`slanet-plus` also edition 2), 39 evidence records.
   The current editions were released again under that rule before the first push.
 - **Chat presets**: requests, server commands and Jobs plans byte-identical to the former spec classes for all 20
   models, with two deliberate changes: LightOnOCR-3 (0.8B, 4B) now names `vllm/vllm-openai:v0.30.0`, the version the
-  board validated them with (the old recipe used 0.26.0, with which LightOn says they loop); Unlimited-OCR-2's
+  leaderboard validated them with (the old recipe used 0.26.0, with which LightOn says they loop); Unlimited-OCR-2's
   recorded `sglang_version` is now the wheel that runs (`0.5.20.dev10+g8d62f5fb9c`).
 - **Licenses to check by hand** (as the cards state them): chandra "AI Pubs Open RAIL-M License (Modified)",
   Nemotron `OpenMDW-1.1`; SmolDocling's front matter says CDLA-Permissive-2.0, its text Apache-2.0.
 
-Parity of `recipes/chain.py` through presets (pinned PaddleX snapshots, kraken from its pin) with squiddleocr's
-goldens (7c8a052, spark): sample-60 1,560/1,560 lines and 60/60 pages exact in-process (80 s), served with the
-server in the task (71 s) and against `uv run recipes/chain.py serve` (47 s); tables-7 651/651 in-process and
+Parity of `recipes/chain.py` through presets (pinned PaddleX snapshots, kraken from its pin) with the derivative's
+goldens (recorded on the GB10 machine): sample-60 1,560/1,560 lines and 60/60 pages exact in-process (80 s), served
+with the server in the task (71 s) and against `uv run recipes/chain.py serve` (47 s); tables-7 651/651 in-process and
 served. Served pages carry preset, edition, hash and the step's start time in every `ModelInfo`.
 
-## One recipe per pipeline (2026-11-03, spark)
+## One recipe per pipeline (2026-11-03, aarch64 GB10)
 
 The scripts had made the environments self-contained, but the pipelines were still copied once per machine: the
 squiddle chain three times (`examples/`, `recipes/ray/`, `recipes/hf-jobs/`), its model list four times (with
@@ -757,7 +758,7 @@ twice. Now:
 - Both recipes carry `linecaster[ray]` for `--on ray`; `dependencies()` leaves the extra out of a Job's list. Adding
   Ray and Tesseract changed no version in the lock the goldens run used (packages added only).
 
-Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, one task):
+Checked on the GB10 machine against the derivative's goldens and on Ray (3 pages, one task):
 
 | run of `recipes/chain.py` | sample-60 lines (box + words) | tables-7 lines | wall, sample-60 |
 |---|---:|---:|---:|
@@ -766,14 +767,14 @@ Checked on spark against squiddleocr's goldens (7c8a052) and on Ray (3 pages, on
 | `--endpoint` against `uv run recipes/chain.py serve` | 1,560/1,560, 60/60 pages exact | | 47 s |
 | `--on ray`, Ray started with `uv run recipes/chain.py ray start` | 3/3 pages written | | |
 
-`recipes/vlm.py` on spark (vLLM 0.21.0, started in the task, `--gpu-memory-utilization 0.3`), sample-60:
-- page mode, LightOnOCR-2-1B: 60/60 pages in 232 s, CERread 0.0372 (CERdip 0.0738, 4 of 60 truncated), board lane.
+`recipes/vlm.py` on the GB10 machine (vLLM 0.21.0, started in the task, `--gpu-memory-utilization 0.3`), sample-60:
+- page mode, LightOnOCR-2-1B: 60/60 pages in 232 s, CERread 0.0372 (CERdip 0.0738, 4 of 60 truncated), leaderboard lane.
   The old HF Jobs recipe's run of the same model scores 0.0403 with today's harness; sampling is at temperature 0.2.
 - `--regions` (PP-DocLayoutV3 in-process + LightOnOCR-2-1B per region): 60/60 pages in 584 s, no errors, 418 regions
   read; 64 of them ran into the token limit (LightOnOCR's known looping on crops). Not scored.
 - HF Jobs: a LightOnOCR page smoke was launched; MiniCPM regions was canceled while it waited for an L4.
 
-## Self-contained uv scripts instead of environment folders (2026-11-03, spark)
+## Self-contained uv scripts instead of environment folders (2026-11-03, aarch64 GB10)
 
 `envs/kraken-paddlex` and `envs/paddlex-tesseract` are gone. Every example, recipe and server is a uv script
 with inline metadata (PEP 723) and a `<script>.py.lock` next to it:
@@ -785,7 +786,7 @@ with inline metadata (PEP 723) and a `<script>.py.lock` next to it:
   the HF Jobs launchers carry core linecaster only; `recipes/ray/squiddle_chain.py` carries linecaster with Ray and
   runs Ray's own CLI from its environment (`uv run recipes/ray/squiddle_chain.py ray start --head`), because Ray's
   `uv run` support (`RAY_ENABLE_UV_RUN_RUNTIME_ENV`) does not handle scripts: workers came up without Ray. It is
-  switched off in the recipe. Checked on spark: 3 pages, one task, server started from the script.
+  switched off in the recipe. Checked on the GB10 machine: 3 pages, one task, server started from the script.
 - Locking the scripts afresh moved seven packages the old env lock had older: the CUDA libraries (cuBLAS 13.8,
   NVRTC/runtime 13.4, cuFFT 12.4, cuRAND 10.4.4), cuDNN 9.27 (paddlex-tesseract) and scipy 1.16–1.18,
   scikit-image 0.26. All are pinned back to the goldens' versions in `constraint-dependencies`, the same list in
@@ -794,17 +795,17 @@ with inline metadata (PEP 723) and a `<script>.py.lock` next to it:
 - uv's `required-environments` is not accepted in script metadata. `tests/test_scripts.py` stands in: same pins and
   kraken source in every script, a lock per script, the pins resolved, and Linux wheels for aarch64 and x86_64 for
   every package with platform wheels. One allowed source build: coremltools (kraken's CoreML format, no aarch64
-  wheel; built from source on spark before as well; not on the recognition path).
+  wheel; built from source on aarch64 before as well; not on the recognition path).
 
-Parity of the scripts with squiddleocr's goldens (7c8a052, spark): `uv run examples/squiddle_chain.py`, in-process
-and served through `uv run servers/kraken-paddlex.py`:
+Parity of the scripts with the derivative's goldens (recorded on the GB10 machine): `uv run
+examples/squiddle_chain.py`, in-process and served through `uv run servers/kraken-paddlex.py`:
 
 | run | sample-60 lines (box + words) | tables-7 lines | wall, sample-60 |
 |---|---:|---:|---:|
 | in-process | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 89 s |
 | served | 1,560/1,560, 60/60 pages exact | 651/651, 7/7 | 48 s |
 
-## More line recognizers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, spark)
+## More line recognizers: PaddleX PP-OCRv6 and Tesseract (2026-11-03, aarch64 GB10)
 
 Two more engines for `RecognitionStep`, next to kraken:
 - `linecaster_paddlex:PaddleRecognitionModel`: PaddleOCR's own PP-OCRv6 recognizers (`PP-OCRv6_{tiny,small,medium}_rec`)
@@ -822,7 +823,7 @@ Two more engines for `RecognitionStep`, next to kraken:
 
 Comparison on the 60-page sample: the same chain for every row (PP-DocLayoutV3 → PP-OCRv6 medium detection → line
 assignment → *recognizer* → NFC → tables → typography → document → Markdown), in-process, one task, scored as-is
-(no postproc) with the frozen bhl-ocr-eval harness (`score_dataset`, sample-60 at 41ff3475). Wall includes model loading.
+(no postproc) with the leaderboard's frozen scoring harness (`score_dataset`). Wall includes model loading.
 
 | recognizer | CERdip | CERread | recall | wall, 60 pages |
 |---|---:|---:|---:|---:|
@@ -841,9 +842,9 @@ assignment → *recognizer* → NFC → tables → typography → document → M
   Russian volumes. Tesseract is the slowest (CPU, single process); more tasks would spread it over cores.
 - No default changed.
 
-## squiddleocr 0.3's features in linecaster (2026-11-03, spark)
+## A derivative's features in linecaster (2026-11-03, aarch64 GB10)
 
-Every feature and option of squiddleocr 0.3's paddle pipeline (`squiddle legacy ocr --pipeline paddle`), where it
+Every feature and option of the derivative's 0.3 paddle pipeline (`squiddle legacy ocr --pipeline paddle`), where it
 lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `squiddle legacy`).
 
 | 0.3 feature or option | status | where |
@@ -873,17 +874,17 @@ lives now. eynollah and kraken's blla pipeline are out of scope (they stay in `s
 | `--detail glyph` (0.3's default) | not in linecaster, by design | no glyph level in the data model; squiddle's default becomes `word` |
 | `--plots` | missing, built | `linecaster.images.plots.plot_layout`, `PageFilesWriter` format `plot` (`<page>.layout.jpg`) |
 | processing settings in ALTO | already in linecaster | `ModelInfo` per step → ALTO `Processing` |
-| output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | squiddleocr `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
+| output naming `<name>.<suffix>.<ext>`, next to the image unless `-o`; per-document stem (folder name, file stem or `document`); `--suffix`; format `auto` = md | squiddle-specific | the derivative's `cli.py` (writer `suffix=`, a `PageFilesWriter` subclass for "next to the image") |
 | status lines (typography and reflow counts), failed pages listed at the end | squiddle-specific | datatrove's stats instead; an in-process exception stops the task (served errors are recorded per page) |
 
-**Parity.** `squiddle ocr` (squiddleocr 0.4, now built from these blocks) against `squiddle legacy ocr` on the same
-machine and environment: sample-60 + tables-7 (67 BHL pages), `squiddletest/scans` (17), `squiddletest/formulas`
+**Parity.** `squiddle ocr` (the derivative's 0.4, now built from these blocks) against `squiddle legacy ocr` on the same
+machine and environment: sample-60 + tables-7 (67 pages), `squiddletest/scans` (17), `squiddletest/formulas`
 (12), each in 7 configurations (defaults with every format and plots; `--text lines --furniture --sections
 --dividers --detail line`; `--no-typography --no-tables --no-formulas`; `--layout none`;
 `--layout-model PP-DocLayout_plus-L`; reflow with `--dividers --furniture`; `-m small --det-model
 PP-OCRv6_small_det --unclip-ratio 2.0 --batch-size 4` on scans and formulas), and the 6 books × 10 pages per
 document in 4 combinations. Each run twice: as shipped, and with NFC switched off (`--no-nfc`, hidden, for
-parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in `~/data/squiddle-parity/`.
+parity only). Scripts and outputs outside the repository.
 
 - **Without NFC every document format and the plots are byte-exact** in every configuration on every page:
   md, txt, html, doclang, json, layout.jpg (96 pages × 7 configurations, c7 on 29 pages), with `--furniture` aside
@@ -922,117 +923,120 @@ parity only). Scripts in squiddleocr's `work/parity/` (git-ignored); outputs in 
   32-true, the PaddleX models on ONNX Runtime's CPU provider).
 
 Not exercised here: a right-to-left page, `--device tensorrt` / `coreml`, `-m` with a model file path,
-PP-FormulaNet-L, forge.
+PP-FormulaNet-L, x86_64.
 
 ## Unlimited-OCR, Unlimited-OCR-2, PaddleOCR-VL-1.6, GLM-OCR specs; SGLang in ServeChatModel (2026-11-03, not yet run)
 
-- Four page specs from the board drivers: `models/unlimited_ocr.py` (`UnlimitedOCR` on vLLM 0.26.0,
+- Four page specs from the leaderboard drivers: `models/unlimited_ocr.py` (`UnlimitedOCR` on vLLM 0.26.0,
   `UnlimitedOCR2` on SGLang), `models/paddleocr_vl.py`, `models/glm_ocr.py`. Checkpoints pinned to the
-  board's; completions verbatim, the board's post-processing (grounding strip, Baidu's Markdown
+  leaderboard's; completions verbatim, the leaderboard's post-processing (grounding strip, Baidu's Markdown
   converter, strip) left to the harness.
-- PaddleOCR-VL-1.6 is run as the board runs it: the VLM alone on the whole page with `OCR:`, the
+- PaddleOCR-VL-1.6 is run as the leaderboard runs it: the VLM alone on the whole page with `OCR:`, the
   recipe's client-side `smart_resize`; not PaddleOCR-VL's PP-DocLayout + VLM pipeline.
 - `ServeChatModel` starts SGLang for a spec with `server = "sglang"`: `python -m sglang.launch_server
   --model-path ... --enable-metrics`, the spec's `server_env` through `env`, its `server_packages`
   installed into the server's Python with `uv pip install --python` first, and `gpu_memory_utilization`
   passed as `--mem-fraction-static`. `recipes/hf-jobs/chat_page.py` runs SGLang specs with
   `outside_venv` (the image's `/opt/sglang/bin/python3`).
-- Unlimited-OCR-2 cannot take `--revision` (Baidu's SGLang then skips its tokenizer fix-up). The board
+- Unlimited-OCR-2 cannot take `--revision` (Baidu's SGLang then skips its tokenizer fix-up). The leaderboard
   refused to start unless the default branch was the pinned commit. Since then the default branch has
   moved, with README and wheel changes only. So `revision_flag = False` makes the serve block compare
   git blob ids between the default branch and the pin, ignoring README, `.gitattributes`, `wheel/` and
   PDFs. Baidu's dev10 wheel is still read from the pinned revision (on main it is replaced by dev13).
 - `lmsysorg/sglang:v0.5.20-cu130` (amd64) from its image config: SGLang in `/opt/sglang` (Python 3.12),
-  first on PATH. The board's own Job ran `hf jobs uv run` on it, so uv is there.
-- Not checked: any of the four on a GPU, and Unlimited-OCR-2 on an L4. The board ran it on an RTX PRO
+  first on PATH. The leaderboard's own Job ran `hf jobs uv run` on it, so uv is there.
+- Not checked: any of the four on a GPU, and Unlimited-OCR-2 on an L4. The leaderboard ran it on an RTX PRO
   6000 with the card's flags for an 80 GB A800 (`--mem-fraction-static 0.7`, CUDA graphs up to 16384
   prefill tokens).
 
 ## Qwen3.5-9B, Qianfan-OCR, DeepSeek-OCR and DeepSeek-OCR-2 specs for ChatPageStep (2026-11-03, not yet run)
 
-- `models/qwen35.py`, `models/qianfan_ocr.py`, `models/deepseek_ocr.py` reproduce the board drivers; each
+- `models/qwen35.py`, `models/qianfan_ocr.py`, `models/deepseek_ocr.py` reproduce the leaderboard drivers; each
   module's docstring lists request, image handling, sampling and serve flags. Checkpoints pinned; vLLM 0.26.0.
-- Qwen3.5-9B is the board's "greedy + card penalties" row: `neutral` prompt, temperature 0.0 with
+- Qwen3.5-9B is the leaderboard's "greedy + card penalties" row: `neutral` prompt, temperature 0.0 with
   presence_penalty 1.5 and repetition_penalty 1.0, JPEG q95 capped at 2048 x 1024 px of area.
 - Qianfan-OCR and DeepSeek-OCR send the page at full resolution. Qianfan gets the image bytes as received
-  (the sample-60 lossless WebP decodes to the same pixels the board's dataset bytes did); DeepSeek gets
+  (the sample-60 lossless WebP decodes to the same pixels the leaderboard's dataset bytes did); DeepSeek gets
   RGB PNG/JPEG as is and anything else as RGB PNG.
 - DeepSeek: vLLM's default resolution (Gundam), grounding prompt, `skip_special_tokens` false; the card's
   n-gram guard is registered at boot (`--logits_processors`, kept last on the command line) and set per
   request (`vllm_xargs`). v2 uses v1's processor and `<td>`/`</td>` whitelist, as the v2 vLLM recipe does;
   that the ids are the same tokens in v2's tokenizer is not verified.
-- Completions are kept verbatim. The board's post-processing stays in the harness: `unwrap_fence` (Qwen),
+- Completions are kept verbatim. The leaderboard's post-processing stays in the harness: `unwrap_fence` (Qwen),
   the `</think>` strip (Qianfan), `deepseek_strip_grounding` (both DeepSeeks, postproc 3).
   `qwen35.unwrap_fence` and `deepseek_ocr.strip_grounding` apply the same rules for other consumers.
-- Memory: Qwen3.5-9B has 18.0 GiB of bf16 weights. The board ran it on an L40S at 0.9. On a 24 GB card
+- Memory: Qwen3.5-9B has 18.0 GiB of bf16 weights. The leaderboard ran it on an L40S at 0.9. On a 24 GB card
   (L4, A10G) about 2 GiB would be left at 0.9 for activations, the vision encoder and the KV cache. That
   fit has not been tested. The other three need 6 to 9 GiB of weights and ran on an A10G.
 
-## SmolDocling and Nemotron 3.5 Parse specs; three board rows that are not chat models (2026-11-03, not yet run)
+## SmolDocling and Nemotron 3.5 Parse specs; three leaderboard rows that are not chat models (2026-11-03, not yet run)
 
-`SmolDocling` (`ds4sd/SmolDocling-256M-preview`) and `NemotronParse35` (`nvidia/Nemotron-3.5-Parse`) follow the BHL
-board's drivers (module docstrings). Not checked on a GPU yet.
-- SmolDocling answers in DocTags. The completion is kept verbatim; `parse` also stores the board's conversion
-  (docling-core, body + furniture, no image placeholder) in `extra["markdown"]`. The board converted with docling-core
-  2.89; the lock has a newer one, so a scorer that wants the board's exact text should compare both.
+`SmolDocling` (`ds4sd/SmolDocling-256M-preview`) and `NemotronParse35` (`nvidia/Nemotron-3.5-Parse`) follow the
+leaderboard's drivers (module docstrings). Not checked on a GPU yet.
+- SmolDocling answers in DocTags. The completion is kept verbatim; `parse` also stores the leaderboard's conversion
+  (docling-core, body + furniture, no image placeholder) in `extra["markdown"]`. The leaderboard converted with
+  docling-core 2.89; the lock has a newer one, so a scorer that wants the leaderboard's exact text should compare
+  both.
 - Nemotron 3.5 Parse needs NVIDIA's vLLM plugin from the model repo. `ChatModel.serve_setup()` is a bash script that
   `ServeChatModel` runs before `vllm serve`. For this model it installs the plugin into the Python that runs `vllm`,
-  the way the board's install script does. The card's flags include FlashAttention 3, a Hopper kernel: the board ran
-  on an H200, and the flags as they are will not run on an L4. The board's Markdown rendering imports code from the
-  model repo, so `parse` does not call it; `to_markdown` reproduces it.
+  the way the leaderboard's install script does. The card's flags include FlashAttention 3, a Hopper kernel: the
+  leaderboard ran on an H200, and the flags as they are will not run on an L4. The leaderboard's Markdown rendering
+  imports code from the model repo, so `parse` does not call it; `to_markdown` reproduces it.
 - Not chat models, so no spec. They do not fit `ChatPageStep`:
-  - `datalab-to/indra-ocr`: the board ran it in-process on CPU (the `indra-ocr` package: ONNX Runtime detector,
+  - `datalab-to/indra-ocr`: the leaderboard ran it in-process on CPU (the `indra-ocr` package: ONNX Runtime detector,
     orientation, script classifier, line recognizers, layout and reading order). It would need an engine package
     `backends/indra/` (`linecaster-indra`, pinning `indra-ocr==1.1.2` and the model tag `v1.1.0`). Its engine model
     would call `indra_ocr.load(mode="auto", furniture=False, math=False, dpi=200, threads=1)` and `Converter.convert(path)`
     on the page file, and return `page.markdown` (and the package's lines, if it exposes geometry). A page the package
     marks `source == "error"` would be an error.
   - `SoMarkAI/OXR-1.0` and `tiiuae/Falcon-OCR`: vendor page pipelines inside their own images: a layout model, a VLM
-    behind the image's internal vLLM reading the regions, and the vendor's own Markdown assembly. The board posts the
-    whole page to the vendor API: OXR `POST /v1/parse/sync` (multipart, `output_formats` markdown + json), Falcon
-    `POST /falconocr/parse` (`{"images": [data URI], "skip_layout": false}`). Neither answers chat completions with
-    a page transcription. They would need a served step with a per-model route and request (JSON or multipart) and a
-    serve block that starts the image's entrypoint and waits for its health URLs (OXR: weights downloaded to
-    `/models/oxr-model` first, then `/docs`; Falcon: vLLM `/health` and pipeline `/health`). Falcon's image is not known
-    to have uv or Python 3.12, which `JobsPipelineExecutor` needs. The other way is to run the VLM through
-    `ChatRegionStep` behind linecaster's own layout step, as for MiniCPM-OCR, but that is not the board's run.
+    behind the image's internal vLLM reading the regions, and the vendor's own Markdown assembly. The leaderboard
+    posts the whole page to the vendor API: OXR `POST /v1/parse/sync` (multipart, `output_formats` markdown + json),
+    Falcon `POST /falconocr/parse` (`{"images": [data URI], "skip_layout": false}`). Neither answers chat completions
+    with a page transcription. They would need a served step with a per-model route and request (JSON or multipart)
+    and a serve block that starts the image's entrypoint and waits for its health URLs (OXR: weights downloaded to
+    `/models/oxr-model` first, then `/docs`; Falcon: vLLM `/health` and pipeline `/health`). Falcon's image is not
+    known to have uv or Python 3.12, which `JobsPipelineExecutor` needs. The other way is to run the VLM through
+    `ChatRegionStep` behind linecaster's own layout step, as for MiniCPM-OCR, but that is not the leaderboard's run.
 
 ## olmOCR-2-7B-1025-FP8 spec for ChatPageStep (2026-11-03, not yet run)
 
-- `models/olmocr2.py` reproduces the board driver: no-anchoring v4 YAML prompt as a text part before
+- `models/olmocr2.py` reproduces the leaderboard driver: no-anchoring v4 YAML prompt as a text part before
   the image, PNG with the longest side forced to 1288 px (LANCZOS), temperature 0.1, max_tokens 8192,
   repetition_penalty 1.05, stop `<|im_end|>`/`<|endoftext|>`; `--max-model-len 16384`, no prefix
-  caching, no mm processor cache, one image per prompt; checkpoint pinned; vLLM 0.26.0 (the board's;
-  Daniel's recipe has since moved to 0.29.0).
+  caching, no mm processor cache, one image per prompt; checkpoint pinned; vLLM 0.26.0 (the leaderboard's;
+  the uv-scripts recipe has since moved to 0.29.0).
 - The completion is kept verbatim; the YAML front matter is parsed into `extra["front_matter"]`.
-  Dropping it from the scored text is the board's post-processing (`drop_front_matter`), left to the
+  Dropping it from the scored text is the leaderboard's post-processing (`drop_front_matter`), left to the
   harness; `olmocr2.body()` does the same split.
 
 ## chandra-ocr-2, dots.ocr, OvisOCR2, OvisOCR3 specs for ChatPageStep (2026-11-03, not yet run)
 
-- `models/chandra_ocr2.py`, `models/dots_ocr.py`, `models/ovis_ocr.py` reproduce the board drivers; request
+- `models/chandra_ocr2.py`, `models/dots_ocr.py`, `models/ovis_ocr.py` reproduce the leaderboard drivers; request
   bodies (image bytes included) were checked equal to the drivers' `to_request` on JPEG/PNG/WebP, RGB and gray
   pages, and the serve flags equal the drivers' `SERVING` flags. Checkpoints pinned; vLLM 0.26.0 for all four.
-- Completions verbatim. The board converts chandra's HTML layout blocks to Markdown
+- Completions verbatim. The leaderboard converts chandra's HTML layout blocks to Markdown
   (`chandra_html_to_markdown`) and drops Ovis's `<img src="images/bbox_…">` blocks (`drop_bbox_blocks`) in the
   harness's `normalize_outputs`, not in the drivers, so both stay in the harness.
-- chandra: one attempt per page (the vendor client's loop retries at raised temperature are not run, as on the board).
+- chandra: one attempt per page (the vendor client's loop retries at raised temperature are not run, as on the
+  leaderboard).
 - dots.ocr: the scored row ran with `--gpu-memory-utilization 0.6`, at most 4 pages in flight and
   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (`chat_page.py --env`); 0.8 / 12 ran out of memory.
-- OvisOCR3 ran on an A100 on the board; on an L4 vLLM may pick another default GDN prefill backend
+- OvisOCR3 ran on an A100 on the leaderboard; on an L4 vLLM may pick another default GDN prefill backend
   (Qwen3.5 base), which can move numerics: compare at CER level.
 
-## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, forge)
+## MiniCPM-OCR 1.0 through ChatRegionStep (2026-11-03, x86_64 RTX 4000 SFF Ada)
 
 Setup: `ImageFolderReader` → `LayoutStep` (`linecaster serve`, PP-DocLayoutV3 ONNX) → `ChatRegionStep(MiniCPMOCR)` →
 page rows, then the SDK's own assembly (`linecaster.adapters.minicpm_ocr.assemble_markdown`, keep footnote and aside_text
-as the BHL board row did) and the board lane (consolidate → normalize postproc 3 → score_dataset).
+as the leaderboard's row did) and the leaderboard lane (consolidate → normalize postproc 3 → score_dataset).
 - vLLM nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`, cu130 wheel from the per-commit index, torch 2.14 cu130) with
-  transformers at OpenBMB's pin, in its own venv on forge (RTX 4000 SFF Ada 20 GB); `ninja` must be on PATH (the venv's
-  bin) or the engine fails at startup. Serve flags from the SDK tutorial, `--gpu-memory-utilization 0.85`, DSpark
-  speculative decoding with the matching draft model (mean acceptance length about 7).
+  transformers at OpenBMB's pin, in its own venv on an x86_64 machine with an RTX 4000 SFF Ada 20 GB; `ninja` must be
+  on PATH (the venv's bin) or the engine fails at startup. Serve flags from the SDK tutorial,
+  `--gpu-memory-utilization 0.85`, DSpark speculative decoding with the matching draft model (mean acceptance length
+  about 7).
 - Reference: OpenBMB's SDK itself (minicpm-ocr 1.0.1 with PaddlePaddle GPU 3.3.0 and the PP-DocLayoutV3 Paddle model, the
-  board image's lock) against the same server on the same pages.
+  leaderboard image's lock) against the same server on the same pages.
 
 | run | sample-60 CERdip / CERread / recall | tables-7 CERdip / CERread / recall | loops | wall, sample-60 |
 |---|---|---|---:|---:|
@@ -1050,10 +1054,10 @@ as the BHL board row did) and the board lane (consolidate → normalize postproc
 - tables-7: the 5 content pages score CERread 0.209 (recall 0.985); the aggregate 0.562 comes from the 2 sparse pages of
   trudyrusskago, where both linecaster and the SDK read about 470 characters the GT does not transcribe (CER 74 on those pages).
 
-## NFC step and item-level documents (2026-11-03, spark)
+## NFC step and item-level documents (2026-11-03, aarch64 GB10)
 
-**NFC (`NormalizeUnicode`, after recognition).** The chain with the step against squiddleocr's goldens
-(7c8a052, spark), goldens NFC-normalized (the parity scripts' new default; `--no-nfc` for raw):
+**NFC (`NormalizeUnicode`, after recognition).** The chain with the step against the derivative's goldens
+(recorded on the GB10 machine), goldens NFC-normalized (the parity scripts' new default; `--no-nfc` for raw):
 
 | set | lines (box + words) | txt | md | raw, without NFC on the goldens |
 |---|---:|---:|---:|---:|
@@ -1065,8 +1069,8 @@ post-recognition merge), which gives `a` + U+0308 and `ä` the same display widt
 linecaster's NFC output pad identically. (Without `wcwidth`, `len()` would count the combining mark and
 the decomposed golden would pad one space less per such character.)
 
-**Item-level documents (`BindItem`, `ItemExportsWriter`).** Goldens made with squiddleocr main
-itself on the 6 books of sample-60 (10 pages each, in `seq` order): `squiddle_books.py` (squiddleocr's own
+**Item-level documents (`BindItem`, `ItemExportsWriter`).** Goldens made with the derivative
+itself on the 6 books of sample-60 (10 pages each, in `seq` order): `squiddle_books.py` (the derivative's own
 `build_pipeline` with the `squiddle ocr` command's defaults, then its `--per-document` branch) for four
 combinations; cross-checked against the real command (`squiddle ocr BOOK --per-document --text lines
 --sections --dividers -f md,txt,json`) for all 6 books: 18/18 files byte-identical.
@@ -1079,27 +1083,27 @@ combinations; cross-checked against the real command (`squiddle ocr BOOK --per-d
 | lines, sections, dividers | 6/6 / 6/6 / 6/6 | 6/6 / 6/6 |
 
 - The port is exact: from the same rows, md, txt and docling JSON (structure; furniture layer and version
-  normalized) are identical for every book and combination, and squiddleocr's own `DocumentBuilder` fed
+  normalized) are identical for every book and combination, and the derivative's own `DocumentBuilder` fed
   with the NFC'd rows gives linecaster's NFC output exactly (24/24).
-- With NFC, reflow differs on 2 books, for a reason, not by accident: squiddleocr's `ends_with_mark`
+- With NFC, reflow differs on 2 books, for a reason, not by accident: the derivative's `ends_with_mark`
   requires a letter before the hyphen, and in kraken's decomposed text that character is the combining
   accent (category Mn), so `mâ-`/`choire`, `sé-`/`pare`, `exté¬`/`rieur` kept their division marks.
   After NFC they are removed (11 decisions: 9 in histoirenaturell10cuvi, 2 in trudyrusskagoent; one
   then continues a paragraph that the golden had broken). NFC before reflow is the consistent choice and
   the better text; it stays. The item JSON also differs after NFC in charspans (lengths of NFC strings).
-- squiddleocr 7c8a052 crashes on `--text reflow --sections` when a page has a title (confirmed with the
+- The derivative crashes on `--text reflow --sections` when a page has a title (confirmed with the
   command on birdsofgreatbrit02butl: "Document hierarchy is inconsistent"): its reflow path re-parents
   the title into a new section without detaching it. linecaster opens the section first and puts the
   title inside, as the lines mode does (a test covers it); this combination has no golden.
-- Docling renders a heading inside a section one `#` deeper (`### ` for level 2); squiddleocr's goldens
+- Docling renders a heading inside a section one `#` deeper (`### ` for level 2); the derivative's goldens
   show the same.
 
-## Post-recognition blocks: retyper and page composition (2026-11-03, spark)
+## Post-recognition blocks: retyper and page composition (2026-11-03, aarch64 GB10)
 
-`Typography` (squiddleocr's retyper) and `ComposePage` (squiddleocr's `DocumentBuilder`, `--text lines`)
+`Typography` (the derivative's retyper) and `ComposePage` (the derivative's `DocumentBuilder`, `--text lines`)
 after the in-process squiddle chain (layout, lines, assign, recognition, tables), exported with
-`PageExportsWriter(suffix=".paddle", furniture=True)`, compared byte for byte with squiddleocr's goldens
-(`7c8a052`, spark, `--text lines --furniture`; `tests/parity/compare_exports.py`):
+`PageExportsWriter(suffix=".paddle", furniture=True)`, compared byte for byte with the derivative's goldens
+(recorded on the GB10 machine, `--text lines --furniture`; `tests/parity/compare_exports.py`):
 
 | set | txt | md | docling JSON (furniture layer and version field normalized) |
 |---|---:|---:|---:|
@@ -1108,48 +1112,51 @@ after the in-process squiddle chain (layout, lines, assign, recognition, tables)
 
 - Without the retyper: md 40/60 and 4/7 (headings demoted 34 times on sample-60, page numbers dropped 3
   times on tables-7). Headline splits and drop capitals do not occur on these pages; a differential check
-  against squiddleocr's own `retype_page` + `DocumentBuilder` on 2,000 random synthetic pages (470 splits,
+  against the derivative's own `retype_page` + `DocumentBuilder` on 2,000 random synthetic pages (470 splits,
   442 drop capitals, 578 page numbers dropped, 678 demotions) gave identical md, txt and region ids,
   labels, levels and order on all of them.
 - `wcwidth` is now a core dependency: tabulate (docling's text export of tables) pads with `wcwidth` when
   installed and `len()` otherwise, and kraken writes `ä` as `a` + U+0308, so 3 table pages' txt depended
   on whether the environment happened to have `wcwidth`. (The combining marks also mean the as-written
   text is not NFC yet; normalizing it is a separate, recorded transform, not done here.)
-- Recomposition (`ComposePage(text="reflow")`, squiddleocr's default document mode; `linecaster.text.recomposition` is
-  squiddleocr's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
-  checked against squiddleocr's own `DocumentBuilder(text="reflow")` fed with the same retyped regions
-  and lines: md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks
-  removed, 1 kept, 4 continuations across regions), and on the 1,000 reflow pages of the random check.
-- Not ported: formula recognition (squiddleocr reads formula regions as LaTeX by default; no formula
+- Recomposition (`ComposePage(text="reflow")`, the derivative's default document mode; `linecaster.text.recomposition`
+  is the derivative's `reflow.py` verbatim, `uniseg` now a core dependency): no reflow goldens exist, so it was
+  checked against the derivative's own `DocumentBuilder(text="reflow")` fed with the same retyped regions and lines:
+  md, txt and docling JSON identical on all 67 pages (446 + 33 paragraphs, 234 division marks removed, 1 kept, 4
+  continuations across regions), and on the 1,000 reflow pages of the random check.
+- Not ported: formula recognition (the derivative reads formula regions as LaTeX by default; no formula
   regions on these 67 pages; `ComposePage` takes `region.extra["formula"]` when a formula step
   provides it), paragraphs continued across pages (needs an item-level document), sections, Markdown
   dividers.
 
-## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, spark)
+## Chat VLMs: LightOnOCR-2-1B through ChatPageStep (2026-11-03, aarch64 GB10)
 
 Setup:
 - Pipeline: `ImageFolderReader` → `ChatPageStep(LightOnOCR2, Served(..., max_window=48, initial_window=8), prepare_workers=4)` → `PageJsonlWriter`, run with `examples/chat_page.py`.
 - Server: vLLM 0.21.0 (torch 2.11 cu130) on the same machine.
   - Flags: the spec's serve flags plus `--gpu-memory-utilization 0.22`, because the GPU was shared with `linecaster serve` and kraken-paddlex jobs.
-  - The board pins vLLM 0.26.0. That version was not tested here.
+  - The leaderboard pins vLLM 0.26.0. That version was not tested here.
 
-Scoring: the rows were converted to the harness's input shape (id, raw, finish_reason) and scored with the frozen bhl-ocr-eval harness along the FineBooks leaderboard's path (consolidation, output normalization, scoring).
+Scoring: the rows were converted to the harness's input shape (id, raw, finish_reason) and scored with the
+leaderboard's frozen scoring harness along the leaderboard's path (consolidation, output normalization, scoring).
 
 | run | CERdip | CERread | recall µ | loops |
 |---|---:|---:|---:|---:|
 | sample-60, ChatPageStep | 0.0614 | 0.0285 | 0.9717 | 5/60 |
 | sample-60, bare saturate `pump()` (same request/parse) | 0.0661 | 0.0292 | 0.9669 | 4/60 |
-| sample-60, board's own outputs (vLLM 0.26.0, A10G), same pages | 0.0656 | 0.0321 | 0.9666 | 4/60 |
+| sample-60, leaderboard's own outputs (vLLM 0.26.0, A10G), same pages | 0.0656 | 0.0321 | 0.9666 | 4/60 |
 | tables-7, ChatPageStep | 0.9453 | 0.5539 | 0.9884 | 0/7 |
 | tables-7, bare `pump()` | 0.9532 | 0.5662 | 0.9904 | 0/7 |
-| tables-7, board outputs | 0.9701 | 0.5792 | 0.9877 | 0/7 |
+| tables-7, leaderboard outputs | 0.9701 | 0.5792 | 0.9877 | 0/7 |
 
-- Prompt tokens are identical to the board's on every page, so the image geometry is identical.
-- 29 of the 60 completions are byte-identical to the `pump()` run, and 24 to the board's. Sampling is at temperature 0.2.
+- Prompt tokens are identical to the leaderboard's on every page, so the image geometry is identical.
+- 29 of the 60 completions are byte-identical to the `pump()` run, and 24 to the leaderboard's. Sampling is at
+  temperature 0.2.
 - Run-to-run variance of `pump()` on sample-60 was CERread 0.026–0.030 on the common pages. The ChatPageStep result falls inside that range.
 - All the looped pages (`finish_reason=length`, 4,096 tokens) are in pisciumquerelaee00sche, on every stack.
 
-Throughput, on the same 310 pages (every 7th of the 2,165 IMPACT-BHL images), run back to back against the same server while kraken-paddlex jobs shared the GPU:
+Throughput, on the same 310 pages (every 7th of the 2,165 ground-truth images), run back to back against the same
+server while kraken-paddlex jobs shared the GPU:
 
 | client | wall | pages/s |
 |---|---:|---:|
@@ -1160,21 +1167,22 @@ Throughput, on the same 310 pages (every 7th of the 2,165 IMPACT-BHL images), ru
 The pipeline adds no measurable overhead. Contention from other GPU jobs dominates these numbers.
 Client RSS was about 1.0 GB for the pipeline and 0.7 GB for `pump()`.
 
-**vLLM on spark (unified memory).**
+**vLLM on the GB10 (unified memory).**
 - `--gpu-memory-utilization` is taken against the free memory at start. The same 0.22 gave a 12.3 GiB KV cache in one start and 22.7 GiB in another; EngineCore used 16 GB and 27 GB respectively.
 - One start failed with vLLM's profiling assertion ("Initial free memory ... current free memory ..."): another process released memory while vLLM was profiling. Restarting fixed it.
 
-**ServeChatModel** was checked on spark with `examples/chat_page.py --serve --port 8133 --gpu-memory-utilization 0.15 --limit 6`.
-vLLM booted in-task in 143 s, 6 pages ran, and the server was stopped at the end.
+**ServeChatModel** was checked on the GB10 machine with `examples/chat_page.py --serve --port 8133
+--gpu-memory-utilization 0.15 --limit 6`. vLLM booted in-task in 143 s, 6 pages ran, and the server was stopped at the
+end.
 
 ## HF Jobs recipe for MiniCPM-OCR 1.0 regions (not yet run on Jobs)
 
 `recipes/hf-jobs/minicpm_regions.py`: PP-DocLayoutV3 (`ServeModels`, `linecaster serve`) → `ChatRegionStep(MiniCPMOCR)`
 (`ServeChatModel`, vLLM) → page rows, both servers in each Job on one GPU.
-- Image: the BHL board's MiniCPM-OCR image (vLLM nightly 5d35ce3 on `vllm/vllm-openai`, transformers at OpenBMB's pin;
+- Image: the leaderboard's MiniCPM-OCR image (vLLM nightly 5d35ce3 on `vllm/vllm-openai`, transformers at OpenBMB's pin;
   uv and Python 3.12 from the vLLM base). Its SDK venv and Paddle layout model are not used.
 - vLLM runs in the image's Python; `ServeChatModel(outside_venv=True)` starts it with `VIRTUAL_ENV` unset and the uv
-  environment's `bin` off `PATH`, as the board recipe does. Draft model pinned through the speculative config's
+  environment's `bin` off `PATH`, as the leaderboard recipe does. Draft model pinned through the speculative config's
   `revision` (vLLM passes it to the draft's `ModelConfig`).
 - The pipeline and the layout server run in the uv environment from `dependencies(commit, kraken=False)`: linecaster +
   linecaster-paddlex + the OpenCV stub, no kraken (the image has no git) and no lightning.
@@ -1212,30 +1220,30 @@ How the Job is arranged:
 - `linecaster serve`: a stateless model server (aiohttp) hosting several engines; blocks reach it
   through saturate.
 - Engines: `backends/paddlex` (PP-DocLayoutV3 layout, PP-OCRv6 detection), `backends/kraken` (kraken's
-  PP-OCRv6 recognizer), moved from squiddleocr with their history; `envs/kraken-paddlex` is the
+  PP-OCRv6 recognizer), moved from the derivative with their history; `envs/kraken-paddlex` is the
   environment that installs both.
 - Recipes: `recipes/hf-jobs/squiddle_chain.py` (datatrove `JobsPipelineExecutor`, one
   `linecaster serve` per Job), `recipes/hf-jobs/cuda_probe.py`.
 
-### Parity with squiddleocr
+### Parity with the derivative's pipeline
 
-The squiddle combination built from blocks (layout → lines → assign lines → recognition)
-reproduces squiddleocr's outputs (main `7c8a052`, default paddle pipeline, batch 8, bf16-mixed on
-CUDA) line for line on the 60-page sample of the BHL IMPACT ground truth: 1,560/1,560 lines identical
-in line box, text and every word box.
+The squiddle combination built from blocks (layout → lines → assign lines → recognition) reproduces the derivative's
+outputs (its default paddle pipeline, batch 8, bf16-mixed on CUDA) line for line on sample-60, a 60-page sample of
+19th-century scientific print from the ground-truth set: 1,560/1,560 lines identical in line box, text and every word
+box.
 
 | machine | in-process | served (datatrove + saturate + `linecaster serve`) |
 |---|---|---|
-| spark (GB10, aarch64) | 60/60 pages exact | 60/60 pages exact |
-| forge (RTX 4000 SFF Ada, x86_64) | 60/60 pages exact | 60/60 pages exact |
+| GB10, aarch64 | 60/60 pages exact | 60/60 pages exact |
+| RTX 4000 SFF Ada, x86_64 | 60/60 pages exact | 60/60 pages exact |
 
-Goldens are per machine: squiddleocr itself gives 50/67 byte-identical text files between spark and
-forge (36 differing word tokens in 17 files), the usual GPU numerics. squiddleocr is run-to-run
-deterministic on one machine (rerun: 60/60 identical). On the 7 table pages the recognized lines are
-identical too; one extra line in linecaster's output is one that squiddleocr's typography step
-(retyper, after recognition, not yet ported) removes.
+Goldens are per machine: the derivative itself gives 50/67 byte-identical text files between the GB10 and the RTX 4000
+SFF Ada machine (36 differing word tokens in 17 files), the usual GPU numerics. The derivative is run-to-run
+deterministic on one machine (rerun: 60/60 identical). On the 7 table pages the recognized lines are identical too;
+one extra line in linecaster's output is one that the derivative's typography step (retyper, after recognition, not
+yet ported) removes.
 
-On HF Jobs (L4) the served chain gives the same harness scores as on spark to four decimals on the
+On HF Jobs (L4) the served chain gives the same harness scores as on the GB10 machine to four decimals on the
 60-page sample (CERdip 0.0338, CERread 0.0268, recall 0.9526 vs 0.9528); line geometry identical on
 1,552/1,560 lines (different GPU numerics).
 
@@ -1243,21 +1251,20 @@ On HF Jobs (L4) the served chain gives the same harness scores as on spark to fo
 
 | machine | layout | lines | recognition | wall, 60 pages, served (models overlap) | wall, in-process |
 |---|---|---|---|---|---|
-| forge RTX 4000 Ada | | | | 42 s (0.70 s/page) | 65 s |
+| RTX 4000 SFF Ada, x86_64 | | | | 42 s (0.70 s/page) | 65 s |
 | HF Jobs L4 | 0.21 s | 0.18 s | 0.74 s | | |
-| spark GB10 (GPU shared with other work) | 0.16 s | 0.13 s | 0.71 s | 98 s | 194 s |
+| GB10, aarch64 (GPU shared with other work) | 0.16 s | 0.13 s | 0.71 s | 98 s | 194 s |
 
 Served is faster than in-process because the three models work on different pages at the same time
 (one worker per model, saturate keeps several pages in flight).
 
 ### Full ground truth (2,165 pages, HF Jobs, 4 × L4)
 
-The chain through datatrove + saturate on HF Jobs scores CERdip 0.0551, CERread 0.0451, recall 0.9754
-with the frozen bhl-ocr-eval harness (squiddleocr reference on forge: 0.0587 / 0.0432 / 0.9756). Most
-pages score identically; the CERread gap sits in index pages that are tables (conchologia):
-squiddleocr's PaddleX table step writes them row by row, matching the ground truth's line structure,
-while linecaster has no table step yet and writes each cell as its own line. The table step is the
-next block to port.
+The chain through datatrove + saturate on HF Jobs scores CERdip 0.0551, CERread 0.0451, recall 0.9754 with the
+leaderboard's frozen scoring harness (the derivative's reference on the x86_64 RTX 4000 SFF Ada machine: 0.0587 /
+0.0432 / 0.9756). Most pages score identically; the CERread gap sits in index pages that are tables (conchologia): the
+derivative's PaddleX table step writes them row by row, matching the ground truth's line structure, while linecaster
+has no table step yet and writes each cell as its own line. The table step is the next block to port.
 
 ### GPUs compared (full ground truth, complete chain incl. tables, 4 tasks on HF Jobs)
 
@@ -1269,7 +1276,7 @@ different pages at the same time. Scores are identical on all three (CER reading
 | L4 | 0.21 | 0.18 | 0.76 | – |
 | A10G | 0.21 | 0.20 | 0.72 | 0.03 |
 | L40S | 0.13 | 0.12 | 0.44 | 0.02 |
-| RTX 4000 SFF Ada (forge) | 0.17 | 0.12 | 0.69 | – |
+| RTX 4000 SFF Ada | 0.17 | 0.12 | 0.69 | – |
 
 With one worker per model the L40S finishes about twice as fast as an L4.
 
@@ -1286,11 +1293,11 @@ tables are identical for every N (2,165/2,165 pages).
 |---|---|---|---|
 | L4 | 0.819 | 0.756 (−7.6 %) | – |
 | L40S | 0.452 | 0.416 (−7.9 %) | 0.405 (−10.4 %) |
-| RTX 4000 SFF Ada (forge, 310 pages) | 0.714 | 0.686 (−4 %) | 0.671 (−6 %) |
+| RTX 4000 SFF Ada (310 pages) | 0.714 | 0.686 (−4 %) | 0.671 (−6 %) |
 
 (L4 1 and 2 replicas from the same commit; L40S 1 replica from the earlier run of the same chain.)
 Recognition is GPU-bound, not GIL-bound: per-request time roughly doubles with two replicas (L4 0.81 →
-1.49 s), and on forge kraken in two separate processes reaches the same total throughput as one (80
+1.49 s), and on the RTX 4000 SFF Ada kraken in two separate processes reaches the same total throughput as one (80
 pages in 52 s alone; 2 × 80 pages in 102 s side by side). Replicas only fill the gaps between a page's
 batches. The lever left is the recognizer's GPU efficiency (8 lines per forward pass in bf16), which
 changes numerics if the batching changes.
@@ -1321,13 +1328,13 @@ per-region limits.
 
 ### Open
 
-- Port squiddleocr's post-recognition steps (retyper, reflow, page composition into `docling`, tables,
+- Port the derivative's post-recognition steps (retyper, reflow, page composition into `docling`, tables,
   formulas) as blocks.
 - `/v1/chat/completions` preset route for OpenAI clients.
-- Deterministic algorithms flag: not set (squiddleocr does not set it and is run-to-run deterministic);
+- Deterministic algorithms flag: not set (the derivative does not set it and is run-to-run deterministic);
   cuDNN autotuning is off explicitly.
 
-## Per-page files and item texts in one run (2026-11-03, spark)
+## Per-page files and item texts in one run (2026-11-03, aarch64 GB10)
 
 `examples/squiddle_chain.py BOOKS OUT --item-from-parent --files OUT/files --texts OUT/texts`
 in-process on sample-60 (images grouped by book in subfolders, 6 books): 1 m 45 s; page rows, 360
@@ -1344,16 +1351,16 @@ per-page files (`<item>/<page>.hocr|.alto.xml|.page.xml|.txt|.md|.json`) and 18 
 - The test pages are not consecutive within a book, so the joins across page breaks seen here are
   between unrelated pages; on a whole book they are the intended paragraph continuations.
 - Item page order: `ItemTexts` sorts by `sequence`; `ImageFolderReader` sets none, so pages fall back
-  to their ids (BHL PageIDs ascend with the sequence on these books).
+  to their ids (the source's page ids ascend with the sequence on these books).
 
-## Board models as chat specs: validation on the 60-page sample (2026-11-03)
+## Chat presets: validation on the 60-page sample (2026-11-03)
 
 Each spec ran through `recipes/hf-jobs/chat_page.py` (ChatPageStep + ServeChatModel in one HF Job) on the
-sample-60 pages, and was scored the board's way (consolidate → `normalize_outputs` postproc 3 →
-`score_dataset`) next to the board's own outputs for the same 60 pages (bhl-ocr-eval's consolidated rows).
-CER reading, linecaster vs board:
+sample-60 pages, and was scored the leaderboard's way (consolidate → `normalize_outputs` postproc 3 →
+`score_dataset`) next to the leaderboard's own outputs for the same 60 pages (the leaderboard's consolidated rows).
+CER reading, linecaster vs leaderboard:
 
-| Model | GPU | linecaster | board |
+| Model | GPU | linecaster | leaderboard |
 |---|---|---|---|
 | rednote-hilab/dots.ocr | L4 | 0.0170 | 0.0170 |
 | datalab-to/chandra-ocr-2 | L4 | 0.0190 | 0.0197 |
@@ -1370,14 +1377,14 @@ CER reading, linecaster vs board:
 | deepseek-ai/DeepSeek-OCR-2 | L4 | 0.0576 | 0.0628 |
 | ds4sd/SmolDocling-256M-preview | L4 | 0.0643 | 0.0556 |
 
-- Greedy decoding with identical requests reproduces the board exactly (PaddleOCR-VL-1.6, dots.ocr); the
+- Greedy decoding with identical requests reproduces the leaderboard exactly (PaddleOCR-VL-1.6, dots.ocr); the
   others differ within sampling and GPU variation (CIs on 60 pages are about ±0.02).
-- SmolDocling is the largest gap (3 vs 5 truncated pages); the board copy compared against may not be the
+- SmolDocling is the largest gap (3 vs 5 truncated pages); the leaderboard copy compared against may not be the
   scored run (see the SmolDocling section above). Worth a second look.
 - Not ported: indra-ocr (in-process ONNX package, not a server), OXR-1.0 and Falcon-OCR (vendor parse
   APIs, not chat completions).
 
-## Manifests through pybookget: IIIF (2026-11-04) and METS (2026-11-05), spark
+## Manifests through pybookget: IIIF (2026-11-04) and METS (2026-11-05), aarch64 GB10
 
 `ManifestReader` (before 2026-11-05 `IIIFManifestReader`) and `pipelines/harvest.py` checked against public
 servers with linecaster's user agent, 2 requests per second, 3 pages per item:
@@ -1398,7 +1405,7 @@ servers with linecaster's user agent, 2 requests per second, 3 pages per item:
 Open: the per-task rate limit is the only limit (datatrove keeps no state between tasks); a run against one
 server sets `--workers` × `--rate-limit` to what that server accepts.
 
-## Tracing: overhead and storage (2026-11-05, GB10)
+## Tracing: overhead and storage (2026-11-05, aarch64 GB10)
 
 The squiddle recipe on the 60-page sample, one task, in-process and served (`--backend served`: the task starts
 `linecaster serve`), each configuration twice. Untraced is the commit before tracing (`e4b8d1d`); traced at
