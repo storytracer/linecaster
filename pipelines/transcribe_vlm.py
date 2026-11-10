@@ -1,8 +1,8 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images
-#     "linecaster[ray,pybookget]",
+#     # Ray for --on ray and the ray command (a Job leaves it out)
+#     "linecaster[ray]",
 #     # the layout model for --layout (PaddleX; it brings the OpenCV stub)
 #     "linecaster-paddlex",
 # ]

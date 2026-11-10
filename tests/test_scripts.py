@@ -90,11 +90,11 @@ def test_kraken_source_agrees():
 
 
 def test_scripts_list_no_source_their_packages_bring():
-    """A script lists only what it needs itself: pybookget, the kraken fork and the OpenCV stub come with the packages
-    that need them (linecaster, linecaster-kraken, linecaster-paddlex declare their sources, which uv lock applies)."""
+    """A script lists only what it needs itself: the kraken fork and the OpenCV stub come with the packages that
+    need them (linecaster, linecaster-kraken, linecaster-paddlex declare their sources, which uv lock applies)."""
     for p in SCRIPTS:
         names = {_name(d) for d in script_metadata(p).get("dependencies", [])}
-        assert not names & {"pybookget", "kraken", "opencv-contrib-python", "s3fs"}, p.name
+        assert not names & {"kraken", "opencv-contrib-python", "s3fs"}, p.name
 
 
 def test_s3_comes_with_the_core():
@@ -171,22 +171,21 @@ def test_wheels_for_both_machines(script):
 
 def test_pipelines_feed_the_jobs_helper():
     """A Job installs linecaster and the engine packages from the archive at the commit, and the sources the packages
-    declare themselves from the script's lock: pybookget's archive and the OpenCV stub."""
+    declare themselves from the script's lock: the OpenCV stub. linecaster's own requirement has no extra (a Job leaves
+    out ``ray``)."""
     modular, vlm = ROOT / "pipelines/transcribe_modular.py", ROOT / "pipelines/transcribe_vlm.py"
     repo = "https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
-    pybookget = "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"
     for script in (modular, vlm):
         deps = dependencies("abc123", script).requirements
-        assert deps[0] == f"linecaster[pybookget] @ {repo}"
-        assert pybookget in deps                       # an archive, no git (the vLLM image has none)
+        assert deps[0] == f"linecaster @ {repo}"   # an archive, no git (the vLLM image has none)
         assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
     for script in (modular, vlm):                   # kraken runs in an environment that adds it, not in these
         d = dependencies("abc123", script)
         assert not any(_name(r) in ("lightning", "torch", "kraken", "linecaster-kraken")
                        for r in d.requirements + d.constraints)
-    # without engines: linecaster with its extras and the sources they need, no engines
-    assert dependencies("abc123", vlm, engines=False).requirements == [f"linecaster[pybookget] @ {repo}", pybookget]
+    # without engines: linecaster alone, no engines
+    assert dependencies("abc123", vlm, engines=False).requirements == [f"linecaster @ {repo}"]
 
 
 @pytest.mark.parametrize("script", sorted((ROOT / "pipelines").glob("*.py")), ids=lambda p: p.name)

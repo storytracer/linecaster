@@ -11,7 +11,7 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
+    { name = "linecaster", extras = ["ray"], editable = "../" },
     { name = "linecaster-paddlex", editable = "../engines/paddlex" },
 ]
 
@@ -841,6 +841,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
 ]
 
+[package.optional-dependencies]
+http2 = [
+    { name = "h2" },
+]
+
 [[package]]
 name = "huggingface-hub"
 version = "1.33.0"
@@ -982,6 +987,8 @@ source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
     { name = "docling-core" },
+    { name = "fake-useragent" },
+    { name = "httpx", extra = ["http2"] },
     { name = "lxml" },
     { name = "numpy" },
     { name = "opentelemetry-api" },
@@ -997,9 +1004,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-pybookget = [
-    { name = "pybookget" },
-]
 ray = [
     { name = "ray", extra = ["default"] },
 ]
@@ -1008,6 +1012,8 @@ ray = [
 requires-dist = [
     { name = "datatrove", extras = ["io", "s3"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", specifier = ">=2.95" },
+    { name = "fake-useragent", specifier = ">=2.2" },
+    { name = "httpx", extras = ["http2"], specifier = ">=0.28" },
     { name = "lxml", specifier = ">=5" },
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
@@ -1015,7 +1021,6 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
@@ -1025,7 +1030,7 @@ requires-dist = [
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1926,35 +1931,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pybookget"
-version = "1.2.0"
-source = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
-dependencies = [
-    { name = "fake-useragent" },
-    { name = "h2" },
-    { name = "httpx" },
-    { name = "pyrate-limiter" },
-    { name = "tenacity" },
-    { name = "tqdm" },
-]
-sdist = { hash = "sha256:59cc69d2900821d1e90f1f6f43bfa86df4b1ca78f2e0585c5eaa35b209be875d" }
-
-[package.metadata]
-requires-dist = [
-    { name = "click", marker = "extra == 'cli'", specifier = ">=8.0.0" },
-    { name = "fake-useragent", specifier = ">=1.4.0" },
-    { name = "h2", specifier = ">=4.1.0" },
-    { name = "httpx", specifier = ">=0.25.0" },
-    { name = "pyrate-limiter", specifier = ">=4.5,<5" },
-    { name = "rocrate", marker = "extra == 'cli'", specifier = ">=0.9.0" },
-    { name = "tenacity", specifier = ">=8.2.0" },
-    { name = "tldextract", marker = "extra == 'cli'", specifier = ">=5.0.0" },
-    { name = "tqdm", specifier = ">=4.65.0" },
-    { name = "url64", marker = "extra == 'cli'", specifier = ">=0.1.0" },
-]
-provides-extras = ["cli"]
-
-[[package]]
 name = "pyclipper"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2095,15 +2071,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/0c/6c21f68a57d0c4c506b9e5f72506ba91d8dde47eef699f3fd9561f7bff0e/pypdfium2-5.14.0-py3-none-win32.whl", hash = "sha256:9fd5cc94a389d50298e4d8cb79af6b9b8e0d785606e2a937725dc6e271c9c6e6", size = 3805374, upload-time = "2026-10-04T15:19:14.357Z" },
     { url = "https://files.pythonhosted.org/packages/00/dc/ca7874924c9cfd701ad53f89529968523790e70473e0b71e834668316148/pypdfium2-5.14.0-py3-none-win_amd64.whl", hash = "sha256:149fd5c6397b8df8bf7911a93506eff0be874f877afe7ac936cf5d37d21a6a06", size = 3947280, upload-time = "2026-10-04T15:19:16.302Z" },
     { url = "https://files.pythonhosted.org/packages/46/ab/35f2276deeeebb781925e2647dd88a39f8ea1a910104a0dbb28218473502/pypdfium2-5.14.0-py3-none-win_arm64.whl", hash = "sha256:eb8aeca157808f323e39ea298cc6d6c8e080c192ea2efb1ca81daa0f0ff4d095", size = 3745021, upload-time = "2026-10-04T15:19:18.276Z" },
-]
-
-[[package]]
-name = "pyrate-limiter"
-version = "4.5.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2b/0b/f69f1614940f29d51e31d4fe8de69b2b4d411094ba3c77f50da34dfb63c6/pyrate_limiter-4.5.1.tar.gz", hash = "sha256:7f03c6a9235b00a4ba3c7b1e8cb6b23fbacc9d40b09f326220917a12ef22cc09", size = 129966, upload-time = "2026-10-20T13:51:27.935Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/72/bf7279ae5799e1b54cf137859c17755446b2d2b6194606bda41753a43f76/pyrate_limiter-4.5.1-py3-none-any.whl", hash = "sha256:bb8dd2926b0679e4ada6629a865e85daa5599268f930c61a8992dafa8bf3ba0d", size = 57873, upload-time = "2026-10-20T13:51:26.584Z" },
 ]
 
 [[package]]
@@ -2520,15 +2487,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz", hash = "sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d", size = 91754, upload-time = "2026-03-04T18:55:34.402Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3", size = 39814, upload-time = "2026-03-04T18:55:31.284Z" },
-]
-
-[[package]]
-name = "tenacity"
-version = "9.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/82/9e/497c1c8ebe5a5b5d1d4a7511aea22c0bb1a97e3170d98abdef0e1b34265a/tenacity-9.2.1.tar.gz", hash = "sha256:a606b5c808d0cded4a359d5b9932d867ff2a6a6b64d37350260fd01bbdf83839", size = 58261, upload-time = "2026-10-07T12:13:01.633Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/26/1ff2b0721ac66a3ec5b1402b333110b352ab0a8724052ac279a7b82d40c4/tenacity-9.2.1-py3-none-any.whl", hash = "sha256:9e56f17539296baab7beabb08b92f6ee3d7be92d8be72d763360677c2ad6580e", size = 32310, upload-time = "2026-10-07T12:13:00.102Z" },
 ]
 
 [[package]]

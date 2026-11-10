@@ -1,9 +1,8 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for the manifests and http(s) files it
-#     # fetches
-#     "linecaster[ray,pybookget]",
+#     # Ray for --on ray and the ray command (a Job leaves it out)
+#     "linecaster[ray]",
 # ]
 #
 # [tool.uv.sources]
