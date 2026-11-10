@@ -266,23 +266,6 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | names, spelling, docstrings | [conventions](docs/reference/conventions.md) |
 | every block, engine, model, preset and recipe | [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) |
 
-## 🛠️ Development
-
-| To | Run or write |
-|---|---|
-| test the core | `uv run pytest` (GPU and network tests skip where those are missing; `-n auto` on every core) |
-| test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
-| generate the docs (not in git; before `mkdocs serve`) | `uv run linecaster docs` |
-| check released catalog editions | `uv run linecaster catalog verify` |
-| see or tidy a broker (after a hard kill: `clean --leases`) | `linecaster broker status PATH`, `clean`, `purge` ([broker](docs/reference/broker.md#the-command)) |
-| build the docs site | `uv run --group docs mkdocs build --strict` |
-| add a model | `linecaster catalog pin <id> --hf <repo>`, a preset in `presets/<step>/`, `linecaster catalog release <id>` |
-| add an engine | a package under `engines/` that imports only `linecaster.data` and `linecaster.engines.api`; test it with `linecaster.testing.check_engine` |
-| add a block | a `PageBlock` with `process_page(doc, page)` and a `contract()`; test it with `linecaster.testing.check_block` |
-
-The code lives in `src/linecaster/`, the catalog in `src/linecaster/catalog/data/`, the engine packages in
-`engines/`, the pipeline scripts in `pipelines/`. Measurements and decisions are in [NOTES.md](NOTES.md).
-
 ## 🏷️ Versions
 
 The current release is `v0.3.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
