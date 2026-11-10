@@ -23,7 +23,8 @@ uv add "linecaster @ git+https://github.com/storytracer/linecaster@<commit>" \
 ```
 
 PaddleX pins OpenCV's GUI build; `stubs/opencv-contrib-python` swaps in the headless build of the same version
-(list it as a direct dependency with that path as its source, as the pipeline scripts do).
+(this package lists it with that stub as its source, which `uv lock` applies to every project or script that installs
+the package from a path or git; with `uv pip` or `uv run --with`, give the stub as a direct URL too).
 
 ## Tests
 
