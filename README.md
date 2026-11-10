@@ -253,18 +253,19 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 📚 Reference
 
-| Topic | Page |
+| Page | What it covers |
 |---|---|
-| terms | [glossary](docs/reference/glossary.md) |
-| how the parts fit together | [architecture](docs/reference/architecture.md) |
-| blocks, contracts, the builder, runs | [pipelines](docs/reference/pipelines.md) |
-| `Item`, `Page`, `Transcription`, text variants | [data model](docs/reference/data-model.md) |
-| ALTO, PAGE-XML, hOCR | [serialization](docs/reference/serialization.md) |
-| presets, recipes, editions, evidence | [catalog](docs/reference/catalog.md) |
-| traces | [tracing](docs/reference/tracing.md) |
-| what counts as a breaking change | [compatibility](docs/reference/compatibility.md) |
-| names, spelling, docstrings | [conventions](docs/reference/conventions.md) |
-| every block, engine, model, preset and recipe | [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) |
+| [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
+| [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
+| [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
+| [data model](docs/reference/data-model.md) | what a page's transcription holds: `Item`, `Page`, `Transcription`, regions, lines, words, text variants |
+| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR |
+| [catalog](docs/reference/catalog.md) | models, presets, recipes, editions and the evidence behind them |
+| [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
+| [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a sample of pages |
+| [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
+| [conventions](docs/reference/conventions.md) | the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets |
+| [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every block, engine, model, preset and recipe, generated from the code |
 
 ## 🏷️ Versions
 
