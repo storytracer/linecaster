@@ -18,9 +18,15 @@ dependencies = [
     "uniseg>=0.10",
     # Unicode scripts (\p{Script=...}) for the rule-based steps' by-script dispatch (linecaster.engines.scripts)
     "regex>=2024.11.6",
+    # XML: ALTO, PAGE-XML, hOCR, METS/MODS manifests (linecaster.formats)
     "lxml>=5",
     "numpy>=2",
     "Pillow>=11",
+    # http(s):// images, manifests and OCR files (linecaster.net.http): httpx with HTTP/2 (h2)
+    "httpx[http2]>=0.28",
+    # --random-user-agent (linecaster.net.http.HTTPConfig.use_fake_user_agent): pure Python, no dependencies; every
+    # pipeline script offers the option, so it is no extra
+    "fake-useragent>=2.2",
     # s3:// paths (OUT, inputs, a broker on S3) through datatrove's s3 extra (s3fs)
     "datatrove[io,s3]>=0.10.1,<0.11",
     "saturate==0.3.0",
@@ -39,10 +45,6 @@ dependencies = [
 minicpm-ocr = ["minicpm-ocr==1.0.1"]
 # Ray clusters: datatrove's RayPipelineExecutor (linecaster.runtime.ray.RayGPUExecutor)
 ray = ["ray[default]>=2.40"]
-# items' manifests (IIIF, METS) and http(s):// images (linecaster.blocks.readers.manifests, linecaster.net.http):
-# pybookget's manifest parser and HTTP layer
-# (rate limits, retries that honor Retry-After); its core install, without its CLI
-pybookget = ["pybookget>=1.2"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
 
@@ -61,10 +63,6 @@ build-backend = "uv_build"
 [tool.uv]
 # every machine shares one uv.lock; an older uv may not read a lockfile written by a newer one
 required-version = ">=0.13.6"
-
-[tool.uv.sources]
-# not on PyPI yet; GitHub's source archive at a commit (Jobs images without git can install it)
-pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
