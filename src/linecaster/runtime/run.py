@@ -582,7 +582,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
     """Backends for the engine ``models`` by name, and the server block that goes last (none in-process or
-    with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way."""
+    with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way. With
+    ``--endpoint`` the served engines need not be installed here: they run in the server's environment."""
     from ..backends import InProcess, Served
     from ..blocks.servers.serve import ModelServer
     from ..catalog.registry import in_process_only
@@ -596,7 +597,8 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
         b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
         b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
         b.overrides = m.get("overrides")
-    models = preset_models([m for m in models if m not in local], installed=installed, served=True)
+    # with --endpoint the engines run in the server's environment (one with kraken, say), not in this one
+    models = preset_models([m for m in models if m not in local], installed=installed and not a.endpoint, served=True)
     if not models:
         return backends, []
     endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
