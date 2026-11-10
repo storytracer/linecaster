@@ -315,7 +315,9 @@ class Broker:
         worker index (``set_worker_index``), else random among one free slot per CPU."""
         index = self._worker_index or _WORKER_INDEX[0]
         if index is None:
-            size = max(1, os.cpu_count() or 1)
+            from .runtime.cpus import available_cpus
+
+            size = available_cpus()
             start = random.randrange(size)
         else:
             start, workers = index

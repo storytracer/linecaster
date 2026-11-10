@@ -6,6 +6,27 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Upgrade notes
+
+- A Ray launch (`--on ray`) now stops with a `PipelineConfigError` before it submits a task if no live node has what
+  a task reserves (CPUs, memory, a GPU for a stage with models). Ray used to keep such tasks waiting without an error.
+  A cluster that adds nodes on demand passes `--no-fit-check` (`RayExecutor(check_fit=False)`).
+- Worker counts derived "one per CPU", and the broker's random start among worker slots, count the CPUs the process
+  may use (`linecaster.runtime.cpus.available_cpus`: a Ray task's CPUs, else the cgroup's CPU quota, else the
+  affinity) instead of `os.cpu_count()`. In a container with a CPU limit they are now that limit, not the machine's
+  CPUs.
+
+### Added
+
+- `--mem-per-task-gb` (`RayExecutor(mem_per_task_gb=...)`): the memory a Ray task reserves, whatever its CPUs;
+  `--mem-per-cpu-gb` per CPU stays the default. `--cpus-per-task` and `--mem-per-cpu-gb` have help texts.
+- `RayExecutor.check_cluster(nodes)` and `--no-fit-check`: the launch check, which also logs how many tasks fit at
+  once and warns when fewer than the run's tasks at once do.
+- `linecaster.runtime.cpus`: `available_cpus()`, `cgroup_cpu_quota()`, `ray_task_cpus()` and `limit_threads(n)`. Each
+  Ray task sizes OpenMP, BLAS, OpenCV and torch thread pools to its CPUs (variables already set are kept; the servers
+  a task starts inherit them).
+- The README's Ray section says what a task reserves, how to start workers for it, and how to run on Kubernetes.
+
 ### Fixed
 
 - The harvest's help and the pipelines reference say that `--retry-failed` fetches only the failed pages of a book

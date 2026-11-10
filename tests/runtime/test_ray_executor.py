@@ -1,12 +1,94 @@
 """RayExecutor and RayGPUExecutor: a run stops at an error that is not the pages' and fails with unfinished tasks;
-each GPU task finds its GPU and moves its servers to their own port."""
+each GPU task finds its GPU and moves its servers to their own port; a launch checks that a node can run a task, and
+a task sizes its thread pools to its CPUs."""
 import pytest
 
 from linecaster.backends import Served
 from linecaster.blocks.layout.detector import LayoutDetector
 from linecaster.blocks.servers.serve import ModelServer
 from linecaster.errors import PipelineConfigError
-from linecaster.runtime.ray import RayGPUExecutor, assigned_gpu
+from linecaster.runtime.ray import GIB, RayExecutor, RayGPUExecutor, assigned_gpu, task_resources, tasks_on_node
+
+
+@pytest.fixture(autouse=True)
+def threads(monkeypatch):
+    """The thread limits each task sets, recorded instead of set in this process's environment."""
+    seen = []
+    monkeypatch.setattr("linecaster.runtime.ray.limit_threads", seen.append)
+    monkeypatch.setattr("linecaster.runtime.ray.available_cpus", lambda: 12)
+    return seen
+
+
+def node(cpus, mem_gib, gpus=0, alive=True):
+    """A node as ``ray.nodes()`` lists it."""
+    resources = {"CPU": cpus, "memory": mem_gib * GIB, **({"GPU": gpus} if gpus else {})}
+    return {"Alive": alive, "Resources": resources}
+
+
+def test_tasks_on_node():
+    need = task_resources(12, 4, 1)                                   # 12 CPUs, 48 GiB, 1 GPU
+    assert need == {"CPU": 12, "memory": 48 * GIB, "GPU": 1}
+    assert tasks_on_node(node(96, 576, 8)["Resources"], need) == 8
+    assert tasks_on_node(node(4, 60, 1)["Resources"], need) == 0     # the CPUs limit
+    assert tasks_on_node(node(96, 576)["Resources"], need) == 0      # no GPU
+    assert tasks_on_node(node(24, 200)["Resources"], task_resources(12, 4, 0)) == 2   # a CPU task: no GPU needed
+
+
+def test_a_launch_fails_when_no_node_can_run_a_task(tmp_path):
+    """Workers started with 4 CPUs each and the default reservation of 12: Ray would keep every task waiting."""
+    ex = RayGPUExecutor([], tasks=64, cpus_per_task=12, mem_per_cpu_gb=4, logging_dir=str(tmp_path))
+    nodes = [node(0, 16)] + [node(4, 60, 1) for _ in range(64)] + [node(96, 576, 8, alive=False)]
+    with pytest.raises(PipelineConfigError, match=r"a task reserves 12 CPUs, 48 GiB, 1 GPU .* the 65 live nodes "
+                                                   r"have at most 4 CPUs, 60 GiB, 1 GPU each"):
+        ex.check_cluster(nodes)
+
+
+def test_a_launch_counts_the_tasks_that_fit_at_once(tmp_path):
+    ex = RayGPUExecutor([], tasks=64, cpus_per_task=12, mem_per_cpu_gb=4, logging_dir=str(tmp_path))
+    assert ex.check_cluster([node(0, 16)] + [node(12, 72, 1) for _ in range(64)]) == 64
+    assert ex.check_cluster([node(96, 576, 8), node(12, 72, 1)]) == 9   # fewer than the run's 64: a warning
+
+
+def test_the_check_runs_before_the_tasks(tmp_path, monkeypatch):
+    import ray
+
+    ex = RayGPUExecutor([], tasks=1, cpus_per_task=12, logging_dir=str(tmp_path))
+    monkeypatch.setattr(ray, "is_initialized", lambda: True)
+    monkeypatch.setattr(ray, "nodes", lambda: [node(4, 60, 1)])
+    launched = []
+    monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor.run", lambda self: launched.append(self))
+    with pytest.raises(PipelineConfigError, match="no Ray node can run a task"):
+        ex.run()
+    assert launched == []
+    unchecked = RayGPUExecutor([], tasks=1, cpus_per_task=12, check_fit=False, logging_dir=str(tmp_path))
+    unchecked.mark_rank_as_completed(0)                               # the launch then succeeds
+    unchecked.run()
+    assert len(launched) == 1                                         # --no-fit-check: launched as before
+
+
+def test_mem_per_task_gb_reserves_memory_whatever_the_cpus(tmp_path):
+    ex = RayExecutor([], tasks=1, cpus_per_task=8, mem_per_task_gb=48, logging_dir=str(tmp_path))
+    assert task_resources(ex.cpus_per_task, ex.mem_per_cpu_gb, ex.gpus_per_task)["memory"] == 48 * GIB
+    assert RayExecutor([], tasks=1, cpus_per_task=8, mem_per_cpu_gb=4, logging_dir=str(tmp_path)).mem_per_cpu_gb == 4
+    with pytest.raises(PipelineConfigError):
+        RayExecutor([], tasks=1, mem_per_task_gb=0, logging_dir=str(tmp_path))
+
+
+def test_the_command_line_passes_the_reservation_on(tmp_path):
+    from linecaster.runtime import run
+
+    ap = run.parser(None)
+    a = ap.parse_args(["in/", str(tmp_path / "out"), "--on", "ray", "--cpus-per-task", "8", "--mem-per-task-gb",
+                       "48", "--no-fit-check"])
+    assert (a.cpus_per_task, a.mem_per_task_gb, a.fit_check) == (8, 48, False)
+    assert ap.parse_args(["in/", "out/"]).fit_check is True
+
+
+def test_a_task_sizes_its_threads_to_its_cpus(tmp_path, monkeypatch, threads):
+    monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor._run_for_rank",
+                        lambda self, rank, local_rank=0, node_rank=-1: None)
+    RayExecutor([], tasks=1, logging_dir=str(tmp_path / "logs"))._run_for_rank(0)
+    assert threads == [12]
 
 
 def test_assigned_gpu(monkeypatch):

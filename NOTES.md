@@ -2,6 +2,20 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Ray on Kubernetes: task reservations and threads (2026-11-10)
+
+Planning a Ray cluster of one-GPU worker pods on a Kubernetes cluster, the first draft gave each worker 4 CPUs. With
+the default `--cpus-per-task 12` no task would ever have been placed, and Ray gives no error for that. Hence the
+launch check (`RayExecutor.check_cluster`), and `--mem-per-task-gb`, because lowering `--cpus-per-task` used to lower
+the memory reservation with it. Tested with unit tests only, not yet on a cluster.
+
+Thread pools: inside a pod `os.cpu_count()` is the node's CPU count (often over 100) while the pod's CPU limit is
+12, so pools sized by it oversubscribe and the pod is throttled. Ray sets `OMP_NUM_THREADS` for a task; each task now
+also sets MKL, OpenBLAS, numexpr and OpenCV (`OPENCV_FOR_THREADS_NUM`) and resizes already-loaded OpenCV and torch.
+Not covered: ONNX Runtime's intra-op pool (its own pool, sized to the physical cores unless a session sets
+`intra_op_num_threads`; linecaster creates no sessions itself, the engines' libraries do). Throughput with and
+without the limits is not measured.
+
 ## Slurm: untested (2026-11-10)
 
 The README says a pipeline (a list of blocks) runs on Slurm through datatrove's `SlurmPipelineExecutor`, from Python;

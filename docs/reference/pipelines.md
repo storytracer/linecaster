@@ -384,7 +384,12 @@ that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a 
 On Ray (`linecaster.runtime.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
 (`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the block that
 stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
-Ray job does not end as succeeded. A new launch removes the marker.
+Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
+that a live node has what a task reserves (`--cpus-per-task`; `--mem-per-task-gb`, else `--mem-per-cpu-gb` per CPU;
+one GPU for a stage with models) and stops with a `PipelineConfigError` if none has, where Ray would keep the tasks
+waiting without an error; `--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. A task sizes
+the native thread pools to the CPUs it may use (`linecaster.runtime.cpus`: its Ray CPUs, else the cgroup's CPU quota),
+and so do the worker counts a launch derives "one per CPU".
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
