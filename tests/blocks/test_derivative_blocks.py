@@ -175,7 +175,7 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in deps
     assert jobs.dependencies("abc123", engines=False) == [
         "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
-    with pytest.raises(PipelineConfigError, match="ENGINE_SCRIPT"):     # engines expected, no script: not linecaster alone
+    with pytest.raises(PipelineConfigError, match="give the pipeline.s script"):   # engines expected, no script
         jobs.dependencies("abc123")
     assert jobs.dependencies("abc123", jobs.ENGINE_SCRIPT) == deps
     vol = jobs.wheel_volume("hf://buckets/ns/runs/run-1/wheels")
