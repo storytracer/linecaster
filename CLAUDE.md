@@ -154,10 +154,12 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 ## Releases
 
 - **The agent decides and makes the releases, by
-  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**: while 0.x a breaking change is a
-  minor release, everything else a patch; a release at the end of each finished piece of work that changes behavior,
-  merged and green, with the steps listed there. Derivatives and the engine ranges rely on the version saying what
-  changed.
+  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**, and patches are the rule: fixes,
+  features that keep behavior and docs are patches, at the end of each finished piece of work, merged and green.
+  Derivatives and the engine ranges rely on the version saying what changed.
+- **Breaking changes wait on a branch and go out together as one minor** when a coherent piece of work is finished
+  or the maintainer asks; `main` carries only patch-level changes. A minor names in its upgrade notes what users must
+  change. The version should move slowly.
 - **Never 1.0.0 without the maintainer's word.** It is a promise of deprecation periods.
 
 ## Working style
