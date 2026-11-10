@@ -23,7 +23,7 @@ Measurements, decisions and open questions, newest first.
   `uv run --with` ignored `UV_CONSTRAINT`, `UV_OVERRIDE` and the `constraint-dependencies` and
   `override-dependencies` of a `UV_CONFIG_FILE`; `--with-requirements` with a `-c` line inside applied constraints,
   but `run_uv_job` cannot pass it; a script's own `[tool.uv]` applied both. Pins as `--with name==version` would
-  install packages a lock holds only for other platforms (the locks have win32- and darwin-only ones) and cannot
+  install packages a lock holds only for other platforms (the locks hold win32-only ones such as win32-setctime) and cannot
   override (surya-ocr's `pillow<11` against the lock's 12.3.0). Hence a launcher: a uv script named like datatrove's,
   its inline metadata the requirements, the lock's index packages as `constraint-dependencies` (which only bound
   what the requirements bring) and the script's `override-dependencies`, running datatrove's launcher.

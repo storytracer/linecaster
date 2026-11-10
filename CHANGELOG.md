@@ -55,7 +55,9 @@ the tags; the first is `v0.1.0`.
   `example.org`; docstrings, comments, NOTES.md and this changelog describe behavior and hardware instead of a
   derivative, a leaderboard or a machine.
 - The presets', recipes' and models' prose and provenance cite the model card or the vendor's documentation, with a
-  departure from the card labelled linecaster's choice. No functional field changed: every edition and hash stays.
+  departure from the card labelled linecaster's choice, and make no unmeasured claims (nothing "validated against a
+  reference implementation's outputs", run on a sample or compared there). No functional field changed: every
+  edition and hash stays.
 - The User-Agent stays datatrove's `HF-Research/1.0`, now stated as a decision (CLAUDE.md, `USER_AGENT`, the
   pipelines reference).
 - With `--endpoint` a pipeline no longer needs the served engines installed in its own environment: they run in the
