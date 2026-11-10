@@ -10,7 +10,7 @@ Collection, CC BY-NC-SA 4.0. <a href="#-license">Credit</a></sub></p>
 
 Linecaster turns page images into text. You build an OCR pipeline from interchangeable steps (a model that
 reads the text, layout, tables, formulas, post-processing) and run it unchanged on a laptop, a GPU server, a
-Ray cluster or [Hugging Face Jobs][HF Jobs].
+Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
 
 - 🧩 **Any step is replaceable.** A vision-language model or a line recognizer reads the text; layout, table
   and formula models and rule-based post-processing are separate steps.
@@ -125,6 +125,7 @@ where the time went.
 | 🖥️ this machine, with a model server | `--backend served` |
 | 🧮 a Ray cluster | `--on ray --tasks 64` |
 | ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
+| 🏛️ a Slurm cluster | from Python, with datatrove's `SlurmPipelineExecutor` ([below](#%EF%B8%8F-your-own-pipeline)) |
 
 On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
 runs only the tasks that didn't finish.
@@ -206,6 +207,18 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
+The same list runs on a Slurm cluster through [datatrove]'s Slurm executor: one array job, one GPU per task, in an
+environment that has the engines (`venv_path`):
+
+```python
+from datatrove.executor import SlurmPipelineExecutor
+
+SlurmPipelineExecutor(
+    pipeline, tasks=64, time="04:00:00", partition="gpu",
+    gpus_per_task=1, venv_path="/path/to/venv",
+    logging_dir="out/logs").run()
+```
+
 Every block declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
 lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
 `pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.runtime.run.main` to get
@@ -220,8 +233,8 @@ backends, partial runs (`--until`, `--after`) and the builder.
    and draws its graph from them.
 3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
    the GPU busy) or `Chat` (a vision-language model behind an OpenAI-compatible server).
-4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray] or on HF Jobs, and resumes
-   where a run stopped.
+4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray], on Slurm or on HF Jobs, and
+   resumes where a run stopped.
 
 Models batch only the lines of one page, and model revisions and numerically relevant libraries are pinned, so
 a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
