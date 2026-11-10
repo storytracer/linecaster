@@ -232,7 +232,7 @@ def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, mon
     import random
 
     monkeypatch.setattr(brokers, "_WORKER_INDEX", [None])
-    monkeypatch.setattr(brokers.os, "cpu_count", lambda: 64)
+    monkeypatch.setattr("linecaster.runtime.cpus.available_cpus", lambda: 64)
     random.seed(7)
     started = start_together(tmp_path, 8, lambda i: None)
     assert len({b.worker for b in started}) == 8

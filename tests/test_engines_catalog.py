@@ -41,7 +41,8 @@ ENGINES = {
     "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionEngine",
 }
 #: options added to an engine after some of its presets were released: (options, the last edition without them)
-ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1)}
+#: (paddlex.layout.v1's reading_order came after pp-doclayoutv3@1, which PP-DocLayoutV3's own order makes indifferent)
+ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1), "paddlex.layout.v1": ({"reading_order"}, 1)}
 ENGINE_PRESETS = sorted(pid for pid, (_, p) in catalog().presets.items() if p.engine in ENGINES)
 
 

@@ -102,7 +102,7 @@ def test_a_pipeline_without_engines_gets_its_readers_task_count_and_one_worker_w
 def test_without_rate_limits_a_pipeline_without_engines_runs_a_worker_per_cpu(tmp_path, monkeypatch):
     from linecaster.runtime import run
 
-    monkeypatch.setattr(run.os, "cpu_count", lambda: 2)
+    monkeypatch.setattr(run, "available_cpus", lambda: 2)
     data = write_pages(tmp_path / "data", [2500], row_group_size=1000)
     a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page"], has_engines=False)
     run.allocate(a, [run.reader(a)])
