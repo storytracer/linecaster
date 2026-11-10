@@ -272,7 +272,7 @@ The code lives in `src/linecaster/`, the catalog in `src/linecaster/catalog/data
 
 ## 🏷️ Versions
 
-The current release is `v0.2.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.3.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a release may break things without a deprecation period. The
 [docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest.
 For `main`, run `uv run linecaster docs` and then `uv run --group docs mkdocs serve` in a checkout.

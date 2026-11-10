@@ -936,7 +936,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io"] },
@@ -1000,7 +1000,7 @@ docs = [
 
 [[package]]
 name = "linecaster-indra"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "../engines/indra" }
 dependencies = [
     { name = "indra-ocr" },
@@ -1012,14 +1012,14 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "indra-ocr", specifier = "==1.1.2" },
-    { name = "linecaster", specifier = ">=0.1,<0.3" },
+    { name = "linecaster", specifier = ">=0.1,<0.4" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
 ]
 
 [[package]]
 name = "linecaster-services"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "../engines/services" }
 dependencies = [
     { name = "linecaster" },
@@ -1029,14 +1029,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.1,<0.3" },
+    { name = "linecaster", specifier = ">=0.1,<0.4" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
 ]
 
 [[package]]
 name = "linecaster-surya"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "../engines/surya" }
 dependencies = [
     { name = "linecaster" },
@@ -1046,7 +1046,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.1,<0.3" },
+    { name = "linecaster", specifier = ">=0.1,<0.4" },
     { name = "numpy" },
     { name = "surya-ocr", specifier = "==0.23.0" },
 ]

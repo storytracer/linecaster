@@ -1,12 +1,12 @@
 [project]
 name = "linecaster-indra"
-version = "0.1.1"
+version = "0.1.2"
 description = "Indra OCR engines for linecaster: Datalab's CPU OCR pipeline (ONNX Runtime) on whole pages"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
-    "linecaster>=0.1,<0.3",
+    "linecaster>=0.1,<0.4",
     # the release the BHL OCR board ran; built against the model set v1.1.0 (the catalog's pin)
     "indra-ocr==1.1.2",
     "numpy",

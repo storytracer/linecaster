@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.3.0 (2026-11-10)
 
 ### Upgrade notes
 
@@ -33,6 +33,11 @@ the tags; the first is `v0.1.0`.
 - `PageFileWriter(skip_failed=True)`: no files for a page that carries errors; counted as `skipped_failed`.
 - `linecaster.pipelines`: the pipeline shapes as library code, with `shapes()` and `shape(pipeline_id)`; a
   derivative's script imports one and runs it with `run.main` in its own environment, with its own defaults.
+
+### Changed
+
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`) 0.1.2 accept
+  linecaster `>=0.1,<0.4`.
 
 ## 0.2.0 (2026-11-09)
 

@@ -992,7 +992,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io"] },
@@ -1056,7 +1056,7 @@ docs = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1077,7 +1077,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.1,<0.3" },
+    { name = "linecaster", specifier = ">=0.1,<0.4" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
