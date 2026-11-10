@@ -479,6 +479,13 @@ class MaxRetriesExceeded(Exception):
     status)."""
 
 
+def _judged_by_body(status: int, expect: str | None) -> bool:
+    """Whether a response is judged by its body before the breaker notes it (``HTTPFetcher._attempts``): a successful
+    one where a format was expected. Unexpected HTML then counts neither as an answer nor as a server error (a reader
+    that fails the resource for it notes that as one, ``linecaster.blocks.readers.resources``)."""
+    return 200 <= status < 300 and bool(expect) and expect != "html"
+
+
 def _unexpected_html(response, expect: str | None) -> bool:
     """Whether ``response`` is a successful one with an HTML page where ``expect`` (not None, not ``html``) was
     expected."""
@@ -523,7 +530,8 @@ async def _headers(response) -> None:          # the first response hook: the he
             pause.hit(status, response.headers.get("retry-after"), ticket.generations.get(host, pause.generation),
                       host)
             raise Paused(f"HTTP {status} from {host}: its requests pause")
-        fetcher.breaker.record(status)
+        if not _judged_by_body(status, ticket.expect):
+            fetcher.breaker.record(status)
     record = _FETCH.get()
     if record is not None and record["tries"]:
         record["tries"][-1] = f"{response.status_code}-cut"
@@ -1224,6 +1232,8 @@ class HTTPFetcher:
                         raise Paused(f"an HTML page from {where}: its requests pause")
                     last = html
                 else:
+                    if _judged_by_body(status, expect):
+                        self.breaker.record(status)            # an answer, now that its body is known
                     try:
                         response.raise_for_status()
                     except httpx.HTTPStatusError as e:

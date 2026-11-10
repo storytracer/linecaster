@@ -834,3 +834,37 @@ def test_data_served_as_text_html_is_not_unexpected_html(site, tmp_path, body, h
         assert record["tries"] == ["200-html" if html else "200"]
     finally:
         f.close()
+
+
+@pytest.mark.parametrize("via", VIA)
+def test_unexpected_html_counts_as_no_answer_for_the_breaker(site, tmp_path, via):
+    """The breaker notes an attempt's status from its headers, except a successful response where a format was
+    expected: that is noted once its body is known to be one, and unexpected HTML not at all, so HTML pages do not
+    count as answers that keep the breaker closed."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(body="html")], "/p2.png": [A()]}, clocks)
+    f = fetcher(s, via, clocks, tmp_path, max_retries=2)
+    try:
+        assert fetch(f, s.url("/p1.png", via))[0] == "error" and list(f.breaker._outcomes) == []
+        assert fetch(f, s.url("/p2.png", via))[0] == "ok"
+        assert [e for _, e in f.breaker._outcomes] == [False]
+    finally:
+        f.close()
+
+
+def test_a_resource_that_fails_as_html_is_one_server_error_for_the_breaker(site, tmp_path):
+    clocks = Clocks()
+    s = site({"/r1.png": [A(body="html")]}, clocks)
+    reader = reader_for("items", tmp_path, s.base, {"trust_env": False, "max_retries": 2, **clocks.kwargs()}, None)
+    reader.templates = {"image": f"{s.base}/r{{item}}.png"}
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq.write_table(pa.table({"item": ["1"]}), tmp_path / "data" / "p.parquet")
+    docs = list(reader.run())
+    assert len(docs) == 1 and not docs[0].media
+    breaker = reader._last.breaker
+    until_true = time.monotonic() + 5
+    while not breaker._outcomes and time.monotonic() < until_true:              # noted in the fetcher's loop
+        time.sleep(0.01)
+    assert [e for _, e in breaker._outcomes] == [True] and breaker._errors_in_a_row == 1

@@ -105,6 +105,8 @@ the rate limits; one that takes longer is cut and retried.
 
 Each fetcher also has a **breaker** (`linecaster.net.http.Breaker`): when most recent attempts got a server error,
 its requests pause, a probe goes out now and then, and the first answer that is not a server error ends the pause.
+Unexpected HTML is not an answer for it (it would keep the breaker closed while a host serves only error pages); a
+resource that fails as unexpected HTML counts once as a server error.
 
 ## Trace entries
 
