@@ -11,13 +11,12 @@ from linecaster.blocks.base.page import page_of
 from linecaster.blocks.recognition.chat import PageRecognizer
 from linecaster.blocks.servers.service import ServiceServer
 from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.pipelines import transcribe_page
 from linecaster.runtime import run
 from linecaster.runtime.provenance import functional_block
 from linecaster.testing import check_engine, fake_service, sample_documents
 from linecaster.testing.fakes import FakePageEngine
 
-ROOT = Path(__file__).resolve().parents[3]
-PAGE = ROOT / "pipelines" / "transcribe_page.py"
 FAKE = "linecaster.testing:FakePageEngine"
 
 
@@ -92,7 +91,7 @@ def test_a_service_that_exits_fails_the_task():
 
 
 def _blocks(argv):
-    plan = run.describe_script(PAGE, ["IN", "OUT", *argv])
+    plan = run.describe(transcribe_page, ["IN", "OUT", *argv])
     plan.check()
     return plan.stages[0].blocks
 

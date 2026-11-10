@@ -44,73 +44,10 @@
 # linecaster-services = { path = "../engines/services", editable = true }
 # linecaster-surya = { path = "../engines/surya", editable = true }
 # ///
-"""A page engine reads the whole page (``PageRecognizer`` on its engine): a vendor's package in the pipeline's process
-(Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page pipeline behind
-its own HTTP API (Falcon-OCR, OXR). Each task starts the service the preset names (``ServiceServer``, last in the
-pipeline: ``vllm serve`` on the pinned checkpoint, or the vendor image's entrypoint) unless --recognition-endpoint
-names a running one. Page records in OUT/pages; the engine's raw output is in each page's transcription.
-
-    uv run pipelines/transcribe_page.py IMAGES OUT --recognition indra-ocr --tasks 8 --workers 8   # CPU, in-process
-    uv run pipelines/transcribe_page.py IMAGES OUT --recognition surya-ocr-2.5        # needs `vllm` (0.25.1) on PATH
-    uv run pipelines/transcribe_page.py IMAGES OUT --recognition falcon-ocr           # inside the vendor's image
-    uv run pipelines/transcribe_page.py IMAGES OUT --recognition oxr-1.0 --recognition-endpoint http://127.0.0.1:8000
-
---recognition takes a page engine's preset (``linecaster models``; ``id`` or ``id@edition``); chat presets run in
-``pipelines/transcribe_vlm.py``. A vendor's service runs inside the vendor's image (the preset's ``serve.image``):
-the pipeline runs there too, in its own uv environment, and the service in the image's own environments
-(``ServiceServer`` leaves the pipeline's out of its environment). Its entrypoint listens on the image's ports, so
-one task per machine starts it; more tasks share one service with --recognition-endpoint. On HF Jobs the Job's
-image is the preset's ``serve.image`` unless --image is given; it needs uv (the vLLM and OXR images have it, the
-Falcon-OCR image does not).
-"""
-from linecaster.blocks.recognition.chat import PageRecognizer
-from linecaster.blocks.servers.service import ServiceServer
-from linecaster.catalog.registry import catalog
-from linecaster.errors import PipelineConfigError
+"""The page-engine pipeline (``transcribe_page.v1``): its blocks, options and slots are the pipeline shape
+``linecaster.pipelines.transcribe_page``; this script gives it its environment. ``--help`` lists the options."""
+from linecaster.pipelines import transcribe_page as shape
 from linecaster.runtime import run
 
-
-def options(ap):
-    ap.add_argument("--recognition", help="a page engine's preset (id[@edition]) (needed)")
-    ap.add_argument("--recognition-endpoint", help="a running service for the engine (its base URL; vLLM's .../v1)")
-    ap.add_argument("--boot-timeout", type=int, default=1800, help="seconds the service may take to start")
-
-
-def preset(a):
-    """The page engine's preset, checked: a recognition preset that reads whole pages and is no chat preset."""
-    if not a.recognition:
-        raise PipelineConfigError("page: pick --recognition (`linecaster models` lists the presets)")
-    p = catalog().preset(a.recognition.partition("@")[0])
-    if p.engine == "chat.v1":
-        raise PipelineConfigError(f"page: {a.recognition} is a chat preset: run it with pipelines/transcribe_vlm.py")
-    if not p.page_preset:
-        raise PipelineConfigError(f"page: {a.recognition} does not read whole pages ({p.step}, unit "
-                                  f"{p.capabilities.unit})")
-    return p
-
-
-def models(a) -> list[dict]:
-    if not a.recognition:
-        return []
-    m = {"name": "recognition", "preset": a.recognition}
-    if a.recognition_endpoint:
-        m["overrides"] = {"endpoint": a.recognition_endpoint}
-    return [m]
-
-
-def pipeline(a, script: str):
-    p = preset(a)
-    b, servers = run.engines(a, models(a), script)
-    steps = [run.reader(a), PageRecognizer(b["recognition"]), run.pages(a)]
-    if p.serve is not None and not a.recognition_endpoint:
-        # last: the service starts before the engine loads (blocks warm up as the stream reaches them, the last first)
-        servers.append(ServiceServer(a.recognition, boot_timeout=a.boot_timeout))
-    return steps + servers, {"image": p.serve.image if p.serve is not None else None, "engines": True}
-
-
-#: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
-PIPELINE = "transcribe_page.v1"
-SLOTS = {"recognition": "recognition"}
-
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)
+    run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
