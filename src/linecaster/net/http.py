@@ -88,7 +88,9 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 S = TypeVar("S")
 
-#: the User-Agent sent by default: datatrove's (``HTTPFetchReader``'s ``custom_agent``)
+#: the User-Agent sent by default: datatrove's (``HTTPFetchReader``'s ``custom_agent``), deliberately. datatrove is
+#: integral to linecaster, so a run that fetches through both presents itself as one client to every host; a run sets
+#: its own with ``--user-agent`` or an HTTP policy's ``user_agent``
 USER_AGENT = "HF-Research/1.0"
 #: pybookget ``Config`` settings for bulk work: datatrove's user agent, reused connections, patient retries (4 after the
 #: first attempt), and a

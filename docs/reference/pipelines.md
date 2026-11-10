@@ -410,6 +410,10 @@ default, and `stop_on` is refused; `pause_on: []` with `stop_on: [429]` stops on
 `--parquet`; with rate limits in the file for a host without proxies a run keeps one worker, with proxies for every
 rate-limited host its workers follow the available proxies (above).
 
+The default User-Agent is datatrove's, `HF-Research/1.0` (`linecaster.net.http.USER_AGENT`), deliberately: datatrove
+is integral to linecaster, and its media fetcher (`HTTPFetchReader`) sends the same, so a run that fetches through
+both presents itself as one client to every host. `--user-agent` or an HTTP policy's `user_agent` sets another.
+
 ## The console
 
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the

@@ -10,17 +10,25 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Scope
 
-- **Everything that produces text from images lives here**; evaluation (ocrscout, bhl-ocr-eval) and project
-  pipelines (squiddleocr) build on linecaster, never the other way round. One direction of dependency keeps
-  linecaster usable by all of them.
+- **linecaster is a generalist tool: it never depends on a specific collection, site, institution or project.** It
+  is built on protocols (HTTP, S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, Parquet, JSON Lines) and
+  standards (METS/MODS, Unicode). Project-specific code, defaults and names belong in derivatives, and no project,
+  collection, institution or machine is named in the repository (code, docs, catalog, tests, NOTES.md,
+  CHANGELOG.md); examples use `example.org`, tests `library.test` and `example.org`. A project's choices would
+  otherwise become everyone's defaults.
+- **Everything that produces text from images lives here**; evaluations and project pipelines (derivatives) build
+  on linecaster, never the other way round. One direction of dependency keeps linecaster usable by all of them.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout, the job helpers
   and pipeline-building helpers; example pipelines only as pipeline scripts (`pipelines/`), recipes as catalog
-  entries, and in `tests/`. The squiddle pipeline lives in `storytracer/squiddleocr`. A project's choices would
-  otherwise become everyone's defaults.
+  entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a derivative may be named after it, and its
+  pipeline lives in its own repository.
 - **Generic readers only**: folders, buckets, HF datasets, and the standards for items' manifests (IIIF
-  Presentation, METS/MODS, also via OAI-PMH, parsed by storytracer/pybookget). Corpus or institution adapters (BHL,
-  GRIN, Europeana, e-rara) belong in derivatives, and pybookget's own handlers stay there. Standards outlive
-  institutions' APIs.
+  Presentation, METS/MODS, also via OAI-PMH, parsed by storytracer/pybookget). Corpus or institution adapters belong
+  in derivatives, and pybookget's own handlers stay there. Standards outlive institutions' APIs.
+- **linecaster is not a data repository**: the catalog holds no evidence records and the docs quote no
+  measurements. linecaster keeps the evidence format and the tooling that produces evidence, evaluations and
+  ground-truth datasets ([catalog](docs/reference/catalog.md#measurements-live-elsewhere)); the records live with the
+  evaluation that made them, and linecaster's own measurements and decisions in NOTES.md.
 
 ## Terms and conventions
 
@@ -51,10 +59,14 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   exactly what it installs.
 - **I/O through datatrove**: one datatrove `Document` per page; datatrove's readers, writers, `DataFolder` (fsspec)
   and executors for everything. Every executor and storage datatrove supports then works.
+- **The User-Agent stays datatrove's, `HF-Research/1.0`, deliberately** (`linecaster.net.http.USER_AGENT`, the
+  default of every request; `--user-agent` and an HTTP policy's `user_agent` override it). datatrove is integral to
+  linecaster, and its media fetcher (`HTTPFetchReader`) sends this User-Agent: a run that fetches with both then
+  presents itself as one client to every host.
 - **Only `linecaster-kraken` pins torch (`torch==2.14.0`), and only environments with it are bound by the pin**;
   the core never depends on torch, and other engines take what their own dependencies allow
   ([architecture](docs/reference/architecture.md#pipeline-scripts), `tests/test_scripts.py`). 2.14 is kraken's upper
-  bound, and the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which the GB10 needs.
+  bound, and the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which Blackwell GPUs need.
 - **torch never changes as a side effect of a resolve** (a new dependency with its own torch bound, another package
   index, `uv run --with` on Jobs) in any environment: a change of build is deliberate, applies to one named
   environment, updates `TORCH` in `tests/test_scripts.py` and is recorded in NOTES.md. Another build moves numerics.
@@ -70,8 +82,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   (`tests/test_scripts.py`). Derivatives' scripts then run the same shapes, and tests and the docs build them without
   the scripts' environments.
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
-  sources, locks and wheels for both machines. uv's `required-environments` does not work in scripts, so the test
-  does it.
+  sources, locks and wheels for both architectures (aarch64 and x86_64). uv's `required-environments` does not work
+  in scripts, so the test does it.
 - **A script lists only what it needs itself, with a comment saying why; a source is declared by the package that
   needs it** (pybookget's by linecaster, the kraken fork by linecaster-kraken, the OpenCV stub by linecaster-paddlex;
   `tests/test_scripts.py`). `uv lock` applies the sources of path and git dependencies too; only `uv run --with`
@@ -81,8 +93,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   every node (a Job leaves Ray out). PEP 723 has no includes, so what every pipeline needs is one linecaster
   requirement with extras per script, not a shared file.
 - **Pipeline scripts depend on no model choice: `pipelines/transcribe_modular.py` has PaddleX and Tesseract, not
-  kraken.** A kraken chain runs in an environment that adds kraken (squiddleocr's `squiddle.py`, a derivative's own
-  script), or with `--backend served --endpoint` against a server from one; linecaster's own kraken environment is the
+  kraken.** A kraken chain runs in an environment that adds kraken (a derivative's own script), or with
+  `--backend served --endpoint` against a server from one; linecaster's own kraken environment is the
   test script `tests/test_engines_catalog.py`. kraken's torch pin then binds only the environments that chose kraken.
 - **The repository is not a uv workspace.** Engine pins conflict.
 - **No default presets**: every slot is picked or filled by a recipe. A run then names exactly what it ran.
@@ -97,8 +109,9 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Released editions never change** (`linecaster catalog verify` stays OK): a change that can change outputs is a
   new edition; a change that keeps behavior is a catalog migration, which keeps the old hash as `previous_sha256`.
   Run records name an edition and its hash, and must keep resolving.
-- **Measurements are evidence records with their source; claims are never measurements.** Every number in the docs
-  can then be traced.
+- **No measurements in the catalog or the docs; a measurement elsewhere is an evidence record with its source, and a
+  claim is never a measurement.** linecaster is not a data repository, and a number that is not shipped cannot go
+  stale.
 
 ## Determinism
 
@@ -107,15 +120,15 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Machines
 
-- **Validate on both machines**: spark (DGX Spark, GB10, aarch64, CUDA 13; the main development machine) and forge
-  (RTX 4000 SFF Ada 20 GB, x86_64, CUDA 13.4; the x86 validation machine, same GPU generation as HF Jobs' L4). No
-  macOS for now. Both architectures run in production.
+- **Validate on both architectures: an aarch64 and an x86_64 machine with NVIDIA GPUs and CUDA 13** (for example a
+  Blackwell GB10 and an Ada-generation card, the generation of HF Jobs' L4). No macOS for now. Both architectures run
+  in production, and the locks and wheels must hold on both.
 
 ## Hugging Face Jobs
 
-- **Namespace `finebooks` (cap agreed per session; report the cost of every run), flavor `l4x1`, outputs and
-  datatrove's `logging_dir` in the bucket `hf://buckets/finebooks/linecaster-runs`.** Spending stays visible and
-  outputs in one place.
+- **The namespace and bucket agreed with the maintainer (a spending cap agreed per session; report the cost of every
+  run), flavor `l4x1`, outputs and datatrove's `logging_dir` in that bucket.** `--namespace` has no default.
+  Spending stays visible and outputs in one place.
 - **Always a small smoke job before a full run.** A mistake then costs minutes, not a full run.
 - **The launching machine and the Jobs run the same Python minor version (3.12).** datatrove's experimental
   `JobsPipelineExecutor` dill-pickles the pipeline.
@@ -144,13 +157,12 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   merged and green, with the steps listed there. Derivatives and the engine ranges rely on the version saying what
   changed.
 - **Never 1.0.0 without the maintainer's word.** It is a promise of deprecation periods.
-- **After a release, squiddleocr follows**: its `squiddle.py` sources move to the new tag, relocked, with a
-  squiddleocr release of the same kind (its CLAUDE.md). Its users then get the release.
 
 ## Working style
 
 - **Small commits with plain messages.** They are easy to review and to revert.
-- **Record measurements and anything that cannot be validated on these machines in NOTES.md instead of guessing.**
-  A guess written down looks like a fact later.
+- **Record measurements and anything that cannot be validated on the machines at hand in NOTES.md instead of
+  guessing**, describing hardware generically (an aarch64 machine with a GB10 GPU), never by a machine's name. A
+  guess written down looks like a fact later.
 - **This repository is public: no costs, credentials, private dataset revisions or contents, personal data or machine
   addresses in files or commit messages.** Everything committed is published.
