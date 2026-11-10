@@ -97,6 +97,43 @@ def test_scripts_list_no_source_their_packages_bring():
         assert not names & {"pybookget", "kraken", "opencv-contrib-python", "s3fs"}, p.name
 
 
+#: the torch each script's lock holds, and why. Only linecaster-kraken pins torch (2.14.0, kraken's upper bound), and
+#: only environments with linecaster-kraken are bound by it; the others take what their own dependencies allow. A lock
+#: whose torch changes fails here: a change of build is deliberate and recorded in NOTES.md
+TORCH = {
+    "pipelines/transcribe_modular.py": ("2.14.0", "linecaster-kraken's pin"),
+    "tests/test_engines_catalog.py": ("2.14.0", "linecaster-kraken's pin"),
+    "pipelines/transcribe_page.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
+    "tests/test_page_engines_catalog.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
+    "tools/cuda_probe.py": ("2.14.0", "it probes the CUDA build of linecaster-kraken's torch on a Jobs host"),
+}
+
+
+def test_only_linecaster_kraken_pins_torch():
+    """No pyproject but linecaster-kraken's names torch (the core never depends on it, nor does another engine)."""
+    for pyproject in sorted([ROOT / "pyproject.toml", *ROOT.glob("engines/*/pyproject.toml"),
+                             *ROOT.glob("stubs/*/pyproject.toml")]):
+        project = tomllib.loads(pyproject.read_text())["project"]
+        reqs = [*project.get("dependencies", []), *(r for rs in project.get("optional-dependencies", {}).values()
+                                                     for r in rs)]
+        torch = [r for r in reqs if _name(r) == "torch"]
+        rel = pyproject.relative_to(ROOT).as_posix()
+        assert torch == (["torch==2.14.0"] if rel == "engines/kraken/pyproject.toml" else []), rel
+
+
+@pytest.mark.parametrize("script", SCRIPTS, ids=IDS)
+def test_torch_per_environment(script):
+    """A lock has torch only as ``TORCH`` says; one with linecaster-kraken has its 2.14.0, and one without says why
+    it has torch at all."""
+    rel = script.relative_to(ROOT).as_posix()
+    names = {p["name"]: p.get("version") for p in lock_of(script)["package"]}
+    assert names.get("torch") == TORCH.get(rel, (None,))[0], f"{rel}: torch {names.get('torch')}; update TORCH"
+    if "linecaster-kraken" in names:
+        assert TORCH[rel] == ("2.14.0", "linecaster-kraken's pin"), rel
+    elif rel in TORCH:
+        assert "kraken's pin" not in TORCH[rel][1], rel
+
+
 #: packages allowed to build from source on one machine, and why that cannot move numerics
 SOURCE_BUILDS = {
     # kraken's CoreML format (the blla .mlmodel); no Linux aarch64 wheel; not on the recognition path

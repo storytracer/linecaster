@@ -11,11 +11,10 @@
 # ]
 #
 # [tool.uv]
-# # surya-ocr 0.23.0 declares pillow<11, and linecaster needs Pillow>=11: the override wins; torch stays the
-# # build every other script has (surya-ocr would resolve the newest) (NOTES.md: the four board models)
+# # surya-ocr 0.23.0 declares pillow<11, and linecaster needs Pillow>=11: the override wins (NOTES.md: the four board
+# # models). torch is surya-ocr's (>=2.7,<3), not pinned: no kraken here
 # override-dependencies = [
 #     "pillow==12.3.0",
-#     "torch==2.14.0",
 # ]
 #
 # [tool.uv.sources]

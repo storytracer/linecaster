@@ -52,10 +52,13 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   exactly what it installs.
 - **I/O through datatrove**: one datatrove `Document` per page; datatrove's readers, writers, `DataFolder` (fsspec)
   and executors for everything. Every executor and storage datatrove supports then works.
+- **Only `linecaster-kraken` pins torch (`torch==2.14.0`), and only environments with it are bound by the pin**;
+  the core never depends on torch, and other engines take what their own dependencies allow
+  ([architecture](docs/reference/architecture.md#pipeline-scripts), `tests/test_scripts.py`). 2.14 is kraken's upper
+  bound, and the PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which the GB10 needs.
 - **torch never changes as a side effect of a resolve** (a new dependency with its own torch bound, another package
-  index, `uv run --with` on Jobs): a change of build is deliberate, applies to one named environment and is recorded
-  in NOTES.md. The PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which the GB10 needs, and
-  2.14 is kraken's upper bound; another build moves numerics.
+  index, `uv run --with` on Jobs) in any environment: a change of build is deliberate, applies to one named
+  environment, updates `TORCH` in `tests/test_scripts.py` and is recorded in NOTES.md. Another build moves numerics.
 - **Python 3.12 (`requires-python >=3.12`) and uv ≥ 0.13.6 (`[tool.uv] required-version`) on every machine.** All
   machines then read the same locks.
 

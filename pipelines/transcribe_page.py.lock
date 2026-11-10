@@ -16,10 +16,7 @@ requirements = [
     { name = "linecaster-services", editable = "../engines/services" },
     { name = "linecaster-surya", editable = "../engines/surya" },
 ]
-overrides = [
-    { name = "pillow", specifier = "==12.3.0" },
-    { name = "torch", specifier = "==2.14.0" },
-]
+overrides = [{ name = "pillow", specifier = "==12.3.0" }]
 
 [[package]]
 name = "aiobotocore"

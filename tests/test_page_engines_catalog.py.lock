@@ -17,10 +17,7 @@ requirements = [
     { name = "linecaster-surya", editable = "../engines/surya" },
     { name = "pytest", specifier = ">=8" },
 ]
-overrides = [
-    { name = "pillow", specifier = "==12.3.0" },
-    { name = "torch", specifier = "==2.14.0" },
-]
+overrides = [{ name = "pillow", specifier = "==12.3.0" }]
 
 [[package]]
 name = "aiohappyeyeballs"

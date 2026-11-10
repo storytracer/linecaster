@@ -157,6 +157,19 @@ pybookget's archive by linecaster, the kraken fork by `linecaster-kraken`, and `
 headless build of the version PaddleX pins; one cv2) by `linecaster-paddlex`. `tests/test_scripts.py` checks
 sources, locks and wheels for both machines (uv's `required-environments` does not work in scripts).
 
+torch is never a dependency of the core. Only `linecaster-kraken` pins it (`torch==2.14.0`: kraken's upper bound is
+`<=2.14`, and the PyPI 2.14 wheels are the CUDA 13 build on Linux, aarch64 and x86_64), and only environments with
+`linecaster-kraken` are bound by that pin; the others take what their own dependencies allow. Each lock's torch is
+fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
+
+| Environment | torch | Why |
+|---|---|---|
+| `pipelines/transcribe_modular.py` | 2.14.0 | `linecaster-kraken`'s pin |
+| `tests/test_engines_catalog.py` | 2.14.0 | `linecaster-kraken`'s pin |
+| `pipelines/transcribe_page.py`, `tests/test_page_engines_catalog.py` | 2.14.0 | surya-ocr's (`>=2.7,<3`), not pinned: the version it was locked at |
+| `tools/cuda_probe.py` | 2.14.0 | its own pin: it probes the CUDA build of `linecaster-kraken`'s torch on a Jobs host |
+| `pipelines/transcribe_vlm.py`, `harvest.py`, `bind.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
+
 ## Executors and Jobs
 
 | `--on` | Executor |
