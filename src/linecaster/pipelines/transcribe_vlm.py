@@ -16,7 +16,7 @@ has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv env
 (linecaster alone for page presets; with --layout also linecaster-paddlex for the layout model), and
 ``ChatModelServer`` starts the image's own server. SGLang presets and region reading start it outside that
 environment (``outside_venv``), so neither the image's Python nor its CUDA libraries see the pipeline's
-packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, the board's value; SGLang: the preset's own
+packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling.
 """
 from ..adapters import preset_ref
