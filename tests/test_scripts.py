@@ -176,16 +176,34 @@ def test_pipelines_feed_the_jobs_helper():
     repo = "https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     pybookget = "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"
     for script in (modular, vlm):
-        deps = dependencies("abc123", script)
+        deps = dependencies("abc123", script).requirements
         assert deps[0] == f"linecaster[pybookget] @ {repo}"
         assert pybookget in deps                       # an archive, no git (the vLLM image has none)
         assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
     for script in (modular, vlm):                   # kraken runs in an environment that adds it, not in these
-        assert not any(_name(d) in ("lightning", "torch", "kraken", "linecaster-kraken")
-                       for d in dependencies("abc123", script))
+        d = dependencies("abc123", script)
+        assert not any(_name(r) in ("lightning", "torch", "kraken", "linecaster-kraken")
+                       for r in d.requirements + d.constraints)
     # without engines: linecaster with its extras and the sources they need, no engines
-    assert dependencies("abc123", vlm, engines=False) == [f"linecaster[pybookget] @ {repo}", pybookget]
+    assert dependencies("abc123", vlm, engines=False).requirements == [f"linecaster[pybookget] @ {repo}", pybookget]
+
+
+@pytest.mark.parametrize("script", sorted((ROOT / "pipelines").glob("*.py")), ids=lambda p: p.name)
+def test_jobs_resolve_the_locks_versions(script):
+    """A Job of every pipeline script is pinned to its lock: each package the lock takes from an index and the
+    requirements reach is a constraint at the lock's version, nothing else is, and the script's overrides come
+    along (transcribe_page.py's pillow, without which its lock does not resolve)."""
+    lock = lock_of(script)
+    registry = {p["name"]: p["version"] for p in lock["package"] if "registry" in p.get("source", {})}
+    d = dependencies("abc123", script)
+    pins = dict(c.split("==", 1) for c in d.constraints)
+    assert pins and all(registry[n] == v for n, v in pins.items())
+    assert not pins.keys() & {_name(r) for r in d.requirements}           # a requirement with a URL is no pin
+    assert d.overrides == script_metadata(script).get("tool", {}).get("uv", {}).get("override-dependencies", [])
+    assert pins.get("torch") == TORCH.get(script.relative_to(ROOT).as_posix(), (None,))[0]   # the lock's torch
+    if script.name == "transcribe_page.py":
+        assert d.overrides == ["pillow==12.3.0"] and pins["pillow"] == "12.3.0"
 
 
 def test_serve_command_for_a_pipeline():

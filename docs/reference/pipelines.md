@@ -486,16 +486,35 @@ steps `model` (read as `steps`); a row without `schema` (the oldest format) name
 
 ## HF Jobs helpers
 
-A launch with `--on hf-jobs` names `--commit` (pushed) and `--namespace`, the Hugging Face user or organization the
-Jobs run under and are billed to; neither has a default, and the namespace is not taken from the logged-in account,
-so the account a run spends is always the one its command line and run record name.
+A launch with `--on hf-jobs` names `--namespace`, the Hugging Face user or organization the Jobs run under and are
+billed to, and `--commit`, the linecaster commit the Jobs install (pushed). Neither has a default, and the namespace
+is not taken from the logged-in account, so the account a run spends is always the one its command line and run
+record name. `--commit` is required for linecaster's own scripts; a derivative's script outside the linecaster
+checkout that takes linecaster from a git tag, branch or rev runs without it (`jobs.needs_commit`), since its Jobs
+install what its sources name.
 
 `linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
-pipeline script, linecaster's or a derivative's, as `uv run --with` requirements: the script's dependencies with
-their sources as PEP 508 URLs (`url` as it is; `git` with its `tag`, `branch` or `rev` and its `subdirectory`, as
-`git+URL@REF#subdirectory=DIR`; a `path` into the linecaster checkout as GitHub's source archive of linecaster at
-`commit`, any other path an error), then every package reachable from them in the script's lock that comes from no
-index (the sources the packages declare themselves: pybookget, the kraken fork at its locked commit, the OpenCV stub).
-linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need;
-without a script it raises unless `engines=False` (linecaster alone). A derivative's pipeline runs on Jobs from its
-own script (its sources pinned to a linecaster tag), read as it is on disk.
+pipeline script, linecaster's or a derivative's, as `Dependencies`:
+
+- `requirements`: the script's dependencies with their sources as PEP 508 URLs (`url` as it is; `git` with its
+  `tag`, `branch` or `rev` and its `subdirectory`, as `git+URL@REF#subdirectory=DIR`; a `path` into the linecaster
+  checkout as GitHub's source archive of linecaster at `commit`, any other path an error), then every package
+  reachable from them in the script's lock that comes from no index (the sources the packages declare themselves:
+  pybookget, the kraken fork at its locked commit, the OpenCV stub);
+- `constraints`: every package reachable from them that the lock takes from an index, at the lock's version
+  (`name==version`; a package the lock holds at several versions with its resolution markers), so a Job resolves the
+  versions of the lock; none for a script without a lock;
+- `overrides`: the script's `[tool.uv] override-dependencies` (a lock that resolves only with them, such as
+  `transcribe_page.py`'s `pillow==12.3.0` over surya-ocr's `pillow<11`).
+
+linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need, and
+the constraints of what those reach; without a script it raises unless `engines=False` (linecaster alone). A
+derivative's pipeline runs on Jobs from its own script (its sources pinned to a linecaster tag), read as it is on disk.
+
+`uv run --with` (datatrove's way of installing a Job's dependencies) ignores constraints and overrides, whether given
+as `UV_CONSTRAINT`, `UV_OVERRIDE` or a `uv.toml`; only a script's own `[tool.uv]` brings them to `uv run`. So
+`JobsExecutor` given `Dependencies` uploads, in place of datatrove's `launch_pickled_pipeline.py`, a uv script of the
+same name whose inline metadata holds the requirements, `constraint-dependencies` and `override-dependencies`
+(`Dependencies.script`) and which then runs datatrove's launcher. Constraints only bound what the requirements bring:
+a package the lock holds for another platform is not installed. `--dry-run` prints the three lists; the run record
+keeps them (`dependencies`, `constraints`, `overrides`).

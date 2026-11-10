@@ -8,6 +8,12 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- `linecaster.runtime.jobs.dependencies(commit, script)` returns `Dependencies` (`requirements`, `constraints`,
+  `overrides`) instead of a list of requirements, and HF Jobs resolve the versions of the script's lock instead of
+  the newest ones allowed. Who is affected: code that calls `dependencies()` itself (a derivative's launcher) and
+  Jobs that relied on getting newer versions than the lock's. What to do: pass the result to `JobsExecutor` or
+  `GPUJobsExecutor` as it is (the pins apply), or its `.requirements` where a list is needed (datatrove's
+  `JobsPipelineExecutor`, which then installs unpinned); relock a script to move its Jobs' versions.
 - linecaster's `s3fs` extra is gone: the core installs `datatrove[io,s3]` (datatrove's `s3` extra is s3fs), so
   `s3://` paths work in every environment. Who is affected: anything that asks for `linecaster[s3fs]` (a derivative's
   script, `uv sync --extra s3fs`): `uv sync --extra s3fs` fails, and uv warns about `linecaster[s3fs]`. What to do: drop the extra
@@ -62,6 +68,15 @@ the tags; the first is `v0.1.0`.
   allows `>=2.7,<3`; the lock keeps 2.14.0). `tests/test_scripts.py` fixes each lock's torch.
 - The [compatibility](docs/reference/compatibility.md#versions-and-releases) reference states the versioning policy:
   while 0.x, a breaking change is a minor release (0.3 → 0.4), everything else a patch.
+
+- HF Jobs are reproducible: `jobs.dependencies` pins every package the script's lock takes from an index
+  (`name==version`) as a constraint and carries the script's `[tool.uv] override-dependencies`; `JobsExecutor` runs
+  each Job as a uv script whose inline metadata holds them (`Dependencies.script`), since `uv run --with` ignores
+  constraints and overrides. `--dry-run` prints the three lists, and the run record keeps the new `constraints` and
+  `overrides` next to `dependencies`.
+- `--commit` is optional with `--on hf-jobs` for a script outside the linecaster checkout that takes linecaster from
+  a git tag, branch or rev (its Jobs install what its sources name); it stays required for linecaster's own scripts
+  (`jobs.needs_commit`).
 
 ### Removed
 

@@ -225,12 +225,13 @@ def test_minicpm_speculative_args_pin_the_draft():
 def test_job_dependencies_without_kraken():
     from linecaster.runtime.jobs import ROOT, dependencies
 
-    deps = dependencies("abc123", ROOT / "pipelines/transcribe_vlm.py")
+    vlm = dependencies("abc123", ROOT / "pipelines/transcribe_vlm.py")
+    deps = vlm.requirements + vlm.constraints
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
     modular = dependencies("abc123", ROOT / "pipelines/transcribe_modular.py")
-    assert any(d.startswith("linecaster-paddlex @ ") for d in modular)
-    assert not any("kraken" in d for d in modular)                # kraken runs in an environment that adds it
+    assert any(d.startswith("linecaster-paddlex @ ") for d in modular.requirements)
+    assert not any("kraken" in d for d in modular.requirements + modular.constraints)   # an environment that adds it
 
 
 def test_region_recognizer_pad_explicit_wins_over_the_adapter():

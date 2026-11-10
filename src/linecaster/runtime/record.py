@@ -79,4 +79,7 @@ class RunRecord(_Record):
                                              "same run folder needs the same one")
     image: str | None = Field(None, description="HF Jobs: the container image")
     dependencies: list[str] | None = Field(None, description="HF Jobs: what each Job installs")
+    constraints: list[str] | None = Field(None, description="HF Jobs: the versions each Job resolves, from the "
+                                                            "script's lock (name==version)")
+    overrides: list[str] | None = Field(None, description="HF Jobs: the script's override-dependencies")
     software: Software

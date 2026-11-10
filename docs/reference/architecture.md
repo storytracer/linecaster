@@ -187,9 +187,11 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
-Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.sources]`:
+Jobs run the same Python minor version (3.12). `uv run` outside a project drops `[tool.uv.sources]`:
 `linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
-installed packages' own sources from the script's lock (the commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)).
+installed packages' own sources from the script's lock (the commit must be pushed), and pins every other package at
+the lock's version; each Job runs a uv script that carries the pins and the script's overrides, which `uv run --with`
+would ignore ([pipelines](pipelines.md#hf-jobs-helpers)).
 
 Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
 does) agree through the [broker](broker.md), a folder any executor's workers can reach, on any storage datatrove

@@ -134,7 +134,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   `JobsPipelineExecutor` dill-pickles the pipeline.
 - **A Job's dependencies come from `linecaster.runtime.jobs.dependencies(commit, script)`, and the commit must be
   pushed.** `uv run --with` drops `[tool.uv.sources]`, so it spells out the script's sources and, from its lock, those
-  of the packages it installs.
+  of the packages it installs; it pins every other package at the lock's version, and the Job runs a uv script that
+  carries the pins and the overrides (`uv run --with` ignores both). A Job then resolves what the lock holds.
 - **No credential is stored in a pipeline or a repository.** Pipelines are pickled and recorded.
 
 ## Docs

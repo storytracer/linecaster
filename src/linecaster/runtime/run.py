@@ -200,7 +200,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
                         "demand)")
     g = ap.add_argument_group("Hugging Face Jobs")
-    g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed)")
+    g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed); required for linecaster's "
+                                    "own scripts, unused by a script outside the checkout that takes linecaster "
+                                    "from a git tag, branch or rev")
     g.add_argument("--namespace", default=None,
                    help="the Hugging Face user or organization the Jobs run under and are billed to (required "
                         "with --on hf-jobs; there is no default)")
@@ -282,8 +284,6 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--tasks and --workers need at least 1")
     if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
         ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
-    if a.on == "hf-jobs" and not a.commit:
-        ap.error("--on hf-jobs needs --commit (pushed)")
     if a.on == "hf-jobs" and not a.namespace:
         ap.error("--on hf-jobs needs --namespace: the Hugging Face user or organization the Jobs run under")
     if a.backend is None:
@@ -688,12 +688,16 @@ def executor_name(a: argparse.Namespace) -> str:
 
 
 def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None = None,
-           deps: list | None = None, image: str | None = None) -> dict:
+           deps=None, image: str | None = None) -> dict:
     """The run record of this launch (``linecaster.runtime.provenance.run_record``) for the builder's plan ``p``:
     its stages with their blocks, and ``pipeline_sha256``."""
     from .provenance import run_record
 
-    extra = {"image": image, "dependencies": deps} if a.on == "hf-jobs" else {}
+    extra = {}
+    if a.on == "hf-jobs":
+        extra = {"image": image, "dependencies": deps.requirements if deps else None,
+                 "constraints": (deps.constraints or None) if deps else None,
+                 "overrides": (deps.overrides or None) if deps else None}
     internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
@@ -754,7 +758,7 @@ def write_record(out: str, rec: dict) -> str:
     return name
 
 
-def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | None, stages: list | None = None) -> dict:
+def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages: list | None = None) -> dict:
     """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
     import dill
 
@@ -768,7 +772,8 @@ def plan(a: argparse.Namespace, pipeline: list, deps: list | None, image: str | 
     pickled = [s.pipeline for s in stages] if stages else pipeline
     return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
             "image": image,
-            "dependencies": deps, "pipeline": [type(s).__name__ for s in pipeline], "servers": servers,
+            "dependencies": deps.as_dict() if deps else None, "pipeline": [type(s).__name__ for s in pipeline],
+            "servers": servers,
             "pickled_bytes": len(dill.dumps(pickled))}
 
 
@@ -788,7 +793,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          trace_sample=getattr(a, "trace_sample", None))
 
 
-def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list | None, script: str | None = None):
+def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, script: str | None = None):
     """One executor per stage, each depending on the one before (datatrove's ``depends=``); the last one runs
     them all. One stage logs to ``OUT/logs``, several to ``OUT/logs/<stage>``."""
     previous = None
@@ -833,6 +838,19 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps: list
             else:
                 previous = JobsExecutor(stage.pipeline, tasks_per_job=a.tasks_per_job or 1, **kw)
     return previous
+
+
+def check_commit(a: argparse.Namespace, script: str | None) -> None:
+    """``--on hf-jobs`` needs ``--commit`` for linecaster's own scripts (``jobs.needs_commit``): their Jobs install
+    linecaster at that commit. A derivative's script outside the checkout that takes linecaster from a git tag,
+    branch or rev runs without one."""
+    if a.on != "hf-jobs" or a.commit:
+        return
+    from .jobs import needs_commit
+
+    if needs_commit(script):
+        raise PipelineConfigError(f"--on hf-jobs needs --commit (pushed): {script} is in the linecaster checkout, "
+                                  "and its Jobs install linecaster at that commit")
 
 
 def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True,
@@ -1041,6 +1059,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         if argv[:1] == ["serve"]:
             return serve(argv[1:], options, models, pipeline_id, slots)
         a = parse(argv, description, options, pipeline_id, slots)
+        check_commit(a, script)
         a.has_engines = bool(models(a))
         built = build(a, str(Path(script).resolve()))
         pipeline, extra = built if isinstance(built, tuple) else (built, {})
