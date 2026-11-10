@@ -27,7 +27,7 @@ evaluations and project pipelines (derivatives) are built on top of it.
 | `linecaster.backends` | `InProcess`, `Served`, `Chat` |
 | `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
 | `linecaster.serve` | `linecaster serve` |
-| `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools |
+| `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools ([http](http.md)) |
 | `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
 | `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
 | `linecaster.pipelines` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |

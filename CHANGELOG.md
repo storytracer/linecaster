@@ -22,12 +22,75 @@ the tags; the first is `v0.1.0`.
   now a `TypeError`. What to do: leave the field out. The wait after the n-th failed attempt is
   `retry_wait_min * 2**(n-1)` seconds, at most `retry_wait_max`, on the direct path as through proxies; with the
   defaults (`retry_wait_min` 2) that is the wait it was, and only a changed `retry_wait_min` waits otherwise.
+- The HTTP policy has a new schema, in three levels ([http](docs/reference/http.md)): every request at the root, the
+  proxy path's own section `proxies:`, and `hosts:`. What blocks is declared once for both paths (`block_on`, default
+  `[429]`, statuses and `html`): direct a block pauses the worker's requests to the host, through proxies it leaves
+  the proxy out there. Who is affected: every policy file with `pause_on`, `blacklist_on`, `blacklist_ttl`,
+  `blacklist_threshold`, `proxies_per_worker` or `proxies` as a plain path: the run stops at startup with a
+  `PipelineConfigError` that names the line to write. What to do: `pause_on: [429, 503]` becomes `block_on: [429,
+  503]`; `blacklist_on: [403]` becomes `block_on: [429, 403]` (the statuses of both in one list);
+  `proxies: proxies.txt` becomes `proxies: {file: proxies.txt}`; `proxies_per_worker: 1`, `blacklist_ttl: 72h` and
+  `blacklist_threshold: 2` become `proxies: {per_worker: 1, block_ttl: 72h, broken_after: 2}`. `pause_on: []` (429s
+  retried on the direct path) becomes `block_on: []`, which now also leaves 429s through proxies to the retries; keep
+  `block_on: [429]` and set `max_retries` if a 429 should only block through proxies.
+- A 429 through proxies blocks the proxy only while 429 is in `block_on`. Who is affected: a policy whose `block_on`
+  leaves 429 out (it blocked the proxy whatever `blacklist_on` said). What to do: add 429 to `block_on` to leave the
+  proxy out on a 429; without it a 429 is a retryable status, retried after the backoff through the next proxy.
+- Unexpected HTML (a 2xx response with an HTML page where an image, XML, JSON or a manifest was expected) is a failed
+  attempt on both paths: it counts, is retried after the backoff, is traced `200-html`, and after the last attempt
+  the fetch fails with `linecaster.net.http.UnexpectedHTML` (through proxies as `MaxRetriesExceeded`'s cause), which
+  names the expected format and the content type. Before, through proxies it blocked the proxy for an hour without
+  using up an attempt; on a direct connection an image failed at once as an unreadable image and a resource failed at
+  once. `ManifestReader` now says what it expects too (the manifest, the page images, ALTO files), so an HTML page
+  there is retried and fails as `UnexpectedHTML` instead of passing as a manifest or image that does not parse. Who is
+  affected: runs whose hosts answer a block or a soft 404 with HTML and 200. What to do: for a host whose HTML pages
+  are a block (a CDN's challenge), `block_on: [429, html]` at that host leaves the proxy out again (direct: the worker
+  pauses); `stop_on: [html]` stops the run as before; `max_retries: 0` fails such a page after one attempt.
+- A block without `Retry-After` lasts 60 s at first and twice as long on each repeat (for that host, and through
+  proxies for that proxy, until a successful response there; `linecaster.net.http.block_wait`), at most the host's
+  `block_ttl` through proxies (default 3600 s) and `max_pause` direct (default 6 h). Before, a blocked proxy was left
+  out for `blacklist_ttl` (3600 s) at once, and a direct pause doubled from 60 s up to an hour. With `Retry-After`
+  nothing changes. Who is affected: runs through proxies whose hosts send 429s without `Retry-After` (their proxies
+  come back sooner and are retried there), and direct runs with long pauses (a single pause may now pass an hour).
+  What to do: nothing to keep a polite run; no setting restores the flat hour through proxies, and `block_ttl` is the
+  ceiling of the doubling (`proxies: {block_ttl: 72h}` for a host whose block lasts three days); `max_pause` bounds
+  the pauses direct.
+- A broken proxy (a proxy error, no connection to it) is left out after 3 such errors in a row (`broken_after`; it
+  was 1), first for 300 s (`broken_ttl`; it was 3600 s), doubling each time it breaks again before it carries an
+  answer, at most `block_ttl`. Who is affected: runs through proxy lists with unreliable proxies (each costs up to
+  three attempts before it is left out, and comes back sooner). What to do: `proxies: {broken_after: 1, broken_ttl:
+  3600}` restores leaving it out at its first error for an hour.
+- The HTTP settings of a reader (`http`) and of `HTTPFetcher` are renamed with the policy: `proxy_blacklist_threshold`
+  is `broken_after`, `proxy_blacklist_ttl` is `block_ttl`, `proxy_blacklist_on` and `pause_on` are `block_on` (which
+  includes 429 by default rather than adding to it), `proxies_per_worker` is `per_worker`, `pause_wait` is
+  `first_wait`, and `pause_max_wait` is gone (the doubling stops at `max_pause`); `broken_ttl` is new; `stop_on` and
+  `block_on` take `html`. In `linecaster.net.http`, `PAUSE_ON`, `PAUSE_FIRST_WAIT`, `PROXY_BLACKLIST_THRESHOLD` and
+  `PROXY_BLACKLIST_TTL` are `BLOCK_ON`, `BLOCK_FIRST_WAIT`, `BROKEN_AFTER` (3) and `BLOCK_TTL`, with `BROKEN_TTL` new;
+  `PAUSE_MAX_WAIT` and `ProxyBlocked` are gone; `Pause` takes `first_wait` and `max_total` (no `max_wait`);
+  `pause_left()` gives what began the pause in words (`HTTP 429`, `an HTML page`) instead of the status;
+  `ProxyPool.block` takes the `Retry-After` seconds or None (the doubling) with `cap` and `first`, `ProxyPool.broken`
+  takes `after`, `first` and `cap`. `HTTPPolicy.stops_on_html` is gone (the fetcher stops on `html` itself), and
+  `HTTPPolicy.describe()` takes no options (the run's options are the policy's `base`) and states every rule that holds
+  per host and path, defaults and opt-ins alike. Who is affected: code that builds fetchers or readers with these
+  settings, or uses these names. What to do: rename as above; `http={"broken_after": 1, "broken_ttl": 3600}` and
+  `http={"block_on": [429, "html"]}` restore the earlier proxy behavior.
+
+### Added
+
+- `docs/reference/http.md`: the defaults, blocks on both paths, unexpected HTML, retries and deadlines, the trace
+  entries and the HTTP policy's schema with its inheritance, and an example for a CDN-protected host.
+- `HTTPFetcher` takes `clock`, `wall_clock` and `sleep`, so tests check its waits without sleeping.
 
 ### Changed
 
 - The direct path and the path through proxies are one retry loop (`HTTPFetcher._attempts`), with the counts,
   waits, `Retry-After`, deadline per attempt, 404 fallback, trace entries and errors each had before; the rate
   limits are linecaster's own sliding windows (`linecaster.net.limits.RateLimiter`).
+- `--proxies` says how a blocked and a broken proxy are left out now, and `--http-policy` lists the new fields.
+
+### Fixed
+
+- A status in `stop_on` is traced as that status (it was `no-response`).
 
 ## 0.4.0 (2026-11-10)
 

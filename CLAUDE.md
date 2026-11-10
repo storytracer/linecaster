@@ -3,7 +3,7 @@
 Rules for working on linecaster, each with its reason. What linecaster is and how it works is in `docs/reference/`:
 [architecture](docs/reference/architecture.md), [pipelines](docs/reference/pipelines.md),
 [catalog](docs/reference/catalog.md), [data model](docs/reference/data-model.md),
-[serialization](docs/reference/serialization.md), [tracing](docs/reference/tracing.md),
+[serialization](docs/reference/serialization.md), [tracing](docs/reference/tracing.md), [HTTP](docs/reference/http.md),
 [compatibility](docs/reference/compatibility.md), with the [glossary](docs/reference/glossary.md) and the
 [conventions](docs/reference/conventions.md). Measurements and decisions are in `NOTES.md`, changes in
 `CHANGELOG.md`.

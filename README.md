@@ -289,6 +289,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [data model](docs/reference/data-model.md) | what a page's transcription holds: `Item`, `Page`, `Transcription`, regions, lines, words, text variants |
 | [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR |
 | [catalog](docs/reference/catalog.md) | models, presets, recipes and editions, and where measurements live |
+| [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
 | [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a sample of pages |
 | [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |

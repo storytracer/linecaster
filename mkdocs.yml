@@ -62,6 +62,7 @@ nav:
       - Serialization: reference/serialization.md
       - Catalog: reference/catalog.md
       - Tracing: reference/tracing.md
+      - HTTP: reference/http.md
       - Broker: reference/broker.md
       - Compatibility: reference/compatibility.md
       - Glossary: reference/glossary.md
