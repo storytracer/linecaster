@@ -500,7 +500,7 @@ pipeline script, linecaster's or a derivative's, as `Dependencies`:
   `tag`, `branch` or `rev` and its `subdirectory`, as `git+URL@REF#subdirectory=DIR`; a `path` into the linecaster
   checkout as GitHub's source archive of linecaster at `commit`, any other path an error), then every package
   reachable from them in the script's lock that comes from no index (the sources the packages declare themselves:
-  pybookget, the kraken fork at its locked commit, the OpenCV stub);
+  the kraken fork at its locked commit, the OpenCV stub);
 - `constraints`: every package reachable from them that the lock takes from an index, at the lock's version
   (`name==version`; a package the lock holds at several versions with its resolution markers), so a Job resolves the
   versions of the lock; none for a script without a lock;

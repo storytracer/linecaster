@@ -9,6 +9,28 @@ Measurements, decisions and open questions, newest first.
   that evidence has left the catalog: for example a smoke test every recipe must pass (its pipeline built and run on
   a few generated pages, without failed pages) before it is released.
 
+## Manifests and HTTP without an external package (2026-11-10, aarch64 GB10)
+
+- Decided: linecaster depends on no external package for manifests or HTTP. `linecaster.formats.manifests` parses
+  IIIF Presentation 2/3 (and one level of Collections) and METS/MODS (also inside OAI-PMH) with lxml;
+  `linecaster.net.http` makes its own httpx clients and runs one retry loop for the direct path and the path through
+  proxies, with linecaster's own sliding-window rate limiter (`linecaster.net.limits`). No retry library.
+- Parity, manifests: a temporary test compared the new parser with the one used before on every manifest fixture
+  of the test suite and on variants of each (a commit and its revert in the history): no difference in pages, image
+  URLs, fallback URLs, OCR links, labels or metadata.
+- Parity, HTTP, against one local server, the layer used before and the new one side by side (direct path): the
+  same final result, trace entries (`tries`), attempt count and error for a plain 200, 503 twice then 200 (waits 2 s
+  and 4 s), 520 once, 503 throughout, 403, the 404 fallback (to a 200, a 404, the same URL, a 503 throughout), a 429
+  with `Retry-After` in seconds and as an HTTP-date (the pause), a 429 with `pause_on: []` (retried after its
+  `Retry-After`), a 503 with `Retry-After` in seconds and as a date, `stop_on: [403]`, a response cut by the deadline
+  per attempt, a refused connection, `max_retries: 0`; 12 requests at `3/1` and `5/2` took 4.1 s with both rate
+  limiters. The only difference was the length of one pause after an HTTP-date `Retry-After` (1.3 s against 2.0 s:
+  the date has whole seconds, so the wait depends on when in the second it was sent). The path through proxies:
+  the existing proxy tests pass unchanged with both.
+- Lock changes: the scripts with the old extra lose three packages (the manifest and HTTP package, its rate limiter
+  and its retry library); `bind.py`, `launch.py` and the three test scripts gain h2, hpack, hyperframe and
+  fake-useragent 2.2.0 (and httpx, httpcore where they were missing). torch is unchanged in every lock.
+
 ## Preparing 0.4.0: S3 in the core, reproducible Jobs (2026-11-10, aarch64 GB10)
 
 - `s3://` is core: linecaster depends on `datatrove[io,s3]` (datatrove's `s3` extra is s3fs) and has no `s3fs` extra.

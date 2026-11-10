@@ -38,8 +38,8 @@ evaluations and project pipelines (derivatives) are built on top of it.
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere); engines, Ray,
-pybookget and PDFium are not (engine packages and extras).
+required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere), and so is httpx
+(`http(s)://` through `linecaster.net`); engines, Ray and PDFium are not (engine packages and extras).
 
 ## Blocks and backends
 
@@ -158,11 +158,11 @@ them (`--recipe`); `launch.py` runs a recipe or a page preset by name ([catalog]
 Each script's page in the [catalog's docs](../catalog/README.md) lists its slots and options.
 
 Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
-itself: linecaster with the extras every pipeline uses (`ray` for `--on ray` and `ray start`, `pybookget` for
-manifests and http(s) images; `bind.py` only `ray`) and its engine packages; `s3://` paths need no extra (the core
+itself: linecaster with the extra every pipeline uses (`ray` for `--on ray` and `ray start`) and its engine
+packages; `s3://` paths need no extra (the core
 installs datatrove's `s3` extra, s3fs). A source is
 declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
-pybookget's archive by linecaster, the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
+the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
 headless build of the version PaddleX pins; one cv2) by `linecaster-paddlex`. `tests/test_scripts.py` checks
 sources, locks and wheels for both machines (uv's `required-environments` does not work in scripts).
 
@@ -219,7 +219,7 @@ copies). Checks like `PageValidator` record on the page why it failed.
 `limit`/`skip` per task; files distributed over tasks in turn, Parquet tables by rows in equal shards,
 `linecaster.blocks.readers.tables`, so a table needs no splitting): `ImageFolderReader` (image files),
 `ImageParquetReader` (an image column: bytes, an HF image struct or a path), `ManifestReader` (IIIF or METS, parsed
-by pybookget, extra `[pybookget]`, which also fetches `http(s)://` images through `linecaster.net.http`; a manifest,
+by `linecaster.formats.manifests`, its files fetched through `linecaster.net.http`; a manifest,
 or a row of a Parquet item table, is an entry, so an item stays in one task; a IIIF Collection entry is its
 manifests, one level; `existing_ocr` fetches a library's OCR as a document media, which a `TranscriptionConverter`
 reads as `ocr_original`, the builder adding one when missing), `PdfReader` (PDF files as items, pages rendered with

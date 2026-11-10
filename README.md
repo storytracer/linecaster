@@ -96,9 +96,8 @@ Options after a recipe's name override single steps; the run record lists them.
 | IIIF or METS manifests | `--manifests FOLDER`, `--manifests list.txt`, or `--manifests items.parquet --manifest-key url` |
 | an earlier run | `--pages OUT/pages` |
 
-Any fsspec path works: local, `s3://`, `hf://`. Manifests need the `pybookget` extra
-([pybookget](https://github.com/storytracer/pybookget)); `--existing-ocr` also keeps the library's own OCR as
-`ocr_original`. PDF files are read by the `PdfReader` block (extra `pypdfium2`).
+Any fsspec path works: local, `s3://`, `hf://`, `http(s)://`. linecaster reads IIIF Presentation and METS/MODS
+manifests itself; `--existing-ocr` also keeps the library's own OCR as `ocr_original`. PDF files are read by the `PdfReader` block (extra `pypdfium2`).
 
 For large collections, fetch the images once, then transcribe, then bind the pages into items:
 

@@ -4,6 +4,31 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- The `pybookget` extra is gone: linecaster reads IIIF Presentation and METS/MODS manifests itself
+  (`linecaster.formats.manifests`, on lxml) and fetches over http(s) with its own HTTP layer (`linecaster.net`: httpx
+  with HTTP/2 and fake-useragent, both core dependencies now). Who is affected: anything that asks for
+  `linecaster[pybookget]` (a derivative's script or project, `uv sync --extra pybookget`, which fails; uv warns about
+  the unknown extra). What to do: drop the extra (`linecaster[ray,pybookget]` becomes `linecaster[ray]`) and relock;
+  a derivative that imports pybookget itself lists it as its own dependency. The relocked environments lose
+  pybookget, pyrate-limiter and tenacity, and those that had no http(s) before (`bind.py`, `launch.py`, the test
+  scripts) gain httpx's HTTP/2 packages (h2, hpack, hyperframe) and fake-useragent; torch is unchanged everywhere.
+- A reader's `http` settings (and `HTTPFetcher(**config)`) are the fields of `linecaster.net.http.HTTPConfig`, with
+  the same defaults as before (`HTTP_DEFAULTS`), instead of any field of pybookget's `Config`. Who is affected: code
+  that passes a pybookget-only field (`show_progress`, `retry_multiplier`, `cookie_file`, `header_file`, ...): it is
+  now a `TypeError`. What to do: leave the field out. The wait after the n-th failed attempt is
+  `retry_wait_min * 2**(n-1)` seconds, at most `retry_wait_max`, on the direct path as through proxies; with the
+  defaults (`retry_wait_min` 2) that is the wait it was, and only a changed `retry_wait_min` waits otherwise.
+
+### Changed
+
+- The direct path and the path through proxies are one retry loop (`HTTPFetcher._attempts`), with the counts,
+  waits, `Retry-After`, deadline per attempt, 404 fallback, trace entries and errors each had before; the rate
+  limits are linecaster's own sliding windows (`linecaster.net.limits.RateLimiter`).
+
 ## 0.4.0 (2026-11-10)
 
 ### Upgrade notes

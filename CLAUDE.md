@@ -23,8 +23,9 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a derivative may be named after it, and its
   pipeline lives in its own repository.
 - **Generic readers only**: folders, buckets, HF datasets, and the standards for items' manifests (IIIF
-  Presentation, METS/MODS, also via OAI-PMH, parsed by storytracer/pybookget). Corpus or institution adapters belong
-  in derivatives, and pybookget's own handlers stay there. Standards outlive institutions' APIs.
+  Presentation, METS/MODS, also via OAI-PMH), which linecaster parses itself (`linecaster.formats.manifests`), and
+  http(s) through its own HTTP layer (`linecaster.net`). Corpus or institution adapters belong in derivatives.
+  Standards outlive institutions' APIs.
 - **linecaster is not a data repository**: the catalog holds no evidence records and the docs quote no
   measurements. linecaster keeps the evidence format and the tooling that produces evidence, evaluations and
   ground-truth datasets ([catalog](docs/reference/catalog.md#measurements-live-elsewhere)); the records live with the
@@ -85,7 +86,7 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   sources, locks and wheels for both architectures (aarch64 and x86_64). uv's `required-environments` does not work
   in scripts, so the test does it.
 - **A script lists only what it needs itself, with a comment saying why; a source is declared by the package that
-  needs it** (pybookget's by linecaster, the kraken fork by linecaster-kraken, the OpenCV stub by linecaster-paddlex;
+  needs it** (the kraken fork by linecaster-kraken, the OpenCV stub by linecaster-paddlex;
   `tests/test_scripts.py`). `uv lock` applies the sources of path and git dependencies too; only `uv run --with`
   ignores them, and `jobs.dependencies` takes them from the script's lock. A source then has one place, and a script
   names no package only to carry its source.
