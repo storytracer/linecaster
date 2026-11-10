@@ -9,6 +9,3 @@ recipe `paddleocr-vl-1.6.py`; not PaddleOCR-VL's PP-DocLayout + VLM pipeline.
 - Serve flags: `--max-model-len 8192 --trust-remote-code --enforce-eager --max-num-batched-tokens 16384`, no
   prefix caching, no multimodal processor cache, one image per prompt.
 - The completion is stored verbatim.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample"); greedy decoding with identical requests gave identical outputs.

@@ -17,5 +17,4 @@ engine (`oxr.recognition.v1`, package `linecaster-services`) is its client in th
   8,192 tokens in the vendor's configuration). The Markdown links the figure crops as images; removing the links is
   left to whoever reads the output.
 
-License: the OXR License (Apache-2.0 with additional terms; see the model's page). Run on a 60-page sample of
-historic print (NOTES.md, "Four more page readers"). Not run on HF Jobs.
+License: the OXR License (Apache-2.0 with additional terms; see the model's page). Not run on HF Jobs.

@@ -13,7 +13,3 @@ is now `docling-project/SmolDocling-256M-preview`; linecaster pins the id it was
   multimodal processor cache, one image per prompt; no `--trust-remote-code` (Idefics3 is registered in vLLM).
 - The model answers in DocTags. The completion is stored verbatim; `parse` also converts it with docling-core
   (body + furniture, no image placeholder) into `extra["markdown"]`.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample"); of the chat presets it differed most from the reference, which is
-worth a second look.

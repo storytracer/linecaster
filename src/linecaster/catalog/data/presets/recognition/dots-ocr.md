@@ -11,6 +11,3 @@ dots.ocr in plain OCR mode, following the model card and the uv-scripts recipe `
 - On a 24 GB card (A10G) the vision encoder ran out of memory at `--gpu-memory-utilization 0.8` with 12 pages in
   flight; 0.6, at most 4 pages in flight and `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` worked. These are
   deployment choices, not part of the preset.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample"); greedy decoding with identical requests gave identical outputs.

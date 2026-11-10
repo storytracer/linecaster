@@ -20,5 +20,4 @@ full_page=True)`), with the package's parser, blank-region filter and block-mode
   left to whoever reads the output. `finish_reason` is `length` when the page keeps a capped block's partial HTML; a
   failed block request is the page's error.
 
-Weights: modified OpenRAIL-M (see the model's page). Run against a reference implementation's outputs on a 60-page
-sample of historic print (NOTES.md, "Four more page readers"). Not run on HF Jobs.
+Weights: modified OpenRAIL-M (see the model's page). Not run on HF Jobs.

@@ -12,6 +12,3 @@ Qianfan-OCR, built from the model card and the checkpoint's config.
   (linecaster's choice: vLLM registers the model natively; the override would run the InternVL code path).
 - The completion is stored verbatim, a `</think>` the model may leave included. `--gpu-memory-utilization` is the
   deployment's choice.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

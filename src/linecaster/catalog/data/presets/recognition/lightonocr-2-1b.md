@@ -9,6 +9,4 @@ LightOnOCR-2-1B on whole pages, following the model card and the uv-scripts reci
   architecture is registered in vLLM.
 - The completion is stored verbatim. `--gpu-memory-utilization` is the deployment's choice.
 
-Measured on vLLM 0.21.0, against a reference implementation's outputs on vLLM 0.26.0 (NOTES.md, "Chat VLMs:
-LightOnOCR-2-1B through ChatPageStep"); sampling at temperature 0.2 makes runs differ. Experimental: not validated
-on 0.26.0.
+Sampling at temperature 0.2 makes runs differ. Experimental.

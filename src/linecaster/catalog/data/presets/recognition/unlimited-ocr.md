@@ -11,6 +11,3 @@ Unlimited-OCR on vLLM, following the model card and the uv-scripts recipe `unlim
   one image per prompt. vLLM 0.26.0: the card's dedicated `vllm/vllm-openai:unlimited-ocr` image is obsolete,
   the architecture is registered.
 - The completion (grounded output, `<|det|>type [bbox]<|/det|>` headers) is stored verbatim. A response without content is an error, not an empty page.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

@@ -15,6 +15,3 @@ with the `ocr_layout` prompt of the CLI. Where linecaster departs from the clien
 - The model answers with HTML layout blocks (`<div data-bbox=.. data-label=..>`), stored verbatim; converting them
   to Markdown (the vendor's `parse_markdown`) is left to whoever reads the output. `--gpu-memory-utilization` is
   the deployment's choice.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

@@ -10,5 +10,4 @@ checkpoint).
   image and no video per prompt, no multimodal processor cache, no prefix caching; no `--trust-remote-code`.
 - vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
   `vllm/vllm-openai:v0.30.0`.
-- The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Measured on an RTX 4000
-  SFF Ada (NOTES.md, "dots.mocr and LightOnOCR-3 on an RTX 4000 SFF Ada"); experimental.
+- The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Experimental.

@@ -13,8 +13,4 @@ penalties.
   processor cache, one image and no video per prompt; no `--reasoning-parser` (linecaster's choice, where the card
   has one: the completion stays in `content`), no `--trust-remote-code`.
 - The completion is stored verbatim; `linecaster.adapters.qwen35.unwrap_fence` removes a Markdown fence around it.
-- Memory: 18.0 GiB of bf16 weights. It runs on a 48 GB card (L40S) at `--gpu-memory-utilization` 0.9; whether it
-  fits a 24 GB card (L4, A10G) with room for the vision encoder and the KV cache is not tested.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print, on an L40S
-(NOTES.md, "Chat presets: validation on the 60-page sample").
+- Memory: 18.0 GiB of bf16 weights; `--gpu-memory-utilization` is the deployment's choice.

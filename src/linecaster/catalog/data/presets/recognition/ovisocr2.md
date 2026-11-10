@@ -9,6 +9,3 @@ OvisOCR2, following the model card and the uv-scripts recipe `ovis-ocr2-server.p
 - The completion is stored verbatim, `<img src="images/bbox_...">` placeholders and all. The card's
   `clean_truncated_repeats` trimmer is not applied (linecaster's choice: the output stays as the model wrote it).
   `--gpu-memory-utilization` is the deployment's choice.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

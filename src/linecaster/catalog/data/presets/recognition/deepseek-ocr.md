@@ -17,6 +17,3 @@ DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).
   multimodal processor cache, one image per prompt.
 - The completion is stored verbatim, grounding markup included; `linecaster.adapters.deepseek_ocr.strip_grounding`
   removes it for whoever wants the text alone. `--gpu-memory-utilization` is the deployment's choice.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

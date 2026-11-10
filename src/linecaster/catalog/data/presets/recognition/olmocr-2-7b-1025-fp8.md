@@ -10,5 +10,5 @@ olmOCR-2-7B-1025-FP8, following the model card, the olmOCR pipeline and the uv-s
   no `--trust-remote-code`. vLLM 0.26.0 (linecaster's choice; the recipe has since moved to 0.29.0).
 - The model answers with YAML front matter (primary_language, is_rotation_valid, rotation_correction, is_table,
   is_diagram) above the page text. The completion is stored verbatim and the front matter also parsed into
-  `extra["front_matter"]`; `linecaster.adapters.olmocr2.body` gives the page text without it. Measured on native
-  FP8 (NOTES.md, "olmOCR-2-7B-1025-FP8 on native FP8"); experimental.
+  `extra["front_matter"]`; `linecaster.adapters.olmocr2.body` gives the page text without it.
+  Experimental.

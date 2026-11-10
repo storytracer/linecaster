@@ -11,5 +11,5 @@ the uv-scripts recipe `dots-mocr.py`.
   full-size page is at most 14400 image tokens, 14400 + 16384 < 32768).
 - Serve flags: `--max-model-len 32768 --trust-remote-code --chat-template-content-format string` (the card's
   `vllm serve` line), no prefix caching, no multimodal processor cache, one image per prompt.
-- The completion is stored verbatim. vLLM 0.26.0; `--gpu-memory-utilization` is the deployment's choice. Measured
-  on an RTX 4000 SFF Ada (NOTES.md, "dots.mocr and LightOnOCR-3 on an RTX 4000 SFF Ada"); experimental.
+- The completion is stored verbatim. vLLM 0.26.0; `--gpu-memory-utilization` is the deployment's choice.
+  Experimental.

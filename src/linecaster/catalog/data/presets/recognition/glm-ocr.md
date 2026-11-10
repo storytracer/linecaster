@@ -9,6 +9,3 @@ GLM-OCR, following the model card and the uv-scripts recipe `glm-ocr.py`.
   no `--trust-remote-code` (the architecture is in vLLM). vLLM 0.26.0, a release, where the card uses a nightly
   (linecaster's choice).
 - The completion is stored verbatim.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

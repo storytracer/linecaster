@@ -15,5 +15,4 @@ pipeline's process.
   Markdown can contain leaked `>>UNUSED_N<<` vocabulary tokens; removing them is left to whoever reads the output.
 - The image has Python 3.10 and no uv: on HF Jobs the pipeline cannot run inside it as it is (not tried).
 
-Apache-2.0. Run against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md,
-"Four more page readers"). Not run on HF Jobs.
+Apache-2.0. Not run on HF Jobs.

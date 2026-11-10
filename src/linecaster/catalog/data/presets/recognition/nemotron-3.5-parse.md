@@ -20,6 +20,3 @@ block).
 - The completion (coordinate tokens, `<class_*>` tokens and Markdown text) is stored verbatim;
   `linecaster.adapters.nemotron_parse35.to_markdown` renders it as the vendor's `render_markdown` from the model
   repo does.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print, on an H200 (NOTES.md,
-"Chat presets: validation on the 60-page sample").

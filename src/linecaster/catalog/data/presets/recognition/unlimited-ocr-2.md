@@ -18,6 +18,3 @@ Unlimited-OCR-2 on Baidu's patched SGLang, following the model card. No vLLM sup
   converter is left to whoever reads the output. A response without content is an error.
 - The card's flags are for an 80 GB A800 (`--mem-fraction-static 0.7`, CUDA graphs up to 16384 prefill tokens);
   they also run on a 96 GB card.
-
-Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
-presets: validation on the 60-page sample").

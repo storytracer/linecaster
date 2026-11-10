@@ -15,5 +15,4 @@ grayscale, orientation, deskew, detection, recognition, layout and reading order
   the package reports as failed is the page's error; an empty Markdown (a blank leaf) is a transcription without
   text.
 
-Weights: modified OpenRAIL-M (see the model's page). Run against a reference implementation's outputs on a 60-page
-sample of historic print (NOTES.md, "Four more page readers").
+Weights: modified OpenRAIL-M (see the model's page).
