@@ -45,7 +45,6 @@ capabilities:
   - html
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/ovis-ocr3-port.py
   - ATH-MaaS/OvisOCR3@5f6ce6932efee9ec10c30746db55bd780214b7fd:README.md
   created: 2026-11-03
 support: core

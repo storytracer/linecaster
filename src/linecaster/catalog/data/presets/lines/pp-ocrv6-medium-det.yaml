@@ -21,6 +21,6 @@ capabilities:
   - lines
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
+  - PaddlePaddle/PP-OCRv6_medium_det_onnx@61323801669c338b7891481ec7bac61ce31b576a:README.md
   created: 2026-11-03
 support: core

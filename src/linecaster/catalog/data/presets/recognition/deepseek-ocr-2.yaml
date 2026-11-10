@@ -41,7 +41,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/deepseek-ocr2-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:deepseek-ocr2-vllm.py
   - deepseek-ai/DeepSeek-OCR-2@aaa02f3811945a91062062994c5c4a3f4c0af2b0:README.md
   created: 2026-11-03

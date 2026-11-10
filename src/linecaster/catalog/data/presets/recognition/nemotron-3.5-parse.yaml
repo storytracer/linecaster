@@ -55,8 +55,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/nemotron-parse-35-port.py
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:docker/nemotron-parse-35/install-plugin.sh
   - nvidia/Nemotron-3.5-Parse@62cb1e4ba153d113ff64aaf2be6e068c377cf53c:docs/serving.md
   created: 2026-11-03
 support: core

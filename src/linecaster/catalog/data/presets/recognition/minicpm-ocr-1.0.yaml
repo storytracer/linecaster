@@ -160,7 +160,6 @@ provenance:
   - pypi:minicpm-ocr==1.0.1:minicpmvocr/prompts.py (DEFAULT_PROMPT_MAP)
   - pypi:minicpm-ocr==1.0.1:minicpmvocr/backends/dialects.py (build_vllm_payload)
   - pypi:minicpm-ocr==1.0.1:docs/minicpmvocr_tutorial_en.md (serve flags)
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/minicpm-ocr-port.py
   - openbmb/MiniCPM-OCR-1.0@a59a4acf215e34c6d73149e9eafdb88ed2086e39:README.md
   created: 2026-11-03
 support: experimental

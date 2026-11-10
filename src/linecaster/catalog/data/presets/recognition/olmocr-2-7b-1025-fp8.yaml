@@ -43,7 +43,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/olmocr2-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:olmocr2-vllm.py
   - allenai/olmOCR-2-7B-1025-FP8@40bd7202494b8264ee17ada08b401b5aab7a9ce1:README.md
   created: 2026-11-03

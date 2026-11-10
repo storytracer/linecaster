@@ -3,11 +3,11 @@ recognized text instead of its own OCR (`use_ocr_model=False` with an external O
 with our text in PaddleX's HTML. The squiddle combination's table step.
 
 - SLANet_plus end to end for both table classes (`e2e`: structure and cell boxes from SLANet_plus's own
-  prediction, the RT-DETR cell detectors unused). Chosen 2026-09-07 from four variants on five BHL tables:
+  prediction, the RT-DETR cell detectors unused). Chosen from four variants on a handful of historic tables:
   PP-StructureV3's own choice (SLANeXt_wired + cell detector for what the classifier calls wired) merged body rows
   on old ruled tables; SLANet_plus end to end kept every body row apart and filled the most cells.
-- `crop_pad` 8: with the layout box exactly, the models can flip to a worse cell set (25 cells and 44 words on one
-  table against 17 cells and 121 words padded); from 8 px the result is stable.
+- `crop_pad` 8: with the layout box exactly, the models can flip to a worse cell set (fewer words in more, wrong
+  cells); from 8 px the result is stable.
 - The pipeline's other models are its `submodels`, by PaddleX name: the wired/wireless classifier
   (`PP-LCNet_x1_0_table_cls`, which picks the branch) and the two cell detectors (loaded by the pipeline, unused
   with `e2e`), each a pin of its model entry, so their files are part of the edition's hash.

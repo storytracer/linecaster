@@ -28,6 +28,6 @@ capabilities:
   - html
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
+  - PaddlePaddle/SLANet_plus_onnx@7dbe640e127602bf506815e822c09758de73c482:README.md
   created: 2026-11-03
 support: core

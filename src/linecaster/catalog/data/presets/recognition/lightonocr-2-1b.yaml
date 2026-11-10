@@ -35,7 +35,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/lighton-ocr2-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:lighton-ocr2-saturate.py
   - lightonai/LightOnOCR-2-1B@c97bd377f04481830395218fa8951df9deaba756:README.md
   created: 2026-11-03

@@ -82,7 +82,6 @@ capabilities:
   - html
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/chandra-ocr2-port.py
   - github.com/datalab-to/chandra@497dfd38d7625259307c81c979d44093e9f75f44 (v0.2.0):chandra/model/vllm.py
   - datalab-to/chandra-ocr-2@af93b47dba1b47b6640c86ccf487ed2260ab9a09:README.md
   created: 2026-11-03

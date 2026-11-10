@@ -37,7 +37,6 @@ capabilities:
   - text
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/dots-mocr-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:dots-mocr.py
   - rednote-hilab/dots.mocr@e539fbb52280393adc081b289ec597430a0f9031:README.md
   created: 2026-11-03

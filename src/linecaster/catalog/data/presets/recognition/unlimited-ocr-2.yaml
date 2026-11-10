@@ -87,7 +87,6 @@ capabilities:
   - text
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/unlimited-ocr2-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:unlimited-ocr2-saturate.py
   - baidu/Unlimited-OCR-2@9cf077c4b206e0e2a31879df937b0b0bcba3661c:README.md
   created: 2026-11-03

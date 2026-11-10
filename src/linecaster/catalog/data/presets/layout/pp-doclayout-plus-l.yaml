@@ -62,8 +62,7 @@ capabilities:
   - reading_order
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
-    --layout-model PP-DocLayout_plus-L'
+  - PaddlePaddle/PP-DocLayout_plus-L_onnx@feb74619326f634e0e883218598096a3733ad9f7:README.md
   - 'XY-Cut++ (reading_order): arXiv:2504.10258v3 and the authors'' implementation, liushuai35/PaddleXrc@7873ab3'
   created: 2026-11-03
 support: experimental

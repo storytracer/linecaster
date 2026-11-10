@@ -3,7 +3,7 @@ PaddleOCR's PP-OCRv6_small_det: a DB text-line detector (LCNetV4 backbone, RepLK
 License and languages are the card's.
 
 PaddleX itself always downloads the repository's current `main`; linecaster pins the commit that was `main` on
-2026-11-03 (for every model PaddleX had already downloaded on spark, among them those of squiddleocr's goldens,
+2026-11-03 (for every model PaddleX had already downloaded on the development machine,
 the commit its cached files came from) and loads that snapshot from the Hugging Face cache through
 `create_predictor(model_dir=...)`. Not compared with PaddleX's own download for this model (the models that were
 compared on three pages gave identical outputs, 2026-11-03).

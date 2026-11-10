@@ -1,4 +1,4 @@
-squiddleocr's retyper: the hierarchy of a page from its own type sizes, every rule a ratio to the body size (the
+The hierarchy of a page from its own type sizes, every rule a ratio to the body size (the
 median row height of the page's text regions); the squiddle combination's typography.
 
 - `levels`: a heading whose rows are at least 2.5 times the body size is level 1, 1.7 times level 2, else level 3.

@@ -14,9 +14,6 @@ presets:
   normalization: latin-historic@1
   composition: docling-composition@1
 provenance:
-  derived_from:
-  - storytracer/squiddleocr 0.3, the paddle pipeline's defaults (`squiddle legacy ocr --pipeline paddle`)
-  - 'storytracer/squiddleocr@7c8a052 (the goldens: sample-60, tables-7)'
   authored_by:
   - Sebastian Majstorovic
   created: 2026-11-03

@@ -20,7 +20,5 @@ capabilities:
   produces:
   - paragraphs
 provenance:
-  derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the rules its goldens were recorded with: sample-60, tables-7)'
   created: 2026-11-06
 support: core

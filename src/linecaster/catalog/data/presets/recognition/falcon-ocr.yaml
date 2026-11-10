@@ -32,7 +32,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/falcon-ocr-port.py
   - ghcr.io/tiiuae/falcon-ocr@sha256:2ec8025263fbdbfa2523e4fda4b436ca832a7b4b2c8f7eead311634689e4cd4b:/app/entrypoint_single.sh
   created: 2026-11-06
 support: experimental

@@ -1,7 +1,7 @@
-DeepSeek-OCR-2 in grounded document mode, as the BHL OCR board's driver ran it (a port of Daniel van
-Strien's `deepseek-ocr2-vllm.py`; the DeepSeek-OCR and DeepSeek-OCR-2 drivers are twins and differ only in the checkpoint).
+DeepSeek-OCR-2 in grounded document mode, following the model card and the uv-scripts recipe `deepseek-ocr2-vllm.py` (the
+DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).
 
-- The prompt `<|grounding|>Convert the document to markdown.` as a text part after the image (the recipe's raw
+- The prompt `<|grounding|>Convert the document to markdown.` as a text part after the image (the card's raw
   `<image>\n<|grounding|>...` prompt becomes image + text; the chat template inserts the image token).
 - No resolution mode is passed (no `mm_processor_kwargs`), so vLLM's default applies: Gundam (base 1024, tiles
   of 640, crop mode, up to 6 crops), the mode the card recommends for documents.
@@ -15,8 +15,8 @@ Strien's `deepseek-ocr2-vllm.py`; the DeepSeek-OCR and DeepSeek-OCR-2 drivers ar
   is not verified).
 - Serve flags: `--max-model-len 8192` (the native context), `--trust-remote-code`, no prefix caching, no
   multimodal processor cache, one image per prompt.
-- The completion is stored verbatim, grounding markup included; the board's `deepseek_strip_grounding`
-  (postproc 3) stays in its harness, `linecaster.adapters.deepseek_ocr.strip_grounding` is the same rule.
-  `--gpu-memory-utilization` is the deployment's choice (board 0.8 on an A10G).
+- The completion is stored verbatim, grounding markup included; `linecaster.adapters.deepseek_ocr.strip_grounding`
+  removes it for whoever wants the text alone. `--gpu-memory-utilization` is the deployment's choice.
 
-Validated on the 60-page sample (NOTES.md, "Board models as chat specs"): CER reading 0.0576 for linecaster's run on an L4 against 0.0628 for the board's own outputs on the same pages.
+Validated against a reference implementation's outputs on a 60-page sample of historic print (NOTES.md, "Chat
+presets: validation on the 60-page sample").

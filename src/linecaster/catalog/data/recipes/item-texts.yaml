@@ -8,8 +8,6 @@ presets:
   normalization: latin-historic@1
   composition: docling-composition@1
 provenance:
-  derived_from:
-  - storytracer/squiddleocr 0.3, the item texts and the per-item document (`--per-document`)
   authored_by:
   - Sebastian Majstorovic
   created: 2026-11-06

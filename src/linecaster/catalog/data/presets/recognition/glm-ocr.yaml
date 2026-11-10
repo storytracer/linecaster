@@ -36,7 +36,6 @@ capabilities:
   - text
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/glm-ocr-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:glm-ocr.py
   - zai-org/GLM-OCR@ca5d8b3e287e52589e37c28385d9655ee4372f9d:README.md
   created: 2026-11-03

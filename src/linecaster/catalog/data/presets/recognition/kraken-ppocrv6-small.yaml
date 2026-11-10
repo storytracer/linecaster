@@ -21,7 +21,6 @@ capabilities:
   - line_confidences
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
-    -m small'
+  - small-models-for-glam/kraken-ppocrv6-small@49c249bf81d95ab2c5f699638d066f7935da6f16:README.md
   created: 2026-11-03
 support: experimental

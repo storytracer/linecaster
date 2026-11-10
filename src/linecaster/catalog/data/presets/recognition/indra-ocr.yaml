@@ -21,7 +21,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/indra-ocr-port.py
   - pypi.org/project/indra-ocr/1.1.2:indra_ocr/__init__.py
   - datalab-to/indra-ocr@bd02167fdf2005a19962cc15188f8496a2c87d3b:README.md
   created: 2026-11-06

@@ -42,7 +42,6 @@ capabilities:
   - text
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/qwen35-9b-port.py
   - Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a:README.md
   created: 2026-11-03
 support: core

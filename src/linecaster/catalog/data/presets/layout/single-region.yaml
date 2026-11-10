@@ -13,7 +13,5 @@ capabilities:
   - regions
   - reading_order
 provenance:
-  derived_from:
-  - squiddleocr's `--layout none` (the whole page one text region), as linecaster's SingleRegionLayout block did it before phase 4
   created: 2026-11-06
 support: core

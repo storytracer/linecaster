@@ -37,7 +37,6 @@ capabilities:
   - html
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/surya-ocr25-port.py
   - pypi.org/project/surya-ocr/0.23.0:surya/inference/backends/vllm.py
   - datalab-to/surya-ocr-2.5@00c843e9cae45611dca0a6dc2c9bbbf2dadaaed3:README.md
   created: 2026-11-06

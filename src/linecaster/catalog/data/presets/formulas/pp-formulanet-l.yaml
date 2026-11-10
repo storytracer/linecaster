@@ -17,7 +17,6 @@ capabilities:
   - latex
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7);
-    --formula-model PP-FormulaNet-L'
+  - PaddlePaddle/PP-FormulaNet-L_safetensors@69869f2891cc61347d230ef234bcc8b8d297c43a:README.md
   created: 2026-11-03
 support: experimental

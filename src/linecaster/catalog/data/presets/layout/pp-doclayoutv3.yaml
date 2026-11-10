@@ -71,6 +71,6 @@ capabilities:
   - reading_order
 provenance:
   derived_from:
-  - 'storytracer/squiddleocr@7c8a052 (the settings its goldens were recorded with: sample-60, tables-7)'
+  - PaddlePaddle/PP-DocLayoutV3_onnx@46bbdf188bb0a772c08aed74882ce7e51a8f1ea6:README.md
   created: 2026-11-03
 support: core

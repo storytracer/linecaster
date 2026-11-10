@@ -1,4 +1,4 @@
-squiddleocr's recomposition (its `--text reflow`): the rows of each text region joined into paragraphs, from
+The rows of each text region joined into paragraphs, from
 geometry and Unicode's character properties, never from a language name; the squiddle combination's recomposition.
 
 - Paragraph breaks: a row indented by `indent` (0.8 em) from the start margin, a gap above it of about a blank

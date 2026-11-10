@@ -40,7 +40,6 @@ capabilities:
   - text
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/paddleocr-vl-16-port.py
   - uv-scripts/ocr@4ae561fcfef053f60c310cd04f7a7fa0e2fadce2:paddleocr-vl-1.6.py
   - PaddlePaddle/PaddleOCR-VL-1.6@66317acc4c9fc17bd154591ce650735cd2855f3e:README.md
   created: 2026-11-03

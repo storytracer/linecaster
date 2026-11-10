@@ -35,7 +35,6 @@ capabilities:
   - markdown
 provenance:
   derived_from:
-  - finebooks/bhl-ocr-eval@76bc19d40c8fcaed7e3d99dd50fdb93603dfac6c:drivers/qianfan-ocr-port.py
   - baidu/Qianfan-OCR@623bf5d20d446abdb36606aa4547cd0c18886fe5:README.md
   created: 2026-11-03
 support: core

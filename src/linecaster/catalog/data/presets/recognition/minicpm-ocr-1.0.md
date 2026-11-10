@@ -13,15 +13,14 @@ region type. Here the layout comes from linecaster's layout step and `RegionReco
   read (the SDK's chart and seal recognition are on).
 - Crop: from the full-resolution page (no page scaling, no padding), the box truncated to whole pixels as
   PaddleX's `CropByBoxes` does, pixels outside the region's polygon white.
-- Serve flags from OpenBMB's SDK tutorial (as in the board job), served as `minicpm-ocr`; DSpark speculative
-  decoding with the matching draft model (`minicpm-ocr-1.0-dspark`, 15 speculative tokens; mean acceptance
-  length about 7 on forge; `--no-speculative` in the recipe turns it off).
-- vLLM nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`) with transformers at OpenBMB's pin: on HF Jobs the
-  board's MiniCPM-OCR image. `ninja` must be on PATH or the engine fails at startup.
+- Serve flags from OpenBMB's SDK tutorial, served as `minicpm-ocr`; DSpark speculative decoding with the matching
+  draft model (`minicpm-ocr-1.0-dspark`, 15 speculative tokens; `--no-speculative` in the recipe turns it off).
+- vLLM nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`) with transformers at OpenBMB's pin, the image named in
+  `serve.image`. `ninja` must be on PATH or the engine fails at startup.
 - `linecaster.adapters.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
-  `linecaster[minicpm-ocr]`); the board row kept `footnote` and `aside_text`.
+  `linecaster[minicpm-ocr]`), keeping `footnote` and `aside_text`.
 
-Measured against OpenBMB's SDK on the same server and pages (the evidence, from NOTES.md, "MiniCPM-OCR 1.0 through
-RegionRecognizer"). Not reproduced: the SDK's PaddleX box filtering (`filter_overlap_boxes`) and its merging of aligned text
+Measured against OpenBMB's SDK on the same server and pages (NOTES.md, "MiniCPM-OCR 1.0 through ChatRegionStep").
+Not reproduced: the SDK's PaddleX box filtering (`filter_overlap_boxes`) and its merging of aligned text
 blocks into one composite crop (`merge_blocks`); linecaster's layout step runs PP-DocLayoutV3's ONNX export
-with its own containment suppression. Experimental: validated against the SDK, not the board.
+with its own containment suppression. Experimental.

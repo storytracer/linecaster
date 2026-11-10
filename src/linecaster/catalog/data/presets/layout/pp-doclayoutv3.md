@@ -1,6 +1,5 @@
 The squiddle combination's layout step: PP-DocLayoutV3 (PaddleOCR-VL-1.5's layout model) on ONNX Runtime.
-It replaced PP-DocLayout_plus-L as squiddleocr's default on 2026-09-07 because it predicts region polygons and
-the reading order itself: PaddleX returns the boxes sorted by the model's order, so the list position is the
+Unlike PP-DocLayout_plus-L it predicts region polygons and the reading order itself: PaddleX returns the boxes sorted by the model's order, so the list position is the
 reading order (furniture included) and no XY-cut is needed.
 
 Post-processing as PaddleOCR-VL-1.5's pipeline configures it, written out here so the edition does not depend on
