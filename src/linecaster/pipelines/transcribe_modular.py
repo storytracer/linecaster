@@ -2,12 +2,12 @@ r"""The modular pipeline: smaller models, picked step by step from the catalog's
 a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
 optionally table and formula models after; then Unicode NFC and the rule-based steps, each a preset too: typography (--typography),
 recomposition (--recomposition; without one the page stays as laid out) and page composition (--composition). Page
-records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
-`<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant (an
-item stage: the item recomposed as one, normalized by --normalization). The script's environment has PaddleX and
-Tesseract; kraken's presets (the squiddle recipe's recognition) run in an environment that adds kraken (squiddleocr's
-`squiddle.py`, or a script of your own that runs this shape), or here with --backend served --endpoint against a server
-started from one.
+records in OUT/pages; with --files per-page files in the --formats asked for (`<item>/<page><suffix>.<ext>`, or with
+--naming flat `<page><suffix>.<ext>` in one folder; --suffix SUFFIX, e.g. `.paddle`), with --item-texts one text per
+item in each text variant (an item stage: the item recomposed as one, normalized by --normalization). The script's
+environment has PaddleX and Tesseract; kraken's presets (the squiddle recipe's recognition) run in an environment that
+adds kraken (a script of your own that runs this shape with linecaster-kraken), or here with --backend served
+--endpoint against a server started from one.
 
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
         --recognition paddlex-ppocrv6-medium
@@ -19,7 +19,7 @@ started from one.
     ... --set recognition.batch_size=4          # an option over the preset's
     ... --set composition.sections=true         # also for the rule-based steps
     ... --backend served                        # a server in the task
-    ... --files OUT/files --formats md,txt,json --naming squiddleocr --furniture    # squiddleocr's per-page files
+    ... --files OUT/files --formats md,txt,json --naming flat --suffix .paddle --furniture   # <page>.paddle.md, ...
     uv run pipelines/transcribe_modular.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
     uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8        # then --on ray --tasks 64
     ... --on hf-jobs --namespace NS --commit <sha> --tasks 64
@@ -41,8 +41,8 @@ from ..runtime import run
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: the rule-based steps, each a slot (a preset; none: the step does not run)
 RULE_STEPS = ("typography", "recomposition", "normalization", "composition")
-#: --naming: how per-page files are named
-NAMING = {"item": {}, "squiddleocr": {"suffix": ".paddle", "bucket_by_item": False}}
+#: --naming: where per-page files go (a folder per item, or one folder)
+NAMING = {"item": {"bucket_by_item": True}, "flat": {"bucket_by_item": False}}
 
 
 def options(ap):
@@ -61,14 +61,16 @@ def options(ap):
                                           "and json (e.g. docling-composition)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
-    ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming); none "
-                                                   "for a page a block failed on (OUT/rejects lists it)")
+    ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming, "
+                                                   "--suffix); none for a page a block failed on (OUT/rejects lists it)")
     ap.add_argument("--formats", default="hocr,alto,page,txt,md,json",
                     help=f"formats for --files, comma-separated: {', '.join(PAGE_FILE_EXTENSIONS)}")
     ap.add_argument("--naming", choices=list(NAMING), default="item",
-                    help="--files names: item, <item>/<page>.<ext>; squiddleocr, <page>.paddle.<ext> in one folder")
+                    help="--files names: item, <item>/<page><suffix>.<ext>; flat, <page><suffix>.<ext> in one folder")
+    ap.add_argument("--suffix", default="", metavar="SUFFIX",
+                    help="--files: added to each file's stem, before the extension (e.g. .paddle: <page>.paddle.md)")
     ap.add_argument("--furniture", action="store_true",
-                    help="--files: keep page headers and footers in md, txt and html (as squiddleocr does)")
+                    help="--files: keep page headers and footers in md, txt and html (by default they are left out)")
     ap.add_argument("--item-texts", metavar="DIR",
                     help="per-item texts: <variant>/<item>.txt|.md and <variant>/<rank>.jsonl.gz (needs "
                          "--recomposition and --normalization)")
@@ -127,7 +129,8 @@ def pipeline(a, script: str) -> list:
         *([Recomposer(a.recomposition, options=over.get("recomposition"))] if a.recomposition else []),
         *([Composer(a.composition, options=over.get("composition"))] if a.composition else []),
         # no files for a page a block failed on: OUT/rejects lists it, the page records keep it with its errors
-        *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, **NAMING[a.naming])]
+        *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, suffix=a.suffix,
+                          **NAMING[a.naming])]
           if a.files else []),
         run.pages(a),
         # after the page writers, the item stage: the Binder gathers each item's pages into an item record; with

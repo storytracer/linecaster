@@ -33,6 +33,18 @@ def test_the_modular_slots():
         run.describe(MODULAR, ["IN", "OUT", *MODELS[2:]])
 
 
+def test_the_modular_page_files_are_named_by_item_or_flat_with_a_suffix():
+    def writer(*argv):
+        plan = run.describe(MODULAR, ["IN", "OUT", *MODELS, "--files", "F", *argv])
+        return next(b for b in plan.stages[0].blocks if type(b).__name__ == "PageFileWriter")
+
+    w = writer()
+    assert (w.bucket_by_item, w.suffix) == (True, "")                    # <item>/<page>.<ext>
+    w = writer("--naming", "flat", "--suffix", ".paddle")
+    assert (w.bucket_by_item, w.suffix) == (False, ".paddle")            # <page>.paddle.<ext>
+    assert writer("--suffix", ".x").bucket_by_item
+
+
 def test_the_squiddle_recipe_fills_the_rule_based_slots():
     (blocks,), _ = _stages(MODULAR, ["IN", "OUT", "--recipe", "squiddle"])
     assert [b for b in blocks if b in ("Typographer", "Recomposer", "CharacterNormalizer", "Composer")] == [

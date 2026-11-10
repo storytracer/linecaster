@@ -20,6 +20,9 @@ the tags; the first is `v0.1.0`.
 - `--namespace` has no default (it was a project's namespace) and is required with `--on hf-jobs`. Who is affected:
   every launch on Hugging Face Jobs that left it out. What to do: pass `--namespace NS`, the user or organization the
   Jobs run under and are billed to; it is not taken from the logged-in account.
+- `pipelines/transcribe_modular.py`: `--naming squiddleocr` is gone; `--naming flat` writes the per-page files in one
+  folder and `--suffix SUFFIX` adds to each file's stem (with either naming). Who is affected: runs with
+  `--naming squiddleocr`. What to do: `--naming flat --suffix .paddle` writes the same `<page>.paddle.<ext>` files.
 - The catalog holds no evidence records: linecaster is not a data repository. `src/linecaster/catalog/data/evidence/`
   is gone, the generated preset and recipe pages have no Evidence table, the catalog index no CER column, and the
   docs and the presets' prose quote no measurements. The evidence format stays (`linecaster.evidence/1`,

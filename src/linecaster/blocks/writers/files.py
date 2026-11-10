@@ -55,10 +55,10 @@ class PageFileWriter(Contracted, PipelineStep):
         formats: the formats to write, keys of ``PAGE_FILE_EXTENSIONS``; an unknown one is a
             ``PipelineConfigError``.
         transcription: the transcription written.
-        suffix: added to each file's stem, before the extension (squiddleocr's names use ``".paddle"``).
+        suffix: added to each file's stem, before the extension (``".paddle"``: ``<page_id>.paddle.md``).
         furniture: keep page headers and footers in md, txt and html.
-        bucket_by_item: one folder per item; ``False`` writes ``<page_id><suffix>.<ext>`` flat, as squiddleocr
-            names its files. Pages without ``item_id`` are always written flat.
+        bucket_by_item: one folder per item; ``False`` writes ``<page_id><suffix>.<ext>`` flat, in one folder.
+            Pages without ``item_id`` are always written flat.
         detail: ``word`` (lines and words) or ``line`` (text per line) for hOCR, ALTO and PAGE.
         dividers: put ``---`` between layout regions in md.
         text_fallback: a page without a document still gets md and txt from ``Transcription.text``; ``False`` writes
