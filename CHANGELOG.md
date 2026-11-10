@@ -8,12 +8,23 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- `pipelines/transcribe_modular.py` no longer installs kraken (`linecaster-kraken`, the kraken fork, torch): it has
+  PaddleX and Tesseract only. Who is affected: anyone running a kraken preset (`kraken-ppocrv6-{tiny,small,medium}`)
+  or the `squiddle` recipe with that script or with `uv run launch.py squiddle`, in-process or with `--backend served`
+  without `--endpoint`, and HF Jobs of that script with kraken presets. The run now stops before it starts with a
+  `CatalogError` that says where kraken is. What to do: run the chain in an environment that adds kraken
+  (squiddleocr's `squiddle.py`, or your own script running `transcribe_modular.v1` with `linecaster-kraken`), or keep
+  this script and pass `--backend served --endpoint URL` with a server started from such an environment
+  (`uv run squiddle.py serve`). An existing script environment keeps kraken installed until
+  `uv sync --script pipelines/transcribe_modular.py` removes it.
 - `linecaster.runtime.jobs` no longer has `WheelJobsExecutor`, `wheel_volume`, `build_wheel`, `upload_wheel`,
   `bucket_parts`, `WHEEL_MOUNT` or `ENGINE_SCRIPT`. They served derivatives that are retired. A derivative's
   pipeline gets its Jobs' dependencies from its own script: `dependencies(commit, "<its script>.py")`.
 
 ### Changed
 
+- With `--endpoint` a pipeline no longer needs the served engines installed in its own environment: they run in the
+  server's. `pipelines/transcribe_modular.py --recipe squiddle --endpoint URL` runs against a kraken server.
 - A source is declared by the package that needs it: `linecaster-kraken` declares the kraken fork,
   `linecaster-paddlex` lists `opencv-contrib-python` and points it at the stub. `uv lock` applies the sources of path
   and git dependencies, so the pipeline scripts no longer list `pybookget`, `kraken`, `opencv-contrib-python` or

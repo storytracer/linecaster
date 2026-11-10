@@ -11,12 +11,14 @@ r"""Launch a recipe or a page preset (a model that reads whole pages) by its nam
 runs in and starts that pipeline's script, in the script's own environment.
 
     uv run launch.py                                   # the recipes and page presets
-    uv run launch.py squiddle IMAGES OUT               # a recipe: = pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle
+    uv run launch.py item-texts OUT/pages OUT2         # a recipe: = pipelines/bind.py OUT/pages OUT2 --recipe item-texts
     uv run launch.py chandra-ocr-2 IMAGES OUT          # a page preset: = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
     uv run launch.py indra-ocr IMAGES OUT              # a page engine's: = pipelines/transcribe_page.py IMAGES OUT --recognition indra-ocr
-    uv run launch.py squiddle@1 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
-    uv run launch.py squiddle IMAGES OUT --recognition kraken-ppocrv6-small   # a slot on top: recorded as an override
-    uv run launch.py item-texts OUT/pages OUT2         # the item stage: = pipelines/bind.py OUT/pages OUT2 --recipe item-texts
+    uv run launch.py squiddle IMAGES OUT --backend served --endpoint http://127.0.0.1:8100/v1
+                                                       # = pipelines/transcribe_modular.py ... --recipe squiddle, its kraken
+                                                       # served from an environment with kraken (squiddleocr: squiddle.py serve)
+    uv run launch.py squiddle@1 IMAGES OUT --recognition paddlex-ppocrv6-medium   # a slot on top: recorded as an override
+    uv run launch.py chandra-ocr-2 IMAGES OUT --on hf-jobs --commit <sha> --tasks 64
     uv run launch.py squiddle --help                   # the pipeline's options
 
 Everything after the name goes to the pipeline (``linecaster.runtime.run``), ``serve`` and ``ray`` too. Your own

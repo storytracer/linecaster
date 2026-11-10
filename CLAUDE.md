@@ -80,6 +80,10 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Every pipeline script installs `linecaster[ray]`**: `--on ray` and `ray start` run the script's own environment on
   every node (a Job leaves Ray out). PEP 723 has no includes, so what every pipeline needs is one linecaster
   requirement with extras per script, not a shared file.
+- **Pipeline scripts depend on no model choice: `pipelines/transcribe_modular.py` has PaddleX and Tesseract, not
+  kraken.** A kraken chain runs in an environment that adds kraken (squiddleocr's `squiddle.py`, a derivative's own
+  script), or with `--backend served --endpoint` against a server from one; linecaster's own kraken environment is the
+  test script `tests/test_engines_catalog.py`. kraken's torch pin then binds only the environments that chose kraken.
 - **The repository is not a uv workspace.** Engine pins conflict.
 - **No default presets**: every slot is picked or filled by a recipe. A run then names exactly what it ran.
 

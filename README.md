@@ -30,7 +30,8 @@ You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
 git clone https://github.com/storytracer/linecaster
 cd linecaster
 uv run launch.py                               # list the recipes and models
-uv run launch.py squiddle scans/ out/          # run a recipe
+uv run pipelines/transcribe_modular.py scans/ out/ --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+  --recognition paddlex-ppocrv6-medium         # the modular pipeline, a preset per step
 uv run launch.py lightonocr-2-1b scans/ out/   # run a vision-language model (needs vLLM and a GPU)
 ```
 
@@ -42,10 +43,12 @@ You get one page record per page in `out/pages/`. Add `--files out/files --forma
 
 ## 🧭 Three ways to transcribe
 
-**1. A recipe**: a tested combination of presets, one per step, with its own edition and evidence.
+**1. A recipe**: a tested combination of presets, one per step, with its own edition and evidence. The `squiddle`
+recipe reads lines with kraken, which the modular pipeline's script leaves out: it runs with [SquiddleOCR]'s
+`squiddle.py`, which adds kraken.
 
 ```bash
-uv run launch.py squiddle scans/ out/
+uv run squiddle.py scans/ out/
 ```
 
 **2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
@@ -63,7 +66,7 @@ every step; `linecaster models` lists them.
 uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
-  --recognition kraken-ppocrv6-medium \
+  --recognition paddlex-ppocrv6-medium \
   --typography ratios --recomposition unicode-recomposition --composition docling-composition
 ```
 
@@ -98,7 +101,8 @@ For large collections, fetch the images once, then transcribe, then bind the pag
 
 ```bash
 uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
-uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --recipe squiddle --item-shards 64
+uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
+  --recognition paddlex-ppocrv6-medium --item-shards 64
 uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
 ```
 
@@ -134,10 +138,14 @@ runs only the tasks that didn't finish.
 <summary><b>A model server that stays up</b></summary>
 
 ```bash
-P="--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition kraken-ppocrv6-medium"
+P="--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium"
 uv run pipelines/transcribe_modular.py serve $P
 uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
 ```
+
+A server from another environment works too: `uv run squiddle.py serve` serves the `squiddle` recipe with kraken,
+and `uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1` runs the recipe
+against it.
 
 For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
 Servers listen on loopback only.
@@ -214,7 +222,7 @@ pipeline = [
     LineDetector(P("linecaster_paddlex:PaddleLineEngine")),
     LineAssigner(),
     LineRecognizer(
-        P("linecaster_kraken:KrakenRecognitionEngine")),
+        P("linecaster_paddlex:PaddleRecognitionEngine")),
     UnicodeNormalizer(),
     Typographer("ratios@1"),
     Recomposer("unicode-recomposition@1"),
@@ -317,6 +325,7 @@ purposes. The Apache-2.0 license of the code does not apply to it. The same cred
 
 <!-- links -->
 [kraken]: https://github.com/mittagessen/kraken
+[SquiddleOCR]: https://github.com/storytracer/squiddleocr
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [Tesseract]: https://github.com/tesseract-ocr/tesseract
 [datatrove]: https://github.com/huggingface/datatrove

@@ -4,8 +4,6 @@
 #     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images,
 #     # s3fs for s3:// paths
 #     "linecaster[ray,pybookget,s3fs]",
-#     # kraken's line recognizer (it brings the kraken fork and torch)
-#     "linecaster-kraken",
 #     # PaddleX's layout, line, recognition, table and formula engines (it brings the OpenCV stub)
 #     "linecaster-paddlex",
 #     # Tesseract's line recognizer
@@ -14,7 +12,6 @@
 #
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
-# linecaster-kraken = { path = "../engines/kraken", editable = true }
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # ///

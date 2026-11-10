@@ -4,11 +4,14 @@ optionally table and formula models after; then Unicode NFC and the rule-based s
 recomposition (--recomposition; without one the page stays as laid out) and page composition (--composition). Page
 records in OUT/pages; with --files per-page files in the --formats asked for (--naming squiddleocr: flat
 `<page>.paddle.<ext>`, as squiddleocr names them), with --item-texts one text per item in each text variant (an
-item stage: the item recomposed as one, normalized by --normalization).
+item stage: the item recomposed as one, normalized by --normalization). The script's environment has PaddleX and
+Tesseract; kraken's presets (the squiddle recipe's recognition) run in an environment that adds kraken (squiddleocr's
+`squiddle.py`, or a script of your own that runs this shape), or here with --backend served --endpoint against a server
+started from one.
 
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
-        --recognition kraken-ppocrv6-medium
-    uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle     # every slot from the recipe
+        --recognition paddlex-ppocrv6-medium
+    uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle --endpoint URL   # every slot from the recipe
     ... --typography ratios --recomposition unicode-recomposition --composition docling-composition
     ... --item-texts OUT/texts --recomposition unicode-recomposition --normalization latin-historic
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \

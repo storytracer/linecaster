@@ -124,7 +124,12 @@ block passes the conformance checks of `linecaster.testing` (`check_engine`: the
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
-engines/<engine>/tests`. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
+engines/<engine>/tests`. `tests/test_engines_catalog.py` is also linecaster's only environment with kraken (with
+PaddleX and Tesseract, for the catalog's line-recognizer presets): a test script, not a pipeline script, since no
+pipeline of linecaster's names a model choice. A kraken chain runs in an environment that adds kraken
+(squiddleocr's `squiddle.py`, or a derivative's own script running `transcribe_modular.v1`), or in
+`pipelines/transcribe_modular.py` with `--backend served --endpoint` against a server started from one; with
+`--endpoint` the served engines need not be installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
 mkdocs serve`.
 
 ## Pipeline scripts
@@ -138,7 +143,7 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 | Script | Pipeline id | Does |
 |---|---|---|
 | `harvest.py` | `harvest.v1` | downloads page images (and a library's OCR, manifests) once into item folders, plus page records |
-| `transcribe_modular.py` | `transcribe_modular.v1` | lines and a recognizer, optionally layout, tables, formulas, then post-processing; every step a preset the user picks |
+| `transcribe_modular.py` | `transcribe_modular.v1` | lines and a recognizer, optionally layout, tables, formulas, then post-processing; every step a preset the user picks; PaddleX and Tesseract, no kraken |
 | `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
 | `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
@@ -164,11 +169,10 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 
 | Environment | torch | Why |
 |---|---|---|
-| `pipelines/transcribe_modular.py` | 2.14.0 | `linecaster-kraken`'s pin |
 | `tests/test_engines_catalog.py` | 2.14.0 | `linecaster-kraken`'s pin |
 | `pipelines/transcribe_page.py`, `tests/test_page_engines_catalog.py` | 2.14.0 | surya-ocr's (`>=2.7,<3`), not pinned: the version it was locked at |
 | `tools/cuda_probe.py` | 2.14.0 | its own pin: it probes the CUDA build of `linecaster-kraken`'s torch on a Jobs host |
-| `pipelines/transcribe_vlm.py`, `harvest.py`, `bind.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
+| `pipelines/transcribe_modular.py`, `transcribe_vlm.py`, `harvest.py`, `bind.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
 
 ## Executors and Jobs
 

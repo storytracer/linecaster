@@ -101,7 +101,6 @@ def test_scripts_list_no_source_their_packages_bring():
 #: only environments with linecaster-kraken are bound by it; the others take what their own dependencies allow. A lock
 #: whose torch changes fails here: a change of build is deliberate and recorded in NOTES.md
 TORCH = {
-    "pipelines/transcribe_modular.py": ("2.14.0", "linecaster-kraken's pin"),
     "tests/test_engines_catalog.py": ("2.14.0", "linecaster-kraken's pin"),
     "pipelines/transcribe_page.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
     "tests/test_page_engines_catalog.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
@@ -160,7 +159,7 @@ def test_wheels_for_both_machines(script):
 
 def test_pipelines_feed_the_jobs_helper():
     """A Job installs linecaster and the engine packages from the archive at the commit, and the sources the packages
-    declare themselves from the script's lock: pybookget's archive, the kraken fork at its locked commit, the stub."""
+    declare themselves from the script's lock: pybookget's archive and the OpenCV stub."""
     modular, vlm = ROOT / "pipelines/transcribe_modular.py", ROOT / "pipelines/transcribe_vlm.py"
     repo = "https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     pybookget = "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"
@@ -170,9 +169,9 @@ def test_pipelines_feed_the_jobs_helper():
         assert pybookget in deps                       # an archive, no git (the vLLM image has none)
         assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
-    assert any(d.startswith("kraken @ git+https://github.com/storytracer/kraken@48eecb78")
-               for d in dependencies("abc123", modular))
-    assert not any(_name(d) in ("lightning", "torch", "kraken") for d in dependencies("abc123", vlm))
+    for script in (modular, vlm):                   # kraken runs in an environment that adds it, not in these
+        assert not any(_name(d) in ("lightning", "torch", "kraken", "linecaster-kraken")
+                       for d in dependencies("abc123", script))
     # without engines: linecaster with its extras and the sources they need, no engines
     assert dependencies("abc123", vlm, engines=False) == [f"linecaster[pybookget,s3fs] @ {repo}", pybookget]
 

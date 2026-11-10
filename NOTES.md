@@ -2,6 +2,30 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Dependencies cleaned up; the modular script without kraken (2026-11-10, spark)
+
+- `uv lock` (and `uv lock --script`, uv 0.13.6) applies the `[tool.uv.sources]` of path and git dependencies, not only a
+  project's or script's own: a script with `linecaster[pybookget]` from a path or a git tag and no direct `pybookget`
+  locked pybookget from linecaster's own source; a script with `linecaster-paddlex` from git and no direct
+  `opencv-contrib-python` locked the stub as a git subdirectory at the same commit (a relative path source inside a
+  git dependency), and listing it directly as well gave the same lock. The pip interface (`uv pip compile`,
+  `uv run --with`) does not apply them: `linecaster[pybookget] @ <archive>` alone failed (pybookget is not on PyPI).
+  Hence the sources in the packages that need them, and `jobs.dependencies` reading the rest from the script's lock.
+- Relocking the scripts with their direct `pybookget`, `kraken`, `opencv-contrib-python` and `s3fs` removed, and the
+  `s3fs` extra instead, kept every package and version in every lock; dropping `torch==2.14.0` from
+  `transcribe_page.py`'s overrides kept torch 2.14.0 there (surya-ocr allows `>=2.7,<3`).
+- `transcribe_modular.py` without `linecaster-kraken`: 219 → 184 packages, all removals (kraken, torch 2.14.0,
+  torchvision, triton, Lightning, coremltools, the CUDA libraries only torch used, ...); nothing else moved.
+- `uv run --script` does not remove what a script no longer lists from its cached environment: after the relock the
+  modular script's environment still had kraken and ran the `squiddle` recipe in-process, until
+  `uv sync --script pipelines/transcribe_modular.py` removed it (then the run stops with the `CatalogError`).
+- The `squiddle` recipe against a server from `tests/test_engines_catalog.py`'s environment (kraken, PaddleX,
+  Tesseract; `pipelines/transcribe_modular.py serve --recipe squiddle`) from the kraken-less script with
+  `--backend served --endpoint`: one page of the squiddle test scans, no failed pages. Not compared with an
+  in-process run.
+- The catalog's evidence records that name `pipelines/transcribe_modular.py --recipe squiddle` stay as they are: they
+  record what ran at the linecaster commit they name, when the script had kraken.
+
 ## The goldens retired (2026-11-10)
 
 squiddleocr's goldens (7c8a052) were the check that the modular pipeline reproduces squiddleocr line for line; they

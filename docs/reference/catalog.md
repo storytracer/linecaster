@@ -318,7 +318,9 @@ no default presets:
 the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
-The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-based steps) and `item-texts`
+The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-based steps; its recognition is
+kraken's, which `pipelines/transcribe_modular.py` leaves out, so it runs in squiddleocr's `squiddle.py`, or with
+`--backend served --endpoint` against a server started from there) and `item-texts`
 (`bind.v1`: `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1`, the item stage's default
 combination).
 

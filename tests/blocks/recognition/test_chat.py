@@ -228,7 +228,9 @@ def test_job_dependencies_without_kraken():
     deps = dependencies("abc123", ROOT / "pipelines/transcribe_vlm.py")
     assert any(d.startswith("linecaster-paddlex @ ") for d in deps)
     assert not any("kraken" in d or "lightning" in d or "git+" in d for d in deps)
-    assert any(d.startswith("linecaster-kraken @ ") for d in dependencies("abc123", ROOT / "pipelines/transcribe_modular.py"))
+    modular = dependencies("abc123", ROOT / "pipelines/transcribe_modular.py")
+    assert any(d.startswith("linecaster-paddlex @ ") for d in modular)
+    assert not any("kraken" in d for d in modular)                # kraken runs in an environment that adds it
 
 
 def test_region_recognizer_pad_explicit_wins_over_the_adapter():

@@ -208,7 +208,9 @@ def install_hint(engine: str, repo: Path = REPO) -> str:
     scripts = [f.relative_to(repo).as_posix() for f in sorted(repo.glob("pipelines/*.py"))
                if found.package in script_dependencies(f)]
     where = (f", which {' and '.join(f'`{s}`' for s in scripts)} install{'s' if len(scripts) == 1 else ''}"
-             if scripts else "")
+             if scripts else ", which no pipeline script here installs: run it in an environment that adds it "
+             "(squiddleocr's `squiddle.py` for kraken, or a script of your own), or against a server started from "
+             "one (`--backend served --endpoint URL`)")
     return (f"`{engine}` is in the engine package `{found.package}` (engines/{found.source.relative_to(repo / 'engines').parts[0]}, "
             f"not on PyPI){where}")
 

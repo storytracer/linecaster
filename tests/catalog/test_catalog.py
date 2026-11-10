@@ -372,7 +372,8 @@ def test_describing_a_recipe_imports_no_engine():
 
 
 def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
-    """Engine packages are not on PyPI: the error says where an engine is and which pipeline scripts install it."""
+    """Engine packages are not on PyPI: the error says where an engine is and which pipeline scripts install it, or,
+    for kraken, which no pipeline script installs, where it runs instead."""
     from linecaster.catalog import engine_class, engine_spec
     from linecaster.catalog.code import install_hint, script_dependencies
     from linecaster.catalog.registry import engine_ids
@@ -382,12 +383,12 @@ def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
         pytest.skip("the kraken engine is installed here")
     with pytest.raises(CatalogError, match=r"needs engine 'kraken.recognition.v1', which is not installed: "
                                            r"`kraken.recognition.v1` is in the engine package `linecaster-kraken` "
-                                           r"\(engines/kraken, not on PyPI\), which `pipelines/transcribe_modular.py` "
-                                           r"installs"):
+                                           r"\(engines/kraken, not on PyPI\), which no pipeline script here installs: "
+                                           r".*squiddle.py.*--backend served --endpoint URL"):
         engine_spec("kraken-ppocrv6-medium")
     with pytest.raises(CatalogError, match=r"`linecaster-paddlex` .*`pipelines/transcribe_modular.py` and "
                                            r"`pipelines/transcribe_vlm.py` install\); installed: "):
         engine_class("paddlex.layout.v1")
     assert install_hint("recomposition.unicode.v1") == "" and install_hint("nowhere.recognition.v1") == ""
     script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_modular.py"
-    assert {"linecaster", "linecaster-kraken", "kraken"} <= set(script_dependencies(script))
+    assert {"linecaster", "linecaster-paddlex", "linecaster-tesseract"} == set(script_dependencies(script))
