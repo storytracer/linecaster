@@ -12,7 +12,7 @@ earlier run: ``linecaster.blocks.readers.records``.
 
 Images are opened through datatrove's ``DataFolder``, so any fsspec path works (local, ``s3://``, ``hf://``);
 fsspec's settings apply (e.g. ``FSSPEC_S3_ANON=true`` for a public bucket). Absolute ``http(s)://`` image URLs
-(in a Parquet image column or a page record) are fetched with pybookget (``linecaster[pybookget]``), politely:
+(in a Parquet image column or a page record) are fetched with ``linecaster.net.http``, politely:
 rate limits (per worker: one fetcher per process, ``HTTPFetcher.shared``), retries that honor
 ``Retry-After``, requests ahead in a window that sizes itself (``linecaster.net.http.prefetched``). Manifests (IIIF, METS): ``linecaster.blocks.readers.manifests``.
 """
@@ -47,8 +47,8 @@ def _stem(path: str) -> str:
 
 class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
-    ``http(s)://`` URLs through pybookget (``linecaster[pybookget]``: rate limits, retries that honor
-    ``Retry-After``; ``http`` sets its ``Config`` fields; one ``linecaster.net.http.HTTPFetcher.shared`` per process
+    ``http(s)://`` URLs through ``linecaster.net.http`` (rate limits, retries that honor ``Retry-After``; ``http``
+    sets its ``HTTPConfig`` fields; one ``linecaster.net.http.HTTPFetcher.shared`` per process
     and configuration, so its rate limits hold across a worker's tasks; with ``http_policy``, an HTTP policy file
     (``linecaster.net.policy``), one per host's settings)."""
 
@@ -231,10 +231,10 @@ class ImageParquetReader(Contracted, ParquetReader):
     ``linecaster.runtime.run`` uses for a pipeline without engines. Each row adds ``image`` and ``metadata`` (the page
     record). The image column holds the image
     as Hugging Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as
-    plain bytes, or as a path: absolute (any fsspec URI, ``http(s)://`` through pybookget) or relative to
+    plain bytes, or as a path: absolute (any fsspec URI or an ``http(s)://`` URL) or relative to
     ``image_folder``. A row with neither bytes nor a path fails the task (a ``PageError``: the table is wrong).
 
-    An image that cannot be read (an http(s) error after pybookget's retries, a missing file, bytes that are not an
+    An image that cannot be read (an http(s) error after its retries, a missing file, bytes that are not an
     image) makes a page without image whose ``doc.metadata["errors"]`` says why (``field`` ``image``, ``raw_value``
     the image's URI), so the task goes on: later model blocks pass the page by, ``ImageFilesWriter`` writes no file
     for it, and the page records and rejects keep it. More such pages than ``max_page_errors`` (a share of the task's
@@ -252,7 +252,7 @@ class ImageParquetReader(Contracted, ParquetReader):
         image_folder: the folder relative image paths are read from; default ``data_folder``.
         read_metadata: the other columns go into the page's metadata; without it only the named columns are read.
         default_metadata: goes into every page's metadata.
-        http: pybookget ``Config`` fields (rate limits, retries) for ``http(s)://`` image paths. Their images are
+        http: ``linecaster.net.http.HTTPConfig`` fields (rate limits, retries) for ``http(s)://`` image paths. Their images are
             requested ahead of the page being given on, as many as keep the rate limits busy
             (``linecaster.net.http.prefetched``), and pages go on as their images arrive: a slow request (one being
             retried) delays only its own page. Rows read without a request (bytes, files) keep their order.

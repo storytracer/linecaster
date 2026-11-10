@@ -1,5 +1,5 @@
-"""Manifests: page images (and a library's own OCR) from items' manifests, fetched with pybookget
-(``linecaster[pybookget]``).
+"""Manifests: page images (and a library's own OCR) from items' manifests, fetched over http(s)
+(``linecaster.net.http``).
 
 A manifest lists an item's pages and their files, in order: an IIIF Presentation manifest (2 or 3) or a METS
 document with MODS (also inside an OAI-PMH response), read by ``linecaster.formats.manifests.read_manifest`` and
@@ -122,9 +122,9 @@ class ManifestReader(Contracted, BaseDiskReader):
     ``ocr_original`` (the builder puts one there when the pipeline has none), and
     ``ImageFilesWriter(ocr_folder=...)`` writes the bytes.
 
-    A manifest that cannot be read or parsed, an image or OCR file that fails after pybookget's retries, or a
+    A manifest that cannot be read or parsed, an image or OCR file that fails after its retries, or a
     response that is not an image is logged and counted (``manifests_failed``, ``pages_failed``,
-    ``pages_not_images``, ``ocr_failed``), and the task goes on. Needs the extra ``[pybookget]``.
+    ``pages_not_images``, ``ocr_failed``), and the task goes on.
 
     Pages are requested ahead, across manifests, as many as keep the rate limits busy
     (``linecaster.net.http.prefetched``), through one ``HTTPFetcher.shared`` per process and configuration, so the
@@ -148,7 +148,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         existing_ocr: also fetch each page's own OCR file (``transcription_file``).
         manifest_folder: where every manifest read is saved as fetched, ``<item_id>.json`` / ``.xml``; default: not
             saved.
-        http: pybookget ``Config`` fields over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task,
+        http: ``linecaster.net.http.HTTPConfig`` fields and ``HTTPFetcher`` settings over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task,
             ``timeout``, ``proxy``, ``iiif_format``, ``iiif_quality``, ``mets_image_groups``, ...).
         default_metadata: goes into every page's metadata.
         task_per_item: ``auto_tasks`` gives one task per item (``pipelines/harvest.py``); default about
@@ -374,7 +374,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     @staticmethod
     def _get(fetcher: HTTPFetcher, url: str, fallback_url: str | None = None):
-        """A future of the response: over http(s) with pybookget, else read at once from its folder (a METS
+        """A future of the response: over http(s) (``HTTPFetcher``), else read at once from its folder (a METS
         package with local files)."""
         if is_url(url):
             return fetcher.submit(url, fallback_url)

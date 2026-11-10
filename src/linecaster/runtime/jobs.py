@@ -212,8 +212,7 @@ def _reachable(lock: dict, roots: list[tuple[str, tuple[str, ...]]]) -> list[dic
 
 def _locked_sources(reached: list[dict], base: Path, commit: str | None, where: str) -> dict[str, str]:
     """The ``reached`` packages that do not come from an index, with their URLs: the sources the installed packages
-    declare themselves (pybookget's in linecaster, the kraken fork in linecaster-kraken, the OpenCV stub in
-    linecaster-paddlex), which ``uv lock`` applied and ``uv run --with`` would not."""
+    declare themselves (the kraken fork in linecaster-kraken, the OpenCV stub in linecaster-paddlex), which ``uv lock`` applied and ``uv run --with`` would not."""
     found = {}
     for p in reached:
         url = _locked_url(p["name"], p.get("source", {}), base, commit, where)
@@ -273,8 +272,8 @@ def dependencies(commit: str | None, script: str | Path | None = None, engines: 
       (linecaster, an engine package, the OpenCV stub) as GitHub's source archive of linecaster at ``commit``
       (``.../archive/<commit>.tar.gz#subdirectory=...``): some images (``vllm/vllm-openai``) have uv but no git
       executable. Any other path is a ``PipelineConfigError``: a Job has no copy of the folder.
-    * Requirements, the sources of the packages it installs (pybookget's in linecaster, the kraken fork in
-      linecaster-kraken, the OpenCV stub in linecaster-paddlex), from the script's lock (``<script>.lock``): every
+    * Requirements, the sources of the packages it installs (the kraken fork in linecaster-kraken, the OpenCV
+      stub in linecaster-paddlex), from the script's lock (``<script>.lock``): every
       package reachable from the script's dependencies that does not come from an index, a git one at the commit it
       was locked at.
     * Constraints: every package reachable from the script's dependencies that the lock takes from an index, at the
@@ -284,7 +283,7 @@ def dependencies(commit: str | None, script: str | Path | None = None, engines: 
     * linecaster without its ``ray`` extra: a Job does not use Ray.
 
     ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU pipeline): linecaster with the script's
-    extras and the sources it needs (pybookget), no engines, the constraints of what those reach; without a script,
+    extras and the sources its packages need, no engines, the constraints of what those reach; without a script,
     linecaster alone at ``commit``. The kraken fork needs git on the Job (its version comes from git history); the
     default Jobs image has it."""
     if needs_commit(script) and not commit:

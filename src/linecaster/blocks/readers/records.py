@@ -60,7 +60,7 @@ class PageRecordReader(Contracted, PipelineStep):
     Each pipeline of a workflow reads the previous one's ``pages/`` folder (linecaster's page writers) and adds its
     part. The records bring ``metadata`` and, with ``fetch_images``, ``image``: page records never carry the image
     bytes, so they are read again from ``page.image.uri`` through datatrove ``DataFolder``s (``http(s)://``
-    through pybookget); a URI with a fragment names a part of its file (``file.pdf#page=<n>``: that page rendered,
+    through ``linecaster.net.http``); a URI with a fragment names a part of its file (``file.pdf#page=<n>``: that page rendered,
     ``file.parquet#<page_id>``: that row's image, ``linecaster.blocks.readers.fragments``), and one that cannot be
     resolved is the page's error (field ``image``, stat ``image_errors``), never the whole file. A page's errors
     come back as ``doc.metadata["errors"]``, so later model blocks pass it by.
@@ -80,7 +80,7 @@ class PageRecordReader(Contracted, PipelineStep):
         fetch_images: read each page's image again (the part ``image``); without it the pages carry no image.
         uri_map: image URI prefixes rewritten before reading (e.g. a Hub path to a local copy of the same files).
         item_shards: the records are item shards (``<shard>/<rank>...``), each read whole by one task.
-        http: pybookget ``Config`` fields for ``http(s)://`` image URIs.
+        http: ``linecaster.net.http.HTTPConfig`` fields for ``http(s)://`` image URIs.
         provides: the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for the
             builder's checks; default: anything (``*``; reads after this reader are not checked). The builder sets it
             when it starts a stage from the page records of an earlier one.

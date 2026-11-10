@@ -88,7 +88,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--item-key", default=None, help="--parquet, --manifests with --manifest-key: the item id column")
     g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its item")
     g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
-    g.add_argument("--manifests", help="items' manifests (IIIF or METS; linecaster[pybookget]) instead of IMAGES: a "
+    g.add_argument("--manifests", help="items' manifests (IIIF or METS) instead of IMAGES: a "
                                        "folder of manifest files, a .txt/.txt.gz list (one per line: a URL, or a "
                                        "path relative to the list's folder), or with --manifest-key item tables "
                                        "(a folder of Parquet files or one .parquet file)")
@@ -124,7 +124,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     ua.add_argument("--user-agent", default=None, metavar="TEXT",
                     help="the User-Agent of every http(s) request (default: datatrove's, HF-Research/1.0)")
     ua.add_argument("--random-user-agent", action="store_true",
-                    help="a random browser User-Agent (pybookget's fake-useragent), a new one for each task")
+                    help="a random browser User-Agent (fake-useragent), a new one for each task")
     g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
     g.add_argument("--items", metavar="TABLE",
                    help="items' remote files (resources) instead of IMAGES: Parquet (a folder or one .parquet file) "
@@ -220,7 +220,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
 
 
 def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
-    """``["5/1", "200/60"]`` -> ``[(5, 1.0), (200, 60.0)]`` (pybookget's ``Config.rate_limits``)."""
+    """``["5/1", "200/60"]`` -> ``[(5, 1.0), (200, 60.0)]`` (``linecaster.net.http.HTTPConfig.rate_limits``)."""
     out = []
     for v in values:
         n, sep, secs = v.partition("/")
@@ -357,7 +357,7 @@ def run_notes(a: argparse.Namespace) -> list[str]:
 
 
 def http(a: argparse.Namespace) -> dict:
-    """pybookget ``Config`` fields from the options (``linecaster.net.http.HTTPFetcher``): ``--rate-limit`` (each
+    """``linecaster.net.http.HTTPFetcher`` settings from the options: ``--rate-limit`` (each
     worker's; with ``--proxies`` each proxy's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and the
     broker through which the workers share them (``--broker``; else ``default_broker``, ``OUT/logs/broker``, with
     proxies or an HTTP policy, whose ``broker`` goes over it)."""
