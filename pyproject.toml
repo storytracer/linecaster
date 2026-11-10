@@ -1,6 +1,6 @@
 [project]
 name = "linecaster"
-version = "0.3.0"
+version = "0.3.1"
 description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognizers plus post-processing as datatrove pipelines"
 readme = "README.md"
 license = "Apache-2.0"
