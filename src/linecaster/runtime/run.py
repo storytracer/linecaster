@@ -618,7 +618,7 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
 def preset_models(models: list[dict], installed: bool = True, served: bool = False) -> list[dict]:
     """Model dicts with a catalog ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
     engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
-    are. ``installed=False``: the engines need not be installed here (``describe_script``). ``served``: for a server,
+    are. ``installed=False``: the engines need not be installed here (``describe``). ``served``: for a server,
     which refuses the in-process-only engines."""
     out = []
     for m in models:
@@ -937,10 +937,28 @@ def parse(argv: list[str], description: str | None, options: Callable, pipeline_
     return check(ap, a)
 
 
+def describe(shape, argv: list[str], c=None, script: str | None = None):
+    """The builder's plan of the pipeline shape ``shape`` (a module of ``linecaster.pipelines``, or anything with its
+    ``options``, ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``) with the command line ``argv``, built in this
+    process without its engines (the describe mode: presets name their engines without importing them, nothing is
+    loaded or launched). ``c``: the catalog (default the installed one); ``script``: the pipeline script the blocks
+    are told about (servers would start it; default the checkout's script of the same name, if there is one)."""
+    pipeline_id = getattr(shape, "PIPELINE", None)
+    a = parse(list(argv), shape.__doc__, shape.options, pipeline_id, getattr(shape, "SLOTS", None), c)
+    a.describe_only = True
+    a.has_engines = bool(shape.models(a))
+    if script is None:
+        from ..catalog import code
+
+        found = code.script_of(shape)
+        script = str(found) if found is not None else None
+    built = shape.pipeline(a, script)
+    pipeline = built[0] if isinstance(built, tuple) else built
+    return build_plan(a, pipeline)
+
+
 def load_script(script: str | Path):
-    """A pipeline script as a module of this process (its ``__main__`` block does not run): its ``options``,
-    ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``. Its PEP 723 environment is not needed as long as nothing
-    loads an engine: blocks and backends import no engine before ``warm_up``."""
+    """A pipeline script as a module of this process (its ``__main__`` block does not run)."""
     import importlib.util
 
     path = Path(script).resolve()
@@ -951,38 +969,35 @@ def load_script(script: str | Path):
 
 
 def describe_script(script: str | Path, argv: list[str], c=None):
-    """The builder's plan of the pipeline script ``script`` with the command line ``argv``, built in this process
-    without its engines (the describe mode: presets name their engines without importing them, nothing is
-    loaded or launched)."""
-    module = load_script(script)
-    pipeline_id = getattr(module, "PIPELINE", None)
-    a = parse(list(argv), module.__doc__, module.options, pipeline_id, getattr(module, "SLOTS", None), c)
-    a.describe_only = True
-    a.has_engines = bool(module.models(a))
-    built = module.pipeline(a, str(Path(script).resolve()))
-    pipeline = built[0] if isinstance(built, tuple) else built
-    return build_plan(a, pipeline)
+    """``describe`` for a pipeline script that defines its shape itself."""
+    return describe(load_script(script), argv, c, str(Path(script).resolve()))
 
 
 def describe_recipe(ref: str, c=None) -> dict:
-    """A recipe edition's expanded pipeline: its pipeline script (by the recipe's pipeline id, in the checkout)
-    described with ``--recipe REF`` on placeholder folders (``describe_script``), in-process, one task:
-    ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
+    """A recipe edition's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
+    ``linecaster.pipelines``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
+    task: ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
     catalog the recipe is in (default the installed one)."""
     from ..blocks.base import model
-    from ..catalog import code
     from ..catalog.registry import active, catalog
+    from ..pipelines import shape
     from . import provenance
 
     c = c if c is not None else catalog()
     pipeline_id = c.resolve_recipe(ref).content["pipeline"]
-    scripts = code.pipelines() if code.REPO is not None and (code.REPO / "pipelines").is_dir() else {}
-    if pipeline_id not in scripts:
-        raise CatalogError(f"recipe {ref}: no pipeline script for {pipeline_id} (it needs the repository checkout)")
+    try:
+        found = shape(pipeline_id)
+    except PipelineConfigError as e:
+        from ..catalog import code
+
+        scripts = code.pipelines()
+        if pipeline_id not in scripts:
+            raise CatalogError(f"recipe {ref}: {e}") from e
+        found = load_script(scripts[pipeline_id].source)
     model._preset_produces.cache_clear()
     try:
         with active(c):
-            p = describe_script(scripts[pipeline_id].source, ["IMAGES", "OUT", "--recipe", ref], c)
+            p = describe(found, ["IMAGES", "OUT", "--recipe", ref], c)
     finally:
         model._preset_produces.cache_clear()
     p.check()

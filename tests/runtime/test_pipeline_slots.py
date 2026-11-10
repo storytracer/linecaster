@@ -1,4 +1,4 @@
-"""The rule-based slots of the pipeline scripts (``--typography``, ``--recomposition``, ``--normalization``,
+"""The rule-based slots of the pipeline shapes (``--typography``, ``--recomposition``, ``--normalization``,
 ``--composition``), filled by hand or by a recipe, and the item stage they make: built in the describe mode."""
 from pathlib import Path
 
@@ -7,13 +7,19 @@ import pytest
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
+from linecaster.pipelines import transcribe_modular as MODULAR
+
 PIPELINES = Path(__file__).resolve().parents[2] / "pipelines"
-MODULAR, BIND = PIPELINES / "transcribe_modular.py", PIPELINES / "bind.py"
+BIND = PIPELINES / "bind.py"
 MODELS = ["--layout", "single-region@1", "--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
 
 
-def _stages(script, argv):
-    plan = run.describe_script(script, argv)
+def _describe(shape, argv):
+    return run.describe(shape, argv) if not isinstance(shape, Path) else run.describe_script(shape, argv)
+
+
+def _stages(shape, argv):
+    plan = _describe(shape, argv)
     plan.check()
     return [[type(b).__name__ for b in s.blocks] for s in plan.stages], plan
 
@@ -27,12 +33,12 @@ def test_the_modular_slots():
     composer = next(b for b in plan.stages[0].blocks if type(b).__name__ == "Composer")
     assert composer.backend.overrides == {"sections": True}
     with pytest.raises(PipelineConfigError, match="pick --recomposition and --normalization"):
-        run.describe_script(MODULAR, ["IN", "OUT", *MODELS, "--item-texts", "T", "--recomposition",
+        run.describe(MODULAR, ["IN", "OUT", *MODELS, "--item-texts", "T", "--recomposition",
                                       "unicode-recomposition"])
     with pytest.raises(PipelineConfigError, match="no step 'composition'"):
-        run.describe_script(MODULAR, ["IN", "OUT", *MODELS, "--set", "composition.sections=true"])
+        run.describe(MODULAR, ["IN", "OUT", *MODELS, "--set", "composition.sections=true"])
     with pytest.raises(PipelineConfigError, match="pick --layout"):        # single-region@1 is a slot like any
-        run.describe_script(MODULAR, ["IN", "OUT", *MODELS[2:]])
+        run.describe(MODULAR, ["IN", "OUT", *MODELS[2:]])
 
 
 def test_the_squiddle_recipe_fills_the_rule_based_slots():
@@ -56,6 +62,6 @@ def test_bind_takes_the_item_texts_recipe():
     (blocks,), _ = _stages(BIND, ["P", "OUT", "--no-documents", "--variants", "verbatim_txt"])
     assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "ItemTextWriter"]
     with pytest.raises(PipelineConfigError, match="pick --recomposition and --normalization and --composition"):
-        run.describe_script(BIND, ["P", "OUT"])
+        _describe(BIND, ["P", "OUT"])
     with pytest.raises(PipelineConfigError, match="nothing to write"):
-        run.describe_script(BIND, ["P", "OUT", "--no-texts", "--no-documents"])
+        _describe(BIND, ["P", "OUT", "--no-texts", "--no-documents"])

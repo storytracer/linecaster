@@ -1,10 +1,10 @@
-"""Engines and pipelines described from their source (``ast``), for the docs: nothing is imported, so the
-engines need not be installed (their pins conflict; there is no environment with all of them).
+"""Engines and pipelines described from their source, for the docs. Engines are read with ``ast``: nothing of
+them is imported, so they need not be installed (their pins conflict; there is no environment with all of them).
 
 Engines: the entry points in ``engines/*/pyproject.toml`` plus linecaster's own (``chat.v1`` and the rule-based
 engines of ``linecaster.engines``), each class's docstring, ``step``, ``capabilities``, ``scripts`` and ``Options``
-fields. Pipelines: ``pipelines/*.py`` with a
-``PIPELINE`` id, their docstring, ``SLOTS`` and the options ``options()`` adds.
+fields. Pipelines: the pipeline shapes of ``linecaster.pipelines`` (imported; they import no engine), their
+``PIPELINE`` id, docstring, ``SLOTS``, the options ``options()`` adds, and their scripts in ``pipelines/``.
 """
 from __future__ import annotations
 
@@ -43,10 +43,11 @@ class Engine:
 @dataclass
 class Pipeline:
     id: str
-    source: Path
+    source: Path | None             # the pipeline script (pipelines/<name>.py), None without the checkout
     doc: str
     slots: dict[str, str]
     options: list[Option] = field(default_factory=list)
+    shape: Path | None = None       # the source file of its pipeline shape (linecaster.pipelines.<name>)
 
 
 def _doc(node) -> str:
@@ -153,17 +154,39 @@ def _arguments(fn: ast.FunctionDef) -> list[Option]:
     return out
 
 
-def pipelines(repo: Path = REPO) -> dict[str, Pipeline]:
+def script_of(shape, repo: Path | None = REPO) -> Path | None:
+    """The pipeline script that runs the pipeline shape ``shape`` (a module of ``linecaster.pipelines``): the
+    checkout's ``pipelines/<name>.py``, or ``None`` without a checkout or such a script."""
+    if repo is None:
+        return None
+    own = Path(getattr(shape, "__file__", "") or "")
+    if own.parent == repo / "pipelines":             # a script that still defines its shape itself
+        return own
+    script = repo / "pipelines" / f"{shape.__name__.rpartition('.')[2]}.py"
+    return script if script.is_file() else None
+
+
+def pipelines(repo: Path | None = REPO) -> dict[str, Pipeline]:
+    """The pipeline shapes of ``linecaster.pipelines`` by pipeline id (imported: they import no engine), each with
+    its pipeline script in the checkout ``repo`` (``source``; ``None`` without one), its docstring, slots and the
+    options ``options()`` adds (read from its source with ``ast``)."""
+    from ..pipelines import shapes
+
     found = {}
-    for f in sorted(repo.glob("pipelines/*.py")):
+    for pid, shape in shapes().items():
+        fn = ast.parse(inspect.getsource(shape.options)).body[0]
+        found[pid] = Pipeline(pid, script_of(shape, repo), inspect.cleandoc(shape.__doc__ or ""),
+                              dict(getattr(shape, "SLOTS", None) or {}), _arguments(fn),
+                              Path(inspect.getsourcefile(shape)))
+    for f in sorted(repo.glob("pipelines/*.py")) if repo is not None else ():   # scripts that define their shape
         tree = ast.parse(f.read_text(encoding="utf-8"))
         values = {t.id: _literal(n.value) for n in tree.body if isinstance(n, ast.Assign)
                   for t in n.targets if isinstance(t, ast.Name)}
-        if not isinstance(values.get("PIPELINE"), str):
+        if not isinstance(values.get("PIPELINE"), str) or values["PIPELINE"] in found:
             continue
         fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "options"), None)
         found[values["PIPELINE"]] = Pipeline(values["PIPELINE"], f, _doc(tree), values.get("SLOTS") or {},
-                                             _arguments(fn) if fn else [])
+                                             _arguments(fn) if fn else [], f)
     return found
 
 

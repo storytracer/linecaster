@@ -137,19 +137,17 @@ def positions(blocks: list[BlockDoc]) -> dict[str, tuple[list[str], list[str]]]:
 
 
 def used_in(repo: Path | None) -> dict[str, list[code.Pipeline | Path]]:
-    """Block name -> the pipeline scripts that construct it (a call of the name), found with ``ast``."""
+    """Block name -> the pipelines whose shapes (``linecaster.pipelines``) construct it (a call of the name), found
+    with ``ast``."""
     out: dict[str, list] = {}
-    if repo is None or not (repo / "pipelines").is_dir():
-        return out
-    ids = {pl.source.resolve(): pl for pl in code.pipelines(repo).values()}
-    for f in sorted((repo / "pipelines").glob("*.py")):
+    for pl in sorted(code.pipelines(repo).values(), key=lambda pl: pl.shape.name):
         names = set()
-        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+        for node in ast.walk(ast.parse(pl.shape.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Call):
                 fn = node.func
                 names.add(fn.id if isinstance(fn, ast.Name) else getattr(fn, "attr", None))
-        for n in names - {None}:
-            out.setdefault(n, []).append(ids.get(f.resolve(), f))
+        for n in sorted(names - {None}):
+            out.setdefault(n, []).append(pl)
     return out
 
 

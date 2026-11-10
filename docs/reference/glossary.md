@@ -21,7 +21,8 @@ term is added here before it is used.
 | **graph** | The dependencies between a pipeline's blocks, derived from their contracts by the builder: for checking, drawing, and cutting into stages. It is not executed as a graph. | |
 | **builder** | The code that turns a pipeline definition into stages: derives the graph, checks it, expands composites, cuts it at unit changes. | |
 | **stage** | One datatrove pipeline run as part of a longer computation; stages run one after another and hand over through files (e.g. page records written in item shards, read by the next stage). | not a "phase" |
-| **pipeline script** | A self-contained uv script in `pipelines/` (PEP 723 metadata, a lock next to it) that builds one pipeline shape and runs it on every executor. Named as a verb: `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py`. | |
+| **pipeline shape** | One way of putting blocks together, with slots for presets: the code in `linecaster.pipelines.<name>` that adds its options, names the engines they ask for and builds its blocks, with its help text, pipeline id and slots. Named like its pipeline script and its pipeline id; a derivative's script imports it the same way. | not the blocks of one run (that is the pipeline) |
+| **pipeline script** | A self-contained uv script in `pipelines/` (PEP 723 metadata, a lock next to it) that gives one pipeline shape its environment and its command line, and runs it on every executor. Named as a verb: `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `bind.py`. | |
 | **pipeline id** | A pipeline script's versioned id, its file name plus `.v<n>`: `transcribe_modular.v1`. Recipes name the pipeline they run by it. | |
 | **workflow** | The sequence of pipeline scripts for a collection: harvest → transcribe → bind. | not one pipeline; not a GitHub Actions workflow (say "CI workflow" for that) |
 | **executor**, **job**, **task**, **worker**, **shard** | datatrove's terms: the executor runs a pipeline as tasks; a job is one launch (one HF Job, one Slurm job); a task is one unit of work with its own rank; workers are tasks running at once; a shard is the part of the input one task reads. | |
@@ -49,7 +50,7 @@ term is added here before it is used.
 | **warm-up** | What a block loads before its first unit (`warm_up()`): an engine, a server, a client's secrets. Timed as its own stat. | |
 | **error budget** | The share of a task's pages a block may fail on before the task fails (`--max-page-errors`, default 1 % of at least 100 pages). | |
 | **functional parameter**, **operational parameter** | A block parameter that can change what a run writes (functional), or only where things are and how the work runs (operational: folders, ports, endpoints, windows, worker counts). `pipeline_sha256` covers the functional ones. | |
-| **describe mode** | Building a pipeline script's blocks in the current process without its engines, for its description and hash (`describe_script`). | not `--dry-run`, which runs in the script's environment |
+| **describe mode** | Building a pipeline shape's blocks in the current process without its engines, for its description and hash (`linecaster.runtime.run.describe`). | not `--dry-run`, which runs in the script's environment |
 | **secret reference** | `EnvVar("NAME")`: a credential named by its environment variable, read in the task, never stored in a pipeline or a record. | |
 | **trace**, **span** | OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes. | not telemetry |
 | **sample** | The pages that are traced: a fixed share chosen by page id, plus every page that failed. | |
