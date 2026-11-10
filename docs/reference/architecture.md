@@ -161,7 +161,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages' and fail a launch that left tasks unfinished |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the

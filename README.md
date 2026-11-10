@@ -154,7 +154,25 @@ uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8
 uv run pipelines/transcribe_modular.py scans/ out/ $P --on ray --tasks 64
 ```
 
-Images and output must be on storage every machine can reach.
+Images, output and the logging folder must be on storage every machine can reach, such as an `s3://` bucket.
+
+Each task reserves `--cpus-per-task` CPUs (default 12), `--mem-per-cpu-gb` GiB of memory per CPU (default 4, so
+48 GiB), or `--mem-per-task-gb` GiB whatever its CPUs, and one GPU. Start every worker with at least that much:
+`ray start --num-cpus`, `--memory` and `--num-gpus`. Before it submits anything, a launch checks that a live node can
+run a task, and stops with what a task needs and what the nodes have. It also logs how many tasks fit at once.
+`--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. Each task sizes its thread pools
+(OpenMP, BLAS, OpenCV, torch) to its CPUs, not to the machine's.
+
+**On Kubernetes**, one Deployment can run the head and another the workers:
+
+- Start Ray in each pod through the pipeline script (`uv run pipelines/<script>.py ray start …`), so the pods run the
+  script's locked packages.
+- Give each worker pod the CPUs, memory and GPU a task reserves, plus room for `/dev/shm` (Ray's object store),
+  and pass the same amounts to `ray start --num-cpus/--memory/--num-gpus`. A pod with one GPU holds one task.
+- With the data on object storage the pods need only ephemeral storage: the environment, the model weights and
+  Ray's temporary files.
+- Submit the run to the head with `ray job submit`, so it runs inside the cluster and outlives the session that
+  submitted it. A driver outside the cluster must reach every node.
 
 </details>
 
