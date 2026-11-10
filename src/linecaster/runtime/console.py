@@ -291,7 +291,7 @@ class Console:
         if (wait := paused()) is not None:
             parts.append("paused: server errors, " + (f"next try in {duration(wait)}" if wait else "trying"))
         if (pause := pause_left()) is not None:
-            parts.append(f"paused: HTTP {pause[1]}, requests go on in {duration(pause[0])}")
+            parts.append(f"paused: {pause[1]}, requests go on in {duration(pause[0])}")
         if (proxies := proxy_counts()) is not None:
             parts.append(f"proxies {count(proxies[0])} held, {count(proxies[1])} blocked, {count(proxies[2])} free")
         if self.shared is not None:

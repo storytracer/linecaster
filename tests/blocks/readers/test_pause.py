@@ -1,7 +1,8 @@
-"""The pause (``linecaster.net.http.Pause``): a status in a host's ``pause_on`` (429 by default) on a direct connection
-pauses the fetcher that got it until the response's ``Retry-After`` has passed (or, without one, a wait that doubles
-while the status keeps coming), then the request that got it is tried again; requests in flight extend the pause,
-never shorten it; other fetchers go on; beyond ``max_pause`` since the last successful response the run stops."""
+"""The pause (``linecaster.net.http.Pause``): a block on the direct path (a status in a host's ``block_on``, 429 by
+default) pauses the fetcher that got it until the response's ``Retry-After`` has passed (or, without one, a wait that
+doubles while the blocks keep coming, at most ``max_pause``), then the request that got it is tried again; requests in
+flight extend the pause, never shorten it; other fetchers go on; beyond ``max_pause`` since the last successful
+response the run stops."""
 import threading
 import time
 from email.utils import formatdate
@@ -9,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from linecaster.net.http import HTTPFetcher, Pause, StopRequests, close_shared, retry_after
+from linecaster.net.http import HTTPFetcher, Pause, StopRequests, block_wait, close_shared, retry_after
 from linecaster.testing import sample_png
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "trust_env": False}
@@ -60,15 +61,26 @@ def test_a_pause_lasts_as_long_as_retry_after_says():
     assert not p.paused
 
 
+def test_one_function_says_how_long_a_block_lasts():
+    """``block_wait``: Retry-After exactly (at least 1 s), keeping the doubling where it was; without it the first
+    wait, then twice the last, at most the cap."""
+    assert block_wait(None, None, 3600) == (60.0, 60.0)
+    assert block_wait(None, 60.0, 3600) == (120.0, 120.0)
+    assert block_wait(None, 2400.0, 3600) == (3600, 3600)
+    assert block_wait(30.0, 120.0, 3600) == (30.0, 120.0)
+    assert block_wait(0.0, None, 3600) == (1.0, None)
+    assert block_wait(None, None, 3600, first=300) == (300, 300)
+
+
 def test_without_retry_after_the_wait_doubles_while_the_status_keeps_coming():
     clocks = Clocks()
-    p = pause(clocks, first_wait=10, max_wait=40)
+    p = pause(clocks, first_wait=10, max_total=1000)
     waits = []
     for _ in range(4):
         p.hit(429, None, generation=p.generation)                     # a request sent after the pause before
         waits.append(p.remaining())
         clocks.advance(p.remaining())
-    assert waits == [10, 20, 40, 40]
+    assert waits == [10, 20, 40, 80]
     p.hit(429, "5", generation=p.generation)                          # its own Retry-After: that value
     assert p.remaining() == 5.0
     clocks.advance(5)
@@ -79,14 +91,14 @@ def test_without_retry_after_the_wait_doubles_while_the_status_keeps_coming():
 
 def test_statuses_for_requests_in_flight_extend_the_pause_and_never_shorten_it():
     clocks = Clocks()
-    p = pause(clocks, first_wait=10, max_wait=40)
+    p = pause(clocks, first_wait=10)
     p.hit(429, "100", generation=0)
     clocks.advance(5)
     p.hit(429, "10", generation=0)                                    # sent before the pause: ends earlier
     assert p.remaining() == 95.0
     p.hit(429, "200", generation=0)                                   # ends later: extends it
     assert p.remaining() == 200.0 and p.generation == 1                # still the same pause
-    q = pause(clocks, first_wait=10, max_wait=40)
+    q = pause(clocks, first_wait=10)
     q.hit(429, None, generation=0)
     clocks.advance(2)
     q.hit(429, None, generation=0)                                    # in flight: the same wait, not doubled
@@ -208,7 +220,7 @@ def test_a_429_to_one_fetcher_does_not_pause_another():
 
 def test_without_retry_after_the_fetcher_waits_its_own_doubling_waits():
     httpd, base, _ = server({"/a": [429, 429, 200]})
-    fetcher = HTTPFetcher(pause_wait=0.2, pause_max_wait=1.0, **FAST)
+    fetcher = HTTPFetcher(first_wait=0.2, **FAST)
     try:
         record = fetcher.get(base + "/a").extensions["linecaster.fetch"]
         assert record["tries"] == ["429", "429", "200"]
@@ -220,7 +232,7 @@ def test_without_retry_after_the_fetcher_waits_its_own_doubling_waits():
 
 def test_a_fetcher_that_would_pause_beyond_max_pause_stops_the_run():
     httpd, base, _ = server({"/a": [429]})
-    fetcher = HTTPFetcher(pause_wait=0.2, pause_max_wait=1.0, max_pause=0.5, **FAST)
+    fetcher = HTTPFetcher(first_wait=0.2, max_pause=0.5, **FAST)
     try:
         with pytest.raises(StopRequests, match="max_pause"):
             fetcher.get(base + "/a")                                       # 0.2 s, then 0.4 s would pass 0.5 s
@@ -229,9 +241,9 @@ def test_a_fetcher_that_would_pause_beyond_max_pause_stops_the_run():
         httpd.shutdown()
 
 
-def test_pause_on_empty_leaves_a_429_to_the_retries():
+def test_block_on_empty_leaves_a_429_to_the_retries():
     httpd, base, seen = server({"/a": [429]})
-    fetcher = HTTPFetcher(pause_on=[], max_retries=1, **FAST)
+    fetcher = HTTPFetcher(block_on=[], max_retries=1, **FAST)
     try:
         with pytest.raises(Exception, match="429"):
             fetcher.get(base + "/a")

@@ -269,7 +269,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     def _read(self, fetcher: HTTPFetcher, ref: str) -> tuple[bytes, str]:
         if is_url(ref):
-            response = fetcher.get(ref)
+            response = fetcher.get(ref, expect="manifest")
             return response.content, str(response.url)
         if "://" in ref or ref.startswith("/"):
             folder, name = ref.rsplit("/", 1)
@@ -368,16 +368,18 @@ class ManifestReader(Contracted, BaseDiskReader):
                     return entry, done, None
                 except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched from the source
                     pass
-        image = self._get(fetcher, resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base))
-        ocr = self._get(fetcher, resolve(page.ocr_url, base)) if self.existing_ocr and page.ocr_url else None
+        image = self._get(fetcher, resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base),
+                          expect="image")
+        ocr = (self._get(fetcher, resolve(page.ocr_url, base), expect="xml" if page.ocr_format == "alto" else None)
+               if self.existing_ocr and page.ocr_url else None)
         return entry, image, ocr
 
     @staticmethod
-    def _get(fetcher: HTTPFetcher, url: str, fallback_url: str | None = None):
-        """A future of the response: over http(s) (``HTTPFetcher``), else read at once from its folder (a METS
-        package with local files)."""
+    def _get(fetcher: HTTPFetcher, url: str, fallback_url: str | None = None, expect: str | None = None):
+        """A future of the response: over http(s) (``HTTPFetcher``; ``expect``: the format it should have), else read
+        at once from its folder (a METS package with local files)."""
         if is_url(url):
-            return fetcher.submit(url, fallback_url)
+            return fetcher.submit(url, fallback_url, expect)
         from concurrent.futures import Future
 
         future: Future = Future()

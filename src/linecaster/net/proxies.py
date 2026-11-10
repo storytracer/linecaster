@@ -2,7 +2,7 @@
 that holds its lease, so what holds per proxy (a server's rate limits per IP, its blocks) holds across every worker
 that shares the broker, on any executor and machine, and across runs pointed at the same folder.
 
-How many proxies a worker holds is its ``per_worker`` setting (a host's ``proxies_per_worker``,
+How many proxies a worker holds is its ``per_worker`` setting (an HTTP policy's ``proxies: {per_worker}``,
 ``linecaster.net.policy``):
 
 - ``"share"`` (the default, ``DEFAULT_PER_WORKER``): **a fair share per worker**, ``ceil(free / live workers)`` of the
@@ -13,17 +13,17 @@ How many proxies a worker holds is its ``per_worker`` setting (a host's ``proxie
   of those still starting. Few workers then use many proxies, which suits output on object storage, where more
   workers do not make a run faster.
 - ``1``: **one proxy per worker**. The worker claims one free proxy usable for the host it fetches and sends every
-  request through it. When it is blocked (``block``: a 429, a status in the host's ``blacklist_on``, an HTML page
-  where another format was expected) or broken (``broken``: a proxy error, no connection to it, after ``threshold``
-  failures in a row), the worker marks it, releases it and claims another free usable one at once; with none free its
+  request through it. When it is blocked (``block``: a status in the host's ``block_on``, 429 by default, or with
+  ``html`` there an HTML page where another format was expected) or broken (``broken``: a proxy error, no connection to
+  it, ``broken_after`` times in a row), the worker marks it, releases it and claims another free usable one at once; with none free its
   requests pause until a block it knows of ends (or another worker gives one back; it looks every ``FILL_SECONDS``).
   No fair share and no rebalancing: the host's rate limits per proxy are the worker's own. Using every proxy then
   takes as many workers as proxies.
 - ``N`` (a whole number above 1): **up to N per worker**, as with ``1``, claimed one by one (one when it has none
   usable, then one more at each check of its pool, ``rebalance``) up to N, never more.
 
-A block is a mark on the proxy for that host until the end the server asked for, a broken proxy one for every host
-(scope ``*``); the owner stops using the proxy there and releases it once it is blocked for every host the worker uses,
+A block is a mark on the proxy for that host until the end the server asked for (``Retry-After``), else for a wait
+that doubles on each repeat (``linecaster.net.http.block_wait``), a broken proxy one for every host (scope ``*``); the owner stops using the proxy there and releases it once it is blocked for every host the worker uses,
 and whoever claims it later sees the mark. A proxy is marked and logged once per block: the requests that were already
 on their way through it when it was blocked come back blocked or broken too, and go on through another proxy without
 a mark or a message of their own. With several hosts, a worker at its count whose proxies are all blocked for
@@ -48,6 +48,7 @@ from loguru import logger
 
 from ..broker import EVERY_SCOPE, Broker, Resource, resource_id
 from ..errors import PipelineConfigError
+from .http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait
 
 #: the broker's kind for proxies
 KIND = "proxies"
@@ -75,8 +76,8 @@ def proxy_id(proxy: str) -> str:
     return resource_id(address)
 
 
-def per_worker_setting(value, where: str = "proxies_per_worker") -> int | str:
-    """Returns a ``proxies_per_worker`` setting checked: ``"share"`` or a whole number, at least 1; raises
+def per_worker_setting(value, where: str = "per_worker") -> int | str:
+    """Returns a ``per_worker`` setting (an HTTP policy's ``proxies: {per_worker: ...}``) checked: ``"share"`` or a whole number, at least 1; raises
     ``PipelineConfigError`` for anything else.
 
     Args:
@@ -85,7 +86,7 @@ def per_worker_setting(value, where: str = "proxies_per_worker") -> int | str:
     """
     if value == SHARE or (isinstance(value, int) and not isinstance(value, bool) and value >= 1):
         return value
-    raise PipelineConfigError(f"{where}: proxies_per_worker is `share` (a fair share per worker, the default) or a "
+    raise PipelineConfigError(f"{where}: per_worker is `share` (a fair share per worker, the default) or a "
                               f"whole number of proxies, at least 1 (1: one proxy per worker), not {value!r}")
 
 
@@ -94,7 +95,7 @@ def describe_per_worker(value: int | str) -> str:
     share per worker``.
 
     Args:
-        value: a ``proxies_per_worker`` setting.
+        value: a ``per_worker`` setting.
     """
     if value == SHARE:
         return "a fair share per worker"
@@ -133,6 +134,7 @@ class ProxyPool:
         self._blocked: dict[tuple[str, str], float] = {}      # (proxy id, scope) -> end (broker's clock)
         self._turn: dict[tuple[str, str], float] = {}         # (proxy id, host) -> next free turn (``clock``)
         self._failures: dict[str, int] = {}
+        self._waits: dict[tuple[str, str], float] = {}        # (proxy id, scope) -> its last wait without Retry-After
         self._hosts: set[str] = set()
         self._survey: dict[str, Resource] = {}
         self._filled, self._filled_wall = -math.inf, -math.inf
@@ -426,23 +428,31 @@ class ProxyPool:
         if free:
             self._claim(free, want)
 
-    def block(self, proxy: str, host: str, seconds: float, **data) -> None:
-        """Marks ``proxy`` blocked for ``host`` (``*``: every host) for ``seconds``: this worker stops using it there
-        at once, and releases it when it is blocked for every host the worker uses (its next ``fill`` then claims
-        another at once). Nothing happens while a block of the proxy there (or everywhere) holds already: the
-        request was on its way before that block was known.
+    def block(self, proxy: str, host: str, seconds: float | None = None, *, cap: float = BLOCK_TTL,
+              first: float = BLOCK_FIRST_WAIT, **data) -> None:
+        """Marks ``proxy`` blocked for ``host`` (``*``: every host) for as long as
+        ``linecaster.net.http.block_wait`` says: ``seconds`` (what ``Retry-After`` asked), else ``first``, twice the
+        last such wait of this proxy there on each repeat (until it carries a successful response there,
+        ``answered``), at most ``cap``. This worker stops using it there at once, and releases it when it is blocked
+        for every host the worker uses (its next ``fill`` then claims another at once). Nothing happens while a block
+        of the proxy there (or everywhere) holds already: the request was on its way before that block was known.
 
         Args:
             proxy: the proxy URL.
             host: the host that turned it away, or ``*``.
-            seconds: how long the block lasts.
+            seconds: how long the block lasts (``Retry-After``); None: the doubling.
+            cap: the longest block without ``seconds`` (``block_ttl``).
+            first: the first block without ``seconds``.
             **data: what the mark records (the status).
         """
         pid = proxy_id(proxy)
-        until = self.broker.clock() + seconds
         with self._lock:
             if self._ends(pid, host) is not None:
                 return
+            seconds, last = block_wait(seconds, self._waits.get((pid, host)), cap, first)
+            if last is not None:
+                self._waits[(pid, host)] = last
+            until = self.broker.clock() + seconds
             self._blocked[(pid, host)] = max(until, self._blocked.get((pid, host), -math.inf))
             hosts = self._hosts | ({host} if host != EVERY_SCOPE else set())
             everywhere = all(not self._usable(pid, h) for h in hosts)
@@ -464,35 +474,43 @@ class ProxyPool:
             proxy=_redact(proxy), where="everywhere" if host == EVERY_SCOPE else f"at {host}",
             seconds=f"{seconds:.0f} s", usable=usable, held=total)
 
-    def broken(self, proxy: str, threshold: int, seconds: float) -> None:
-        """Counts a failure of ``proxy`` itself (a proxy error, no connection); after ``threshold`` in a row it is
-        marked for every host (``*``) for ``seconds``. A failure while the proxy is left out everywhere already does not
-        count: the request was on its way before.
+    def broken(self, proxy: str, after: int = BROKEN_AFTER, first: float = BROKEN_TTL, cap: float = BLOCK_TTL) -> None:
+        """Counts a failure of ``proxy`` itself (a proxy error, no connection); after ``after`` in a row it is broken:
+        marked for every host (``*``), first for ``first`` seconds, twice as long each time it breaks again before it
+        carries an answer (``answered``), at most ``cap``. A failure while the proxy is left out everywhere already
+        does not count: the request was on its way before.
 
         Args:
             proxy: the proxy URL.
-            threshold: failures in a row that leave it out.
-            seconds: how long it is left out then.
+            after: failures in a row that leave it out (``broken_after``).
+            first: how long it is left out the first time (``broken_ttl``).
+            cap: the longest it is left out (``block_ttl``).
         """
         pid = proxy_id(proxy)
         with self._lock:
             if self._ends(pid, EVERY_SCOPE) is not None:
                 return
             self._failures[pid] = self._failures.get(pid, 0) + 1
-            out = self._failures[pid] >= threshold
+            out = self._failures[pid] >= after
             if out:
                 self._failures.pop(pid)
         if out:
-            self.block(proxy, EVERY_SCOPE, seconds, status="broken")
+            self.block(proxy, EVERY_SCOPE, cap=cap, first=first, status="broken")
 
-    def answered(self, proxy: str) -> None:
-        """Notes that ``proxy`` carried an answer: its failures in a row start again.
+    def answered(self, proxy: str, host: str | None = None) -> None:
+        """Notes that ``proxy`` carried an answer: its failures in a row and the doubling of its time out as a broken
+        proxy start again; with ``host`` (a successful response from there), the doubling of its blocks there too.
 
         Args:
             proxy: the proxy URL.
+            host: the host whose successful response it carried, if any.
         """
+        pid = proxy_id(proxy)
         with self._lock:
-            self._failures.pop(proxy_id(proxy), None)
+            self._failures.pop(pid, None)
+            self._waits.pop((pid, EVERY_SCOPE), None)
+            if host is not None:
+                self._waits.pop((pid, host), None)
 
 
 _POOLS: dict[tuple, ProxyPool] = {}
@@ -515,7 +533,7 @@ def shared_pool(broker: Broker, proxies: list[str], per_worker: int | str = DEFA
         if pool is None:
             pool = _POOLS[key] = ProxyPool(broker, proxies, per_worker=per_worker)
         elif pool.per_worker != per_worker_setting(per_worker):
-            raise PipelineConfigError(f"one proxy list with proxies_per_worker {pool.per_worker!r} and "
+            raise PipelineConfigError(f"one proxy list with per_worker {pool.per_worker!r} and "
                                       f"{per_worker!r}: the hosts that share a list share its setting")
         return pool
 

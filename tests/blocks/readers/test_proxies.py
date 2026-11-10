@@ -1,6 +1,6 @@
 """A proxy list (``--proxies``, ``linecaster.net.http.read_proxies``) through the worker's proxy pool
-(``linecaster.net.proxies``): proxy files as URLs or in Webshare's formats; a broken proxy left out (threshold 1), the
-attempt retried through another; no proxy usable within max_pause stops the run; credentials never logged. The
+(``linecaster.net.proxies``): proxy files as URLs or in Webshare's formats; a broken proxy left out (after 3 proxy
+errors in a row, for 300 s), the attempt retried through another; no proxy usable within max_pause stops the run; credentials never logged. The
 proxies here are loopback servers that answer absolute-URI requests themselves (an http proxy's view)."""
 import gzip
 import socket
@@ -77,7 +77,7 @@ def test_proxy_files_as_urls_or_webshare_lines(tmp_path):
     assert redact("http://1.2.3.4:8080") == "http://1.2.3.4:8080"
 
 
-def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_path):
+def test_a_dead_proxy_is_left_out_and_its_attempts_retried_through_another(tmp_path):
     served = []
     good = proxy_server(served)
     try:
@@ -85,33 +85,35 @@ def test_a_dead_proxy_is_left_out_and_its_attempt_retried_through_another(tmp_pa
                                               f"127.0.0.1:{good.server_address[1]}\n")
         lines = []
         sink = logger.add(lines.append, level="DEBUG")
-        reader = ImageParquetReader(page_table(tmp_path, 4), item_key="book", sequence_key="page",
+        reader = ImageParquetReader(page_table(tmp_path, 6), item_key="book", sequence_key="page",
                                     http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"),
-                                          "proxies_per_worker": "share"})      # both held, the dead one's turn first
+                                          "per_worker": "share"})      # both held, the dead one's turn first
         try:
             docs = list(reader.run())
         finally:
             logger.remove(sink)
-        assert not any(failed(d) for d in docs) and len(docs) == 4
-        assert sorted(served) == [f"http://library.test/p{i}.png" for i in range(1, 5)]   # all through the good one
+        assert not any(failed(d) for d in docs) and len(docs) == 6
+        assert sorted(served) == sorted(f"http://library.test/p{i}.png" for i in range(1, 7))  # all through the good one
         tries = [t for d in docs for t in d.metadata["trace"]["fetch"][0]["tries"]]
-        # the dead one: once, or more often if requests were on their way through it before its first failure
-        assert tries.count("no-response") >= 1 and tries.count("200") == 4
+        # the dead one: three times in a row, or more often if requests were on their way through it before
+        assert tries.count("no-response") >= 3 and tries.count("200") == 6
         assert reader._opener._fetcher.proxy_counts() == (1, 1, 0)            # held, blocked, free
         logged = "".join(str(x) for x in lines)
-        assert logged.count("blocked everywhere for 3600 s") == 1                          # whatever was on its way
+        assert logged.count("blocked everywhere for 300 s") == 1                           # whatever was on its way
         assert "secret" not in logged and "***@127.0.0.1" in logged
     finally:
         good.shutdown()
 
 
 def test_no_proxy_left_stops_the_run_and_says_when_one_returns(tmp_path):
-    """Every proxy left out for longer than max_pause: the run stops (a ServerError) instead of pausing past it."""
+    """Every proxy left out for longer than max_pause: the run stops (a ServerError) instead of pausing past it. (A
+    broken proxy left out at its first error for an hour: ``broken_after`` 1, ``broken_ttl`` 3600.)"""
     from linecaster.errors import ServerError
 
     (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n127.0.0.1:{dead_port()}\n")
     reader = ImageParquetReader(page_table(tmp_path, 1), item_key="book", sequence_key="page",
-                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "max_pause": 60})
+                                http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "max_pause": 60,
+                                      "broken_after": 1, "broken_ttl": 3600})
     with pytest.raises(ServerError, match=r"no proxy left for library\.test: every one is left out \(the first "
                                           r"returns in 59 min"):
         list(reader.run())
@@ -134,7 +136,7 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
     run.allocate(a, [run.reader(a)])                                  # one task: one worker, a fair share: both
     assert run.workers_note(a) == "2 proxies available, 1 task → 1 worker, a fair share each"
     assert run.rate_note(a) == "rate limits per proxy: 150/60 · 2 proxies → up to 300/min at a server"
-    (tmp_path / "one.yaml").write_text("proxies_per_worker: 1\n")
+    (tmp_path / "one.yaml").write_text("proxies: {per_worker: 1}\n")
     one = run.check(ap, ap.parse_args(["--parquet", table, "OUT", "--rate-limit", "150/60", "--proxies",
                                        str(tmp_path / "proxies.txt"), "--http-policy", str(tmp_path / "one.yaml")]))
     one.has_engines = False
@@ -149,7 +151,7 @@ def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
 
 
 def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_long(tmp_path):
-    """A 429's Retry-After (30 s) is how long its proxy is blocked at the host, not the blacklist_ttl (an hour)."""
+    """A 429's Retry-After (30 s) is how long its proxy is blocked at the host, not the doubling from 60 s."""
     from linecaster.net.http import HTTPFetcher
 
     body = sample_png()
@@ -181,7 +183,7 @@ def test_a_proxy_answered_with_429_and_a_shorter_retry_after_is_left_out_that_lo
         fetcher = HTTPFetcher.shared(**FAST, proxy_file=str(tmp_path / "proxies.txt"))
         assert fetcher.get("http://library.test/p1.png").status_code == 200
         first, _, _ = fetcher._proxies.outlook("library.test")
-        assert 25 < first <= 30 and fetcher.proxy_counts() == (1, 1, 0)       # not 3600
+        assert 25 < first <= 30 and fetcher.proxy_counts() == (1, 1, 0)       # not 60
     finally:
         for s in servers:
             s.shutdown()
@@ -319,7 +321,7 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
                                 templates={"marcxml": "http://catalog.test/{item}/marcxml"},
                                 http={**FAST, "proxy_file": str(tmp_path / "proxies.txt"), "rate_limits": [(5, 1)],
                                       "broker": str(tmp_path / "broker"),
-                                      **({"proxies_per_worker": per_worker} if per_worker else {})})
+                                      **({"per_worker": per_worker} if per_worker else {})})
         plan = build([reader, ResourceFilesWriter(str(out)), ResourceRecordWriter(str(out / "resources"))],
                      tasks=len(items), run_folder=str(out))
         LocalExecutor(plan.stages[0].pipeline, tasks=len(items), workers=2, logging_dir=str(out / "logs"),

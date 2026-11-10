@@ -163,7 +163,7 @@ def test_a_request_waits_out_an_outage_its_errors_opened_although_a_probe_closed
     fetcher = HTTPFetcher(trust_env=False)
     calls = []
 
-    async def attempts(self, url, fallback_url=None):
+    async def attempts(self, url, fallback_url=None, expect=None):
         request = httpx.Request("GET", url)
         calls.append(url)
         if len(calls) == 1:

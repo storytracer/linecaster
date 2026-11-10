@@ -30,8 +30,8 @@ image through the pipeline in this process (``linecaster page``).
 ``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
 engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input); its
 workers, with a proxy list, follow the available proxies (those not blocked and not held by another run's workers):
-one per available proxy and at most one per CPU when the workers share them fairly (``proxies_per_worker: share``,
-the default), one per available proxy divided by N with ``proxies_per_worker`` 1 or N, at most
+one per available proxy and at most one per CPU when the workers share them fairly (``proxies: {per_worker: share}``,
+the default), one per available proxy divided by N with ``per_worker`` 1 or N, at most
 ``OBJECT_STORAGE_WORKERS`` with OUT on object storage; one when a host has rate limits without proxies (one task keeps
 them busy), and one per CPU otherwise; a pipeline with engines one task, and as many workers as tasks. ``--rate-limit``
 holds per worker: a server sees the workers running at once times it, which the run states before it starts
@@ -115,8 +115,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--proxies", default=None, metavar="FILE",
                    help="http(s) requests through these proxies: one per line, a URL or host:port[:user:pass] as "
                         "Webshare lists them; each proxy has one worker at a time (--broker), the rate limits hold "
-                        "per proxy, a proxy that is blocked (429, a block page) is left out for that host until the "
-                        "block ends, a broken one for an hour; the environment's HTTPS_PROXY then does not apply")
+                        "per proxy, a proxy that is blocked (a 429) is left out for that host until the block ends "
+                        "(Retry-After, else 60 s doubling up to an hour), a broken one (3 proxy errors in a row) for "
+                        "5 min, doubling; the environment's HTTPS_PROXY then does not apply")
     g.add_argument("--broker", default=None, metavar="PATH",
                    help="the folder (any fsspec path) through which the workers share the proxies and their blocks "
                         "(linecaster.broker; default OUT/logs/broker); runs pointed at one path share them too")
@@ -140,9 +141,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-items", type=int, default=None, metavar="N",
                    help="--items: only the first N items of the input for the whole run (a smoke test)")
     g.add_argument("--http-policy", default=None, metavar="FILE",
-                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, proxies, max_retries, pause_on, "
-                        "stop_on, ... for every host at the root, overrides per host under hosts:; "
-                        "linecaster.net.policy); the run's own options go over its root, a host's entry over both")
+                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, max_retries, block_on, stop_on, "
+                        "max_pause, proxies: {file, per_worker, block_ttl, broken_after, broken_ttl}, ... for every "
+                        "host at the root, overrides per host under hosts:; docs/reference/http.md); the run's own "
+                        "options go over its root, a host's entry over both")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")
@@ -179,8 +181,8 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "otherwise")
     g.add_argument("--workers", type=int, default=None,
                    help="tasks at once; default: a pipeline without engines with --proxies one per available "
-                        "proxy, at most one per CPU (proxies_per_worker: share, the default) or divided by "
-                        f"proxies_per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
+                        "proxy, at most one per CPU (per_worker: share in an HTTP policy, the default) or divided by "
+                        f"per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
                         "one with --rate-limit without proxies, one per CPU otherwise; all tasks with engines")
     g.add_argument("--backend", choices=["in-process", "served"], default=None,
                    help="engines inside the pipeline or behind a server in each task "
@@ -317,12 +319,7 @@ def rate_note(a: argparse.Namespace) -> str | None:
     if getattr(a, "http_policy", None):
         from ..net.policy import HTTPPolicy
 
-        options = {"rate_limits": [f"{n}/{s:g}" for n, s in a.rate_limits]} if getattr(a, "rate_limits", None) else {}
-        if getattr(a, "proxies", None):
-            options["proxies"] = a.proxies
-        if getattr(a, "random_user_agent", False):
-            options["random_user_agent"] = True
-        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy).describe(options)
+        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy, http(a)).describe()
     if not getattr(a, "rate_limits", None):
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
@@ -381,7 +378,7 @@ def http(a: argparse.Namespace) -> dict:
 def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
     """How the run's requests go out, for ``allocate``: whether a host with rate limits goes without proxies (its
     limits then hold per worker), and the proxy lists, file -> ``hosts`` (the hosts that use it; None: any host
-    without an entry), ``per_worker`` (its ``proxies_per_worker``), ``broker`` (the folder) and ``run`` (what the
+    without an entry), ``per_worker`` (its ``proxies: {per_worker}``), ``broker`` (the folder) and ``run`` (what the
     heartbeats name as the run)."""
     base = http(a)
     if getattr(a, "http_policy", None):
@@ -397,7 +394,7 @@ def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
     for host, s in entries:
         if s.get("proxy_file"):
             g = lists.setdefault(s["proxy_file"], {"hosts": set(),
-                                                   "per_worker": s.get("proxies_per_worker", DEFAULT_PER_WORKER),
+                                                   "per_worker": s.get("per_worker", DEFAULT_PER_WORKER),
                                                    "broker": s.get("broker") or s.get("default_broker"),
                                                    "run": s.get("broker_run")})
             g["hosts"].add(host)
@@ -457,7 +454,7 @@ def _plural(n: int, word: str) -> str:
 
 def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int, str]:
     """The workers the proxy lists allow and why. Per list: one per available proxy divided by its
-    ``proxies_per_worker`` (``ceil(available / N)``), or, sharing them fairly (``share``), the available proxies and
+    ``per_worker`` (``ceil(available / N)``), or, sharing them fairly (``share``), the available proxies and
     at most one per CPU; the fewest over the lists, at least one. Then at most one per task and, with OUT on object
     storage (``on_object_storage``), at most ``OBJECT_STORAGE_WORKERS``. The reason names the limits that decided."""
     import math
@@ -494,8 +491,8 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     count its reader suggests (``auto_tasks``, from the input; one if it has none), and as workers: with a proxy list
     for every host that has rate limits, from the proxies available (``available_proxies``: the proxies in the file
     less those blocked or broken for the run's hosts and those held by another run's live workers, from one listing
-    of the broker at launch): sharing them fairly (``proxies_per_worker: share``, the default) one per available
-    proxy and at most one per CPU; with ``proxies_per_worker`` 1 or N one per available proxy divided by N
+    of the broker at launch): sharing them fairly (``proxies: {per_worker: share}``, the default) one per available
+    proxy and at most one per CPU; with ``per_worker`` 1 or N one per available proxy divided by N
     (``ceil(available / N)``), never capped by the CPUs (the workers mostly wait on the network); either way at most
     one per task and, with OUT on object storage, at most ``OBJECT_STORAGE_WORKERS``, the reason in
     ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,

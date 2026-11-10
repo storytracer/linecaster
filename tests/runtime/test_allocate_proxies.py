@@ -1,6 +1,6 @@
 """The workers of a run through proxies (``linecaster.runtime.run.allocate``), from the available proxies: those in
 the file less those blocked or broken in the broker and those held by another run's live workers (the run's own
-earlier leases count as available). A fair share (``proxies_per_worker: share``, the default): one per available
+earlier leases count as available). A fair share (``proxies: {per_worker: share}``, the default): one per available
 proxy, at most one per CPU; one per worker (``1``) or up to N: one per available proxy divided by N, never capped by
 the CPUs; either way at most ``OBJECT_STORAGE_WORKERS`` with OUT on object storage. One worker with a rate-limited
 host without proxies; HF Jobs keep their rule; ``--workers`` overrides; the run says why."""
@@ -30,8 +30,8 @@ def policy(tmp_path, text: str, name: str = "policy.yaml") -> str:
 
 
 def one_each(tmp_path) -> list[str]:
-    """The options of a run with one proxy per worker (``proxies_per_worker: 1``) through ``PROXIES``."""
-    return ["--http-policy", policy(tmp_path, "proxies: PROXIES\nproxies_per_worker: 1\n", "one.yaml")]
+    """The options of a run with one proxy per worker (``proxies: {per_worker: 1}``) through ``PROXIES``."""
+    return ["--http-policy", policy(tmp_path, "proxies: {file: PROXIES, per_worker: 1}\n", "one.yaml")]
 
 
 @pytest.fixture(autouse=True)
@@ -68,15 +68,15 @@ def test_blocked_proxies_and_other_runs_leases_are_not_available(tmp_path):
     assert a.workers == 4
     assert run.workers_note(a) == ("4 proxies available (7 in the list, 2 blocked or broken, 1 held by other runs) "
                                    "→ 4 workers, 1 proxy each")
-    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.library.test: {{proxies: PROXIES, rate_limits: [\"5/1\"], "
-                                f"proxies_per_worker: 1}}\n")
+    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.library.test: {{proxies: {{file: PROXIES, per_worker: 1}}, "
+                                f"rate_limits: [\"5/1\"]}}\n")
     known = options(tmp_path, "--http-policy", hosts)
     run.allocate(known, [])
     assert known.workers == 5                                     # its only host: the block at images.library.test is not
 
 
 def test_a_rate_limited_host_without_proxies_keeps_one_worker(tmp_path):
-    a = options(tmp_path, "--http-policy", policy(tmp_path, "hosts:\n  a.library.test: {proxies: PROXIES, rate_limits: "
+    a = options(tmp_path, "--http-policy", policy(tmp_path, "hosts:\n  a.library.test: {proxies: {file: PROXIES}, rate_limits: "
                                                             "[\"5/1\"]}\n  b.library.test: {rate_limits: [\"5/1\"], direct: "
                                                             "true}\n"))
     run.allocate(a, [])
@@ -84,8 +84,8 @@ def test_a_rate_limited_host_without_proxies_keeps_one_worker(tmp_path):
 
 
 def test_up_to_n_per_worker_divides_the_available_proxies(tmp_path):
-    a = options(tmp_path, "--http-policy", policy(tmp_path, "proxies: PROXIES\nrate_limits: [\"5/1\"]\n"
-                                                            "proxies_per_worker: 3\n"))
+    a = options(tmp_path, "--http-policy", policy(tmp_path, "proxies: {file: PROXIES, per_worker: 3}\n"
+                                                            "rate_limits: [\"5/1\"]\n"))
     run.allocate(a, [])
     assert a.workers == 3 and run.workers_note(a) == "7 proxies available → 3 workers, up to 3 each"   # ceil(7 / 3)
 
@@ -119,8 +119,8 @@ def test_a_fair_share_runs_at_most_a_worker_per_cpu_and_per_proxy(tmp_path, monk
     run.allocate(tasks, [])
     assert tasks.workers == 3 and run.workers_note(tasks) == ("7 proxies available, 3 tasks → 3 workers, a fair "
                                                               "share each")
-    policy_share = options(tmp_path, "--http-policy", policy(tmp_path, "proxies: PROXIES\nrate_limits: [\"5/1\"]\n"
-                                                                       "proxies_per_worker: share\n"))
+    policy_share = options(tmp_path, "--http-policy", policy(tmp_path, "proxies: {file: PROXIES, per_worker: share}\n"
+                                                                       "rate_limits: [\"5/1\"]\n"))
     run.allocate(policy_share, [])
     assert policy_share.workers == 7                                     # said in the policy: the same
 

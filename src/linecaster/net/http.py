@@ -1,11 +1,13 @@
 """HTTP for linecaster's readers: httpx clients (HTTP/2, reused connections, the environment's proxy settings) on an
 event loop in a background thread, for blocking callers such as datatrove blocks, with rate limits
 (``linecaster.net.limits``), retries that honor ``Retry-After``, a deadline per attempt and the fallback URL on 404.
-Settings: ``HTTPConfig``.
+Settings: ``HTTPConfig``, and an HTTP policy's per host (``linecaster.net.policy``; the reference:
+``docs/reference/http.md``). The defaults follow the HTTP standards; what one site or CDN needs is opt-in per host.
 
 A request is tried up to ``max_retries + 1`` times (``HTTPFetcher._attempts``): a transport error (a timeout, a broken
-connection, a proxy error, an attempt past its deadline) and a status in ``RETRYABLE_STATUS_CODES`` (408, 425, 429,
-500, 502-504 and Cloudflare's 520-524) are tried again after ``retry_wait_min * 2**(n-1)`` seconds, at most
+connection, a proxy error, an attempt past its deadline), a status in ``RETRYABLE_STATUS_CODES`` (408, 425, 429,
+500, 502-504 and Cloudflare's 520-524) and an HTML page where an image, XML or JSON was expected (``expect``,
+``UnexpectedHTML``: a successful response, an error or login page served with 200) are tried again after ``retry_wait_min * 2**(n-1)`` seconds, at most
 ``retry_wait_max``, after the n-th failed attempt; on a direct connection at least as long as the response's
 ``Retry-After`` asks (at most ``retry_after_max``). Every other status fails at once (``httpx.HTTPStatusError``), a 404
 after trying the fallback URL, if any, with retries of its own. Retries used up raise the last error (on a direct
@@ -25,18 +27,24 @@ slow request (one being retried) delays only itself.
 
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) the workers share the proxies through the
 broker (``broker``, any fsspec folder; ``linecaster.broker``, ``linecaster.net.proxies``): each proxy has one worker
-at a time, which holds its lease, and each worker holds a fair share of the free ones (``proxies_per_worker``:
+at a time, which holds its lease, and each worker holds a fair share of the free ones (``per_worker``:
 ``"share"``, the default), one (``1``) or up to N. The host's rate limits then hold per proxy, so per IP, as servers
 count them: its owner spaces the requests through it to a host by the strictest limit (``HTTPFetcher.interval``), and
 each attempt goes through the owned proxy whose turn comes first. Each proxy has its
-own client (``HTTPFetcher._new_client``: the deadline per attempt and the records below hold as without). What leaves
-a proxy out is what is the proxy's fault: a block (a 429, until its ``Retry-After`` or for the host's
-``blacklist_ttl``; a status in the host's ``blacklist_on``; an HTML page where another format was expected) is a mark
-in the broker for that host, and a broken proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy, after
-``PROXY_BLACKLIST_THRESHOLD`` failures in a row) one for every host, for ``PROXY_BLACKLIST_TTL`` seconds. The owner
-stops using the proxy there at once and releases it when it is blocked for every host it uses (and claims another
-free one at once), and whoever claims it later sees the mark, so no worker sends a request into another's block. A block does not count as an attempt: the
-request goes on through another proxy at once. A timeout, mostly a slow server, and a server error are retried after
+own client (``HTTPFetcher._new_client``: the deadline per attempt and the records below hold as without).
+
+A **block** means "this IP was turned away", through a proxy or direct (the server only sees an IP): a status in the
+host's ``block_on`` (``BLOCK_ON``: 429) and, with ``html`` there, an HTML page where another format was expected. It
+lasts as long as ``block_wait`` says, on both paths: the response's ``Retry-After`` (at least ``PAUSE_MIN_WAIT``), else
+``BLOCK_FIRST_WAIT`` (60 s), twice the last on each repeat. Through proxies the proxy is marked in the broker for
+that host (at most ``block_ttl`` without ``Retry-After``) and the request goes on at once through another; direct the
+fetcher pauses (``Pause``, below). A block does not count as an attempt. What is in ``stop_on`` (statuses, ``html``)
+stops the run at once (``StopRequests``). A **broken proxy** (``PROXY_ERRORS``: a proxy error, no connection to the
+proxy, ``broken_after`` times in a row, 3 by default) is marked for every host, first for ``broken_ttl`` (300 s), twice
+as long each time it breaks again, at most ``block_ttl``. The owner stops using a marked proxy there at once and
+releases it when it is blocked for every host it uses (and claims another free one at once), and whoever claims it
+later sees the mark, so no worker sends a request into another's block. The doubling is kept per worker (the
+broker's marks hold the ends, not the waits). A timeout, mostly a slow server, and a server error are retried after
 the backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
 attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
 requests to that host wait (a pause: one warning when it begins and one when it ends, the wait in ``pause_seconds``)
@@ -50,13 +58,12 @@ first probe the server answers ends the pause. Requests waiting there count as w
 window does not grow, and their pages are delayed, not failed. The retries themselves are ``HTTPFetcher._attempts``'s
 (520-524 included).
 
-A fetcher also pauses when its server says it gets too many requests (``Pause``): a status in its host's ``pause_on``
-(429 by default, ``PAUSE_ON``) on a direct connection (without a proxy list; through proxies a 429 blocks that proxy
-instead, above) stops the fetcher's requests until the response's ``Retry-After`` has passed (seconds or an
-HTTP-date; without one ``PAUSE_FIRST_WAIT``, doubling while the status keeps coming, up to ``PAUSE_MAX_WAIT``). The
-request that got it waits out the pause and is tried again, without using up one of its retries (the retries never see
-the status: the response hook takes it first), and a status that comes back for a request already in flight extends
-the pause, never shortens it. Requests waiting in a pause count as waiting for the rate limits, so the window does not
+A fetcher also pauses at a block on a direct connection (``Pause``; through proxies the proxy is left out instead,
+above): the fetcher's requests wait until the block's end has passed (``block_wait``: ``Retry-After`` in seconds or
+as an HTTP-date, else 60 s doubling while the blocks keep coming, at most ``max_pause``). The request that got it
+waits out the pause and is tried again, without using up one of its retries (the retries never see the status: the
+response hook takes it first), and a block that comes for a request already in flight extends the pause, never
+shortens it. Requests waiting in a pause count as waiting for the rate limits, so the window does not
 grow. Other fetchers (other workers, other host settings) go on. A fetcher that would pause more than its host's
 ``max_pause`` (``MAX_PAUSE``, 6 hours) in all since its last successful response stops the run instead
 (``StopRequests``).
@@ -66,8 +73,8 @@ so a failed page's trace shows its attempts; and its message names what failed l
 ``ReadTimeout (no message)``; blocks are not among the attempts it counts), where httpx's own can be empty.
 
 Every fetch records its attempts (``tries``): per attempt ``"200"`` (or another status) for a response read whole,
-``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"200-html"`` for a block page through a
-proxy, ``"no-response"`` for none (a timeout, a connection or proxy error), so a trace tells a slow server from one
+``"200-cut"`` for one cut after its headers (the deadline per attempt), ``"200-html"`` for an HTML page where another
+format was expected (a failed attempt, or a block with ``html`` in ``block_on``), ``"no-response"`` for none (a timeout, a connection or proxy error), so a trace tells a slow server from one
 that answers 429 or 503.
 
 Every fetch records what it took (``fetch_record``): start and end, the host, the status, the attempts (retries,
@@ -171,10 +178,19 @@ class HTTPConfig:
 HTTP_DEFAULTS = {f.name: f.default for f in fields(HTTPConfig)}
 
 
-#: a proxy that fails this many attempts in a row itself (``PROXY_ERRORS``) is left out for every host ...
-PROXY_BLACKLIST_THRESHOLD = 1
-#: ... for this many seconds
-PROXY_BLACKLIST_TTL = 3600.0
+#: the statuses that block by default (an HTTP policy's ``block_on``): the server's "too many requests"
+BLOCK_ON = (429,)
+#: a block without ``Retry-After`` lasts this long at first, and twice as long as the last one on each repeat
+#: (``block_wait``)
+BLOCK_FIRST_WAIT = 60.0
+#: through proxies, the longest a blocked proxy is left out without ``Retry-After`` (``block_ttl``): the ceiling of
+#: the doubling, and of a broken proxy's
+BLOCK_TTL = 3600.0
+#: a proxy that fails this many attempts in a row itself (``PROXY_ERRORS``) is broken: left out for every host
+#: (``broken_after``) ...
+BROKEN_AFTER = 3
+#: ... first for this many seconds (``broken_ttl``), twice as long on each repeat, at most ``block_ttl``
+BROKEN_TTL = 300.0
 #: the httpx errors that are a broken proxy's (besides blocks), so they count against it: the proxy refused or failed
 #: the tunnel, or could not be reached; a timeout reading the server's answer (a slow server) does not
 PROXY_ERRORS = ("ProxyError", "ConnectError", "ConnectTimeout")
@@ -305,6 +321,8 @@ def last_error(error: BaseException | None) -> str:
     message (``ReadTimeout (no message)`` for httpx's silent timeouts)."""
     if error is None:
         return "unknown"
+    if isinstance(error, UnexpectedHTML):
+        return str(error)
     response = getattr(error, "response", None)
     if response is not None and getattr(response, "status_code", None) is not None:
         return f"HTTP {response.status_code}"
@@ -353,12 +371,18 @@ class _Ticket:
                 self.fetcher._waiting += 1 if queued else -1
 
 
+def _now() -> float:
+    """The fetcher's clock (``HTTPFetcher``'s ``clock``) in a fetch's task, else ``time.monotonic``."""
+    ticket = _TICKET.get()
+    return ticket.fetcher._clock() if ticket is not None else time.monotonic()
+
+
 async def _before(request) -> None:
     record = _FETCH.get()
     if record is not None:
         record["attempts"] += 1
         record["tries"].append("no-response")             # until its response comes
-        record["_t"] = time.perf_counter()
+        record["_t"] = _now()
     if (ticket := _TICKET.get()) is not None:
         ticket.queue(True)
 
@@ -368,7 +392,7 @@ async def _after(request) -> None:              # after the rate limits' hook: t
         ticket.queue(False)
     record = _FETCH.get()
     if record is not None and "_t" in record:
-        record["wait_seconds"] = round(record["wait_seconds"] + time.perf_counter() - record.pop("_t"), 4)
+        record["wait_seconds"] = round(record["wait_seconds"] + _now() - record.pop("_t"), 4)
 
 
 #: where a request keeps when its attempt went out (``request.extensions``, the event loop's clock)
@@ -425,21 +449,37 @@ class StopRequests(ServerError):
 
 
 class Paused(Exception):
-    """An attempt got a status that pauses its fetcher (``pause_on``, ``Pause``): raised by the response hook, so
-    the retries do not take it (neither an ``httpx.HTTPStatusError`` nor a ``TransportError``), and the fetch tries
-    again once the pause is over (``HTTPFetcher._fetch``)."""
+    """An attempt got a block on the direct path (``block_on``, ``Pause``): raised by the response hook (or, for an
+    HTML page, by ``HTTPFetcher._attempts``), so the retries do not take it (neither an ``httpx.HTTPStatusError`` nor
+    a ``TransportError``), and the fetch tries again once the pause is over (``HTTPFetcher._fetch``)."""
 
 
-class ProxyBlocked(Exception):
-    """An HTML page through a proxy where another format was expected: that proxy's block (made a ``TransportError``
-    where it is raised, so it ends the attempt; ``HTTPFetcher._attempts`` marks the proxy blocked for the host
-    and goes on through another)."""
+#: what the formats a fetch can expect (``HTTPFetcher.submit``'s ``expect``) are called in an error
+EXPECTED = {"image": "an image", "xml": "XML", "json": "JSON", "manifest": "a manifest (JSON or XML)"}
+
+
+class UnexpectedHTML(Exception):
+    """A successful response (2xx) with an HTML page where another format was expected (``expect``): an error page
+    served with 200, a soft 404, a login page after a redirect. Unless the host's policy has ``html`` in ``block_on``
+    or ``stop_on`` it is an ordinary failed attempt, retried; after the last one the fetch fails with it (through
+    proxies as ``MaxRetriesExceeded``'s cause). The message names the expected format and the content type."""
+
+    def __init__(self, url: str, expect: str, content_type: str | None, size: int):
+        what = EXPECTED.get(expect, expect)
+        super().__init__(f"an HTML page ({content_type or 'no content type'}, {size} bytes) where {what} was "
+                         f"expected: {url}")
 
 
 class MaxRetriesExceeded(Exception):
     """A request through the proxies used up its attempts (``max_retries + 1`` that were not blocks); the message
     names the attempts and what failed last, the cause is the last error (an ``httpx.HTTPStatusError`` for a
     status)."""
+
+
+def _unexpected_html(response, expect: str | None) -> bool:
+    """Whether ``response`` is a successful one with an HTML page where ``expect`` (not None, not ``html``) was
+    expected."""
+    return bool(expect) and expect != "html" and 200 <= response.status_code < 300 and _is_html(response)
 
 
 def _is_html(response) -> bool:
@@ -457,16 +497,14 @@ async def _headers(response) -> None:          # the first response hook: the he
     if (ticket := _TICKET.get()) is not None:
         fetcher, status = ticket.fetcher, response.status_code
         if status in fetcher.stop_on:
+            _trace(str(status))
             raise StopRequests(f"HTTP {status} from {response.request.url.host}: its policy stops "
                                "the run here (stop_on), without a retry")
-        if status in fetcher.pause_on and fetcher._proxies is None:
-            if (record := _FETCH.get()) is not None and record["tries"]:
-                record["tries"][-1] = str(status)
+        if status in fetcher.block_on and fetcher._proxies is None:     # a block on the direct path: a pause
+            _trace(str(status))
             fetcher.pause.hit(status, response.headers.get("retry-after"), ticket.generation,
                               response.request.url.host)
             raise Paused(f"HTTP {status} from {response.request.url.host}: requests pause")
-        if status < 400:
-            fetcher.pause.answered(ticket.generation)
         fetcher.breaker.record(status)
     record = _FETCH.get()
     if record is not None and record["tries"]:
@@ -474,22 +512,14 @@ async def _headers(response) -> None:          # the first response hook: the he
 
 
 async def _read(response) -> None:             # the last response hook: read whole (the deadline did not cut it)
+    _trace(str(response.status_code))
+
+
+def _trace(entry: str) -> None:
+    """The fetch's record says what its last attempt got (``tries``)."""
     record = _FETCH.get()
-    ticket = _TICKET.get()
-    if (ticket is not None and ticket.expect and ticket.expect != "html" and ticket.fetcher._proxies is not None
-            and response.status_code < 300):
-        await response.aread()
-        if _is_html(response):                   # a proxy's block page: the attempt fails, the proxy is left out
-            if record is not None and record["tries"]:
-                record["tries"][-1] = f"{response.status_code}-html"
-            import httpx
-
-            class Blocked(ProxyBlocked, httpx.TransportError):
-                pass
-
-            raise Blocked(f"an HTML page through the proxy where {ticket.expect} was expected", request=response.request)
     if record is not None and record["tries"]:
-        record["tries"][-1] = str(response.status_code)
+        record["tries"][-1] = entry
 
 
 #: a pause starts when at least this share of the attempts in the last ``BREAKER_WINDOW`` seconds got a server error,
@@ -586,16 +616,10 @@ class Breaker:
                                 else min(BREAKER_POLL, max(0.01, self.open_until - now)))
 
 
-#: the statuses that pause a fetcher's requests by default (a host's ``pause_on``): the server's "too many requests"
-PAUSE_ON = (429,)
-#: a pause without a ``Retry-After`` lasts this long at first, doubling while the status keeps coming, up to
-#: ``PAUSE_MAX_WAIT``
-PAUSE_FIRST_WAIT = 60.0
-PAUSE_MAX_WAIT = 3600.0
-#: the shortest pause, whatever ``Retry-After`` says (0, a date gone by)
+#: the shortest block, whatever ``Retry-After`` says (0, a date gone by)
 PAUSE_MIN_WAIT = 1.0
 #: the most a fetcher pauses in all since its last successful response (a host's ``max_pause``); a pause beyond it
-#: stops the run
+#: stops the run. Also the longest wait for a usable proxy, and the ceiling of the doubling on the direct path
 MAX_PAUSE = 21600.0
 #: how often a request waiting in a pause looks again (at the latest)
 PAUSE_POLL = 1.0
@@ -629,6 +653,31 @@ def retry_after(value: str | None, now: float | None = None) -> float | None:
     return max(0.0, when.timestamp() - (time.time() if now is None else now))
 
 
+def block_wait(asked: float | None, last: float | None, cap: float,
+               first: float = BLOCK_FIRST_WAIT) -> tuple[float, float | None]:
+    """How long a block lasts, on the direct path (a pause, ``Pause``) and through proxies (a proxy left out for the
+    host, ``linecaster.net.proxies.ProxyPool.block``), and how long a broken proxy is left out.
+
+    Args:
+        asked: the seconds the response's ``Retry-After`` asks for (``retry_after``), or None without one.
+        last: the last wait without ``Retry-After`` since the doubling started again (None: none).
+        cap: the longest wait without ``Retry-After`` (``block_ttl`` through proxies, ``max_pause`` direct).
+        first: the first wait without ``Retry-After``.
+
+    Returns:
+        (the wait in seconds, what ``last`` is next time): with ``Retry-After`` exactly that, at least
+        ``PAUSE_MIN_WAIT``, and ``last`` unchanged; without, ``first``, then twice ``last``, at most ``cap``.
+    """
+    if asked is not None:
+        return max(asked, PAUSE_MIN_WAIT), last
+    wait = min(first if last is None else last * 2, cap)
+    return wait, wait
+
+
+def _what(status: int | str) -> str:
+    return f"HTTP {status}" if isinstance(status, int) else "an HTML page"
+
+
 def _at(epoch: float) -> str:
     from datetime import datetime, timezone
 
@@ -636,24 +685,24 @@ def _at(epoch: float) -> str:
 
 
 class Pause:
-    """Pauses a fetcher's requests after a status its host pauses on (``pause_on``): ``hit`` starts the pause, until
-    the response's ``Retry-After`` has passed (``retry_after``; at least ``PAUSE_MIN_WAIT``), or without one for
-    ``first_wait``, doubled for each status that comes for a request sent after the pause before (up to
-    ``max_wait``); a status for a request already in flight when the pause began extends the pause to its own end,
-    never shortens it. While it lasts no request goes out (``wait``, in the request hooks before and after the rate
-    limits). ``max_total``: the most it pauses in all since the last successful response (``answered``) before the
-    next status stops the run (``StopRequests``); a pause that would pass it is not taken. Kept apart from the
-    ``Breaker`` (an outage: a share of server errors, probes): here the server says how long. ``clock`` (monotonic)
-    and ``wall_clock`` (seconds since the epoch, for an HTTP-date) can be replaced in tests. Used from the fetcher's
-    event loop only."""
+    """Pauses a fetcher's requests after a block on the direct path (a status in its host's ``block_on``, or an HTML
+    page with ``html`` there): ``hit`` starts the pause, for as long as ``block_wait`` says (the response's
+    ``Retry-After``, else ``first_wait``, doubled for each block that comes for a request sent after the pause
+    before, at most ``max_total``); a block for a request already in flight when the pause began extends the pause to
+    its own end, never shortens it. While it lasts no request goes out (``wait``, in the request hooks before and
+    after the rate limits). ``max_total``: the most it pauses in all since the last successful response
+    (``answered``) before the next block stops the run (``StopRequests``); a pause that would pass it is not taken.
+    Kept apart from the ``Breaker`` (an outage: a share of server errors, probes): here the server says how long.
+    ``clock`` (monotonic), ``wall_clock`` (seconds since the epoch, for an HTTP-date) and ``sleep`` can be replaced in
+    tests. Used from the fetcher's event loop only."""
 
-    def __init__(self, first_wait: float = PAUSE_FIRST_WAIT, max_wait: float = PAUSE_MAX_WAIT,
-                 max_total: float = MAX_PAUSE, clock: Callable[[], float] = time.monotonic,
-                 wall_clock: Callable[[], float] = time.time):
-        self.first_wait, self.max_wait, self.max_total = first_wait, max_wait, max_total
-        self._clock, self._wall = clock, wall_clock
+    def __init__(self, first_wait: float = BLOCK_FIRST_WAIT, max_total: float = MAX_PAUSE,
+                 clock: Callable[[], float] = time.monotonic, wall_clock: Callable[[], float] = time.time,
+                 sleep: Callable | None = None):
+        self.first_wait, self.max_total = first_wait, max_total
+        self._clock, self._wall, self._sleep = clock, wall_clock, sleep or asyncio.sleep
         self.until: float | None = None          # monotonic; None: no pause (or its end announced)
-        self.status: int | None = None           # the status of the pause now
+        self.status: int | str | None = None     # what began the pause now: a status, or ``html``
         self.host = ""
         self.generation = 0                      # the pauses begun
         self.spent = 0.0                         # seconds paused since the last successful response
@@ -668,38 +717,34 @@ class Pause:
     def paused(self) -> bool:
         return self.remaining() > 0
 
-    def hit(self, status: int, retry_after_header: str | None, generation: int, host: str = "") -> None:
-        """A response with ``status`` (one to pause on) and its ``Retry-After`` header, to a request that went out
-        when ``generation`` pauses had begun: start the pause or extend it; ``StopRequests`` instead when it would
-        take the pauses since the last successful response past ``max_total``."""
+    def hit(self, status: int | str, retry_after_header: str | None, generation: int, host: str = "") -> None:
+        """A block (``status``: a status in ``block_on``, or ``html``) and its response's ``Retry-After`` header, for
+        a request that went out when ``generation`` pauses had begun: start the pause or extend it; ``StopRequests``
+        instead when it would take the pauses since the last successful response past ``max_total``."""
         self._announce_end()
         now = self._clock()
         fresh = generation == self.generation and not self.paused    # sent after the pause before, if any
         asked = retry_after(retry_after_header, self._wall())
-        if asked is None:
-            if self._wait is None:
-                self._wait = self.first_wait
-            elif fresh:
-                self._wait = min(self._wait * 2, self.max_wait)
-            asked = self._wait
+        if asked is None and self._wait is not None and not fresh:
+            asked = self._wait                   # in flight when the pause began: the same wait, not doubled
         else:
-            asked = max(asked, PAUSE_MIN_WAIT)
+            asked, self._wait = block_wait(asked, self._wait, self.max_total, self.first_wait)
         ongoing = self.paused
         added = now + asked - (self.until if ongoing else now)
         if added <= 0:                           # within the pause already
             return
         if self.spent + added > self.max_total:
             raise StopRequests(
-                f"HTTP {status} from {host}: paused {_duration(self.spent)} since its last successful response, and "
-                f"another {_duration(added)} would pass max_pause ({_duration(self.max_total)}): the run stops")
+                f"{_what(status)} from {host}: paused {_duration(self.spent)} since its last successful response, "
+                f"and another {_duration(added)} would pass max_pause ({_duration(self.max_total)}): the run stops")
         self.spent += added
         if ongoing:
-            logger.debug("HTTP {status} from {host}: the pause lasts until {until}", status=status, host=host,
+            logger.debug("{what} from {host}: the pause lasts until {until}", what=_what(status), host=host,
                          until=_at(self._wall() + asked))
         else:
             self.generation += 1
             self._began, self.status, self.host = now, status, host
-            logger.warning("HTTP {status} from {host}: requests pause for {wait}, until {until}", status=status,
+            logger.warning("{what} from {host}: requests pause for {wait}, until {until}", what=_what(status),
                            host=host, wait=_duration(asked), until=_at(self._wall() + asked))
         self.until = now + asked
 
@@ -717,12 +762,12 @@ class Pause:
 
     async def wait(self) -> float:
         """Return when no pause holds, with the seconds waited (0.0 without a pause)."""
-        start, waited = time.perf_counter(), False
+        start, waited = self._clock(), False
         while (left := self.remaining()) > 0:
             waited = True
-            await asyncio.sleep(min(PAUSE_POLL, max(0.01, left)))
+            await self._sleep(min(PAUSE_POLL, max(0.01, left)))
         self._announce_end()
-        return time.perf_counter() - start if waited else 0.0
+        return self._clock() - start if waited else 0.0
 
 
 def _paused_for(seconds: float) -> None:
@@ -762,7 +807,25 @@ class HTTPFetcher:
     """GETs from blocking code: ``submit`` returns a ``concurrent.futures.Future`` of the read ``httpx.Response``,
     ``get`` waits for it. ``config``: ``HTTPConfig`` fields over its defaults (``HTTP_DEFAULTS``), e.g.
     ``rate_limits=[(5, 1), (200, 60)]``, ``iiif_format="png"``. ``waiting``: the
-    requests submitted that wait for the rate limits; ``ahead``: the window ``prefetched`` has grown to."""
+    requests submitted that wait for the rate limits; ``ahead``: the window ``prefetched`` has grown to.
+
+    Args:
+        proxy_file: a proxy list (``read_proxies``); None: direct (or the environment's proxy settings).
+        broker, default_broker, broker_run: the broker through which the workers share the proxies
+            (``linecaster.broker.shared``): ``broker``, else ``default_broker``; ``broker_run`` names the run.
+        per_worker: how many proxies of the list the worker holds (``linecaster.net.proxies``): ``"share"``, 1 or N.
+        block_on: what blocks (statuses and ``html``; default ``BLOCK_ON``): through proxies the proxy is left out
+            for the host, direct the fetcher pauses (``Pause``).
+        stop_on: what stops the run at once (statuses and ``html``; ``StopRequests``).
+        max_pause: the most the fetcher pauses in all since the host's last successful response, and the longest
+            wait for a usable proxy, before the run stops.
+        block_ttl: through proxies, the longest a blocked proxy is left out without ``Retry-After``.
+        broken_after, broken_ttl: a proxy that fails ``broken_after`` attempts in a row itself is left out for every
+            host, first for ``broken_ttl`` seconds, twice as long on each repeat, at most ``block_ttl``.
+        first_wait: the first wait of a block without ``Retry-After`` (``block_wait``).
+        clock, wall_clock, sleep: monotonic seconds, seconds since the epoch and ``asyncio.sleep``, for the waits
+            (backoff, pauses, the wait for a proxy); replaced in tests.
+    """
 
     @classmethod
     def shared(cls, **config) -> HTTPFetcher:
@@ -775,18 +838,23 @@ class HTTPFetcher:
                 fetcher = _SHARED[key] = cls(**config)
             return fetcher
 
-    def __init__(self, proxy_file: str | None = None, proxy_blacklist_threshold: int = PROXY_BLACKLIST_THRESHOLD,
-                 proxy_blacklist_ttl: float = PROXY_BLACKLIST_TTL, proxy_blacklist_on: list[int] | None = None,
-                 broker: str | None = None, default_broker: str | None = None, broker_run: str | None = None,
-                 proxies_per_worker: int | str = "share", stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
-                 pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
+    def __init__(self, proxy_file: str | None = None, broker: str | None = None, default_broker: str | None = None,
+                 broker_run: str | None = None, per_worker: int | str = "share",
+                 block_on: list[int | str] | None = None, stop_on: list[int | str] | None = None,
+                 max_pause: float = MAX_PAUSE, block_ttl: float = BLOCK_TTL, broken_after: int = BROKEN_AFTER,
+                 broken_ttl: float = BROKEN_TTL, first_wait: float = BLOCK_FIRST_WAIT,
+                 clock: Callable[[], float] = time.monotonic, wall_clock: Callable[[], float] = time.time,
+                 sleep: Callable | None = None, **config):
         self.config = HTTPConfig(**config)
         self._limiter = RateLimiter(self.config.rate_limits) if self.config.rate_limits else None
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
+        self._clock, self._wall, self._sleep = clock, wall_clock, sleep or asyncio.sleep
         self.breaker = Breaker(in_a_row=self.config.max_retries + 1)      # as many as a request's attempts
         self.stop_on = frozenset(stop_on or ())
-        self.pause_on = frozenset(PAUSE_ON if pause_on is None else pause_on) - self.stop_on
-        self.pause = Pause(pause_wait, pause_max_wait, max_pause)
+        self.block_on = frozenset(BLOCK_ON if block_on is None else block_on) - self.stop_on
+        self.block_ttl, self.broken_after, self.broken_ttl = block_ttl, broken_after, broken_ttl
+        self.first_wait = first_wait
+        self.pause = Pause(first_wait, max_pause, clock=clock, wall_clock=wall_clock, sleep=self._sleep)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, name="linecaster-http", daemon=True)
         self._thread.start()
@@ -797,15 +865,13 @@ class HTTPFetcher:
         self._client = asyncio.run_coroutine_threadsafe(client(), self._loop).result()
         self._proxies: ProxyPool | None = None
         self._proxy_clients: dict[str, object] = {}
-        self._blacklist_threshold, self._blacklist_ttl = proxy_blacklist_threshold, proxy_blacklist_ttl
-        self._blacklist_on = frozenset({429, *(proxy_blacklist_on or ())})
         self._no_proxy_since: float | None = None          # monotonic: since when no proxy is usable here
         if proxy_file:
             from .. import broker as brokers
             from .proxies import shared_pool
 
             self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
-                                        read_proxies(proxy_file), proxies_per_worker)
+                                        read_proxies(proxy_file), per_worker)
 
     def _new_client(self, proxy: str | None, rate_limited: bool = True):
         """An httpx client for ``proxy`` (None: the environment's settings) with linecaster's hooks: before a request
@@ -873,7 +939,7 @@ class HTTPFetcher:
             while True:
                 openings = self.breaker.openings
                 try:
-                    response = await self._attempts(url, fallback_url)
+                    response = await self._attempts(url, fallback_url, ticket.expect)
                     break
                 except Paused:
                     continue                   # again once the pause is over (the next attempt waits in a hook)
@@ -927,7 +993,7 @@ class HTTPFetcher:
                 if got is not None:
                     proxy, wait = got
                     if wait > 0:
-                        await asyncio.sleep(wait)
+                        await self._sleep(wait)
                         if record is not None:
                             record["wait_seconds"] = round(record["wait_seconds"] + wait, 4)
                     if not pool.usable(proxy, host):           # blocked by another request meanwhile
@@ -937,9 +1003,9 @@ class HTTPFetcher:
                     return proxy
                 if await asyncio.to_thread(pool.fill, host) or pool.has_usable(host):
                     continue                                   # claimed (here or by a request alongside)
-                started = time.perf_counter()
-                await asyncio.sleep(self._no_proxy(host))
-                _paused_for(time.perf_counter() - started)
+                started = self._clock()
+                await self._sleep(self._no_proxy(host))
+                _paused_for(self._clock() - started)
         finally:
             if ticket is not None:
                 ticket.queue(False)
@@ -948,7 +1014,7 @@ class HTTPFetcher:
         """No proxy is usable for ``host``: the pause begins (one warning) or goes on; returns how long to sleep before
         looking again. ``StopRequests`` when it would pass ``max_pause`` (a block that ends later, and no proxy that
         other workers hold), or has."""
-        now = time.monotonic()
+        now = self._clock()
         first, others, free = self._proxies.outlook(host)
         if free:                                         # one to claim at the next fill: no pause
             return FILL_WAIT
@@ -969,7 +1035,7 @@ class HTTPFetcher:
     def _proxy_usable(self, host: str) -> None:
         if self._no_proxy_since is not None:
             logger.warning("a proxy is usable for {host} again after {paused}: its requests go on", host=host,
-                           paused=_duration(time.monotonic() - self._no_proxy_since))
+                           paused=_duration(self._clock() - self._no_proxy_since))
             self._no_proxy_since = None
 
     def _backoff(self, failed: int, error: BaseException | None) -> float:
@@ -979,24 +1045,29 @@ class HTTPFetcher:
         c = self.config
         wait = min(c.retry_wait_max, c.retry_wait_min * 2 ** (failed - 1))
         response = getattr(error, "response", None)
-        if response is not None and (asked := retry_after(response.headers.get("retry-after"))) is not None:
+        if response is not None and (asked := retry_after(response.headers.get("retry-after"), self._wall())) is not None:
             wait = max(wait, min(asked, c.retry_after_max))
         return wait
 
-    async def _attempts(self, url: str, fallback_url: str | None):
+    async def _attempts(self, url: str, fallback_url: str | None, expect: str | None = None):
         """``url``'s response, tried up to ``max_retries + 1`` times; on 404 ``fallback_url`` instead, with attempts
         of its own. Without a proxy list through the fetcher's client; with one, each attempt through this worker's
-        proxy whose turn comes next (``ProxyPool``): a block (429, a status in ``blacklist_on``, an HTML page where
-        another format was expected) marks the proxy blocked for the host and goes on through another without counting
-        as an attempt, and a broken proxy (``PROXY_ERRORS``) counts toward its ``blacklist_threshold``. A transport
-        error or a status in ``RETRYABLE_STATUS_CODES`` is tried again after ``_backoff`` (a ``Retry-After`` counts on
-        a direct connection only: through proxies the next attempt goes out through another one). A status that is not
-        retried (404, 403, ...) raises ``httpx.HTTPStatusError``; attempts used up raise the last error, through proxies
-        ``MaxRetriesExceeded`` naming it; no proxy usable within ``max_pause`` raises ``StopRequests`` (the run
-        stops)."""
+        proxy whose turn comes next (``ProxyPool``).
+
+        A block (a status in ``block_on``; with ``html`` there an HTML page where ``expect`` was expected) does not
+        count as an attempt: through proxies it marks the proxy blocked for the host (``ProxyPool.block``, for as
+        long as ``block_wait`` says, at most ``block_ttl`` without ``Retry-After``) and goes on through another at
+        once; on the direct path it pauses the fetcher (``Pause``; the status's in the response hook) and the request
+        is tried again after the pause. What is in ``stop_on`` raises ``StopRequests``. A broken proxy
+        (``PROXY_ERRORS``) counts toward its ``broken_after``. A transport error, a status in
+        ``RETRYABLE_STATUS_CODES`` and an HTML page where ``expect`` was expected (``UnexpectedHTML``) are failed
+        attempts, tried again after ``_backoff`` (a ``Retry-After`` counts on the direct path only: through proxies
+        the next attempt goes out through another one). A status that is not retried (404, 403, ...) raises
+        ``httpx.HTTPStatusError``; attempts used up raise the last error, through proxies ``MaxRetriesExceeded``
+        naming it; no proxy usable within ``max_pause`` raises ``StopRequests`` (the run stops)."""
         import httpx
 
-        pool, host = self._proxies, urlsplit(url).hostname or ""
+        pool, host, ticket = self._proxies, urlsplit(url).hostname or "", _TICKET.get()
         broken = tuple(getattr(httpx, name) for name in PROXY_ERRORS)
         target, attempts, last, fell_back = url, 0, None, False
         while True:
@@ -1004,20 +1075,16 @@ class HTTPFetcher:
             client = self._proxy_client(proxy) if proxy is not None else self._client
             try:
                 response = await client.get(target)
-            except ProxyBlocked:                   # raised through proxies only
-                pool.block(proxy, host, self._blacklist_ttl, status="html")
-                continue
             except httpx.TransportError as e:
                 if proxy is not None and isinstance(e, broken):
-                    pool.broken(proxy, self._blacklist_threshold, self._blacklist_ttl)
+                    pool.broken(proxy, self.broken_after, self.broken_ttl, self.block_ttl)
                 last = e
             else:
-                status = response.status_code
+                status, asked = response.status_code, response.headers.get("retry-after")
                 if proxy is not None:
-                    if status in self._blacklist_on:
-                        asked = retry_after(response.headers.get("retry-after"))
-                        ttl = self._blacklist_ttl if asked is None else max(asked, PAUSE_MIN_WAIT)
-                        pool.block(proxy, host, ttl, status=status)
+                    if status in self.block_on:
+                        pool.block(proxy, host, retry_after(asked, self._wall()), cap=self.block_ttl,
+                                   first=self.first_wait, status=status)
                         continue
                     pool.answered(proxy)
                 # once; through proxies only when it is another URL (a direct connection asks again for the same)
@@ -1025,14 +1092,33 @@ class HTTPFetcher:
                     logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
                     target, attempts, fell_back = fallback_url, 0, True
                     continue
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as e:
-                    if status not in RETRYABLE_STATUS_CODES:
-                        raise
-                    last = e
+                if _unexpected_html(response, expect):
+                    _trace(f"{status}-html")
+                    html = UnexpectedHTML(str(response.url), expect, response.headers.get("content-type"),
+                                          len(response.content))
+                    if "html" in self.stop_on:
+                        raise StopRequests(f"{html}: its policy stops the run here (stop_on: html), without a retry")
+                    if "html" in self.block_on:
+                        if proxy is not None:
+                            pool.block(proxy, host, retry_after(asked, self._wall()), cap=self.block_ttl,
+                                       first=self.first_wait, status="html")
+                            continue
+                        self.pause.hit("html", asked, ticket.generation if ticket else self.pause.generation, host)
+                        raise Paused(f"an HTML page from {host}: requests pause")
+                    last = html
                 else:
-                    return response
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPStatusError as e:
+                        if status not in RETRYABLE_STATUS_CODES:
+                            raise
+                        last = e
+                    else:
+                        if proxy is not None:
+                            pool.answered(proxy, host)         # the doubling of its blocks there starts again
+                        elif ticket is not None:
+                            self.pause.answered(ticket.generation)
+                        return response
             attempts += 1
             if attempts > self.config.max_retries:
                 if proxy is None:
@@ -1040,19 +1126,20 @@ class HTTPFetcher:
                 raise MaxRetriesExceeded(f"after {attempts} attempts: {last_error(last)}") from last
             wait = self._backoff(attempts, last if proxy is None else None)
             if wait > 0:
-                await asyncio.sleep(wait)
+                await self._sleep(wait)
 
     def submit(self, url: str, fallback_url: str | None = None, expect: str | None = None) -> Future:
-        """A future of ``url``'s response. ``expect``: the format it should have (``xml``, ``json``, ``image``):
-        through a proxy, an HTML page instead is that proxy's block (see the module docstring)."""
+        """A future of ``url``'s response. ``expect``: the format it should have (``image``, ``xml``, ``json``,
+        ``manifest``; ``EXPECTED``): an HTML page instead is a failed attempt (``UnexpectedHTML``), or a block or a
+        stop where the host's policy has ``html`` in ``block_on`` or ``stop_on``; None: any format."""
         ticket = _Ticket(self, expect)
         ticket.queue(True)
         future = asyncio.run_coroutine_threadsafe(self._fetch(url, fallback_url, ticket), self._loop)
         future.add_done_callback(lambda _: ticket.queue(False))      # also when cancelled before it started
         return future
 
-    def get(self, url: str, fallback_url: str | None = None):
-        return self.submit(url, fallback_url).result()
+    def get(self, url: str, fallback_url: str | None = None, expect: str | None = None):
+        return self.submit(url, fallback_url, expect).result()
 
     def new_user_agent(self) -> None:
         """With ``use_fake_user_agent``: a new random browser User-Agent for the requests from now on (the readers
@@ -1101,11 +1188,11 @@ def paused() -> float | None:
     return min(waits) if waits else None
 
 
-def pause_left() -> tuple[float, int] | None:
-    """(seconds until it ends, its status) of the pause of this process's fetchers that ends first (``Pause``); None
+def pause_left() -> tuple[float, str] | None:
+    """(seconds until it ends, what began it: ``HTTP 429``, ``an HTML page``) of the pause of this process's fetchers that ends first (``Pause``); None
     when none is paused."""
     with _SHARED_LOCK:
-        pauses = [(f.pause.remaining(), f.pause.status) for f in _SHARED.values() if f.pause.paused]
+        pauses = [(f.pause.remaining(), _what(f.pause.status)) for f in _SHARED.values() if f.pause.paused]
     return min(pauses) if pauses else None
 
 

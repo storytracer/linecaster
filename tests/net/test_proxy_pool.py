@@ -302,7 +302,7 @@ def test_a_list_shared_by_fetchers_has_one_setting(tmp_path, monkeypatch):
     broker = Broker(str(tmp_path), worker="a-0")
     pool = shared_pool(broker, PROXIES[:2], per_worker=2)
     assert shared_pool(broker, PROXIES[:2], per_worker=2) is pool
-    with pytest.raises(PipelineConfigError, match="proxies_per_worker"):
+    with pytest.raises(PipelineConfigError, match="one proxy list with per_worker"):
         shared_pool(broker, PROXIES[:2], per_worker=SHARE)
     with pytest.raises(PipelineConfigError, match="not 0"):
         ProxyPool(broker, PROXIES, per_worker=0, keep_alive=False)

@@ -12,15 +12,16 @@ a media, and its fetch record in ``doc.metadata["resource"]``: ``item``, ``kind`
 ``final_uri``, ``status``, ``content_type``, ``bytes``, ``sha256``, ``etag``, ``last_modified``, ``fetched`` (UTC),
 ``attempts``, ``reused``. ``ResourceFilesWriter`` writes the copy and ``ResourceRecordWriter`` the records.
 
-A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open, and an HTML
-page where another format was expected (an error page, a CAPTCHA sent with 200) is a failure that also counts toward
-the host's breaker as a server error, or stops the run where the HTTP policy says ``stop_on: [html]`` for the host. A failed
-resource is the item's error (``doc.metadata["errors"]``, rejects), within the error budget, as for pages.
+A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open. An HTML page
+where another format was expected (an error page, a CAPTCHA sent with 200) is a failed attempt of the fetch, retried
+(``linecaster.net.http.UnexpectedHTML``); a resource that fails with it also counts toward the host's breaker as a server
+error. Where the HTTP policy has ``html`` in ``block_on`` it is a block instead, in ``stop_on`` it stops the run. A
+failed resource is the item's error (``doc.metadata["errors"]``, rejects), within the error budget, as for pages.
 
 Requests go out per host (``http_policy``: a ``linecaster.net.policy`` file), each with its own fetcher, rate limits,
-breaker and pause; a status in a host's ``pause_on`` (429 by default) pauses its requests until the server's
-``Retry-After`` has passed and the resource is then fetched again, a status in its ``stop_on`` stops the run (a
-``ServerError``) without a retry. With ``reuse_folder`` a
+breaker and pause; a status in a host's ``block_on`` (429 by default) pauses its requests until the server's
+``Retry-After`` has passed (direct; through proxies the proxy is left out there) and the resource is then fetched
+again, a status in its ``stop_on`` stops the run (a ``ServerError``) without a retry. With ``reuse_folder`` a
 resource whose copy is there already (one listing of ``<kind>/<item>/`` per item) is read back instead of fetched.
 """
 from __future__ import annotations
@@ -326,7 +327,7 @@ class ResourceReader(Contracted, BaseDiskReader):
         """The resource's document, and the error that failed it (None)."""
         from datatrove.data import Document, Media, MediaType
 
-        from ...net.http import StopRequests, failed_fetch, fetch_record
+        from ...net.http import StopRequests, UnexpectedHTML, failed_fetch, fetch_record
 
         item, kind, name, url = entry
         expected = expected_format(kind, url)
@@ -346,8 +347,6 @@ class ResourceReader(Contracted, BaseDiskReader):
             problem = check(data, ctype or EXTENSIONS_REVERSE.get(record.get("ext", ""), ""), expected)
             if problem is not None:
                 if fetcher is not None:
-                    if problem.startswith("html") and self._policies and self._policies.stops_on_html(url):
-                        raise ServerError(f"{url}: {problem}; the HTTP policy stops the run here (stop_on: html)")
                     fetcher._loop.call_soon_threadsafe(fetcher.breaker.record, 520)   # counts like a server error
                 raise ValueError(problem)
             record.update(content_type=ctype or None, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
@@ -361,6 +360,8 @@ class ResourceReader(Contracted, BaseDiskReader):
         except StopRequests as e:
             raise ServerError(str(e)) from e
         except Exception as e:  # noqa: BLE001 - the resource's error; the task goes on within its budget
+            if fetcher is not None and isinstance(e.__cause__ or e, UnexpectedHTML):
+                fetcher._loop.call_soon_threadsafe(fetcher.breaker.record, 520)   # counts like a server error
             if (fetch := failed_fetch(e)) is not None:
                 record["attempts"] = fetch.get("attempts")
             record["error"] = f"{type(e).__name__}: {e}"
