@@ -15,7 +15,7 @@ Each engine is registered under its id in the entry-point group `linecaster.engi
 ## Install
 
 The package is not on PyPI: install it from the repository, with linecaster from the same commit (it depends on
-`linecaster>=0.1,<0.5`, the releases whose engine API, `linecaster.engines.api`, and data model it uses):
+`linecaster>=0.1,<0.6`, the releases whose engine API, `linecaster.engines.api`, and data model it uses):
 
 ```bash
 uv add "linecaster @ git+https://github.com/storytracer/linecaster@<commit>" \

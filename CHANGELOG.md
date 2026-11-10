@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.5.0 (2026-11-11)
 
 ### Upgrade notes
 
@@ -124,6 +124,8 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`) 0.1.4 accept
+  linecaster `>=0.1,<0.6`.
 - The direct path and the path through proxies are one retry loop (`HTTPFetcher._attempts`), with the counts,
   waits, `Retry-After`, deadline per attempt, 404 fallback, trace entries and errors each had before; the rate
   limits are linecaster's own sliding windows (`linecaster.net.limits.RateLimiter`).
