@@ -2,7 +2,7 @@
 Falcon-OCR model on port 8000, the layout and assembly pipeline on 5002), one page per request.
 
 Falcon-OCR is a crop model by design: the pipeline detects the layout, reads each crop with a category prompt and
-assembles the page's Markdown. The engine sends the page as the BHL OCR board's driver does: RGB, scaled down so its
+assembles the page's Markdown. The engine sends the page as RGB, scaled down so its
 longest side is at most ``longest_edge`` (LANCZOS), JPEG at ``jpeg_quality``, as a data URI to
 ``POST /falconocr/parse`` with ``skip_layout`` (``false``: the vendor's full-page path). The answer's
 ``markdown_result`` is the page's text, verbatim; its layout regions (``json_result``) are kept next to it. The

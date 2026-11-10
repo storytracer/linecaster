@@ -1,6 +1,6 @@
 """Device names and ONNX Runtime providers for the PaddleX models.
 
-Device names accepted everywhere in SquiddleOCR: ``auto`` (CUDA if available, else CPU), ``cpu``,
+Device names accepted by every engine of this package: ``auto`` (CUDA if available, else CPU), ``cpu``,
 ``cuda``, ``tensorrt``, ``coreml``. The PaddleX models (layout, text detection, tables) run on
 ONNX Runtime: ``onnxruntime-gpu`` provides CUDA and TensorRT on Linux and Windows, ``onnxruntime``
 provides CoreML on macOS; every build has the CPU provider. kraken's models run on torch and map

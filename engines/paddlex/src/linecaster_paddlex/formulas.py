@@ -3,7 +3,7 @@
 PP-FormulaNet_plus-L and PP-FormulaNet-L ship as safetensors for PaddleX's ``transformers`` engine
 (Hugging Face ``transformers`` on torch), so they run on the same torch and GPU as kraken's
 recognizer; the official model source has no ONNX package for any formula model, and Paddle
-Inference is not used. A formula region's crop goes in, LaTeX comes out. Ported from squiddleocr.
+Inference is not used. A formula region's crop goes in, LaTeX comes out.
 """
 from __future__ import annotations
 

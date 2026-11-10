@@ -15,10 +15,10 @@ sets them in the environment before it imports it; one engine per process.
 
 The page's result (the blocks in reading order: label, the model's raw label, reading order, HTML ("" for figures,
 which the package does not read), skipped and error flags, confidence, box) is kept verbatim as JSON in
-``extra["raw"]``, the format of the BHL OCR board's raw outputs; the text is the blocks' HTML in reading order, one
+``extra["raw"]``; the text is the blocks' HTML in reading order, one
 block per line group. From a wrapper around the package's ``generate``: the full-page completion before parsing, its
 finish reason and tokens, the full-page rounds, whether the page fell back to block mode and how many block requests
-were capped or failed (``extra``). ``finish_reason`` follows the board: ``length`` when the page keeps a capped block's
+were capped or failed (``extra``). ``finish_reason`` is ``length`` when the page keeps a capped block's
 partial HTML (the package never keeps a capped full-page answer), else ``stop``. A failed block request is the page's
 error.
 """
@@ -53,7 +53,7 @@ def package_flags(gpu_type: str) -> list[str]:
 
 
 def blocks_of(page) -> list[dict]:
-    """The package's page result as the board stores it: one dict per block, in reading order."""
+    """The package's page result as JSON-ready blocks: one dict per block, in reading order."""
     return [{"label": b.label, "raw_label": b.raw_label, "reading_order": b.reading_order, "html": b.html,
              "skipped": b.skipped, "error": b.error, "confidence": b.confidence,
              "bbox": [round(v, 1) for v in b.bbox]} for b in page.blocks]

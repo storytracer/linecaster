@@ -70,8 +70,8 @@ class KrakenRecognizer:
         self.text_direction = text_direction
         # in-process line extraction (kraken's --num-line-workers 0): the worker pool would receive the whole page
         # image for every line
-        # precision: "auto" = bf16-mixed on CUDA (the model was trained in bf16-mixed; 1.6x faster recognition on the
-        # GB10, ~0.5 % of lines read differently), 32-true on the CPU. Needs the kraken fix that applies the Fabric
+        # precision: "auto" = bf16-mixed on CUDA (the model was trained in bf16-mixed; faster recognition, a small
+        # share of lines read differently; NOTES.md), 32-true on the CPU. Needs the kraken fix that applies the Fabric
         # precision at inference (storytracer/kraken fix/inference-autocast); on upstream 7.1 the setting is inert.
         if precision == "auto":
             precision = "bf16-mixed" if device != "cpu" and torch.cuda.is_available() else "32-true"

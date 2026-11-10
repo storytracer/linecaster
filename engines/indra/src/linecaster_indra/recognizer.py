@@ -3,12 +3,12 @@
 The engine takes the page image's file bytes, as the reader brought them (``image_input = "bytes"``): they are
 written to a temporary file with their format's suffix and read with ``Converter.convert(path)``, the call the
 ``indra-ocr`` command makes, so decoding (OpenCV, in grayscale), orientation, deskew, detection, recognition, layout
-and reading order are the package's. Decoding the file itself matters: on the BHL OCR board's 60-page sample (lossless
-WebP) the package read 54 of 60 pages to the board's text from the file and 26 from a PNG of the decoded RGB pixels
-(NOTES.md). The settings are ``indra_ocr.load()``'s: ``mode``, ``furniture`` (page headers and footers
-in the Markdown), ``math``, ``dpi`` (PDFs only) and ``threads`` (ONNX Runtime threads; one per task, as the package's
-``convert_many`` runs one single-threaded worker per core). The models are the catalog's pin of
-``datalab-to/indra-ocr`` (the model set ``v1.1.0`` that ``indra-ocr`` 1.1.2 is built against), every file checked.
+and reading order are the package's. Decoding the file itself matters: on a sample of lossless WebP pages, a PNG
+of the decoded RGB pixels instead of the file matched the reference text on far fewer pages (NOTES.md). The settings
+are ``indra_ocr.load()``'s: ``mode``, ``furniture`` (page headers and footers in the Markdown), ``math``, ``dpi``
+(PDFs only) and ``threads`` (ONNX Runtime threads; one per task, as the package's ``convert_many`` runs one
+single-threaded worker per core). The models are the catalog's pin of ``datalab-to/indra-ocr`` (the model set
+``v1.1.0`` that ``indra-ocr`` 1.1.2 is built against), every file checked.
 
 The page's Markdown (``page.markdown``) is its text, verbatim (``extra["raw"]``); the package's layout blocks (label,
 box in pixels, text), its rotation and skew are kept next to it. A page the package reports as failed

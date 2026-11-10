@@ -2,7 +2,7 @@
 ``docker/Dockerfile.allinone``: vLLM with the OXR model on port 8080, the D-FINE layout service on 8081, the ``oxr``
 API on 8000), one page per request.
 
-The engine sends the page as the BHL OCR board's driver does: RGB, lossless PNG at its own size (the layout model
+The engine sends the page as RGB, lossless PNG at its own size (the layout model
 resizes as it needs), as the file of a multipart ``POST /v1/parse/sync`` with ``api_key`` and one
 ``output_formats`` field per format (markdown and json, as the vendor's README asks; httpx's encoding of a list).
 No ``feature_config`` or ``element_formats`` are sent, so the vendor's defaults apply (page headers and footers
