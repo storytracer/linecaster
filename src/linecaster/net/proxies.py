@@ -48,6 +48,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
 from loguru import logger
 
@@ -111,6 +112,22 @@ def _redact(proxy: str) -> str:
     from .http import redact
 
     return redact(proxy)
+
+
+@dataclass
+class BlockNote:
+    """A block ``ProxyPool.note_block`` recorded in memory, for ``ProxyPool.publish`` to write to the broker."""
+
+    proxy: str
+    pid: str
+    host: str
+    seconds: float
+    until: float
+    last: float | None
+    release: bool
+    usable: int
+    total: int
+    data: dict = field(default_factory=dict)
 
 
 class ProxyPool:
@@ -476,10 +493,19 @@ class ProxyPool:
             first: the first block without ``seconds``.
             **data: what the mark records (the status).
         """
+        note = self.note_block(proxy, host, seconds, cap=cap, first=first, **data)
+        if note is not None:
+            self.publish(note)
+
+    def note_block(self, proxy: str, host: str, seconds: float | None = None, *, cap: float = BLOCK_TTL,
+                   first: float = BLOCK_FIRST_WAIT, **data) -> BlockNote | None:
+        """``block``'s part in memory, without touching the broker: from now on this worker does not pick ``proxy``
+        for ``host``. Returns what ``publish`` writes to the broker, or None when a block holds there already. The
+        fetcher calls it on its event loop, so a block holds at once, and ``publish`` in a thread."""
         pid = proxy_id(proxy)
         with self._lock:
             if self._ends(pid, host) is not None:
-                return
+                return None
             now = self.broker.clock()
             last, ended = self._doubling(pid, host)
             seconds, last = block_wait(seconds, doubling(last, ended, now), cap, first)
@@ -496,17 +522,22 @@ class ProxyPool:
             total = len(self._owned)
         if last is not None:
             data["last_wait"] = last
+        return BlockNote(proxy, pid, host, seconds, until, last, everywhere and owned, usable, total, data)
+
+    def publish(self, note: BlockNote) -> None:
+        """``block``'s part in the broker (``note_block`` made ``note``): the mark, the release of the proxy when it is
+        blocked for every host the worker uses, the log line."""
         try:
-            self.broker.mark(KIND, pid, host, until, keep=last or 0.0, **data)
+            self.broker.mark(KIND, note.pid, note.host, note.until, keep=note.last or 0.0, **note.data)
         except Exception as e:  # noqa: BLE001 - the block holds in this worker; its lease is released below
-            logger.warning("proxy {proxy}: block not marked in the broker {path}: {error}", proxy=_redact(proxy),
+            logger.warning("proxy {proxy}: block not marked in the broker {path}: {error}", proxy=_redact(note.proxy),
                            path=self.broker.path, error=e)
-        if everywhere and owned:
-            self.broker.release(KIND, pid)
-        log = logger.warning if usable == 0 else logger.info
+        if note.release:
+            self.broker.release(KIND, note.pid)
+        log = logger.warning if note.usable == 0 else logger.info
         log("proxy {proxy} blocked {where} for {seconds}; {usable} of the {held} held usable there",
-            proxy=_redact(proxy), where="everywhere" if host == EVERY_SCOPE else f"at {host}",
-            seconds=f"{seconds:.0f} s", usable=usable, held=total)
+            proxy=_redact(note.proxy), where="everywhere" if note.host == EVERY_SCOPE else f"at {note.host}",
+            seconds=f"{note.seconds:.0f} s", usable=note.usable, held=note.total)
 
     def broken(self, proxy: str, after: int = BROKEN_AFTER, first: float = BROKEN_TTL, cap: float = BLOCK_TTL) -> None:
         """Counts a failure of ``proxy`` itself (a proxy error, no connection); after ``after`` in a row it is broken:
@@ -520,16 +551,23 @@ class ProxyPool:
             first: how long it is left out the first time (``broken_ttl``).
             cap: the longest it is left out (``block_ttl``).
         """
+        note = self.note_broken(proxy, after, first, cap)
+        if note is not None:
+            self.publish(note)
+
+    def note_broken(self, proxy: str, after: int = BROKEN_AFTER, first: float = BROKEN_TTL,
+                    cap: float = BLOCK_TTL) -> BlockNote | None:
+        """``broken``'s part in memory (see ``note_block``): the count, and the block for every host when it reaches
+        ``after``; what ``publish`` writes, or None."""
         pid = proxy_id(proxy)
         with self._lock:
             if self._ends(pid, EVERY_SCOPE) is not None:
-                return
+                return None
             self._failures[pid] = self._failures.get(pid, 0) + 1
             out = self._failures[pid] >= after
             if out:
                 self._failures.pop(pid)
-        if out:
-            self.block(proxy, EVERY_SCOPE, cap=cap, first=first, status="broken")
+        return self.note_block(proxy, EVERY_SCOPE, cap=cap, first=first, status="broken") if out else None
 
     def answered(self, proxy: str, host: str | None = None) -> None:
         """Notes that ``proxy`` carried an answer: its failures in a row and the doubling of its time out as a broken

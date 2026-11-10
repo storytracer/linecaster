@@ -230,6 +230,9 @@ def test_the_http_policy_root_alone_and_its_checks(tmp_path):
 @pytest.mark.parametrize("data, ctype, expected, problem", [
     (XML, "application/xml", "xml", None),
     (b"<html><body>busy</body></html>", "text/html", "xml", "html"),
+    (b'{"id": 1}', "text/html", "json", None),                                   # data a server labels text/html
+    (b'<record xmlns="http://www.loc.gov/MARC21/slim"/>', "text/html", "xml", None),
+    (b"<!DOCTYPE html><html></html>", "application/json", "json", "html"),       # an HTML page, whatever its label
     (b"{oops", "application/json", "json", "not json"),
     (b"", "application/xml", None, "not xml"),
 ])

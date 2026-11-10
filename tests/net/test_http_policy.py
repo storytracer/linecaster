@@ -827,7 +827,13 @@ def test_a_fetcher_that_cannot_be_made_leaves_no_thread_behind(tmp_path):
 @pytest.mark.parametrize("body, html", [
     (b'{"id": "m"}', False), (b"[1]", False), (b'<?xml version="1.0"?><alto/>', False), (b"png", False),
     (b"\xff\xd8\xff\xe0jpeg", False), (b'<?xml version="1.0"?><!DOCTYPE html><html></html>', True),
-    (HTML, True), (b"Please sign in", True), (b"", True)])
+    (HTML, True), (b"Please sign in", True), (b"", True),
+    (b'<alto xmlns="http://www.loc.gov/standards/alto/ns-v4#"/>', False),             # XML without a declaration
+    (b'<mets:mets xmlns:mets="http://www.loc.gov/METS/"/>', False),
+    (b'\xef\xbb\xbf{"id": "m"}', False),                                              # JSON after a byte order mark
+    (b"<!-- generated -->\n<!DOCTYPE html><html></html>", True),                        # comments before the page
+    (b"<div>Not found</div>", True), (b"<HEAD><TITLE>Error</TITLE></HEAD>", True),       # fragments, any case
+    (b'\xef\xbb\xbf<!doctype HTML><html></html>', True)])
 def test_data_served_as_text_html_is_not_unexpected_html(site, tmp_path, body, html):
     """A server that sends JSON, XML or an image as ``text/html``: the body is what it says, so the fetch succeeds;
     a body that is HTML (XHTML too), or text that is neither, sent as ``text/html``, is unexpected HTML."""
@@ -907,17 +913,19 @@ def test_a_pause_and_the_breaker_read_their_end_once_for_other_threads():
     assert 25 < P().remaining() <= 30 and 25 < B().next_try() <= 30
 
 
-def test_a_proxys_block_and_break_write_the_broker_off_the_event_loop(site, tmp_path, monkeypatch):
-    """``ProxyPool.block`` and ``broken`` write and delete the broker's files (object storage): they run in a thread,
-    so the fetcher's other requests go on meanwhile."""
+def test_a_proxys_block_and_break_hold_at_once_and_write_the_broker_off_the_event_loop(site, tmp_path, monkeypatch):
+    """A block or a broken proxy holds in the worker's memory at once, on the fetcher's event loop
+    (``ProxyPool.note_block``, ``note_broken``), so no request picks the proxy meanwhile; the broker's files (object
+    storage) are written in a thread (``ProxyPool.publish``), so the fetcher's other requests go on meanwhile."""
     from linecaster.net.proxies import ProxyPool
 
+    noted: list[str] = []
     threads: list[str] = []
-    for name in ("block", "broken"):
+    for name, seen in (("note_block", noted), ("note_broken", noted), ("publish", threads)):
         original = getattr(ProxyPool, name)
 
-        def noting(self, *args, _original=original, **kwargs):
-            threads.append(threading.current_thread().name)
+        def noting(self, *args, _original=original, _seen=seen, **kwargs):
+            _seen.append(threading.current_thread().name)
             return _original(self, *args, **kwargs)
 
         monkeypatch.setattr(ProxyPool, name, noting)
@@ -928,7 +936,8 @@ def test_a_proxys_block_and_break_write_the_broker_off_the_event_loop(site, tmp_
     try:
         for i in range(4):
             assert fetch(f, s.url(f"/p{i + 1}.png", "proxies"))[0] == "ok"
-        assert threads and "linecaster-http" not in threads
+        assert noted and set(noted) == {"linecaster-http"}                 # in memory on the loop, at once
+        assert threads and "linecaster-http" not in threads               # the broker in a thread
     finally:
         f.close()
 

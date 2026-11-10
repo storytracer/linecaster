@@ -39,8 +39,10 @@ the tags; the first is `v0.1.0`.
 - Unexpected HTML (a 2xx response with an HTML page where an image, XML, JSON or a manifest was expected) is a failed
   attempt on both paths: it counts, is retried after the backoff, is traced `200-html`, and after the last attempt
   the fetch fails with `linecaster.net.http.UnexpectedHTML` (through proxies as `MaxRetriesExceeded`'s cause), which
-  names the expected format and the content type. HTML is told by the body's first bytes, or by `text/html` unless the
-  body starts as JSON, XML (not XHTML) or an image does, so data a server mislabels as `text/html` still passes.
+  names the expected format and the content type. HTML is told by the body's first bytes (after a byte order mark,
+  whitespace and comments): an HTML document, whatever its label; under `text/html` also an HTML element, plain text
+  or nothing. Data a server mislabels as `text/html` (JSON, XML with or without a declaration, an image) still
+  passes, in `ResourceReader` too.
   Before, through proxies it blocked the proxy for an hour without
   using up an attempt; on a direct connection an image failed at once as an unreadable image and a resource failed at
   once. `ManifestReader` now says what it expects too (the manifest, the page images, ALTO files), so an HTML page
@@ -97,7 +99,8 @@ the tags; the first is `v0.1.0`.
   `PAUSE_MAX_WAIT` and `ProxyBlocked` are gone; `Pause` takes `first_wait` and `max_total` (no `max_wait`);
   `pause_left()` gives what began the pause in words (`HTTP 429`, `an HTML page`) instead of the status;
   `ProxyPool.block` takes the `Retry-After` seconds or None (the doubling) with `cap` and `first`, `ProxyPool.broken`
-  takes `after`, `first` and `cap`. `HTTPPolicy.stops_on_html` is gone (the fetcher stops on `html` itself), and
+  takes `after`, `first` and `cap`; each is now `note_block`/`note_broken` (in memory, at once: the fetcher calls them
+  on its event loop) followed by `publish` (the broker's mark and release, which the fetcher runs in a thread). `HTTPPolicy.stops_on_html` is gone (the fetcher stops on `html` itself), and
   `HTTPPolicy.describe()` takes no options (the run's options are the policy's `base`) and states every rule that holds
   per host and path, defaults and opt-ins alike. Who is affected: code that builds fetchers or readers with these
   settings, or uses these names. What to do: rename as above; `http={"broken_after": 1, "broken_ttl": 3600}` and
@@ -133,7 +136,8 @@ the tags; the first is `v0.1.0`.
   (`Pause.remaining`, `Breaker.next_try` read their end once).
 - A blocked or broken proxy's marks are written to the broker in a thread, no longer in the fetcher's event loop,
   where a slow store (object storage) held up all of its requests.
-- A `Retry-After` of `inf` or `nan` is no `Retry-After`, and one beyond about three years is that long; such a value
+- A `Retry-After` of `inf` or `nan` is no `Retry-After`, and one beyond about three years, in seconds or as an
+  HTTP-date, is that long; such a value
   made a proxy's block mark fail to be written.
 
 ## 0.4.0 (2026-11-10)

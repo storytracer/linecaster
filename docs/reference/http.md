@@ -80,9 +80,12 @@ times, then fails.
 A successful response (2xx) with an HTML page where an image, XML, JSON or a manifest was expected is **unexpected
 HTML**: an error page served with 200, a soft 404, a login page after a redirect, a CDN's challenge. The readers say
 what they expect (`HTTPFetcher.submit`'s `expect`: images, manifests, ALTO files, resources whose kind or URL names a
-format); a response told apart by its first bytes (`<!doctype html`, `<html`), or by its `Content-Type`
-(`text/html`) unless its first bytes are JSON's, XML's (not XHTML's) or an image's (`DATA_MAGIC`: a server that
-serves data as `text/html` is not sending HTML).
+format). A body is HTML (`linecaster.net.http.is_html`, read after a UTF-8 byte order mark, whitespace and
+`<!-- -->` comments) when it starts as an HTML document (`<!doctype html`, `<html`), whatever its `Content-Type`
+says; or when it is labelled `text/html` and is empty, plain text (an error message), XHTML, or starts with an HTML
+element (`<head>`, `<body>`, `<div>`, ...: `HTML_ELEMENTS`). A body labelled `text/html` that starts as data is data a
+server mislabelled and passes: JSON, an XML declaration or another root element (ALTO, METS, MODS without a
+declaration), an image (`DATA_MAGIC`). `ResourceReader` checks its resources with the same rule.
 An error status with an HTML body is that status: a 503 maintenance page is a 503, retried as one.
 
 By default unexpected HTML is a failed attempt, on both paths: it counts, is retried after the backoff, and is traced

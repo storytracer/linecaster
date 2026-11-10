@@ -65,10 +65,10 @@ def expected_format(kind: str, url: str) -> str | None:
 
 def check(data: bytes, content_type: str, expected: str | None) -> str | None:
     """What is wrong with a response (``html`` first for an HTML page where another format was expected), or None."""
+    from ...net.http import is_html
+
     ctype = (content_type or "").split(";")[0].strip().lower()
-    head = data[:512].lstrip().lower()
-    is_html = ctype == "text/html" or head.startswith((b"<!doctype html", b"<html"))
-    if expected and is_html:
+    if expected and is_html(data, content_type):     # data a server labels text/html is read as what it is
         return f"html: an HTML page ({len(data)} bytes) where {expected} was expected"
     fmt = expected or ("xml" if ctype.endswith("xml") else "json" if ctype.endswith("json")
                        else "image" if ctype.startswith("image/") else None)

@@ -92,6 +92,7 @@ import contextvars
 import json
 import math
 import os
+import re
 import threading
 import time
 from collections import deque
@@ -499,22 +500,73 @@ DATA_MAGIC = (b"{", b"[", b"<?xml", b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"II*\
               b"\x00\x00\x00\x0cjP", b"\xff\x4f\xff\x51")
 
 
-def _is_html(response) -> bool:
-    """Whether ``response`` holds an HTML page: its first bytes say so (``<!doctype html``, ``<html``), or its content
-    type is ``text/html`` and its first bytes are not those of JSON, XML (but XHTML) or an image (``DATA_MAGIC``)."""
-    try:
-        raw = response.content[:512].lstrip()
-    except Exception:  # noqa: BLE001 - not read: decided by the content type alone
-        raw = None
-    head = raw.lower() if raw is not None else None
-    if head is not None and head.startswith((b"<!doctype html", b"<html")):
+#: how an HTML page starts, after a byte order mark, whitespace and comments: so it is HTML whatever its content type
+HTML_START = (b"<!doctype html", b"<html")
+#: HTML elements a page or a fragment served as ``text/html`` starts with; a body labelled ``text/html`` that starts
+#: with another element (``<alto``, ``<mets:mets``, ``<record``) is XML a server mislabelled
+HTML_ELEMENTS = frozenset({
+    b"html", b"head", b"body", b"title", b"meta", b"link", b"style", b"script", b"noscript", b"base", b"div", b"p",
+    b"span", b"a", b"h1", b"h2", b"h3", b"h4", b"h5", b"h6", b"table", b"form", b"br", b"hr", b"img", b"iframe",
+    b"center", b"pre", b"main", b"header", b"footer", b"nav", b"section", b"article", b"ul", b"ol", b"b", b"i",
+    b"strong", b"em", b"font", b"button", b"input", b"svg"})
+
+
+def _sniff_head(raw: bytes) -> bytes:
+    """The first bytes of a body as ``is_html`` reads them: without a UTF-8 byte order mark, leading whitespace and
+    leading ``<!-- ... -->`` comments (case kept: image signatures are case-sensitive)."""
+    head = raw.removeprefix(b"\xef\xbb\xbf").lstrip()
+    while head.startswith(b"<!--"):
+        end = head.find(b"-->")
+        if end < 0:
+            return b""
+        head = head[end + 3:].lstrip()
+    return head
+
+
+def _first_element(head: bytes) -> bytes:
+    """The name of the element ``head`` starts with (``<div class=...>`` → ``div``), lower-cased; empty if none."""
+    name = re.match(rb"<([A-Za-z][A-Za-z0-9:_.-]*)", head)
+    return name.group(1).lower() if name else b""
+
+
+def is_html(data: bytes | None, content_type: str | None) -> bool:
+    """Whether a body is an HTML page.
+
+    * It starts as an HTML document (``HTML_START``, after a byte order mark, whitespace and comments): HTML,
+      whatever its content type says.
+    * Its content type is ``text/html``: HTML when it could not be read (``data`` None), is empty, is text that is no
+      markup (an error message), or starts with an HTML element (``HTML_ELEMENTS``) or XHTML (``<?xml`` then
+      ``<html``); not HTML when it starts like data a server mislabelled: JSON, an XML declaration or another root
+      element (ALTO, METS, MODS without a declaration), an image (``DATA_MAGIC``).
+    * Otherwise: not HTML."""
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    if data is None:
+        return ctype == "text/html"
+    head = _sniff_head(data[:1024])
+    lower = head.lower()
+    if lower.startswith(HTML_START):
         return True
-    ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
     if ctype != "text/html":
         return False
-    if raw and raw.startswith(DATA_MAGIC):
-        return raw.startswith(b"<?xml") and (b"<!doctype html" in head or b"<html" in head)   # XHTML is HTML
+    if not head:
+        return True
+    if head.startswith(b"<?xml"):                 # XHTML: a declaration, then an HTML document
+        rest = _sniff_head(lower[lower.find(b"?>") + 2:]) if b"?>" in lower else b""
+        return rest.startswith(HTML_START)
+    if head.startswith(DATA_MAGIC):
+        return False
+    if head.startswith(b"<"):
+        return _first_element(head) in HTML_ELEMENTS
     return True
+
+
+def _is_html(response) -> bool:
+    """Whether ``response`` holds an HTML page (``is_html`` on its first bytes and its content type)."""
+    try:
+        raw = response.content[:1024]
+    except Exception:  # noqa: BLE001 - not read: decided by the content type alone
+        raw = None
+    return is_html(raw, response.headers.get("content-type"))
 
 
 async def _headers(response) -> None:          # the first response hook: the headers are in
@@ -685,7 +737,7 @@ def retry_after(value: str | None, now: float | None = None) -> float | None:
         from datetime import timezone
 
         when = when.replace(tzinfo=timezone.utc)
-    return max(0.0, when.timestamp() - (time.time() if now is None else now))
+    return min(max(0.0, when.timestamp() - (time.time() if now is None else now)), RETRY_AFTER_LONGEST)
 
 
 def block_wait(asked: float | None, last: float | None, cap: float,
@@ -1225,14 +1277,18 @@ class HTTPFetcher:
                 response = await client.get(target)
             except httpx.TransportError as e:
                 if proxy is not None and isinstance(e, broken):
-                    await asyncio.to_thread(pool.broken, proxy, self.broken_after, self.broken_ttl, self.block_ttl)
+                    note = pool.note_broken(proxy, self.broken_after, self.broken_ttl, self.block_ttl)   # at once
+                    if note is not None:
+                        await asyncio.to_thread(pool.publish, note)               # the broker's files off the loop
                 last = e
             else:
                 status, asked = response.status_code, response.headers.get("retry-after")
                 if proxy is not None:
-                    if status in self.block_on:                # the broker's files off the loop
-                        await asyncio.to_thread(pool.block, proxy, host, retry_after(asked, self._wall()),
-                                                cap=self.block_ttl, first=self.first_wait, status=status)
+                    if status in self.block_on:                # in memory at once, the broker's files off the loop
+                        note = pool.note_block(proxy, host, retry_after(asked, self._wall()),
+                                               cap=self.block_ttl, first=self.first_wait, status=status)
+                        if note is not None:
+                            await asyncio.to_thread(pool.publish, note)
                         continue
                     pool.answered(proxy)
                 # once; through proxies only when it is another URL (a direct connection asks again for the same)
@@ -1248,8 +1304,10 @@ class HTTPFetcher:
                         raise StopRequests(f"{html}: its policy stops the run here (stop_on: html), without a retry")
                     if "html" in self.block_on:
                         if proxy is not None:
-                            await asyncio.to_thread(pool.block, proxy, host, retry_after(asked, self._wall()),
-                                                    cap=self.block_ttl, first=self.first_wait, status="html")
+                            note = pool.note_block(proxy, host, retry_after(asked, self._wall()),
+                                                   cap=self.block_ttl, first=self.first_wait, status="html")
+                            if note is not None:
+                                await asyncio.to_thread(pool.publish, note)
                             continue
                         where = response.request.url.host
                         pause = self.pause_for(where)
