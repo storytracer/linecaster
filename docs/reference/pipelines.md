@@ -312,11 +312,12 @@ process with its own memory).
 (`pipelines/harvest.py`) asks its reader for one item per task (`task_per_item`): the tasks divide the items, an
 item's rows wherever they are in the table (`tables.item_runs`), so every item is whole in its task and a task that
 fails costs one item. With `--reuse` (off by default: on some object storage a listing is slow even for an empty
-folder, and only the items a stopped launch was in have anything to reuse) its reader also gets `reuse_folder`
+folder, and only the items a stopped launch was in, or with `--retry-failed` the finished items with failed pages,
+have anything to reuse) its reader also gets `reuse_folder`
 (`OUT/images`): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
-fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items are read back, so
-egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
+fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items (and of the items
+`--retry-failed` runs again, whose failed pages alone are then fetched) are read back, so egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
 it then on its IO loop): one that times out or fails is a warning and a stat (`reuse_listing_timeouts`,
 `reuse_listing_errors`), and the item's pages are fetched again, their files overwritten. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
 the rate. On a restart the console's size starts with the finished tasks' `media_size` from datatrove's stats files

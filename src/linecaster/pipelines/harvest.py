@@ -39,7 +39,8 @@ follow the available proxies (those not blocked and not held by another run): on
 and at most 64 with OUT on object storage (s3://, gs://, hf://, ...), which it states before it starts. --max-pages N runs the first N pages of
 the input in the same automatic tasks, a smoke test of the real setup (--limit counts per task, as in datatrove).
 An outage of the server pauses the requests until it answers again; a book that fails anyway runs again on the next
-launch, and --retry-failed also runs the finished books with failed pages again (only those pages fetched).
+launch, and --retry-failed also runs the finished books with failed pages again: with --reuse only their failed
+pages are fetched (the others are read from OUT/images), without it every page of those books is fetched again.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
 from ..blocks.conversion import TranscriptionConverter

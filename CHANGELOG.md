@@ -4,6 +4,13 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- The harvest's help and the pipelines reference say that `--retry-failed` fetches only the failed pages of a book
+  with `--reuse`, and every page of it without (since `--reuse` is off by default).
+
 ## 0.3.0 (2026-11-10)
 
 ### Upgrade notes
