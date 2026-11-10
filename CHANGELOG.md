@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.4.0 (2026-11-10)
 
 ### Upgrade notes
 
@@ -50,6 +50,8 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`) 0.1.3 accept
+  linecaster `>=0.1,<0.5`.
 - linecaster is stated as a generalist tool (CLAUDE.md, the architecture reference): it depends on no collection,
   site, institution or project, and names none. Help texts and docs use `example.org`, the tests `library.test` and
   `example.org`; docstrings, comments, NOTES.md and this changelog describe behavior and hardware instead of a

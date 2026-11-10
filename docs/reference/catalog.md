@@ -231,7 +231,7 @@ layout and the rule-based engines. It declares
 
 **Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
 `linecaster-indra`, `linecaster-surya`, `linecaster-services`) have
-versions of their own and a range of linecaster releases they work with (`linecaster>=0.1,<0.4`), and import from
+versions of their own and a range of linecaster releases they work with (`linecaster>=0.1,<0.5`), and import from
 linecaster only the data model (`linecaster.data`) and the engine API (`linecaster.engines.api`): the `Engine`
 protocol, `Capabilities`, and the weight helpers `weights_of` (a model pin as `weights`), `hf_file` and
 `hf_snapshot` (a Hugging Face pin's files, checked) and `model_entry` (a model's catalog entry);

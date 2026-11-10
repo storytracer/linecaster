@@ -39,7 +39,7 @@ from 1.0 on. What a change bumps follows from the table above:
 | new blocks, options, presets, recipes, commands or features that keep the old behavior | patch | minor |
 | fixes, performance, corrections of the docs | patch | patch |
 
-A release bumps by its largest change. Ranges such as the engine packages' `linecaster>=0.1,<0.4` then hold: every
+A release bumps by its largest change. Ranges such as the engine packages' `linecaster>=0.1,<0.5` then hold: every
 release inside them keeps what worked.
 
 - **When:** at the end of a finished piece of work that changes behavior, once it is merged into `main` and CI is
