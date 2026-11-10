@@ -39,7 +39,9 @@ the tags; the first is `v0.1.0`.
 - Unexpected HTML (a 2xx response with an HTML page where an image, XML, JSON or a manifest was expected) is a failed
   attempt on both paths: it counts, is retried after the backoff, is traced `200-html`, and after the last attempt
   the fetch fails with `linecaster.net.http.UnexpectedHTML` (through proxies as `MaxRetriesExceeded`'s cause), which
-  names the expected format and the content type. Before, through proxies it blocked the proxy for an hour without
+  names the expected format and the content type. HTML is told by the body's first bytes, or by `text/html` unless the
+  body starts as JSON, XML (not XHTML) or an image does, so data a server mislabels as `text/html` still passes.
+  Before, through proxies it blocked the proxy for an hour without
   using up an attempt; on a direct connection an image failed at once as an unreadable image and a resource failed at
   once. `ManifestReader` now says what it expects too (the manifest, the page images, ALTO files), so an HTML page
   there is retried and fails as `UnexpectedHTML` instead of passing as a manifest or image that does not parse. Who is

@@ -80,7 +80,9 @@ times, then fails.
 A successful response (2xx) with an HTML page where an image, XML, JSON or a manifest was expected is **unexpected
 HTML**: an error page served with 200, a soft 404, a login page after a redirect, a CDN's challenge. The readers say
 what they expect (`HTTPFetcher.submit`'s `expect`: images, manifests, ALTO files, resources whose kind or URL names a
-format); a response told apart by its `Content-Type` (`text/html`) or its first bytes (`<!doctype html`, `<html`).
+format); a response told apart by its first bytes (`<!doctype html`, `<html`), or by its `Content-Type`
+(`text/html`) unless its first bytes are JSON's, XML's (not XHTML's) or an image's (`DATA_MAGIC`: a server that
+serves data as `text/html` is not sending HTML).
 An error status with an HTML body is that status: a 503 maintenance page is a 503, retried as one.
 
 By default unexpected HTML is a failed attempt, on both paths: it counts, is retried after the backoff, and is traced

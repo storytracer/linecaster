@@ -485,15 +485,28 @@ def _unexpected_html(response, expect: str | None) -> bool:
     return bool(expect) and expect != "html" and 200 <= response.status_code < 300 and _is_html(response)
 
 
+#: the first bytes of the formats a fetch expects: a body that starts so is not HTML, whatever its content type says
+#: (a server that serves JSON, XML or images as ``text/html``): JSON, XML, PNG, JPEG, GIF, TIFF, WebP, JPEG 2000
+DATA_MAGIC = (b"{", b"[", b"<?xml", b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"II*\x00", b"MM\x00*", b"RIFF",
+              b"\x00\x00\x00\x0cjP", b"\xff\x4f\xff\x51")
+
+
 def _is_html(response) -> bool:
-    ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
-    if ctype == "text/html":
-        return True
+    """Whether ``response`` holds an HTML page: its first bytes say so (``<!doctype html``, ``<html``), or its content
+    type is ``text/html`` and its first bytes are not those of JSON, XML (but XHTML) or an image (``DATA_MAGIC``)."""
     try:
-        head = response.content[:512].lstrip().lower()
+        raw = response.content[:512].lstrip()
     except Exception:  # noqa: BLE001 - not read: decided by the content type alone
+        raw = None
+    head = raw.lower() if raw is not None else None
+    if head is not None and head.startswith((b"<!doctype html", b"<html")):
+        return True
+    ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if ctype != "text/html":
         return False
-    return head.startswith((b"<!doctype html", b"<html"))
+    if raw and raw.startswith(DATA_MAGIC):
+        return raw.startswith(b"<?xml") and (b"<!doctype html" in head or b"<html" in head)   # XHTML is HTML
+    return True
 
 
 async def _headers(response) -> None:          # the first response hook: the headers are in

@@ -815,3 +815,22 @@ def test_a_fetcher_that_cannot_be_made_leaves_no_thread_behind(tmp_path):
         with pytest.raises(FileNotFoundError):
             HTTPFetcher(proxy_file=str(tmp_path / "no-proxies.txt"), broker=str(tmp_path / "broker"))
     assert sum(1 for t in threading.enumerate() if t.name == "linecaster-http") == before
+
+
+@pytest.mark.parametrize("body, html", [
+    (b'{"id": "m"}', False), (b"[1]", False), (b'<?xml version="1.0"?><alto/>', False), (b"png", False),
+    (b"\xff\xd8\xff\xe0jpeg", False), (b'<?xml version="1.0"?><!DOCTYPE html><html></html>', True),
+    (HTML, True), (b"Please sign in", True), (b"", True)])
+def test_data_served_as_text_html_is_not_unexpected_html(site, tmp_path, body, html):
+    """A server that sends JSON, XML or an image as ``text/html``: the body is what it says, so the fetch succeeds;
+    a body that is HTML (XHTML too), or text that is neither, sent as ``text/html``, is unexpected HTML."""
+    clocks = Clocks()
+    data = sample_png() if body == b"png" else body
+    s = site({"/m": [A(body=data, ctype="text/html; charset=utf-8")]}, clocks)
+    f = fetcher(s, "direct", clocks, tmp_path, max_retries=0)
+    try:
+        outcome, result, record = fetch(f, s.url("/m", "direct"), expect="manifest")
+        assert (outcome == "error" and isinstance(result, UnexpectedHTML)) is html
+        assert record["tries"] == ["200-html" if html else "200"]
+    finally:
+        f.close()
