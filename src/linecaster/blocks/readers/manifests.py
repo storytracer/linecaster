@@ -278,7 +278,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     def _read(self, ref: str) -> tuple[bytes, str]:
         if is_url(ref):
-            response = self._fetchers.for_url(ref).get(ref, expect="manifest")
+            response = self._fetchers.for_url(ref, last=False).get(ref, expect="manifest")   # the window: the pages'
             return response.content, str(response.url)
         if "://" in ref or ref.startswith("/"):
             folder, name = ref.rsplit("/", 1)

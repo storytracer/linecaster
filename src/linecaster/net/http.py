@@ -90,6 +90,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import json
+import math
 import os
 import threading
 import time
@@ -589,7 +590,8 @@ class Breaker:
 
     def next_try(self) -> float:
         """Seconds until the next probe (0 when one is out or the breaker is closed)."""
-        return max(0.0, self.open_until - time.monotonic()) if self.open_until is not None and not self._probe else 0.0
+        until = self.open_until                          # read once: the loop may end the pause meanwhile
+        return max(0.0, until - time.monotonic()) if until is not None and not self._probe else 0.0
 
     def record(self, status: int) -> None:
         now, server_error = time.monotonic(), status >= 500
@@ -656,6 +658,11 @@ PROXY_POLL = 1.0
 FILL_WAIT = 0.25
 
 
+#: the longest ``Retry-After`` taken as it is (about three years): a longer one is that long (a block's end must stay a
+#: time the broker can name)
+RETRY_AFTER_LONGEST = 1e8
+
+
 def retry_after(value: str | None, now: float | None = None) -> float | None:
     """The seconds a ``Retry-After`` header asks for (delta-seconds or an HTTP-date, counted from ``now``, seconds
     since the epoch, default the time now), at least 0; None without one or for one that is neither."""
@@ -665,9 +672,11 @@ def retry_after(value: str | None, now: float | None = None) -> float | None:
         return None
     value = value.strip()
     try:
-        return max(0.0, float(value))
+        seconds = float(value)
     except ValueError:
         pass
+    else:                                        # not a number of seconds (inf, nan): none; at most RETRY_AFTER_LONGEST
+        return min(max(0.0, seconds), RETRY_AFTER_LONGEST) if math.isfinite(seconds) else None
     try:
         when = parsedate_to_datetime(value)
     except (TypeError, ValueError):
@@ -792,8 +801,9 @@ class Pause:
         return self.total.spent
 
     def remaining(self) -> float:
-        """Seconds until the pause ends (0: none)."""
-        return max(0.0, self.until - self._clock()) if self.until is not None else 0.0
+        """Seconds until the pause ends (0: none). Read from other threads too (``pause_left``)."""
+        until = self.until                               # read once: the loop may announce the end meanwhile
+        return max(0.0, until - self._clock()) if until is not None else 0.0
 
     @property
     def paused(self) -> bool:
@@ -1117,7 +1127,15 @@ class HTTPFetcher:
                 if await asyncio.to_thread(pool.fill, host) or pool.has_usable(host):
                     continue                                   # claimed (here or by a request alongside)
                 started = self._clock()
-                await self._sleep(self._no_proxy(host))
+                self._no_proxy_waiters[host] = self._no_proxy_waiters.get(host, 0) + 1
+                try:
+                    await self._sleep(self._no_proxy(host))
+                except asyncio.CancelledError:            # the last one waiting gone: the wait ends here
+                    if self._no_proxy_waiters[host] == 1:
+                        self._end_no_proxy(host)
+                    raise
+                finally:
+                    self._no_proxy_waiters[host] -= 1
                 _paused_for(self._clock() - started)
         finally:
             if ticket is not None:
@@ -1153,12 +1171,20 @@ class HTTPFetcher:
         return max(0.05, min(PROXY_POLL, first if first is not None else PROXY_POLL))
 
     def _proxy_usable(self, host: str) -> None:
-        since = self._no_proxy_since.pop(host, None)
-        if since is not None:
-            waited = self._clock() - since
-            self.total_for(host).add(waited)
+        waited = self._end_no_proxy(host)
+        if waited is not None:
             logger.warning("a proxy is usable for {host} again after {paused}: its requests go on", host=host,
                            paused=_duration(waited))
+
+    def _end_no_proxy(self, host: str) -> float | None:
+        """The wait for a usable proxy at ``host`` ends (a proxy is usable, or no request waits any more): its length
+        counts toward the host's ``PauseTotal``; returns it (None: no wait)."""
+        since = self._no_proxy_since.pop(host, None)
+        if since is None:
+            return None
+        waited = self._clock() - since
+        self.total_for(host).add(waited)
+        return waited
 
     def _backoff(self, failed: int, error: BaseException | None) -> float:
         """The wait after the ``failed``-th failed attempt: ``retry_wait_min * 2**(failed-1)``, at most
@@ -1199,14 +1225,14 @@ class HTTPFetcher:
                 response = await client.get(target)
             except httpx.TransportError as e:
                 if proxy is not None and isinstance(e, broken):
-                    pool.broken(proxy, self.broken_after, self.broken_ttl, self.block_ttl)
+                    await asyncio.to_thread(pool.broken, proxy, self.broken_after, self.broken_ttl, self.block_ttl)
                 last = e
             else:
                 status, asked = response.status_code, response.headers.get("retry-after")
                 if proxy is not None:
-                    if status in self.block_on:
-                        pool.block(proxy, host, retry_after(asked, self._wall()), cap=self.block_ttl,
-                                   first=self.first_wait, status=status)
+                    if status in self.block_on:                # the broker's files off the loop
+                        await asyncio.to_thread(pool.block, proxy, host, retry_after(asked, self._wall()),
+                                                cap=self.block_ttl, first=self.first_wait, status=status)
                         continue
                     pool.answered(proxy)
                 # once; through proxies only when it is another URL (a direct connection asks again for the same)
@@ -1222,8 +1248,8 @@ class HTTPFetcher:
                         raise StopRequests(f"{html}: its policy stops the run here (stop_on: html), without a retry")
                     if "html" in self.block_on:
                         if proxy is not None:
-                            pool.block(proxy, host, retry_after(asked, self._wall()), cap=self.block_ttl,
-                                       first=self.first_wait, status="html")
+                            await asyncio.to_thread(pool.block, proxy, host, retry_after(asked, self._wall()),
+                                                    cap=self.block_ttl, first=self.first_wait, status="html")
                             continue
                         where = response.request.url.host
                         pause = self.pause_for(where)

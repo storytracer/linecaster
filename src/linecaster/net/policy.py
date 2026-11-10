@@ -399,8 +399,9 @@ class Fetchers:
 
         return HTTPConfig(**{k: v for k, v in self.settings(url).items() if k in HTTP_DEFAULTS})
 
-    def for_url(self, url: str):
-        """The fetcher for ``url`` (an http(s) URL), made at its first use in this process."""
+    def for_url(self, url: str, last: bool = True):
+        """The fetcher for ``url`` (an http(s) URL), made at its first use in this process. ``last``: it becomes
+        ``last`` (False for a request that is not the pages', a manifest's: the window is the pages')."""
         from .http import HTTPFetcher
 
         settings = self.settings(url)
@@ -414,7 +415,8 @@ class Fetchers:
         if fetcher not in self._used:                    # a task's first request through it: its own User-Agent
             self._used.add(fetcher)
             fetcher.new_user_agent()
-        self.last = fetcher
+        if last:
+            self.last = fetcher
         return fetcher
 
     def start_task(self) -> None:

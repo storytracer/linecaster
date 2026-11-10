@@ -44,6 +44,8 @@ def test_retry_after_is_seconds_or_an_http_date():
     assert retry_after(formatdate(now + 90, usegmt=True), now) == 90.0
     assert retry_after(formatdate(now - 90, usegmt=True), now) == 0.0        # gone by
     assert retry_after(None, now) is None and retry_after("", now) is None and retry_after("soon", now) is None
+    assert retry_after("inf", now) is None and retry_after("nan", now) is None and retry_after("1e400", now) is None
+    assert retry_after("1e300", now) == 1e8                            # a block's end the broker can still name
 
 
 def test_a_pause_lasts_as_long_as_retry_after_says():

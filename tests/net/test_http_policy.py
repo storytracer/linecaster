@@ -868,3 +868,131 @@ def test_a_resource_that_fails_as_html_is_one_server_error_for_the_breaker(site,
     while not breaker._outcomes and time.monotonic() < until_true:              # noted in the fetcher's loop
         time.sleep(0.01)
     assert [e for _, e in breaker._outcomes] == [True] and breaker._errors_in_a_row == 1
+
+
+# ---------------------------------------------------------------- threads and the event loop
+
+
+def test_a_pause_and_the_breaker_read_their_end_once_for_other_threads():
+    """``pause_left`` and ``paused`` read a pause's and a breaker's end from the console's thread while the loop may
+    end it: one read, so an end set to None in between is no ``TypeError``."""
+    from linecaster.net.http import Breaker, Pause
+
+    class Vanishing:
+        """An end that is there at the first read and gone at the second."""
+
+        def __init__(self, value):
+            self.value, self.reads = value, 0
+
+        def __get__(self, obj, owner=None):
+            self.reads += 1
+            return self.value if self.reads == 1 else None
+
+        def __set__(self, obj, value):
+            pass
+
+    class P(Pause):
+        until = Vanishing(time.monotonic() + 30)
+
+    class B(Breaker):
+        open_until = Vanishing(time.monotonic() + 30)
+
+    assert 25 < P().remaining() <= 30 and 25 < B().next_try() <= 30
+
+
+def test_a_proxys_block_and_break_write_the_broker_off_the_event_loop(site, tmp_path, monkeypatch):
+    """``ProxyPool.block`` and ``broken`` write and delete the broker's files (object storage): they run in a thread,
+    so the fetcher's other requests go on meanwhile."""
+    from linecaster.net.proxies import ProxyPool
+
+    threads: list[str] = []
+    for name in ("block", "broken"):
+        original = getattr(ProxyPool, name)
+
+        def noting(self, *args, _original=original, **kwargs):
+            threads.append(threading.current_thread().name)
+            return _original(self, *args, **kwargs)
+
+        monkeypatch.setattr(ProxyPool, name, noting)
+    clocks = Clocks()
+    s = site({"/p1.png": [A(429, "empty"), A()]}, clocks)
+    (tmp_path / "proxies.txt").write_text(f"127.0.0.1:{dead_port()}\n{s.proxies[0]}\n{s.proxies[1]}\n")
+    f = fetcher(s, "proxies", clocks, tmp_path, broken_after=1)
+    try:
+        for i in range(4):
+            assert fetch(f, s.url(f"/p{i + 1}.png", "proxies"))[0] == "ok"
+        assert threads and "linecaster-http" not in threads
+    finally:
+        f.close()
+
+
+def test_the_manifest_readers_window_follows_the_page_fetcher(site, tmp_path):
+    """Manifests from one host, images from another with other settings: the window (``Fetchers.last``) is the
+    images' fetcher, not the manifests'."""
+    from linecaster.blocks.readers.manifests import ManifestReader
+
+    clocks = Clocks()
+    images = site({}, clocks, address="127.0.0.2")
+    s = site({"/item1/manifest": [A(body=manifest(images.base, ["p1", "p2"]))]}, clocks)
+    policy = policy_file(tmp_path, 'hosts:\n  127.0.0.1: {rate_limits: ["100/1"]}\n  127.0.0.2: {max_retries: 1}\n')
+    reader = ManifestReader(str(tmp_path), paths_file=policy_file(tmp_path, f"{s.base}/item1/manifest\n", "m.txt"),
+                            http={"trust_env": False}, http_policy=policy)
+    seen = []
+
+    class Noting(type(reader._fetchers)):
+        def __setattr__(self, name, value):
+            if name == "last" and value is not None:
+                seen.append(value.config.max_retries)
+            super().__setattr__(name, value)
+
+    reader._fetchers.__class__ = Noting
+    assert len(list(reader.run())) == 2
+    assert seen and set(seen) == {1}                                    # never the manifests' fetcher (4 retries)
+
+
+def test_a_wait_for_a_proxy_that_nobody_waits_for_any_more_ends(tmp_path):
+    """Every request waiting for a usable proxy at a host is cancelled (the task ended): the wait ends then, and
+    counts as long as it lasted; a request much later that finds a proxy at once adds nothing for the time between."""
+    clocks = Clocks()
+
+    async def slow_sleep(seconds: float) -> None:                  # the clocks move, the loop really waits a little
+        clocks.t += seconds
+        await asyncio.sleep(0.01)
+
+    class NoProxy:
+        """A pool whose every proxy is blocked at the host for another 60 s."""
+
+        def pick(self, host, interval):
+            return None
+
+        def fill(self, host, force=False):
+            return 0
+
+        def has_usable(self, host):
+            return False
+
+        def outlook(self, host):
+            return 60.0, 0, 0
+
+    f = HTTPFetcher(trust_env=False, clock=clocks.clock, wall_clock=clocks.wall_clock, sleep=slow_sleep)
+    f._proxies = NoProxy()
+    try:
+        future = asyncio.run_coroutine_threadsafe(f._proxy_turn(HOST), f._loop)
+        deadline = time.monotonic() + 5
+        while HOST not in f._no_proxy_since and time.monotonic() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.1)
+        future.cancel()
+        deadline = time.monotonic() + 5
+        while (HOST in f._no_proxy_since or f._no_proxy_waiters.get(HOST)) and time.monotonic() < deadline:
+            time.sleep(0.01)
+        spent = f.total_for(HOST).spent
+        assert HOST not in f._no_proxy_since and 0 < spent < 60
+        clocks.t += 3600                                           # an hour later a proxy is usable at once
+        asyncio.run_coroutine_threadsafe(asyncio.to_thread(lambda: None), f._loop).result()
+        f._loop.call_soon_threadsafe(f._proxy_usable, HOST)
+        asyncio.run_coroutine_threadsafe(asyncio.sleep(0), f._loop).result()
+        assert f.total_for(HOST).spent == spent
+    finally:
+        f._proxies = None
+        f.close()
