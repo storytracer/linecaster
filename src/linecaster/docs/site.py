@@ -170,7 +170,7 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
               f"- [Blocks]({SITE}/blocks/): every block by family, with a page each "
               "(contract, backends, options, behavior)",
               f"- [Catalog]({SITE}/catalog/): engines, models, presets, pipelines and recipes, "
-              "with a page each and their evidence", "", "## Optional", "",
+              "with a page each", "", "## Optional", "",
               f"- [Changelog]({raw(repo / 'CHANGELOG.md')}): upgrade notes and changes",
               f"- [Repository]({GITHUB.rsplit('/blob/', 1)[0]}): the source", ""]
     full = []

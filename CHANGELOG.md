@@ -17,6 +17,14 @@ the tags; the first is `v0.1.0`.
   this script and pass `--backend served --endpoint URL` with a server started from such an environment
   (`uv run squiddle.py serve`). An existing script environment keeps kraken installed until
   `uv sync --script pipelines/transcribe_modular.py` removes it.
+- The catalog holds no evidence records: linecaster is not a data repository. `src/linecaster/catalog/data/evidence/`
+  is gone, the generated preset and recipe pages have no Evidence table, the catalog index no CER column, and the
+  docs and the presets' prose quote no measurements. The evidence format stays (`linecaster.evidence/1`,
+  `linecaster.catalog.Evidence`, `schemas/evidence-1.json`) without the source `board`. Who is affected: code that
+  read the shipped records (`Catalog().dirs[0].evidence`) or the numbers on the generated pages, and evidence
+  records with `source: board`. What to do: keep evidence records in the evaluation's own repository and validate them
+  with `Evidence`; give a leaderboard's numbers `source: vendor-benchmark` or `card-claim` (a claim), or measure
+  them yourself (`own-run`). The measurements made so far stay in NOTES.md.
 - `linecaster.runtime.jobs` no longer has `WheelJobsExecutor`, `wheel_volume`, `build_wheel`, `upload_wheel`,
   `bucket_parts`, `WHEEL_MOUNT` or `ENGINE_SCRIPT`. They served derivatives that are retired. A derivative's
   pipeline gets its Jobs' dependencies from its own script: `dependencies(commit, "<its script>.py")`.
@@ -39,6 +47,8 @@ the tags; the first is `v0.1.0`.
 
 ### Removed
 
+- The evidence records in the catalog, the Evidence tables of the generated pages and the CER column of the catalog
+  index; the evidence source `board` (upgrade notes).
 - `linecaster.runtime.jobs`: `WheelJobsExecutor`, `wheel_volume`, `build_wheel`, `upload_wheel`, `bucket_parts`,
   `WHEEL_MOUNT` and `ENGINE_SCRIPT` (upgrade notes).
 

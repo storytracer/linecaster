@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "One measurement of a preset or recipe edition, with its source. linecaster's catalog holds no evidence\nrecords (it is not a data repository): the format is for evaluations kept elsewhere, in a derivative's or an\nevaluation's own repository, which name what they measured by edition and hash.",
   "properties": {
     "schema": {
       "const": "linecaster.evidence/1",
@@ -49,7 +50,6 @@
     "source": {
       "enum": [
         "own-run",
-        "board",
         "card-claim",
         "vendor-benchmark"
       ],

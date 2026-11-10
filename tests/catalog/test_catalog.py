@@ -138,7 +138,8 @@ def test_docs_from_the_catalog(tmp_path):
     docs.write(Catalog([root]), tmp_path / "docs")
     out = tmp_path / "docs"
     page = (out / "presets" / "recognition" / "p.md").read_text()
-    assert "Why these settings." in page and "| 2026-11-03 | 1 | Linecaster run | d@r | - | - | cer_reading 0.0312 |" in page
+    assert "Why these settings." in page
+    assert "Evidence" not in page and "0.0312" not in page            # the pages quote no measurements
     assert "[`chat.v1`](../../engines/chat.v1.md)" in page and "(../../models/m.md)" in page
     model = (out / "models" / "m.md").read_text()
     assert "Ours." in model and "(../../cat/models/m/upstream/abc/README.md)" in model and "../presets/recognition/p.md" in model
@@ -146,7 +147,8 @@ def test_docs_from_the_catalog(tmp_path):
     assert (out / "engines" / "kraken.recognition.v1.md").exists() and "## Slots" in (out / "pipelines" / "transcribe_modular.v1.md").read_text()
     assert not (out / "presets" / "stale.md").exists()
     index = (out / "README.md").read_text()
-    assert "| [`p`](presets/recognition/p.md) | `chat.v1` | MIT | 0.0312 |" in index and "(recipes/r.md)" in index
+    assert "| [`p`](presets/recognition/p.md) | `chat.v1` | MIT |" in index and "(recipes/r.md)" in index
+    assert "0.0312" not in index and "CER" not in index
 
 
 def test_unknown_engines_are_reported(tmp_path):

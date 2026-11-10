@@ -79,8 +79,8 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 
 | Term | Meaning | Not |
 |---|---|---|
-| **catalog** | linecaster's register of models, engines, presets, recipes and evidence, in `src/linecaster/catalog/data/`. | |
-| **catalog entry** | One registered thing: a model, a preset, a recipe or an evidence record; a YAML file, with a Markdown sidecar for its prose. | not a "component", not a "document" |
+| **catalog** | linecaster's register of models, engines, presets and recipes, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
+| **catalog entry** | One registered thing: a model, a preset or a recipe; a YAML file, with a Markdown sidecar for its prose. | not a "component", not a "document" |
 | **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `normalization`, `typography`, `recomposition`, `composition`. A preset belongs to one step. | not a block |
 | **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit. Built-in engines live in the core; engine packages (`linecaster-kraken`, ...) add more. | not saturate's `Engine` class (its server launcher) |
 | **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image). A strategy declares the scripts it covers. | |
@@ -89,10 +89,10 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as `id@edition`. | |
 | **page preset** | A preset whose unit is `page`: one model reads the whole page (a VLM, or a page engine). `launch.py` can run one directly. | not "a model" |
 | **page engine** | An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (`indra.recognition.v1`, `surya.recognition.v1`, and the clients of a vendor's service, `falcon.recognition.v1`, `oxr.recognition.v1`). `PageRecognizer` runs it. | not a chat preset (`chat.v1`) |
-| **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options, with whole-run evidence. | |
+| **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
-| **evidence** | A measurement with its source (own run, leaderboard, model card, vendor benchmark), stored as an evidence record. | |
+| **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/1`), kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
 | **revision** | The exact upstream commit a model is pinned to. | |
 | **edition** | linecaster's release number of a preset or recipe: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its YAML. | not a version |

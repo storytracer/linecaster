@@ -1,7 +1,6 @@
-# The catalog: models, presets, recipes, evidence
+# The catalog: models, presets, recipes
 
-The catalog describes every model Linecaster can run, how it runs it, the tested combinations, and the
-measurements behind them. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
+The catalog describes every model Linecaster can run, how it runs it, and the tested combinations. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
 
 ```
@@ -9,7 +8,6 @@ src/linecaster/catalog/data/
   models/<id>/model.yaml, model.md        # + upstream/<revision>/ (the upstream card, verbatim)
   presets/<step>/<id>.yaml, <id>.md       # one folder per step (STEPS)
   recipes/<id>.yaml, <id>.md
-  evidence/<date>-<subject>-<dataset>.yaml
   catalog.lock
 src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic models
 ```
@@ -27,8 +25,7 @@ three kinds of catalog entry (models, presets, recipes; a YAML file each).
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
 | recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
 
-Besides these: **evidence** records (catalog entries too: one measurement of a preset or recipe edition), the **lock**
-(released editions) and the **run record** (`OUT/run.yaml`, and per page in each `StepInfo`: what a run
+Besides these: the **lock** (released editions) and the **run record** (`OUT/run.yaml`, and per page in each `StepInfo`: what a run
 resolved).
 
 ## Ids and versions
@@ -59,15 +56,16 @@ resolved).
 A model, preset or recipe is a YAML file, the data, validated strictly by `linecaster.catalog.schema` (unknown
 keys are errors), and a Markdown file of the same name next to it, the prose for people (why these settings,
 limitations, changes), without front matter. Tools read only the YAML; the docs generator also includes the
-prose. The prose is optional, except for presets and recipes with `support: core`. Evidence and the lock are
-YAML only. Bulk data (page records, exports) is JSON Lines or Parquet, not catalog data.
+prose. The prose is optional, except for presets and recipes with `support: core`. The lock is YAML only, and so
+is an evidence record (kept outside the catalog, [below](#measurements-live-elsewhere)). Bulk data (page records,
+exports) is JSON Lines or Parquet, not catalog data.
 
 | Format | Schema id | JSON Schema |
 |---|---|---|
 | model | `linecaster.model/1` | `schemas/model-1.json` |
 | preset | `linecaster.preset/1` | `schemas/preset-1.json` |
 | recipe | `linecaster.recipe/1` | `schemas/recipe-1.json` |
-| evidence | `linecaster.evidence/1` | `schemas/evidence-1.json` |
+| evidence (not catalog data; its schema ships here) | `linecaster.evidence/1` | `schemas/evidence-1.json` |
 | lock | `linecaster.lock/2` | `schemas/lock-2.json` |
 | run record (`OUT/run.yaml`, not catalog data; its schema ships here) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
 
@@ -125,16 +123,29 @@ are written by `linecaster catalog pin`.
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
-Measurements of a whole run (the pipeline's CER, its speed) are the recipe's evidence. A derivative's recipe
-lives in this catalog too (squiddleocr's `squiddle`); the derivative names it by id.
+A derivative's recipe lives in this catalog too (`squiddle`); the derivative names it by id.
 
-### Evidence (`evidence/<date>-<subject>-<dataset>.yaml`)
+## Measurements live elsewhere
 
-One measurement per file: `preset: id@edition` or `recipe: id@edition`, `context` (for a preset measured
-inside a pipeline: the rest of it), `source` (`own-run`, `board`, `card-claim`, `vendor-benchmark`),
-`dataset` (`repo@revision`, or a description for claims), `metrics`, `date`, `hardware`, `software`
-(linecaster commit, server version, `backend`: `in-process` or `served`), `run`, `notes`. Claims are never measurements; the docs show the source of
-every number.
+linecaster is not a data repository: the catalog holds no measurements, and neither do the docs. An evaluation
+(a derivative's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
+by edition and hash. linecaster provides the format and the tooling to produce them:
+
+- **The evidence format** (`linecaster.evidence/1`, `linecaster.catalog.Evidence`, `schemas/evidence-1.json`): one
+  measurement per file, `preset: id@edition` or `recipe: id@edition`, `context` (for a preset measured inside a
+  pipeline: the rest of it), `source` (`own-run`, `card-claim`, `vendor-benchmark`), `dataset` (`repo@revision`, or
+  a description for claims), `metrics`, `date`, `hardware`, `software` (linecaster commit, server version,
+  `backend`: `in-process` or `served`), `run`, `notes`. Claims are never measurements.
+- **What a measurement names:** the run record (`OUT/run.yaml`: the recipe edition and its hash, every block's
+  parameters, `pipeline_sha256`) and the recipe and preset editions stamped on every step of every page.
+- **What it measures:** the page records (every transcription with its steps' `measurements`: seconds, tokens,
+  device), the traces (`linecaster traces OUT`: time per block and page) and the per-page and per-item files.
+- **Ground truth and reference transcriptions:** `ManifestReader(existing_ocr=True)` and the
+  `TranscriptionConverter` read a library's own ALTO, PAGE-XML, hOCR or text into a named transcription
+  (`ocr_original`, `ground_truth`, ...) of the page record, next to `ocr_new`; the writers turn page records into
+  datasets (JSON Lines or Parquet page records, ALTO, PAGE-XML, hOCR, text).
+
+Scoring (CER and the like) is the evaluation's own; linecaster has no scorer.
 
 ## Released editions are immutable
 
@@ -278,8 +289,8 @@ an item's document is no transcription.
 Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
 over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
 `CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
-unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets that
-reproduce squiddleocr's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
+unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
+`squiddle` recipe's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
 `unicode-recomposition@1`, `docling-composition@1`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
@@ -318,9 +329,10 @@ no default presets:
 the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
-The recipes: `squiddle` (`transcribe_modular.v1`: squiddleocr's models and rule-based steps; its recognition is
-kraken's, which `pipelines/transcribe_modular.py` leaves out, so it runs in squiddleocr's `squiddle.py`, or with
-`--backend served --endpoint` against a server started from there) and `item-texts`
+The recipes: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
+recognition, tables, formulas and the rule-based steps; its recognition is kraken's, which
+`pipelines/transcribe_modular.py` leaves out, so it runs in an environment that adds kraken (a derivative's script),
+or with `--backend served --endpoint` against a server started from one) and `item-texts`
 (`bind.v1`: `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1`, the item stage's default
 combination).
 
@@ -343,12 +355,11 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model entry, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
 | `linecaster catalog release ID [--commit SHA] [--migrate-pipeline]` | freezes the current edition of a preset or recipe in the lock, a recipe with its expanded pipeline |
-| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and their expanded pipelines, and evidence |
+| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes, recipes and their expanded pipelines |
 | `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
 | `linecaster docs [--out docs] [--readme README.md]` | writes the generated docs (the catalog's pages among them; not in git, written before the site is built) |
 
 The catalog's generated pages are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
 recipes}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
-`ast`), so the engines need not be installed. The evidence tables on preset and recipe pages name each record's
-source, hardware and backend.
+`ast`), so the engines need not be installed. The pages quote no measurements.

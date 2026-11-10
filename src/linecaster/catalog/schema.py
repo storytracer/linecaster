@@ -48,7 +48,7 @@ PARTS = ("image", "metadata", "transcription_file", *PRODUCES, "line_regions", "
 #: what an engine's work is done on, per call (``capabilities.unit``)
 UNITS = ("line", "region", "page", "item")
 SUPPORT = ("core", "experimental", "legacy")
-EVIDENCE_SOURCES = ("own-run", "board", "card-claim", "vendor-benchmark")
+EVIDENCE_SOURCES = ("own-run", "card-claim", "vendor-benchmark")
 RELATIONS = ("mirror", "converted", "quantized", "finetuned")
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
@@ -299,11 +299,15 @@ class RecipeDoc(_Doc):
 # ----------------------------------------------------------------------------------------------- evidence
 
 class Evidence(_Doc):
+    """One measurement of a preset or recipe edition, with its source. linecaster's catalog holds no evidence
+    records (it is not a data repository): the format is for evaluations kept elsewhere, in a derivative's or an
+    evaluation's own repository, which name what they measured by edition and hash."""
+
     schema_: Literal["linecaster.evidence/1"] = Field(alias="schema")
     preset: str | None = Field(None, description="the preset edition measured: id@edition")
     recipe: str | None = Field(None, description="or the recipe edition measured (a whole pipeline): id@edition")
     context: str | None = Field(None, description="for a preset measured inside a pipeline: the rest of it")
-    source: Literal["own-run", "board", "card-claim", "vendor-benchmark"]
+    source: Literal["own-run", "card-claim", "vendor-benchmark"]
     dataset: str = Field(description="repo@revision, or a description for claims")
     metrics: dict[str, float]
     date: dt.date
