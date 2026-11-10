@@ -53,16 +53,27 @@ class _Opener:
     (``linecaster.net.policy``), one per host's settings)."""
 
     def __init__(self, http: dict | None = None, http_policy: str | None = None):
-        self._folders: dict = {}
-        self.http, self.http_policy, self._fetcher = dict(http or {}), http_policy, None
-        self._policies, self._used = None, set()
+        from ...net.policy import Fetchers
 
-    def __getstate__(self):                      # pipelines are pickled for their executors; the fetchers'
-        return {**self.__dict__, "_fetcher": None, "_policies": None, "_used": set()}   # threads are made again
+        self._folders: dict = {}
+        self._fetchers = Fetchers(http, http_policy)     # pickled without its fetchers (their threads)
+
+    @property
+    def http(self) -> dict:
+        return self._fetchers.http
+
+    @property
+    def http_policy(self) -> str | None:
+        return self._fetchers.http_policy
+
+    @property
+    def _fetcher(self):
+        """The fetcher of the latest http(s) request (``prefetched``'s window), or None."""
+        return self._fetchers.last
 
     def start_task(self) -> None:
         """A task begins: each fetcher gets a new random User-Agent at its first request (``new_user_agent``)."""
-        self._fetcher, self._used = None, set()
+        self._fetchers.start_task()
 
     def read(self, uri: str, fetches: list | None = None) -> bytes:
         """The bytes at ``uri``; an http(s) fetch's record (``linecaster.net.http.fetch_record``) is appended to
@@ -73,21 +84,7 @@ class _Opener:
         """A future of what ``uri`` holds, for ``result``: an http(s) request starts at once (``HTTPFetcher.submit``,
         within its rate limits), anything else is read now."""
         if uri.startswith(("http://", "https://")):
-            from ...net.http import HTTPFetcher
-
-            config = self.http
-            if self.http_policy:
-                from ...net.policy import HTTPPolicy
-
-                if self._policies is None:
-                    self._policies = HTTPPolicy(self.http_policy, self.http)
-                config = self._policies.http_for(uri)
-            fetcher = HTTPFetcher.shared(**config)
-            if fetcher not in self._used:               # a task's first request to it: its own random User-Agent
-                self._used.add(fetcher)
-                fetcher.new_user_agent()
-            self._fetcher = fetcher
-            return fetcher.submit(uri, expect="image")       # an HTML page instead is a failed attempt
+            return self._fetchers.for_url(uri).submit(uri, expect="image")   # HTML instead is a failed attempt
         return _future(lambda: self._read_local(uri))
 
     @staticmethod

@@ -61,11 +61,13 @@ class Clocks:
         return {"clock": self.clock, "wall_clock": self.wall_clock, "sleep": self.sleep}
 
 
-def A(status: int = 200, body: str = "png", retry_after=None, location: str | None = None, slow: float = 0.0):
-    """One answer of the scripted server: ``body`` ``png`` (an image), ``html`` or ``empty``; ``retry_after`` a value or
-    a callable of the wall clock (an HTTP-date); ``location`` a path to redirect to; ``slow`` seconds to send the body
-    after the headers."""
-    return {"status": status, "body": body, "retry_after": retry_after, "location": location, "slow": slow}
+def A(status: int = 200, body: str | bytes = "png", retry_after=None, location: str | None = None, slow: float = 0.0,
+      ctype: str = "application/json"):
+    """One answer of the scripted server: ``body`` ``png`` (an image), ``html`` or ``empty``, or bytes sent as
+    ``ctype``; ``retry_after`` a value or a callable of the wall clock (an HTTP-date); ``location`` a path to redirect
+    to; ``slow`` seconds to send the body after the headers."""
+    return {"status": status, "body": body, "retry_after": retry_after, "location": location, "slow": slow,
+            "ctype": ctype}
 
 
 class Site:
@@ -100,10 +102,11 @@ class Site:
                     k = site.counts[key] = site.counts.get(key, 0) + 1
                 answers = site.script[(n, path)] if own else site.script.get(path, [A()])
                 a = answers[min(k, len(answers)) - 1]
-                body = {"png": png, "html": HTML, "empty": b""}[a["body"]]
+                raw = isinstance(a["body"], bytes)
+                body = a["body"] if raw else {"png": png, "html": HTML, "empty": b""}[a["body"]]
                 self.send_response(a["status"])
-                self.send_header("Content-Type", {"png": "image/png", "html": "text/html; charset=utf-8",
-                                                  "empty": "text/plain"}[a["body"]])
+                self.send_header("Content-Type", a["ctype"] if raw else {
+                    "png": "image/png", "html": "text/html; charset=utf-8", "empty": "text/plain"}[a["body"]])
                 if a["retry_after"] is not None:
                     value = a["retry_after"]
                     self.send_header("Retry-After", value(site.clocks.wall) if callable(value) else str(value))
@@ -640,3 +643,123 @@ def test_the_proxies_section_and_its_checks(tmp_path):
                           ("stop_on: [captcha]", "stop_on holds HTTP statuses and `html`")]:
         with pytest.raises(PipelineConfigError, match=problem):
             HTTPPolicy(policy_file(tmp_path, text + "\n"))
+
+
+# ---------------------------------------------------------------- the policy reaches every reader
+
+
+def manifest(base: str, names: list[str]) -> bytes:
+    """A IIIF Presentation 3 manifest whose pages are the images ``<base>/<name>.png``."""
+    return json.dumps({
+        "@context": "http://iiif.io/api/presentation/3/context.json", "id": f"{base}/item1/manifest",
+        "type": "Manifest", "label": {"none": ["Item 1"]}, "items": [
+            {"id": f"{base}/item1/canvas/{n}", "type": "Canvas", "items": [{"type": "AnnotationPage", "items": [
+                {"type": "Annotation", "body": {"id": f"{base}/{n}.png", "type": "Image"}}]}]} for n in names]}).encode()
+
+
+def reader_for(kind: str, tmp_path, base: str, http: dict, policy: str | None):
+    """A reader of ``kind`` whose one page (or resource) is the image ``<base>/p1.png``."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from linecaster.blocks.readers.images import ImageParquetReader
+    from linecaster.blocks.readers.manifests import ManifestReader
+    from linecaster.blocks.readers.records import PageRecordReader
+    from linecaster.blocks.readers.resources import ResourceReader
+
+    data = tmp_path / "data"
+    data.mkdir(exist_ok=True)
+    if kind == "parquet":
+        pq.write_table(pa.table({"id": ["p1"], "image": [f"{base}/p1.png"]}), data / "p.parquet")
+        return ImageParquetReader(str(data), http=http, http_policy=policy)
+    if kind == "items":
+        pq.write_table(pa.table({"item": ["p1"]}), data / "p.parquet")
+        return ResourceReader(str(data), item_key="item", templates={"image": f"{base}/{{item}}.png"}, http=http,
+                              http_policy=policy)
+    if kind == "manifests":
+        (data / "m.txt").write_text(f"{base}/item1/manifest\n")
+        return ManifestReader(str(data), paths_file=str(data / "m.txt"), http=http, http_policy=policy)
+    (data / "r.jsonl").write_text(json.dumps({"id": "p1", "text": "", "page": {"page_id": "p1", "image": {
+        "uri": f"{base}/p1.png"}}}) + "\n")
+    return PageRecordReader(str(data), http=http, http_policy=policy)
+
+
+@pytest.mark.parametrize("kind", ["parquet", "items", "manifests", "pages"])
+@pytest.mark.parametrize("with_policy", [True, False])
+def test_the_policy_holds_for_every_reader_that_fetches(site, tmp_path, kind, with_policy):
+    """``--parquet``, ``--items``, ``--manifests`` and ``--pages`` read one image that is an HTML page at first. With a
+    policy whose ``block_on`` has ``html``, every reader's request is a block: the worker pauses 60 s, then the image
+    comes through; without it, an ordinary failed attempt, retried after 2 s."""
+    clocks = Clocks()
+    s = site({"/p1.png": [A(body="html"), A()]}, clocks)
+    s.script["/item1/manifest"] = [A(body=manifest(s.base, ["p1"]))]
+    policy = policy_file(tmp_path, "block_on: [429, html]\n") if with_policy else None
+    reader = reader_for(kind, tmp_path, s.base, {"trust_env": False, **clocks.kwargs()}, policy)
+    docs = list(reader.run())
+    assert len(docs) == 1 and docs[0].media and docs[0].media[0].media_bytes.startswith(b"\x89PNG")
+    assert sum(clocks.sleeps) == (60 if with_policy else 2) and s.carried[0].count("/p1.png") == 2
+
+
+def test_a_policys_proxies_rate_limits_and_block_on_reach_the_manifest_reader(site, tmp_path):
+    """A policy for ``library.test`` (a name only the proxies answer for) with a proxy list, a rate limit of one
+    request per 10 s per proxy and ``block_on: [429, html]``: the manifest's first answer is an HTML page, so the
+    proxy that carried it is left out (marked ``html``) and the manifest comes through the other; its two images go
+    out through that one, 10 s apart, and the OCR files likewise. Nothing goes out directly."""
+    from linecaster.blocks.readers.manifests import ManifestReader
+
+    clocks = Clocks()
+    base = f"http://{HOST}"
+    body = json.loads(manifest(base, ["p1", "p2"]))
+    for canvas, n in zip(body["items"], ["p1", "p2"]):
+        canvas["seeAlso"] = [{"id": f"{base}/{n}.xml", "type": "Dataset", "format": "application/xml",
+                              "profile": "http://www.loc.gov/standards/alto/"}]
+    alto = (b'<?xml version="1.0"?><alto xmlns="http://www.loc.gov/standards/alto/ns-v4#"><Layout>'
+            b'<Page ID="p" WIDTH="6" HEIGHT="4"/></Layout></alto>')
+    s = site({"/item1/manifest": [A(body="html"), A(body=json.dumps(body).encode())],
+              "/p1.xml": [A(body=alto, ctype="application/xml")], "/p2.xml": [A(body=alto, ctype="application/xml")]},
+             clocks)
+    policy = policy_file(tmp_path, f"""
+broker: {tmp_path / "broker"}
+hosts:
+  {HOST}:
+    block_on: [429, html]
+    rate_limits: ["1/10"]
+    proxies: {{file: {s.proxy_file}}}
+""")
+    reader = ManifestReader(str(tmp_path), paths_file=policy_file(tmp_path, f"{base}/item1/manifest\n", "m.txt"),
+                            existing_ocr=True, http={"trust_env": False, **clocks.kwargs()}, http_policy=policy)
+    docs = list(reader.run())
+    assert sorted(d.id for d in docs) == ["item1_0001", "item1_0002"] and all(len(d.media) == 2 for d in docs)
+    assert s.carried[0] == [] and sorted(s.carried[1] + s.carried[2]) == sorted(
+        ["/item1/manifest"] * 2 + ["/p1.png", "/p2.png", "/p1.xml", "/p2.xml"])
+    assert marks(tmp_path) == [(HOST, 60, "html")]
+    blocked = 1 if s.carried[1] == ["/item1/manifest"] else 2
+    assert s.carried[blocked] == ["/item1/manifest"] and len(s.carried[3 - blocked]) == 5
+    fetcher = reader._fetchers.last
+    assert fetcher.config.rate_limits == [(1, 10.0)] and fetcher.block_on == {429, "html"}
+    waits = sorted(f["wait_seconds"] for d in docs for f in d.metadata["trace"]["fetch"])
+    assert [round(w) for w in waits] == [10, 20, 30, 40]                  # one request per 10 s through the proxy
+
+
+
+@pytest.mark.parametrize("option", ["--manifests", "--pages", "--parquet", "--items"])
+def test_the_http_policy_option_is_taken_by_every_input_that_fetches(tmp_path, option):
+    """``--http-policy`` with each input that fetches over http(s) reaches its reader, with the run's options as the
+    policy's base (proxies, the broker)."""
+    from linecaster.runtime import run
+
+    policy = policy_file(tmp_path, "block_on: [429, html]\n")
+    extra = {"--manifests": [str(tmp_path / "m.txt")], "--pages": [str(tmp_path)], "--parquet": [str(tmp_path)],
+             "--items": [str(tmp_path), "--item-key", "id", "--resource", "x=https://example.org/{item}"]}[option]
+    (tmp_path / "proxies.txt").write_text("127.0.0.1:9\n")
+    ap = run.parser(None)
+    a = run.check(ap, ap.parse_args([option, *extra, "OUT", "--http-policy", policy,
+                                     "--proxies", str(tmp_path / "proxies.txt")]))
+    reader = run.reader(a)
+    fetchers = getattr(reader, "_fetchers", None) or reader._opener._fetchers
+    assert fetchers.http_policy == policy and fetchers.http["proxy_file"] == str(tmp_path / "proxies.txt")
+    settings = fetchers.settings("https://example.org/x")
+    assert settings["block_on"] == [429, "html"] and settings["default_broker"] == "OUT/logs/broker"
+    import pickle
+
+    assert pickle.loads(pickle.dumps(reader))                       # executors pickle it: no fetcher, no thread

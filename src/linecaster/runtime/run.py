@@ -141,10 +141,11 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-items", type=int, default=None, metavar="N",
                    help="--items: only the first N items of the input for the whole run (a smoke test)")
     g.add_argument("--http-policy", default=None, metavar="FILE",
-                   help="--items, --parquet: an HTTP policy file (YAML: rate_limits, max_retries, block_on, stop_on, "
-                        "max_pause, proxies: {file, per_worker, block_ttl, broken_after, broken_ttl}, ... for every "
-                        "host at the root, overrides per host under hosts:; docs/reference/http.md); the run's own "
-                        "options go over its root, a host's entry over both")
+                   help="an HTTP policy file for every request over http(s) (--parquet, --items, --manifests, --pages) "
+                        "(YAML: rate_limits, max_retries, block_on, stop_on, max_pause, proxies: {file, per_worker, "
+                        "block_ttl, broken_after, broken_ttl}, ... for every host at the root, overrides per host "
+                        "under hosts:; docs/reference/http.md); the run's own options go over its root, a host's "
+                        "entry over both")
     g.add_argument("--max-pages", type=int, default=None, metavar="N",
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")
@@ -251,8 +252,6 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         ap.error("--resource and --max-items are for --items")
     if a.max_items is not None and a.max_items < 1:
         ap.error("--max-items needs at least 1")
-    if a.http_policy and (a.manifests or a.pages):
-        ap.error("--http-policy is for --items and --parquet so far")
     if a.http_policy:
         from ..net.policy import HTTPPolicy
 
@@ -560,9 +559,10 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a),
-                              task_per_item=task_per_item, reuse_folder=reuse_folder)
+                              task_per_item=task_per_item, reuse_folder=reuse_folder,
+                              http_policy=getattr(a, "http_policy", None))
     if getattr(a, "pages", None):
-        return PageRecordReader(a.pages, http=http(a))
+        return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None))
     if getattr(a, "page", None):
         folder, _, name = a.page.rstrip("/").rpartition("/")
         return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)

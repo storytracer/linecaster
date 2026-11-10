@@ -1848,6 +1848,7 @@ recipes:
       class: linecaster.blocks.readers.records:PageRecordReader
       params:
         fetch_images: false
+        http_policy: null
         item_shards: true
         provides: null
     - block: RejectWriter
@@ -1925,7 +1926,7 @@ recipes:
         furniture: false
         dividers: false
         by_format: true
-    pipeline_sha256: sha256:d27db23a364013cfa8ddde9f667c080c4e476bc7c18c87b0eae28b39b1ebe0f6
+    pipeline_sha256: sha256:45b8969911f5622e8f662603c383a9f08a27cf4689a82789dbd1d88deff88fc4
   squiddle@1:
     sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
     previous_sha256:

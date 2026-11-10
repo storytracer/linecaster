@@ -155,16 +155,21 @@ class ResourceReader(Contracted, BaseDiskReader):
             raise PipelineConfigError("max_items must be at least 1")
         self.item_key, self.templates = item_key, dict(templates or {})
         self.url_key, self.kind_key, self.name_key = url_key, kind_key, name_key
+        from ...net.policy import Fetchers
+
         self.http, self.http_policy = dict(http or {}), http_policy
         self.reuse_folder, self.max_items = reuse_folder, max_items
         self._layout = self._items = None
-        self._policies = None
-        self._fetchers: set = set()
+        self._fetchers = Fetchers(self.http, http_policy)      # pickled without its fetchers
         self._existing: dict[str, ExistingImages] = {}
-        self._last = None
 
-    def __getstate__(self):                      # fetchers and listings belong to the process and task using them
-        return {**self.__dict__, "_policies": None, "_fetchers": set(), "_existing": {}, "_last": None}
+    def __getstate__(self):                      # listings belong to the task using them
+        return {**self.__dict__, "_existing": {}}
+
+    @property
+    def _last(self):
+        """The fetcher of the latest request (``prefetched``'s window), or None."""
+        return self._fetchers.last
 
     # ---------------------------------------------------------------- the input and the tasks
 
@@ -244,18 +249,7 @@ class ResourceReader(Contracted, BaseDiskReader):
     # ---------------------------------------------------------------- fetching
 
     def _fetcher(self, url: str):
-        from ...net.http import HTTPFetcher
-        from ...net.policy import HTTPPolicy
-
-        if self.http_policy and self._policies is None:
-            self._policies = HTTPPolicy(self.http_policy, self.http)
-        config = self._policies.http_for(url) if self._policies else self.http
-        fetcher = HTTPFetcher.shared(**config)
-        if fetcher not in self._fetchers:            # a task's first request to it: its own random User-Agent
-            self._fetchers.add(fetcher)
-            fetcher.new_user_agent()
-        self._last = fetcher
-        return fetcher
+        return self._fetchers.for_url(url)
 
     def _copy(self, item: str, kind: str, name: str):
         if self.reuse_folder is None:
@@ -299,7 +293,7 @@ class ResourceReader(Contracted, BaseDiskReader):
 
     def _fetched(self, slices: list):
         budget = ErrorBudget(self, self.max_page_errors)
-        self._fetchers = set()
+        self._fetchers.start_task()
 
         def selected():
             for i, entry in enumerate(self._entries(slices)):

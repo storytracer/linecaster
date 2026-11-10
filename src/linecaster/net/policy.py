@@ -364,3 +364,53 @@ def rules(s: dict) -> str:
     if stop:
         parts.append("stops on " + ", ".join(map(str, stop)))
     return ", ".join(parts)
+
+
+class Fetchers:
+    """A reader's fetchers (``linecaster.net.http.HTTPFetcher.shared``), one per host's settings, for every reader that
+    fetches over http(s): ``http`` (the run's settings, ``linecaster.runtime.run.http``) alone, or with ``http_policy``
+    (a policy file) the policy's settings for the URL's host (``HTTPPolicy.http_for``, the run's settings between its
+    root and its hosts). Each fetcher takes a new random User-Agent at a task's first request through it
+    (``start_task``; with ``use_fake_user_agent``). ``last``: the fetcher of the latest request, for
+    ``linecaster.net.http.prefetched``'s window. Pickled without its fetchers and the parsed policy: they belong to the
+    process that uses them, and the file is read again there."""
+
+    def __init__(self, http: dict | None = None, http_policy: str | None = None):
+        self.http, self.http_policy = dict(http or {}), http_policy
+        self._policy: HTTPPolicy | None = None
+        self._used: set = set()
+        self.last = None
+
+    def __getstate__(self):
+        return {**self.__dict__, "_policy": None, "_used": set(), "last": None}
+
+    def settings(self, url: str) -> dict:
+        """The fetcher settings (``HTTPFetcher``'s) for ``url``."""
+        if not self.http_policy:
+            return self.http
+        if self._policy is None:
+            self._policy = HTTPPolicy(self.http_policy, self.http)
+        return self._policy.http_for(url)
+
+    def config(self, url: str):
+        """The ``linecaster.net.http.HTTPConfig`` for ``url`` (the IIIF and METS choices among them), without a
+        fetcher."""
+        from .http import HTTP_DEFAULTS, HTTPConfig
+
+        return HTTPConfig(**{k: v for k, v in self.settings(url).items() if k in HTTP_DEFAULTS})
+
+    def for_url(self, url: str):
+        """The fetcher for ``url`` (an http(s) URL), made at its first use in this process."""
+        from .http import HTTPFetcher
+
+        fetcher = HTTPFetcher.shared(**self.settings(url))
+        if fetcher not in self._used:                    # a task's first request through it: its own User-Agent
+            self._used.add(fetcher)
+            fetcher.new_user_agent()
+        self.last = fetcher
+        return fetcher
+
+    def start_task(self) -> None:
+        """A task begins: each fetcher takes a new random User-Agent at its first request (``new_user_agent``);
+        ``last`` stays (the process's fetchers and their windows outlive the task)."""
+        self._used = set()

@@ -20,7 +20,7 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
 from ...errors import PipelineConfigError
-from ...net.http import HTTPFetcher, fetch_record, is_url, prefetched
+from ...net.http import fetch_record, is_url, prefetched
 from .existing import ExistingImages, Reused, mark_reused
 from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
@@ -127,9 +127,11 @@ class ManifestReader(Contracted, BaseDiskReader):
     ``pages_not_images``, ``ocr_failed``), and the task goes on.
 
     Pages are requested ahead, across manifests, as many as keep the rate limits busy
-    (``linecaster.net.http.prefetched``), through one ``HTTPFetcher.shared`` per process and configuration, so the
-    rate limits hold across the tasks a worker runs one after the other; they go on as their images arrive, so a
-    slow request delays only its own page (an item's pages can leave out of order; ``sequence`` keeps their place).
+    (``linecaster.net.http.prefetched``), through one ``HTTPFetcher.shared`` per process and host's settings
+    (``linecaster.net.policy.Fetchers``: ``http``, and with ``http_policy`` the policy's for each URL's host, for
+    the manifests, the images and the OCR files alike), so the rate limits hold across the tasks a worker runs one
+    after the other; they go on as their images arrive, so a slow request delays only its own page (an item's pages
+    can leave out of order; ``sequence`` keeps their place).
 
     Args:
         data_folder: the folder (local path, fsspec URI or ``DataFolder``) of the manifests or item tables, and the
@@ -148,8 +150,11 @@ class ManifestReader(Contracted, BaseDiskReader):
         existing_ocr: also fetch each page's own OCR file (``transcription_file``).
         manifest_folder: where every manifest read is saved as fetched, ``<item_id>.json`` / ``.xml``; default: not
             saved.
-        http: ``linecaster.net.http.HTTPConfig`` fields and ``HTTPFetcher`` settings over ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task,
-            ``timeout``, ``proxy``, ``iiif_format``, ``iiif_quality``, ``mets_image_groups``, ...).
+        http: ``linecaster.net.http.HTTPConfig`` fields and ``HTTPFetcher`` settings over
+            ``linecaster.net.http.HTTP_DEFAULTS`` (``rate_limits`` of this task, ``timeout``, ``proxy``,
+            ``iiif_format``, ``iiif_quality``, ``mets_image_groups``, ...).
+        http_policy: an HTTP policy file (``linecaster.net.policy``): settings per host, with ``http`` between its
+            root and its hosts, for every request (manifests, images, OCR files).
         default_metadata: goes into every page's metadata.
         task_per_item: ``auto_tasks`` gives one task per item (``pipelines/harvest.py``); default about
             ``ITEMS_PER_TASK`` items per task.
@@ -178,7 +183,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                  existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None):
         if glob_pattern is None:
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
@@ -189,7 +194,11 @@ class ManifestReader(Contracted, BaseDiskReader):
             raise PipelineConfigError("item_key names a column of an item table: give manifest_key too")
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
+        from ...net.policy import Fetchers
+
         self.manifest_folder, self.http, self.task_per_item = manifest_folder, dict(http or {}), task_per_item
+        self.http_policy = http_policy
+        self._fetchers = Fetchers(self.http, http_policy)     # pickled without its fetchers
         self.reuse_folder = reuse_folder
         self._existing = ExistingImages(reuse_folder) if reuse_folder is not None and not existing_ocr else None
         self._all: list[str] | None = None
@@ -267,9 +276,9 @@ class ManifestReader(Contracted, BaseDiskReader):
                         extra = {k: v for k, v in row.items() if not isinstance(v, bytes | dict | list)}
                         yield None if item is None else safe_id(item), str(ref), extra
 
-    def _read(self, fetcher: HTTPFetcher, ref: str) -> tuple[bytes, str]:
+    def _read(self, ref: str) -> tuple[bytes, str]:
         if is_url(ref):
-            response = fetcher.get(ref, expect="manifest")
+            response = self._fetchers.for_url(ref).get(ref, expect="manifest")
             return response.content, str(response.url)
         if "://" in ref or ref.startswith("/"):
             folder, name = ref.rsplit("/", 1)
@@ -279,11 +288,11 @@ class ManifestReader(Contracted, BaseDiskReader):
         with self.data_folder.open(ref, "rb") as f:
             return f.read(), self.data_folder.resolve_paths(ref)
 
-    def _pages(self, fetcher: HTTPFetcher, entries: list[str]):
+    def _pages(self, entries: list[str]):
         """(item_id, item metadata, table metadata, ManifestPage) for each page of the entries' items, in order."""
         saved = get_datafolder(self.manifest_folder) if self.manifest_folder is not None else None
         for item_id, ref, extra in self._items(entries):
-            yield from self._manifest_pages(fetcher, saved, item_id, ref, extra)
+            yield from self._manifest_pages(saved, item_id, ref, extra)
 
     def _members(self, data: bytes) -> list | None:
         """The members of a IIIF Collection (``linecaster.formats.manifests.read_collection``), or None for a
@@ -299,19 +308,18 @@ class ManifestReader(Contracted, BaseDiskReader):
             return None
         return read_collection(data)
 
-    def _manifest_pages(self, fetcher: HTTPFetcher, saved, item_id: str | None, ref: str, extra: dict,
-                        in_collection: bool = False):
+    def _manifest_pages(self, saved, item_id: str | None, ref: str, extra: dict, in_collection: bool = False):
         """The pages of the manifest ``ref`` (as ``_pages`` yields them); a IIIF Collection's manifests, each an item
         named by its own link (one level: a collection in a collection raises ``NotImplementedError``)."""
         from ...formats.manifests import read_manifest
 
         start, t = time.time_ns(), time.perf_counter()
         try:
-            data, uri = self._read(fetcher, ref)
+            data, uri = self._read(ref)
             members = None if in_collection else self._members(data)
             if members is None:
                 item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
-                c = fetcher.config
+                c = self._fetchers.config(uri)
                 manifest = read_manifest(data, self.manifest_format, iiif_format=c.iiif_format,
                                          iiif_quality=c.iiif_quality, image_groups=tuple(c.mets_image_groups),
                                          ocr_groups=tuple(c.mets_ocr_groups))
@@ -333,7 +341,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                 raise NotImplementedError(f"IIIF Collection {ref} lists collections ({', '.join(nested[:3])}); "
                                           "ManifestReader reads one level of manifests so far")
             for m in members:
-                yield from self._manifest_pages(fetcher, saved, None, resolve(m.id, uri), extra, in_collection=True)
+                yield from self._manifest_pages(saved, None, resolve(m.id, uri), extra, in_collection=True)
             return
         self.report("file", start, file=ref, pages=len(manifest.pages), seconds_own=round(time.perf_counter() - t, 4))
         self.stat_update(f"manifests_{manifest.format}")
@@ -352,7 +360,7 @@ class ManifestReader(Contracted, BaseDiskReader):
 
     # ------------------------------------------------------------------ pages
 
-    def _submit(self, fetcher: HTTPFetcher, entry):
+    def _submit(self, entry):
         item_id, item, extra, page = entry
         base = item["url"]
         if self._existing is not None:
@@ -368,18 +376,17 @@ class ManifestReader(Contracted, BaseDiskReader):
                     return entry, done, None
                 except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched from the source
                     pass
-        image = self._get(fetcher, resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base),
+        image = self._get(resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base),
                           expect="image")
-        ocr = (self._get(fetcher, resolve(page.ocr_url, base), expect="xml" if page.ocr_format == "alto" else None)
+        ocr = (self._get(resolve(page.ocr_url, base), expect="xml" if page.ocr_format == "alto" else None)
                if self.existing_ocr and page.ocr_url else None)
         return entry, image, ocr
 
-    @staticmethod
-    def _get(fetcher: HTTPFetcher, url: str, fallback_url: str | None = None, expect: str | None = None):
-        """A future of the response: over http(s) (``HTTPFetcher``; ``expect``: the format it should have), else read
-        at once from its folder (a METS package with local files)."""
+    def _get(self, url: str, fallback_url: str | None = None, expect: str | None = None):
+        """A future of the response: over http(s) (the URL's ``HTTPFetcher``; ``expect``: the format it should have),
+        else read at once from its folder (a METS package with local files)."""
         if is_url(url):
-            return fetcher.submit(url, fallback_url, expect)
+            return self._fetchers.for_url(url).submit(url, fallback_url, expect)
         from concurrent.futures import Future
 
         future: Future = Future()
@@ -444,7 +451,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         self.update_media_stats(doc.media[0])
         return doc
 
-    def _fetched(self, fetcher: HTTPFetcher, pages):
+    def _fetched(self, pages):
         """The documents of ``pages`` in order, requested ahead (``prefetched``)."""
         def cancel(submitted) -> None:
             _, image, ocr = submitted
@@ -452,16 +459,15 @@ class ManifestReader(Contracted, BaseDiskReader):
             if ocr is not None:
                 ocr.cancel()
 
-        for submitted in prefetched(pages, lambda entry: self._submit(fetcher, entry), cancel,
-                                    future=lambda submitted: submitted[1], fetcher=lambda: fetcher, ordered=False):
+        for submitted in prefetched(pages, self._submit, cancel, future=lambda submitted: submitted[1],
+                                    fetcher=lambda: self._fetchers.last, ordered=False):
             doc = self._page(*submitted)
             if doc is not None:
                 yield doc
 
     def read_file(self, filepath: str):
         """The pages of one entry (a manifest, or an item table); ``run`` reads a task's entries in one stream."""
-        fetcher = HTTPFetcher.shared(**self.http)
-        yield from self._fetched(fetcher, self._pages(fetcher, [filepath]))
+        yield from self._fetched(self._pages([filepath]))
 
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
@@ -472,17 +478,16 @@ class ManifestReader(Contracted, BaseDiskReader):
             import random
 
             random.shuffle(entries)
-        fetcher = HTTPFetcher.shared(**self.http)
-        fetcher.new_user_agent()                    # with --random-user-agent: one per task
+        self._fetchers.start_task()                 # with --random-user-agent: one per task and fetcher
 
         def selected():                    # skip and limit before anything is downloaded
-            for i, entry in enumerate(self._pages(fetcher, entries)):
+            for i, entry in enumerate(self._pages(entries)):
                 if i < self.skip:
                     continue
                 if self.limit != -1 and i - self.skip >= self.limit:
                     return
                 yield entry
 
-        for doc in self._fetched(fetcher, selected()):
+        for doc in self._fetched(selected()):
             self.update_doc_stats(doc)
             yield doc

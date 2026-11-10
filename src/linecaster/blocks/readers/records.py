@@ -81,6 +81,8 @@ class PageRecordReader(Contracted, PipelineStep):
         uri_map: image URI prefixes rewritten before reading (e.g. a Hub path to a local copy of the same files).
         item_shards: the records are item shards (``<shard>/<rank>...``), each read whole by one task.
         http: ``linecaster.net.http.HTTPConfig`` fields for ``http(s)://`` image URIs.
+        http_policy: an HTTP policy file (``linecaster.net.policy``): settings per host for those URIs, with ``http``
+            between its root and its hosts.
         provides: the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for the
             builder's checks; default: anything (``*``; reads after this reader are not checked). The builder sets it
             when it starts a stage from the page records of an earlier one.
@@ -94,12 +96,12 @@ class PageRecordReader(Contracted, PipelineStep):
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
                  uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None,
-                 provides=None):
+                 provides=None, http_policy: str | None = None):
         super().__init__()
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
         self.uri_map, self.item_shards = uri_map or {}, item_shards
         self.provides = None if provides is None else frozenset(Part.parse(p) for p in provides)
-        self._opener = _Opener(http)
+        self._opener = _Opener(http, http_policy)
 
     @property
     def whole_items(self) -> bool:
