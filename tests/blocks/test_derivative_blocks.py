@@ -75,7 +75,7 @@ def test_rejects_and_validate_pages(tmp_path: Path):
 
 # ------------------------------------------------------------------ media
 
-def _forged_png(w: int, h: int) -> bytes:
+def _png_claiming_size(w: int, h: int) -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (1, 1)).save(buf, "PNG")
     data = bytearray(buf.getvalue())
@@ -86,7 +86,7 @@ def _forged_png(w: int, h: int) -> bytes:
 
 def test_working_images_and_attach(tmp_path: Path):
     Image.new("RGB", (60, 40), (10, 200, 30)).save(tmp_path / "a.tif", compression="tiff_lzw")
-    (tmp_path / "big.png").write_bytes(_forged_png(20000, 10))
+    (tmp_path / "big.png").write_bytes(_png_claiming_size(20000, 10))
     before = (tmp_path / "a.tif").read_bytes()
     pages = [Page(page_id="b_1", item_id="b", image=PageImage(uri=str(tmp_path / "a.tif"))),
              Page(page_id="b_2", item_id="b", image=PageImage(uri=str(tmp_path / "big.png"))),

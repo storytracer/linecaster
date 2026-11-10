@@ -1,5 +1,5 @@
-"""``Typographer``: the typographic hierarchy of a page (``typography.*`` engines; ``typography.ratios.v1`` is
-squiddleocr's retyper, ``linecaster.text.typography``)."""
+"""``Typographer``: the typographic hierarchy of a page (``typography.*`` engines; ``typography.ratios.v1``:
+heading levels from type-size ratios, ``linecaster.text.typography``)."""
 from __future__ import annotations
 
 from ..base.rule import RuleBlock

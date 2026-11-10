@@ -1,9 +1,9 @@
-"""linecaster.text.recomposition as it was at 531a422 (squiddleocr's reflow.py), the reference of
+"""linecaster.text.recomposition as it was at 531a422, the reference of
 ``test_recomposition_parity.py``; unchanged below this line.
 
 Recomposition: running text from the visual rows of a region (the reading transcription).
 
-Ported verbatim from squiddleocr's ``reflow.py`` (main ``7c8a052``); used by ``linecaster.formats.docling``'s
+Used by ``linecaster.formats.docling``'s
 ``text="reflow"`` mode. (``linecaster.text.variants`` keeps its own, simpler flow for the readable item texts.)
 
 Typesetting turned the text into lines: it broke it at line ends, sometimes inside a word with a

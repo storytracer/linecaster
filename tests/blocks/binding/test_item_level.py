@@ -116,8 +116,8 @@ def test_item_blocks_group_pages_and_write(tmp_path):
 
 
 def test_reflow_with_sections_and_a_title_keeps_a_consistent_tree():
-    # squiddleocr 7c8a052 crashes here ("Document hierarchy is inconsistent"): its reflow path re-parents
-    # the title into a new section without detaching it; here the section opens first, the title inside
+    # re-parenting the title into a new section without detaching it fails here ("Document hierarchy is
+    # inconsistent"); the section opens first, the title inside
     pages = two_pages()
     pages[0].regions[0].label = "title"
     b = DocumentBuilder("book", sections=True)

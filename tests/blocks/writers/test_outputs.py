@@ -49,7 +49,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 
 
 def test_page_files_flat_are_the_document_exports(tmp_path: Path):
-    """Flat names with a suffix (squiddleocr's): each file is the document's export byte for byte, as the
+    """Flat names with a suffix: each file is the document's export byte for byte, as the
     export writer this one replaces wrote them (flat, suffix, furniture)."""
     docs = list(Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,

@@ -160,7 +160,7 @@ def test_check_size_reads_pillow_limit_at_call_time(monkeypatch):
     assert check_size(16383, 16383) is None
 
 
-def _png_with_forged_size(width: int, height: int) -> bytes:
+def _png_claiming_size(width: int, height: int) -> bytes:
     """A valid 1x1 PNG whose IHDR claims another size (CRC fixed): only the header is consistent."""
     data = bytearray(_encode(Image.new("RGB", (1, 1), (1, 2, 3)), "PNG"))
     assert data[12:16] == b"IHDR"
@@ -169,8 +169,8 @@ def _png_with_forged_size(width: int, height: int) -> bytes:
     return bytes(data)
 
 
-def test_forged_width_rejected_before_decoding(monkeypatch):
-    data = _png_with_forged_size(20000, 10)
+def test_a_claimed_width_is_rejected_before_decoding(monkeypatch):
+    data = _png_claiming_size(20000, 10)
     assert read_header(data) == ("PNG", 20000, 10)
     loads = []
     monkeypatch.setattr(Image.Image, "load", lambda self, *a, **k: loads.append(1))
@@ -180,14 +180,14 @@ def test_forged_width_rejected_before_decoding(monkeypatch):
     assert loads == []                                 # nothing was decoded
 
 
-def test_forged_pixel_count_rejected(monkeypatch):
+def test_a_claimed_pixel_count_is_rejected(monkeypatch):
     monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 5000)
     with pytest.raises(ImageTooLarge) as e:            # 10100 > 2 x 5000
-        to_working_webp(_png_with_forged_size(100, 101))
+        to_working_webp(_png_claiming_size(100, 101))
     assert "MAX_IMAGE_PIXELS = 10000" in e.value.reason
     monkeypatch.undo()
     with pytest.raises(ImageTooLarge) as e:            # under WebP's limit, over the pixel limit
-        to_working_webp(_png_with_forged_size(16000, 16000))
+        to_working_webp(_png_claiming_size(16000, 16000))
     assert "MAX_IMAGE_PIXELS" in e.value.reason
 
 
@@ -195,7 +195,7 @@ def test_pillow_limit_is_never_changed():
     before = Image.MAX_IMAGE_PIXELS
     to_working_webp(_encode(_noise("RGB"), "PNG"))
     with pytest.raises(ImageTooLarge):
-        to_working_webp(_png_with_forged_size(20000, 10))
+        to_working_webp(_png_claiming_size(20000, 10))
     assert Image.MAX_IMAGE_PIXELS == before
 
 

@@ -1,6 +1,5 @@
 """``Recomposer``: running text from the rows of a page's (or an item's pages') text regions, the transcription's
-``paragraphs`` (``recomposition.*`` engines; ``recomposition.unicode.v1`` is squiddleocr's,
-``linecaster.text.recomposition``)."""
+``paragraphs`` (``recomposition.*`` engines; ``recomposition.unicode.v1`` runs ``linecaster.text.recomposition``)."""
 from __future__ import annotations
 
 from typing import Any

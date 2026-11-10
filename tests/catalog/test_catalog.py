@@ -386,7 +386,7 @@ def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
     with pytest.raises(CatalogError, match=r"needs engine 'kraken.recognition.v1', which is not installed: "
                                            r"`kraken.recognition.v1` is in the engine package `linecaster-kraken` "
                                            r"\(engines/kraken, not on PyPI\), which no pipeline script here installs: "
-                                           r".*squiddle.py.*--backend served --endpoint URL"):
+                                           r".*a script of your own.*--backend served --endpoint URL"):
         engine_spec("kraken-ppocrv6-medium")
     with pytest.raises(CatalogError, match=r"`linecaster-paddlex` .*`pipelines/transcribe_modular.py` and "
                                            r"`pipelines/transcribe_vlm.py` install\); installed: "):

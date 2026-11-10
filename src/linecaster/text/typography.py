@@ -1,8 +1,7 @@
 """Retyper: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
 
-Ported from squiddleocr's ``retyper.py`` (main ``7c8a052``) with the arithmetic unchanged; the engine
-``typography.ratios.v1`` (``linecaster.engines.typography``) runs it, every threshold a field of ``Ratios`` (the
-constants below are their defaults). It runs after recognition (and tables), before page composition. All rules
+The engine ``typography.ratios.v1`` (``linecaster.engines.typography``) runs it, every threshold a field of
+``Ratios`` (the constants below are their defaults). It runs after recognition (and tables), before page composition. All rules
 are ratios to the page's own body type, measured from the row heights the line step delivered (a row = the lines
 of one region with the same ``Line.row``; its box = the union of their boxes, derived from the polygons):
 
@@ -34,9 +33,8 @@ Ids and where things go:
   region); ``Transcription.lines`` is rebuilt in region list order (the processing order) and every
   line's ``reading_order`` re-derived (regions by reading order, then their lines).
 
-Mean character confidence: squiddleocr averaged kraken's per-character confidences over the region.
-Lines here carry their mean (``Line.confidence``), so the region mean is the line means weighted by
-line length, the same number up to float rounding.
+Mean character confidence: the region mean is the line means (``Line.confidence``) weighted by line
+length, which is the mean of the per-character confidences over the region up to float rounding.
 """
 from __future__ import annotations
 
@@ -57,8 +55,8 @@ MAX_HEADLINE_ROWS = 3
 
 @dataclass(frozen=True)
 class Ratios:
-    """The rules' thresholds (ratios to the page's body size) and the labels they read; the defaults are
-    squiddleocr's."""
+    """The rules' thresholds (ratios to the page's body size) and the labels they read; the defaults are the
+    ``ratios`` preset's values."""
 
     page_number_min_conf: float = PAGE_NUMBER_MIN_CONF
     demote: float = DEMOTE
@@ -191,7 +189,7 @@ def split_leading_heading(c: Content, body: float, stats: RetypeStats, r: Ratios
             break
     if tall == 0:
         return None
-    head_rows = {rows[i].index for i in range(tall)}   # as squiddleocr: row indices compared with Line.row
+    head_rows = {rows[i].index for i in range(tall)}   # row indices, compared with Line.row
     keep = [ln for ln in c.lines if ln.row not in head_rows]
     move = [ln for ln in c.lines if ln.row in head_rows]
     if not keep or not move:

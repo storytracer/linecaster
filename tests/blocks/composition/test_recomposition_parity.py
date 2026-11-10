@@ -1,4 +1,4 @@
-"""The recomposition engine and the Composer against squiddleocr's builder (``legacy_builder``, the DocumentBuilder
+"""The recomposition engine and the Composer against the legacy builder (``legacy_builder``, the DocumentBuilder
 as it recomposed while it built): the same documents (JSON) and region maps, per page and per item, from lines and
 from paragraphs, with and without sections, on the fixtures and on random pages (headings, page numbers, pictures,
 tables, formulas, indents, gaps, short rows, division marks of every kind)."""
@@ -117,7 +117,7 @@ FIXTURES = {"sample_transcription": lambda: [sample_transcription()], "page_to_c
 @pytest.mark.parametrize("text", ["lines", "reflow"])
 @pytest.mark.parametrize("sections", [False, True])
 @pytest.mark.parametrize("fixture", sorted(FIXTURES))
-def test_the_fixtures_compose_as_squiddleocr_composed_them(fixture, text, sections):
+def test_the_fixtures_compose_as_the_legacy_builder_composed_them(fixture, text, sections):
     pages = FIXTURES[fixture]()
     assert ours(pages, text, sections) == legacy(pages, text, sections)
     for t in pages:
@@ -125,13 +125,13 @@ def test_the_fixtures_compose_as_squiddleocr_composed_them(fixture, text, sectio
 
 
 @pytest.mark.parametrize("seed", range(40))
-def test_random_items_compose_as_squiddleocr_composed_them(seed):
+def test_random_items_compose_as_the_legacy_builder_composed_them(seed):
     rng = random.Random(seed)
     pages = [random_page(rng, n) for n in range(rng.randint(1, 5))]
     for text in ("lines", "reflow"):
         for sections in (False, True):
             if sections and text == "reflow" and any(r.label == "title" for t in pages for r in t.regions):
-                continue                     # squiddleocr's builder crashed there; the legacy one is the fix
+                continue                     # the builder it was ported from crashed there; the legacy one is the fix
             assert ours(pages, text, sections) == legacy(pages, text, sections), (seed, text, sections)
             for t in pages:
                 assert ours_page(t, text, sections) == legacy([t], text, sections), (seed, text, sections, "page")

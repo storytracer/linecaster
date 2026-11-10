@@ -35,7 +35,7 @@ def sent_image(body: dict) -> Image.Image:
 @pytest.mark.parametrize("size, expected", [
     ((2000, 3000), (1027, 1540)),    # portrait, downscaled
     ((3000, 2000), (1540, 1027)),    # landscape
-    ((700, 1000), (1078, 1540)),     # smaller than 1540: forced UP, as the board driver does
+    ((700, 1000), (1078, 1540)),     # smaller than 1540: forced UP, to the card's longest_edge
     ((1000, 1540), (1000, 1540)),    # already at the target: untouched
 ])
 def test_lighton_request_forces_longest_side_to_1540(size, expected):
@@ -54,7 +54,7 @@ def test_lighton_request_is_image_only_with_card_sampling():
     assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p"}
 
 
-def test_lighton_serve_args_match_the_board_driver():
+def test_lighton_serve_args_match_the_preset():
     spec = chat_model("lightonocr-2-1b")
     args = spec.vllm_args(0.22)
     assert args[:2] == ["--revision", "c97bd377f04481830395218fa8951df9deaba756"]

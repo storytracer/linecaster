@@ -2,9 +2,9 @@
 paragraphs or lines, and tables (``composition.*`` engines; ``composition.docling.v1``, ``linecaster.formats.
 docling``).
 
-In squiddleocr's order: ... recognition -> ``UnicodeNormalizer`` -> tables -> ``Typographer`` -> ``Recomposer``
--> ``Composer`` -> writers. Without a ``Recomposer`` the document is diplomatic: each text region as laid out, one
-row per line (squiddleocr's ``--text lines``).
+In the modular pipeline's order: ... recognition -> ``UnicodeNormalizer`` -> tables -> ``Typographer`` ->
+``Recomposer`` -> ``Composer`` -> writers. Without a ``Recomposer`` the document is diplomatic: each text region as
+laid out, one row per line.
 """
 from __future__ import annotations
 

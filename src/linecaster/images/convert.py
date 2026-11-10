@@ -161,7 +161,8 @@ def to_working_webp(data: bytes, *, effort: int = 80) -> tuple[bytes, dict[str, 
 
     ``effort`` is libwebp's lossless compression effort (Pillow's ``quality`` for lossless; 80 is
     Pillow's default). It changes size and speed, never pixels: on a 24 MP newspaper scan, 0 encoded
-    in 1.7 s to 17.2 MB, 80 in 7.0 s to 16.6 MB (spark, one measurement; see docs/reference/serialization.md).
+    in 1.7 s to 17.2 MB, 80 in 7.0 s to 16.6 MB (one measurement, on an aarch64 machine, NOTES.md; see
+    docs/reference/serialization.md).
 
     Raises ``ImageTooLarge`` (with ``reason``) before decoding when the page is over the limit.
     ``info`` keys: ``format`` (``"webp"``), ``width``, ``height``, ``source_format``, ``source_mode``,

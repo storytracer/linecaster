@@ -16,7 +16,7 @@ runs in and starts that pipeline's script, in the script's own environment.
     uv run launch.py indra-ocr IMAGES OUT              # a page engine's: = pipelines/transcribe_page.py IMAGES OUT --recognition indra-ocr
     uv run launch.py squiddle IMAGES OUT --backend served --endpoint http://127.0.0.1:8100/v1
                                                        # = pipelines/transcribe_modular.py ... --recipe squiddle, its kraken
-                                                       # served from an environment with kraken (squiddleocr: squiddle.py serve)
+                                                       # served from an environment with kraken (its script's serve)
     uv run launch.py squiddle@1 IMAGES OUT --recognition paddlex-ppocrv6-medium   # a slot on top: recorded as an override
     uv run launch.py chandra-ocr-2 IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --tasks 64
     uv run launch.py squiddle --help                   # the pipeline's options

@@ -1,6 +1,6 @@
 """The built-in engines of the rule-based steps (``linecaster.engines``): registered in-process only under their
 ids, described by the docs, options with today's constants as defaults, every option in effect, and the decisions
-the recomposition records. (The recomposition and composition against squiddleocr's builder:
+the recomposition records. (The recomposition and composition against the legacy builder:
 ``tests/blocks/composition/test_recomposition_parity.py``.)"""
 import inspect
 import io

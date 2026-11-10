@@ -1,8 +1,7 @@
 """Recomposition: running text from the visual rows of a region (the reading transcription).
 
-Ported from squiddleocr's ``reflow.py`` (main ``7c8a052``) with the arithmetic unchanged; the engine
-``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds documents and
-``linecaster.text.variants`` the readable item texts from what it makes. Every threshold below is a field of
+The engine ``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds
+documents and ``linecaster.text.variants`` the readable item texts from what it makes. Every threshold below is a field of
 ``Thresholds`` (today's values its defaults), the engine's options.
 
 Typesetting turned the text into lines: it broke it at line ends, sometimes inside a word with a
@@ -64,7 +63,7 @@ CONVENTION_MARKS = "¬"
 @dataclass(frozen=True)
 class Thresholds:
     """The geometric thresholds of the recomposition, in ems (the region's median row height) unless said
-    otherwise, and the convention marks; the defaults are squiddleocr's."""
+    otherwise, and the convention marks; the defaults are the ``unicode-recomposition`` preset's values."""
 
     indent: float = 0.8              # a row indented this far starts a paragraph; a region's first row, no continuation
     gap_leading: float = 0.6         # a gap above a row larger than this share of the leading ...
@@ -421,8 +420,8 @@ def join(prev: Paragraph, nxt: Paragraph, lexicon: Lexicon | None = None, stats:
          rules=UNICODE_RULES, th: Thresholds = DEFAULT_THRESHOLDS) -> tuple[str, str, Decision | None]:
     """Continuing ``prev`` (its text: everything it holds so far) with ``nxt``: the joined text, what joins them
     (``""`` or a space, after the division mark is removed or kept) and the decision on that mark (``None``:
-    ``prev`` ends without one). squiddleocr's rule: a kept mark is followed by a space unless the document attests
-    the hyphenated form."""
+    ``prev`` ends without one). A kept mark is followed by a space unless the document attests the hyphenated
+    form."""
     stats = stats if stats is not None else Stats()
     if ends_with_mark(prev.text, th.marks):
         removed, hyphenated, decision = mark_decision(rules, prev.text, nxt.text, lexicon, 0)

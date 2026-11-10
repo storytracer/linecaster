@@ -1,6 +1,6 @@
-"""The DocumentBuilder as it was before the recomposition moved into its engine (linecaster 531a422, squiddleocr's
-builder): it recomposed while it built (``text="reflow"``). Kept verbatim as the reference the recomposition engine
-and the Composer are compared with (``test_recomposition_parity.py``)."""
+"""The DocumentBuilder as it was before the recomposition moved into its engine (linecaster 531a422): it recomposed
+while it built (``text="reflow"``). Kept verbatim as the reference the recomposition engine and the Composer are
+compared with (``test_recomposition_parity.py``)."""
 from __future__ import annotations
 
 from linecaster.data.geometry import bbox_of
@@ -12,8 +12,8 @@ TEXT_MODES = ("lines", "reflow")
 
 
 class LegacyDocumentBuilder:
-    """One ``DoclingDocument`` for one page or for all pages of an item, in order (squiddleocr's
-    ``DocumentBuilder``; ``add_page`` once per page). Page ``n`` of the document is the ``n``-th page added
+    """One ``DoclingDocument`` for one page or for all pages of an item, in order (``add_page``
+    once per page). Page ``n`` of the document is the ``n``-th page added
     (``page_no`` in every provenance entry).
 
     ``text``: ``lines`` or ``reflow`` (see the module docstring). In ``reflow`` mode the lexicon grows with
@@ -22,9 +22,8 @@ class LegacyDocumentBuilder:
 
     ``sections``: every heading (title or section header) opens a Docling ``section`` group, named after
     it, that holds it and everything after it up to the next heading, across pages; items before the
-    first heading stay in the body. Markdown and text read the same; JSON gains the tree. (squiddleocr
-    7c8a052 crashes on reflow + sections when a title appears; here a title opens its section the same
-    way in both modes: the group first, the title inside.)
+    first heading stay in the body. Markdown and text read the same; JSON gains the tree. (A title opens
+    its section the same way in both modes: the group first, the title inside.)
 
     ``region_of`` maps each item's ``self_ref`` to ``"<page_no>:<region id>"``, for the Markdown
     dividers (``to_markdown(..., region_of=...)``)."""

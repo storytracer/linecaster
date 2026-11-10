@@ -1,4 +1,4 @@
-"""Retyper and page composition (the post-recognition CPU blocks ported from squiddleocr)."""
+"""Retyper and page composition (the post-recognition CPU blocks)."""
 from __future__ import annotations
 
 import pytest

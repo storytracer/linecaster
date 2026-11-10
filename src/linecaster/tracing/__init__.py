@@ -117,8 +117,8 @@ class UnitSampler(Sampler):
 
 
 def gpus() -> list[str]:
-    """The NVIDIA GPUs' model names, from the driver's ``/proc`` files, else (a driver that names none there, as on
-    the GB10) from ``nvidia-smi``; none without the driver."""
+    """The NVIDIA GPUs' model names, from the driver's ``/proc`` files, else (a driver that names none there, as for
+    some integrated GPUs) from ``nvidia-smi``; none without the driver."""
     import glob
 
     out = []

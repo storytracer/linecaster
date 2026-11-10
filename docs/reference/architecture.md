@@ -9,8 +9,10 @@ builder, failures and the run record are in [pipelines](pipelines.md), models, p
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
 combines layout, line, text, table and formula recognizers with post-processing (dehyphenation, recomposition,
 normalization) into reproducible datatrove pipelines that turn page images into text: the text as written, readable
-variants next to it, ALTO, PAGE-XML and hOCR on request. Everything that produces text from images lives here;
-evaluation (ocrscout, bhl-ocr-eval) and project pipelines (squiddleocr) are built on top of it.
+variants next to it, ALTO, PAGE-XML and hOCR on request. It is a generalist tool: built on protocols (HTTP,
+S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, Parquet, JSON Lines) and standards (METS/MODS, Unicode),
+it depends on no collection, site, institution or project. Everything that produces text from images lives here;
+evaluations and project pipelines (derivatives) are built on top of it.
 
 ## Packages
 
@@ -127,7 +129,7 @@ An engine package's tests run in an environment that has the engine: `uv run tes
 engines/<engine>/tests`. `tests/test_engines_catalog.py` is also linecaster's only environment with kraken (with
 PaddleX and Tesseract, for the catalog's line-recognizer presets): a test script, not a pipeline script, since no
 pipeline of linecaster's names a model choice. A kraken chain runs in an environment that adds kraken
-(squiddleocr's `squiddle.py`, or a derivative's own script running `transcribe_modular.v1`), or in
+(a derivative's own script running `transcribe_modular.v1`), or in
 `pipelines/transcribe_modular.py` with `--backend served --endpoint` against a server started from one; with
 `--endpoint` the served engines need not be installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
 mkdocs serve`.

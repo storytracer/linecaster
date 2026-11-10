@@ -12,7 +12,7 @@ from .base import RuleEngine
 class SingleRegionLayoutEngine(RuleEngine):
     """Makes the whole page one region, without layout analysis.
 
-    Plain OCR (what squiddleocr's ``--layout none`` does): the transcription's regions are replaced by one region
+    Plain OCR: the transcription's regions are replaced by one region
     covering the page image, reading order 0, score 1; a line step on the whole page and the ``LineAssigner`` then put
     every line into it, and no table or formula regions exist. A layout engine like the model ones (``__call__(image,
     transcription)``, the page image as an RGB array), built in and in the pipeline's process only. Records a layout

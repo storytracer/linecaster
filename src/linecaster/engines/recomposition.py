@@ -49,7 +49,7 @@ class _Open:
 class UnicodeRecompositionEngine(RuleEngine):
     """Recomposes the rows of each text region into paragraphs from geometry and Unicode's character properties.
 
-    squiddleocr's recomposition (``linecaster.text.recomposition``): the rows of each text region joined into
+    ``linecaster.text.recomposition``: the rows of each text region joined into
     paragraphs, the typesetter's division marks removed, from geometry and Unicode's character properties (line,
     word and sentence breaks), never from a language name; the document's own words decide the one ambiguous case
     (a hyphen that may belong to the word). A paragraph left open at the end of a text region continues in the next

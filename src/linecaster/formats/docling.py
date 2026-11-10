@@ -2,15 +2,14 @@
 ``DoclingDocument``; ``Composer``), an item's pages composed into one (``Composer(unit="item")``), and the Markdown
 and text exports of them.
 
-Ported from squiddleocr's ``document.py`` (``DocumentBuilder``, main ``7c8a052``). Without paragraphs
-(diplomatic composition, squiddleocr's ``--text lines``): one Docling item per region, in reading order (regions
+Without paragraphs (diplomatic composition): one Docling item per region, in reading order (regions
 without an order last, in list order), its text one visual row per line (the region's lines with the same
 ``Line.row`` joined with a space, rows joined with ``\\n``), one provenance entry with the region's box:
 
 - ``title`` -> title, ``section_header`` -> heading at ``Region.heading_level`` (retyper; 1 when unset),
   ``text``/``caption``/``footnote``/``list_item``/... -> text items with Docling's label;
 - ``page_header``/``page_footer`` -> Docling's **furniture** content layer (always; the exports choose
-  whether to include it: ``furniture=True`` gives what squiddleocr's ``--furniture`` gives);
+  whether to include it: ``furniture=True`` keeps page headers and footers);
 - a region with ``extra["table"]`` (the tables step) -> a table item (cells with text, spans, header
   flag and box); with ``extra["formula"]`` (LaTeX from a formula step) -> a formula item;
 - any other region (picture, chart, a table without a structure) -> a picture, with the text read
@@ -18,12 +17,10 @@ without an order last, in list order), its text one visual row per line (the reg
 
 Empty regions produce no item. ``build_docling`` makes the document of one page (page 1);
 ``DocumentBuilder`` binds all pages of an item into one, with paragraphs continued across page breaks,
-optional sections and the region map for Markdown dividers (squiddleocr's ``--per-document``,
-``--sections``, ``--dividers``). Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
+optional sections and the region map for Markdown dividers. Exports (``export``): Markdown, text, HTML, DocLang and JSON, all
 docling-core's own serializers.
 
-With paragraphs (a recomposition ran, squiddleocr's default ``--text reflow``; ``linecaster.engines.
-recomposition``): one item per paragraph of a text region with a provenance entry per row, and a paragraph that
+With paragraphs (a recomposition ran; ``linecaster.engines.recomposition``): one item per paragraph of a text region with a provenance entry per row, and a paragraph that
 continues another (in an earlier region, or on an earlier page of the item) appended to that one's item. The
 recomposition decides; the builder only composes.
 """
@@ -82,7 +79,7 @@ def _table_data(table: dict):
 
 def region_rows(lines: list[Line]):
     """The region's visual rows (``recomposition.Row``): text of the lines on each row joined with a space,
-    the row's box the union of their boxes, in row order (squiddleocr's ``RegionContent.rows``)."""
+    the row's box the union of their boxes, in row order."""
     from ..text.recomposition import Row
     from ..text.typography import line_bbox
 
@@ -114,21 +111,20 @@ def paragraph_box(row, lines_by_id: dict[str, Line]) -> BBox | None:
 
 
 class DocumentBuilder:
-    """One ``DoclingDocument`` for one page or for all pages of an item, in order (squiddleocr's
-    ``DocumentBuilder``; ``add_page`` once per page). Page ``n`` of the document is the ``n``-th page added
+    """One ``DoclingDocument`` for one page or for all pages of an item, in order (``add_page`` once per
+    page). Page ``n`` of the document is the ``n``-th page added
     (``page_no`` in every provenance entry).
 
     A page's text regions are composed from its **paragraphs** when it has them (a recomposition ran:
     ``Transcription.paragraphs``): one item per paragraph with a provenance entry per row (its box and character
     span), a paragraph that continues another (``continues_from``, in an earlier region or on an earlier page)
-    appended to that one's item. Without paragraphs (diplomatic composition, squiddleocr's ``--text lines``) one
+    appended to that one's item. Without paragraphs (diplomatic composition) one
     item per region, its text one visual row per line, one provenance entry with the region's box.
 
     ``sections``: every heading (title or section header) opens a Docling ``section`` group, named after
     it, that holds it and everything after it up to the next heading, across pages; items before the
-    first heading stay in the body. Markdown and text read the same; JSON gains the tree. (squiddleocr
-    7c8a052 crashes on reflow + sections when a title appears; here a title opens its section the same
-    way in both modes: the group first, the title inside.)
+    first heading stay in the body. Markdown and text read the same; JSON gains the tree. A title opens its
+    section the same way with and without paragraphs: the group first, the title inside.
 
     ``region_of`` maps each item's ``self_ref`` to ``"<page_no>:<region id>"``, for the Markdown
     dividers (``to_markdown(..., region_of=...)``)."""
@@ -262,8 +258,8 @@ class DocumentBuilder:
 
     def _row_provs(self, page: "_PageContext", r: Region | None, p, offset: int = 0) -> list:
         """One provenance entry per row of paragraph ``p`` that has a box, its character span shifted by
-        ``offset``. squiddleocr's builder kept a division mark removed at a continuation in its row's span (the
-        row's span as recognized, the mark included), so the last row's span ends one character later then."""
+        ``offset``. A division mark removed at a continuation stays in its row's span (the row's span as
+        recognized, the mark included), so the last row's span ends one character later then."""
         from docling_core.types.doc import ProvenanceItem
 
         last = len(p.rows) - 1
@@ -325,8 +321,8 @@ def _layers(furniture: bool):
 
 
 def _span_aware_table_serializer():
-    """Docling's pipe table for a plain grid, its HTML table when a cell spans (squiddleocr's rule:
-    the pipe table repeats a spanning cell's text in every cell it covers)."""
+    """Docling's pipe table for a plain grid, its HTML table when a cell spans (the pipe table would repeat
+    a spanning cell's text in every cell it covers)."""
     from docling_core.transforms.serializer.html import HTMLTableSerializer
     from docling_core.transforms.serializer.markdown import MarkdownTableSerializer
 
@@ -347,7 +343,7 @@ def _span_aware_table_serializer():
 def to_markdown(doc_or_t, furniture: bool = False, region_of: dict[str, str] | None = None) -> str:
     """Markdown with Docling's defaults, tables with spanning cells as HTML; page headers and footers
     only with ``furniture``. With ``region_of`` (``DocumentBuilder.region_of``) a ``---`` rule separates
-    the items of one layout region from the next (squiddleocr's ``--dividers``)."""
+    the items of one layout region from the next."""
     from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
     from docling_core.types.doc import GroupItem
 

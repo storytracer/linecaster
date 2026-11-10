@@ -153,7 +153,7 @@ The retyper edits regions and lines in place:
   (`furniture=True`). A text region with paragraphs (a `Recomposer` ran) is one item per paragraph, one provenance
   entry per row; a paragraph that continues another (`continues_from`) is appended to that one's item, its rows'
   character spans after the text before it (a division mark removed at the continuation stays in the span of the
-  row it ended, as squiddleocr's builder had it); a region of one paragraph without a letter (a page number) is an
+  row it ended); a region of one paragraph without a letter (a page number) is an
   item of its own. Without paragraphs a text region is one item, one row per line, with the region's box
   (diplomatic composition).
 - **Item composition** (`Composer(unit="item")`, `DocumentBuilder`): an item's pages composed into one

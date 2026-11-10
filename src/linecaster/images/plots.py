@@ -2,8 +2,7 @@
 
 Region polygons colored by Docling label with a tag (label, heading level, reading-order rank and
 the producing model's own label when it differs), the lines as thin boxes, furniture (page numbers,
-running heads) in gray. Large pages are scaled down to ``max_width`` pixels. Ported from
-squiddleocr's ``--plots`` (``plots.py``); Pillow only.
+running heads) in gray. Large pages are scaled down to ``max_width`` pixels. Pillow only.
 """
 from __future__ import annotations
 

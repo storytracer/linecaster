@@ -647,7 +647,7 @@ the ground-truth set silently read 0 pages with `--dataset`; it is read as `hf:/
   OCR-D (functional steps, declared resources, provenance per processing step), Docling (typed options per
   engine, one factory per stage), spaCy (versioned registry names that stay resolvable), Datalab's marker,
   surya and chandra (configuration declared once, evidence with its source), the uv-scripts
-  `ocr/models.json` (one catalog, support levels), ocrscout's profiles (label mappings as data).
+  `ocr/models.json` (one catalog, support levels), an evaluation tool's profiles (label mappings as data).
 - WebP encoding effort, one measurement on an aarch64 GB10 machine, a 3996 × 5964 newspaper JPEG: decode 0.09 s;
   encode effort 0: 1.67 s / 17.2 MB, 25: 1.99 s / 17.1 MB, 80: 7.0 s / 16.6 MB, 100: 9.6 s / 16.4 MB. Effort 0 is 4×
   faster for 4 % more bytes; left at Pillow's default (80) until measured on a broader sample.
