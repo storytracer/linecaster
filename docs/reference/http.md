@@ -25,7 +25,7 @@ that means "this IP", a block that lasts three days) is opted into per host in a
 | `rate_limits` | none | `N/S` windows, at most N requests in any S seconds, all at once: per worker direct, per proxy through proxies |
 | `block_on` | `[429]` (`BLOCK_ON`) | what is a block (statuses and `html`) |
 | `stop_on` | `[]` | what stops the run at once (statuses and `html`) |
-| `max_pause` | 6 h (`MAX_PAUSE`) | the most a worker pauses for a host since its last successful response, and the longest wait for a usable proxy |
+| `max_pause` | 6 h (`MAX_PAUSE`) | the most a worker's requests to a host wait in all since the host's last successful response: in pauses direct, for a usable proxy through proxies ([below](#max_pause)) |
 | first wait of a block | 60 s (`BLOCK_FIRST_WAIT`) | a block without `Retry-After`: 60 s, then twice the last wait on each repeat |
 | shortest block | 1 s (`PAUSE_MIN_WAIT`) | whatever `Retry-After` says (0, a date gone by) |
 | `proxies: block_ttl` | 3600 s (`BLOCK_TTL`) | the longest a blocked proxy is left out without `Retry-After`: the ceiling of the doubling, and of a broken proxy's |
@@ -41,9 +41,9 @@ expected). The connection decides the reaction:
 
 | | direct (one IP) | through proxies |
 |---|---|---|
-| a response in `block_on` | the worker's requests to that host wait (a [pause](glossary.md)) for `Retry-After`, or else 60 s, doubling on each repeat; the run stops when the wait would be too long (past `max_pause` since the host's last successful response) | the proxy is marked for that host (`Retry-After`, or else 60 s doubling up to `block_ttl`) and the request goes on at once through another proxy, without using up an attempt |
+| a response in `block_on` | the worker's requests to that host wait (a [pause](glossary.md)) for `Retry-After`, or else 60 s, doubling on each repeat; requests to other hosts go on; the run stops when the wait would be too long (past `max_pause` since the host's last successful response) | the proxy is marked for that host (`Retry-After`, or else 60 s doubling up to `block_ttl`) and the request goes on at once through another proxy, without using up an attempt |
 | a response in `stop_on` | the run stops at once | the run stops at once |
-| no usable proxy | (none) | the requests wait for a block to end or a proxy to free up; the run stops when the wait would pass `max_pause` |
+| no usable proxy | (none) | the requests to that host wait for a block to end or a proxy to free up; the run stops when the waits would pass `max_pause` since the host's last successful response |
 | connection errors | the host's errors: retries and the breaker | the proxy's errors: they count toward `broken_after`, then the proxy is left out for every host |
 
 How long a block lasts is one function for both paths (`linecaster.net.http.block_wait`): with `Retry-After`
@@ -58,6 +58,18 @@ times in a row: it is left out for every host, first for `broken_ttl`, twice as 
 it carries an answer, at most `block_ttl`. A timeout reading the server's answer is a slow server, not a broken proxy:
 it is retried and leaves the proxy in. Blocks and broken proxies are marks in the [broker](broker.md), so every
 worker that shares it leaves the proxy out; the doubling's last wait is kept by the worker that marked it.
+
+### max_pause
+
+`max_pause` is one count on both paths, per worker and host (`linecaster.net.http.PauseTotal`): the
+time the worker's requests to the host have spent waiting since the host's last successful response, direct in
+pauses (the length each block adds), through proxies waiting for a usable proxy (the time no proxy was usable there).
+Once the next wait would take it past `max_pause` (a block whose wait is known, the first proxy block that ends), or
+it has passed it (waiting for proxies other workers hold), the run stops with `StopRequests`, whose message says how
+long the host's requests waited. A successful response from the host starts it again, through any proxy. Each host
+counts for itself: a pause at one host neither holds nor counts against the requests to another. The
+[breaker](#retries-and-deadlines)'s waits (a server that fails) do not count: each request waits one out a few
+times, then fails.
 
 ## Unexpected HTML
 

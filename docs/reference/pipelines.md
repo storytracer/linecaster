@@ -358,8 +358,9 @@ through another proxy at once, so `max_retries` (retries after the first attempt
 reached the server and failed there; a block does not count toward the breaker either. A timeout is mostly a slow
 server: it is retried and leaves the proxy in. When none of a worker's proxies is usable for a host and none
 is free to claim, its requests to the host pause until a block ends or another worker gives a proxy back (one warning
-when the pause starts, one when it ends; the wait is in the fetch record's `pause_seconds`); a pause that would pass
-the host's `max_pause` (6 hours) stops the run (`StopRequests`) and says when the first proxy returns. An HTTP policy
+when the pause starts, one when it ends; the wait is in the fetch record's `pause_seconds`); once the waits since the
+host's last successful response would pass its `max_pause` (6 hours; [http](http.md#max_pause)) the run stops
+(`StopRequests`) and says when the first proxy returns. An HTTP policy
 can set `proxies: {block_ttl: 72h, broken_after: 1}` and further statuses that block at the host (`block_on: [429,
 403]`, `block_on: [429, html]`). The console shows the proxies the worker holds, those blocked and those free. On Ray
 each task is a process of its own; the next task on a machine takes over the worker slot the last one handed over, and
@@ -375,10 +376,11 @@ block on a direct connection (a status in the host's `block_on`, 429 by default)
 (`linecaster.net.http.Pause`): its requests to that host wait until the response's `Retry-After` has passed (seconds
 or an HTTP-date; without one a minute, doubling while blocks keep coming), then the request that got it is tried
 again, without using up one of its retries; blocks for requests already in flight extend the pause, never shorten
-it. The pages wait instead of failing, and other workers go on. The log says when a pause starts (host,
+it. The pages wait instead of failing, and the requests to other hosts and other workers go on. The log says when a pause starts (host,
 status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
 (`pause_seconds`). A worker that would pause more than the host's `max_pause` (6 hours) since its last successful
-response stops the run: the worker waits, or stops when the wait would be too long. Through proxies a block leaves
+response stops the run: the worker waits, or stops when the wait would be too long ([http](http.md#max_pause), one
+count for both paths). Through proxies a block leaves
 that proxy out at the host instead (above). An HTML page where an image, XML or JSON was expected is a failed attempt,
 retried like a server error, unless the host's policy makes it a block or a stop ([http](http.md#unexpected-html)). A
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error

@@ -128,8 +128,8 @@ list is set) works on the broker:
 - **No proxy usable.** When every proxy the worker holds is blocked for a host and none is free to claim, the
   worker's requests to that host pause until a block it knows of ends or another worker gives a proxy back (it looks
   again at once when a block ends, else every 5 s, `FILL_SECONDS`) (one warning at the
-  start, one at the end; the time is in the fetch records' `pause_seconds`). A pause that would pass the host's
-  `max_pause` stops the run (`StopRequests`).
+  start, one at the end; the time is in the fetch records' `pause_seconds`). Once these waits since the host's last
+  successful response would pass its `max_pause` ([http](http.md#max_pause)), the run stops (`StopRequests`).
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too

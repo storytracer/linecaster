@@ -60,6 +60,19 @@ the tags; the first is `v0.1.0`.
   answer, at most `block_ttl`. Who is affected: runs through proxy lists with unreliable proxies (each costs up to
   three attempts before it is left out, and comes back sooner). What to do: `proxies: {broken_after: 1, broken_ttl:
   3600}` restores leaving it out at its first error for an hour.
+- `max_pause` is one count on both paths, per worker and host ([http](docs/reference/http.md#max_pause),
+  `linecaster.net.http.PauseTotal`): the time the worker's requests to the host have waited since the host's last
+  successful response, direct in pauses, through proxies for a usable proxy; once the next wait would pass it, the run
+  stops (`StopRequests`). Before, through proxies it limited each wait for a proxy alone and started again whenever one
+  became usable, so a host that turned every proxy away over and over (a page that is always HTML under `block_on:
+  [429, html]`) never ended the run. Who is affected: runs through proxies whose hosts block again and again without
+  a successful response: they now stop after `max_pause` of waiting. What to do: raise `max_pause` for a host whose
+  blocks may last longer in all (`hosts: {images.example.org: {max_pause: 24h}}`).
+- On the direct path a block pauses only the requests to the host that sent it (`Pause` per host,
+  `HTTPFetcher.pause_for(host)`, `HTTPFetcher.pauses()`); before, it paused every request of the fetcher, whichever host
+  it went to (one fetcher serves every host without an HTTP policy, e.g. a manifest server and an image server). Who is
+  affected: runs whose readers fetch from several hosts directly; code that used `HTTPFetcher.pause` (gone). What to
+  do: nothing for runs; code uses `pause_for(host)`.
 - The HTTP settings of a reader (`http`) and of `HTTPFetcher` are renamed with the policy: `proxy_blacklist_threshold`
   is `broken_after`, `proxy_blacklist_ttl` is `block_ttl`, `proxy_blacklist_on` and `pause_on` are `block_on` (which
   includes 429 by default rather than adding to it), `proxies_per_worker` is `per_worker`, `pause_wait` is
