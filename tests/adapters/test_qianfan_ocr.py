@@ -1,4 +1,4 @@
-"""Qianfan-OCR spec: request body (bytes as received), serve flags, as the BHL board ran it."""
+"""Qianfan-OCR spec: request body (bytes as received), serve flags, after the model card."""
 from __future__ import annotations
 
 import base64
@@ -35,12 +35,12 @@ def test_request_sends_the_bytes_as_received(fmt, mode, mime):
     assert set(b) == {"model", "messages", "temperature", "top_p", "max_tokens", "chat_template_kwargs"}
 
 
-def test_unknown_image_bytes_raise_as_in_the_driver():
+def test_unknown_image_bytes_raise():
     with pytest.raises(ValueError, match="magic bytes"):
         sniff_mime(b"GIF89a....")
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     spec = chat_model("qianfan-ocr")
     assert ChatModelServer(spec, port=8000).command()[:3] == ["vllm", "serve", MODEL]
     args = spec.vllm_args(0.85)

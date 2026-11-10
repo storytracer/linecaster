@@ -1,17 +1,17 @@
-"""Adapter ``chandra-ocr``: Datalab's chandra-ocr client as the BHL board's driver ports it (preset
+"""Adapter ``chandra-ocr``: Datalab's chandra-ocr client, ported (preset
 ``chandra-ocr-2``): ``chandra/model/vllm.py: generate_vllm`` of ``chandra-ocr`` v0.2.0.
 
 * message = the page image, then ``settings.prompt`` as a text part (the ``ocr_layout`` prompt of
   ``chandra/prompts.py`` at v0.2.0, verbatim in the preset; its sha256 is checked against
-  ``settings.prompt_sha256`` when the adapter is built, as the driver checks it);
+  ``settings.prompt_sha256`` when the adapter is built);
 * the image RGB-converted, scaled by the vendor's ``scale_to_fit`` (``chandra/model/util.py``, verbatim:
   pixel count clamped to ``max_size`` and up to ``min_size``, both sides snapped to multiples of ``grid``,
   LANCZOS; an image already on the grid and within bounds is untouched), then PNG;
 * ONE attempt per page: the vendor client retries a page up to six times at a raised temperature when it
-  detects a repetition loop; the board does not, so a loop shows as a loop.
+  detects a repetition loop; linecaster does not, so a loop shows as a loop.
 
-The model answers with HTML layout blocks (``<div data-bbox=.. data-label=..>``), stored verbatim; the board
-converts them to Markdown with the vendor's ``parse_markdown`` in its harness.
+The model answers with HTML layout blocks (``<div data-bbox=.. data-label=..>``), stored verbatim; converting
+them to Markdown (the vendor's ``parse_markdown``) is left to the consumer.
 """
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ class ChandraOCRAdapter(ChatAdapter):
         return scale_to_fit(img, tuple(i["max_size"]), tuple(i["min_size"]), int(i["grid"]))
 
     def encode_png(self, image: bytes) -> tuple[str, tuple[int, int]]:
-        """The driver's ``encode_png``: RGB, ``scale_to_fit``, base64 PNG; and the size sent."""
+        """RGB, ``scale_to_fit``, base64 PNG; and the size sent."""
         from PIL import Image
 
         with Image.open(io.BytesIO(image)) as im:

@@ -1,4 +1,4 @@
-"""The dots.mocr spec: request, parse and serve flags as the BHL board's driver ran the model."""
+"""The dots.mocr spec: request, parse and serve flags after the model card."""
 from __future__ import annotations
 
 import base64
@@ -28,7 +28,7 @@ def sent(body: dict) -> tuple[str, bytes]:
     return head, base64.b64decode(b64)
 
 
-def test_request_matches_the_board_driver():
+def test_request_matches_the_reference():
     data = image(2400, 3600, "JPEG")
     body = chat_model("rednote-hilab/dots.mocr").request(data)
     assert body["model"] == "rednote-hilab/dots.mocr"
@@ -48,7 +48,7 @@ def test_other_images_become_full_size_rgb_png(fmt, mode):
         assert (im.format, im.mode, im.size) == ("PNG", "RGB", (3000, 4500))     # no resize
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     cmd = ChatModelServer(chat_model("dots-mocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.mocr"]
     args = cmd[7:]
@@ -69,7 +69,7 @@ def test_parse_keeps_the_completion_verbatim():
            "Hab. Near Bristol, under stones; rare.\n\n"
            "Shell 6 mm. × 2·5 mm.; whorls 5½.\n")
     t = chat_model("dots-mocr").parse(completion(raw), backend="served vllm")
-    assert t.text == raw and t.extra["raw"] == raw                    # strip/empty check stay in the harness
+    assert t.text == raw and t.extra["raw"] == raw                    # no strip, no empty check
     assert [ln.text for ln in t.lines][1] == "PROCEEDINGS OF THE ZOOLOGICAL SOCIETY"
     m = t.steps[0]
     assert (m.step, m.name, m.revision) == ("recognition", "rednote-hilab/dots.mocr", "e539fbb52280393adc081b289ec597430a0f9031")

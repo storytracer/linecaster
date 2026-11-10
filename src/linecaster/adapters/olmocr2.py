@@ -1,15 +1,15 @@
 """Adapter ``olmocr``: olmOCR-2 with the no-anchoring prompt (preset ``olmocr-2-7b-1025-fp8``).
 
 * message = ``settings.prompt`` (olmOCR's no-anchoring v4, YAML front matter) as a text part, THEN the page
-  image (text before image, as the board driver sends it);
+  image (text before image, as the uv-scripts recipe sends it);
 * the image re-encoded as PNG with the longest side forced to exactly ``settings.image.longest_side_px``
   (1288, the olmOCR pipeline's ``target_longest_image_dim``), in both directions, LANCZOS; a region crop is
   already at that page scale and sent as it is.
 
 The model answers with YAML front matter (primary_language, is_rotation_valid, rotation_correction,
 is_table, is_diagram) above the page text. The completion is stored verbatim (``extra["raw"]``, the lines);
-the front matter is also parsed into ``extra["front_matter"]`` as page metadata, as the driver parses it.
-Splitting it off the scored text is the board's post-processing; ``body`` gives the same split.
+the front matter is also parsed into ``extra["front_matter"]`` as page metadata. ``body`` gives the page text
+without it, for consumers that want the text alone.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from typing import Any, ClassVar
 from ..data.transcription import Transcription
 from . import ChatAdapter, data_url, png_longest
 
-#: the board harness's pattern (the body is optional: a blank page is answered with front matter alone)
+#: front matter, then the body (optional: a blank page is answered with front matter alone)
 FRONT_MATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n(.*))?$", re.DOTALL)
 
 
@@ -44,7 +44,7 @@ def _scalar(v: str) -> Any:
 
 def split_front_matter(raw: str) -> tuple[dict[str, Any] | None, str]:
     """``(metadata, body)`` of an olmOCR-2 completion: the flat ``key: value`` YAML front matter
-    (``None`` if there is none) and the text below it exactly as the board harness splits it
+    (``None`` if there is none) and the text below it
     (outer whitespace stripped first, body not re-stripped; the whole stripped text if no front matter)."""
     text = raw.strip()
     m = FRONT_MATTER_RE.match(text)
@@ -59,7 +59,7 @@ def split_front_matter(raw: str) -> tuple[dict[str, Any] | None, str]:
 
 
 def body(raw: str) -> str:
-    """The page text below the front matter (the board's ``strip`` + ``drop_front_matter``)."""
+    """The page text below the front matter, the completion stripped first."""
     return split_front_matter(raw)[1]
 
 

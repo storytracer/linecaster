@@ -1,4 +1,4 @@
-"""The PaddleOCR-VL-1.6 spec: request, parse and serve flags as the BHL board's driver ran the model."""
+"""The PaddleOCR-VL-1.6 spec: request, parse and serve flags after the model card."""
 from __future__ import annotations
 
 import base64
@@ -37,7 +37,7 @@ def test_smart_resize_lands_on_the_28_grid_within_bounds(w, h):
     ((300, 200), (392, 280)),          # tiny page: grown (ceil) to at least 130 tiles
     ((812, 1176), (812, 1176)),      # on the grid already: unresized
 ])
-def test_request_matches_the_driver(size, expected):
+def test_request_matches_the_reference(size, expected):
     body = chat_model("PaddlePaddle/PaddleOCR-VL-1.6").request(image(*size, mode="L"))
     assert body["model"] == "PaddlePaddle/PaddleOCR-VL-1.6"
     assert body["messages"][0]["content"][1] == {"type": "text", "text": "OCR:"}
@@ -47,7 +47,7 @@ def test_request_matches_the_driver(size, expected):
     assert (im.format, im.mode, im.size) == ("PNG", "RGB", expected)
 
 
-def test_serve_args_match_the_driver():
+def test_serve_args_match_the_card():
     cmd = ChatModelServer(chat_model("paddleocr-vl-1.6"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "PaddlePaddle/PaddleOCR-VL-1.6"]
     args = cmd[7:]

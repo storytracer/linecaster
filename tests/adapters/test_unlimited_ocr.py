@@ -1,4 +1,4 @@
-"""The Unlimited-OCR (vLLM) and Unlimited-OCR-2 (SGLang) specs as the BHL board's drivers ran them, and
+"""The Unlimited-OCR (vLLM) and Unlimited-OCR-2 (SGLang) specs, after the model cards, and
 ChatModelServer's SGLang path (command, environment, server packages, pin check)."""
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def sent(body: dict) -> tuple[str, bytes]:
 
 
 # ------------------------------------------------------------- Unlimited-OCR
-def test_v1_request_matches_the_driver():
+def test_v1_request_matches_the_reference():
     data = image(2400, 3600, "JPEG")
     body = chat_model("baidu/Unlimited-OCR").request(data)
     assert body["model"] == "baidu/Unlimited-OCR"
@@ -75,7 +75,7 @@ def test_v1_parse_is_verbatim_and_null_content_is_an_error():
 
 
 # ----------------------------------------------------------- Unlimited-OCR-2
-def test_v2_request_matches_the_driver():
+def test_v2_request_matches_the_reference():
     spec = chat_model("baidu/Unlimited-OCR-2")
     data = image(1800, 2600, "PNG")
     body = spec.request(data)

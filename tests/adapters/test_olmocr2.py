@@ -1,4 +1,4 @@
-"""olmOCR-2 spec: request body, serve flags and front-matter parse, as the BHL board driver ran it."""
+"""olmOCR-2 spec: request body, serve flags and front-matter parse, after the model card and the uv-scripts recipe."""
 from __future__ import annotations
 
 import base64
@@ -43,7 +43,7 @@ def test_request_forces_longest_side_to_1288(size, expected):
     assert im.format == "PNG" and im.mode == "RGB" and im.size == expected
 
 
-def test_request_is_text_then_image_with_board_sampling():
+def test_request_is_text_then_image_with_the_recipe_sampling():
     b = chat_model(MODEL).request(image(800, 1200, "JPEG"))
     assert b["model"] == MODEL
     assert len(b["messages"]) == 1 and b["messages"][0]["role"] == "user"
@@ -56,7 +56,7 @@ def test_request_is_text_then_image_with_board_sampling():
     assert set(b) == {"model", "messages", "temperature", "repetition_penalty", "stop", "max_tokens"}
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     spec = chat_model("olmocr-2-7b-1025-fp8")
     args = spec.vllm_args(0.8)
     assert args[:2] == ["--revision", "40bd7202494b8264ee17ada08b401b5aab7a9ce1"]
@@ -85,7 +85,7 @@ def test_parse_keeps_raw_verbatim_and_reads_front_matter():
     assert m.measurements["completion_tokens"] == 40
 
 
-def test_body_splits_like_the_board_harness():
+def test_body_splits_off_the_front_matter():
     assert body(RAW) == "FIG. 1.—Head of\n\nthe beetle."
     # a blank page: front matter alone, no line after the closing fence -> empty body
     meta, text = split_front_matter("---\nprimary_language: null\nis_table: False\n---")

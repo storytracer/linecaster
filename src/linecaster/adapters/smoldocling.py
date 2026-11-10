@@ -7,7 +7,7 @@
 * ``skip_special_tokens`` false (in the preset's sampling): DocTags' ``<doctag>`` and ``<loc_*>`` are added
   special tokens, which vLLM's default strips.
 
-The completion is stored verbatim (``extra["raw"]``, the lines). ``parse`` also converts it the board's way
+The completion is stored verbatim (``extra["raw"]``, the lines). ``parse`` also converts it
 into ``extra["markdown"]`` (docling-core's ``DocTagsDocument`` -> ``DoclingDocument.load_from_doctags`` ->
 ``export_to_markdown`` with the furniture layer and no image placeholder); a conversion that raises leaves
 ``extra["markdown"]`` ``None`` with ``extra["markdown_error"]``, so the raw completion is never lost.
@@ -23,8 +23,7 @@ from . import ChatAdapter, data_url
 
 
 def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple[str, tuple[int, int]]:
-    """RGB, downscaled (LANCZOS) only if the longest side exceeds ``longest``, base64 JPEG; and the size
-    (the driver's ``encode_jpeg``)."""
+    """RGB, downscaled (LANCZOS) only if the longest side exceeds ``longest``, base64 JPEG; and the size."""
     from PIL import Image
 
     with Image.open(io.BytesIO(image)) as im:
@@ -39,9 +38,9 @@ def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple
 
 
 def to_markdown(doctags: str) -> str:
-    """The board's scored text for a SmolDocling completion: outer whitespace stripped, DocTags converted
-    with docling-core as the harness does (``doctags_to_markdown``: body and furniture layers, empty image
-    placeholder), stripped again. Empty DocTags give ``""``; docling-core does not raise on garbage."""
+    """The page text of a SmolDocling completion: outer whitespace stripped, DocTags converted
+    with docling-core (body and furniture layers, empty image placeholder), stripped again. Empty DocTags give
+    ``""``; docling-core does not raise on garbage."""
     from docling_core.types.doc import DoclingDocument
     from docling_core.types.doc.common.content_layer import ContentLayer
     from docling_core.types.doc.document import DocTagsDocument

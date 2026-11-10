@@ -5,13 +5,12 @@
 * the image RGB-converted at its original size, PNG (the server-side processor fits it itself, so a
   client-side resize would resample twice);
 * the architecture is not in vLLM's registry: NVIDIA serves it through a vLLM general plugin shipped in the
-  model repo. ``serve_setup`` installs it into the vLLM image's own Python before ``vllm serve``, as the
-  board's ``install-plugin.sh`` does: the files ``options.plugin_patterns`` from the model repo at the
-  pinned revision, NVIDIA's inference constraints without their own ``nemotron-parse`` line, and a check
-  that vLLM is still the preset's version.
+  model repo. ``serve_setup`` installs it into the vLLM image's own Python before ``vllm serve``: the files
+  ``options.plugin_patterns`` from the model repo at the pinned revision, NVIDIA's inference constraints without
+  their own ``nemotron-parse`` line, and a check that vLLM is still the preset's version.
 
 The completion is stored verbatim: an interleaved block stream of coordinate tokens, ``<class_*>`` tokens and
-Markdown text. ``to_markdown`` reproduces the board's rendering (the vendor's
+Markdown text. ``to_markdown`` renders it (the vendor's
 ``nemotron_parse.postprocessing.render_markdown`` from the model repo, then ``strip_underscore_emphasis``);
 ``parse`` does not call it, because it imports code from the model repo.
 """
@@ -25,7 +24,7 @@ from . import ChatAdapter, data_url, png_bytes
 
 
 def png_full(image: bytes) -> str:
-    """RGB at the original size, base64 PNG (the driver's ``encode_png``)."""
+    """RGB at the original size, base64 PNG."""
     from PIL import Image
 
     with Image.open(io.BytesIO(image)) as im:
@@ -37,8 +36,8 @@ _UNDERSCORE_EMPHASIS = re.compile(r"(?<![\w_])_(?=\S)([^_\n]+?)(?<=\S)_(?![\w_])
 
 
 def strip_underscore_emphasis(text: str) -> str:
-    """Unwrap Markdown ``_italic_`` spans, keeping the text (the harness's rule, verbatim): the board's
-    scorer strips ``*`` emphasis but not ``_``, which this model uses for every italic species name."""
+    """Unwrap Markdown ``_italic_`` spans, keeping the text: text scorers often strip ``*`` emphasis but
+    not ``_``, which this model uses for every italic span."""
     return _UNDERSCORE_EMPHASIS.sub(r"\1", text)
 
 
@@ -46,7 +45,7 @@ _render = None
 
 
 def to_markdown(raw: str, revision: str | None = None, preset: str = "nemotron-3.5-parse") -> str:
-    """The board's scored text for a completion: stripped, rendered by the vendor's
+    """The page text of a completion: stripped, rendered by the vendor's
     ``nemotron_parse.postprocessing.render_markdown`` (default options; downloaded from the model repo
     at ``revision``, default the preset's, and imported), stripped, ``_italic_`` delimiters unwrapped."""
     global _render
@@ -79,7 +78,7 @@ class NemotronParseAdapter(ChatAdapter):
         }
 
     def serve_setup(self) -> str:
-        """The board's ``install-plugin.sh``, into the Python that runs ``$VLLM`` (read from its shebang)."""
+        """The plugin's installation, into the Python that runs ``$VLLM`` (read from its shebang)."""
         patterns = repr(list(self.options["plugin_patterns"]))
         return "\n".join([
             'PY=$(head -n1 "$(command -v "$VLLM")" | sed "s/^#! *//")',

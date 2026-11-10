@@ -1,4 +1,4 @@
-"""The LightOnOCR-3 specs (4B and 0.8B): request body, serve flags and parse, against the board driver."""
+"""The LightOnOCR-3 specs (4B and 0.8B): request body, serve flags and parse, after the model card."""
 from __future__ import annotations
 
 import base64
@@ -27,8 +27,8 @@ def sent_png(body: dict) -> bytes:
     return base64.b64decode(url.split(",", 1)[1])
 
 
-def driver_encode_png(data: bytes) -> bytes:
-    """The board driver's ``encode_png``, verbatim apart from the input handling."""
+def reference_encode_png(data: bytes) -> bytes:
+    """The reference implementation's ``encode_png``, verbatim apart from the input handling."""
     img = Image.open(io.BytesIO(data)).convert("RGB")
     img.thumbnail((2048, 2048))
     buf = io.BytesIO()
@@ -56,13 +56,13 @@ def test_request_thumbnails_to_2048(size, expected):
 
 
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA")])
-def test_request_image_bytes_equal_the_driver(fmt, mode):
+def test_request_image_bytes_equal_the_reference(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    assert sent_png(chat_model("lightonocr-3-0.8b").request(data)) == driver_encode_png(data)
+    assert sent_png(chat_model("lightonocr-3-0.8b").request(data)) == reference_encode_png(data)
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
-def test_request_body_is_the_drivers(model):
+def test_request_body_is_the_reference(model):
     body = chat_model(model).request(image(800, 1200, "JPEG"))
     assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p", "chat_template_kwargs"}
     assert body["model"] == model
@@ -74,7 +74,7 @@ def test_request_body_is_the_drivers(model):
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
-def test_serve_args_match_the_board_driver(model):
+def test_serve_args_match_the_card(model):
     args = chat_model(model).vllm_args(0.8)
     assert args[:2] == ["--revision", REVISIONS[model]]
     for flag in (["--max-model-len", "16384"],

@@ -1,4 +1,4 @@
-"""The OvisOCR2 and OvisOCR3 specs: request, parse and serve flags as the BHL board's drivers ran them."""
+"""The OvisOCR2 and OvisOCR3 specs: request, parse and serve flags after the model card."""
 from __future__ import annotations
 
 import base64
@@ -35,8 +35,8 @@ def sent(body: dict) -> bytes:
     return base64.b64decode(url.split(",", 1)[1])
 
 
-def driver_encode_jpeg(data: bytes) -> bytes:
-    """The board driver's ``encode_jpeg``, verbatim apart from the input handling."""
+def reference_encode_jpeg(data: bytes) -> bytes:
+    """The reference implementation's ``encode_jpeg``, verbatim apart from the input handling."""
     img = Image.open(io.BytesIO(data)).convert("RGB")
     w, h = img.size
     if w * h > 8294400:
@@ -62,7 +62,7 @@ def test_prompts():
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
-def test_request_body_is_the_drivers(model):
+def test_request_body_is_the_reference(model):
     spec = chat_model(model)
     body = spec.request(image(800, 1200, "JPEG", "RGB"))
     assert set(body) == {"model", "messages", "temperature", "max_tokens", "chat_template_kwargs"}
@@ -85,13 +85,13 @@ def test_request_downscales_to_max_pixels(size, expected):
 
 
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA"), ("PNG", "L")])
-def test_request_image_bytes_equal_the_driver(fmt, mode):
+def test_request_image_bytes_equal_the_reference(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    assert sent(chat_model("ovisocr3").request(data)) == driver_encode_jpeg(data)
+    assert sent(chat_model("ovisocr3").request(data)) == reference_encode_jpeg(data)
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
-def test_serve_args_match_the_board_driver(model):
+def test_serve_args_match_the_card(model):
     cmd = ChatModelServer(chat_model(model), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", model]
     args = cmd[7:]
@@ -110,7 +110,7 @@ def test_parse_keeps_bbox_placeholders_verbatim():
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 8200, "completion_tokens": 40}}
     t = chat_model("ovisocr3").parse(body, backend="served x")
-    assert t.text == raw and t.extra["raw"] == raw                     # drop_bbox_blocks stays in the harness
+    assert t.text == raw and t.extra["raw"] == raw                     # bbox blocks kept
     m = t.steps[0]
     assert (m.name, m.revision) == ("ATH-MaaS/OvisOCR3", REVISIONS["ATH-MaaS/OvisOCR3"])
     assert m.measurements == {"prompt_tokens": 8200, "completion_tokens": 40, "finish_reason": "stop"}

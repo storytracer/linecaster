@@ -1,4 +1,4 @@
-"""DeepSeek-OCR and -OCR-2 specs: request body, n-gram guard, serve flags, grounding strip, as the board ran them."""
+"""DeepSeek-OCR and -OCR-2 specs: request body, n-gram guard, serve flags, grounding strip, after the model card."""
 from __future__ import annotations
 
 import base64
@@ -11,7 +11,7 @@ from linecaster.adapters import chat_model
 from linecaster.adapters.deepseek_ocr import strip_grounding
 from linecaster.blocks.servers.serve import ChatModelServer
 
-LOGITS_PROCESSOR = "vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor"   # the drivers'
+LOGITS_PROCESSOR = "vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor"   # the card's
 
 REVISIONS = {"deepseek-ai/DeepSeek-OCR": "9f30c71f441d010e5429c532364a86705536c53a",
              "deepseek-ai/DeepSeek-OCR-2": "aaa02f3811945a91062062994c5c4a3f4c0af2b0"}
@@ -29,7 +29,7 @@ def sent(body: dict) -> tuple[str, bytes]:
 
 
 @pytest.mark.parametrize("model", sorted(REVISIONS))
-def test_request_matches_the_board_drivers(model):
+def test_request_matches_the_reference(model):
     data = image(2400, 3600, "JPEG")
     b = chat_model(model).request(data)
     assert b["model"] == model
@@ -52,7 +52,7 @@ def test_other_images_become_full_size_rgb_png(fmt, mode):
 
 
 @pytest.mark.parametrize("model", sorted(REVISIONS))
-def test_serve_args_match_the_board_drivers(model):
+def test_serve_args_match_the_card(model):
     spec = chat_model(model)
     args = spec.vllm_args(0.8, ["--max-num-seqs", "8"])
     assert args[:2] == ["--revision", REVISIONS[model]]
@@ -74,7 +74,7 @@ RAW = ("<|ref|>title<|/ref|><|det|>[[120, 80, 880, 130]]<|/det|>\n# THE BIRDS\n\
        "<|ref|>text<|/ref|><|det|>[[100, 150, 900, 600]]<|/det|>\nof Ceylon.\n")
 
 
-def test_parse_keeps_grounding_verbatim_and_strip_is_the_boards():
+def test_parse_keeps_grounding_verbatim_and_strip_removes_it():
     t = chat_model("deepseek-ocr").parse({"choices": [{"message": {"content": RAW}, "finish_reason": "stop"}], "usage": {}})
     assert t.extra["raw"] == RAW and t.text == RAW
     assert strip_grounding(RAW) == "# THE BIRDS\n\nof Ceylon."

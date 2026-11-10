@@ -1,4 +1,4 @@
-"""Qwen3.5-9B spec: request body, image budget, serve flags, as the BHL board ran it (greedy + card penalties)."""
+"""Qwen3.5-9B spec: request body, image budget, serve flags: greedy with the card's penalties."""
 from __future__ import annotations
 
 import base64
@@ -12,7 +12,7 @@ from linecaster.adapters.qwen35 import unwrap_fence
 from linecaster.blocks.servers.serve import ChatModelServer
 
 PROMPT = chat_model("qwen3.5-9b").prompt
-MAX_PIXELS = 2048 * 1024          # the driver's VISUAL_TOKEN_BUDGET x 1024 px
+MAX_PIXELS = 2048 * 1024          # 2048 visual tokens x 1024 px
 
 MODEL = "Qwen/Qwen3.5-9B"
 
@@ -29,7 +29,7 @@ def sent_image(body: dict) -> Image.Image:
     return Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1])))
 
 
-def test_request_matches_the_board_row():
+def test_request_matches_the_preset():
     b = chat_model(MODEL).request(image(800, 1200, "PNG", "L"))
     assert b["model"] == MODEL
     image_part, text_part = b["messages"][0]["content"]
@@ -52,7 +52,7 @@ def test_image_is_area_capped_jpeg(size, expected):
     assert im.size[0] * im.size[1] <= MAX_PIXELS
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     spec = chat_model("qwen3.5-9b")
     cmd = ChatModelServer(spec, port=8000, gpu_memory_utilization=0.9).command()
     assert cmd[:3] == ["vllm", "serve", MODEL]
@@ -73,7 +73,7 @@ def test_prompt_hash_is_recorded():
     assert s["prompt_variant"] == "neutral" and s["prompt_sha8"] == hashlib.sha256(PROMPT.encode()).hexdigest()[:8]
 
 
-def test_parse_keeps_raw_and_unwrap_fence_is_the_boards():
+def test_parse_keeps_raw_and_unwrap_fence_removes_the_fence():
     raw = "```markdown\nTHE BIRDS\n\nof Ceylon.\n```"
     t = chat_model("qwen3.5-9b").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
     assert t.extra["raw"] == raw and t.text == raw and t.steps[0].name == MODEL

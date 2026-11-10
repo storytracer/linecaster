@@ -2,7 +2,7 @@
 
 * message = the page image, then ``settings.prompt`` (image before text, the card's order);
 * the image bytes sent as they are, no resize and no conversion, with the media type sniffed from the
-  magic bytes (JPEG, PNG, TIFF, WebP; anything else is an error, as in the board driver): the processor
+  magic bytes (JPEG, PNG, TIFF, WebP; anything else is an error): the processor
   tiles and RGB-converts itself;
 * ``settings.chat_template_kwargs`` with every request (Layout-as-Thought off).
 """
@@ -13,7 +13,7 @@ from typing import Any, ClassVar
 
 from . import ChatAdapter
 
-#: the driver's ``MAGIC``: magic bytes -> media type (WebP checked separately)
+#: magic bytes -> media type (WebP checked separately)
 MAGIC = (
     (b"\xff\xd8\xff", "image/jpeg"),
     (b"\x89PNG\r\n\x1a\n", "image/png"),
@@ -23,7 +23,7 @@ MAGIC = (
 
 
 def sniff_mime(raw: bytes) -> str:
-    """The driver's ``sniff_mime``: the media type of an encoded image from its magic bytes."""
+    """The media type of an encoded image from its magic bytes."""
     for prefix, mime in MAGIC:
         if raw.startswith(prefix):
             return mime

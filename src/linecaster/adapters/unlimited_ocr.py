@@ -12,7 +12,7 @@ image (passthrough), then the prompt; ``**sampling``; ``images_config``; the car
 custom logit processor (``settings.custom_logit_processor``: ``DeepseekOCRNoRepeatNGramLogitProcessor.to_str()``,
 JSON of the class's dill pickle by reference, so no SGLang import here) with ``settings.custom_params``.
 
-Both board drivers treat a response without content as an error row, not an empty page: ``content`` raises.
+A response without content is an error, not an empty page: ``content`` raises.
 """
 from __future__ import annotations
 

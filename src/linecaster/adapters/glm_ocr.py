@@ -3,7 +3,7 @@
 * message = the page image, then ``settings.prompt`` (image before text);
 * the image RGB-converted and, only if its area exceeds ``settings.image.max_pixels`` (the processor's
   ceiling), downscaled by sqrt(max_pixels / area) with the sides truncated to ints, LANCZOS; never upscaled;
-  PNG (the board driver's ``encode_png``).
+  PNG (``encode_png``).
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from . import ChatAdapter, data_url, png_bytes
 
 
 def encode_png(image: bytes, max_pixels: int) -> str:
-    """The driver's ``encode_png``: RGB, downscaled to ``max_pixels`` if larger (never up), base64 PNG."""
+    """RGB, downscaled to ``max_pixels`` if larger (never up), base64 PNG."""
     from PIL import Image
 
     with Image.open(io.BytesIO(image)) as im:

@@ -4,7 +4,7 @@
   placeholder ``<|img|><|imgpad|><|endofimg|>``, with ``--chat-template-content-format string`` so vLLM adds
   none of its own; dots.ocr: none) followed by ``settings.prompt``;
 * the image at full resolution, no resize: RGB PNG/JPEG bytes as they are, anything else converted to RGB
-  and sent as PNG (``encode_image``, the board drivers' rule, shared with DeepSeek-OCR and Unlimited-OCR);
+  and sent as PNG (``encode_image``, shared with DeepSeek-OCR and Unlimited-OCR);
 * the output is plain text, not layout JSON (the layout modes are not used), so there is nothing to convert.
 """
 from __future__ import annotations
@@ -15,13 +15,13 @@ from typing import Any, ClassVar
 
 from . import ChatAdapter, data_url
 
-#: formats sent byte-for-byte when the image is already RGB (the drivers' ``PASSTHROUGH_FORMATS``)
+#: formats sent byte-for-byte when the image is already RGB
 PASSTHROUGH_FORMATS = {"PNG": "image/png", "JPEG": "image/jpeg"}
 PASSTHROUGH = {"resize": None, "passthrough": "RGB PNG/JPEG", "else": "RGB PNG"}
 
 
 def encode_image(data: bytes) -> tuple[str, str]:
-    """``(mime, base64)`` of a page image at full resolution, as the board drivers' ``encode_image``."""
+    """``(mime, base64)`` of a page image at full resolution."""
     from PIL import Image
 
     with Image.open(io.BytesIO(data)) as img:

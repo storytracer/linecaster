@@ -8,8 +8,8 @@ checkpoint and the prompt of each card).
   ``settings.image.jpeg_quality`` (every image, also when it fits): ``encode_jpeg``, shared with Qwen3.5;
 * ``settings.chat_template_kwargs`` with every request (thinking off).
 
-The completion is stored verbatim, ``<img src="images/bbox_...">`` placeholders and all (the board drops
-those blocks in its harness).
+The completion is stored verbatim, ``<img src="images/bbox_...">`` placeholders and all; dropping
+those blocks is left to the consumer.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from . import ChatAdapter, data_url
 
 
 def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple[int, int]]:
-    """The drivers' ``encode_jpeg``: RGB, downscaled to ``max_pixels`` area if larger (LANCZOS), JPEG at
+    """RGB, downscaled to ``max_pixels`` area if larger (LANCZOS), JPEG at
     ``quality``; base64 and the size."""
     from PIL import Image
 

@@ -1,4 +1,4 @@
-"""The chandra-ocr-2 spec: request, parse and serve flags as the BHL board's driver ran the model."""
+"""The chandra-ocr-2 spec: request, parse and serve flags after the model card."""
 from __future__ import annotations
 
 import base64
@@ -45,7 +45,7 @@ def test_prompt_is_chandra_v020_ocr_layout():
     assert OCR_LAYOUT_PROMPT.startswith("OCR this image to HTML, arranged as layout blocks.")
 
 
-def test_request_body_is_the_drivers():
+def test_request_body_is_the_reference():
     body = chat_model("chandra-ocr-2").request(image(2400, 3600, "JPEG", "RGB"))
     assert set(body) == {"model", "messages", "temperature", "top_p", "max_tokens"}
     assert body["model"] == "datalab-to/chandra-ocr-2"
@@ -73,7 +73,7 @@ def test_scale_to_fit_matches_the_vendor():
     assert scale_to_fit(Image.new("RGB", (100, 100))).size == (224, 224)   # below min pixels: upscaled
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     cmd = ChatModelServer(chat_model("chandra-ocr-2"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "datalab-to/chandra-ocr-2"]
     args = cmd[7:]
@@ -93,7 +93,7 @@ def test_parse_keeps_the_html_verbatim():
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 6700, "completion_tokens": 80}}
     t = chat_model("chandra-ocr-2").parse(body, backend="served x")
-    assert t.text == raw and t.extra["raw"] == raw                     # HTML -> Markdown stays in the harness
+    assert t.text == raw and t.extra["raw"] == raw                     # HTML -> Markdown is left to the consumer
     m = t.steps[0]
     assert (m.step, m.name, m.revision) == ("recognition", "datalab-to/chandra-ocr-2", REVISION)
     assert m.measurements == {"prompt_tokens": 6700, "completion_tokens": 80, "finish_reason": "stop"}

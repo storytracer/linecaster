@@ -17,7 +17,7 @@ from . import ChatAdapter, data_url, png_bytes
 
 
 def smart_resize(h: int, w: int, factor: int, min_pixels: int, max_pixels: int) -> tuple[int, int]:
-    """``(height, width)`` the driver resizes a page to (the recipe's ``smart_resize``, verbatim)."""
+    """``(height, width)`` a page is resized to (the uv-scripts recipe's ``smart_resize``, verbatim)."""
     h_bar = round(h / factor) * factor
     w_bar = round(w / factor) * factor
     if h_bar * w_bar > max_pixels:
@@ -39,7 +39,7 @@ class PaddleOCRVLAdapter(ChatAdapter):
         return smart_resize(h, w, int(i["factor"]), int(i["min_pixels"]), int(i["max_pixels"]))
 
     def encode_png(self, image: bytes) -> str:
-        """The driver's ``encode_png``: RGB, ``smart_resize`` (LANCZOS) if the size changes, base64 PNG."""
+        """RGB, ``smart_resize`` (LANCZOS) if the size changes, base64 PNG."""
         from PIL import Image
 
         with Image.open(io.BytesIO(image)) as im:

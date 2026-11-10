@@ -1,4 +1,4 @@
-"""The Nemotron 3.5 Parse spec: request, serve flags, plugin setup and parse as the BHL board's driver ran it."""
+"""The Nemotron 3.5 Parse spec: request, serve flags, plugin setup and parse, after the model card."""
 from __future__ import annotations
 
 import base64
@@ -38,7 +38,7 @@ def test_request_is_prompt_then_full_size_png_with_card_sampling():
                       "skip_special_tokens"}
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     args = chat_model("nemotron-3.5-parse").vllm_args(0.8)
     assert args[:2] == ["--revision", REV]
     expect = ["--max-model-len", "16384", "--trust-remote-code", "--dtype", "bfloat16",
@@ -77,5 +77,5 @@ def test_parse_keeps_the_block_stream_verbatim():
     assert t.steps[0].settings["sampling"]["repetition_penalty"] == 1.1
 
 
-def test_strip_underscore_emphasis_is_the_harness_rule():
+def test_strip_underscore_emphasis():
     assert strip_underscore_emphasis("_Corvus corax_ and column_1 and ___") == "Corvus corax and column_1 and ___"

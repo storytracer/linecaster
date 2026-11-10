@@ -1,4 +1,4 @@
-"""The SmolDocling spec: request, serve flags and DocTags parse as the BHL board's driver and harness ran it."""
+"""The SmolDocling spec: request, serve flags and DocTags parse after the model card."""
 from __future__ import annotations
 
 import base64
@@ -44,7 +44,7 @@ def test_request_is_image_then_prompt_jpeg_downscaled_only(size, expected):
     assert set(b) == {"model", "messages", "temperature", "max_tokens", "skip_special_tokens"}
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     spec = chat_model("smoldocling-256m-preview")
     args = spec.vllm_args(0.8)
     assert args[:2] == ["--revision", "ce51f56c4ebe36e0b1c3a55f67b261ba22a50bf8"]
@@ -55,7 +55,7 @@ def test_serve_args_match_the_board_driver():
     assert ChatModelServer(spec, port=8123).command()[:3] == ["vllm", "serve", MODEL]
 
 
-def test_parse_keeps_doctags_verbatim_and_converts_as_the_harness():
+def test_parse_keeps_doctags_verbatim_and_converts_with_docling_core():
     t = chat_model("smoldocling-256m-preview").parse(completion(DOCTAGS), backend="served x")
     assert t.extra["raw"] == DOCTAGS and t.text == DOCTAGS
     # furniture (running head, page number) kept, picture placeholder empty

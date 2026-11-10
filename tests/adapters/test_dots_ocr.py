@@ -1,4 +1,4 @@
-"""The dots.ocr spec: request, parse and serve flags as the BHL board's driver ran the model."""
+"""The dots.ocr spec: request, parse and serve flags after the model card."""
 from __future__ import annotations
 
 import base64
@@ -29,7 +29,7 @@ def test_registry_and_revision():
     assert spec.adapter == "dots" and spec.preset == "dots-ocr@1" and spec.revision == REVISION
 
 
-def test_request_matches_the_board_driver():
+def test_request_matches_the_reference():
     data = image(2400, 3600, "JPEG")
     body = chat_model("dots-ocr").request(data)
     assert set(body) == {"model", "messages", "temperature", "max_tokens"}   # no top_p
@@ -50,7 +50,7 @@ def test_other_images_become_full_size_rgb_png(fmt, mode):
         assert (im.format, im.mode, im.size) == ("PNG", "RGB", (3000, 4500))
 
 
-def test_serve_args_match_the_board_driver():
+def test_serve_args_match_the_card():
     cmd = ChatModelServer(chat_model("dots-ocr"), port=8000, gpu_memory_utilization=0.6).command()
     assert cmd[:3] == ["vllm", "serve", "rednote-hilab/dots.ocr"]
     args = cmd[7:]
@@ -67,7 +67,7 @@ def test_parse_keeps_the_completion_verbatim():
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 9000, "completion_tokens": 30}}
     t = chat_model("dots-ocr").parse(body, backend="served vllm")
-    assert t.text == raw and t.extra["raw"] == raw                    # the strip stays in the harness
+    assert t.text == raw and t.extra["raw"] == raw                    # no strip
     m = t.steps[0]
     assert (m.step, m.name, m.revision) == ("recognition", "rednote-hilab/dots.ocr", REVISION)
     assert m.measurements == {"prompt_tokens": 9000, "completion_tokens": 30, "finish_reason": "stop"}
