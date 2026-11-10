@@ -83,6 +83,23 @@ def test_page_files_without_text_fallback_write_only_documents(tmp_path: Path):
     assert sorted(p.name for p in tmp_path.iterdir()) == sorted(f"p2.{EXPORT_FORMATS[f]}" for f in fmts)
 
 
+def test_page_files_skip_failed_pages_when_asked(tmp_path: Path):
+    """``skip_failed``: a page an earlier block failed on gets no files and passes on with its errors; by default it
+    is written like any page."""
+    from linecaster.blocks.base.page import record_error
+
+    t = Transcription(lines=[Line(id="l0", reading_order=0, bbox=[10, 10, 100, 20], text="nur Zeilen")])
+    ok, bad = page_doc(page_id="ok", t=t, item=None), page_doc(page_id="bad", t=t, item=None)
+    record_error(bad, {"block": "LineRecognizer", "type": "RuntimeError", "error": "boom"})
+    writer = PageFileWriter(str(tmp_path / "skip"), formats=("txt", "hocr"), skip_failed=True)
+    out = list(writer.run(iter([ok, bad])))
+    assert [d.id for d in out] == ["ok", "bad"] and out[1].metadata["errors"][0]["error"] == "boom"
+    assert sorted(p.name for p in (tmp_path / "skip").iterdir()) == ["ok.hocr", "ok.txt"]
+    assert writer.stats["skipped_failed"].total == 1
+    list(PageFileWriter(str(tmp_path / "all"), formats=("txt",)).run(iter([ok, bad])))
+    assert sorted(p.name for p in (tmp_path / "all").iterdir()) == ["bad.txt", "ok.txt"]
+
+
 def _region(rid, label, order, **kw):
     return Region(id=rid, label=label, polygon=[[0, 0], [1, 0], [1, 1]], bbox=[0, 0, 1, 1], reading_order=order, **kw)
 

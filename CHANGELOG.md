@@ -19,8 +19,13 @@ the tags; the first is `v0.1.0`.
 - `linecaster.catalog.code.pipelines()` imports the shapes instead of reading the scripts: a `Pipeline`'s `source`
   is its script in the checkout (`None` without one) and its new field `shape` the shape's source file.
 
+- `PageFileWriter` has a new parameter `skip_failed` (default `False`: failed pages are written as before). Its
+  recorded parameters gain the key, so the `pipeline_sha256` of every pipeline with a `PageFileWriter` changes;
+  resuming into an OUT of an earlier launch needs `--new-pipeline`.
+
 ### Added
 
+- `PageFileWriter(skip_failed=True)`: no files for a page that carries errors; counted as `skipped_failed`.
 - `linecaster.pipelines`: the pipeline shapes as library code, with `shapes()` and `shape(pipeline_id)`; a
   derivative's script imports one and runs it with `run.main` in its own environment, with its own defaults.
 

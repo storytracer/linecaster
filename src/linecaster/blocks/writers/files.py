@@ -37,7 +37,9 @@ class PageFileWriter(Contracted, PipelineStep):
     ``hf://buckets/...``). It reads the parts its formats are written from (``FORMAT_PARTS``: ``lines`` for hOCR,
     ALTO and PAGE, ``text`` for md and txt, ``document`` for HTML, DocLang and JSON, ``image`` for plots) and adds
     nothing; pages pass through, so writers can be chained. A page without the transcription is counted
-    (``no_transcription``) and passed on.
+    (``no_transcription``) and passed on; with ``skip_failed``, so is a page an earlier block failed on
+    (``skipped_failed``): its files would hold what the blocks before the failure made of it, while the
+    ``RejectWriter`` lists it and the page records keep it with its errors.
 
     * ``hocr``, ``alto``, ``page``: linecaster's serializers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
@@ -61,6 +63,8 @@ class PageFileWriter(Contracted, PipelineStep):
         dividers: put ``---`` between layout regions in md.
         text_fallback: a page without a document still gets md and txt from ``Transcription.text``; ``False`` writes
             them only from a document (the block then reads ``document``).
+        skip_failed: write no files for a page that carries errors (``doc.metadata["errors"]``); the default writes
+            them as for any page.
     """
 
     type = "💽 - WRITER"
@@ -70,7 +74,7 @@ class PageFileWriter(Contracted, PipelineStep):
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
-                 detail: str = "word", dividers: bool = False, text_fallback: bool = True):
+                 detail: str = "word", dividers: bool = False, text_fallback: bool = True, skip_failed: bool = False):
         super().__init__()
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
@@ -80,6 +84,7 @@ class PageFileWriter(Contracted, PipelineStep):
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
         self.detail, self.dividers, self.text_fallback = detail, dividers, text_fallback
+        self.skip_failed = skip_failed
 
     def contract(self) -> Contract:
         """It reads what its formats are written from (``FORMAT_PARTS``)."""
@@ -126,10 +131,14 @@ class PageFileWriter(Contracted, PipelineStep):
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
 
-        from ..base.page import page_of
+        from ..base.page import failed, page_of
 
         out = get_datafolder(self.output_folder)
         for doc in data:
+            if self.skip_failed and failed(doc):
+                self.stat_update("skipped_failed")
+                yield doc
+                continue
             page = page_of(doc)
             t = page.transcriptions.get(self.transcription)
             if t is None:
