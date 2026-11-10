@@ -47,12 +47,19 @@ def proxy_server(served: list):
     return httpd
 
 
+#: the sockets of ``dead_port``, held for the rest of the process
+_DEAD: list = []
+
+
 def dead_port() -> int:
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+    """A loopback port bound but not listening, held for the rest of the process: a proxy that refuses connections,
+    whose port no other test's server can take meanwhile (tests run in parallel)."""
+    import socket
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    _DEAD.append(sock)
+    return sock.getsockname()[1]
 
 
 def page_table(tmp_path, n):
