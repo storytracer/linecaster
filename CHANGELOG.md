@@ -8,6 +8,12 @@ the tags; the first is `v0.1.0`.
 
 ### Upgrade notes
 
+- linecaster's `s3fs` extra is gone: the core installs `datatrove[io,s3]` (datatrove's `s3` extra is s3fs), so
+  `s3://` paths work in every environment. Who is affected: anything that asks for `linecaster[s3fs]` (a derivative's
+  script, `uv sync --extra s3fs`): `uv sync --extra s3fs` fails, and uv warns about `linecaster[s3fs]`. What to do: drop the extra
+  (`linecaster[ray,pybookget,s3fs]` becomes `linecaster[ray,pybookget]`) and relock. Environments that had no S3
+  before (`bind.py`, `launch.py`, the test scripts) now have s3fs, aiobotocore and botocore, and botocore's
+  `python-dateutil<3` moves python-dateutil from 4.0.0 to 2.9.0.post0 there.
 - `pipelines/transcribe_modular.py` no longer installs kraken (`linecaster-kraken`, the kraken fork, torch): it has
   PaddleX and Tesseract only. Who is affected: anyone running a kraken preset (`kraken-ppocrv6-{tiny,small,medium}`)
   or the `squiddle` recipe with that script or with `uv run launch.py squiddle`, in-process or with `--backend served`
@@ -49,10 +55,9 @@ the tags; the first is `v0.1.0`.
 - A source is declared by the package that needs it: `linecaster-kraken` declares the kraken fork,
   `linecaster-paddlex` lists `opencv-contrib-python` and points it at the stub. `uv lock` applies the sources of path
   and git dependencies, so the pipeline scripts no longer list `pybookget`, `kraken`, `opencv-contrib-python` or
-  `s3fs` themselves (`linecaster[...,s3fs]` instead); the locks keep every version.
+  `s3fs` themselves; the locks keep every version.
 - `linecaster.runtime.jobs.dependencies` takes the installed packages' own sources from the script's lock (pybookget,
   the kraken fork at its locked commit, the OpenCV stub), so a Job gets them whether or not the script lists them.
-  A Job with `engines=False` now also installs the script's `s3fs` extra.
 - Only `linecaster-kraken` pins torch; `pipelines/transcribe_page.py` drops its `torch==2.14.0` override (surya-ocr
   allows `>=2.7,<3`; the lock keeps 2.14.0). `tests/test_scripts.py` fixes each lock's torch.
 - The [compatibility](docs/reference/compatibility.md#versions-and-releases) reference states the versioning policy:

@@ -2,8 +2,8 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for the manifests and http(s) files it
-#     # fetches, s3fs for s3:// output folders
-#     "linecaster[ray,pybookget,s3fs]",
+#     # fetches
+#     "linecaster[ray,pybookget]",
 # ]
 #
 # [tool.uv.sources]

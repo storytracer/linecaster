@@ -11,7 +11,7 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", extras = ["ray", "pybookget", "s3fs"], editable = "../" },
+    { name = "linecaster", extras = ["ray", "pybookget"], editable = "../" },
     { name = "linecaster-indra", editable = "../engines/indra" },
     { name = "linecaster-services", editable = "../engines/services" },
     { name = "linecaster-surya", editable = "../engines/surya" },
@@ -456,6 +456,9 @@ io = [
     { name = "python-magic" },
     { name = "warcio" },
     { name = "zstandard" },
+]
+s3 = [
+    { name = "s3fs" },
 ]
 
 [[package]]
@@ -919,7 +922,7 @@ name = "linecaster"
 version = "0.3.2"
 source = { editable = "../" }
 dependencies = [
-    { name = "datatrove", extra = ["io"] },
+    { name = "datatrove", extra = ["io", "s3"] },
     { name = "docling-core" },
     { name = "lxml" },
     { name = "numpy" },
@@ -942,13 +945,10 @@ pybookget = [
 ray = [
     { name = "ray", extra = ["default"] },
 ]
-s3fs = [
-    { name = "s3fs" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "datatrove", extras = ["io"], specifier = ">=0.10.1,<0.11" },
+    { name = "datatrove", extras = ["io", "s3"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", specifier = ">=2.95" },
     { name = "lxml", specifier = ">=5" },
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
@@ -963,12 +963,11 @@ requires-dist = [
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
-    { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2025.3" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2", "s3fs"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [

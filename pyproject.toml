@@ -21,7 +21,8 @@ dependencies = [
     "lxml>=5",
     "numpy>=2",
     "Pillow>=11",
-    "datatrove[io]>=0.10.1,<0.11",
+    # s3:// paths (OUT, inputs, a broker on S3) through datatrove's s3 extra (s3fs)
+    "datatrove[io,s3]>=0.10.1,<0.11",
     "saturate==0.3.0",
     # every YAML file (the catalog, run records): YAML 1.2, duplicate keys are errors, comments kept on write
     # (linecaster.catalog.yamlio)
@@ -44,8 +45,6 @@ ray = ["ray[default]>=2.40"]
 pybookget = ["pybookget>=1.2"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
-# s3:// paths (OUT, inputs, a broker on S3)
-s3fs = ["s3fs>=2025.3"]
 
 [project.scripts]
 linecaster = "linecaster.cli:main"

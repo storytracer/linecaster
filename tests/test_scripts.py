@@ -97,6 +97,18 @@ def test_scripts_list_no_source_their_packages_bring():
         assert not names & {"pybookget", "kraken", "opencv-contrib-python", "s3fs"}, p.name
 
 
+def test_s3_comes_with_the_core():
+    """``s3://`` needs no extra: the core installs datatrove's ``s3`` extra (s3fs), linecaster has no ``s3fs`` extra,
+    and every pipeline script's lock has s3fs."""
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert any(d.startswith("datatrove[io,s3]") for d in project["dependencies"])
+    assert "s3fs" not in project["optional-dependencies"]
+    for p in SCRIPTS:
+        assert not any(_name(d) == "linecaster" and "s3fs" in d for d in script_metadata(p).get("dependencies", [])), p
+    for p in sorted((ROOT / "pipelines").glob("*.py")):
+        assert "s3fs" in {q["name"] for q in lock_of(p)["package"]}, p.name
+
+
 #: the torch each script's lock holds, and why. Only linecaster-kraken pins torch (2.14.0, kraken's upper bound), and
 #: only environments with linecaster-kraken are bound by it; the others take what their own dependencies allow. A lock
 #: whose torch changes fails here: a change of build is deliberate and recorded in NOTES.md
@@ -165,7 +177,7 @@ def test_pipelines_feed_the_jobs_helper():
     pybookget = "pybookget @ https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz"
     for script in (modular, vlm):
         deps = dependencies("abc123", script)
-        assert deps[0] == f"linecaster[pybookget,s3fs] @ {repo}"
+        assert deps[0] == f"linecaster[pybookget] @ {repo}"
         assert pybookget in deps                       # an archive, no git (the vLLM image has none)
         assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
@@ -173,7 +185,7 @@ def test_pipelines_feed_the_jobs_helper():
         assert not any(_name(d) in ("lightning", "torch", "kraken", "linecaster-kraken")
                        for d in dependencies("abc123", script))
     # without engines: linecaster with its extras and the sources they need, no engines
-    assert dependencies("abc123", vlm, engines=False) == [f"linecaster[pybookget,s3fs] @ {repo}", pybookget]
+    assert dependencies("abc123", vlm, engines=False) == [f"linecaster[pybookget] @ {repo}", pybookget]
 
 
 def test_serve_command_for_a_pipeline():

@@ -1,9 +1,8 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images,
-#     # s3fs for s3:// paths
-#     "linecaster[ray,pybookget,s3fs]",
+#     # Ray for --on ray and the ray command (a Job leaves it out), pybookget for --manifests and http(s) images
+#     "linecaster[ray,pybookget]",
 #     # PaddleX's layout, line, recognition, table and formula engines (it brings the OpenCV stub)
 #     "linecaster-paddlex",
 #     # Tesseract's line recognizer

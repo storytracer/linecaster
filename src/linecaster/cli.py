@@ -100,9 +100,8 @@ def render_broker(report: dict) -> str:
 def _broker(a) -> None:
     try:
         _broker_action(a)
-    except ImportError as e:                # fsspec's: the path's filesystem is not installed (s3:// without s3fs)
-        hint = " (linecaster's extra: uv sync --extra s3fs)" if a.path.startswith(("s3://", "s3a://")) else ""
-        raise PipelineConfigError(f"{a.path}: {e}{hint}") from None
+    except ImportError as e:                # fsspec's: the path's filesystem is not installed (gs:// without gcsfs)
+        raise PipelineConfigError(f"{a.path}: {e}") from None
 
 
 def _broker_action(a) -> None:

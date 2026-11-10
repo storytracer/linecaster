@@ -43,8 +43,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Dependencies
 
-- **datatrove and saturate are the integration and required dependencies**: `datatrove[io]>=0.10.1,<0.11` (it has
-  `JobsPipelineExecutor`) and `saturate==0.3.0` (0.x changes without deprecation). linecaster adds only what they
+- **datatrove and saturate are the integration and required dependencies**: `datatrove[io,s3]>=0.10.1,<0.11` (it has
+  `JobsPipelineExecutor`; its `s3` extra is s3fs, so `s3://` paths need no extra of linecaster's) and `saturate==0.3.0` (0.x changes without deprecation). linecaster adds only what they
   lack.
 - **The data model, the formats, the text transforms, the image helpers and the built-in engines**
   (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`) **import

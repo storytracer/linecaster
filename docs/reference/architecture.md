@@ -38,7 +38,8 @@ evaluations and project pipelines (derivatives) are built on top of it.
 
 The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
-required dependencies; engines, Ray, pybookget and PDFium are not (engine packages and extras).
+required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere); engines, Ray,
+pybookget and PDFium are not (engine packages and extras).
 
 ## Blocks and backends
 
@@ -158,7 +159,8 @@ Each script's page in the [catalog's docs](../catalog/README.md) lists its slots
 
 Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
 itself: linecaster with the extras every pipeline uses (`ray` for `--on ray` and `ray start`, `pybookget` for
-manifests and http(s) images, `s3fs` for `s3://` paths; `bind.py` only `ray`) and its engine packages. A source is
+manifests and http(s) images; `bind.py` only `ray`) and its engine packages; `s3://` paths need no extra (the core
+installs datatrove's `s3` extra, s3fs). A source is
 declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
 pybookget's archive by linecaster, the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
 headless build of the version PaddleX pins; one cv2) by `linecaster-paddlex`. `tests/test_scripts.py` checks
