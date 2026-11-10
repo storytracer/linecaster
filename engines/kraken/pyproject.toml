@@ -21,6 +21,10 @@ dependencies = [
 [project.entry-points."linecaster.engines"]
 "kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"
 
+[tool.uv.sources]
+# kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
+# line prefetch (storytracer/linecaster#1)
+kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]

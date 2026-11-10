@@ -1311,7 +1311,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
-    { name = "kraken", specifier = ">=7.1.0" },
+    { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
     { name = "linecaster", specifier = ">=0.1,<0.4" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
@@ -1334,6 +1334,7 @@ dependencies = [
     { name = "nvidia-cufft" },
     { name = "nvidia-curand" },
     { name = "onnxruntime-gpu" },
+    { name = "opencv-contrib-python" },
     { name = "paddlepaddle" },
     { name = "paddlex", extra = ["ocr", "ocr-core"] },
     { name = "transformers" },
@@ -1351,6 +1352,7 @@ requires-dist = [
     { name = "nvidia-cufft", specifier = ">=12" },
     { name = "nvidia-curand", specifier = ">=10.4" },
     { name = "onnxruntime-gpu", specifier = ">=1.23" },
+    { name = "opencv-contrib-python", directory = "../stubs/opencv-contrib-python" },
     { name = "paddlepaddle", specifier = ">=3.2.2,<3.3" },
     { name = "paddlex", extras = ["ocr-core", "ocr"], specifier = ">=3.7" },
     { name = "transformers", specifier = ">=5" },

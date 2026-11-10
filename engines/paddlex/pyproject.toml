@@ -21,6 +21,9 @@ dependencies = [
     # PP-FormulaNet runs on PaddleX's transformers engine (Hugging Face transformers on torch)
     "transformers>=5",
     "ftfy",
+    # PaddleX pins OpenCV's GUI build (libGL, which slim images lack); the source below swaps in linecaster's stub,
+    # the headless build of the same version
+    "opencv-contrib-python==4.10.0.84",
 ]
 
 # the engines by versioned id (docs/reference/catalog.md); their presets and models live in linecaster's catalog
@@ -31,6 +34,8 @@ dependencies = [
 "paddlex.tables.v1" = "linecaster_paddlex:PaddleTableEngine"
 "paddlex.formulas.v1" = "linecaster_paddlex:PaddleFormulaEngine"
 
+[tool.uv.sources]
+opencv-contrib-python = { path = "../../stubs/opencv-contrib-python" }
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
