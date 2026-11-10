@@ -12,7 +12,7 @@ Collection, CC BY-NC-SA 4.0. <a href="#-license">Credit</a></sub></p>
 
 Linecaster turns page images into text. You build an OCR pipeline from interchangeable steps (a model that
 reads the text, layout, tables, formulas, post-processing) and run it unchanged on a laptop, a GPU server, a
-Ray cluster or [Hugging Face Jobs][HF Jobs].
+Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
 
 - 🧩 **Any step is replaceable.** A vision-language model or a line recognizer reads the text; layout, table
   and formula models and rule-based post-processing are separate steps.
@@ -127,6 +127,7 @@ where the time went.
 | 🖥️ this machine, with a model server | `--backend served` |
 | 🧮 a Ray cluster | `--on ray --tasks 64` |
 | ☁️ Hugging Face Jobs | `--on hf-jobs --commit <sha>` |
+| 🏛️ a Slurm cluster | from Python, with datatrove's `SlurmPipelineExecutor` ([below](#%EF%B8%8F-your-own-pipeline)) |
 
 On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
 runs only the tasks that didn't finish.
@@ -155,7 +156,25 @@ uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8
 uv run pipelines/transcribe_modular.py scans/ out/ $P --on ray --tasks 64
 ```
 
-Images and output must be on storage every machine can reach.
+Images, output and the logging folder must be on storage every machine can reach, such as an `s3://` bucket.
+
+Each task reserves `--cpus-per-task` CPUs (default 12), `--mem-per-cpu-gb` GiB of memory per CPU (default 4, so
+48 GiB), or `--mem-per-task-gb` GiB whatever its CPUs, and one GPU. Start every worker with at least that much:
+`ray start --num-cpus`, `--memory` and `--num-gpus`. Before it submits anything, a launch checks that a live node can
+run a task, and stops with what a task needs and what the nodes have. It also logs how many tasks fit at once.
+`--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. Each task sizes its thread pools
+(OpenMP, BLAS, OpenCV, torch) to its CPUs, not to the machine's.
+
+**On Kubernetes**, one Deployment can run the head and another the workers:
+
+- Start Ray in each pod through the pipeline script (`uv run pipelines/<script>.py ray start …`), so the pods run the
+  script's locked packages.
+- Give each worker pod the CPUs, memory and GPU a task reserves, plus room for `/dev/shm` (Ray's object store),
+  and pass the same amounts to `ray start --num-cpus/--memory/--num-gpus`. A pod with one GPU holds one task.
+- With the data on object storage the pods need only ephemeral storage: the environment, the model weights and
+  Ray's temporary files.
+- Submit the run to the head with `ray job submit`, so it runs inside the cluster and outlives the session that
+  submitted it. A driver outside the cluster must reach every node.
 
 </details>
 
@@ -208,6 +227,18 @@ LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()
 ```
 
+The same list runs on a Slurm cluster through [datatrove]'s Slurm executor: one array job, one GPU per task, in an
+environment that has the engines (`venv_path`):
+
+```python
+from datatrove.executor import SlurmPipelineExecutor
+
+SlurmPipelineExecutor(
+    pipeline, tasks=64, time="04:00:00", partition="gpu",
+    gpus_per_task=1, venv_path="/path/to/venv",
+    logging_dir="out/logs").run()
+```
+
 Every block declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
 lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
 `pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.runtime.run.main` to get
@@ -222,8 +253,8 @@ backends, partial runs (`--until`, `--after`) and the builder.
    and draws its graph from them.
 3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
    the GPU busy) or `Chat` (a vision-language model behind an OpenAI-compatible server).
-4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray] or on HF Jobs, and resumes
-   where a run stopped.
+4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray], on Slurm or on HF Jobs, and
+   resumes where a run stopped.
 
 Models batch only the lines of one page, and model revisions and numerically relevant libraries are pinned, so
 a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
@@ -242,39 +273,23 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 📚 Reference
 
-| Topic | Page |
+| Page | What it covers |
 |---|---|
-| terms | [glossary](docs/reference/glossary.md) |
-| how the parts fit together | [architecture](docs/reference/architecture.md) |
-| blocks, contracts, the builder, runs | [pipelines](docs/reference/pipelines.md) |
-| `Item`, `Page`, `Transcription`, text variants | [data model](docs/reference/data-model.md) |
-| ALTO, PAGE-XML, hOCR | [serialization](docs/reference/serialization.md) |
-| presets, recipes, editions, evidence | [catalog](docs/reference/catalog.md) |
-| traces | [tracing](docs/reference/tracing.md) |
-| what counts as a breaking change | [compatibility](docs/reference/compatibility.md) |
-| names, spelling, docstrings | [conventions](docs/reference/conventions.md) |
-| every block, engine, model, preset and recipe | [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) |
-
-## 🛠️ Development
-
-| To | Run or write |
-|---|---|
-| test the core | `uv run pytest` (GPU and network tests skip where those are missing; `-n auto` on every core) |
-| test an engine package | `uv run tests/test_engines_catalog.py engines/<engine>/tests` |
-| generate the docs (not in git; before `mkdocs serve`) | `uv run linecaster docs` |
-| check released catalog editions | `uv run linecaster catalog verify` |
-| see or tidy a broker (after a hard kill: `clean --leases`) | `linecaster broker status PATH`, `clean`, `purge` ([broker](docs/reference/broker.md#the-command)) |
-| build the docs site | `uv run --group docs mkdocs build --strict` |
-| add a model | `linecaster catalog pin <id> --hf <repo>`, a preset in `presets/<step>/`, `linecaster catalog release <id>` |
-| add an engine | a package under `engines/` that imports only `linecaster.data` and `linecaster.engines.api`; test it with `linecaster.testing.check_engine` |
-| add a block | a `PageBlock` with `process_page(doc, page)` and a `contract()`; test it with `linecaster.testing.check_block` |
-
-The code lives in `src/linecaster/`, the catalog in `src/linecaster/catalog/data/`, the engine packages in
-`engines/`, the pipeline scripts in `pipelines/`. Measurements and decisions are in [NOTES.md](NOTES.md).
+| [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
+| [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
+| [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
+| [data model](docs/reference/data-model.md) | what a page's transcription holds: `Item`, `Page`, `Transcription`, regions, lines, words, text variants |
+| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR |
+| [catalog](docs/reference/catalog.md) | models, presets, recipes, editions and the evidence behind them |
+| [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
+| [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a sample of pages |
+| [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
+| [conventions](docs/reference/conventions.md) | the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets |
+| [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every block, engine, model, preset and recipe, generated from the code |
 
 ## 🏷️ Versions
 
-The current release is `v0.3.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.3.1`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a release may break things without a deprecation period. The
 [docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest.
 For `main`, run `uv run linecaster docs` and then `uv run --group docs mkdocs serve` in a checkout.
@@ -758,6 +773,10 @@ scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, 
 block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
+An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
+engines/<engine>/tests`. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
+mkdocs serve`.
+
 ## Pipeline scripts
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
@@ -791,7 +810,7 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages' and fail a launch that left tasks unfinished |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
@@ -1158,11 +1177,12 @@ process with its own memory).
 (`pipelines/harvest.py`) asks its reader for one item per task (`task_per_item`): the tasks divide the items, an
 item's rows wherever they are in the table (`tables.item_runs`), so every item is whole in its task and a task that
 fails costs one item. With `--reuse` (off by default: on some object storage a listing is slow even for an empty
-folder, and only the items a stopped launch was in have anything to reuse) its reader also gets `reuse_folder`
+folder, and only the items a stopped launch was in, or with `--retry-failed` the finished items with failed pages,
+have anything to reuse) its reader also gets `reuse_folder`
 (`OUT/images`): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
-fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items are read back, so
-egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
+fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items (and of the items
+`--retry-failed` runs again, whose failed pages alone are then fetched) are read back, so egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
 it then on its IO loop): one that times out or fails is a warning and a stat (`reuse_listing_timeouts`,
 `reuse_listing_errors`), and the item's pages are fetched again, their files overwritten. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
 the rate. On a restart the console's size starts with the finished tasks' `media_size` from datatrove's stats files
@@ -1229,7 +1249,12 @@ that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a 
 On Ray (`linecaster.runtime.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
 (`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the block that
 stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
-Ray job does not end as succeeded. A new launch removes the marker.
+Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
+that a live node has what a task reserves (`--cpus-per-task`; `--mem-per-task-gb`, else `--mem-per-cpu-gb` per CPU;
+one GPU for a stage with models) and stops with a `PipelineConfigError` if none has, where Ray would keep the tasks
+waiting without an error; `--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. A task sizes
+the native thread pools to the CPUs it may use (`linecaster.runtime.cpus`: its Ray CPUs, else the cgroup's CPU quota),
+and so do the worker counts a launch derives "one per CPU".
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table

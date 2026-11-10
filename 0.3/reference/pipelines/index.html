@@ -1562,11 +1562,12 @@ process with its own memory).</p>
 (<code>pipelines/harvest.py</code>) asks its reader for one item per task (<code>task_per_item</code>): the tasks divide the items, an
 item's rows wherever they are in the table (<code>tables.item_runs</code>), so every item is whole in its task and a task that
 fails costs one item. With <code>--reuse</code> (off by default: on some object storage a listing is slow even for an empty
-folder, and only the items a stopped launch was in have anything to reuse) its reader also gets <code>reuse_folder</code>
+folder, and only the items a stopped launch was in, or with <code>--retry-failed</code> the finished items with failed pages,
+have anything to reuse) its reader also gets <code>reuse_folder</code>
 (<code>OUT/images</code>): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
-fetching it from the source (<code>linecaster.blocks.readers.existing</code>); only pages of interrupted items are read back, so
-egress stays small. The reader waits at most <code>LISTING_TIMEOUT</code> (60 s) for a listing (on object storage fsspec cancels
+fetching it from the source (<code>linecaster.blocks.readers.existing</code>); only pages of interrupted items (and of the items
+<code>--retry-failed</code> runs again, whose failed pages alone are then fetched) are read back, so egress stays small. The reader waits at most <code>LISTING_TIMEOUT</code> (60 s) for a listing (on object storage fsspec cancels
 it then on its IO loop): one that times out or fails is a warning and a stat (<code>reuse_listing_timeouts</code>,
 <code>reuse_listing_errors</code>), and the item's pages are fetched again, their files overwritten. Such a record is complete and says <code>image.extra.reused</code>; the console counts it as done but not in
 the rate. On a restart the console's size starts with the finished tasks' <code>media_size</code> from datatrove's stats files
@@ -1630,7 +1631,12 @@ that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</co
 On Ray (<code>linecaster.runtime.ray.RayExecutor</code>) the same error stops the run through a marker in the logging folder
 (<code>stopped.json</code>): every task after it ends before its pipeline starts, so none sends a request into the block that
 stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
-Ray job does not end as succeeded. A new launch removes the marker.</p>
+Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
+that a live node has what a task reserves (<code>--cpus-per-task</code>; <code>--mem-per-task-gb</code>, else <code>--mem-per-cpu-gb</code> per CPU;
+one GPU for a stage with models) and stops with a <code>PipelineConfigError</code> if none has, where Ray would keep the tasks
+waiting without an error; <code>--no-fit-check</code> leaves the check out, for a cluster that adds nodes on demand. A task sizes
+the native thread pools to the CPUs it may use (<code>linecaster.runtime.cpus</code>: its Ray CPUs, else the cgroup's CPU quota),
+and so do the worker counts a launch derives "one per CPU".</p>
 <p><strong>Resources.</strong> <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files other than page images
 (<code>ResourceReader</code>): from URL templates per kind (<code>--resource marcxml=https://lccn.loc.gov/{item}/marcxml</code>) or a table
 with one row per resource (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>). Each is checked (XML, JSON or an image must parse;

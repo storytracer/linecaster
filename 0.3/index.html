@@ -432,17 +432,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#development" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🛠️ Development
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#versions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1051,17 +1040,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#development" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🛠️ Development
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#versions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1114,7 +1092,7 @@ Collection, CC BY-NC-SA 4.0. <a href="#license">Credit</a></sub></p>
 
 <p>Linecaster turns page images into text. You build an OCR pipeline from interchangeable steps (a model that
 reads the text, layout, tables, formulas, post-processing) and run it unchanged on a laptop, a GPU server, a
-Ray cluster or <a href="https://huggingface.co/docs/huggingface_hub/guides/jobs">Hugging Face Jobs</a>.</p>
+Ray or Slurm cluster or <a href="https://huggingface.co/docs/huggingface_hub/guides/jobs">Hugging Face Jobs</a>.</p>
 <ul>
 <li>🧩 <strong>Any step is replaceable.</strong> A vision-language model or a line recognizer reads the text; layout, table
   and formula models and rule-based post-processing are separate steps.</li>
@@ -1298,6 +1276,10 @@ where the time went.</p>
 <td>☁️ Hugging Face Jobs</td>
 <td><code>--on hf-jobs --commit &lt;sha&gt;</code></td>
 </tr>
+<tr>
+<td>🏛️ a Slurm cluster</td>
+<td>from Python, with datatrove's <code>SlurmPipelineExecutor</code> (<a href="#your-own-pipeline">below</a>)</td>
+</tr>
 </tbody>
 </table>
 <p>On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
@@ -1317,7 +1299,24 @@ Servers listen on loopback only.</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>ray<span class="w"> </span>start<span class="w"> </span>--head<span class="w"> </span>--num-gpus<span class="w"> </span><span class="m">8</span>
 uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>scans/<span class="w"> </span>out/<span class="w"> </span><span class="nv">$P</span><span class="w"> </span>--on<span class="w"> </span>ray<span class="w"> </span>--tasks<span class="w"> </span><span class="m">64</span>
 </code></pre></div>
-<p>Images and output must be on storage every machine can reach.</p>
+<p>Images, output and the logging folder must be on storage every machine can reach, such as an <code>s3://</code> bucket.</p>
+<p>Each task reserves <code>--cpus-per-task</code> CPUs (default 12), <code>--mem-per-cpu-gb</code> GiB of memory per CPU (default 4, so
+48 GiB), or <code>--mem-per-task-gb</code> GiB whatever its CPUs, and one GPU. Start every worker with at least that much:
+<code>ray start --num-cpus</code>, <code>--memory</code> and <code>--num-gpus</code>. Before it submits anything, a launch checks that a live node can
+run a task, and stops with what a task needs and what the nodes have. It also logs how many tasks fit at once.
+<code>--no-fit-check</code> leaves the check out, for a cluster that adds nodes on demand. Each task sizes its thread pools
+(OpenMP, BLAS, OpenCV, torch) to its CPUs, not to the machine's.</p>
+<p><strong>On Kubernetes</strong>, one Deployment can run the head and another the workers:</p>
+<ul>
+<li>Start Ray in each pod through the pipeline script (<code>uv run pipelines/&lt;script&gt;.py ray start …</code>), so the pods run the
+  script's locked packages.</li>
+<li>Give each worker pod the CPUs, memory and GPU a task reserves, plus room for <code>/dev/shm</code> (Ray's object store),
+  and pass the same amounts to <code>ray start --num-cpus/--memory/--num-gpus</code>. A pod with one GPU holds one task.</li>
+<li>With the data on object storage the pods need only ephemeral storage: the environment, the model weights and
+  Ray's temporary files.</li>
+<li>Submit the run to the head with <code>ray job submit</code>, so it runs inside the cluster and outlives the session that
+  submitted it. A driver outside the cluster must reach every node.</li>
+</ul>
 </details>
 <details>
 <summary><b>Hugging Face Jobs</b></summary>
@@ -1358,6 +1357,15 @@ uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modula
 <span class="n">LocalPipelineExecutor</span><span class="p">(</span>
     <span class="n">pipeline</span><span class="p">,</span> <span class="n">logging_dir</span><span class="o">=</span><span class="s2">"out/logs"</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
+<p>The same list runs on a Slurm cluster through <a href="https://github.com/huggingface/datatrove">datatrove</a>'s Slurm executor: one array job, one GPU per task, in an
+environment that has the engines (<code>venv_path</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datatrove.executor</span><span class="w"> </span><span class="kn">import</span> <span class="n">SlurmPipelineExecutor</span>
+
+<span class="n">SlurmPipelineExecutor</span><span class="p">(</span>
+    <span class="n">pipeline</span><span class="p">,</span> <span class="n">tasks</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="s2">"04:00:00"</span><span class="p">,</span> <span class="n">partition</span><span class="o">=</span><span class="s2">"gpu"</span><span class="p">,</span>
+    <span class="n">gpus_per_task</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">venv_path</span><span class="o">=</span><span class="s2">"/path/to/venv"</span><span class="p">,</span>
+    <span class="n">logging_dir</span><span class="o">=</span><span class="s2">"out/logs"</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
 <p>Every block declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
 lines fails at once, with every problem listed. Put the script in <code>pipelines/</code> with the <code># /// script</code> block of
 <code>pipelines/transcribe_modular.py</code> (it brings the engines) and build it with <code>linecaster.runtime.run.main</code> to get
@@ -1371,8 +1379,8 @@ backends, partial runs (<code>--until</code>, <code>--after</code>) and the buil
    and draws its graph from them.</li>
 <li><strong>Backends.</strong> A model step runs <code>InProcess</code>, <code>Served</code> (a model server reached through <a href="https://github.com/davanstrien/saturate">saturate</a>, which keeps
    the GPU busy) or <code>Chat</code> (a vision-language model behind an OpenAI-compatible server).</li>
-<li><strong>Executors.</strong> <a href="https://github.com/huggingface/datatrove">datatrove</a> splits the pages into tasks, runs them locally, on <a href="https://www.ray.io/">Ray</a> or on HF Jobs, and resumes
-   where a run stopped.</li>
+<li><strong>Executors.</strong> <a href="https://github.com/huggingface/datatrove">datatrove</a> splits the pages into tasks, runs them locally, on <a href="https://www.ray.io/">Ray</a>, on Slurm or on HF Jobs, and
+   resumes where a run stopped.</li>
 </ol>
 <p>Models batch only the lines of one page, and model revisions and numerically relevant libraries are pinned, so
 a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
@@ -1388,104 +1396,59 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 <table>
 <thead>
 <tr>
-<th>Topic</th>
 <th>Page</th>
+<th>What it covers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>terms</td>
 <td><a href="reference/glossary/">glossary</a></td>
+<td>every term linecaster uses, one meaning each</td>
 </tr>
 <tr>
-<td>how the parts fit together</td>
 <td><a href="reference/architecture/">architecture</a></td>
+<td>the packages, how a run fits together, the tests</td>
 </tr>
 <tr>
-<td>blocks, contracts, the builder, runs</td>
 <td><a href="reference/pipelines/">pipelines</a></td>
+<td>blocks and their contracts, the builder, partial runs, failed pages, the run record</td>
 </tr>
 <tr>
-<td><code>Item</code>, <code>Page</code>, <code>Transcription</code>, text variants</td>
 <td><a href="reference/data-model/">data model</a></td>
+<td>what a page's transcription holds: <code>Item</code>, <code>Page</code>, <code>Transcription</code>, regions, lines, words, text variants</td>
 </tr>
 <tr>
-<td>ALTO, PAGE-XML, hOCR</td>
 <td><a href="reference/serialization/">serialization</a></td>
+<td>how pages are written to and read from ALTO, PAGE-XML and hOCR</td>
 </tr>
 <tr>
-<td>presets, recipes, editions, evidence</td>
 <td><a href="reference/catalog/">catalog</a></td>
+<td>models, presets, recipes, editions and the evidence behind them</td>
 </tr>
 <tr>
-<td>traces</td>
+<td><a href="reference/broker/">broker</a></td>
+<td>how workers share proxies and other resources across tasks, runs and machines</td>
+</tr>
+<tr>
 <td><a href="reference/tracing/">tracing</a></td>
+<td>where a run's time went: OpenTelemetry traces per task and for a sample of pages</td>
 </tr>
 <tr>
-<td>what counts as a breaking change</td>
 <td><a href="reference/compatibility/">compatibility</a></td>
+<td>what counts as a breaking change and how one is announced</td>
 </tr>
 <tr>
-<td>names, spelling, docstrings</td>
 <td><a href="reference/conventions/">conventions</a></td>
+<td>the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets</td>
 </tr>
 <tr>
-<td>every block, engine, model, preset and recipe</td>
 <td><a href="https://storytracer.github.io/linecaster/latest/blocks/">blocks</a>, <a href="https://storytracer.github.io/linecaster/latest/catalog/">catalog</a></td>
+<td>every block, engine, model, preset and recipe, generated from the code</td>
 </tr>
 </tbody>
 </table>
-<h2 id="development">🛠️ Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>To</th>
-<th>Run or write</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>test the core</td>
-<td><code>uv run pytest</code> (GPU and network tests skip where those are missing; <code>-n auto</code> on every core)</td>
-</tr>
-<tr>
-<td>test an engine package</td>
-<td><code>uv run tests/test_engines_catalog.py engines/&lt;engine&gt;/tests</code></td>
-</tr>
-<tr>
-<td>generate the docs (not in git; before <code>mkdocs serve</code>)</td>
-<td><code>uv run linecaster docs</code></td>
-</tr>
-<tr>
-<td>check released catalog editions</td>
-<td><code>uv run linecaster catalog verify</code></td>
-</tr>
-<tr>
-<td>see or tidy a broker (after a hard kill: <code>clean --leases</code>)</td>
-<td><code>linecaster broker status PATH</code>, <code>clean</code>, <code>purge</code> (<a href="reference/broker/#the-command">broker</a>)</td>
-</tr>
-<tr>
-<td>build the docs site</td>
-<td><code>uv run --group docs mkdocs build --strict</code></td>
-</tr>
-<tr>
-<td>add a model</td>
-<td><code>linecaster catalog pin &lt;id&gt; --hf &lt;repo&gt;</code>, a preset in <code>presets/&lt;step&gt;/</code>, <code>linecaster catalog release &lt;id&gt;</code></td>
-</tr>
-<tr>
-<td>add an engine</td>
-<td>a package under <code>engines/</code> that imports only <code>linecaster.data</code> and <code>linecaster.engines.api</code>; test it with <code>linecaster.testing.check_engine</code></td>
-</tr>
-<tr>
-<td>add a block</td>
-<td>a <code>PageBlock</code> with <code>process_page(doc, page)</code> and a <code>contract()</code>; test it with <code>linecaster.testing.check_block</code></td>
-</tr>
-</tbody>
-</table>
-<p>The code lives in <code>src/linecaster/</code>, the catalog in <code>src/linecaster/catalog/data/</code>, the engine packages in
-<code>engines/</code>, the pipeline scripts in <code>pipelines/</code>. Measurements and decisions are in <a href="https://github.com/storytracer/linecaster/blob/main/NOTES.md">NOTES.md</a>.</p>
 <h2 id="versions">🏷️ Versions<a class="headerlink" href="#versions" title="Permanent link">&para;</a></h2>
-<p>The current release is <code>v0.3.0</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
+<p>The current release is <code>v0.3.1</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
 While the version is 0.x, a release may break things without a deprecation period. The
 <a href="https://storytracer.github.io/linecaster/">docs site</a> keeps a version per release, <code>latest</code> for the newest.
 For <code>main</code>, run <code>uv run linecaster docs</code> and then <code>uv run --group docs mkdocs serve</code> in a checkout.</p>

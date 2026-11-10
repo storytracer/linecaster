@@ -1209,6 +1209,9 @@ scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_page_engin
 (<code>tests/parity/compare_goldens.py</code>) on the machines that have the goldens. Every built-in engine and every public
 block passes the conformance checks of <code>linecaster.testing</code> (<code>check_engine</code>: the engine protocol; <code>check_block</code>:
 the contract against what the block does to sample pages, <code>to_dict()</code>, pickling, <code>warm_up()</code>, failed pages).</p>
+<p>An engine package's tests run in an environment that has the engine: <code>uv run tests/test_engines_catalog.py
+engines/&lt;engine&gt;/tests</code>. To preview the site from a checkout: <code>uv run linecaster docs</code>, then <code>uv run --group docs
+mkdocs serve</code>.</p>
 <h2 id="pipeline-scripts">Pipeline scripts<a class="headerlink" href="#pipeline-scripts" title="Permanent link">&para;</a></h2>
 <p>There are no environment folders: a pipeline is a self-contained uv script in <code>pipelines/</code> (a PEP 723 block, a
 <code>&lt;script&gt;.py.lock</code> next to it, <code>uv run &lt;script&gt;</code>) that runs one pipeline shape with slots, one script per shape,
@@ -1276,7 +1279,7 @@ satisfied by <code>stubs/opencv-contrib-python</code> (the headless build of the
 </tr>
 <tr>
 <td><code>ray</code></td>
-<td><code>RayGPUExecutor</code> for stages with servers and single-stage pipelines with engines (one task per GPU), <code>RayExecutor</code> (datatrove's <code>RayPipelineExecutor</code>) otherwise, on CPUs (an item stage, a harvest; extra <code>[ray]</code>); both stop the run at an error that is not the pages' and fail a launch that left tasks unfinished</td>
+<td><code>RayGPUExecutor</code> for stages with servers and single-stage pipelines with engines (one task per GPU), <code>RayExecutor</code> (datatrove's <code>RayPipelineExecutor</code>) otherwise, on CPUs (an item stage, a harvest; extra <code>[ray]</code>); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task</td>
 </tr>
 <tr>
 <td><code>hf-jobs</code></td>
