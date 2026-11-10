@@ -483,6 +483,12 @@ steps `model` (read as `steps`); a row without `schema` (the oldest format) name
 ## HF Jobs helpers
 
 `linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
-pipeline script's metadata; without a script it raises unless `engines=False` (linecaster alone). A derivative
+pipeline script, linecaster's or a derivative's, as `uv run --with` requirements: the script's dependencies with
+their sources as PEP 508 URLs (`url` as it is; `git` with its `tag`, `branch` or `rev` and its `subdirectory`, as
+`git+URL@REF#subdirectory=DIR`; a `path` into the linecaster checkout as GitHub's source archive of linecaster at
+`commit`, any other path an error), then every package reachable from them in the script's lock that comes from no
+index (the sources the packages declare themselves: pybookget, the kraken fork at its locked commit, the OpenCV stub).
+linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need;
+without a script it raises unless `engines=False` (linecaster alone). A derivative
 whose own pipeline needs the engine packages passes `ENGINE_SCRIPT` (the modular pipeline script of the checkout,
 `pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources.

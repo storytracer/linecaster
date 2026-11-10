@@ -70,7 +70,14 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
   sources, locks and wheels for both machines. uv's `required-environments` does not work in scripts, so the test
   does it.
-- **Scripts with kraken list the fork directly.** Sources apply only to a script's direct dependencies.
+- **A script lists only what it needs itself, with a comment saying why; a source is declared by the package that
+  needs it** (pybookget's by linecaster, the kraken fork by linecaster-kraken, the OpenCV stub by linecaster-paddlex;
+  `tests/test_scripts.py`). `uv lock` applies the sources of path and git dependencies too; only `uv run --with`
+  ignores them, and `jobs.dependencies` takes them from the script's lock. A source then has one place, and a script
+  names no package only to carry its source.
+- **Every pipeline script installs `linecaster[ray]`**: `--on ray` and `ray start` run the script's own environment on
+  every node (a Job leaves Ray out). PEP 723 has no includes, so what every pipeline needs is one linecaster
+  requirement with extras per script, not a shared file.
 - **The repository is not a uv workspace.** Engine pins conflict.
 - **No default presets**: every slot is picked or filled by a recipe. A run then names exactly what it ran.
 
@@ -107,7 +114,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **The launching machine and the Jobs run the same Python minor version (3.12).** datatrove's experimental
   `JobsPipelineExecutor` dill-pickles the pipeline.
 - **A Job's dependencies come from `linecaster.runtime.jobs.dependencies(commit, script)`, and the commit must be
-  pushed.** `uv run --with` drops `[tool.uv.sources]`.
+  pushed.** `uv run --with` drops `[tool.uv.sources]`, so it spells out the script's sources and, from its lock, those
+  of the packages it installs.
 - **Private derivatives ship their code as a wheel mounted from a bucket folder (`WheelJobsExecutor`,
   `wheel_volume`); no credential is stored in a pipeline or a repository.** Pipelines are pickled and recorded.
 

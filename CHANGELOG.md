@@ -8,8 +8,22 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- A source is declared by the package that needs it: `linecaster-kraken` declares the kraken fork,
+  `linecaster-paddlex` lists `opencv-contrib-python` and points it at the stub. `uv lock` applies the sources of path
+  and git dependencies, so the pipeline scripts no longer list `pybookget`, `kraken`, `opencv-contrib-python` or
+  `s3fs` themselves (`linecaster[...,s3fs]` instead); the locks keep every version.
+- `linecaster.runtime.jobs.dependencies` takes the installed packages' own sources from the script's lock (pybookget,
+  the kraken fork at its locked commit, the OpenCV stub), so a Job gets them whether or not the script lists them.
+  A Job with `engines=False` now also installs the script's `s3fs` extra.
 - The [compatibility](docs/reference/compatibility.md#versions-and-releases) reference states the versioning policy:
   while 0.x, a breaking change is a minor release (0.3 → 0.4), everything else a patch.
+
+### Fixed
+
+- `linecaster.runtime.jobs.dependencies` reads git sources with a `tag` or `branch` (it raised `KeyError: 'rev'`) and
+  keeps their `subdirectory` (`git+URL@REF#subdirectory=DIR`), so a derivative's script pinned by tag, such as
+  squiddleocr's `squiddle.py`, runs on HF Jobs. A `path` source outside the linecaster checkout is a
+  `PipelineConfigError` instead of a path relative to the checkout; markers are kept.
 
 ## 0.3.2 (2026-11-10)
 

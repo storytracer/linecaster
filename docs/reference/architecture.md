@@ -149,10 +149,13 @@ in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve`
 them (`--recipe`); `launch.py` runs a recipe or a page preset by name ([catalog](catalog.md#pipelines-recipes-and-launchpy)).
 Each script's page in the [catalog's docs](../catalog/README.md) lists its slots and options.
 
-Script environments: the repository is not a uv workspace (engine pins conflict). Sources apply only to a script's
-direct dependencies, so scripts with kraken list the fork directly. `tests/test_scripts.py` checks sources, locks
-and wheels for both machines (uv's `required-environments` does not work in scripts). PaddleX's GUI OpenCV pin is
-satisfied by `stubs/opencv-contrib-python` (the headless build of the same version; one cv2).
+Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
+itself: linecaster with the extras every pipeline uses (`ray` for `--on ray` and `ray start`, `pybookget` for
+manifests and http(s) images, `s3fs` for `s3://` paths; `bind.py` only `ray`) and its engine packages. A source is
+declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
+pybookget's archive by linecaster, the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
+headless build of the version PaddleX pins; one cv2) by `linecaster-paddlex`. `tests/test_scripts.py` checks
+sources, locks and wheels for both machines (uv's `required-environments` does not work in scripts).
 
 ## Executors and Jobs
 
@@ -164,8 +167,8 @@ satisfied by `stubs/opencv-contrib-python` (the headless build of the same versi
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
 Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.sources]`:
-`linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies, sources (as URLs; the
-commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
+`linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
+installed packages' own sources from the script's lock (the commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
 a wheel mounted from a bucket folder (`WheelJobsExecutor`, `wheel_volume`).
 
 Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
