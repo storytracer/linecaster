@@ -20,7 +20,7 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
 from ...errors import PipelineConfigError
-from ...net.http import HTTPFetcher, _pybookget, fetch_record, is_url, prefetched
+from ...net.http import HTTPFetcher, fetch_record, is_url, prefetched
 from .existing import ExistingImages, Reused, mark_reused
 from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
@@ -183,7 +183,6 @@ class ManifestReader(Contracted, BaseDiskReader):
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
-        _pybookget()
         if manifest_format not in (None, "iiif", "mets"):
             raise PipelineConfigError(f"manifest_format is iiif or mets, not {manifest_format!r}")
         if item_key and not manifest_key:

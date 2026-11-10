@@ -1,6 +1,17 @@
-"""HTTP for linecaster's readers: pybookget's HTTP layer (``linecaster[pybookget]``: rate limits, retries that honor
-``Retry-After``, the fallback URL on 404, the environment's proxy settings) on an event loop in a background thread,
-for blocking callers such as datatrove blocks.
+"""HTTP for linecaster's readers: httpx clients (HTTP/2, reused connections, the environment's proxy settings) on an
+event loop in a background thread, for blocking callers such as datatrove blocks, with rate limits
+(``linecaster.net.limits``), retries that honor ``Retry-After``, a deadline per attempt and the fallback URL on 404.
+Settings: ``HTTPConfig``.
+
+A request is tried up to ``max_retries + 1`` times (``HTTPFetcher._attempts``): a transport error (a timeout, a broken
+connection, a proxy error, an attempt past its deadline) and a status in ``RETRYABLE_STATUS_CODES`` (408, 425, 429,
+500, 502-504 and Cloudflare's 520-524) are tried again after ``retry_wait_min * 2**(n-1)`` seconds, at most
+``retry_wait_max``, after the n-th failed attempt; on a direct connection at least as long as the response's
+``Retry-After`` asks (at most ``retry_after_max``). Every other status fails at once (``httpx.HTTPStatusError``), a 404
+after trying the fallback URL, if any, with retries of its own. Retries used up raise the last error (on a direct
+connection) or ``MaxRetriesExceeded`` (through proxies). Each attempt must be done within its deadline:
+``attempt_timeout`` plus 1 s per ``attempt_min_rate`` bytes of the size the response declares, counted from when it
+goes out, after the rate limits; one that takes longer is cut (``httpx.ReadTimeout``) and retried.
 
 Rate limits hold per ``HTTPFetcher``. Readers share one per process and configuration (``HTTPFetcher.shared``), so
 on a direct connection the limits hold per worker, across the tasks it runs one after the other: a server sees the
@@ -18,7 +29,7 @@ at a time, which holds its lease, and each worker holds a fair share of the free
 ``"share"``, the default), one (``1``) or up to N. The host's rate limits then hold per proxy, so per IP, as servers
 count them: its owner spaces the requests through it to a host by the strictest limit (``HTTPFetcher.interval``), and
 each attempt goes through the owned proxy whose turn comes first. Each proxy has its
-own pybookget client (``create_client``: the deadline per attempt and the records below hold as without). What leaves
+own client (``HTTPFetcher._new_client``: the deadline per attempt and the records below hold as without). What leaves
 a proxy out is what is the proxy's fault: a block (a 429, until its ``Retry-After`` or for the host's
 ``blacklist_ttl``; a status in the host's ``blacklist_on``; an HTML page where another format was expected) is a mark
 in the broker for that host, and a broken proxy (``PROXY_ERRORS``: a proxy error, no connection to the proxy, after
@@ -26,7 +37,7 @@ in the broker for that host, and a broken proxy (``PROXY_ERRORS``: a proxy error
 stops using the proxy there at once and releases it when it is blocked for every host it uses (and claims another
 free one at once), and whoever claims it later sees the mark, so no worker sends a request into another's block. A block does not count as an attempt: the
 request goes on through another proxy at once. A timeout, mostly a slow server, and a server error are retried after
-pybookget's backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
+the backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
 attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
 requests to that host wait (a pause: one warning when it begins and one when it ends, the wait in ``pause_seconds``)
 until a block ends or another worker gives a proxy back; a pause that would pass the host's ``max_pause`` stops the run
@@ -36,14 +47,14 @@ names proxies by a hash, ``linecaster.net.proxies.proxy_id``).
 A fetcher pauses while its server fails (``Breaker``): when most recent attempts got a server error (5xx, Cloudflare's
 520-524 among them), no request goes out except a probe now and then, with waits that double up to ten minutes; the
 first probe the server answers ends the pause. Requests waiting there count as waiting for the rate limits, so the
-window does not grow, and their pages are delayed, not failed. The retries themselves are pybookget's (520-524
-included), or with a proxy list ``HTTPFetcher._through_proxies``'s with the same counts and waits.
+window does not grow, and their pages are delayed, not failed. The retries themselves are ``HTTPFetcher._attempts``'s
+(520-524 included).
 
 A fetcher also pauses when its server says it gets too many requests (``Pause``): a status in its host's ``pause_on``
 (429 by default, ``PAUSE_ON``) on a direct connection (without a proxy list; through proxies a 429 blocks that proxy
 instead, above) stops the fetcher's requests until the response's ``Retry-After`` has passed (seconds or an
 HTTP-date; without one ``PAUSE_FIRST_WAIT``, doubling while the status keeps coming, up to ``PAUSE_MAX_WAIT``). The
-request that got it waits out the pause and is tried again, without using up one of its retries (pybookget never sees
+request that got it waits out the pause and is tried again, without using up one of its retries (the retries never see
 the status: the response hook takes it first), and a status that comes back for a request already in flight extends
 the pause, never shortens it. Requests waiting in a pause count as waiting for the rate limits, so the window does not
 grow. Other fetchers (other workers, other host settings) go on. A fetcher that would pause more than its host's
@@ -75,12 +86,15 @@ import time
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, wait
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import quote, urlsplit
 
 from loguru import logger
 
 from ..errors import ServerError
+from ..formats.manifests import METS_IMAGE_GROUPS, METS_OCR_GROUPS
+from .limits import RateLimiter, check_rate_limits
 
 if TYPE_CHECKING:
     from .proxies import ProxyPool
@@ -92,20 +106,69 @@ S = TypeVar("S")
 #: integral to linecaster, so a run that fetches through both presents itself as one client to every host; a run sets
 #: its own with ``--user-agent`` or an HTTP policy's ``user_agent``
 USER_AGENT = "HF-Research/1.0"
-#: pybookget ``Config`` settings for bulk work: datatrove's user agent, reused connections, patient retries (4 after the
-#: first attempt), and a
-#: deadline per attempt (15 s plus 1 s per 50 kB the response says it holds, counted after the rate limits), so a
-#: connection that hangs or trickles (a slow proxy exit) is cut and retried within seconds
-HTTP_DEFAULTS = dict(use_fake_user_agent=False, user_agent=USER_AGENT, max_keepalive_connections=16,
-                     max_retries=4, retry_wait_min=2.0, retry_wait_max=60.0, attempt_timeout=15.0,
-                     attempt_min_rate=50_000, show_progress=False)
+#: the statuses tried again (the server is busy, overloaded or briefly failing, including Cloudflare's 520-524: its
+#: origin sent an unusable answer, refused, or timed out); every other 4xx and 5xx is final
+RETRYABLE_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524})
 
 
-def _pybookget():
-    try:
-        import pybookget  # noqa: F401
-    except ImportError as e:
-        raise ImportError("manifests and http(s) images need pybookget: install linecaster[pybookget]") from e
+@dataclass
+class HTTPConfig:
+    """How a fetcher's requests go out (``HTTPFetcher``'s ``config``, a reader's ``http``), with linecaster's
+    settings for bulk work as defaults: datatrove's User-Agent, reused connections, patient retries (4 after the
+    first attempt), and a deadline per attempt (15 s plus 1 s per 50 kB the response says it holds, counted after the
+    rate limits), so a connection that hangs or trickles (a slow proxy exit) is cut and retried within seconds.
+
+    Attributes:
+        user_agent: the User-Agent of every request.
+        use_fake_user_agent: a random browser User-Agent instead (fake-useragent), a new one per task
+            (``HTTPFetcher.new_user_agent``).
+        proxy: a proxy for every request; None: the environment's settings, if ``trust_env``.
+        trust_env: read the proxy settings (``HTTPS_PROXY``, ``HTTP_PROXY``, ``ALL_PROXY``, ``NO_PROXY``),
+            ``SSL_CERT_FILE`` and ``.netrc`` from the environment, as httpx does.
+        verify_ssl: verify TLS certificates.
+        timeout: seconds for each phase of a request (connect, read, write, pool).
+        max_keepalive_connections: idle connections kept open for reuse.
+        max_retries: retries after the first attempt (0: one attempt).
+        retry_wait_min, retry_wait_max: the wait after the n-th failed attempt is ``retry_wait_min * 2**(n-1)``
+            seconds, at most ``retry_wait_max``.
+        retry_after_max: the longest ``Retry-After`` honored by a retry on a direct connection.
+        attempt_timeout: the longest one attempt may take, from when it goes out (after the rate limits) to its
+            last byte, plus 1 s per ``attempt_min_rate`` bytes the response declares (``Content-Length``); None:
+            only ``timeout``.
+        attempt_min_rate: bytes per second a large response is given.
+        rate_limits: ``(N, S)`` windows, at most N requests in any S seconds, all at once (``linecaster.net.limits``);
+            None: none.
+        iiif_format, iiif_quality: the image format and quality asked of an IIIF image service
+            (``linecaster.formats.manifests.read_manifest``).
+        mets_image_groups, mets_ocr_groups: the METS file groups of page images, by priority, and of OCR.
+    """
+
+    user_agent: str = USER_AGENT
+    use_fake_user_agent: bool = False
+    proxy: str | None = None
+    trust_env: bool = True
+    verify_ssl: bool = True
+    timeout: float = 300.0
+    max_keepalive_connections: int = 16
+    max_retries: int = 4
+    retry_wait_min: float = 2.0
+    retry_wait_max: float = 60.0
+    retry_after_max: float = 300.0
+    attempt_timeout: float | None = 15.0
+    attempt_min_rate: float | None = 50_000
+    rate_limits: list[tuple[int, float]] | None = None
+    iiif_format: str = "jpg"
+    iiif_quality: str = "default"
+    mets_image_groups: tuple[str, ...] = METS_IMAGE_GROUPS
+    mets_ocr_groups: tuple[str, ...] = METS_OCR_GROUPS
+
+    def __post_init__(self):
+        if self.rate_limits is not None:
+            self.rate_limits = check_rate_limits(self.rate_limits) or None
+
+
+#: ``HTTPConfig``'s defaults
+HTTP_DEFAULTS = {f.name: f.default for f in fields(HTTPConfig)}
 
 
 #: a proxy that fails this many attempts in a row itself (``PROXY_ERRORS``) is left out for every host ...
@@ -249,7 +312,7 @@ def last_error(error: BaseException | None) -> str:
 
 
 def _server_error(error: BaseException) -> bool:
-    """Whether ``error`` (pybookget's ``HTTPStatusError``, or ``MaxRetriesExceeded`` through proxies) is a server
+    """Whether ``error`` (an ``httpx.HTTPStatusError``, or ``MaxRetriesExceeded`` through proxies) is a server
     error."""
     for e in (error, error.__cause__):
         response = getattr(e, "response", None)
@@ -308,6 +371,52 @@ async def _after(request) -> None:              # after the rate limits' hook: t
         record["wait_seconds"] = round(record["wait_seconds"] + time.perf_counter() - record.pop("_t"), 4)
 
 
+#: where a request keeps when its attempt went out (``request.extensions``, the event loop's clock)
+_ATTEMPT_START = "linecaster.attempt_start"
+
+
+def attempt_deadline(attempt_timeout: float, attempt_min_rate: float | None, content_length: str | None) -> float:
+    """Seconds one attempt may take: ``attempt_timeout``, plus the response's ``Content-Length`` divided by
+    ``attempt_min_rate`` when both are known (a large file gets the time it needs at that rate)."""
+    seconds = float(attempt_timeout)
+    if attempt_min_rate and content_length and content_length.isdigit():
+        seconds += int(content_length) / attempt_min_rate
+    return seconds
+
+
+def _attempt_started(attempt_timeout: float):
+    """A request hook, after the rate limits: the attempt's deadline starts, and until the response's headers no phase
+    (connect, read, write, pool) may take longer than the whole attempt."""
+    async def hook(request) -> None:
+        request.extensions[_ATTEMPT_START] = asyncio.get_running_loop().time()
+        limit = float(attempt_timeout)
+        timeouts = dict(request.extensions.get("timeout") or {})
+        request.extensions["timeout"] = {phase: limit if timeouts.get(phase) is None else min(timeouts[phase], limit)
+                                         for phase in ("connect", "read", "write", "pool")}
+    return hook
+
+
+def _attempt_finished(attempt_timeout: float, attempt_min_rate: float | None):
+    """A response hook: the body is read within the attempt's deadline (``attempt_deadline``), else the attempt is
+    cut with ``httpx.ReadTimeout`` (retried like a timeout)."""
+    async def hook(response) -> None:
+        start = response.request.extensions.get(_ATTEMPT_START)
+        if start is None:
+            return
+        seconds = attempt_deadline(attempt_timeout, attempt_min_rate, response.headers.get("Content-Length"))
+        remaining = start + seconds - asyncio.get_running_loop().time()
+        try:
+            async with asyncio.timeout(max(remaining, 0.0)):
+                await response.aread()
+        except TimeoutError:
+            import httpx
+
+            await response.aclose()
+            raise httpx.ReadTimeout(f"attempt took longer than its deadline ({seconds:.1f} s)",
+                                    request=response.request) from None
+    return hook
+
+
 class StopRequests(ServerError):
     """A host answered with a status its policy stops the run on (``stop_on``, ``linecaster.net.policy``), raised
     before any retry since a retry would only prolong its block; a fetcher would pause longer than its host's
@@ -317,13 +426,13 @@ class StopRequests(ServerError):
 
 class Paused(Exception):
     """An attempt got a status that pauses its fetcher (``pause_on``, ``Pause``): raised by the response hook, so
-    pybookget does not retry it (neither an ``httpx.HTTPStatusError`` nor a ``TransportError``), and the fetch tries
+    the retries do not take it (neither an ``httpx.HTTPStatusError`` nor a ``TransportError``), and the fetch tries
     again once the pause is over (``HTTPFetcher._fetch``)."""
 
 
 class ProxyBlocked(Exception):
     """An HTML page through a proxy where another format was expected: that proxy's block (made a ``TransportError``
-    where it is raised, so it ends the attempt; ``HTTPFetcher._through_proxies`` marks the proxy blocked for the host
+    where it is raised, so it ends the attempt; ``HTTPFetcher._attempts`` marks the proxy blocked for the host
     and goes on through another)."""
 
 
@@ -640,10 +749,8 @@ async def _hold(request) -> None:               # a request hook, right after th
         fetcher = ticket.fetcher
         while fetcher.pause.paused:
             _paused_for(await fetcher.pause.wait())
-            if fetcher.config.rate_limits:
-                from pybookget.http.ratelimit import wait_for_rate_limit
-
-                await wait_for_rate_limit(fetcher.config)
+            if fetcher._limiter is not None:
+                await fetcher._limiter.acquire()
         ticket.generation = fetcher.pause.generation
 
 
@@ -652,9 +759,9 @@ _SHARED_LOCK = threading.Lock()
 
 
 class HTTPFetcher:
-    """GETs with pybookget's ``fetch`` from blocking code: ``submit`` returns a ``concurrent.futures.Future``
-    of the read ``httpx.Response``, ``get`` waits for it. ``config`` overrides ``HTTP_DEFAULTS`` (any field of
-    pybookget's ``Config``, e.g. ``rate_limits=[(5, 1), (200, 60)]``, ``iiif_format="png"``). ``waiting``: the
+    """GETs from blocking code: ``submit`` returns a ``concurrent.futures.Future`` of the read ``httpx.Response``,
+    ``get`` waits for it. ``config``: ``HTTPConfig`` fields over its defaults (``HTTP_DEFAULTS``), e.g.
+    ``rate_limits=[(5, 1), (200, 60)]``, ``iiif_format="png"``. ``waiting``: the
     requests submitted that wait for the rate limits; ``ahead``: the window ``prefetched`` has grown to."""
 
     @classmethod
@@ -673,10 +780,8 @@ class HTTPFetcher:
                  broker: str | None = None, default_broker: str | None = None, broker_run: str | None = None,
                  proxies_per_worker: int | str = "share", stop_on: list[int] | None = None, pause_on: list[int] | None = None, max_pause: float = MAX_PAUSE,
                  pause_wait: float = PAUSE_FIRST_WAIT, pause_max_wait: float = PAUSE_MAX_WAIT, **config):
-        _pybookget()
-        from pybookget.config import Config
-
-        self.config = Config(**{**HTTP_DEFAULTS, **config})
+        self.config = HTTPConfig(**config)
+        self._limiter = RateLimiter(self.config.rate_limits) if self.config.rate_limits else None
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
         self.breaker = Breaker(in_a_row=self.config.max_retries + 1)      # as many as a request's attempts
         self.stop_on = frozenset(stop_on or ())
@@ -703,25 +808,36 @@ class HTTPFetcher:
                                         read_proxies(proxy_file), proxies_per_worker)
 
     def _new_client(self, proxy: str | None, rate_limited: bool = True):
-        """pybookget's client for ``proxy`` (None: the environment's settings), with linecaster's hooks; every client
-        shares this fetcher's rate limiter (pybookget keeps it per ``Config`` and event loop), unless
-        ``rate_limited`` is False (a proxy's client: the proxy pool spaces its requests, ``ProxyPool.pick``)."""
-        import dataclasses
+        """An httpx client for ``proxy`` (None: the environment's settings) with linecaster's hooks: before a request
+        the pause and the breaker (``_turn``), this fetcher's rate limits unless ``rate_limited`` is False (a proxy's
+        client: the proxy pool spaces its requests, ``ProxyPool.pick``), a pause begun meanwhile (``_hold``), then the
+        attempt's deadline starts; after its headers the statuses that pause or stop (``_headers``), the body read
+        within the deadline, the trace (``_read``)."""
+        import httpx
 
-        from pybookget.http import create_client
+        config, limiter = self.config, self._limiter if rate_limited else None
+        if config.use_fake_user_agent:
+            from fake_useragent import UserAgent
 
-        config = self.config
-        if proxy != config.proxy or not rate_limited:
-            config = dataclasses.replace(config, proxy=proxy, rate_limits=config.rate_limits if rate_limited else None)
-            config._limiters = self.config._limiters
-        c = create_client(config)
-        hooks = dict(c.event_hooks)
-        theirs = list(hooks.get("request", []))         # pybookget's: the rate limits, then the attempt's deadline
-        limits = next((i + 1 for i, h in enumerate(theirs) if getattr(h, "__name__", "") == "_wait_for_rate_limit"), 0)
-        hooks["request"] = [_before, _turn, *theirs[:limits], _hold, *theirs[limits:], _after]
-        hooks["response"] = [_headers, *hooks.get("response", []), _read]
-        c.event_hooks = hooks
-        return c
+            agent = UserAgent().random
+        else:
+            agent = config.user_agent
+        request, response = [_before, _turn], [_headers]
+        if limiter is not None:
+            async def _rate_limits(_request) -> None:
+                await limiter.acquire()
+
+            request.append(_rate_limits)
+        request.append(_hold)
+        if config.attempt_timeout is not None:
+            request.append(_attempt_started(config.attempt_timeout))
+            response.append(_attempt_finished(config.attempt_timeout, config.attempt_min_rate))
+        request.append(_after)
+        response.append(_read)
+        return httpx.AsyncClient(headers={"User-Agent": agent}, timeout=config.timeout, verify=config.verify_ssl,
+                                 follow_redirects=True, http2=True, proxy=proxy, trust_env=config.trust_env,
+                                 limits=httpx.Limits(max_keepalive_connections=config.max_keepalive_connections),
+                                 event_hooks={"request": request, "response": response})
 
     def proxy_counts(self) -> tuple[int, int, int] | None:
         """(proxies this worker holds, blocked, free) with a proxy list (``ProxyPool.counts``), else None."""
@@ -749,8 +865,6 @@ class HTTPFetcher:
         return max(1, min(MAX_AHEAD, int(rate * deadline) + 1))
 
     async def _fetch(self, url: str, fallback_url: str | None, ticket: _Ticket):
-        from pybookget.http import fetch
-
         record = {"start": time.time_ns(), "host": urlsplit(url).hostname or "", "attempts": 0, "wait_seconds": 0.0,
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
@@ -759,10 +873,7 @@ class HTTPFetcher:
             while True:
                 openings = self.breaker.openings
                 try:
-                    if self._proxies is None:
-                        response = await fetch(self._client, url, self.config, fallback_url=fallback_url)
-                    else:
-                        response = await self._through_proxies(url, fallback_url)
+                    response = await self._attempts(url, fallback_url)
                     break
                 except Paused:
                     continue                   # again once the pause is over (the next attempt waits in a hook)
@@ -861,51 +972,73 @@ class HTTPFetcher:
                            paused=_duration(time.monotonic() - self._no_proxy_since))
             self._no_proxy_since = None
 
-    async def _through_proxies(self, url: str, fallback_url: str | None):
-        """``url`` through this worker's proxies (``ProxyPool``); on 404 ``fallback_url``, as pybookget's ``fetch``
-        does. A block (429, a status in ``blacklist_on``, an HTML page where another format was expected) marks the
-        proxy blocked for the host and goes on through another without counting as an attempt; a broken proxy
-        (``PROXY_ERRORS``) counts toward its ``blacklist_threshold``; other failures (a retryable status, a timeout)
-        are retried after pybookget's backoff. A status that is not retried (404, 403, ...) raises
-        ``httpx.HTTPStatusError``; attempts used up raise ``MaxRetriesExceeded`` naming the last error, no proxy
-        usable within ``max_pause`` ``StopRequests`` (the run stops)."""
-        import httpx
-        from pybookget.http.client import RETRYABLE_STATUS_CODES
+    def _backoff(self, failed: int, error: BaseException | None) -> float:
+        """The wait after the ``failed``-th failed attempt: ``retry_wait_min * 2**(failed-1)``, at most
+        ``retry_wait_max``; with ``error`` (a status's, on a direct connection) at least its ``Retry-After``, at most
+        ``retry_after_max``."""
+        c = self.config
+        wait = min(c.retry_wait_max, c.retry_wait_min * 2 ** (failed - 1))
+        response = getattr(error, "response", None)
+        if response is not None and (asked := retry_after(response.headers.get("retry-after"))) is not None:
+            wait = max(wait, min(asked, c.retry_after_max))
+        return wait
 
-        host = urlsplit(url).hostname or ""
+    async def _attempts(self, url: str, fallback_url: str | None):
+        """``url``'s response, tried up to ``max_retries + 1`` times; on 404 ``fallback_url`` instead, with attempts
+        of its own. Without a proxy list through the fetcher's client; with one, each attempt through this worker's
+        proxy whose turn comes next (``ProxyPool``): a block (429, a status in ``blacklist_on``, an HTML page where
+        another format was expected) marks the proxy blocked for the host and goes on through another without counting
+        as an attempt, and a broken proxy (``PROXY_ERRORS``) counts toward its ``blacklist_threshold``. A transport
+        error or a status in ``RETRYABLE_STATUS_CODES`` is tried again after ``_backoff`` (a ``Retry-After`` counts on
+        a direct connection only: through proxies the next attempt goes out through another one). A status that is not
+        retried (404, 403, ...) raises ``httpx.HTTPStatusError``; attempts used up raise the last error, through proxies
+        ``MaxRetriesExceeded`` naming it; no proxy usable within ``max_pause`` raises ``StopRequests`` (the run
+        stops)."""
+        import httpx
+
+        pool, host = self._proxies, urlsplit(url).hostname or ""
         broken = tuple(getattr(httpx, name) for name in PROXY_ERRORS)
-        target, attempts, last = url, 0, None
+        target, attempts, last, fell_back = url, 0, None, False
         while True:
-            proxy = await self._proxy_turn(host)
+            proxy = await self._proxy_turn(host) if pool is not None else None
+            client = self._proxy_client(proxy) if proxy is not None else self._client
             try:
-                response = await self._proxy_client(proxy).get(target)
-            except ProxyBlocked:
-                self._proxies.block(proxy, host, self._blacklist_ttl, status="html")
+                response = await client.get(target)
+            except ProxyBlocked:                   # raised through proxies only
+                pool.block(proxy, host, self._blacklist_ttl, status="html")
                 continue
             except httpx.TransportError as e:
-                if isinstance(e, broken):
-                    self._proxies.broken(proxy, self._blacklist_threshold, self._blacklist_ttl)
+                if proxy is not None and isinstance(e, broken):
+                    pool.broken(proxy, self._blacklist_threshold, self._blacklist_ttl)
                 last = e
             else:
                 status = response.status_code
-                if status in self._blacklist_on:
-                    asked = retry_after(response.headers.get("retry-after"))
-                    ttl = self._blacklist_ttl if asked is None else max(asked, PAUSE_MIN_WAIT)
-                    self._proxies.block(proxy, host, ttl, status=status)
-                    continue
-                self._proxies.answered(proxy)
-                if status == 404 and fallback_url and target != fallback_url:
+                if proxy is not None:
+                    if status in self._blacklist_on:
+                        asked = retry_after(response.headers.get("retry-after"))
+                        ttl = self._blacklist_ttl if asked is None else max(asked, PAUSE_MIN_WAIT)
+                        pool.block(proxy, host, ttl, status=status)
+                        continue
+                    pool.answered(proxy)
+                # once; through proxies only when it is another URL (a direct connection asks again for the same)
+                if status == 404 and fallback_url and not fell_back and (proxy is None or fallback_url != url):
                     logger.warning("{url}: 404, trying the fallback {fallback}", url=url, fallback=fallback_url)
-                    target, attempts = fallback_url, 0
+                    target, attempts, fell_back = fallback_url, 0, True
                     continue
-                if status not in RETRYABLE_STATUS_CODES:
+                try:
                     response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    if status not in RETRYABLE_STATUS_CODES:
+                        raise
+                    last = e
+                else:
                     return response
-                last = httpx.HTTPStatusError(f"HTTP {status}", request=response.request, response=response)
             attempts += 1
             if attempts > self.config.max_retries:
+                if proxy is None:
+                    raise last
                 raise MaxRetriesExceeded(f"after {attempts} attempts: {last_error(last)}") from last
-            wait = min(self.config.retry_wait_max, self.config.retry_wait_min * 2 ** (attempts - 1))
+            wait = self._backoff(attempts, last if proxy is None else None)
             if wait > 0:
                 await asyncio.sleep(wait)
 

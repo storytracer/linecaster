@@ -159,14 +159,13 @@ def test_a_request_waits_out_an_outage_its_errors_opened_although_a_probe_closed
     request's probe was answered (closing it) before that error got back to the fetch. The fetch tries again (the
     breaker opened during its attempts), instead of failing with the 520."""
     import httpx
-    import pybookget.http
 
     from linecaster.net.http import HTTPFetcher
 
     fetcher = HTTPFetcher(trust_env=False)
     calls = []
 
-    async def fetch(client, url, config, fallback_url=None):
+    async def attempts(self, url, fallback_url=None):
         request = httpx.Request("GET", url)
         calls.append(url)
         if len(calls) == 1:
@@ -178,7 +177,7 @@ def test_a_request_waits_out_an_outage_its_errors_opened_although_a_probe_closed
             raise httpx.HTTPStatusError("520", request=request, response=httpx.Response(520, request=request))
         return httpx.Response(200, request=request)
 
-    monkeypatch.setattr(pybookget.http, "fetch", fetch)
+    monkeypatch.setattr(HTTPFetcher, "_attempts", attempts)
     try:
         assert fetcher.get("http://127.0.0.1:9/x").status_code == 200 and len(calls) == 2
     finally:
