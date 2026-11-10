@@ -4,6 +4,13 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- The [compatibility](docs/reference/compatibility.md#versions-and-releases) reference states the versioning policy:
+  while 0.x, a breaking change is a minor release (0.3 → 0.4), everything else a patch.
+
 ## 0.3.2 (2026-11-10)
 
 ### Upgrade notes

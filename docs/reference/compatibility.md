@@ -28,6 +28,31 @@ There is no deprecation period and there are no aliases: a breaking change takes
 it, and every breaking change is an upgrade note in `CHANGELOG.md` (what changed, who is affected, what to do),
 listed first.
 
+## Versions and releases
+
+Versions follow semantic versioning, with the 0.x convention that the minor number does what the major one does
+from 1.0 on. What a change bumps follows from the table above:
+
+| Change | While 0.x | From 1.0 |
+|---|---|---|
+| breaking (any surface above; it needs an upgrade note) | minor (0.3.2 → 0.4.0) | major |
+| new blocks, options, presets, recipes, commands or features that keep the old behavior | patch | minor |
+| fixes, performance, corrections of the docs | patch | patch |
+
+A release bumps by its largest change. Ranges such as the engine packages' `linecaster>=0.1,<0.4` then hold: every
+release inside them keeps what worked.
+
+- **When:** at the end of a finished piece of work that changes behavior, once it is merged into `main` and CI is
+  green; one release per piece of work, not per commit. A commit that changes only the README is no release; other
+  docs wait for the next release unless they correct something wrong.
+- **How:** the version in `pyproject.toml` and `linecaster.__version__` (`tests/test_version.py` checks they agree),
+  `CHANGELOG.md`'s Unreleased section as `## <version> (<date>)`, the scripts relocked, an annotated tag
+  `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)
+  also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.
+- **Engine packages** version on their own by the same table, applied to their engines (ids, options, defaults).
+- **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
+  it on its own.
+
 ## Released catalog editions
 
 A released edition never changes ([catalog](catalog.md#released-editions-are-immutable)): a change that can change

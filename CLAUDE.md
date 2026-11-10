@@ -123,6 +123,17 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Breaking changes follow the [compatibility](docs/reference/compatibility.md) statement**: while the version is
   0.x, no aliases, an upgrade note each. Derivatives pin linecaster and need to know what to change.
 
+## Releases
+
+- **The agent decides and makes the releases, by
+  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**: while 0.x a breaking change is a
+  minor release, everything else a patch; a release at the end of each finished piece of work that changes behavior,
+  merged and green, with the steps listed there. Derivatives and the engine ranges rely on the version saying what
+  changed.
+- **Never 1.0.0 without the maintainer's word.** It is a promise of deprecation periods.
+- **After a release, squiddleocr follows**: its `squiddle.py` sources move to the new tag, relocked, with a
+  squiddleocr release of the same kind (its CLAUDE.md). Its users then get the release.
+
 ## Working style
 
 - **Small commits with plain messages.** They are easy to review and to revert.
