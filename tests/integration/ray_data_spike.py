@@ -1,7 +1,7 @@
 """Ray Data spike (phase 6): a recipe's per-page blocks as Ray Data ``map_batches`` stages, one actor per block and
 the pages streaming between them, instead of a datatrove executor.
 
-The recipe's pipeline is built as a normal run builds it: the pipeline script's ``pipeline()`` with ``--recipe``,
+The recipe's pipeline is built as a normal run builds it: the pipeline shape's ``pipeline()`` with ``--recipe``,
 then the builder (one task, no run folder, so no rejects writer and no tracing). The reader reads the pages in the
 driver; every block between the reader and the writers becomes one ``map_batches`` stage (``batch_size=1``: one page
 per request) run by a single actor that calls ``warm_up()`` once and then the block's ``run`` on each page. Model
@@ -47,9 +47,9 @@ MODEL_CPUS, RULE_CPUS = 3, 0.5
 def recipe_blocks(images: str, out: str, recipe: str):
     """The reader and the per-page blocks of ``recipe``'s pipeline, as the builder expands them for a normal run of
     one task (composites expanded, the recipe stamper added); the writers are left out."""
+    from linecaster.pipelines import transcribe_modular as module
     from linecaster.runtime import builder, run
 
-    module = run.load_script(SCRIPT)
     a = run.parse([images, out, "--recipe", recipe], module.__doc__, module.options, module.PIPELINE, module.SLOTS)
     blocks = module.pipeline(a, str(SCRIPT))
     rec = a.recipe_record

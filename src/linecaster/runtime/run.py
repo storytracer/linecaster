@@ -1,5 +1,5 @@
 """One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
-that builds one pipeline shape with slots for presets; ``main`` gives it:
+that runs one pipeline shape with slots for presets (``linecaster.pipelines``); ``main`` gives it:
 
     uv run pipelines/transcribe_modular.py IMAGES OUT                              # this machine
     uv run pipelines/transcribe_modular.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
@@ -12,9 +12,10 @@ server that each task starts for itself (``--backend served``, the default on Ra
 pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
 ``--endpoint`` points them at a server that is already running instead.
 
-A pipeline passes ``main`` its ``__file__``, its docstring, a function that adds its options, a function
-that returns its engines from the options (for ``serve``) and a function that builds the pipeline
-(``reader``, ``engines`` and ``pages`` help with the usual parts). The builder may also return
+A pipeline script passes ``main`` its ``__file__`` and its shape's docstring, the function that adds its options,
+the function that returns its engines from the options (for ``serve``) and the function that builds the pipeline
+(``reader``, ``engines`` and ``pages`` help with the usual parts), with its pipeline id and slots. ``describe``
+builds a shape in this process without its engines. The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
 the pipeline's engine packages or linecaster alone.
 
@@ -957,22 +958,6 @@ def describe(shape, argv: list[str], c=None, script: str | None = None):
     return build_plan(a, pipeline)
 
 
-def load_script(script: str | Path):
-    """A pipeline script as a module of this process (its ``__main__`` block does not run)."""
-    import importlib.util
-
-    path = Path(script).resolve()
-    spec = importlib.util.spec_from_file_location(f"linecaster_pipeline_{path.stem}", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def describe_script(script: str | Path, argv: list[str], c=None):
-    """``describe`` for a pipeline script that defines its shape itself."""
-    return describe(load_script(script), argv, c, str(Path(script).resolve()))
-
-
 def describe_recipe(ref: str, c=None) -> dict:
     """A recipe edition's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
     ``linecaster.pipelines``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
@@ -988,12 +973,7 @@ def describe_recipe(ref: str, c=None) -> dict:
     try:
         found = shape(pipeline_id)
     except PipelineConfigError as e:
-        from ..catalog import code
-
-        scripts = code.pipelines()
-        if pipeline_id not in scripts:
-            raise CatalogError(f"recipe {ref}: {e}") from e
-        found = load_script(scripts[pipeline_id].source)
+        raise CatalogError(f"recipe {ref}: {e}") from e
     model._preset_produces.cache_clear()
     try:
         with active(c):

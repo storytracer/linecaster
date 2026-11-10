@@ -35,6 +35,19 @@ def test_every_pipeline_script_has_its_id():
     assert all(re.fullmatch(rf"{name[:-3]}\.v\d+", pid) for name, pid in found.items())
 
 
+def test_every_pipeline_script_runs_its_shape():
+    """A pipeline script is an environment and a command line: it imports the pipeline shape of its own name
+    (``linecaster.pipelines.<name>``) and defines nothing itself."""
+    import ast
+
+    for script in sorted((ROOT / "pipelines").glob("*.py")):
+        tree = ast.parse(script.read_text(encoding="utf-8"))
+        shapes = [(a.name, a.asname) for n in tree.body if isinstance(n, ast.ImportFrom)
+                  and n.module == "linecaster.pipelines" for a in n.names]
+        assert shapes == [(script.stem, "shape")], script.name
+        assert not [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Assign))], script.name
+
+
 def test_launch_finds_the_pipeline():
     """``uv run launch.py NAME ...`` runs the script of the pipeline a recipe or a page preset runs in."""
     import importlib.util

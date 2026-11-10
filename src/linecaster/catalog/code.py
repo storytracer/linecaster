@@ -159,9 +159,6 @@ def script_of(shape, repo: Path | None = REPO) -> Path | None:
     checkout's ``pipelines/<name>.py``, or ``None`` without a checkout or such a script."""
     if repo is None:
         return None
-    own = Path(getattr(shape, "__file__", "") or "")
-    if own.parent == repo / "pipelines":             # a script that still defines its shape itself
-        return own
     script = repo / "pipelines" / f"{shape.__name__.rpartition('.')[2]}.py"
     return script if script.is_file() else None
 
@@ -178,15 +175,6 @@ def pipelines(repo: Path | None = REPO) -> dict[str, Pipeline]:
         found[pid] = Pipeline(pid, script_of(shape, repo), inspect.cleandoc(shape.__doc__ or ""),
                               dict(getattr(shape, "SLOTS", None) or {}), _arguments(fn),
                               Path(inspect.getsourcefile(shape)))
-    for f in sorted(repo.glob("pipelines/*.py")) if repo is not None else ():   # scripts that define their shape
-        tree = ast.parse(f.read_text(encoding="utf-8"))
-        values = {t.id: _literal(n.value) for n in tree.body if isinstance(n, ast.Assign)
-                  for t in n.targets if isinstance(t, ast.Name)}
-        if not isinstance(values.get("PIPELINE"), str) or values["PIPELINE"] in found:
-            continue
-        fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "options"), None)
-        found[values["PIPELINE"]] = Pipeline(values["PIPELINE"], f, _doc(tree), values.get("SLOTS") or {},
-                                             _arguments(fn) if fn else [], f)
     return found
 
 
