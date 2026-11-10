@@ -141,11 +141,11 @@ def test_user_agent_options_reach_the_readers_http_settings(tmp_path):
 
     data = write_pages(tmp_path / "data", [2], row_group_size=2)
     plain = run.reader(options(["--parquet", data, "OUT"], has_engines=False))._opener.http
-    given = run.reader(options(["--parquet", data, "OUT", "--user-agent", "FineBooks"], has_engines=False))._opener.http
+    given = run.reader(options(["--parquet", data, "OUT", "--user-agent", "my-project"], has_engines=False))._opener.http
     rand = run.reader(options(["--parquet", data, "OUT", "--random-user-agent"], has_engines=False))._opener.http
     assert "user_agent" not in plain and not HTTP_DEFAULTS["use_fake_user_agent"]      # the default
     assert HTTP_DEFAULTS["user_agent"] == "HF-Research/1.0"                            # datatrove's
-    assert given["user_agent"] == "FineBooks" and rand["use_fake_user_agent"] is True
+    assert given["user_agent"] == "my-project" and rand["use_fake_user_agent"] is True
     ap = run.parser(None)
     with pytest.raises(SystemExit):
         ap.parse_args(["--parquet", data, "OUT", "--user-agent", "x", "--random-user-agent"])

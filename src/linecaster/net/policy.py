@@ -7,8 +7,8 @@ the root, and overrides for single hosts under ``hosts:``, because one run can n
     proxies: proxies.txt
     broker: s3://bucket/broker
     hosts:
-      tile.loc.gov: {rate_limits: ["150/60", "3/1"]}
-      lccn.loc.gov: {rate_limits: ["25/60"], direct: true, pause_on: [429], stop_on: [html]}
+      images.example.org: {rate_limits: ["150/60", "3/1"]}
+      catalog.example.org: {rate_limits: ["25/60"], direct: true, pause_on: [429], stop_on: [html]}
 
 A host's settings are, from the lowest precedence up: linecaster's defaults, the file's root, the run's own options
 (``--rate-limit``, ``--proxies``, ``--user-agent``, ...), the host's entry under ``hosts:``. The fields, at the root and
@@ -25,7 +25,7 @@ single proxy IPs), ``pause_on``: statuses that pause the worker's requests to th
 proxy list: ``linecaster.net.http.Pause``), ``max_pause``: the most a worker pauses in all since the host's last
 successful response before the run stops instead (default 6 h; with a proxy list also the longest wait for a usable
 proxy), and ``stop_on``: statuses (and ``html``, an HTML page where another format was expected: a CAPTCHA) that stop
-the run at once, without a retry, for a host whose block outlasts its retries (lccn.loc.gov blocks for 72 hours and
+the run at once, without a retry, for a host whose block outlasts its retries (a host that blocks for days and
 starts the block again with every request during it), and ``proxies_per_worker``: how many proxies of the list a
 worker holds at a time, ``share`` (the default: a fair share per worker of the proxies not blocked, with
 rebalancing), ``1`` (one proxy per worker, swapped for a free one when it is blocked) or a whole number ``N`` (up to N

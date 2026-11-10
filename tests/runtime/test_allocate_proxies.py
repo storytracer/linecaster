@@ -56,7 +56,7 @@ def test_blocked_proxies_and_other_runs_leases_are_not_available(tmp_path, no_cp
     broker = str(tmp_path / "broker")
     ids = [proxy_id(p) for p in PROXIES]
     blocker = Broker(broker, worker="x-0")
-    blocker.mark(KIND, ids[0], "tile.loc.gov", time.time() + 600, status=429)          # blocked at a host
+    blocker.mark(KIND, ids[0], "images.library.test", time.time() + 600, status=429)          # blocked at a host
     blocker.mark(KIND, ids[1], "*", time.time() + 600, status="broken")               # broken
     other = Broker(broker, machine="n", run="ELSEWHERE", worker_index=(0, 1))
     assert other.claim(KIND, ids[2])                                                    # another run's
@@ -67,11 +67,11 @@ def test_blocked_proxies_and_other_runs_leases_are_not_available(tmp_path, no_cp
     assert a.workers == 4
     assert run.workers_note(a) == ("4 proxies available (7 in the list, 2 blocked or broken, 1 held by other runs) "
                                    "→ 4 workers, 1 proxy each")
-    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.loc.gov: {{proxies: PROXIES, rate_limits: [\"5/1\"], "
+    hosts = policy(tmp_path, f"broker: {broker}\nhosts:\n  www.library.test: {{proxies: PROXIES, rate_limits: [\"5/1\"], "
                                 f"proxies_per_worker: 1}}\n")
     known = options(tmp_path, "--http-policy", hosts)
     run.allocate(known, [])
-    assert known.workers == 5                                     # its only host: the block at tile.loc.gov is not
+    assert known.workers == 5                                     # its only host: the block at images.library.test is not
 
 
 def test_a_rate_limited_host_without_proxies_keeps_one_worker(tmp_path, no_cpus):

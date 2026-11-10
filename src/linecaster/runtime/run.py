@@ -132,7 +132,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                         "--kind-key, --name-key); pipelines/harvest.py fetches them as served")
     g.add_argument("--resource", action="append", default=[], metavar="KIND=URL",
                    help="--items: a resource of every item, its URL with {item} for the item id, e.g. "
-                        "marcxml=https://lccn.loc.gov/{item}/marcxml; repeatable")
+                        "marcxml=https://catalog.example.org/{item}/marcxml; repeatable")
     g.add_argument("--url-key", default="url", help="--items without --resource: the resource URL column")
     g.add_argument("--kind-key", default="kind", help="--items without --resource: the resource kind column")
     g.add_argument("--name-key", default=None, help="--items without --resource: the copy's name column (default "

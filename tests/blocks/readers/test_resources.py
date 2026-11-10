@@ -180,11 +180,11 @@ proxies: root.txt
 broker: s3://b/broker
 stop_on: [403]
 hosts:
-  tile.loc.gov: {rate_limits: ["150/60", "3/1"], proxies: p.txt}
-  lccn.loc.gov: {rate_limits: ["25/60"], direct: true, max_retries: 0, pause_on: [429], max_pause: 2h, stop_on: [html]}
+  images.library.test: {rate_limits: ["150/60", "3/1"], proxies: p.txt}
+  catalog.library.test: {rate_limits: ["25/60"], direct: true, max_retries: 0, pause_on: [429], max_pause: 2h, stop_on: [html]}
 """), base={"proxy_file": "run.txt", "user_agent": "HF-Research/1.0"})
-    tile = policy.http_for("https://tile.loc.gov/storage-services/x.jp2")
-    lccn = policy.http_for("https://lccn.loc.gov/02011712/marcxml")
+    tile = policy.http_for("https://images.library.test/storage-services/x.jp2")
+    lccn = policy.http_for("https://catalog.library.test/02011712/marcxml")
     other = policy.http_for("https://example.org/x")
     assert tile["rate_limits"] == [(150, 60.0), (3, 1.0)] and tile["proxy_file"] == "p.txt"   # the host's entry wins
     assert other["rate_limits"] == [(60, 60.0)] and other["proxy_file"] == "run.txt"         # the run's over the root
@@ -193,9 +193,9 @@ hosts:
     assert lccn["rate_limits"] == [(25, 60.0)] and "proxy_file" not in lccn and lccn["trust_env"] is False
     assert other["stop_on"] == [403] and lccn["stop_on"] == []                # an entry replaces the root's field
     assert lccn["pause_on"] == [429] and lccn["max_pause"] == 7200.0 and "pause_on" not in other
-    assert policy.stops_on_html("https://lccn.loc.gov/x") and not policy.stops_on_html("https://example.org/x")
+    assert policy.stops_on_html("https://catalog.library.test/x") and not policy.stops_on_html("https://example.org/x")
     assert all(c["user_agent"] == "HF-Research/1.0" for c in (tile, lccn, other))
-    assert ("lccn.loc.gov: 25/60 per worker, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
+    assert ("catalog.library.test: 25/60 per worker, direct, 0 retries, pauses on 429, pauses at most 2h, stops on html"
             in policy.describe())
     assert ("other hosts: 60/60 per proxy, through proxies, a fair share per worker, 7 retries, stops on 403"
             in policy.describe())
@@ -227,8 +227,8 @@ def test_the_http_policy_root_alone_and_its_checks(tmp_path):
 def test_check(data, ctype, expected, problem):
     result = check(data, ctype, expected)
     assert result is None if problem is None else result.startswith(problem)
-    assert expected_format("marcxml", "https://lccn.loc.gov/1/marcxml") == "xml"
-    assert expected_format("item-json", "https://www.loc.gov/item/1/?fo=json") == "json"
+    assert expected_format("marcxml", "https://catalog.library.test/1/marcxml") == "xml"
+    assert expected_format("item-json", "https://www.library.test/item/1/?fo=json") == "json"
 
 
 def test_the_command_line_builds_the_resource_harvest(tmp_path):
@@ -236,11 +236,11 @@ def test_the_command_line_builds_the_resource_harvest(tmp_path):
 
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["--items", items_table(tmp_path, ["a1", "b2"]), "OUT", "--item-key", "lccn",
-                                     "--resource", "marcxml=https://lccn.loc.gov/{item}/marcxml",
+                                     "--resource", "marcxml=https://catalog.library.test/{item}/marcxml",
                                      "--max-items", "1"]))
     a.has_engines = False
     reader = run.reader(a, reuse_folder="OUT")
-    assert isinstance(reader, ResourceReader) and reader.templates == {"marcxml": "https://lccn.loc.gov/{item}/marcxml"}
+    assert isinstance(reader, ResourceReader) and reader.templates == {"marcxml": "https://catalog.library.test/{item}/marcxml"}
     run.allocate(a, [reader])
     assert a.tasks == 1                                                # --max-items 1: one item, one task
     for argv in (["--items", "t", "OUT"], ["--items", "t", "OUT", "--item-key", "x", "--resource", "m=no-item"]):
@@ -322,9 +322,9 @@ def test_an_html_page_through_a_proxy_blocks_that_proxy_for_its_hosts_ttl(tmp_pa
 def test_blacklist_settings_per_host(tmp_path):
     from linecaster.net.policy import seconds
 
-    hosts = HTTPPolicy(policy_file(tmp_path, "hosts:\n  lccn.loc.gov: {proxies: p.txt, blacklist_ttl: 72h, "
+    hosts = HTTPPolicy(policy_file(tmp_path, "hosts:\n  catalog.library.test: {proxies: p.txt, blacklist_ttl: 72h, "
                                               "blacklist_threshold: 2}\n"))
-    config = hosts.http_for("https://lccn.loc.gov/1/marcxml")
+    config = hosts.http_for("https://catalog.library.test/1/marcxml")
     assert config["proxy_blacklist_ttl"] == 259200 and config["proxy_blacklist_threshold"] == 2
     assert (seconds("30m", "x"), seconds(45, "x"), seconds("3d", "x")) == (1800, 45, 259200)
     with pytest.raises(PipelineConfigError, match="duration"):
@@ -353,8 +353,8 @@ def test_a_status_in_blacklist_on_leaves_its_proxy_out_and_goes_on_through_the_n
 
 
 def test_blacklist_on_in_a_hosts_file(tmp_path):
-    hosts = HTTPPolicy(policy_file(tmp_path, "hosts:\n  www.loc.gov: {proxies: p.txt, blacklist_on: [403, 451]}\n"))
-    assert hosts.http_for("https://www.loc.gov/item/1/")["proxy_blacklist_on"] == [403, 451]
+    hosts = HTTPPolicy(policy_file(tmp_path, "hosts:\n  www.library.test: {proxies: p.txt, blacklist_on: [403, 451]}\n"))
+    assert hosts.http_for("https://www.library.test/item/1/")["proxy_blacklist_on"] == [403, 451]
     plain = HTTPPolicy(policy_file(tmp_path, "hosts:\n  a.org: {}\n"))
     assert "proxy_blacklist_on" not in plain.http_for("https://a.org/")
     with pytest.raises(PipelineConfigError, match="error statuses"):
@@ -438,17 +438,17 @@ def test_every_proxy_marked_blocked_stops_the_run_at_its_first_request(tmp_path)
 def test_the_http_policy_option(tmp_path):
     from linecaster.runtime import run
 
-    policy = policy_file(tmp_path, 'max_retries: 3\nhosts:\n  lccn.loc.gov: {rate_limits: ["25/60"]}\n')
+    policy = policy_file(tmp_path, 'max_retries: 3\nhosts:\n  catalog.library.test: {rate_limits: ["25/60"]}\n')
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["--items", items_table(tmp_path, ["a1", "b2"]), "--item-key", "lccn", "OUT",
-                                     "--resource", "marcxml=https://lccn.loc.gov/{item}/marcxml",
+                                     "--resource", "marcxml=https://catalog.library.test/{item}/marcxml",
                                      "--http-policy", policy]))
     a.has_engines = False
     reader = run.reader(a)
     assert reader.http_policy == policy and reader.http["default_broker"] == "OUT/logs/broker"
     run.allocate(a, [reader])
     assert a.workers == 1                                  # the file sets rate limits, which hold per worker
-    assert run.rate_note(a) == "HTTP policy: lccn.loc.gov: 25/60 per worker, 3 retries; other hosts: no rate " \
+    assert run.rate_note(a) == "HTTP policy: catalog.library.test: 25/60 per worker, 3 retries; other hosts: no rate " \
                                "limit, 3 retries"
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(["--items", "d", "--item-key", "lccn", "OUT", "--resource", "m=u/{item}",
@@ -526,7 +526,7 @@ def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
     ap = run.parser(None)
     out = str(tmp_path / "out")
     a = run.check(ap, ap.parse_args(["--items", items_table(tmp_path, ["a1", "b2"]), "--item-key", "lccn", out,
-                                     "--resource", "json=https://www.loc.gov/item/{item}/?fo=json", "--on", "ray",
+                                     "--resource", "json=https://www.library.test/item/{item}/?fo=json", "--on", "ray",
                                      "--tasks", "2", "--cpus-per-task", "1", "--mem-per-cpu-gb", "2"]))
     a.has_engines = False
     blocks = [run.reader(a), RejectWriter(f"{out}/rejects"), ResourceFilesWriter(out),

@@ -60,7 +60,7 @@ requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.uv]
-# spark and forge share one uv.lock; an older uv may not read a lockfile written by a newer one
+# every machine shares one uv.lock; an older uv may not read a lockfile written by a newer one
 required-version = ">=0.13.6"
 
 [tool.uv.sources]

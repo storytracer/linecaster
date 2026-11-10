@@ -158,7 +158,7 @@ def pages(reader, rank=0, world_size=1):
 
 
 @pytest.mark.parametrize("entry, item", [
-    ("https://www.loc.gov/item/ltf90007547/manifest.json", "ltf90007547"),
+    ("https://www.library.test/item/ltf90007547/manifest.json", "ltf90007547"),
     ("https://iiif.wellcomecollection.org/presentation/v3/b18035723", "b18035723"),
     ("https://www.e-rara.ch/i3f/v20/12345/manifest", "12345"),
     ("https://iiif.lib.harvard.edu/manifests/drs:427015", "drs_427015"),

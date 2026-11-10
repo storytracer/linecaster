@@ -4,7 +4,7 @@ as they are served, so a later stage can link to the reference copy and parse it
 A resource is a remote file of an item (or of one of its pages): its ``kind`` (``marcxml``, ``item-json``, ...), its
 URL and a name for its copy. They come from a Parquet table, either one row per resource (``url_key``, ``kind_key``,
 optionally ``name_key``) or one row (or more) per item and URL templates per kind (``templates``:
-``{"marcxml": "https://lccn.loc.gov/{item}/marcxml"}``). One item per task (``auto_tasks``), the items grouped by
+``{"marcxml": "https://catalog.example.org/{item}/marcxml"}``). One item per task (``auto_tasks``), the items grouped by
 their ``item_key`` value wherever their rows are (``tables.item_runs``), so a task that fails costs one item.
 
 Each resource becomes one datatrove document (unit ``item``: the stream carries resources, not pages): its bytes as
@@ -133,7 +133,7 @@ class ResourceReader(Contracted, BaseDiskReader):
     unit = "item"
     parts_added = ("metadata",)
     docs_args = {"data_folder": "items/", "item_key": "lccn",
-                 "templates": {"marcxml": "https://lccn.loc.gov/{item}/marcxml"}}
+                 "templates": {"marcxml": "https://catalog.example.org/{item}/marcxml"}}
     #: the share of a task's resources that may fail (None: no limit; the builder sets it)
     max_page_errors: float | None = 0.01
     #: what the console counts

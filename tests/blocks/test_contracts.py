@@ -254,7 +254,7 @@ def _one_of_each(tmp_path) -> list:
         "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
         "ManifestReader": {"data_folder": str(tmp_path)},
         "ResourceReader": {"data_folder": str(tmp_path / "in"), "item_key": "lccn",
-                           "templates": {"marcxml": "https://lccn.loc.gov/{item}/marcxml"}},
+                           "templates": {"marcxml": "https://catalog.library.test/{item}/marcxml"}},
         "RuleBlock": {"preset": InProcess("pkg:Rules", x=1)}, "Typographer": {"preset": "ratios@1"},
         "Recomposer": {"preset": "unicode-recomposition@1", "unit": "item"},
         "Composer": {"preset": "docling-composition@1", "options": {"sections": True}},

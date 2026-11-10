@@ -51,13 +51,13 @@ def owned(pool: ProxyPool) -> set[str]:
 def test_two_workers_never_share_a_proxy_and_its_rate_limit_holds_across_them(tmp_path):
     clock = Clock()
     a, b = worker(tmp_path, "a-0", clock=clock), worker(tmp_path, "b-0", clock=clock)
-    assert a.fill("tile.loc.gov") == 2 and b.fill("tile.loc.gov") == 2          # ceil(4 / 2) each
+    assert a.fill("images.library.test") == 2 and b.fill("images.library.test") == 2          # ceil(4 / 2) each
     assert not owned(a) & owned(b) and len(owned(a) | owned(b)) == 4
     starts = defaultdict(list)
     users = defaultdict(set)
     for _ in range(40):                                  # both send as fast as the turns allow: 0.5 s per proxy
         for name, pool in (("a", a), ("b", b)):
-            proxy, wait = pool.pick("tile.loc.gov", 0.5)
+            proxy, wait = pool.pick("images.library.test", 0.5)
             starts[proxy].append(clock.t + wait)
             users[proxy].add(name)
     assert all(len(u) == 1 for u in users.values())       # one worker per proxy
@@ -72,33 +72,33 @@ def test_two_workers_never_share_a_proxy_and_its_rate_limit_holds_across_them(tm
 def test_a_block_by_one_worker_is_never_used_by_the_other(tmp_path):
     proxies = PROXIES[:2]
     a = worker(tmp_path, "a-0", proxies)
-    assert a.fill("lccn.loc.gov") == 2                                          # alone: both
+    assert a.fill("catalog.library.test") == 2                                          # alone: both
     b = worker(tmp_path, "b-0", proxies)
-    blocked = a.pick("lccn.loc.gov", 0)[0]
-    a.block(blocked, "lccn.loc.gov", 3600, status=429)
+    blocked = a.pick("catalog.library.test", 0)[0]
+    a.block(blocked, "catalog.library.test", 3600, status=429)
     assert blocked not in owned(a) and a.counts() == (1, 1, 0)                  # blocked everywhere it fetches
-    assert b.fill("lccn.loc.gov", force=True) == 0 and b.pick("lccn.loc.gov", 0) is None   # seen at once
-    first, others, free = b.outlook("lccn.loc.gov")
+    assert b.fill("catalog.library.test", force=True) == 0 and b.pick("catalog.library.test", 0) is None   # seen at once
+    first, others, free = b.outlook("catalog.library.test")
     assert 3590 < first <= 3600 and (others, free) == (1, 0)
-    assert b.fill("www.loc.gov", force=True) == 1                               # free for another host
-    assert b.pick("www.loc.gov", 0)[0] == blocked and b.pick("lccn.loc.gov", 0) is None
+    assert b.fill("www.library.test", force=True) == 1                               # free for another host
+    assert b.pick("www.library.test", 0)[0] == blocked and b.pick("catalog.library.test", 0) is None
 
 
 def test_all_blocked_the_worker_waits_and_goes_on_when_a_block_ends(tmp_path):
     offset = [0.0]
     a = worker(tmp_path, "a-0", PROXIES[:1], broker_clock=lambda: time.time() + offset[0])
-    assert a.fill("lccn.loc.gov") == 1
-    a.block(PROXIES[0], "lccn.loc.gov", 30, status=429)
-    assert a.pick("lccn.loc.gov", 0) is None and a.fill("lccn.loc.gov", force=True) == 0
-    first, others, free = a.outlook("lccn.loc.gov")
+    assert a.fill("catalog.library.test") == 1
+    a.block(PROXIES[0], "catalog.library.test", 30, status=429)
+    assert a.pick("catalog.library.test", 0) is None and a.fill("catalog.library.test", force=True) == 0
+    first, others, free = a.outlook("catalog.library.test")
     assert 25 < first <= 30 and (others, free) == (0, 0)
     offset[0] = 31                                                               # the block has ended
-    assert a.fill("lccn.loc.gov", force=True) == 1 and a.pick("lccn.loc.gov", 0)[0] == PROXIES[0]
+    assert a.fill("catalog.library.test", force=True) == 1 and a.pick("catalog.library.test", 0)[0] == PROXIES[0]
 
 
 def test_a_broken_proxy_is_left_out_everywhere_after_its_threshold(tmp_path):
     a = worker(tmp_path, "a-0", PROXIES[:2])
-    a.fill("lccn.loc.gov")
+    a.fill("catalog.library.test")
     a.broken(PROXIES[0], 2, 3600)
     assert PROXIES[0] in owned(a)                                                # one failure of two
     a.answered(PROXIES[0])
@@ -111,31 +111,31 @@ def test_a_broken_proxy_is_left_out_everywhere_after_its_threshold(tmp_path):
 
 def test_a_crashed_workers_proxies_come_free_after_the_lease_time(tmp_path):
     a = worker(tmp_path, "a-0", PROXIES[:2])
-    assert a.fill("lccn.loc.gov") == 2
+    assert a.fill("catalog.library.test") == 2
     b = worker(tmp_path, "b-0", PROXIES[:2])
-    assert b.fill("lccn.loc.gov", force=True) == 0                              # both held by a
-    assert b.outlook("lccn.loc.gov") == (None, 2, 0)
+    assert b.fill("catalog.library.test", force=True) == 0                              # both held by a
+    assert b.outlook("catalog.library.test") == (None, 2, 0)
     age(tmp_path, LEASE_TTL + 1)                                                 # a crashed: no renew
     b.broker.heartbeat()
-    assert b.fill("lccn.loc.gov", force=True) == 2                              # alone now: both
+    assert b.fill("catalog.library.test", force=True) == 2                              # alone now: both
     assert owned(b) == set(PROXIES[:2])
 
 
 def test_a_worker_that_joins_gets_its_share_at_the_next_renew(tmp_path):
     a = worker(tmp_path, "a-0")
-    assert a.fill("tile.loc.gov") == 2                                          # at most 2 at a fill
+    assert a.fill("images.library.test") == 2                                          # at most 2 at a fill
     a.rebalance()
     assert len(owned(a)) == 4                                                    # its share, by rebalancing
-    a.pick("www.loc.gov", 0)                                                     # it uses two hosts
-    blocked = a.pick("www.loc.gov", 0)[0]
-    a.block(blocked, "www.loc.gov", 3600, status=403)                           # blocked at one: kept
+    a.pick("www.library.test", 0)                                                     # it uses two hosts
+    blocked = a.pick("www.library.test", 0)[0]
+    a.block(blocked, "www.library.test", 3600, status=403)                           # blocked at one: kept
     assert blocked in owned(a)
     b = worker(tmp_path, "b-0")
-    assert b.fill("tile.loc.gov", force=True) == 0
+    assert b.fill("images.library.test", force=True) == 0
     a.broker.renew()
     a.rebalance()
     assert len(owned(a)) == 2 and blocked not in owned(a)                        # the blocked one given back first
-    assert b.fill("tile.loc.gov", force=True) == 2
+    assert b.fill("images.library.test", force=True) == 2
     assert not owned(a) & owned(b) and blocked in owned(b)
 
 
@@ -144,16 +144,16 @@ def test_sharing_does_not_hoard_at_the_start_and_converges_by_rebalancing(tmp_pa
     joins finds every proxy held, and the rebalancing hands it its half."""
     proxies = [f"http://10.0.1.{i}:8080" for i in range(8)]
     a = worker(tmp_path, "a-0", proxies)
-    assert a.fill("tile.loc.gov") == 2
+    assert a.fill("images.library.test") == 2
     a.rebalance()
     assert len(owned(a)) == 4
     a.rebalance()
     assert len(owned(a)) == 8
     b = worker(tmp_path, "b-0", proxies)
-    assert b.fill("tile.loc.gov", force=True) == 0 and b.pick("tile.loc.gov", 0) is None
+    assert b.fill("images.library.test", force=True) == 0 and b.pick("images.library.test", 0) is None
     a.rebalance()                                                                # its share is 4 now
     assert len(owned(a)) == 4
-    assert b.fill("tile.loc.gov", force=True) == 2                              # 2 at a fill, though its share is 4
+    assert b.fill("images.library.test", force=True) == 2                              # 2 at a fill, though its share is 4
     b.rebalance()
     assert len(owned(b)) == 4 and not owned(a) & owned(b)
 
@@ -168,14 +168,14 @@ def one(tmp_path, name: str, proxies=PROXIES, **kwargs) -> ProxyPool:
 def test_one_proxy_per_worker_each_holds_exactly_one_never_the_same(tmp_path):
     clock = Clock()
     a, b = one(tmp_path, "a-0", clock=clock), one(tmp_path, "b-0", clock=clock)
-    assert a.fill("tile.loc.gov") == 1 and b.fill("tile.loc.gov") == 1
+    assert a.fill("images.library.test") == 1 and b.fill("images.library.test") == 1
     for pool in (a, b):
         pool.rebalance()                                                         # no fair share: still one
         pool.rebalance()
     assert len(owned(a)) == len(owned(b)) == 1 and not owned(a) & owned(b)
-    assert a.fill("tile.loc.gov", force=True) == 0                              # one usable: nothing to claim
+    assert a.fill("images.library.test", force=True) == 0                              # one usable: nothing to claim
     (mine,) = owned(a)
-    picks = [a.pick("tile.loc.gov", 0.5) for _ in range(4)]
+    picks = [a.pick("images.library.test", 0.5) for _ in range(4)]
     assert [p for p, _ in picks] == [mine] * 4 and [w for _, w in picks] == [0, 0.5, 1.0, 1.5]   # its limit
     assert a.counts() == (1, 0, 2)                                              # held, blocked, free
 
@@ -184,23 +184,23 @@ def test_a_proxy_is_marked_and_logged_once_per_block_whatever_was_on_its_way(tmp
     """The requests already on their way through a proxy when it is blocked come back blocked (or broken) too: no mark
     and no message of their own, and no failure counted toward a broken proxy's threshold."""
     a = worker(tmp_path, "a-0", PROXIES[:2])
-    a.fill("lccn.loc.gov")
+    a.fill("catalog.library.test")
     lines = []
     sink = logger.add(lines.append, level="INFO")
     try:
         for _ in range(5):
-            a.block(PROXIES[0], "lccn.loc.gov", 3600, status=429)
+            a.block(PROXIES[0], "catalog.library.test", 3600, status=429)
         for _ in range(5):
             a.broken(PROXIES[1], 1, 3600)
-        a.block(PROXIES[1], "lccn.loc.gov", 3600, status="html")              # left out everywhere already
+        a.block(PROXIES[1], "catalog.library.test", 3600, status="html")              # left out everywhere already
     finally:
         logger.remove(sink)
     marks = lambda p, scope: list((tmp_path / KIND / proxy_id(p) / "marks" / scope).iterdir())  # noqa: E731
-    assert len(marks(PROXIES[0], "lccn.loc.gov")) == 1 and len(marks(PROXIES[1], "*")) == 1
-    assert not (tmp_path / KIND / proxy_id(PROXIES[1]) / "marks" / "lccn.loc.gov").exists()
+    assert len(marks(PROXIES[0], "catalog.library.test")) == 1 and len(marks(PROXIES[1], "*")) == 1
+    assert not (tmp_path / KIND / proxy_id(PROXIES[1]) / "marks" / "catalog.library.test").exists()
     assert sum("blocked" in str(x) for x in lines) == 2
-    a.block(PROXIES[0], "www.loc.gov", 3600, status=429)                      # another host: a block of its own
-    assert len(marks(PROXIES[0], "www.loc.gov")) == 1
+    a.block(PROXIES[0], "www.library.test", 3600, status=429)                      # another host: a block of its own
+    assert len(marks(PROXIES[0], "www.library.test")) == 1
 
 
 def test_a_block_swaps_to_a_free_proxy_at_once_and_nobody_takes_the_blocked_one_until_its_mark_ends(tmp_path):
@@ -211,43 +211,43 @@ def test_a_block_swaps_to_a_free_proxy_at_once_and_nobody_takes_the_blocked_one_
 
     pools = [one(tmp_path, f"w-{i}", broker_clock=clock) for i in range(4)]
     a, b, c, d = pools
-    assert a.fill("lccn.loc.gov") == 1
+    assert a.fill("catalog.library.test") == 1
     (blocked,) = owned(a)
-    a.block(blocked, "lccn.loc.gov", 30, status=429)
-    assert owned(a) == set() and a.pick("lccn.loc.gov", 0) is None
-    assert a.fill("lccn.loc.gov") == 1                                          # at once, not after FILL_SECONDS
+    a.block(blocked, "catalog.library.test", 30, status=429)
+    assert owned(a) == set() and a.pick("catalog.library.test", 0) is None
+    assert a.fill("catalog.library.test") == 1                                          # at once, not after FILL_SECONDS
     assert len(owned(a)) == 1 and blocked not in owned(a)
-    assert b.fill("lccn.loc.gov") == 1 and c.fill("lccn.loc.gov") == 1         # the two other free ones
-    assert d.fill("lccn.loc.gov") == 0 and blocked not in owned(b) | owned(c)   # the blocked one: nobody's
-    first, others, free = d.outlook("lccn.loc.gov")
+    assert b.fill("catalog.library.test") == 1 and c.fill("catalog.library.test") == 1         # the two other free ones
+    assert d.fill("catalog.library.test") == 0 and blocked not in owned(b) | owned(c)   # the blocked one: nobody's
+    first, others, free = d.outlook("catalog.library.test")
     assert 25 < first <= 30 and (others, free) == (3, 0)
     offset[0] = 31                                                               # its mark has ended
-    assert d.fill("lccn.loc.gov") == 1 and owned(d) == {blocked}
+    assert d.fill("catalog.library.test") == 1 and owned(d) == {blocked}
 
 
 def test_all_blocked_pauses_and_resumes_when_a_mark_ends(tmp_path):
     offset = [0.0]
     a = one(tmp_path, "a-0", PROXIES[:2], broker_clock=lambda: time.time() + offset[0])
-    assert a.fill("lccn.loc.gov") == 1
-    a.block(a.pick("lccn.loc.gov", 0)[0], "lccn.loc.gov", 60, status=429)
-    assert a.fill("lccn.loc.gov") == 1
-    a.block(a.pick("lccn.loc.gov", 0)[0], "lccn.loc.gov", 30, status=429)
-    assert a.fill("lccn.loc.gov") == 0 and a.pick("lccn.loc.gov", 0) is None   # every one blocked: a pause
-    first, others, free = a.outlook("lccn.loc.gov")
+    assert a.fill("catalog.library.test") == 1
+    a.block(a.pick("catalog.library.test", 0)[0], "catalog.library.test", 60, status=429)
+    assert a.fill("catalog.library.test") == 1
+    a.block(a.pick("catalog.library.test", 0)[0], "catalog.library.test", 30, status=429)
+    assert a.fill("catalog.library.test") == 0 and a.pick("catalog.library.test", 0) is None   # every one blocked: a pause
+    first, others, free = a.outlook("catalog.library.test")
     assert 25 < first <= 30 and (others, free) == (0, 0)
     offset[0] = 31                                                               # the first mark has ended
-    assert a.fill("lccn.loc.gov") == 1 and a.pick("lccn.loc.gov", 0) is not None
+    assert a.fill("catalog.library.test") == 1 and a.pick("catalog.library.test", 0) is not None
 
 
 def test_a_proxy_blocked_at_one_of_two_hosts_is_swapped_for_one_usable_at_both(tmp_path):
     a = one(tmp_path, "a-0")
-    assert a.fill("www.loc.gov") == 1
+    assert a.fill("www.library.test") == 1
     (proxy,) = owned(a)
-    a.block(proxy, "lccn.loc.gov", 3600, status=403)                            # usable at www.loc.gov still: kept
-    assert owned(a) == {proxy} and a.pick("lccn.loc.gov", 0) is None
-    assert a.fill("lccn.loc.gov", force=True) == 1                              # a swap: still one
+    a.block(proxy, "catalog.library.test", 3600, status=403)                            # usable at www.library.test still: kept
+    assert owned(a) == {proxy} and a.pick("catalog.library.test", 0) is None
+    assert a.fill("catalog.library.test", force=True) == 1                              # a swap: still one
     (other,) = owned(a)
-    assert other != proxy and a.pick("lccn.loc.gov", 0)[0] == other and a.pick("www.loc.gov", 0)[0] == other
+    assert other != proxy and a.pick("catalog.library.test", 0)[0] == other and a.pick("www.library.test", 0)[0] == other
 
 
 def test_a_claim_race_lost_is_replaced_at_once_said_at_info(tmp_path):
@@ -257,7 +257,7 @@ def test_a_claim_race_lost_is_replaced_at_once_said_at_info(tmp_path):
     sink = logger.add(lambda m: lines.append((m.record["level"].name, m.record["message"])), level="DEBUG")
     try:
         a = one(tmp_path, "a-0")
-        assert a.fill("tile.loc.gov") == 1
+        assert a.fill("images.library.test") == 1
         (raced,) = owned(a)
         leases = tmp_path / KIND / proxy_id(raced) / "leases"
         (leases / "20200101T000000000Z-z-0.json").write_text('{"holder": "z-0"}')   # z-0's earlier claim
@@ -273,7 +273,7 @@ def test_a_claim_race_lost_is_replaced_at_once_said_at_info(tmp_path):
 def test_up_to_n_per_worker_are_claimed_one_by_one_never_more(tmp_path):
     proxies = [f"http://10.0.2.{i}:8080" for i in range(8)]
     a, b = (worker(tmp_path, n, proxies, per_worker=3) for n in ("a-0", "b-0"))
-    assert a.fill("tile.loc.gov") == 1 and b.fill("tile.loc.gov") == 1
+    assert a.fill("images.library.test") == 1 and b.fill("images.library.test") == 1
     sizes = []
     for _ in range(4):
         for pool in (a, b):
@@ -285,12 +285,12 @@ def test_up_to_n_per_worker_are_claimed_one_by_one_never_more(tmp_path):
 def test_more_than_n_inherited_are_given_back(tmp_path):
     proxies = [f"http://10.0.3.{i}:8080" for i in range(6)]
     first = worker(tmp_path, "a-0", proxies)                                    # sharing: it holds 6
-    first.fill("tile.loc.gov")
+    first.fill("images.library.test")
     first.rebalance()
     first.rebalance()
     assert len(owned(first)) == 6
     again = ProxyPool(Broker(str(tmp_path), worker="a-0"), proxies, clock=Clock(), keep_alive=False, per_worker=2)
-    again.pick("tile.loc.gov", 0)
+    again.pick("images.library.test", 0)
     again.rebalance()
     assert again.held() == 2 and len(again.broker.held(KIND)) == 2
 

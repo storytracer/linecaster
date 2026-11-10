@@ -10,7 +10,7 @@ record each in OUT/resources/<rank>.jsonl.gz; --http-policy gives settings for e
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --rate-limit 5/1 --existing-ocr
     uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --http-policy http-policy.yaml \
-        --resource marcxml=https://lccn.loc.gov/{item}/marcxml
+        --resource marcxml=https://catalog.example.org/{item}/marcxml
     uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
         --rate-limit 150/60 --rate-limit 3/1
     uv run pipelines/harvest.py ... SMOKE --rate-limit 150/60 --rate-limit 3/1 --max-pages 2000     # a smoke test

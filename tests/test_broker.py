@@ -92,18 +92,18 @@ def test_a_lease_expires_without_a_renew(tmp_path):
 def test_marks_hold_per_scope_until_they_expire(tmp_path):
     a, b = Broker(str(tmp_path), worker="w-0"), Broker(str(tmp_path), worker="w-1")
     now = time.time()
-    a.mark("proxies", "a", "lccn.loc.gov", now + 100, status=429)
+    a.mark("proxies", "a", "catalog.library.test", now + 100, status=429)
     a.mark("proxies", "b", EVERY_SCOPE, now + 300, status="broken")
-    (end,) = b.marks("proxies", "a", "lccn.loc.gov")
+    (end,) = b.marks("proxies", "a", "catalog.library.test")
     assert now + 95 < end <= now + 101
-    assert b.marks("proxies", "a", "www.loc.gov") == []
-    assert len(b.marks("proxies", "b", "www.loc.gov")) == 1            # * holds for every host
+    assert b.marks("proxies", "a", "www.library.test") == []
+    assert len(b.marks("proxies", "b", "www.library.test")) == 1            # * holds for every host
     survey = b.survey("proxies")
-    assert survey["a"].holder is None and survey["a"].marked("lccn.loc.gov") == end
+    assert survey["a"].holder is None and survey["a"].marked("catalog.library.test") == end
     assert survey["b"].marked("anything") is not None
     age(tmp_path, 200)
     c = Broker(str(tmp_path), worker="w-2")                             # reads the marks after the time passed
-    assert c.marks("proxies", "a", "lccn.loc.gov") == []               # expired: deleted by whoever sees it
+    assert c.marks("proxies", "a", "catalog.library.test") == []               # expired: deleted by whoever sees it
     assert not list((tmp_path / "proxies" / "a" / "marks").rglob("*.json"))
     assert len(c.marks("proxies", "b", "x")) == 1
     later = Broker(str(tmp_path), worker="w-3", clock=lambda: time.time() + 301)   # or its clock is later

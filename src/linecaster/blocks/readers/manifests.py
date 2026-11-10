@@ -41,7 +41,7 @@ OCR_EXTENSIONS = {"alto": "xml", "hocr": "html"}
 def manifest_item_id(entry: str, pattern: str | None = None) -> str:
     """The item id of a manifest entry (a URL or a file path): the first group of ``pattern`` when given,
     else the last path segment that is not a generic manifest name, without ``.json``/``.xml``
-    (``https://www.loc.gov/item/ltf90007547/manifest.json`` → ``ltf90007547``). Characters other than
+    (``https://www.example.org/item/ltf90007547/manifest.json`` → ``ltf90007547``). Characters other than
     letters, digits, ``.``, ``_`` and ``-`` become ``_`` (the id names the item's folder)."""
     if pattern:
         m = re.search(pattern, entry)

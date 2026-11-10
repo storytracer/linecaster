@@ -392,8 +392,8 @@ the native thread pools to the CPUs it may use (`linecaster.runtime.cpus`: its R
 and so do the worker counts a launch derives "one per CPU".
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
-(`ResourceReader`): from URL templates per kind (`--resource marcxml=https://lccn.loc.gov/{item}/marcxml`) or a table
-with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
+(`ResourceReader`): from URL templates per kind (`--resource marcxml=https://catalog.example.org/{item}/marcxml`) or
+a table with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
 an HTML page where another format was expected fails and counts toward the breaker, or through proxies blocks that
 proxy at the host) and kept as a raw copy,
 `OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in

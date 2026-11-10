@@ -215,7 +215,7 @@ the tags; the first is `v0.1.0`.
   per-host key `pause_on` (statuses that pause the worker's requests to the host until the response's `Retry-After`
   has passed, then retry the request; default `[429]`) and `max_pause` (default 6 h in all since the host's last
   successful response; beyond it the run stops). A policy with `429` in `stop_on` is refused (`429 both in stop_on and
-  pause_on`): move it to `pause_on` (`lccn.loc.gov: {direct: true, stop_on: [429, html]}` becomes
+  pause_on`): move it to `pause_on` (`catalog.example.org: {direct: true, stop_on: [429, html]}` becomes
   `{direct: true, pause_on: [429], stop_on: [html]}`), or keep it in `stop_on` with `pause_on: []` to still stop the
   run on it; there is no alias. Without a policy the default applies as well: on a direct connection a 429 used to be
   retried per request by pybookget (each retry after the longer of its backoff and the `Retry-After`, at most 300 s,

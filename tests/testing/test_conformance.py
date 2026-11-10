@@ -308,7 +308,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (readers.PageRecordReader(i["pages"]), {}),
         (readers.ManifestReader(str(tmp_path)), {"run": False}),       # its manifests come over http(s)
         (readers.ResourceReader(str(tmp_path), item_key="lccn",            # its resources come over http(s)
-                                templates={"marcxml": "https://lccn.loc.gov/{item}/marcxml"}), {"run": False}),
+                                templates={"marcxml": "https://catalog.library.test/{item}/marcxml"}), {"run": False}),
         (layout.LayoutDetector(fake["layout"]), {}),
         (lines.LineDetector(fake["lines"]), {}),
         (lines.LineAssigner(), {}),
