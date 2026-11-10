@@ -63,8 +63,14 @@ worker) or older than the lease time; it gives the resource up and logs a WARNIN
 renew within the lease time)`.
 
 **Marks.** A mark holds for a resource in a scope (a host, or `*` for every scope) for `ttl` seconds from its file's
-modification time. It is written once and never changed; whoever sees it expired deletes it. A reader reads a mark's
-file once (it never changes) and keeps its end.
+modification time. It is written once and never changed; whoever sees it expired deletes it, past its `keep`
+seconds if it has them: a mark with `keep` stays readable that long after its end, no longer holding, so its data
+(a proxy's doubling, `last_wait`) reaches whoever claims the resource next (`linecaster.broker.Resource.last`). A
+reader reads a mark's file once (it never changes) and keeps its end. The record is JSON: `ttl`, `until` (the end on
+the writer's clock, informational), `worker`, and the kind's data (`status`, `last_wait`, `keep` for proxies).
+A reader ignores the fields it does not know: a broker that does not know `keep` deletes a kept mark at its end
+(the doubling then starts again), and a mark without `keep` and `last_wait` is deleted at its end and starts the
+doubling at 60 s.
 
 **Fair share.** Sharing them fairly (proxies with `per_worker: share`, the default), a worker holds `ceil(free / live
 workers)` resources of a kind (at least one if any is free), where the live workers are the valid heartbeats. Proxies
@@ -116,15 +122,27 @@ list is set) works on the broker:
   comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker.
 - **Blocks.** A status in the host's `block_on` (429 by default) and, with `html` there, an HTML page where another
   format was expected mark the proxy for that host ([http](http.md#blocks)): until the response's `Retry-After`, else
-  for 60 s, twice the last wait on each repeat of that proxy at that host (until it carries a successful response
-  there), at most the host's `block_ttl` (an hour by default). The mark records the status (`429`, `html`). The owner
+  for 60 s, twice the last wait on each repeat of that proxy at that host, at most the host's `block_ttl` (an hour by
+  default). The mark records the status (`429`, `html`) and the doubling below. The owner
   stops using it there at once, and releases it once it is blocked for every host it uses; a worker that claims it later
   reads the mark with the claim, so no worker sends requests into another's block and starts the server's block window
   again. The request goes on through another proxy without counting as an attempt.
 - **Broken proxies.** A proxy error or no connection to the proxy, `broken_after` times in a row (3 by default),
   marks it for every host (`*`, status `broken`): first for `broken_ttl` (300 s), twice as long each time it breaks
-  again before it carries an answer, at most `block_ttl`. The doubling's last wait is kept by the worker that marked
-  the proxy; the marks themselves are the same for every worker.
+  again before it carries an answer, at most `block_ttl`. Its doubling travels with the proxy as a block's does.
+- **The doubling travels with the proxy.** Each block or broken mark without `Retry-After` records its wait
+  (`last_wait`; a mark with `Retry-After` the doubling's last wait unchanged) and is kept that long past its end
+  (`keep`), so a worker that claims a released proxy continues the doubling where its last owner left it (60, 120,
+  240 s across workers) instead of starting at 60 s. While a worker holds a proxy it is the only one using it, so it
+  keeps the doubling in memory from its claim on (and writes it into each mark). **The doubling starts again** at
+  60 s: after a successful response through the proxy from that host (any answer through it, for a broken proxy's), in
+  that worker at once and for everyone else by deleting the proxy's ended marks there (in a thread; until then, or if
+  that fails, the next owner doubles once more than it should, never less); or after a quiet period, when the next
+  block comes more than its last wait after the last block there ended (`linecaster.net.http.doubling`; the kept mark
+  is gone by then). An answer to a request sent before a block that still holds changes nothing. The rule is the
+  direct path's too, where a worker keeps each host's doubling in memory. Why these two: a successful response is the
+  only sure sign the host lets the IP in again, and the quiet period bounds how long a mark is kept, as long as the
+  block before it, so a proxy that nobody tried for that long is not punished for an old episode.
 - **No proxy usable.** When every proxy the worker holds is blocked for a host and none is free to claim, the
   worker's requests to that host pause until a block it knows of ends or another worker gives a proxy back (it looks
   again at once when a block ends, else every 5 s, `FILL_SECONDS`) (one warning at the
@@ -148,9 +166,9 @@ on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list nev
 | Command | Does |
 |---|---|
 | `linecaster broker status PATH [--json]` | from one listing: the format; the workers (machine, run, time since the last renew), live and stale; the worker slots per machine; per kind of resource how many there are, held by a live lease, held only by expired ones (stale), free, blocked per scope with the latest end, broken (`*`), and the expired marks. Ids only, no credential (proxies are hashes). `--json`: one JSON object with the same content |
-| `linecaster broker clean PATH` | removes what has expired: heartbeats and leases (slots and resources) not renewed within the lease time, marks past their end. Safe while a run uses the broker |
+| `linecaster broker clean PATH` | removes what has expired: heartbeats and leases (slots and resources) not renewed within the lease time, marks past their end and their `keep` (a kept mark holds a proxy's doubling). Safe while a run uses the broker |
 | `linecaster broker clean PATH --leases` | also every heartbeat, slot lease and resource lease, live or not; the marks (blocks) stay |
-| `linecaster broker clean PATH --marks` | also every mark, live or not: blocked and broken proxies are tried again at once |
+| `linecaster broker clean PATH --marks` | also every mark, live, kept or not: blocked and broken proxies are tried again at once, and their doubling starts again at 60 s |
 | `linecaster broker purge PATH` | resets the broker: removes every file of its layout, `broker.json` among them, so the next run starts as on an empty folder |
 
 `clean` and `purge` take `--dry-run` (list what would be removed, remove nothing) and `-v` (list each removed file);

@@ -55,6 +55,19 @@ the tags; the first is `v0.1.0`.
   What to do: nothing to keep a polite run; no setting restores the flat hour through proxies, and `block_ttl` is the
   ceiling of the doubling (`proxies: {block_ttl: 72h}` for a host whose block lasts three days); `max_pause` bounds
   the pauses direct.
+- The doubling of a proxy's blocks (and of a broken proxy's time out) travels with the proxy through the broker: each
+  mark records its last wait without `Retry-After` (`last_wait`) and is kept that long past its end (`keep`), so a
+  worker that claims a released proxy continues the doubling (60, 120, 240 s across workers) instead of starting at
+  60 s; before, each worker kept its own and a proxy that changed hands started again. The doubling starts again after
+  a successful response through the proxy from that host (its ended marks are deleted then), or when the next block
+  comes more than the last wait after the last one ended (a quiet period; also on the direct path, per host,
+  `linecaster.net.http.doubling`). The broker's layout, file names and format (`linecaster.broker/1`) are unchanged.
+  Who is affected: runs through proxies whose hosts block without `Retry-After` (their proxies stay out longer when
+  they change hands), and workers of 0.4.0 and of this version sharing a broker: 0.4.0 reads the new marks' ends as
+  before, ignores the new fields and deletes a mark at its end (the doubling then starts again), and this version
+  reads 0.4.0's marks and starts their doubling at 60 s. `linecaster broker clean` keeps a mark during its `keep`
+  (`status` no longer counts it expired); `clean --marks` removes it, and the doubling starts again. What to do:
+  nothing; `proxies: {block_ttl: ...}` remains the ceiling.
 - A broken proxy (a proxy error, no connection to it) is left out after 3 such errors in a row (`broken_after`; it
   was 1), first for 300 s (`broken_ttl`; it was 3600 s), doubling each time it breaks again before it carries an
   answer, at most `block_ttl`. Who is affected: runs through proxy lists with unreliable proxies (each costs up to

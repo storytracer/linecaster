@@ -48,16 +48,20 @@ expected). The connection decides the reaction:
 
 How long a block lasts is one function for both paths (`linecaster.net.http.block_wait`): with `Retry-After`
 (seconds or an HTTP-date) exactly that, at least 1 s; without it 60 s, then twice the last wait for each block that
-repeats (for that host, and through proxies for that proxy), at most `block_ttl` through proxies and `max_pause`
-direct. A successful response starts the doubling again: direct the host's, through proxies that proxy's at that
-host. A block is never an attempt: the request that got it is tried again after the pause (direct) or at once through
+repeats (for that host, and through proxies for that proxy at that host), at most `block_ttl` through proxies and
+`max_pause` direct. Direct, the worker keeps each host's doubling in memory (it owns its IP); through proxies the
+doubling travels with the proxy in the broker's marks, so a worker that claims a released proxy continues it
+([broker](broker.md#proxies)). **The doubling starts again** at 60 s after a successful response from the host
+(through proxies: through that proxy), or after a quiet period: when the next block comes more than the last wait
+after the last block there ended (`linecaster.net.http.doubling`). A response to a request sent before a block that
+still holds changes nothing. A block is never an attempt: the request that got it is tried again after the pause (direct) or at once through
 another proxy, with all its retries left.
 
 A **broken proxy** fails attempts itself (a proxy error, no connection to the proxy, `PROXY_ERRORS`) `broken_after`
 times in a row: it is left out for every host, first for `broken_ttl`, twice as long each time it breaks again before
 it carries an answer, at most `block_ttl`. A timeout reading the server's answer is a slow server, not a broken proxy:
 it is retried and leaves the proxy in. Blocks and broken proxies are marks in the [broker](broker.md), so every
-worker that shares it leaves the proxy out; the doubling's last wait is kept by the worker that marked it.
+worker that shares it leaves the proxy out, and continues their doubling when it claims the proxy.
 
 ### max_pause
 
