@@ -54,9 +54,8 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
   and executors for everything. Every executor and storage datatrove supports then works.
 - **torch never changes as a side effect of a resolve** (a new dependency with its own torch bound, another package
   index, `uv run --with` on Jobs): a change of build is deliberate, applies to one named environment and is recorded
-  in NOTES.md, and parity is then compared at CER level, not against the goldens. The PyPI 2.14 wheels are the CUDA
-  13 build on Linux (aarch64 and x86_64), which the GB10 needs, and 2.14 is kraken's upper bound; another build moves
-  numerics.
+  in NOTES.md. The PyPI 2.14 wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which the GB10 needs, and
+  2.14 is kraken's upper bound; another build moves numerics.
 - **Python 3.12 (`requires-python >=3.12`) and uv ≥ 0.13.6 (`[tool.uv] required-version`) on every machine.** All
   machines then read the same locks.
 
@@ -71,9 +70,7 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
   sources, locks and wheels for both machines. uv's `required-environments` does not work in scripts, so the test
   does it.
-- **Scripts with kraken list the fork directly, and the numerically relevant versions are pinned with
-  `constraint-dependencies`, the same list in every engine script.** Sources apply only to a script's direct
-  dependencies, and every script must compute the same numbers.
+- **Scripts with kraken list the fork directly.** Sources apply only to a script's direct dependencies.
 - **The repository is not a uv workspace.** Engine pins conflict.
 - **No default presets**: every slot is picked or filled by a recipe. A run then names exactly what it ran.
 
@@ -90,21 +87,16 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Measurements are evidence records with their source; claims are never measurements.** Every number in the docs
   can then be traced.
 
-## Determinism and parity
+## Determinism
 
 - **One page per request; batching only within a page.** A page's result then depends only on the page, never on
   what else is in flight.
-- **squiddleocr's outputs (`~/data/goldens/squiddleocr-<sha>/<machine>/`) are the reference for the squiddle
-  combination**: `tests/parity/compare_goldens.py RUN GOLDENS` compares page records with the golden hOCR line by
-  line (line box, text, every word box), in-process and served. The modular pipeline must keep reproducing them.
-- **Goldens are per machine; across machines compare at CER level, never byte for byte. A change that moves numerics
-  (torch build, ONNX Runtime, decoding) is compared at CER level and recorded in NOTES.md.** GPU numerics differ.
 
 ## Machines
 
-- **Validate on both machines**: spark (DGX Spark, GB10, aarch64, CUDA 13; the main development machine, goldens
-  recorded here) and forge (RTX 4000 SFF Ada 20 GB, x86_64, CUDA 13.4; the x86 validation machine, same GPU
-  generation as HF Jobs' L4, with its own goldens). No macOS for now. Both architectures run in production.
+- **Validate on both machines**: spark (DGX Spark, GB10, aarch64, CUDA 13; the main development machine) and forge
+  (RTX 4000 SFF Ada 20 GB, x86_64, CUDA 13.4; the x86 validation machine, same GPU generation as HF Jobs' L4). No
+  macOS for now. Both architectures run in production.
 
 ## Hugging Face Jobs
 

@@ -1,6 +1,6 @@
 [project]
 name = "linecaster"
-version = "0.3.1"
+version = "0.3.2"
 description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognizers plus post-processing as datatrove pipelines"
 readme = "README.md"
 license = "Apache-2.0"
@@ -71,12 +71,11 @@ pybookget = { url = "https://github.com/storytracer/pybookget/archive/45814da404
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # the markers (linecaster.testing.markers): gpu and network tests are skipped where they cannot run (the conftest
-# hook); CI runs -m "not gpu and not network and not parity" -n auto. Serial by default, so a single test, -s and
+# hook); CI runs -m "not gpu and not network" -n auto. Serial by default, so a single test, -s and
 # --pdb behave as usual; -n auto (pytest-xdist) runs the suite on every core
 addopts = ["--strict-markers"]
 markers = [
     "gpu: needs a CUDA device; skipped without one",
     "network: downloads model weights or reaches the internet; skipped without the network",
     "slow: takes over about 10 s",
-    "parity: compares outputs against the goldens",
 ]

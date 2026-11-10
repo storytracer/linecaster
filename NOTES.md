@@ -2,6 +2,23 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The goldens retired (2026-11-10)
+
+squiddleocr's goldens (7c8a052) were the check that the modular pipeline reproduces squiddleocr line for line; they
+did that through the migration (sample-60 1,560/1,560 lines, tables-7 651/651, in-process and served, spark and
+forge). With the migration done they are retired: no standing check replaces them, and a change that moves numerics
+is judged when it is made. Removed: `tests/parity/` (`compare_goldens.py`, `compare_exports.py`), the `parity`
+marker, and the `constraint-dependencies` list in every script, which held the goldens' versions. Relocking without
+the list kept every third-party version (only the constraint entries left the locks; the test scripts' locks also
+caught up with the local packages' versions). HF Jobs no longer pin those packages in `uv run --with`.
+
+The last comparison, on a CoreWeave A40 (driver 535 with NVIDIA's CUDA 13 forward-compatibility library, x86_64,
+`--on ray`, served, one task) against spark's goldens for sample-60: 1,560/1,560 lines present, 1,552 line boxes equal
+(the other eight within 1 to 6 px), 1,513 lines equal in text and every word box, 32/60 pages exact; 14 character
+edits in 85,206 characters (CER 0.00016), all single uncertain glyphs (quote styles, a space before a colon, ſ/s,
+¬/-, â/á). The catalog's evidence records and provenance that name the goldens stay as they are: they record what
+was measured.
+
 ## Ray on Kubernetes: task reservations and threads (2026-11-10)
 
 Planning a Ray cluster of one-GPU worker pods on a Kubernetes cluster, the first draft gave each worker 4 CPUs. With

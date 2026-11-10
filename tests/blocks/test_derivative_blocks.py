@@ -172,7 +172,7 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
     deps = jobs.dependencies("abc123", jobs.ROOT / "pipelines/transcribe_modular.py")
     assert deps[0] == "linecaster[pybookget] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     assert "opencv-contrib-python @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz#subdirectory=stubs/opencv-contrib-python" in deps
-    assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in deps and "pillow==12.3.0" in deps
+    assert "kraken @ git+https://github.com/storytracer/kraken@48eecb78" in deps
     assert jobs.dependencies("abc123", engines=False) == [
         "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
     with pytest.raises(PipelineConfigError, match="ENGINE_SCRIPT"):     # engines expected, no script: not linecaster alone

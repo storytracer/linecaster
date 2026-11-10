@@ -90,7 +90,7 @@ are, and a test keeps them complete as signatures change.
   `engines/<engine>/tests/`. Reason: the protocol and the contracts hold for every implementation, not only the
   ones a pipeline happens to run.
 - A test that needs a CUDA device is marked `gpu`, one that downloads weights or reaches the internet `network`, one
-  over about 10 s `slow`, one that compares against the goldens `parity` (`--strict-markers`). Reason: the default
+  over about 10 s `slow` (`--strict-markers`). Reason: the default
   run skips what a machine cannot run, and CI runs what a CPU can.
 - Tests use the fake engines, the fake chat server and the fake service of `linecaster.testing`, not copies of their
   own. Reason: one fake per step behaves the same in every test.

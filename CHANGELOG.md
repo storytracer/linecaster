@@ -4,6 +4,21 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.3.2 (2026-11-10)
+
+### Upgrade notes
+
+- The scripts no longer pin the numerically relevant versions (`constraint-dependencies`: ONNX Runtime, the CUDA
+  libraries, cuDNN, transformers, tokenizers, Lightning, Pillow, SciPy, scikit-image). The locks still hold the same
+  versions; a relock with `--upgrade` now moves them. HF Jobs (`linecaster.runtime.jobs.dependencies`) no longer add
+  those pins to `uv run --with`, so a Job resolves their newest versions. torch stays at 2.14 (linecaster-kraken's pin).
+
+### Removed
+
+- squiddleocr's goldens as the reference for the squiddle combination: `tests/parity/compare_goldens.py`,
+  `tests/parity/compare_exports.py` and the `parity` pytest marker. They served the migration from squiddleocr; the
+  last comparison is in NOTES.md.
+
 ## 0.3.1 (2026-11-10)
 
 ### Upgrade notes

@@ -125,7 +125,7 @@ are written by `linecaster catalog pin`.
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
-Measurements of a whole run (goldens, the pipeline's CER) are the recipe's evidence. A derivative's recipe
+Measurements of a whole run (the pipeline's CER, its speed) are the recipe's evidence. A derivative's recipe
 lives in this catalog too (squiddleocr's `squiddle`); the derivative names it by id.
 
 ### Evidence (`evidence/<date>-<subject>-<dataset>.yaml`)

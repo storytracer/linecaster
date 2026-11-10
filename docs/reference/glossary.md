@@ -139,7 +139,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **engine API** | What an engine package may import from linecaster besides the data model: `linecaster.engines.api` (the `Engine` protocol, `Capabilities`, the weight helpers). | not the HTTP routes of `linecaster serve` |
 | **fake engine** | A deterministic CPU engine of `linecaster.testing` for tests, one per model step, registered under `fake.<step>.v1` by `register_fakes()` only. | never in a catalog preset |
 | **conformance check** | `check_engine` (the engine protocol) or `check_block` (a block's contract against what it does, its `to_dict()`, pickling, `warm_up()` and failed pages), from `linecaster.testing`. | not a parity check |
-| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`, `parity`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
+| **marker** | A pytest marker of linecaster's tests: `gpu`, `network`, `slow`. Tests marked `gpu` or `network` skip where the device or the network is missing. | |
 | **CI workflow** | `.github/workflows/ci.yml`: the core's tests and checks on a CPU, on every push and pull request to main. | not a workflow |
 
 ## Docs and changes

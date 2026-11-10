@@ -4,8 +4,7 @@
   read from the pipeline script's inline metadata (``ENGINE_SCRIPT``, the modular pipeline script, for a derivative
   that needs the engine packages without a script of its own): its dependencies with the script's sources spelled out as URLs at
   ``commit`` (linecaster and the engine packages from GitHub's source archive, the kraken fork with
-  git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none)
-  and its version pins, for the packages its lock resolves.
+  git+, the OpenCV stub: PaddleX pins OpenCV's GUI build, which needs libGL; the Jobs image has none).
 * ``JobsExecutor``: datatrove's ``JobsPipelineExecutor`` with the tasks' logs as JSON lines (``runtime.logs``;
   the pipeline scripts set ``LINECASTER_LOG_JSON`` in their Jobs' environment); the other two build on it.
 * ``WheelJobsExecutor``: ``JobsExecutor`` that also mounts volumes into every Job. A private
@@ -36,7 +35,7 @@ from ..errors import PipelineConfigError
 REPO = "https://github.com/storytracer/linecaster"
 #: the checkout the launcher runs from (pipelines, engines, stubs)
 ROOT = Path(__file__).resolve().parents[3]
-#: the modular pipeline script (in the checkout): its metadata lists every engine package with its sources and pins,
+#: the modular pipeline script (in the checkout): its metadata lists every engine package with its sources,
 #: for ``dependencies(commit, ENGINE_SCRIPT)`` from a derivative's own pipeline
 ENGINE_SCRIPT = ROOT / "pipelines" / "transcribe_modular.py"
 WHEEL_MOUNT = "/wheels"
@@ -84,10 +83,9 @@ def _name(requirement: str) -> str:
 def dependencies(commit: str, script: str | Path | None = None, engines: bool = True) -> list[str]:
     """``uv run --with`` requirements for a Job at linecaster ``commit`` (must be pushed) from the inline
     metadata of ``script`` (a pipeline): its dependencies with the script's sources spelled out as URLs at
-    ``commit`` (``url`` sources as they are) and its version pins, for the packages its lock resolves, all read
-    from the script and lock as they are at ``commit`` (``at_commit``).
+    ``commit`` (``url`` sources as they are), read from the script as it is at ``commit`` (``at_commit``).
     ``engines=False`` (a VLM pipeline whose image brings vLLM, or a CPU pipeline): linecaster with the script's
-    extras and its ``url``-source dependencies (pybookget), no engines and no pins; without a script, linecaster
+    extras and its ``url``-source dependencies (pybookget), no engines; without a script, linecaster
     alone. Engines without a script are a ``PipelineConfigError``: give ``ENGINE_SCRIPT`` (the modular pipeline's
     engines) or the pipeline's own script.
 
@@ -95,8 +93,6 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
     some images (``vllm/vllm-openai``) have uv but no git executable; pybookget the same way (a ``url``
     source). The kraken fork still needs git (its version comes from git history); the default Jobs image,
     which engine Jobs use, has it."""
-    import tomllib
-
     repo = f"{REPO}/archive/{commit}.tar.gz"
     if script is None:
         if engines:
@@ -129,10 +125,6 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
             deps.append(req)
     if not engines:
         return light or [f"linecaster @ {repo}"]
-    # --with installs what it is given: pin only what the script's environment really contains
-    lock = script.with_name(script.name + ".lock")
-    resolved = {p["name"] for p in tomllib.loads(at_commit(lock, commit))["package"]}
-    deps += [c for c in uv.get("constraint-dependencies", []) if _name(c) in resolved]
     return deps
 
 

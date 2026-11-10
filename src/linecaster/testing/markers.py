@@ -15,7 +15,6 @@ MARKERS = {
     "gpu": "needs a CUDA device; skipped without one",
     "network": "downloads model weights or reaches the internet; skipped without the network",
     "slow": "takes over about 10 s",
-    "parity": "compares outputs against the goldens",
 }
 #: where the network check connects (Hugging Face, where the weights come from)
 PROBE = ("huggingface.co", 443)

@@ -448,8 +448,8 @@ if __name__ == "__main__":
     run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
 ```
 
-A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need, the
-same constraint list), and may lay its own defaults over the shape's options: an `options` that calls the shape's and
+A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need), and
+may lay its own defaults over the shape's options: an `options` that calls the shape's and
 then `ap.set_defaults(...)` (`--recipe` too, which `run` adds before the script's options), and a `pipeline` that
 fills a default depending on other options before it calls the shape's. Its run records name its script; its
 `pipeline_sha256` is the shape's for the same options.
@@ -485,4 +485,4 @@ steps `model` (read as `steps`); a row without `schema` (the oldest format) name
 `linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
 pipeline script's metadata; without a script it raises unless `engines=False` (linecaster alone). A derivative
 whose own pipeline needs the engine packages passes `ENGINE_SCRIPT` (the modular pipeline script of the checkout,
-`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources and pins.
+`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources.
