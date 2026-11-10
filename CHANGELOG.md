@@ -6,6 +6,12 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Upgrade notes
+
+- `linecaster.runtime.jobs` no longer has `WheelJobsExecutor`, `wheel_volume`, `build_wheel`, `upload_wheel`,
+  `bucket_parts`, `WHEEL_MOUNT` or `ENGINE_SCRIPT`. They served derivatives that are retired. A derivative's
+  pipeline gets its Jobs' dependencies from its own script: `dependencies(commit, "<its script>.py")`.
+
 ### Changed
 
 - A source is declared by the package that needs it: `linecaster-kraken` declares the kraken fork,
@@ -15,8 +21,15 @@ the tags; the first is `v0.1.0`.
 - `linecaster.runtime.jobs.dependencies` takes the installed packages' own sources from the script's lock (pybookget,
   the kraken fork at its locked commit, the OpenCV stub), so a Job gets them whether or not the script lists them.
   A Job with `engines=False` now also installs the script's `s3fs` extra.
+- Only `linecaster-kraken` pins torch; `pipelines/transcribe_page.py` drops its `torch==2.14.0` override (surya-ocr
+  allows `>=2.7,<3`; the lock keeps 2.14.0). `tests/test_scripts.py` fixes each lock's torch.
 - The [compatibility](docs/reference/compatibility.md#versions-and-releases) reference states the versioning policy:
   while 0.x, a breaking change is a minor release (0.3 → 0.4), everything else a patch.
+
+### Removed
+
+- `linecaster.runtime.jobs`: `WheelJobsExecutor`, `wheel_volume`, `build_wheel`, `upload_wheel`, `bucket_parts`,
+  `WHEEL_MOUNT` and `ENGINE_SCRIPT` (upgrade notes).
 
 ### Fixed
 

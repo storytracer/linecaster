@@ -11,12 +11,11 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 ## Scope
 
 - **Everything that produces text from images lives here**; evaluation (ocrscout, bhl-ocr-eval) and project
-  pipelines (EBDC, FineBooks) build on linecaster, never the other way round. One direction of dependency keeps
+  pipelines (squiddleocr) build on linecaster, never the other way round. One direction of dependency keeps
   linecaster usable by all of them.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout, the job helpers
   and pipeline-building helpers; example pipelines only as pipeline scripts (`pipelines/`), recipes as catalog
-  entries, and in `tests/`. The EBDC chain lives in `bookcommons/ebdc-pilot-pipeline`, the squiddle pipeline in
-  `storytracer/squiddleocr`, the BHL re-OCR in `finebooks/bhl-commonpile-pipeline`. A project's choices would
+  entries, and in `tests/`. The squiddle pipeline lives in `storytracer/squiddleocr`. A project's choices would
   otherwise become everyone's defaults.
 - **Generic readers only**: folders, buckets, HF datasets, and the standards for items' manifests (IIIF
   Presentation, METS/MODS, also via OAI-PMH, parsed by storytracer/pybookget). Corpus or institution adapters (BHL,
@@ -119,8 +118,7 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **A Job's dependencies come from `linecaster.runtime.jobs.dependencies(commit, script)`, and the commit must be
   pushed.** `uv run --with` drops `[tool.uv.sources]`, so it spells out the script's sources and, from its lock, those
   of the packages it installs.
-- **Private derivatives ship their code as a wheel mounted from a bucket folder (`WheelJobsExecutor`,
-  `wheel_volume`); no credential is stored in a pipeline or a repository.** Pipelines are pickled and recorded.
+- **No credential is stored in a pipeline or a repository.** Pipelines are pickled and recorded.
 
 ## Docs
 

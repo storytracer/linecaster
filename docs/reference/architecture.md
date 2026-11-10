@@ -10,7 +10,7 @@ An open, modular text-recognition suite for print and handwriting (OCR and HTR, 
 combines layout, line, text, table and formula recognizers with post-processing (dehyphenation, recomposition,
 normalization) into reproducible datatrove pipelines that turn page images into text: the text as written, readable
 variants next to it, ALTO, PAGE-XML and hOCR on request. Everything that produces text from images lives here;
-evaluation (ocrscout, bhl-ocr-eval) and project pipelines (EBDC, FineBooks) are built on top of it.
+evaluation (ocrscout, bhl-ocr-eval) and project pipelines (squiddleocr) are built on top of it.
 
 ## Packages
 
@@ -181,8 +181,7 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
 Jobs run the same Python minor version (3.12). `uv run --with` drops `[tool.uv.sources]`:
 `linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
-installed packages' own sources from the script's lock (the commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)). A private derivative ships its code as
-a wheel mounted from a bucket folder (`WheelJobsExecutor`, `wheel_volume`).
+installed packages' own sources from the script's lock (the commit must be pushed) ([pipelines](pipelines.md#hf-jobs-helpers)).
 
 Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
 does) agree through the [broker](broker.md), a folder any executor's workers can reach, on any storage datatrove

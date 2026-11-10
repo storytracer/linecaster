@@ -166,7 +166,7 @@ def test_page_row_reader_reads_parquet_rows_with_errors(tmp_path: Path):
 
 # ------------------------------------------------------------------ jobs
 
-def test_jobs_dependencies_and_wheel_volume(monkeypatch):
+def test_jobs_dependencies():
     from linecaster.runtime import jobs
 
     deps = jobs.dependencies("abc123", jobs.ROOT / "pipelines/transcribe_modular.py")
@@ -177,23 +177,6 @@ def test_jobs_dependencies_and_wheel_volume(monkeypatch):
         "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
     with pytest.raises(PipelineConfigError, match="give the pipeline.s script"):   # engines expected, no script
         jobs.dependencies("abc123")
-    assert jobs.dependencies("abc123", jobs.ENGINE_SCRIPT) == deps
-    vol = jobs.wheel_volume("hf://buckets/ns/runs/run-1/wheels")
-    assert vol == {"type": "bucket", "source": "ns/runs", "mount_path": "/wheels", "read_only": True,
-                   "path": "run-1/wheels"}
-
-    import huggingface_hub
-    seen = {}
-
-    class J:
-        id, url = "j", "u"
-
-    monkeypatch.setattr(huggingface_hub, "run_uv_job", lambda *a, **k: (seen.update(k), J())[1])
-    ex = jobs.WheelJobsExecutor([lambda d, r, w: d], tasks=1, logging_dir="hf://buckets/ns/runs/x",
-                                dependencies=["d"], volumes=[vol])
-    ex._submit_array_index(0, "hf://buckets/ns/runs/x/executor.pik", "token")
-    assert [v.to_dict()["mountPath"] for v in seen["volumes"]] == ["/wheels"]
-    assert huggingface_hub.run_uv_job.__name__ == "<lambda>"     # the wrapper is removed again
 
 
 def test_parquet_reader_without_parquet_files_is_an_error(tmp_path):

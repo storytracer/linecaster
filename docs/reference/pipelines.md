@@ -489,6 +489,5 @@ their sources as PEP 508 URLs (`url` as it is; `git` with its `tag`, `branch` or
 `commit`, any other path an error), then every package reachable from them in the script's lock that comes from no
 index (the sources the packages declare themselves: pybookget, the kraken fork at its locked commit, the OpenCV stub).
 linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need;
-without a script it raises unless `engines=False` (linecaster alone). A derivative
-whose own pipeline needs the engine packages passes `ENGINE_SCRIPT` (the modular pipeline script of the checkout,
-`pipelines/transcribe_modular.py`), whose metadata lists every engine with its sources.
+without a script it raises unless `engines=False` (linecaster alone). A derivative's pipeline runs on Jobs from its
+own script (squiddleocr's `squiddle.py`, its sources pinned to a linecaster tag), read as it is on disk.

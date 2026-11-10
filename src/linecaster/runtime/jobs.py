@@ -6,11 +6,7 @@
   source archive at ``commit``, git sources at their tag, branch or rev, the kraken fork, the OpenCV stub: PaddleX
   pins OpenCV's GUI build, which needs libGL; the Jobs image has none).
 * ``JobsExecutor``: datatrove's ``JobsPipelineExecutor`` with the tasks' logs as JSON lines (``runtime.logs``;
-  the pipeline scripts set ``LINECASTER_LOG_JSON`` in their Jobs' environment); the other two build on it.
-* ``WheelJobsExecutor``: ``JobsExecutor`` that also mounts volumes into every Job. A private
-  derivative ships its code as a wheel: ``upload_wheel`` puts it in a bucket folder, the executor
-  mounts that folder read-only (authorized by the Job's own HF token; no credential is persisted)
-  and ``uv run --with <mount>/<wheel>`` installs it. ``wheel_volume`` builds the mount.
+  the pipeline scripts set ``LINECASTER_LOG_JSON`` in their Jobs' environment); ``GPUJobsExecutor`` builds on it.
 * ``GPUJobsExecutor``: one Job per ``gpus`` datatrove tasks on a multi-GPU flavor (``l4x4``,
   ``l40sx8``): the Job runs its tasks side by side, one process each; task *i* of a Job gets GPU *i*
   (``CUDA_VISIBLE_DEVICES``) and its own loopback port for the servers its pipeline starts.
@@ -23,10 +19,8 @@ import json
 import os
 import re
 from copy import deepcopy
-from urllib.parse import urlsplit, urlunsplit
-
-import subprocess
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from datatrove.executor import JobsPipelineExecutor
 
@@ -35,10 +29,6 @@ from ..errors import PipelineConfigError
 REPO = "https://github.com/storytracer/linecaster"
 #: the checkout the launcher runs from (pipelines, engines, stubs)
 ROOT = Path(__file__).resolve().parents[3]
-#: the modular pipeline script (in the checkout): its metadata lists every engine package with its sources,
-#: for ``dependencies(commit, ENGINE_SCRIPT)`` from a derivative's own pipeline
-ENGINE_SCRIPT = ROOT / "pipelines" / "transcribe_modular.py"
-WHEEL_MOUNT = "/wheels"
 #: a PEP 508 requirement: name, extras, the version or URL, the marker
 _REQ = re.compile(r"\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[(?P<extras>[^\]]*)\])?(?P<rest>[^;]*)(?:;(?P<marker>.*))?$")
 _SCRIPT = re.compile(r"(?m)^# /// script\s*$\n(?P<content>(^#(| .*)$\n)+)^# ///\s*$")
@@ -237,40 +227,6 @@ def dependencies(commit: str, script: str | Path | None = None, engines: bool = 
     return deps
 
 
-def bucket_parts(url: str) -> tuple[str, str]:
-    """``hf://buckets/ns/name[/prefix]`` -> (``ns/name``, ``prefix``)."""
-    parts = url.removeprefix("hf://buckets/").strip("/").split("/")
-    return "/".join(parts[:2]), "/".join(parts[2:])
-
-
-def wheel_volume(folder_url: str, mount_path: str = WHEEL_MOUNT) -> dict:
-    """A read-only bucket volume for ``WheelJobsExecutor(volumes=[...])`` from ``hf://buckets/ns/name/path``."""
-    bucket, path = bucket_parts(folder_url)
-    vol = {"type": "bucket", "source": bucket, "mount_path": mount_path, "read_only": True}
-    if path:
-        vol["path"] = path
-    return vol
-
-
-def build_wheel(project: str | Path, out_dir: str | Path | None = None) -> Path:
-    """``uv build --wheel`` for the project at ``project``; returns the newest wheel."""
-    project = Path(project)
-    out = Path(out_dir) if out_dir else project / "dist"
-    subprocess.run(["uv", "build", "--wheel", "--out-dir", str(out)], cwd=project, check=True,
-                   capture_output=True, text=True)
-    return max(out.glob("*.whl"), key=lambda p: p.stat().st_mtime)
-
-
-def upload_wheel(wheel: str | Path, folder_url: str) -> str:
-    """Upload ``wheel`` to ``folder_url`` (``hf://buckets/...``); returns its URL."""
-    from huggingface_hub import HfFileSystem
-
-    wheel = Path(wheel)
-    url = f"{folder_url.rstrip('/')}/{wheel.name}"
-    HfFileSystem().put_file(str(wheel), url)
-    return url
-
-
 class JobsExecutor(JobsPipelineExecutor):
     """datatrove's ``JobsPipelineExecutor``, its tasks logging JSON lines when ``LINECASTER_LOG_JSON`` is set in
     the Job (``linecaster.runtime.logs.add_task_logger`` in place of datatrove's)."""
@@ -288,32 +244,6 @@ class JobsExecutor(JobsPipelineExecutor):
             return super()._run_for_rank(rank, local_rank, node_rank)
         finally:
             datatrove_jobs.add_task_logger = original
-
-
-class WheelJobsExecutor(JobsExecutor):
-    """``JobsExecutor`` that mounts ``volumes`` (dicts of ``huggingface_hub.Volume`` fields)
-    into every Job it launches."""
-
-    def __init__(self, *args, volumes: list[dict] | None = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.volumes = list(volumes or [])
-
-    def _submit_array_index(self, array_index: int, pik_path: str, token: str) -> str:
-        import huggingface_hub
-        from huggingface_hub import Volume
-
-        original = huggingface_hub.run_uv_job
-        volumes = [Volume(**v) for v in self.volumes]
-
-        def run_uv_job(*args, **kwargs):
-            kwargs["volumes"] = [*(kwargs.get("volumes") or []), *volumes]
-            return original(*args, **kwargs)
-
-        huggingface_hub.run_uv_job = run_uv_job     # the parent imports it at call time
-        try:
-            return super()._submit_array_index(array_index, pik_path, token)
-        finally:
-            huggingface_hub.run_uv_job = original
 
 
 def point_to_gpu(pipeline: list, local: int) -> list:
