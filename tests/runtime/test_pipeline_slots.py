@@ -1,25 +1,17 @@
 """The rule-based slots of the pipeline shapes (``--typography``, ``--recomposition``, ``--normalization``,
 ``--composition``), filled by hand or by a recipe, and the item stage they make: built in the describe mode."""
-from pathlib import Path
-
 import pytest
 
 from linecaster.errors import PipelineConfigError
+from linecaster.pipelines import bind as BIND
+from linecaster.pipelines import transcribe_modular as MODULAR
 from linecaster.runtime import run
 
-from linecaster.pipelines import transcribe_modular as MODULAR
-
-PIPELINES = Path(__file__).resolve().parents[2] / "pipelines"
-BIND = PIPELINES / "bind.py"
 MODELS = ["--layout", "single-region@1", "--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
 
 
-def _describe(shape, argv):
-    return run.describe(shape, argv) if not isinstance(shape, Path) else run.describe_script(shape, argv)
-
-
 def _stages(shape, argv):
-    plan = _describe(shape, argv)
+    plan = run.describe(shape, argv)
     plan.check()
     return [[type(b).__name__ for b in s.blocks] for s in plan.stages], plan
 
@@ -62,6 +54,6 @@ def test_bind_takes_the_item_texts_recipe():
     (blocks,), _ = _stages(BIND, ["P", "OUT", "--no-documents", "--variants", "verbatim_txt"])
     assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "ItemTextWriter"]
     with pytest.raises(PipelineConfigError, match="pick --recomposition and --normalization and --composition"):
-        _describe(BIND, ["P", "OUT"])
+        run.describe(BIND, ["P", "OUT"])
     with pytest.raises(PipelineConfigError, match="nothing to write"):
-        _describe(BIND, ["P", "OUT", "--no-texts", "--no-documents"])
+        run.describe(BIND, ["P", "OUT", "--no-texts", "--no-documents"])
