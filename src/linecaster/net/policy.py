@@ -355,7 +355,8 @@ def rules(s: dict) -> str:
         parts.append(f"blocks on {blocks}: the worker waits Retry-After, else {first} doubling, and stops when the "
                      f"wait would pass {duration(pause)}")
     if proxied:
-        parts.append(f"a proxy broken after {s.get('broken_after', BROKEN_AFTER)} errors in a row, left out "
+        after = s.get("broken_after", BROKEN_AFTER)
+        parts.append(f"a proxy broken after {after} error{'s' if after != 1 else ''} in a row, left out "
                      f"{duration(s.get('broken_ttl', BROKEN_TTL))} doubling up to {duration(ttl)}; no usable proxy: "
                      f"waits, at most {duration(pause)}")
     if "html" not in block and "html" not in stop:
