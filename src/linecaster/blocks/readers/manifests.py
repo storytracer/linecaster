@@ -2,9 +2,9 @@
 (``linecaster[pybookget]``).
 
 A manifest lists an item's pages and their files, in order: an IIIF Presentation manifest (2 or 3) or a METS
-document with MODS (also inside an OAI-PMH response), read by pybookget's ``read_manifest`` and told apart by their
-content. ``ManifestReader`` turns each into one page per image. An entry may also be a IIIF Collection: its manifests
-are read as items, one level deep (pybookget's ``read_collection``). Its entries are manifests the way a file is an entry
+document with MODS (also inside an OAI-PMH response), read by ``linecaster.formats.manifests.read_manifest`` and
+told apart by their content. ``ManifestReader`` turns each into one page per image. An entry may also be a IIIF Collection: its manifests
+are read as items, one level deep (``read_collection``). Its entries are manifests the way a file is an entry
 for datatrove's readers (manifest files under a folder, a ``paths_file`` of manifest URLs or paths), or Parquet item
 tables with one manifest link per row (``manifest_key``); entries are distributed over tasks in turn, so an item's
 pages stay in one task.
@@ -142,7 +142,7 @@ class ManifestReader(Contracted, BaseDiskReader):
         item_key: the column of an item table that holds each item's id; needs ``manifest_key``. Default: the id
             from the manifest entry.
         read_metadata: an item table's other columns go into the metadata of each of the item's pages.
-        manifest_format: ``iiif`` or ``mets`` forces the format; default: pybookget tells them apart by content.
+        manifest_format: ``iiif`` or ``mets`` forces the format; default: told apart by content.
         item_id_pattern: a regular expression whose first group, found in the manifest entry, is the item id (instead
             of the last path segment); an entry it does not match is a ``PipelineConfigError``.
         existing_ocr: also fetch each page's own OCR file (``transcription_file``).
@@ -287,8 +287,9 @@ class ManifestReader(Contracted, BaseDiskReader):
             yield from self._manifest_pages(fetcher, saved, item_id, ref, extra)
 
     def _members(self, data: bytes) -> list | None:
-        """The members of a IIIF Collection (pybookget's ``read_collection``), or None for a manifest."""
-        from pybookget.formats.manifest import detect_format
+        """The members of a IIIF Collection (``linecaster.formats.manifests.read_collection``), or None for a
+        manifest."""
+        from ...formats.manifests import detect_format, read_collection
 
         if self.manifest_format == "mets":
             return None
@@ -297,15 +298,13 @@ class ManifestReader(Contracted, BaseDiskReader):
                 return None
         except ValueError:             # read_manifest says what is wrong with it
             return None
-        from pybookget.formats.manifest import read_collection
-
         return read_collection(data)
 
     def _manifest_pages(self, fetcher: HTTPFetcher, saved, item_id: str | None, ref: str, extra: dict,
                         in_collection: bool = False):
         """The pages of the manifest ``ref`` (as ``_pages`` yields them); a IIIF Collection's manifests, each an item
         named by its own link (one level: a collection in a collection raises ``NotImplementedError``)."""
-        from pybookget.formats.manifest import read_manifest
+        from ...formats.manifests import read_manifest
 
         start, t = time.time_ns(), time.perf_counter()
         try:
@@ -313,7 +312,10 @@ class ManifestReader(Contracted, BaseDiskReader):
             members = None if in_collection else self._members(data)
             if members is None:
                 item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
-                manifest = read_manifest(data, fetcher.config, format=self.manifest_format)
+                c = fetcher.config
+                manifest = read_manifest(data, self.manifest_format, iiif_format=c.iiif_format,
+                                         iiif_quality=c.iiif_quality, image_groups=tuple(c.mets_image_groups),
+                                         ocr_groups=tuple(c.mets_ocr_groups))
         except NotImplementedError:
             raise
         except Exception as e:  # noqa: BLE001 - a broken manifest must not stop the task
