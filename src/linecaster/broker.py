@@ -23,7 +23,8 @@ listed before the other's write had landed) gives it up too: it lost the claim r
 
 A **mark** says that something holds for a resource in a scope (a host, or ``*`` for every scope) until a time: it
 lasts ``ttl`` seconds from its file's modification time. Marks are written once and never changed; whoever sees one
-expired deletes it.
+expired deletes it, after its ``keep`` seconds past its end if it has them (its data stays readable that long, e.g. a
+proxy's doubling, ``Resource.last``; a broker that does not know ``keep`` deletes it at its end).
 
 The **worker identity** is a datatrove worker slot, not a process: on Ray every task is a new process, and leases tied
 to processes would change hands with every task. At its first use a process claims a free slot of its machine
@@ -181,11 +182,17 @@ class Resource:
 
     holder: str | None = None
     marks: dict[str, float] = field(default_factory=dict)
+    #: scope -> (end, data) of the mark that ends last, live or kept past its end (``keep``)
+    last: dict[str, tuple[float, dict]] = field(default_factory=dict)
 
     def marked(self, scope: str) -> float | None:
         """The end of the latest live mark for ``scope`` or for every scope, or None."""
         ends = [u for s, u in self.marks.items() if s in (_safe(scope), EVERY_SCOPE)]
         return max(ends) if ends else None
+
+    def last_mark(self, scope: str) -> tuple[float, dict] | None:
+        """(end, data) of the mark for exactly ``scope`` that ends last, live or kept past its end, or None."""
+        return self.last.get(_safe(scope) if scope != EVERY_SCOPE else scope)
 
 
 class Broker:
@@ -225,7 +232,7 @@ class Broker:
         self._lock = threading.RLock()
         self._held: dict[tuple[str, str], str] = {}           # (kind, id) -> lease file name
         self._adopted: set[str] = set()                       # kinds whose inherited leases were looked for
-        self._marks: dict[str, tuple[str, float]] = {}        # mark path -> (scope, end on the storage's clock)
+        self._marks: dict[str, tuple[float, float, dict]] = {}   # mark path -> (end on the storage's clock, keep, data)
         self._count = itertools.count()
         self._started = clock()
         self._listeners: list[Callable[[], None]] = []
@@ -497,7 +504,7 @@ class Broker:
 
     # ------------------------------------------------------------------ marks
 
-    def mark(self, kind: str, rid: str, scope: str, until: float, **data) -> str:
+    def mark(self, kind: str, rid: str, scope: str, until: float, keep: float = 0.0, **data) -> str:
         """Marks a resource for a scope until a time; returns the mark's path. The mark lasts ``until - now`` seconds
         from its file's modification time.
 
@@ -506,35 +513,48 @@ class Broker:
             rid: the resource's id.
             scope: what the mark holds for (a host), or ``*`` (``EVERY_SCOPE``) for everything.
             until: the end, seconds since the epoch on the broker's clock.
+            keep: seconds the mark's file is kept past its end, its data readable (``Resource.last``), no longer
+                holding; 0: deleted at its end.
             **data: what else the mark records (JSON values: a status, ...).
         """
         now = self.clock()
         path = f"{kind}/{rid}/marks/{_safe(scope) if scope != EVERY_SCOPE else scope}/" \
                f"{_stamp(until)}-{self.worker}.{next(self._count)}.json"
-        self._write(path, {"ttl": round(until - now, 3), "until": until, "worker": self._worker, **data})
+        record = {"ttl": round(until - now, 3), "until": until, "worker": self._worker, **data}
+        if keep > 0:
+            record["keep"] = round(keep, 3)
+        self._write(path, record)
         with self._lock:
-            self._marks[path] = (scope, until)
+            self._marks[path] = (until, max(0.0, keep), dict(data))
         return path
 
-    def _mark_end(self, path: str, info: dict) -> float | None:
+    def _mark_info(self, path: str, info: dict) -> tuple[float, float, dict] | None:
+        """(end, keep, data) of the mark at ``path`` (``mark``), read once; None when it cannot be read. A mark
+        without ``keep`` (an earlier version's) is kept 0 s past its end."""
         with self._lock:
             known = self._marks.get(path)
         if known is not None:
-            return known[1]
+            return known
         try:
             with self.folder.open(path) as f:
                 record = json.load(f)
             ttl = float(record["ttl"])
+            keep = float(record.get("keep") or 0.0)
         except FileNotFoundError:
             return None                                       # expired and deleted by another worker meanwhile
-        except (ValueError, KeyError, TypeError) as e:
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
             logger.debug("broker mark {path} unreadable (being written?), skipped: {error}", path=path, error=e)
             return None
         start = modified(info)
         end = (start + ttl) if start is not None else float(record.get("until") or 0.0)
+        data = {k: v for k, v in record.items() if k not in ("ttl", "until", "keep")}
         with self._lock:
-            self._marks[path] = ("", end)
-        return end
+            self._marks[path] = (end, max(0.0, keep), data)
+        return end, max(0.0, keep), data
+
+    def _mark_end(self, path: str, info: dict) -> float | None:
+        known = self._mark_info(path, info)
+        return None if known is None else known[0]
 
     def marks(self, kind: str, rid: str, scope: str) -> list[float]:
         """Returns the ends (seconds since the epoch, broker's clock) of a resource's live marks for ``scope``, those
@@ -552,24 +572,53 @@ class Broker:
         return sorted(ends)
 
     def _live_marks(self, listing: dict[str, dict], prefix: str) -> list[float]:
+        return [end for end, _ in self._kept_marks(listing, prefix) if end > self.clock()]
+
+    def _kept_marks(self, listing: dict[str, dict], prefix: str) -> list[tuple[float, dict]]:
+        """(end, data) of the marks under ``prefix`` that hold or are kept past their end (``keep``); deletes the
+        others."""
         now, out = self.clock(), []
         for path, info in listing.items():
             if not path.startswith(prefix) or not path.endswith(".json"):
                 continue
-            end = self._mark_end(path, info)
-            if end is None:
+            known = self._mark_info(path, info)
+            if known is None:
                 continue
-            if end <= now:
+            end, keep, data = known
+            if end + keep <= now:
                 self._rm(path)
                 with self._lock:
                     self._marks.pop(path, None)
             else:
-                out.append(end)
+                out.append((end, data))
         return out
 
+    def forget_ended(self, kind: str, rid: str, scope: str) -> int:
+        """Deletes a resource's marks for exactly ``scope`` that have ended, kept or not: what they keep no longer
+        holds (a proxy's doubling after a successful response). Returns how many it deleted.
+
+        Args:
+            kind: the kind of resource.
+            rid: the resource's id.
+            scope: the scope (a host, or ``*``).
+        """
+        prefix = f"{kind}/{rid}/marks/{_safe(scope) if scope != EVERY_SCOPE else scope}/"
+        now, n = self.clock(), 0
+        for path, info in self._list(prefix).items():
+            if not path.startswith(prefix) or not path.endswith(".json"):
+                continue
+            known = self._mark_info(path, info)
+            if known is not None and known[0] <= now:
+                self._rm(path)
+                with self._lock:
+                    self._marks.pop(path, None)
+                n += 1
+        return n
+
     def survey(self, kind: str) -> dict[str, Resource]:
-        """Returns every resource of ``kind`` that has a valid lease or a live mark, from one listing of the kind:
-        id -> ``Resource`` (its holder, its marks per scope). Expired leases and marks are deleted.
+        """Returns every resource of ``kind`` that has a valid lease or a mark that holds or is kept past its end,
+        from one listing of the kind: id -> ``Resource`` (its holder, its live marks per scope, the data of its last
+        mark per scope). Expired leases and marks are deleted.
 
         Args:
             kind: the kind of resource.
@@ -593,9 +642,13 @@ class Broker:
                 if valid:
                     out.setdefault(rid, Resource()).holder = valid[0][1]
             else:
-                ends = self._live_marks(entries, prefix)
-                if ends:
-                    out.setdefault(rid, Resource()).marks[scope] = max(ends)
+                kept = self._kept_marks(entries, prefix)
+                if kept:
+                    r = out.setdefault(rid, Resource())
+                    r.last[scope] = max(kept, key=lambda m: m[0])
+                    ends = [end for end, _ in kept if end > self.clock()]
+                    if ends:
+                        r.marks[scope] = max(ends)
         return out
 
     def fair_share(self, kind: str, free: int) -> int:
@@ -684,19 +737,21 @@ def _scan(b: Broker) -> list[dict]:
     """Every file of the broker's folder from one listing, with what it is and whether it is live: per file the
     ``Entry`` (``entry``), its ``age`` (seconds since its last write, by the storage's modification time), ``live``
     (a heartbeat or lease written within the lease time, a mark not expired; None for a mark whose end could not be
-    read) and, for a mark, its ``end``."""
+    read) and, for a mark, its ``end`` and whether it is ``kept`` past its end (``keep``)."""
     out = []
     for path, info in sorted(b._list("").items()):
         e = parse_path(path)
         if e.category == "lease" and e.lease is None:
             e = Entry(path, "other")
         age = b._age(info)
-        row = {"entry": e, "age": age, "live": None, "end": None}
+        row = {"entry": e, "age": age, "live": None, "end": None, "kept": False}
         if e.category in ("heartbeat", "lease"):
             row["live"] = age < b.lease_ttl
         elif e.category == "mark":
-            row["end"] = b._mark_end(path, info)
-            row["live"] = None if row["end"] is None else row["end"] > b.clock()
+            known = b._mark_info(path, info)
+            if known is not None:
+                row["end"], row["live"] = known[0], known[0] > b.clock()
+                row["kept"] = not row["live"] and known[0] + known[1] > b.clock()
         out.append(row)
     return out
 
@@ -723,7 +778,7 @@ def survey_all(folder, now: float | None = None, lease_ttl: float = LEASE_TTL) -
     (the ids with a lease or a mark file), ``held`` (``live``: a valid lease; ``stale``: only expired leases, free in
     effect until ``clean`` removes them), ``free`` (no lease file), ``holders`` (worker -> resources it holds),
     ``blocked`` (scope -> ``{"resources": n, "until": latest end}``, live marks for one scope), ``broken`` (the same
-    for scope ``*``, or None) and ``expired_marks``.
+    for scope ``*``, or None) and ``expired_marks`` (past their end and their ``keep``: what ``clean`` removes).
 
     Args:
         folder: the broker's folder, any fsspec path (or a datatrove ``DataFolder``).
@@ -755,7 +810,7 @@ def survey_all(folder, now: float | None = None, lease_ttl: float = LEASE_TTL) -
             if row["live"]:
                 ends = k["blocked"].setdefault(e.scope, {})
                 ends[e.rid] = max(ends.get(e.rid, 0.0), row["end"])
-            elif row["live"] is False:
+            elif row["live"] is False and not row["kept"]:
                 k["expired_marks"] += 1
     out_kinds = {}
     for (kind, rid), found in sorted(leases.items()):
@@ -831,7 +886,8 @@ def clean(folder, *, leases: bool = False, marks: bool = False, dry_run: bool = 
           confirm: Callable[[list[dict]], bool] | None = None, lease_ttl: float = LEASE_TTL) -> dict:
     """Removes what a broker's folder no longer needs, from one listing: by default only what has expired (safe while
     a run uses the broker): heartbeats and leases (worker slots and resources) not renewed within the lease time,
-    and marks past their end. ``broker.json`` and files that are not the broker's are never removed.
+    and marks past their end and the seconds they are kept after it (``keep``: a proxy's doubling). ``broker.json``
+    and files that are not the broker's are never removed.
 
     ``leases`` also removes every heartbeat, slot lease and resource lease, live or not: the cleanup after a hard
     kill (a killed run's leases look valid for up to the lease time, so a relaunch gets new slots and finds every
@@ -871,7 +927,7 @@ def clean(folder, *, leases: bool = False, marks: bool = False, dry_run: bool = 
         if category not in CLEANED:
             continue
         forced = marks if category == "marks" else leases
-        if live is False or forced:
+        if (live is False and not row["kept"]) or forced:
             removed[category].append({"path": e.path, "age": round(row["age"], 3), "live": live is not False})
     live = [f for c in CLEANED for f in removed[c] if f["live"]]
     result = {"path": b.path, "dry_run": dry_run, "aborted": False, "removed": removed, "live": live}

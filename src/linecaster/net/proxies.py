@@ -23,8 +23,13 @@ How many proxies a worker holds is its ``per_worker`` setting (an HTTP policy's 
   usable, then one more at each check of its pool, ``rebalance``) up to N, never more.
 
 A block is a mark on the proxy for that host until the end the server asked for (``Retry-After``), else for a wait
-that doubles on each repeat (``linecaster.net.http.block_wait``), a broken proxy one for every host (scope ``*``); the owner stops using the proxy there and releases it once it is blocked for every host the worker uses,
-and whoever claims it later sees the mark. A proxy is marked and logged once per block: the requests that were already
+that doubles on each repeat (``linecaster.net.http.block_wait``), a broken proxy one for every host (scope ``*``); the
+owner stops using the proxy there and releases it once it is blocked for every host the worker uses, and whoever
+claims it later sees the mark. The doubling travels with the proxy: each mark records its last wait without
+``Retry-After`` (``last_wait``) and is kept that long past its end (the broker's ``keep``), so a worker that claims
+the proxy continues the doubling where its last owner left it; it starts again after a successful response through
+the proxy there (``answered``, which also deletes the ended marks) or once the proxy has gone as long as its last wait
+without a block there after the last one ended (``linecaster.net.http.doubling``). A proxy is marked and logged once per block: the requests that were already
 on their way through it when it was blocked come back blocked or broken too, and go on through another proxy without
 a mark or a message of their own. With several hosts, a worker at its count whose proxies are all blocked for
 one host swaps one of them for a free proxy usable for every host it uses, if there is one, and otherwise pauses that
@@ -48,7 +53,7 @@ from loguru import logger
 
 from ..broker import EVERY_SCOPE, Broker, Resource, resource_id
 from ..errors import PipelineConfigError
-from .http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait
+from .http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait, doubling
 
 #: the broker's kind for proxies
 KIND = "proxies"
@@ -134,7 +139,9 @@ class ProxyPool:
         self._blocked: dict[tuple[str, str], float] = {}      # (proxy id, scope) -> end (broker's clock)
         self._turn: dict[tuple[str, str], float] = {}         # (proxy id, host) -> next free turn (``clock``)
         self._failures: dict[str, int] = {}
-        self._waits: dict[tuple[str, str], float] = {}        # (proxy id, scope) -> its last wait without Retry-After
+        # (proxy id, scope) -> (the last wait without Retry-After or None, when the last block ended), known by this
+        # worker since it claimed the proxy; otherwise the broker's last mark says (``_doubling``)
+        self._waits: dict[tuple[str, str], tuple[float | None, float | None]] = {}
         self._hosts: set[str] = set()
         self._survey: dict[str, Resource] = {}
         self._filled, self._filled_wall = -math.inf, -math.inf
@@ -335,8 +342,26 @@ class ProxyPool:
                 with self._lock:
                     self._owned.add(pid)
                     self._failures.pop(pid, None)
+                    for key in [k for k in self._waits if k[0] == pid]:    # other workers may have used it since:
+                        del self._waits[key]                               # the broker's marks say
                 got += 1
         return got
+
+    def _doubling(self, pid: str, scope: str) -> tuple[float | None, float | None]:
+        """(the last wait without Retry-After, when the last block ended) of ``pid`` at ``scope``: what this worker
+        knows since it claimed the proxy, else what the last mark in the broker says (its ``last_wait`` and end; a
+        mark without ``last_wait``, an earlier version's, says None). Called with the lock held."""
+        known = self._waits.get((pid, scope))
+        if known is not None:
+            return known
+        r = self._survey.get(pid)
+        last = r.last_mark(scope) if r is not None else None
+        if last is None:
+            return None, None
+        end, data = last
+        wait = data.get("last_wait")
+        return (float(wait) if isinstance(wait, int | float) and not isinstance(wait, bool) and wait > 0 else None,
+                end)
 
     def fill(self, host: str, force: bool = False) -> int:
         """Claims proxies usable for ``host`` (see the module docstring): with a count per worker one when it holds
@@ -432,10 +457,12 @@ class ProxyPool:
               first: float = BLOCK_FIRST_WAIT, **data) -> None:
         """Marks ``proxy`` blocked for ``host`` (``*``: every host) for as long as
         ``linecaster.net.http.block_wait`` says: ``seconds`` (what ``Retry-After`` asked), else ``first``, twice the
-        last such wait of this proxy there on each repeat (until it carries a successful response there,
-        ``answered``), at most ``cap``. This worker stops using it there at once, and releases it when it is blocked
-        for every host the worker uses (its next ``fill`` then claims another at once). Nothing happens while a block
-        of the proxy there (or everywhere) holds already: the request was on its way before that block was known.
+        last such wait of this proxy there on each repeat, whichever worker marked it (``_doubling``: the mark records
+        ``last_wait`` and is kept that long past its end), until it carries a successful response there
+        (``answered``) or its quiet period has passed (``linecaster.net.http.doubling``); at most ``cap``. This
+        worker stops using it there at once, and releases it when it is blocked for every host the worker uses (its
+        next ``fill`` then claims another at once). Nothing happens while a block of the proxy there (or everywhere)
+        holds already: the request was on its way before that block was known.
 
         Args:
             proxy: the proxy URL.
@@ -449,10 +476,11 @@ class ProxyPool:
         with self._lock:
             if self._ends(pid, host) is not None:
                 return
-            seconds, last = block_wait(seconds, self._waits.get((pid, host)), cap, first)
-            if last is not None:
-                self._waits[(pid, host)] = last
-            until = self.broker.clock() + seconds
+            now = self.broker.clock()
+            last, ended = self._doubling(pid, host)
+            seconds, last = block_wait(seconds, doubling(last, ended, now), cap, first)
+            until = now + seconds
+            self._waits[(pid, host)] = (last, until)
             self._blocked[(pid, host)] = max(until, self._blocked.get((pid, host), -math.inf))
             hosts = self._hosts | ({host} if host != EVERY_SCOPE else set())
             everywhere = all(not self._usable(pid, h) for h in hosts)
@@ -462,8 +490,10 @@ class ProxyPool:
                 self._refill = self._refill or owned
             usable = sum(1 for p in self._owned if self._usable(p, host))
             total = len(self._owned)
+        if last is not None:
+            data["last_wait"] = last
         try:
-            self.broker.mark(KIND, pid, host, until, **data)
+            self.broker.mark(KIND, pid, host, until, keep=last or 0.0, **data)
         except Exception as e:  # noqa: BLE001 - the block holds in this worker; its lease is released below
             logger.warning("proxy {proxy}: block not marked in the broker {path}: {error}", proxy=_redact(proxy),
                            path=self.broker.path, error=e)
@@ -500,17 +530,38 @@ class ProxyPool:
     def answered(self, proxy: str, host: str | None = None) -> None:
         """Notes that ``proxy`` carried an answer: its failures in a row and the doubling of its time out as a broken
         proxy start again; with ``host`` (a successful response from there), the doubling of its blocks there too.
+        Not while a mark of that scope holds (the request went out before it); the ended marks of a doubling that
+        starts again are deleted from the broker (in a thread of their own), so the next owner starts again too.
 
         Args:
             proxy: the proxy URL.
             host: the host whose successful response it carried, if any.
         """
         pid = proxy_id(proxy)
+        forget = []
         with self._lock:
             self._failures.pop(pid, None)
-            self._waits.pop((pid, EVERY_SCOPE), None)
-            if host is not None:
-                self._waits.pop((pid, host), None)
+            now = self.broker.clock()
+            for scope in (EVERY_SCOPE, *((host,) if host is not None else ())):
+                if self._blocked.get((pid, scope), -math.inf) > now:
+                    continue                                   # sent before that block, which holds
+                last, ended = self._doubling(pid, scope)
+                if last is None and ended is None:
+                    continue
+                self._waits[(pid, scope)] = (None, None)
+                if last is not None:
+                    forget.append(scope)
+        if forget:
+            threading.Thread(target=self._forget, args=(proxy, pid, forget), name="linecaster-proxies",
+                             daemon=True).start()
+
+    def _forget(self, proxy: str, pid: str, scopes: list[str]) -> None:
+        for scope in scopes:
+            try:
+                self.broker.forget_ended(KIND, pid, scope)
+            except Exception as e:  # noqa: BLE001 - the next owner then doubles once more than it would
+                logger.debug("proxy {proxy}: ended marks at {scope} not deleted: {error}", proxy=_redact(proxy),
+                             scope=scope, error=e)
 
 
 _POOLS: dict[tuple, ProxyPool] = {}

@@ -43,8 +43,9 @@ stops the run at once (``StopRequests``). A **broken proxy** (``PROXY_ERRORS``: 
 proxy, ``broken_after`` times in a row, 3 by default) is marked for every host, first for ``broken_ttl`` (300 s), twice
 as long each time it breaks again, at most ``block_ttl``. The owner stops using a marked proxy there at once and
 releases it when it is blocked for every host it uses (and claims another free one at once), and whoever claims it
-later sees the mark, so no worker sends a request into another's block. The doubling is kept per worker (the
-broker's marks hold the ends, not the waits). A timeout, mostly a slow server, and a server error are retried after
+later sees the mark, so no worker sends a request into another's block. The doubling travels with the proxy: each
+mark records its last wait (``last_wait``) and is kept that long past its end, so whoever claims the proxy next
+continues it (``linecaster.net.proxies``; direct, the worker keeps each host's in memory, ``Pause``). A timeout, mostly a slow server, and a server error are retried after
 the backoff (through the proxy whose turn comes next) without counting against the proxy: ``max_retries + 1``
 attempts that were not blocks. When no proxy the worker holds is usable for a host and none is free to claim, its
 requests to that host wait (a pause: one warning when it begins and one when it ends, the wait in ``pause_seconds``)
