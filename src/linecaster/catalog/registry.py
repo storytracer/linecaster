@@ -1,7 +1,7 @@
 """Loading, resolving, releasing and verifying the catalog (``docs/reference/catalog.md``).
 
 A catalog directory holds ``models/<id>/model.yaml`` (+ ``upstream/<revision>/``), ``presets/<step>/<id>.yaml``,
-``recipes/<id>.yaml``, ``evidence/*.yaml`` and ``catalog.lock``; a model, preset or recipe may have its prose in a
+``recipes/<id>.yaml`` and ``catalog.lock`` (no evidence records: an evaluation keeps those); a model, preset or recipe may have its prose in a
 Markdown file next to it (``model.md``, ``<id>.md``), which only the docs read. There is one catalog,
 linecaster's own, ``linecaster/catalog/data``: engine packages and derivatives ship none (other directories are
 for tests). Engines are found through the entry-point group ``linecaster.engines`` (engine id -> ``module:Class``),
@@ -23,7 +23,7 @@ from typing import Any
 
 from ..errors import CatalogError
 from . import yamlio
-from .schema import SCHEMA_DIR, Evidence, Lock, LockEntry, ModelDoc, PresetDoc, RecipeDoc, json_schemas, schema_file
+from .schema import SCHEMA_DIR, Lock, LockEntry, ModelDoc, PresetDoc, RecipeDoc, json_schemas, schema_file
 
 CORE = Path(__file__).resolve().parent / "data"
 LOCK = "catalog.lock"
@@ -92,7 +92,6 @@ class Directory:
     preset_bodies: dict[str, str] = field(default_factory=dict)
     recipes: dict[str, RecipeDoc] = field(default_factory=dict)
     recipe_bodies: dict[str, str] = field(default_factory=dict)
-    evidence: list[tuple[Path, Evidence]] = field(default_factory=list)
     lock: Lock = field(default_factory=Lock)
     #: every YAML file read, with its schema id
     files: dict[Path, str] = field(default_factory=dict)
@@ -117,8 +116,6 @@ class Directory:
             if rc.id != p.stem:
                 raise CatalogError(f"{p}: id {rc.id!r} differs from its file name {p.stem!r}")
             d.recipes[rc.id], d.recipe_bodies[rc.id] = rc, _prose(p)
-        for p in sorted(d.root.glob("evidence/*.yaml")):
-            d.evidence.append((p, d._read(Evidence, p)))
         lock = d.root / LOCK
         if lock.exists():
             d.lock = d._read(Lock, lock)
@@ -440,11 +437,6 @@ class Catalog:
             if pipelines:
                 for key, entry in d.lock.recipes.items():
                     problems += self._pipeline_problems(key, entry)
-            for path, ev in d.evidence:
-                try:
-                    (self.resolve if ev.preset else self.resolve_recipe)(ev.subject)
-                except CatalogError as e:
-                    problems.append(f"evidence {path.name}: {e.args[0]}")
         return problems
 
 
@@ -480,7 +472,7 @@ def file_problems(d: Directory) -> list[str]:
             problems.append(f"{rel}: Markdown without its YAML file ({md.with_suffix('.yaml').name})")
         elif md.read_text(encoding="utf-8").startswith("---\n"):
             problems.append(f"{rel}: front matter in the prose; data belongs in {md.with_suffix('.yaml').name}")
-    for f in sorted([*d.root.glob("presets/*/*"), *d.root.glob("recipes/*"), *d.root.glob("evidence/*")]):
+    for f in sorted([*d.root.glob("presets/*/*"), *d.root.glob("recipes/*")]):
         if f.is_file() and f.suffix not in (".yaml", ".md") and f.name != ".gitkeep":
             problems.append(f"{f.relative_to(d.root)}: neither YAML nor Markdown")
     for kind, docs, bodies, folder in (("preset", d.presets, d.preset_bodies, None),

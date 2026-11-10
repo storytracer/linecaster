@@ -35,10 +35,12 @@ the tags; the first is `v0.1.0`.
   folder and `--suffix SUFFIX` adds to each file's stem (with either naming). Who is affected: runs with
   `--naming squiddleocr`. What to do: `--naming flat --suffix .paddle` writes the same `<page>.paddle.<ext>` files.
 - The catalog holds no evidence records: linecaster is not a data repository. `src/linecaster/catalog/data/evidence/`
-  is gone, the generated preset and recipe pages have no Evidence table, the catalog index no CER column, and the
-  docs and the presets' prose quote no measurements. The evidence format stays (`linecaster.evidence/1`,
+  is gone, the catalog no longer reads or verifies an `evidence/` folder (`Directory.evidence` is gone, and
+  `linecaster catalog verify` no longer checks that evidence names a known edition), the generated preset and recipe
+  pages have no Evidence table, the catalog index no CER column, and the docs and the presets' prose quote no
+  measurements. The evidence format stays (`linecaster.evidence/1`,
   `linecaster.catalog.Evidence`, `schemas/evidence-1.json`) without the source `board`. Who is affected: code that
-  read the shipped records (`Catalog().dirs[0].evidence`) or the numbers on the generated pages, and evidence
+  read the shipped records or a catalog folder's (`Catalog().dirs[0].evidence`) or the numbers on the generated pages, and evidence
   records with `source: board`. What to do: keep evidence records in the evaluation's own repository and validate them
   with `Evidence`; give a leaderboard's numbers `source: vendor-benchmark` or `card-claim` (a claim), or measure
   them yourself (`own-run`). The measurements made so far stay in NOTES.md.

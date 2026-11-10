@@ -1,12 +1,13 @@
 """The catalog (docs/reference/catalog.md): YAML 1.2 booleans, documents, release, immutability, old editions, and
 the installed catalog being consistent."""
 import datetime as dt
+from dataclasses import fields
 from pathlib import Path
 
 import pytest
 
-from linecaster.catalog import yamlio
-from linecaster.catalog.registry import Catalog, sha256_file, write_entry
+from linecaster.catalog import Evidence, yamlio
+from linecaster.catalog.registry import Catalog, Directory, sha256_file, write_entry
 from linecaster.errors import CatalogError, PipelineConfigError
 
 
@@ -81,13 +82,9 @@ def test_verify_catches_edited_cards_and_dangling_references(tmp_path):
     write_entry(tmp_path / "presets" / "recognition" / "q.yaml", {
         "schema": "linecaster.preset/1", "id": "q", "edition": 1, "step": "recognition",
         "model": {"id": "m", "revision": "nope"}, "engine": "k.v1"})
-    write_entry(tmp_path / "evidence" / "e.yaml", {
-        "schema": "linecaster.evidence/1", "preset": "p@7", "source": "own-run", "dataset": "d@r",
-        "metrics": {"cer_reading": 0.03}, "date": dt.date(2026, 11, 3)})
     problems = Catalog([tmp_path]).verify()
     assert any("differs from its pinned sha256" in p for p in problems)
     assert any("preset q" in p and "no pin 'nope'" in p for p in problems)
-    assert any("evidence e.yaml" in p for p in problems)
 
 
 def test_documents_are_strict(tmp_path):
@@ -130,16 +127,13 @@ def test_docs_from_the_catalog(tmp_path):
     root = tmp_path / "cat"
     make(root)
     make_recipe(root)
-    write_entry(root / "evidence" / "e.yaml", {
-        "schema": "linecaster.evidence/1", "preset": "p@1", "source": "own-run", "dataset": "d@r",
-        "metrics": {"cer_reading": 0.0312}, "date": dt.date(2026, 11, 3)})
     (tmp_path / "docs" / "presets").mkdir(parents=True)
     (tmp_path / "docs" / "presets" / "stale.md").write_text("from an earlier run")
     docs.write(Catalog([root]), tmp_path / "docs")
     out = tmp_path / "docs"
     page = (out / "presets" / "recognition" / "p.md").read_text()
     assert "Why these settings." in page
-    assert "Evidence" not in page and "0.0312" not in page            # the pages quote no measurements
+    assert "Evidence" not in page                                       # the pages quote no measurements
     assert "[`chat.v1`](../../engines/chat.v1.md)" in page and "(../../models/m.md)" in page
     model = (out / "models" / "m.md").read_text()
     assert "Ours." in model and "(../../cat/models/m/upstream/abc/README.md)" in model and "../presets/recognition/p.md" in model
@@ -197,19 +191,21 @@ def test_recipes_pin_released_preset_editions(tmp_path):
         Catalog([tmp_path])
 
 
-def test_evidence_for_a_recipe(tmp_path):
-    make(tmp_path)
-    make_recipe(tmp_path)
-    Catalog([tmp_path]).release("p")
-    write_entry(tmp_path / "evidence" / "e.yaml", {
-        "schema": "linecaster.evidence/1", "recipe": "r@1", "source": "own-run", "dataset": "d@r",
-        "metrics": {"lines_identical": 10}, "date": dt.date(2026, 11, 3)})
-    assert Catalog([tmp_path]).verify() == []
-    write_entry(tmp_path / "evidence" / "e.yaml", {
-        "schema": "linecaster.evidence/1", "recipe": "r@1", "preset": "p@1", "source": "own-run", "dataset": "d",
-        "metrics": {}, "date": dt.date(2026, 11, 3)})
-    with pytest.raises(CatalogError, match="one preset or one recipe"):
-        Catalog([tmp_path])
+def test_the_evidence_format_stays_for_derivatives():
+    """An evaluation's evidence records validate with ``Evidence`` (``linecaster.evidence/1``): one exact preset or
+    recipe edition each. The catalog reads none."""
+    from pydantic import ValidationError
+
+    ev = Evidence.model_validate({"schema": "linecaster.evidence/1", "recipe": "r@1", "source": "own-run",
+                                  "dataset": "d@r", "metrics": {"lines_identical": 10}, "date": dt.date(2026, 11, 3)})
+    assert ev.subject == "r@1" and not ev.preset
+    with pytest.raises(ValidationError, match="one preset or one recipe"):
+        Evidence.model_validate({"schema": "linecaster.evidence/1", "recipe": "r@1", "preset": "p@1",
+                                 "source": "own-run", "dataset": "d", "metrics": {}, "date": dt.date(2026, 11, 3)})
+    with pytest.raises(ValidationError, match="exact edition"):
+        Evidence.model_validate({"schema": "linecaster.evidence/1", "preset": "p", "source": "own-run",
+                                 "dataset": "d", "metrics": {}, "date": dt.date(2026, 11, 3)})
+    assert "evidence" not in {f.name for f in fields(Directory)}
 
 
 def test_a_recipe_fills_a_pipeline(tmp_path):
