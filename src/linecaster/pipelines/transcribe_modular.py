@@ -58,7 +58,8 @@ def options(ap):
                                           "and json (e.g. docling-composition)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
-    ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming)")
+    ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming); none "
+                                                   "for a page a block failed on (OUT/rejects lists it)")
     ap.add_argument("--formats", default="hocr,alto,page,txt,md,json",
                     help=f"formats for --files, comma-separated: {', '.join(PAGE_FILE_EXTENSIONS)}")
     ap.add_argument("--naming", choices=list(NAMING), default="item",
@@ -122,7 +123,9 @@ def pipeline(a, script: str) -> list:
         *([Typographer(a.typography, options=over.get("typography"))] if a.typography else []),
         *([Recomposer(a.recomposition, options=over.get("recomposition"))] if a.recomposition else []),
         *([Composer(a.composition, options=over.get("composition"))] if a.composition else []),
-        *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, **NAMING[a.naming])] if a.files else []),
+        # no files for a page a block failed on: OUT/rejects lists it, the page records keep it with its errors
+        *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, **NAMING[a.naming])]
+          if a.files else []),
         run.pages(a),
         # after the page writers, the item stage: the Binder gathers each item's pages into an item record; with
         # several tasks the builder cuts here (the pages in item shards, then a stage over whole items)

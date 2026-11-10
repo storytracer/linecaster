@@ -19,6 +19,11 @@ the tags; the first is `v0.1.0`.
 - `linecaster.catalog.code.pipelines()` imports the shapes instead of reading the scripts: a `Pipeline`'s `source`
   is its script in the checkout (`None` without one) and its new field `shape` the shape's source file.
 
+- `pipelines/transcribe_modular.py --files` writes no per-page files for a page a block failed on (it was written
+  with what the blocks before the failure made of it: lines without text, an empty md); `OUT/rejects/` lists the
+  page and the page records keep it with its errors, as before. The pipeline's hash changes with `--files`
+  (`--new-pipeline` to resume into an OUT of an earlier launch), not without. Item texts (`--item-texts`) still
+  include such pages, with whatever text they have.
 - `PageFileWriter` has a new parameter `skip_failed` (default `False`: failed pages are written as before). Its
   recorded parameters gain the key, so the `pipeline_sha256` of every pipeline with a `PageFileWriter` changes;
   resuming into an OUT of an earlier launch needs `--new-pipeline`.

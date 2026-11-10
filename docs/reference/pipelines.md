@@ -219,6 +219,8 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 - **Rejects.** The `RejectWriter` writes every page that carries errors to `OUT/rejects/<rank>.jsonl`, one line
   per error (`key`, `field`, `error`, `raw_value`, and the entry's `block`, `step`, `preset`, `type`), and passes
   it on: the page records keep failed pages with their errors, so a later pipeline reading them passes them by too.
+  `PageFileWriter(skip_failed=True)` writes no per-page files for them (the modular pipeline's `--files`), so a
+  file is never what the blocks before the failure made of a page.
 - **The error budget.** A block may fail on `max_page_errors` of a task's pages (`--max-page-errors`, default
   0.01), judged from the 100th page on: from then, more errors than `share × pages` fail the task with a
   `PageError` (with the default: two failures in the first 100 pages, three in 300). Fewer pages are too few to
