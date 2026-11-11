@@ -4,6 +4,41 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- The recipes run in their own scripts, `recipes/<id>.py`. Who is affected: anyone who ran the `squiddle` recipe with
+  `pipelines/transcribe_modular.py --recipe squiddle` (since 0.5.0 that stopped with "needs engine
+  'kraken.recognition.v1', which is not installed", or needed `--backend served --endpoint`), and anyone who ran
+  `item-texts` with `pipelines/bind.py --recipe item-texts`, which still works. What to do: run
+  `uv run recipes/squiddle.py IMAGES OUT` (or `uv run launch.py squiddle IMAGES OUT`, which now starts that script),
+  or without a checkout `uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py
+  IMAGES OUT`. The options are the same; slots on top of the recipe are still recorded as overrides.
+
+### Added
+
+- A uv script per catalog recipe, `recipes/squiddle.py` and `recipes/item-texts.py`: a PEP 723 block with
+  `linecaster[ray]` and exactly the engine packages the recipe's presets need (`squiddle`: `linecaster-kraken`,
+  `linecaster-paddlex`; `item-texts`: none), its lock, and a body that calls `linecaster.runtime.run.recipe`. The
+  scripts take linecaster from its `main` branch on GitHub, so they run from their raw URL with no checkout, as from
+  one; locally, on Ray (`ray`), as a server (`serve`) and on HF Jobs (no `--commit` needed). The recipes stay YAML in
+  the catalog, with their editions and hashes.
+- `linecaster.runtime.run.recipe(script, recipe_id)`: a recipe script's body. It runs the recipe through its pipeline
+  shape; an edition of the same recipe (`--recipe squiddle@1`) may be given, another recipe may not.
+- `linecaster.catalog.code.recipe_scripts` and `recipe_packages` (recipe → presets → engines → packages).
+  `tests/test_scripts.py` checks that every recipe has its script, that the script lists exactly those packages, and
+  that its lock is current.
+
+### Changed
+
+- `uv run launch.py <recipe> ...` starts `recipes/<recipe>.py` instead of the pipeline script the recipe names.
+- A missing engine's error names the recipe script that installs it when no pipeline script does (kraken:
+  `recipes/squiddle.py`).
+- `linecaster.runtime.jobs.needs_commit`: a script in the checkout that takes linecaster from git (a recipe script)
+  needs no `--commit`; one that takes it by path (a pipeline script) still does.
+- The generated recipe pages show the recipe's script and its URL.
+
 ## 0.5.1 (2026-11-11)
 
 ### Fixed

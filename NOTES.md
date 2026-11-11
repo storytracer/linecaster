@@ -2,6 +2,34 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Recipe scripts (2026-11-11, aarch64 GB10)
+
+Since 0.5.0 no pipeline script installed `linecaster-kraken`, so linecaster could not run its own `squiddle` recipe:
+`uv run launch.py squiddle IMAGES OUT --on hf-jobs ...` stopped in the dry run with "preset kraken-ppocrv6-medium@1
+needs engine 'kraken.recognition.v1', which is not installed"; `--backend served --endpoint` does not help on Jobs,
+whose servers listen on loopback. `pipelines/transcribe_modular.py` (PaddleX and Tesseract) can run every preset its
+slots accept but the three kraken recognizers (9 of 12 recognition presets, all of the other slots).
+
+Decision: the recipes stay YAML in the catalog, and each gets a uv script of its own, `recipes/<id>.py`, as its
+environment and entry point (the pattern of one script per recipe, run as `hf jobs uv run <script URL> IN OUT`
+without a checkout, but holding no logic: everything stays in the package and the catalog).
+`transcribe_modular.py` stays engine-generalist. The scripts take linecaster from its `main` branch on GitHub (git
+sources): with path sources a script fetched from its raw URL fails, since uv resolves `path = ".."` against the
+directory the command runs in (checked with `pipelines/bind.py` at v0.5.1:
+"Failed to build `linecaster @ file:///...`: does not appear to be a Python project"). A tag would make the URL
+reproducible but needs the tag in the script it tags; `main` was chosen. A run from a checkout uses the lock, whose
+linecaster commit moves when it is relocked with `--upgrade-package` for linecaster's packages.
+
+Locks (packages): `recipes/squiddle.py` 214 (the modular script's 181 minus linecaster-tesseract and tesserocr, plus
+35: linecaster-kraken, the kraken fork, torch, torchvision, triton, lightning and the CUDA libraries only torch uses);
+`recipes/item-texts.py` 124 (the same as `pipelines/bind.py`). torch stays 2.14.0: only through linecaster-kraken's pin,
+in `recipes/squiddle.py.lock` and the engine test scripts; the modular script's lock has none. HF Jobs of a recipe
+script (`jobs.dependencies`, no `--commit`): `linecaster`, `linecaster-kraken`, `linecaster-paddlex` from
+`git+...@main`, the OpenCV stub and the kraken fork at their locked commits, and 190 constraints (torch 2.14.0,
+torchvision 0.29.0, paddlex 3.7.2, onnxruntime-gpu 1.29.0, ...). One page (`iiif_page_8.jpg`) with `squiddle@1` from
+a copy of the script with path sources (the branch did not have `run.recipe` on GitHub yet): 20 s, md and hOCR
+written, the run record naming `squiddle@1` and its hash.
+
 ## Open items
 
 - A recipe of PaddleX and Tesseract presets for the engine-generalist modular script

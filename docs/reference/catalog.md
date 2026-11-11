@@ -123,7 +123,8 @@ are written by `linecaster catalog pin`.
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
-A derivative's recipe lives in this catalog too (`squiddle`); the derivative names it by id.
+A recipe's environment and entry point is its script `recipes/<id>.py` (see Pipelines, recipes and `launch.py`); a
+recipe a derivative runs lives in this catalog too (`squiddle`).
 
 ## Measurements live elsewhere
 
@@ -330,16 +331,15 @@ the user fills every slot, or names a recipe (`--recipe id[@edition]`), with sin
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
 The recipes: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
-recognition, tables, formulas and the rule-based steps; its recognition is kraken's, which
-`pipelines/transcribe_modular.py` leaves out, so it runs in an environment that adds kraken (a derivative's script),
-or with `--backend served --endpoint` against a server started from one) and `item-texts`
-(`bind.v1`: `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1`, the item stage's default
-combination).
+recognition, tables, formulas and the rule-based steps) and `item-texts` (`bind.v1`: `unicode-recomposition@1`,
+`latin-historic@1`, `docling-composition@1`, the item stage's default combination). Each has its script,
+`recipes/<id>.py` ([architecture](architecture.md#recipe-scripts)): its environment, with exactly the engine packages
+its presets need, and its entry point. `recipes/squiddle.py` is the environment with kraken;
+`pipelines/transcribe_modular.py` leaves kraken out.
 
-`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
-script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for chat page presets, `transcribe_page.v1` for page
-engines' presets) and runs it in that script's own
-environment with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
+`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: a recipe runs its script
+`recipes/<id>.py`, a page preset the pipeline script of its kind (`transcribe_vlm.v1` for chat page presets,
+`transcribe_page.v1` for page engines' presets), each in its own environment, with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.
 
 ## Support

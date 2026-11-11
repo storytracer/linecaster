@@ -196,6 +196,29 @@ def script_dependencies(script: Path) -> list[str]:
     return [re.split(r"[\[<>=!~; @]", d, maxsplit=1)[0].strip().lower() for d in deps]
 
 
+def recipe_scripts(repo: Path | None = REPO) -> dict[str, Path]:
+    """The recipe scripts (``recipes/<id>.py``: a catalog recipe's environment and entry point) by recipe id; ``{}``
+    without the repository."""
+    if repo is None or not (repo / "recipes").is_dir():
+        return {}
+    return {p.stem: p for p in sorted((repo / "recipes").glob("*.py"))}
+
+
+def recipe_packages(recipe_id: str, c=None, repo: Path = REPO) -> set[str]:
+    """The engine packages the presets of the recipe ``recipe_id`` (its current edition) need: recipe -> presets ->
+    engines -> the packages that provide them (``engines``); linecaster's own engines need none."""
+    from .registry import catalog
+
+    c = catalog() if c is None else c
+    found = engines(repo)
+    packages = set()
+    for ref in c.resolve_recipe(recipe_id).content["presets"].values():
+        engine = found.get(c.preset(ref["ref"].split("@")[0]).engine)
+        if engine is not None and engine.package != "linecaster":
+            packages.add(engine.package)
+    return packages
+
+
 def install_hint(engine: str, repo: Path = REPO) -> str:
     """What installs an engine that is not installed, for an error message: the engine package that provides it
     (``engines/*/pyproject.toml``) and the pipeline scripts whose environments install that package; ``""`` when
@@ -207,10 +230,19 @@ def install_hint(engine: str, repo: Path = REPO) -> str:
         return ""
     scripts = [f.relative_to(repo).as_posix() for f in sorted(repo.glob("pipelines/*.py"))
                if found.package in script_dependencies(f)]
-    where = (f", which {' and '.join(f'`{s}`' for s in scripts)} install{'s' if len(scripts) == 1 else ''}"
-             if scripts else ", which no pipeline script here installs: run it in an environment that adds it "
-             "(a script of your own with the engine package), or against a server started from "
-             "one (`--backend served --endpoint URL`)")
+    recipes = [f.relative_to(repo).as_posix() for f in recipe_scripts(repo).values()
+               if found.package in script_dependencies(f)]
+    if scripts:
+        where = f", which {' and '.join(f'`{s}`' for s in scripts)} install{'s' if len(scripts) == 1 else ''}"
+    elif recipes:
+        where = (f", which the recipe script{'s' if len(recipes) > 1 else ''} "
+                 f"{' and '.join(f'`{s}`' for s in recipes)} install{'' if len(recipes) > 1 else 's'} "
+                 f"(`uv run {recipes[0]} IMAGES OUT`, or `uv run launch.py {Path(recipes[0]).stem} IMAGES OUT`; "
+                 "slots on top are overrides)")
+    else:
+        where = (", which no pipeline script here installs: run it in an environment that adds it (a script of "
+                 "your own with the engine package), or against a server started from one "
+                 "(`--backend served --endpoint URL`)")
     return (f"`{engine}` is in the engine package `{found.package}` (engines/{found.source.relative_to(repo / 'engines').parts[0]}, "
             f"not on PyPI){where}")
 

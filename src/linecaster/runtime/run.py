@@ -1020,6 +1020,44 @@ def describe_recipe(ref: str, c=None) -> dict:
     return {"pipeline": provenance.functional_pipeline(p), "pipeline_sha256": provenance.pipeline_sha256(p)}
 
 
+def recipe(script: str, recipe_id: str) -> None:
+    """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline shape
+    (the recipe's ``pipeline:``, ``linecaster.pipelines``) with ``main``, ``--recipe`` set to it. The command line is
+    the shape's; an edition of the same recipe (``--recipe squiddle@1``) and slots on top (recorded as overrides) may be
+    given, another recipe may not. The script itself holds only its environment (the engine packages its presets
+    need) and this call.
+
+    Example:
+        from linecaster.runtime import run
+
+        if __name__ == "__main__":
+            run.recipe(__file__, "squiddle")
+    """
+    from ..catalog.registry import catalog, split_ref
+    from ..pipelines import shape as pipeline_shape
+
+    c = catalog()
+    if recipe_id not in c.recipes:                # a command line's end, as main's: nothing launched
+        print(CatalogError(f"{script}: no recipe {recipe_id!r} in the catalog (known: {', '.join(sorted(c.recipes))})"),
+              file=sys.stderr)
+        sys.exit(2)
+    shape = pipeline_shape(c.recipes[recipe_id][1].pipeline)
+
+    def options(ap):
+        shape.options(ap)
+        ap.set_defaults(recipe=recipe_id)        # run adds --recipe to the same parser before these options
+
+    def build(a, path: str):
+        if split_ref(a.recipe)[0] != recipe_id:
+            raise PipelineConfigError(f"{Path(script).name} runs the recipe {recipe_id} (an edition of it with "
+                                      f"--recipe {recipe_id}@N), not {a.recipe}")
+        return shape.pipeline(a, path)
+
+    description = (f"The recipe {recipe_id} (the catalog's recipe, through the pipeline {shape.PIPELINE}).\n\n"
+                   + (shape.__doc__ or ""))
+    main(script, description, options, shape.models, build, shape.PIPELINE, shape.SLOTS)
+
+
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
          pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
     """Gives a pipeline script its command line: a run on any executor, ``serve`` for its models, ``ray`` for Ray's.

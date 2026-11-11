@@ -127,12 +127,26 @@ block passes the conformance checks of `linecaster.testing` (`check_engine`: the
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
-engines/<engine>/tests`. `tests/test_engines_catalog.py` is also linecaster's only environment with kraken (with
-PaddleX and Tesseract, for the catalog's line-recognizer presets): a test script, not a pipeline script, since no
-pipeline of linecaster's names a model choice. A kraken chain runs in an environment that adds kraken
-(a derivative's own script running `transcribe_modular.v1`), or in
-`pipelines/transcribe_modular.py` with `--backend served --endpoint` against a server started from one; with
-`--endpoint` the served engines need not be installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
+engines/<engine>/tests`. `tests/test_engines_catalog.py` holds kraken, PaddleX and Tesseract for the catalog's
+line-recognizer presets.
+
+## Recipe scripts
+
+A catalog recipe is YAML (`src/linecaster/catalog/data/recipes/<id>.yaml`: its presets, editions and hash). Its
+environment and entry point is a uv script of its own, `recipes/<id>.py`: a PEP 723 block with `linecaster[ray]`
+and exactly the engine packages its presets need (recipe → presets → engines → packages:
+`linecaster.catalog.code.recipe_packages`), its lock, and a body that only calls
+`linecaster.runtime.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline shape with `--recipe`
+set. The pipeline scripts depend on no model choice (`pipelines/transcribe_modular.py` has PaddleX and Tesseract);
+the recipes bring theirs (`recipes/squiddle.py`: kraken and PaddleX).
+
+The recipe scripts take linecaster and its engine packages from the `main` branch on GitHub, so a script runs from
+its URL with no checkout (`uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py
+IMAGES OUT`, `hf jobs uv run <URL> ...`) as well as from one (`uv run recipes/squiddle.py`, `uv run launch.py
+squiddle`). A run from the URL resolves the header afresh; a run from a checkout uses the script's lock, whose
+linecaster commit moves when it is relocked. Their HF Jobs need no `--commit`: `jobs.dependencies` installs
+linecaster from `main` with the lock's versions as constraints. With `--endpoint` the served engines need not be
+installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
 mkdocs serve`.
 
 ## Pipeline scripts

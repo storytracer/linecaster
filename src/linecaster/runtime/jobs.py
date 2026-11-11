@@ -251,11 +251,17 @@ def _lock_of(script: Path, commit: str | None) -> dict | None:
 
 
 def needs_commit(script: str | Path | None) -> bool:
-    """Whether the Jobs of ``script`` need ``--commit``: without a script (linecaster alone) and for a script in the
-    linecaster checkout (linecaster's own, which installs linecaster at the commit). A derivative's script outside the
-    checkout that takes linecaster from a git tag, branch or rev needs none (unless a source points into the
-    checkout, which ``dependencies`` reports)."""
-    return script is None or _in_checkout(Path(script)) is not None
+    """Whether the Jobs of ``script`` need ``--commit``: without a script (linecaster alone), and for a script in the
+    linecaster checkout that takes something from it by path (a pipeline script: linecaster and its engine packages
+    at the commit). A script that takes linecaster from a git tag, branch or rev needs none: a recipe script
+    (``recipes/``, linecaster's ``main``) or a derivative's script outside the checkout (unless a source points into
+    the checkout, which ``dependencies`` reports)."""
+    if script is None:
+        return True
+    if _in_checkout(Path(script)) is None:
+        return False
+    sources = script_metadata(Path(script)).get("tool", {}).get("uv", {}).get("sources", {})
+    return any("path" in s for s in (x for v in sources.values() for x in (v if isinstance(v, list) else [v])))
 
 
 def dependencies(commit: str | None, script: str | Path | None = None, engines: bool = True) -> Dependencies:

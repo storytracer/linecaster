@@ -93,10 +93,16 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Every pipeline script installs `linecaster[ray]`**: `--on ray` and `ray start` run the script's own environment on
   every node (a Job leaves Ray out). PEP 723 has no includes, so what every pipeline needs is one linecaster
   requirement with extras per script, not a shared file.
-- **Pipeline scripts depend on no model choice: `pipelines/transcribe_modular.py` has PaddleX and Tesseract, not
-  kraken.** A kraken chain runs in an environment that adds kraken (a derivative's own script), or with
-  `--backend served --endpoint` against a server from one; linecaster's own kraken environment is the
-  test script `tests/test_engines_catalog.py`. kraken's torch pin then binds only the environments that chose kraken.
+- **Pipeline scripts depend on no model choice; recipes bring their own environments.**
+  `pipelines/transcribe_modular.py` has PaddleX and Tesseract, not kraken. Each catalog recipe has a script
+  `recipes/<id>.py` with exactly the engine packages its presets need (`tests/test_scripts.py` derives them from the
+  catalog) and a body that only calls `run.recipe(__file__, "<id>")`; the recipe itself stays YAML in the catalog.
+  kraken's torch pin then binds only the environments that chose kraken (`recipes/squiddle.py`, the engine tests).
+- **Recipe scripts take linecaster from its `main` branch on GitHub** (git sources, `branch = "main"`), so
+  `uv run <raw URL of recipes/<id>.py> IN OUT` works with no checkout, as from one. They run what is pushed, not the
+  working tree: develop and test unreleased code through `pipelines/` and pytest. After pushing changes a recipe
+  needs, relock its script with `--upgrade-package` for linecaster's packages (`linecaster`, `linecaster-kraken`,
+  `linecaster-paddlex`, `opencv-contrib-python`), which moves only their commit.
 - **The repository is not a uv workspace.** Engine pins conflict.
 - **No default presets**: every slot is picked or filled by a recipe. A run then names exactly what it ran.
 

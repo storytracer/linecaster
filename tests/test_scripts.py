@@ -10,7 +10,7 @@ import pytest
 from linecaster.runtime.jobs import _name, dependencies, script_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = sorted(p for p in [*ROOT.glob("*.py"), *(q for d in ("pipelines", "tools", "tests") for q in (ROOT / d).rglob("*.py"))]
+SCRIPTS = sorted(p for p in [*ROOT.glob("*.py"), *(q for d in ("pipelines", "recipes", "tools", "tests") for q in (ROOT / d).rglob("*.py"))]
                  if p.read_text().startswith("# /// script"))
 IDS = [p.relative_to(ROOT).as_posix() for p in SCRIPTS]
 
@@ -48,6 +48,53 @@ def test_every_pipeline_script_runs_its_shape():
         assert not [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Assign))], script.name
 
 
+RECIPES = sorted((ROOT / "recipes").glob("*.py"))
+LINECASTER = "https://github.com/storytracer/linecaster"
+
+
+def test_every_recipe_has_its_script():
+    """Every catalog recipe has ``recipes/<id>.py`` (its environment and entry point), and every recipe script is a
+    recipe's."""
+    from linecaster.catalog.registry import catalog
+
+    assert {p.stem for p in RECIPES} == set(catalog().recipes)
+
+
+@pytest.mark.parametrize("script", RECIPES, ids=[p.stem for p in RECIPES])
+def test_a_recipe_script_lists_exactly_its_engine_packages(script):
+    """A recipe script's dependencies are ``linecaster[ray]`` and exactly the engine packages its presets need (recipe
+    -> presets -> engines -> packages: ``code.recipe_packages``), each from linecaster's ``main`` on GitHub, so the
+    script runs from its URL as well as from a checkout; its body only calls ``run.recipe`` with its own id."""
+    import ast
+
+    from linecaster.catalog import code
+
+    meta = script_metadata(script)
+    deps = meta["dependencies"]
+    assert "linecaster[ray]" in deps, script.name
+    assert {_name(d) for d in deps} - {"linecaster"} == code.recipe_packages(script.stem), script.name
+    sources = meta["tool"]["uv"]["sources"]
+    assert set(sources) == {_name(d) for d in deps}, script.name
+    for name, source in sources.items():
+        assert source.get("git") == LINECASTER and source.get("branch") == "main" and "path" not in source, name
+        assert source.get("subdirectory") == (None if name == "linecaster" else f"engines/{name.removeprefix('linecaster-')}")
+    tree = ast.parse(script.read_text(encoding="utf-8"))
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "recipe"]
+    assert len(calls) == 1 and calls[0].args[1].value == script.stem, script.name
+    assert not [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Assign))], script.name
+
+
+@pytest.mark.parametrize("script", RECIPES, ids=[p.stem for p in RECIPES])
+def test_a_recipe_scripts_lock_is_current(script):
+    """A recipe script's lock holds what its header lists now (``uv lock --script --check``); the commit of
+    linecaster's ``main`` it was locked at may be older (relock with ``--upgrade-package`` for linecaster's packages
+    to move it)."""
+    import subprocess
+
+    r = subprocess.run(["uv", "lock", "--script", str(script), "--check", "--offline"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+
+
 def test_launch_finds_the_pipeline():
     """``uv run launch.py NAME ...`` runs the script of the pipeline a recipe or a page preset runs in."""
     import importlib.util
@@ -55,11 +102,11 @@ def test_launch_finds_the_pipeline():
     spec = importlib.util.spec_from_file_location("launch", ROOT / "launch.py")
     launch = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(launch)
-    modular, vlm = str(ROOT / "pipelines" / "transcribe_modular.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
+    squiddle, vlm = str(ROOT / "recipes" / "squiddle.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
     assert launch.command("squiddle", ["IN", "OUT", "--furniture"]) == [
-        "uv", "run", "--script", modular, "IN", "OUT", "--furniture", "--recipe", "squiddle"]
-    bind = str(ROOT / "pipelines" / "bind.py")
-    assert launch.command("item-texts", ["P", "OUT"]) == ["uv", "run", "--script", bind, "P", "OUT", "--recipe",
+        "uv", "run", "--script", squiddle, "IN", "OUT", "--furniture", "--recipe", "squiddle"]
+    texts = str(ROOT / "recipes" / "item-texts.py")
+    assert launch.command("item-texts", ["P", "OUT"]) == ["uv", "run", "--script", texts, "P", "OUT", "--recipe",
                                                           "item-texts"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
         "uv", "run", "--script", vlm, "IN", "OUT", "--recognition", "chandra-ocr-2@1"]
@@ -68,7 +115,7 @@ def test_launch_finds_the_pipeline():
         "uv", "run", "--script", page, "IN", "OUT", "--recognition", "indra-ocr@1"]
     assert launch.command("falcon-ocr", ["serve"])[4:6] == ["serve", "--recognition"]   # a page engine can be served
     assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
-        "uv", "run", "--script", modular, "serve", "--recipe", "squiddle@1", "--port", "8101"]
+        "uv", "run", "--script", squiddle, "serve", "--recipe", "squiddle@1", "--port", "8101"]
     assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]
     for name, why in (("nope", "no recipe or page preset"), ("kraken-ppocrv6-medium", "--recognition kraken-ppocrv6-medium"),
                       ("minicpm-ocr-1.0", "reads layout regions")):
@@ -114,6 +161,7 @@ def test_s3_comes_with_the_core():
 #: whose torch changes fails here: a change of build is deliberate and recorded in NOTES.md
 TORCH = {
     "tests/test_engines_catalog.py": ("2.14.0", "linecaster-kraken's pin"),
+    "recipes/squiddle.py": ("2.14.0", "linecaster-kraken's pin"),
     "pipelines/transcribe_page.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
     "tests/test_page_engines_catalog.py": ("2.14.0", "surya-ocr's (>=2.7,<3), not pinned; the version it was locked at"),
     "tools/cuda_probe.py": ("2.14.0", "it probes the CUDA build of linecaster-kraken's torch on a Jobs host"),

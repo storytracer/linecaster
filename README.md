@@ -45,13 +45,17 @@ You get one page record per page in `out/pages/`. Add `--files out/files --forma
 
 ## 🧭 Three ways to transcribe
 
-**1. A recipe**: a tested combination of presets, one per step, with its own edition. The `squiddle` recipe reads
-lines with kraken, which the modular pipeline's script leaves out: it runs in an environment that adds kraken (a
-script of your own that runs the modular pipeline with `linecaster-kraken`), or against a kraken server started from
-one:
+**1. A recipe**: a tested combination of presets, one per step, with its own edition. Each recipe has a script
+of its own in `recipes/`, which brings exactly the engines it needs:
 
 ```bash
-uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
+uv run launch.py squiddle scans/ out/
+```
+
+The same without a checkout, from the script's URL:
+
+```bash
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/
 ```
 
 **2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
@@ -145,9 +149,8 @@ uv run pipelines/transcribe_modular.py serve $P
 uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
 ```
 
-A server from another environment works too: a script with kraken serves the `squiddle` recipe (its `serve`
-command), and `uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1` runs the
-recipe against it.
+A recipe's script serves its models too: `uv run launch.py squiddle serve`, then `uv run launch.py squiddle scans/
+out/ --backend served --endpoint http://127.0.0.1:8100/v1`.
 
 For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
 Servers listen on loopback only.

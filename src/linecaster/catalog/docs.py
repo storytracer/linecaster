@@ -10,7 +10,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from ..docs.common import HEADER, Links, table
+from ..docs.common import GITHUB, HEADER, Links, table
 from . import code
 from .registry import IN_PROCESS_ONLY, Catalog
 from .schema import STEPS
@@ -164,7 +164,11 @@ def recipe_page(c: Catalog, rid: str) -> str:
                              f"{rc.pipeline}.md) · {rc.support}*", ""]
     if body:
         lines += [body, ""]
-    lines += ["```bash", f"uv run launch.py {rid} IMAGES OUT", "```", ""]
+    lines += ["```bash", f"uv run launch.py {rid} IMAGES OUT", "```", "",
+              f"Its script, [`recipes/{rid}.py`]({GITHUB}/recipes/{rid}.py), is its environment: the engine packages "
+              "its presets need. It runs without a checkout too:", "",
+              "```bash", f"uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/{rid}.py IMAGES OUT",
+              "```", ""]
     lines += _table(("Slot", "Preset"), [(slot, f"[`{ref}`](../{preset_path(c, ref.rsplit('@', 1)[0])})")
                                          for slot, ref in rc.presets.items()])
     if rc.options:
