@@ -21,6 +21,7 @@ from linecaster.net.http import close_shared
 
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 2, "trust_env": False}
 XML = b'<?xml version="1.0"?><record xmlns="http://www.loc.gov/MARC21/slim"><leader>x</leader></record>'
+DJVU = b"AT&TFORM\x00\x00\x00\x10DJVMDIRM\x00\x00\x00\x04\x01\x00\x01\x00"   # a bundled DjVu's first chunks
 
 
 @pytest.fixture(autouse=True)
@@ -235,12 +236,17 @@ def test_the_http_policy_root_alone_and_its_checks(tmp_path):
     (b"<!DOCTYPE html><html></html>", "application/json", "json", "html"),       # an HTML page, whatever its label
     (b"{oops", "application/json", "json", "not json"),
     (b"", "application/xml", None, "not xml"),
+    (DJVU, "image/vnd.djvu", None, None),                                        # DjVu: no image a library opens
+    (DJVU, "image/vnd.djvu", "djvu", None),
+    (b"GIF89a\x01\x00", "image/vnd.djvu", None, "not djvu"),
+    (b"<!DOCTYPE html><html></html>", "text/html", "djvu", "html"),
 ])
 def test_check(data, ctype, expected, problem):
     result = check(data, ctype, expected)
     assert result is None if problem is None else result.startswith(problem)
     assert expected_format("marcxml", "https://catalog.library.test/1/marcxml") == "xml"
     assert expected_format("item-json", "https://www.library.test/item/1/?fo=json") == "json"
+    assert expected_format("scan", "https://media.example.org/b/Book.djvu") == "djvu"
 
 
 def test_the_command_line_builds_the_resource_harvest(tmp_path):

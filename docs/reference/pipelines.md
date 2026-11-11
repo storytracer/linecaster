@@ -398,7 +398,7 @@ and so do the worker counts a launch derives "one per CPU".
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
 (`ResourceReader`): from URL templates per kind (`--resource marcxml=https://catalog.example.org/{item}/marcxml`) or
-a table with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse;
+a table with one row per resource (`--url-key`, `--kind-key`, `--name-key`). Each is checked (XML, JSON or an image must parse, a DjVu file must start with its signature;
 an HTML page where another format was expected is retried, and a resource that fails with it counts toward the
 breaker) and kept as a raw copy,
 `OUT/<kind>/<item>/<name>.<ext>` (`ResourceFilesWriter`), the reference later stages link to, with its fetch record in

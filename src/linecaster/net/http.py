@@ -460,7 +460,8 @@ class Paused(Exception):
 
 
 #: what the formats a fetch can expect (``HTTPFetcher.submit``'s ``expect``) are called in an error
-EXPECTED = {"image": "an image", "xml": "XML", "json": "JSON", "manifest": "a manifest (JSON or XML)"}
+EXPECTED = {"image": "an image", "xml": "XML", "json": "JSON", "manifest": "a manifest (JSON or XML)",
+            "djvu": "a DjVu file"}
 
 
 class UnexpectedHTML(Exception):
@@ -495,9 +496,9 @@ def _unexpected_html(response, expect: str | None) -> bool:
 
 
 #: the first bytes of the formats a fetch expects: a body that starts so is not HTML, whatever its content type says
-#: (a server that serves JSON, XML or images as ``text/html``): JSON, XML, PNG, JPEG, GIF, TIFF, WebP, JPEG 2000
+#: (a server that serves JSON, XML or images as ``text/html``): JSON, XML, PNG, JPEG, GIF, TIFF, WebP, JPEG 2000, DjVu
 DATA_MAGIC = (b"{", b"[", b"<?xml", b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"II*\x00", b"MM\x00*", b"RIFF",
-              b"\x00\x00\x00\x0cjP", b"\xff\x4f\xff\x51")
+              b"\x00\x00\x00\x0cjP", b"\xff\x4f\xff\x51", b"AT&TFORM")
 
 
 #: how an HTML page starts, after a byte order mark, whitespace and comments: so it is HTML whatever its content type

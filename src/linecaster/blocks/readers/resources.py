@@ -12,7 +12,8 @@ a media, and its fetch record in ``doc.metadata["resource"]``: ``item``, ``kind`
 ``final_uri``, ``status``, ``content_type``, ``bytes``, ``sha256``, ``etag``, ``last_modified``, ``fetched`` (UTC),
 ``attempts``, ``reused``. ``ResourceFilesWriter`` writes the copy and ``ResourceRecordWriter`` the records.
 
-A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open. An HTML page
+A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open, a DjVu file
+must start with its signature (DjVu is served as ``image/vnd.djvu`` but is no image an image library opens). An HTML page
 where another format was expected (an error page, a CAPTCHA sent with 200) is a failed attempt of the fetch, retried
 (``linecaster.net.http.UnexpectedHTML``); a resource that fails with it also counts toward the host's breaker as a server
 error. Where the HTTP policy has ``html`` in ``block_on`` it is a block instead, in ``stop_on`` it stops the run. A
@@ -48,12 +49,20 @@ RESOURCE_KEY = "resource"
 EXTENSIONS = {"application/xml": "xml", "text/xml": "xml", "application/marcxml+xml": "xml",
               "application/mods+xml": "xml", "application/json": "json", "application/ld+json": "json",
               "text/html": "html", "text/plain": "txt", "application/pdf": "pdf", "image/jpeg": "jpg",
-              "image/png": "png", "image/jp2": "jp2", "image/tiff": "tif", "image/webp": "webp"}
+              "image/png": "png", "image/jp2": "jp2", "image/tiff": "tif", "image/webp": "webp",
+              "image/vnd.djvu": "djvu", "image/x-djvu": "djvu", "image/x.djvu": "djvu"}
+#: DjVu's content types: documents an image library does not open, checked by their signature instead
+DJVU_TYPES = frozenset({"image/vnd.djvu", "image/x-djvu", "image/x.djvu"})
+#: the first bytes of every DjVu file (an IFF container: ``AT&T`` then a ``FORM`` chunk)
+DJVU_SIGNATURE = b"AT&TFORM"
 
 
 def expected_format(kind: str, url: str) -> str | None:
-    """The format a resource should have, from its kind or URL: ``xml``, ``json``, ``image``, or None (any)."""
+    """The format a resource should have, from its kind or URL: ``djvu``, ``xml``, ``json``, ``image``, or None
+    (any)."""
     text = f"{kind} {posixpath.splitext(url.split('?')[0])[1]}".lower()
+    if "djvu" in text:
+        return "djvu"
     if any(k in text for k in ("xml", "marc", "mods", "mets", "alto", "rdf")):
         return "xml"
     if any(k in text for k in ("json", "manifest")):
@@ -71,7 +80,9 @@ def check(data: bytes, content_type: str, expected: str | None) -> str | None:
     if expected and is_html(data, content_type):     # data a server labels text/html is read as what it is
         return f"html: an HTML page ({len(data)} bytes) where {expected} was expected"
     fmt = expected or ("xml" if ctype.endswith("xml") else "json" if ctype.endswith("json")
-                       else "image" if ctype.startswith("image/") else None)
+                       else "djvu" if ctype in DJVU_TYPES else "image" if ctype.startswith("image/") else None)
+    if fmt == "djvu":
+        return None if data.startswith(DJVU_SIGNATURE) else "not djvu: no DjVu signature (AT&TFORM)"
     try:
         if fmt == "xml":
             from xml.etree import ElementTree

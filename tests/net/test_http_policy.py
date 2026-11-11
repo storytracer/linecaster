@@ -833,7 +833,8 @@ def test_a_fetcher_that_cannot_be_made_leaves_no_thread_behind(tmp_path):
     (b'\xef\xbb\xbf{"id": "m"}', False),                                              # JSON after a byte order mark
     (b"<!-- generated -->\n<!DOCTYPE html><html></html>", True),                        # comments before the page
     (b"<div>Not found</div>", True), (b"<HEAD><TITLE>Error</TITLE></HEAD>", True),       # fragments, any case
-    (b'\xef\xbb\xbf<!doctype HTML><html></html>', True)])
+    (b'\xef\xbb\xbf<!doctype HTML><html></html>', True),
+    (b"AT&TFORM\x00\x00\x00\x10DJVM", False)])                                       # DjVu
 def test_data_served_as_text_html_is_not_unexpected_html(site, tmp_path, body, html):
     """A server that sends JSON, XML or an image as ``text/html``: the body is what it says, so the fetch succeeds;
     a body that is HTML (XHTML too), or text that is neither, sent as ``text/html``, is unexpected HTML."""

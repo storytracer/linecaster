@@ -4,6 +4,16 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- `ResourceReader` takes DjVu files: a response served as `image/vnd.djvu` (or `image/x-djvu`) was checked as an
+  image, which an image library cannot open, so every DjVu resource failed. A DjVu response is now checked by its
+  signature (`AT&TFORM`) and kept as `.djvu`; a resource kind or URL naming `djvu` expects the format, so an HTML page
+  in its place still fails as `UnexpectedHTML`. A DjVu file served as `text/html` is no longer taken for an HTML page
+  (`linecaster.net.http.DATA_MAGIC`).
+
 ## 0.5.0 (2026-11-11)
 
 ### Upgrade notes
