@@ -68,7 +68,7 @@ def pipeline(a, script: str) -> list:
                                   f"need the recomposition and the normalization, the documents the composition")
     over = run.overrides(a.set, steps=[s for s in RULE_STEPS if getattr(a, s)])
     return [
-        PageRecordReader(a.images, fetch_images=False, item_shards=True),
+        PageRecordReader(a.images, fetch_images=False, item_shards=True, sample=run.sample_rule(a)),
         Binder(),
         *([Recomposer(a.recomposition, unit="item", options=over.get("recomposition"))] if a.recomposition else []),
         *([CharacterNormalizer(a.normalization, unit="item", options=over.get("normalization"))]

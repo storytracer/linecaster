@@ -164,7 +164,8 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
         if max_pages is not None and max_pages < 1:
             raise PipelineConfigError("max_pages must be at least 1")
         self.max_pages = max_pages
-        self._set_sample(sample, max_pages)
+        self._set_sample(sample, max_pages, None if item_from_parent or item_id is not None else
+                         "give item_from_parent (--item-from-parent) or item_id")
         self._sample_files: list[str] | None = None
         if item_id is not None and item_from_parent:
             raise PipelineConfigError("item_id and item_from_parent exclude each other")
@@ -338,7 +339,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
             raise PipelineConfigError("max_pages must be at least 1")
-        self._set_sample(sample, max_pages)
+        self._set_sample(sample, max_pages, None if item_key else "give item_key (--item-key)")
         self._sample_rows = None                # the sample's row positions, sorted, and each row's item
         if task_per_item and not item_key:
             raise PipelineConfigError("task_per_item needs item_key: the items are runs of rows with the same item")

@@ -338,10 +338,6 @@ def sample_problem(a: argparse.Namespace) -> str | None:
         return f"{', '.join(given)}: a sample is of IMAGES, --parquet, --manifests or --pages"
     if getattr(a, "max_pages", None) is not None:
         return "--max-pages and --sample exclude each other: --sample N is the sample's first N pages"
-    per_item = getattr(a, "sample_per_item", None) is not None or getattr(a, "sample_items", None) is not None
-    if per_item and ((getattr(a, "images", None) and not a.item_from_parent)
-                     or (getattr(a, "parquet", None) and not a.item_key)):
-        return "--sample-per-item and --sample-items need items: IMAGES with --item-from-parent, --parquet with --item-key"
     return None
 
 

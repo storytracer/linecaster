@@ -92,6 +92,14 @@ def test_a_sample_and_max_pages_exclude_each_other(tmp_path):
         ImageFolderReader(str(tmp_path), sample=RULE, max_pages=3)
 
 
+def test_items_and_per_item_need_items(tmp_path):
+    with pytest.raises(PipelineConfigError, match="need items"):
+        ImageFolderReader(str(tmp_path), sample=SampleRule(per_item=2))
+    with pytest.raises(PipelineConfigError, match="need items"):
+        ImageParquetReader(str(tmp_path), sample=SampleRule(items=2))
+    ImageFolderReader(str(tmp_path), sample=SampleRule(pages=5))         # pages alone: one item ""
+
+
 # ------------------------------------------------------------------------------------------------ Parquet
 
 
@@ -328,8 +336,6 @@ def test_the_sample_command_writes_the_file_a_run_writes(tmp_path, capsys):
 
 @pytest.mark.parametrize("argv, message", [
     (["IN", "OUT", "--sample-seed", "3"], "--sample-seed orders a sample"),
-    (["IN", "OUT", "--sample-per-item", "2"], "need items"),
-    (["--parquet", "d", "OUT", "--sample-items", "2"], "need items"),
     (["IN", "OUT", "--sample", "5", "--max-pages", "9"], "exclude each other"),
     (["IN", "OUT", "--sample", "0"], "at least 1"),
     (["--items", "t.parquet", "--item-key", "id", "OUT", "--sample", "5"], "a sample is of"),
@@ -339,3 +345,11 @@ def test_sample_options_that_do_not_fit_the_input_are_refused(argv, message, cap
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args(argv))
     assert message in capsys.readouterr().err
+
+
+def test_bind_reads_a_sample_of_its_page_records():
+    from linecaster.pipelines import bind
+
+    p = run.describe(bind, ["OUT1/pages", "OUT2", "--recipe", "item-texts", "--sample-items", "2"])
+    reader = p.blocks[0]
+    assert isinstance(reader, PageRecordReader) and reader.sample == SampleRule(items=2)

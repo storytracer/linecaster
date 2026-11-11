@@ -19,7 +19,8 @@ class Sampled:
     sample: SampleRule | None = None
     _sample: Sample | None = None
 
-    def _set_sample(self, sample: SampleRule | dict | None, max_pages: int | None = None) -> None:
+    def _set_sample(self, sample: SampleRule | dict | None, max_pages: int | None = None,
+                    no_items: str | None = None) -> None:
         if isinstance(sample, dict):
             sample = SampleRule(**sample)
         if sample is not None and not isinstance(sample, SampleRule):
@@ -27,6 +28,8 @@ class Sampled:
         if sample is not None and max_pages is not None:
             raise PipelineConfigError("sample and max_pages exclude each other: a sample's first N pages are "
                                       "SampleRule(pages=N)")
+        if sample is not None and no_items and (sample.items is not None or sample.per_item is not None):
+            raise PipelineConfigError(f"a sample's items and per_item need items: {no_items}")
         self.sample, self._sample = sample, None
 
     def sampled(self, save: bool = True) -> Sample:
