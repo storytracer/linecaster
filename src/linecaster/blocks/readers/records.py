@@ -13,6 +13,7 @@ from ..base.contract import Contract, Contracted, Part
 from ..base.page import error_entry, record_error
 from .fragments import read_image
 from .images import _Opener
+from .sampling import Sampled
 
 #: the folder page records had before phase 1 (``OUT/rows``; today ``OUT/pages``)
 OLD_FOLDER = "rows"
@@ -54,7 +55,7 @@ def upgrade(row: dict) -> dict:
     return row
 
 
-class PageRecordReader(Contracted, PipelineStep):
+class PageRecordReader(Sampled, Contracted, PipelineStep):
     """Reads the page records an earlier run wrote (JSON Lines or Parquet), so a pipeline can add one more part.
 
     Each pipeline of a workflow reads the previous one's ``pages/`` folder (linecaster's page writers) and adds its
@@ -86,6 +87,10 @@ class PageRecordReader(Contracted, PipelineStep):
         provides: the parts the records carry (``"ocr_new:lines"``, ``"ocr_original:*"``, or ``Part``s), for the
             builder's checks; default: anything (``*``; reads after this reader are not checked). The builder sets it
             when it starts a stage from the page records of an earlier one.
+        sample: only the pages of this ``linecaster.data.sample.SampleRule``, chosen from the records' ids
+            (``page.item_id`` or ``""``, ``id``), read from every record file before any image is fetched; each task
+            reads its files as without it (only those holding sample pages) and passes on their sample pages alone
+            (the first record of an id that is listed twice). Default: every record.
     """
 
     type = "📖 - READER"
@@ -96,8 +101,10 @@ class PageRecordReader(Contracted, PipelineStep):
 
     def __init__(self, data_folder: DataFolderLike, glob_pattern: str = "**/*.jsonl*", fetch_images: bool = True,
                  uri_map: dict[str, str] | None = None, item_shards: bool = False, http: dict | None = None,
-                 provides=None, http_policy: str | None = None):
+                 provides=None, http_policy: str | None = None, sample=None):
         super().__init__()
+        self._set_sample(sample)
+        self._sample_rows: dict[str, list[int]] | None = None   # file -> the indices of its sample records
         self.data_folder, self.glob_pattern, self.fetch_images = get_datafolder(data_folder), glob_pattern, fetch_images
         self.uri_map, self.item_shards = uri_map or {}, item_shards
         self.provides = None if provides is None else frozenset(Part.parse(p) for p in provides)
@@ -150,12 +157,37 @@ class PageRecordReader(Contracted, PipelineStep):
             self.data_folder = old
         return files
 
+    def _files(self) -> list[str]:
+        files = sorted(self.data_folder.glob(self.glob_pattern))
+        return files or self._old_folder()
+
+    def _compute_sample(self, save: bool):
+        from ...data.sample import sample_pairs
+
+        where, pairs = [], []
+        for path in self._files():
+            for i, row in enumerate(self._records(path)):
+                item = (row.get("page") or {}).get("item_id")
+                pairs.append(("" if item is None else str(item), str(row["id"])))
+                where.append((path, i))
+        sample = sample_pairs(pairs, self.sample)
+        keys, rows = sample.keys(), {}
+        for key, (path, i) in zip(pairs, where):
+            if key in keys:
+                keys.discard(key)                     # an id listed twice: its first record
+                rows.setdefault(path, []).append(i)
+        self._sample_rows = rows
+        return sample
+
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
             yield from data
-        files = sorted(self.data_folder.glob(self.glob_pattern))
-        if not files:
-            files = self._old_folder()
+        files = self._files()
+        chosen = None
+        if self.sample is not None:
+            self.sampled()
+            chosen = {path: set(rows) for path, rows in self._sample_rows.items()}
+            files = [f for f in files if f in chosen]
         if self.item_shards:
             shards = sorted({f.split("/", 1)[0] for f in files if "/" in f})
             if not shards:
@@ -165,7 +197,7 @@ class PageRecordReader(Contracted, PipelineStep):
         else:
             files = files[rank::world_size]
         for path in files:
-            yield from reported_file(self, path, self._documents(path))
+            yield from reported_file(self, path, self._documents(path, None if chosen is None else chosen[path]))
 
     def _mapped(self, src: str) -> str:
         """``src`` with the first matching prefix of ``uri_map`` rewritten."""
@@ -174,10 +206,12 @@ class PageRecordReader(Contracted, PipelineStep):
                 return repl + src[len(prefix):]
         return src
 
-    def _documents(self, path: str):
+    def _documents(self, path: str, rows: set[int] | None = None):
         from datatrove.data import Document, Media, MediaType
 
-        for row in self._records(path):
+        for i, row in enumerate(self._records(path)):
+            if rows is not None and i not in rows:
+                continue
             row = upgrade(row)
             page = row["page"]
             media, fetches, failure = [], [], None

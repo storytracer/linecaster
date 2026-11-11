@@ -11,6 +11,7 @@ pages stay in one task.
 """
 from __future__ import annotations
 
+import dataclasses
 import posixpath
 import re
 import time
@@ -22,7 +23,8 @@ from loguru import logger
 from ...errors import PipelineConfigError
 from ...net.http import fetch_record, is_url, prefetched
 from .existing import ExistingImages, Reused, mark_reused
-from .tables import ITEMS_PER_TASK, row_slices, slice_batches, table_rows, tasks_for, total_rows
+from .sampling import Sampled
+from .tables import ITEMS_PER_TASK, position_slices, row_slices, slice_batches, table_rows, tasks_for, total_rows
 from ..base.contract import Contract, Contracted, Part
 from ..base.page import NOT_THE_PAGES, new_page_document
 
@@ -36,6 +38,9 @@ OCR_ORIGINAL = "ocr_original"
 #: file extension of a saved manifest / OCR file by format
 MANIFEST_EXTENSIONS = {"iiif": "json", "mets": "xml"}
 OCR_EXTENSIONS = {"alto": "xml", "hocr": "html"}
+#: the index of the manifests a sample read, in ``manifest_folder``: one JSON line per item (its id, the entry, the
+#: URL it was read from, the copy's file name, its pages)
+SAMPLE_INDEX = "sample.jsonl"
 
 
 def manifest_item_id(entry: str, pattern: str | None = None) -> str:
@@ -85,7 +90,7 @@ class _Local:
         self.content, self.url = content, url
 
 
-class ManifestReader(Contracted, BaseDiskReader):
+class ManifestReader(Sampled, Contracted, BaseDiskReader):
     """Reads one page per image of each item's manifest: IIIF Presentation 2 or 3, or METS with MODS (also inside an
     OAI-PMH response).
 
@@ -164,6 +169,15 @@ class ManifestReader(Contracted, BaseDiskReader):
             ``LISTING_TIMEOUT`` (60 s) or fails is a warning and a stat (``reuse_listing_timeouts``,
             ``reuse_listing_errors``), and its pages are fetched again. Not with ``existing_ocr`` (its OCR files would
             need fetching anyway).
+        sample: only the pages of this ``linecaster.data.sample.SampleRule``. The items are ranked from the entries'
+            item ids before anything is fetched; a page's id (``<item_id>_<sequence:04d>``) needs its manifest, so
+            computing the sample reads the manifests of the items in rank order, only as far as the rule reaches
+            (every one with ``per_item`` alone), and an item whose manifest cannot be read stops it (the sample
+            would depend on the failure). With ``manifest_folder`` each manifest it read is saved there with an
+            index (``SAMPLE_INDEX``), and the tasks, and a later launch computing the sample again, read those
+            copies instead of fetching them again. The sample's items are divided over the tasks as the entries
+            would be (an item whole in its task); only their sample pages' images are requested. A IIIF Collection
+            entry is a ``PipelineConfigError`` (list its manifests). Default: every page.
         paths_file, recursive, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -183,7 +197,7 @@ class ManifestReader(Contracted, BaseDiskReader):
                  existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None):
         if glob_pattern is None:
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
@@ -203,6 +217,9 @@ class ManifestReader(Contracted, BaseDiskReader):
         self._existing = ExistingImages(reuse_folder) if reuse_folder is not None and not existing_ocr else None
         self._all: list[str] | None = None
         self._layout: list | None = None
+        self._set_sample(sample)
+        self._sample_items: dict | None = None      # item id -> its manifest (url, copy) and sample page indices
+        self._sample_entries: list | None = None    # the sample's entries, or item table rows, in input order
 
     # ------------------------------------------------------------------ entries and items
 
@@ -235,12 +252,27 @@ class ManifestReader(Contracted, BaseDiskReader):
         return self._layout
 
     def auto_tasks(self) -> int:
-        """The task count for about ``ITEMS_PER_TASK`` items per task (manifests, or item table rows)."""
-        items = total_rows(self.layout()) if self.manifest_key else len(self._every_entry())
+        """The task count for about ``ITEMS_PER_TASK`` items per task (manifests, or item table rows; the sample's
+        items with ``sample``)."""
+        if self.sample is not None:
+            items = len(self._entries_sampled())
+        else:
+            items = total_rows(self.layout()) if self.manifest_key else len(self._every_entry())
         return tasks_for(items, 1 if self.task_per_item else ITEMS_PER_TASK)
 
+    def _entries_sampled(self) -> list:
+        self.sampled()
+        return self._sample_entries
+
     def _entries(self, rank: int, world_size: int) -> list:
-        """The task's entries: manifests in turn; with ``manifest_key``, its shard of item table rows (``row_slices``)."""
+        """The task's entries: manifests in turn; with ``manifest_key``, its shard of item table rows (``row_slices``);
+        with ``sample``, of the sample's entries or rows alone."""
+        if self.sample is not None:
+            entries = self._entries_sampled()
+            if self.manifest_key:
+                count = len(entries)
+                return position_slices(self.layout(), entries[rank * count // world_size:(rank + 1) * count // world_size])
+            return entries[rank::world_size]
         if self.manifest_key:
             return row_slices(self.layout(), rank, world_size)
         return self._every_entry()[rank::world_size]
@@ -275,6 +307,119 @@ class ManifestReader(Contracted, BaseDiskReader):
                             continue
                         extra = {k: v for k, v in row.items() if not isinstance(v, bytes | dict | list)}
                         yield None if item is None else safe_id(item), str(ref), extra
+
+    # ------------------------------------------------------------------ the sample
+
+    def _listed_items(self) -> list[tuple[int, str, str]]:
+        """``(where, item_id, manifest reference)`` of every entry, in order: ``where`` is the entry's index, or with
+        ``manifest_key`` the item table row (rows without a manifest left out). Nothing is fetched."""
+        if not self.manifest_key:
+            return [(i, manifest_item_id(e, self.item_id_pattern), e) for i, e in enumerate(self._every_entry())]
+        import pyarrow.parquet as pq
+
+        out, pos = [], 0
+        keys = [k for k in (self.manifest_key, self.item_key) if k]
+        for path, groups in self.layout():
+            with self.data_folder.open(path, "rb") as f, pq.ParquetFile(f) as pqf:
+                for i, n in enumerate(groups):
+                    for j, row in enumerate(pqf.read_row_group(i, columns=keys).slice(0, n).to_pylist()):
+                        ref = row.get(self.manifest_key)
+                        if ref:
+                            item = row.get(self.item_key) if self.item_key else None
+                            item_id = safe_id(item) if item is not None else manifest_item_id(str(ref),
+                                                                                              self.item_id_pattern)
+                            out.append((pos + j, item_id, str(ref)))
+                    pos += n
+        return out
+
+    def _sample_index(self) -> dict[str, dict]:
+        """The manifests an earlier computation of the sample saved (``SAMPLE_INDEX`` in ``manifest_folder``)."""
+        import json
+
+        if self.manifest_folder is None:
+            return {}
+        folder = get_datafolder(self.manifest_folder)
+        if not folder.exists(SAMPLE_INDEX):
+            return {}
+        with folder.open(SAMPLE_INDEX, "r") as f:
+            return {(d := json.loads(line))["item_id"]: d for line in f if line.strip()}
+
+    def _copy(self, info: dict | None) -> bytes | None:
+        """The saved copy of a manifest the sample read (``info``: its index entry), or None."""
+        if not info or not info.get("file") or self.manifest_folder is None:
+            return None
+        folder = get_datafolder(self.manifest_folder)
+        if not folder.exists(info["file"]):
+            return None
+        with folder.open(info["file"], "rb") as f:
+            return f.read()
+
+    def _sample_manifest(self, item_id: str, ref: str, known: dict | None, save: bool) -> dict:
+        """The manifest of ``item_id`` for the sample: its saved copy (``known``), else read from ``ref`` (and saved
+        when ``save``); its index entry with the indices of its pages (``indices``)."""
+        from ...formats.manifests import read_manifest
+
+        data, uri, copied = self._copy(known), (known or {}).get("url"), True
+        if data is None:
+            copied = False
+            try:
+                data, uri = self._read(ref)
+            except NOT_THE_PAGES:
+                raise
+            except Exception as e:  # noqa: BLE001 - the sample would depend on the failure: stop
+                raise PipelineConfigError(f"sample: the manifest of item {item_id} ({ref}) could not be read "
+                                          f"({type(e).__name__}: {e}); a sample reads every manifest it reaches") from e
+        if self._members(data) is not None:
+            raise PipelineConfigError(f"sample: {ref} is a IIIF Collection; a sample needs one manifest per entry "
+                                      "(list the collection's manifests instead)")
+        c = self._fetchers.config(uri)
+        try:
+            manifest = read_manifest(data, self.manifest_format, iiif_format=c.iiif_format,
+                                     iiif_quality=c.iiif_quality, image_groups=tuple(c.mets_image_groups),
+                                     ocr_groups=tuple(c.mets_ocr_groups))
+        except Exception as e:  # noqa: BLE001 - as above
+            raise PipelineConfigError(f"sample: the manifest of item {item_id} ({ref}) could not be parsed "
+                                      f"({type(e).__name__}: {e})") from e
+        name = None
+        if self.manifest_folder is not None:
+            name = f"{item_id}.{MANIFEST_EXTENSIONS.get(manifest.format, 'bin')}"
+            if save and not copied:
+                with get_datafolder(self.manifest_folder).open(name, "wb") as f:
+                    f.write(data)
+        return {"item_id": item_id, "entry": ref, "url": uri, "file": name, "pages": len(manifest.pages),
+                "indices": [p.index for p in manifest.pages]}
+
+    def _compute_sample(self, save: bool):
+        import json
+
+        from ...data.sample import Sample, listing_sha256, select
+
+        listed = self._listed_items()
+        first: dict[str, tuple[int, str]] = {}
+        for where, item_id, ref in listed:
+            first.setdefault(item_id, (where, ref))      # an item listed twice: its first entry
+        known, read = self._sample_index(), {}
+
+        def pages(item_id: str) -> list[str]:
+            info = read[item_id] = self._sample_manifest(item_id, first[item_id][1], known.get(item_id), save)
+            return [f"{item_id}_{i:04d}" for i in info["indices"]]
+
+        selected = list(select(first, pages, self.sample))
+        if save and self.manifest_folder is not None and any(i not in known for i in read):
+            index = {**known, **{i: {k: v for k, v in d.items() if k != "indices"} for i, d in read.items()}}
+            with get_datafolder(self.manifest_folder).open(SAMPLE_INDEX, "w") as f:
+                f.write("".join(json.dumps(index[i], ensure_ascii=False) + "\n" for i in sorted(index)))
+        items: dict[str, dict] = {}
+        for s in selected:
+            info = items.setdefault(s.item_id, {"url": read[s.item_id]["url"], "file": read[s.item_id]["file"],
+                                                "indices": set()})
+            info["indices"].add(int(s.page_id.rsplit("_", 1)[1]))
+        self._sample_items = items
+        wheres = sorted(first[i][0] for i in items)
+        self._sample_entries = wheres if self.manifest_key else [self._every_entry()[w] for w in wheres]
+        listing = {"scope": "items", "items": len(first), "duplicates": len(listed) - len(first),
+                   "manifests_read": len(read), "sha256": listing_sha256(first)}
+        return Sample(self.sample, selected, listing)
 
     def _read(self, ref: str) -> tuple[bytes, str]:
         if is_url(ref):
@@ -314,8 +459,19 @@ class ManifestReader(Contracted, BaseDiskReader):
         from ...formats.manifests import read_manifest
 
         start, t = time.time_ns(), time.perf_counter()
+        info, copied = None, False
+        if self.sample is not None and not in_collection:
+            item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
+            info = (self._sample_items or {}).get(item_id)
+            if info is None:                       # an item listed twice: its first entry is read
+                self.stat_update("sample_entries_skipped")
+                return
         try:
-            data, uri = self._read(ref)
+            copy = self._copy(info)
+            if copy is not None:                   # read when the sample was computed: not fetched again
+                data, uri, copied = copy, info["url"], True
+            else:
+                data, uri = self._read(ref)
             members = None if in_collection else self._members(data)
             if members is None:
                 item_id = item_id or manifest_item_id(ref, self.item_id_pattern)
@@ -345,12 +501,19 @@ class ManifestReader(Contracted, BaseDiskReader):
             return
         self.report("file", start, file=ref, pages=len(manifest.pages), seconds_own=round(time.perf_counter() - t, 4))
         self.stat_update(f"manifests_{manifest.format}")
-        if saved is not None:
+        if saved is not None and not copied:
             with saved.open(f"{item_id}.{MANIFEST_EXTENSIONS.get(manifest.format, 'bin')}", "wb") as f:
                 f.write(data)
         if not manifest.pages:
             self.stat_update("manifests_without_images")
             return
+        if info is not None:
+            pages = [p for p in manifest.pages if p.index in info["indices"]]
+            if len(pages) < len(info["indices"]):      # the manifest changed since the sample was computed
+                logger.warning("manifest {ref}: {missing} sample page(s) of item {item_id} are not in it",
+                               ref=ref, missing=len(info["indices"]) - len(pages), item_id=item_id)
+                self.stat_update("sample_pages_missing", value=len(info["indices"]) - len(pages))
+            manifest = dataclasses.replace(manifest, pages=pages)
         item = {"format": manifest.format, "url": uri, "id": manifest.id, "label": manifest.label,
                 "rights": manifest.rights, "required_statement": manifest.required_statement,
                 "identifiers": dict(manifest.identifiers), "metadata": dict(manifest.metadata)}

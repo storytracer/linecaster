@@ -30,8 +30,9 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
 from .existing import ExistingImages, Reused, mark_reused
-from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, row_slices, rows_between, slice_batches,
-                     table_rows, tasks_for, total_rows, whole_file)
+from .sampling import Sampled
+from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, position_slices, row_slices, rows_between,
+                     slice_batches, table_rows, tasks_for, total_rows, whole_file)
 from ..base.block import reported_file
 from ..base.contract import Contracted
 from ...data.page import Page, PageImage
@@ -118,7 +119,7 @@ def _future(read: Callable[[], bytes]) -> Future:
     return future
 
 
-class ImageFolderReader(Contracted, BaseDiskReader):
+class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
     """Reads one page per image file of a folder or bucket.
 
     The image files under ``data_folder`` matching ``glob_pattern``, or the files listed in ``paths_file`` (one per
@@ -141,6 +142,10 @@ class ImageFolderReader(Contracted, BaseDiskReader):
         default_metadata: goes into every page's metadata.
         max_pages: only the first ``max_pages`` files (sorted, or as ``paths_file`` lists them), for the whole run,
             divided over the tasks as all of them would be; default: every file.
+        sample: only the pages of this ``linecaster.data.sample.SampleRule``, chosen from the files' item and page
+            ids (``(item_id or "", page_id)``) before any is read; the sample's files, in the listing's order, are
+            divided over the tasks in turn, the same whatever the task count (the first file of an id that is
+            listed twice). Excludes ``max_pages``. Default: every file.
         recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
@@ -153,12 +158,14 @@ class ImageFolderReader(Contracted, BaseDiskReader):
                  glob_pattern: str = IMAGE_GLOB, recursive: bool = True, limit: int = -1, skip: int = 0,
                  item_from_parent: bool = False, item_id: str | None = None, sequence: bool = False,
                  file_progress: bool = False, doc_progress: bool = False, default_metadata: dict | None = None,
-                 shuffle_files: bool = False, max_pages: int | None = None):
+                 shuffle_files: bool = False, max_pages: int | None = None, sample=None):
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         if max_pages is not None and max_pages < 1:
             raise PipelineConfigError("max_pages must be at least 1")
         self.max_pages = max_pages
+        self._set_sample(sample, max_pages)
+        self._sample_files: list[str] | None = None
         if item_id is not None and item_from_parent:
             raise PipelineConfigError("item_id and item_from_parent exclude each other")
         if sequence and paths_file:
@@ -180,10 +187,49 @@ class ImageFolderReader(Contracted, BaseDiskReader):
             return sorted({p for ext in exts.split(",") for p in self.data_folder.glob(f"{head}{ext}{tail}")})
         return sorted(self.data_folder.glob(pattern))
 
+    def _listing(self) -> list[str]:
+        """Every file of the input: as ``paths_file`` lists them, else the matching files sorted."""
+        if self.paths_file:
+            return [f for f in get_shard_from_paths_file(self.paths_file, 0, 1) if f]
+        files = self._glob()
+        if not files:
+            raise PipelineConfigError(f"No images found on {self.data_folder.path} matching {self.glob_pattern!r}")
+        return files
+
+    def _key(self, path: str) -> tuple[str, str]:
+        item = self._item(path)
+        return "" if item is None else item, _stem(path)
+
+    def _compute_sample(self, save: bool):
+        from ...data.sample import sample_pairs
+
+        files = self._listing()
+        sample = sample_pairs([self._key(f) for f in files], self.sample)
+        keys, chosen = sample.keys(), []
+        for f in files:
+            key = self._key(f)
+            if key in keys:
+                keys.discard(key)                     # an id listed twice: its first file
+                chosen.append(f)
+        self._sample_files = chosen
+        return sample
+
+    def _count_positions(self, files: list[str]) -> None:
+        counts: dict[str | None, int] = {}
+        for path in files:
+            item = self._item(path)
+            counts[item] = counts.get(item, 0) + 1
+            self._positions[path] = counts[item]
+
     def run(self, data=None, rank: int = 0, world_size: int = 1):
         if data:
             yield from data
-        if self.paths_file and self.max_pages is not None:
+        if self.sample is not None:
+            self.sampled()
+            if self.sequence:
+                self._count_positions(self._glob())
+            files = self._sample_files[rank::world_size]
+        elif self.paths_file and self.max_pages is not None:
             files = list(get_shard_from_paths_file(self.paths_file, 0, 1))[:self.max_pages][rank::world_size]
         elif self.paths_file:
             files = list(get_shard_from_paths_file(self.paths_file, rank, world_size))
@@ -192,11 +238,7 @@ class ImageFolderReader(Contracted, BaseDiskReader):
             if not all_files:
                 raise PipelineConfigError(f"No images found on {self.data_folder.path} matching {self.glob_pattern!r}")
             if self.sequence:
-                counts: dict[str | None, int] = {}
-                for path in all_files:
-                    item = self._item(path)
-                    counts[item] = counts.get(item, 0) + 1
-                    self._positions[path] = counts[item]
+                self._count_positions(all_files)
             files = all_files[:self.max_pages][rank::world_size]
         self._log_limit_scope(rank, world_size)
         if self.shuffle_files:
@@ -219,7 +261,7 @@ class ImageFolderReader(Contracted, BaseDiskReader):
         yield doc
 
 
-class ImageParquetReader(Contracted, ParquetReader):
+class ImageParquetReader(Sampled, Contracted, ParquetReader):
     """Reads one page per row of Parquet files with an image column.
 
     The rows of all files, in order, are divided over the tasks in equal shards, read by row group
@@ -256,6 +298,11 @@ class ImageParquetReader(Contracted, ParquetReader):
         limit, skip: pages per task, as datatrove's count documents; they apply before anything is read or fetched.
         max_pages: only the first ``max_pages`` rows of the input, for the whole run: the tables are read as if they
             ended there, divided over the tasks (and ``auto_tasks`` counted) the same way; default: every row.
+        sample: only the pages of this ``linecaster.data.sample.SampleRule``, chosen from the id columns alone
+            (``id_key``, or ``item_key`` and ``sequence_key``; ``item_key``) before any image is read; the sample's
+            rows, in the tables' order, are divided over the tasks in equal shards (with ``task_per_item`` by item),
+            and ``auto_tasks`` counts them. A row's image is read with the other sample rows of its row group. The
+            first row of an id that is listed twice. Excludes ``max_pages``. Default: every row.
         reuse_folder: where ``ImageFilesWriter`` writes the images (``pipelines/harvest.py``: ``OUT/images``): a
             page whose file is already there is read from it instead of from the source
             (``linecaster.blocks.readers.existing``: one listing per item), so a resumed harvest does not fetch it
@@ -286,11 +333,13 @@ class ImageParquetReader(Contracted, ParquetReader):
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
                  max_pages: int | None = None, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
             raise PipelineConfigError("max_pages must be at least 1")
+        self._set_sample(sample, max_pages)
+        self._sample_rows = None                # the sample's row positions, sorted, and each row's item
         if task_per_item and not item_key:
             raise PipelineConfigError("task_per_item needs item_key: the items are runs of rows with the same item")
         self.max_pages, self.task_per_item = max_pages, task_per_item
@@ -321,20 +370,75 @@ class ImageParquetReader(Contracted, ParquetReader):
         return self._starts
 
     def auto_tasks(self) -> int:
-        """The task count: one per item with ``task_per_item``, else shards of about ``PAGES_PER_TASK`` pages."""
+        """The task count: one per item with ``task_per_item``, else shards of about ``PAGES_PER_TASK`` pages (of the
+        sample's, with ``sample``)."""
+        if self.sample is not None:
+            self.sampled()
+            positions, items = self._sample_rows
+            return max(1, len(set(items))) if self.task_per_item else tasks_for(len(positions), PAGES_PER_TASK)
         if self.task_per_item:
             return max(1, len(self.items()[2]) - 1)
         return tasks_for(total_rows(self.layout()), PAGES_PER_TASK)
 
-    def _task_ranges(self, rank: int, world_size: int) -> list[tuple[int, int]]:
+    def _id_rows(self):
+        """``(item_id or "", page_id)`` of every row of the input, in order, from the id columns alone."""
+        import pyarrow.parquet as pq
+
+        for path, groups in self.layout():
+            with self.data_folder.open(path, "rb") as f, pq.ParquetFile(f) as pqf:
+                derive = self.id_key not in pqf.schema_arrow.names
+                if derive and not (self.item_key and self.sequence_key):
+                    raise PipelineConfigError(f"{path}: no page id column {self.id_key!r}; give id_key, or item_key "
+                                              "and sequence_key to name pages <item>_<0001>")
+                keys = [k for k in (None if derive else self.id_key, self.item_key, self.sequence_key if derive else None)
+                        if k]
+                for i, n in enumerate(groups):
+                    if n == 0:
+                        continue
+                    table = pqf.read_row_group(i, columns=keys).slice(0, n)
+                    for row in table.to_pylist():
+                        item = row.get(self.item_key) if self.item_key else None
+                        page = (f"{item}_{int(row[self.sequence_key]):04d}" if derive else str(row[self.id_key]))
+                        yield "" if item is None else str(item), page
+
+    def _compute_sample(self, save: bool):
+        import array
+
+        from ...data.sample import sample_pairs
+
+        pairs = list(self._id_rows())
+        sample = sample_pairs(pairs, self.sample)
+        keys, positions, items = sample.keys(), array.array("q"), []
+        for pos, key in enumerate(pairs):
+            if key in keys:
+                keys.discard(key)                     # an id listed twice: its first row
+                positions.append(pos)
+                items.append(key[0])
+        self._sample_rows = (positions, items)
+        return sample
+
+    def _task_rows(self, rank: int, world_size: int) -> list[int]:
+        """The sample's rows task ``rank`` reads: equal shards of them, or with ``task_per_item`` its items' rows."""
+        self.sampled()
+        positions, items = self._sample_rows
+        if not self.task_per_item:
+            count = len(positions)
+            return list(positions[rank * count // world_size:(rank + 1) * count // world_size])
+        order = list(dict.fromkeys(items))
+        mine = set(order[rank * len(order) // world_size:(rank + 1) * len(order) // world_size])
+        return [p for p, item in zip(positions, items) if item in mine]
+
+    def _task_slices(self, rank: int, world_size: int) -> list[tuple[str, int, int, int]]:
+        """Task ``rank``'s rows as ``(file, row group, start, stop)``, in order."""
+        if self.sample is not None:
+            return position_slices(self.layout(), self._task_rows(rank, world_size))
         if self.task_per_item:
-            return item_ranges(self.items(), rank, world_size)
-        total = total_rows(self.layout())
-        return [(rank * total // world_size, (rank + 1) * total // world_size)]
+            return [s for lo, hi in item_ranges(self.items(), rank, world_size) for s in rows_between(self.layout(), lo, hi)]
+        return row_slices(self.layout(), rank, world_size)
 
     def task_pages(self, rank: int, world_size: int) -> int:
         """The pages task ``rank`` of ``world_size`` reads: its shard's rows, after ``skip``, up to ``limit``."""
-        rows = max(0, sum(hi - lo for lo, hi in self._task_ranges(rank, world_size)) - self.skip)
+        rows = max(0, sum(stop - start for _, _, start, stop in self._task_slices(rank, world_size)) - self.skip)
         return rows if self.limit == -1 else min(rows, self.limit)
 
     def _source(self, value, filepath: str, page_id: str) -> str:
@@ -370,8 +474,7 @@ class ImageParquetReader(Contracted, ParquetReader):
             yield from data
         self._budget = ErrorBudget(self, self.max_page_errors)          # one per task, over all its files
         self._opener.start_task()                        # fetchers taken again (shared) at the task's first request
-        slices = ([s for lo, hi in self._task_ranges(rank, world_size) for s in rows_between(self.layout(), lo, hi)]
-                  if self.task_per_item else row_slices(self.layout(), rank, world_size))
+        slices = self._task_slices(rank, world_size)
         self._log_limit_scope(rank, world_size)
         files = list(dict.fromkeys(path for path, *_ in slices))
         if self.shuffle_files:
