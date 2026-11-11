@@ -33,6 +33,9 @@ class Chat:
             ``None``: no authorization header.
         headers: headers sent with every request, values plain or ``EnvVar``.
         prefer: the unit of the preset a Hugging Face id picks when the model has several: ``page`` or ``region``.
+        overrides: options over the preset's settings (``linecaster.adapters.ChatAdapter.Options``: ``max_tokens``,
+            ``temperature``, ``top_p``, ``repair_max_tokens``, ``repair_temperature``), applied to the adapter;
+            the ones that differ from the preset's are recorded with it.
 
     Example:
         from linecaster.backends import Chat
@@ -47,7 +50,7 @@ class Chat:
 
     def __init__(self, preset, endpoint: str | None = None, served_name: str | None = None, max_window: int = 32,
                  initial_window: int = 4, read_timeout: float = 600.0, api_key: EnvVar | None = None,
-                 headers: dict | None = None, prefer: str = "page"):
+                 headers: dict | None = None, prefer: str = "page", overrides: dict | None = None):
         from ..adapters import ChatAdapter, chat_model
 
         check_secrets("Chat", api_key, headers)
@@ -55,8 +58,9 @@ class Chat:
             adapter = preset
             if served_name:
                 adapter.served_name = served_name
+            adapter.apply_overrides(overrides)
         else:
-            adapter = chat_model(preset, served_name=served_name, prefer=prefer)
+            adapter = chat_model(preset, served_name=served_name, prefer=prefer, overrides=overrides)
         self.adapter = adapter
         self.endpoint = endpoint or f"http://127.0.0.1:{CHAT_PORT}/v1"
         self.max_window, self.initial_window, self.read_timeout = max_window, initial_window, read_timeout
