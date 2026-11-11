@@ -794,6 +794,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#051-2026-11-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.5.1 (2026-11-11)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.5.1 (2026-11-11)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#050-2026-11-11" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -839,7 +867,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -900,7 +928,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -989,7 +1017,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1100,7 +1128,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1150,7 +1178,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1200,6 +1228,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#051-2026-11-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.5.1 (2026-11-11)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.5.1 (2026-11-11)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#050-2026-11-11" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1245,7 +1301,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1306,7 +1362,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1395,7 +1451,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1506,7 +1562,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1556,7 +1612,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1596,6 +1652,17 @@
 <p>All notable changes to linecaster. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>;
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is <code>v0.1.0</code>.</p>
+<h2 id="051-2026-11-11">0.5.1 (2026-11-11)<a class="headerlink" href="#051-2026-11-11" title="Permanent link">&para;</a></h2>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ResourceReader</code> takes DjVu files: a response served as <code>image/vnd.djvu</code> (or <code>image/x-djvu</code>) was checked as an
+  image, which an image library cannot open, so every DjVu resource failed. A DjVu response is now checked by its
+  signature (<code>AT&amp;TFORM</code>) and kept as <code>.djvu</code>; a resource kind or URL naming <code>djvu</code> expects the format, so an HTML page
+  in its place still fails as <code>UnexpectedHTML</code>. A DjVu file served as <code>text/html</code> is no longer taken for an HTML page
+  (<code>linecaster.net.http.DATA_MAGIC</code>).</li>
+<li>A fresh pause counts exactly its wait toward <code>max_pause</code> (<code>Pause.hit</code>): it was computed as <code>now + wait - now</code>,
+  which floating point can make a hair shorter on a machine whose clock reads high.</li>
+</ul>
 <h2 id="050-2026-11-11">0.5.0 (2026-11-11)<a class="headerlink" href="#050-2026-11-11" title="Permanent link">&para;</a></h2>
 <h3 id="upgrade-notes">Upgrade notes<a class="headerlink" href="#upgrade-notes" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1725,7 +1792,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   limits are linecaster's own sliding windows (<code>linecaster.net.limits.RateLimiter</code>).</li>
 <li><code>--proxies</code> says how a blocked and a broken proxy are left out now, and <code>--http-policy</code> lists the new fields.</li>
 </ul>
-<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>A status in <code>stop_on</code> is traced as that status (it was <code>no-response</code>).</li>
 <li>The console's progress line could fail with a <code>TypeError</code> when a pause or the breaker ended while it read them
@@ -1825,7 +1892,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li><code>linecaster.runtime.jobs</code>: <code>WheelJobsExecutor</code>, <code>wheel_volume</code>, <code>build_wheel</code>, <code>upload_wheel</code>, <code>bucket_parts</code>,
   <code>WHEEL_MOUNT</code> and <code>ENGINE_SCRIPT</code> (upgrade notes).</li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>linecaster.runtime.jobs.dependencies</code> reads git sources with a <code>tag</code> or <code>branch</code> (it raised <code>KeyError: 'rev'</code>) and
   keeps their <code>subdirectory</code> (<code>git+URL@REF#subdirectory=DIR</code>), so a derivative's script pinned by tag runs on HF
@@ -1868,7 +1935,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
   a task starts inherit them).</li>
 <li>The README's Ray section says what a task reserves, how to start workers for it, and how to run on Kubernetes.</li>
 </ul>
-<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The harvest's help and the pipelines reference say that <code>--retry-failed</code> fetches only the failed pages of a book
   with <code>--reuse</code>, and every page of it without (since <code>--reuse</code> is off by default).</li>
@@ -2205,7 +2272,7 @@ the tags; the first is <code>v0.1.0</code>.</p>
 <li>The docs site publishes releases only; the reference for <code>main</code> is built in a checkout (<code>linecaster docs</code>, then
   <code>mkdocs serve</code>).</li>
 </ul>
-<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The run's description of its HTTP policy includes the run's own <code>--rate-limit</code>, <code>--proxies</code> and
   <code>--random-user-agent</code>, which hold between the file's root and its hosts' entries; before, a file without rate limits
@@ -3026,7 +3093,7 @@ and ids fail.</p>
   item-unit <code>Recomposer</code>, <code>CharacterNormalizer</code> and <code>Composer</code>; <code>Binder</code> (pages → item records) and <code>Splitter</code> (item
   records → pages, with what the item-level steps added); the recipe <code>item-texts@1</code> (<code>bind.v1</code>).</li>
 </ul>
-<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>PageRecordReader(fetch_images=True)</code>, <code>ImageFetcher</code> and <code>ImageConverter</code> dropped the fragment of
   <code>page.image.uri</code> and fetched the whole file: for a <code>PdfReader</code> page (<code>file.pdf#page=n</code>) the PDF, for an
