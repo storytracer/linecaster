@@ -11,7 +11,8 @@
   for blocks the builder adjusts after construction (a reader's ``provides``).
 * ``operational``: the parameters that change only where things are or how the work is run, not what a run writes
   (``OPERATIONAL`` plus a class's own); the run record's ``pipeline_sha256`` leaves them out
-  (``linecaster.runtime.provenance``, ``docs/reference/pipelines.md``).
+  (``linecaster.runtime.provenance``, ``docs/reference/pipelines.md``), and ``unhashed_defaults``, parameters added
+  later, while they have the default that keeps the old behavior.
 """
 from __future__ import annotations
 
@@ -114,6 +115,9 @@ class Block:
     live_params: tuple[str, ...] = ()
     #: this class's operational parameters besides ``OPERATIONAL``
     operational: tuple[str, ...] = ()
+    #: parameters added to a released block, each with the default that keeps the old behavior: ``pipeline_sha256``
+    #: leaves one out while it has that default, so a pipeline that does not use it keeps its hash
+    unhashed_defaults: dict[str, Any] = {}
     #: the arguments the generated docs build an instance with (``linecaster docs``: the contract on the block's page),
     #: for a block whose constructor needs some; a model block's preset needs no engine installed there
     docs_args: dict[str, Any] = {}

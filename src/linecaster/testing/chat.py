@@ -36,15 +36,18 @@ class FakeChatServer:
 
 
 @contextmanager
-def fake_chat_server(answer: Callable[[dict], str | dict] | None = None) -> Iterator[FakeChatServer]:
+def fake_chat_server(answer: Callable[[dict], str | dict] | None = None,
+                     models: list[dict] | None = None) -> Iterator[FakeChatServer]:
     """Runs an OpenAI-compatible chat server on loopback that answers ``/v1/chat/completions`` from a function.
 
     ``answer`` gets each request's body and returns the content of the completion (a string, wrapped by
-    ``completion``) or the whole response body (a dict). Other routes answer 404 (saturate's gauge probe then runs
+    ``completion``) or the whole response body (a dict). With ``models``, ``GET /v1/models`` lists them (as vLLM
+    does, e.g. ``{"id": "m", "max_model_len": 18000}``). Other routes answer 404 (saturate's gauge probe then runs
     blind). The server binds ``127.0.0.1`` on a free port and stops when the block ends.
 
     Args:
         answer: the function that answers; ``None``: every request is answered ``"text"``.
+        models: the entries of ``GET /v1/models``; ``None``: that route answers 404 too.
 
     Example:
         from linecaster.backends import Chat
@@ -61,6 +64,14 @@ def fake_chat_server(answer: Callable[[dict], str | dict] | None = None) -> Iter
             pass
 
         def do_GET(self):  # noqa: N802 - saturate's engine probe: no gauges here (blind mode)
+            if models is not None and self.path == "/v1/models":
+                data = json.dumps({"object": "list", "data": models}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
             self.send_response(404)
             self.end_headers()
 

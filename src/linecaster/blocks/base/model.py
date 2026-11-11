@@ -272,10 +272,22 @@ class ModelBlock(PageBlock):
                                     if measured.get(k) is not None})
         yield doc
 
+    def _second_request(self, done) -> dict | None:
+        """The body of a second request a finished one asks for (``PageRecognizer``'s repair pass), sent at once into
+        the same window; ``None`` (the default): the result goes on as it is."""
+        return None
+
+    def _second_done(self, done, body: dict | None, error: str | None):
+        """``done`` with the second request's response ``body`` (or its ``error``) added, for ``_done``."""
+        return done
+
     def _run_served(self, data):
         """The requests (``_rows``) through saturate: built in its prepare threads (``_request``, with the observers'
         ``prepare`` and ``request`` events around it), up to the backend's window in flight, each result handed to
-        ``_done`` as it finishes."""
+        ``_done`` as it finishes. A result that asks for a second request (``_second_request``) waits for it: the
+        second request goes into the same window at once, and the result goes on with its response
+        (``_second_done``) while the others stream on."""
+        import anyio
         from saturate import AdaptiveClient, Auto, through
 
         b = self.backend
@@ -296,14 +308,25 @@ class ModelBlock(PageBlock):
                 body["traceparent"] = carrier["traceparent"]
             return body
 
+        route = self.route or f"/linecaster/{self.step}"
+
         async def pump():
             async with AdaptiveClient(b.endpoint, window=Auto(initial=b.initial_window, max_limit=b.max_window),
                                       read_timeout=b.read_timeout, headers=headers) as client:
-                async with through(client, rows, request, self._parse,
-                                   route=self.route or f"/linecaster/{self.step}",
-                                   prepare_workers=self.prepare_workers) as stream:
-                    async for done in stream:
-                        await asyncio.to_thread(results.put, done)
+
+                async def second(done, body):
+                    out, error = await client.post(body, route)
+                    await asyncio.to_thread(results.put, self._second_done(done, out, error))
+
+                async with anyio.create_task_group() as seconds:     # left only when every second request is back
+                    async with through(client, rows, request, self._parse, route=route,
+                                       prepare_workers=self.prepare_workers) as stream:
+                        async for done in stream:
+                            body = self._second_request(done)
+                            if body is None:
+                                await asyncio.to_thread(results.put, done)
+                            else:
+                                seconds.start_soon(second, done, body)
 
         def worker():
             try:
