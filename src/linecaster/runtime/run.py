@@ -1013,7 +1013,7 @@ def sample(argv: list[str]) -> None:
 
     found = reader(a).sampled()
     path = write_sample(a.out.rstrip("/"), found)
-    print(json.dumps({"file": path, **found.record()}, indent=1))
+    print(json.dumps({**found.record(), "path": path}, indent=1))
 
 
 def connect_ray(address: str) -> None:

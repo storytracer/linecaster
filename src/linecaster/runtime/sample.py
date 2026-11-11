@@ -32,7 +32,7 @@ def sample_table(sample: Sample):
 
 def write_sample(out: str, sample: Sample, name: str = SAMPLE_FILE) -> str:
     """Write the sample as ``OUT/<name>`` (any fsspec folder, through datatrove's ``DataFolder``). The same sample
-    gives the same bytes. Returns the file's path."""
+    gives the same rows and metadata (with the same pyarrow, the same bytes). Returns the file's path."""
     import pyarrow.parquet as pq
     from datatrove.io import get_datafolder
 

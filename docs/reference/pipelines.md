@@ -353,7 +353,8 @@ pipeline, and each task takes its share. It is recorded in the run record's `sam
 `OUT/sample.parquet` (`linecaster.runtime.sample`) holds one row per sample page in sample order: `rank` (1-based: a
 sample of N is `rank <= N`), `item_id`, `page_id`, `item_rank`, `page_rank`, `item_hash`, `page_hash` (unsigned 64
 bit) and `item_pages` (the item's pages in the listing), with the record's section in the file's metadata
-(`linecaster.sample`). The same sample gives the same bytes. `linecaster sample [IMAGES] OUT` with the input and
+(`linecaster.sample`). The same sample gives the same rows and metadata, and with the same pyarrow the same bytes;
+`selected.sha256` compares samples across versions. `linecaster sample [IMAGES] OUT` with the input and
 sample options writes it without a run (with `--manifests`, the manifests too), as a run with the same options would.
 A sample's options are operational parameters (the pipeline's hash leaves them out); a resume with another sample is
 refused.

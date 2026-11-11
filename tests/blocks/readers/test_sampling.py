@@ -238,6 +238,12 @@ def test_the_manifests_a_sample_read_are_saved_and_read_back(library, tmp_path):
     assert meta["url"].startswith(library["base"])            # the page's manifest is where it came from
 
 
+def test_a_dry_run_saves_no_manifest(library, tmp_path):
+    paths, saved = manifest_list(library, tmp_path), tmp_path / "out" / "manifests"
+    reader = ManifestReader(paths_file=paths, http=FAST, sample=RULE, manifest_folder=str(saved))
+    assert reader.sampled(save=False).selected and not saved.exists()
+
+
 def test_a_manifest_that_cannot_be_read_stops_the_sample(library, tmp_path):
     del library["manifests"]["/i3/manifest"]
     paths = manifest_list(library, tmp_path)
