@@ -123,12 +123,41 @@ def rows_between(layout: list[tuple[str, tuple[int, ...]]], lo: int, hi: int) ->
     return out
 
 
+def position_slices(layout: list[tuple[str, tuple[int, ...]]], positions) -> list[tuple[str, int, int, int]]:
+    """The rows at ``positions`` (sorted, of all files in order) of ``layout``, as ``row_slices`` gives them: one
+    slice per run of consecutive rows within a row group."""
+    out: list = []
+    starts, pos = [], 0
+    for path, groups in layout:
+        for i, n in enumerate(groups):
+            starts.append((pos, path, i))
+            pos += n
+    g = 0
+    for p in positions:
+        while g + 1 < len(starts) and starts[g + 1][0] <= p:
+            g += 1
+        first, path, group = starts[g]
+        row = p - first
+        if out and out[-1][0] == path and out[-1][1] == group and out[-1][3] == row:
+            out[-1] = (path, group, out[-1][2], row + 1)
+        else:
+            out.append((path, group, row, row + 1))
+    return out
+
+
 def slice_batches(pqf, slices: list[tuple[str, int, int, int]], columns: list[str] | None,
                   batch_size: int) -> Iterator:
     """The record batches of ``slices`` (one file's, from ``row_slices``) of the open ``pyarrow.parquet.ParquetFile``
-    ``pqf``, at most ``batch_size`` rows each."""
-    for _, group, start, stop in slices:
-        table = pqf.read_row_group(group, columns=columns).slice(start, stop - start)
+    ``pqf``, at most ``batch_size`` rows each. Slices of one row group that follow each other read it once."""
+    import itertools
+
+    for group, parts in itertools.groupby(slices, key=lambda s: s[1]):
+        parts = list(parts)
+        table = pqf.read_row_group(group, columns=columns)
+        if len(parts) == 1:
+            table = table.slice(parts[0][2], parts[0][3] - parts[0][2])
+        else:
+            table = table.take([i for _, _, start, stop in parts for i in range(start, stop)])
         yield from table.to_batches(max_chunksize=batch_size)
 
 
