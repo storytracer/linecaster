@@ -13,7 +13,7 @@ from linecaster.adapters import chat_model, text_transcription
 from linecaster.backends import Chat, InProcess
 from linecaster.blocks.base.page import new_page_document, page_of
 from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.blocks.servers.serve import FLASHINFER_SAMPLER, ChatModelServer
 from linecaster.data.transcription import Transcription
 from linecaster.errors import PipelineConfigError, ServerError
 from linecaster.testing import fake_chat_server
@@ -203,6 +203,7 @@ def test_serve_block_outside_venv(monkeypatch):
     import sys
 
     own = os.path.join(sys.prefix, "bin")
+    monkeypatch.setenv("CUDA_HOME", "/usr/local/cuda")       # a CUDA toolkit: no FlashInfer variable
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/usr/local/bin", "/usr/bin"]))
     monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
     block = ChatModelServer(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
@@ -260,3 +261,69 @@ def test_region_recognizer_declares_the_lines_it_replaces():
     plan = build([ImageFolderReader("x"), LayoutDetector("single-region@1"), LineDetector(InProcess("x:Y")),
                   RegionRecognizer("minicpm-ocr-1.0@1")])
     assert plan.problems == []
+
+
+# ------------------------------------------------------------------------------------ FlashInfer's sampler
+@pytest.fixture()
+def no_toolkit(monkeypatch, tmp_path):
+    for var in ("CUDA_HOME", "CUDA_PATH", FLASHINFER_SAMPLER):
+        monkeypatch.delenv(var, raising=False)
+    empty = tmp_path / "bin"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+    return empty
+
+
+def test_vllm_starts_without_flashinfers_sampler_where_there_is_no_cuda_toolkit(no_toolkit, monkeypatch):
+    block = ChatModelServer(chat_model("lightonocr-2-1b"))
+    assert block.flashinfer_env() == {FLASHINFER_SAMPLER: "0"}
+    cmd = block.launch_command()
+    assert cmd[0] == "env" and f"{FLASHINFER_SAMPLER}=0" in cmd and cmd[cmd.index("vllm"):] == block.command()
+    nvcc = no_toolkit / "nvcc"                                      # a fake nvcc on PATH: a toolkit
+    nvcc.write_text("#!/bin/sh\n")
+    nvcc.chmod(0o755)
+    assert block.flashinfer_env() == {} and block.launch_command() == block.command()
+    nvcc.unlink()
+    monkeypatch.setenv("CUDA_HOME", "/opt/cuda")
+    assert block.flashinfer_env() == {}
+    monkeypatch.delenv("CUDA_HOME")
+    monkeypatch.setenv("CUDA_PATH", "/opt/cuda")
+    assert block.flashinfer_env() == {}
+    monkeypatch.delenv("CUDA_PATH")
+    monkeypatch.setenv(FLASHINFER_SAMPLER, "1")                    # set already: left as it is
+    assert block.flashinfer_env() == {} and f"{FLASHINFER_SAMPLER}=0" not in block.launch_command()
+    monkeypatch.delenv(FLASHINFER_SAMPLER)
+    assert ChatModelServer(chat_model("unlimited-ocr-2")).flashinfer_env() == {}     # SGLang: not vLLM's variable
+
+
+def test_the_flashinfer_rule_is_logged_once(no_toolkit, monkeypatch):
+    import saturate
+    from loguru import logger
+
+    from linecaster.blocks.servers import serve
+
+    started = []
+
+    class FakeEngine:
+        def __init__(self, model, engine, port, boot_timeout, cmd):
+            started.append(cmd)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(saturate, "Engine", FakeEngine)
+    monkeypatch.setattr(serve, "_flashinfer_logged", False)
+    seen = []
+    sink = logger.add(lambda m: seen.append(m.record["message"]), level="INFO")
+    try:
+        for _ in range(2):
+            block = ChatModelServer(chat_model("lightonocr-2-1b"))
+            block.warm_up()
+            serve._stop(block)
+    finally:
+        logger.remove(sink)
+    assert len(started) == 2 and all(f"{FLASHINFER_SAMPLER}=0" in cmd for cmd in started)
+    assert sum(FLASHINFER_SAMPLER in m for m in seen) == 1

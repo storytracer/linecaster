@@ -9,9 +9,17 @@ blocks, it would stop the server as soon as the reader ran dry, with requests st
 from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
+from loguru import logger
 
 from ...errors import CatalogError, PipelineConfigError, ServerError
 from ..base.contract import Contracted
+
+#: vLLM's switch for its FlashInfer sampler, which compiles its kernels when it is first used (JIT) and so needs a
+#: CUDA toolkit (``nvcc``); without one vLLM fails at its first request ("Could not find nvcc")
+FLASHINFER_SAMPLER = "VLLM_USE_FLASHINFER_SAMPLER"
+#: variables that name a CUDA toolkit
+CUDA_TOOLKIT_VARS = ("CUDA_HOME", "CUDA_PATH")
+_flashinfer_logged = False
 
 
 class ModelServer(Contracted, PipelineStep):
@@ -90,7 +98,14 @@ class ChatModelServer(Contracted, PipelineStep):
     ``revision_flag: false`` (the server cannot be given ``--revision`` and loads the default branch) the block
     refuses to start unless the default branch's files equal the pinned revision's (``check_default_branch``); the
     preset's ``server_env`` goes into the server's environment. With OTLP configured, vLLM traces too
-    (``tracing_args``). A server that does not start fails the task (``ServerError``).
+    (``tracing_args``). On a machine without a CUDA toolkit (no ``nvcc`` on the server's ``PATH``, neither
+    ``CUDA_HOME`` nor ``CUDA_PATH`` set) vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``flashinfer_env``),
+    unless that variable is set already: FlashInfer's sampler compiles its kernels at first use and fails without
+    ``nvcc``. A server that does not start fails the task (``ServerError``).
+
+    The server listens on ``port`` (8000 for ``Chat`` by default), so two runs on one machine collide unless each
+    gets its own port and its own GPU (``CUDA_VISIBLE_DEVICES``): a second vLLM on a GPU that one already uses does
+    not get its memory share, and a second server on the same port does not start.
 
     Its role is ``server`` and its unit ``any``: it touches no part. Like ``ModelServer``, it goes **last** in the
     pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
@@ -181,16 +196,32 @@ class ChatModelServer(Contracted, PipelineStep):
         protocol = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL") or "http/protobuf"
         return ["--otlp-traces-endpoint", endpoint], {"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": protocol}
 
+    def flashinfer_env(self) -> dict[str, str]:
+        """``{"VLLM_USE_FLASHINFER_SAMPLER": "0"}`` for vLLM on a machine without a CUDA toolkit: no ``nvcc`` on the
+        server's ``PATH`` and neither ``CUDA_HOME`` nor ``CUDA_PATH`` set, unless the variable is set already (in
+        this environment or the preset's ``server_env``); else nothing."""
+        import os
+        import shutil
+
+        if self.server != "vllm" or FLASHINFER_SAMPLER in os.environ:
+            return {}
+        if FLASHINFER_SAMPLER in (getattr(self.spec, "server_env", None) or {}):
+            return {}
+        if any(os.environ.get(v) for v in CUDA_TOOLKIT_VARS) or shutil.which("nvcc", path=self.server_path()):
+            return {}
+        return {FLASHINFER_SAMPLER: "0"}
+
     def launch_command(self, python: str | None = None) -> list[str]:
         """``command()``, behind ``env [-u VIRTUAL_ENV PATH=...] [spec.server_env...]`` when either applies; with
-        vLLM's tracing arguments (``tracing_args``) when OTLP is configured."""
+        vLLM's tracing arguments (``tracing_args``) when OTLP is configured, and ``flashinfer_env()``."""
         cmd = self.command(python)
         args, trace_env = self.tracing_args()
         if args:
             import shlex
 
             cmd = cmd + args if cmd[0] != "bash" else [*cmd[:-1], cmd[-1] + " " + shlex.join(args)]
-        env = [f"{k}={v}" for k, v in {**(getattr(self.spec, "server_env", None) or {}), **trace_env}.items()]
+        env = [f"{k}={v}" for k, v in {**(getattr(self.spec, "server_env", None) or {}), **trace_env,
+                                       **self.flashinfer_env()}.items()]
         if self.outside_venv:
             env = ["-u", "VIRTUAL_ENV", f"PATH={self.server_path()}", *env]
         return ["env", *env, *cmd] if env else cmd
@@ -252,6 +283,11 @@ class ChatModelServer(Contracted, PipelineStep):
         from saturate import Engine
 
         python = self.prepare()
+        global _flashinfer_logged
+        if self.flashinfer_env() and not _flashinfer_logged:
+            logger.info("no CUDA toolkit here (no nvcc on PATH, no CUDA_HOME or CUDA_PATH): vLLM starts with "
+                        "{var}=0, since FlashInfer's sampler would compile its kernels with nvcc", var=FLASHINFER_SAMPLER)
+            _flashinfer_logged = True
         server = Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
                         cmd=self.launch_command(python))
         try:
