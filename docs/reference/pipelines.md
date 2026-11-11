@@ -273,7 +273,8 @@ has another.
 `run-<time>.yaml`): another `pipeline_sha256` is refused with a `PipelineConfigError` (finished tasks would be
 skipped and the folder would mix two pipelines' outputs) unless `--new-pipeline` (the new record is written next
 to the earlier one and is the one the next resume is checked against); another `--tasks` is always refused (each
-task would read other input). The same hash and tasks: a resume, as datatrove's completion markers make it.
+task would read other input), and so is another sample (the record's `sample.selected.sha256`, [samples](#samples)).
+The same hash, tasks and sample: a resume, as datatrove's completion markers make it.
 `--dry-run` reports the same problems.
 
 **Describe mode.** `linecaster.runtime.run.describe(shape, argv)` builds a pipeline shape's plan in the current
@@ -281,6 +282,81 @@ process without its engines: its options parsed, presets resolved without checki
 installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe edition that way (the shape of the
 recipe's pipeline id, `linecaster.pipelines.shape(id)`, with `--recipe REF` and placeholder folders): what
 `linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
+
+## Samples
+
+A run reads a **sample** of its input with a sample rule: `--sample N` (at most N pages in all), `--sample-per-item K`
+(at most K pages of each item), `--sample-items M` (at most M items), `--sample-seed S` (default 0); any of the first
+three alone or together. The sample is chosen by the ids of the input's listing alone, before any image is read or
+fetched, and is the same whatever `--tasks`, executor or machine: an evaluation then scores every system on the same
+pages, and others can recompute them from the list of ids without linecaster.
+
+The rule (`linecaster.data.sample`, `linecaster.sample/1`), with `H(s)` the first 8 bytes of `sha256(s)` (UTF-8) as
+an unsigned big-endian integer:
+
+1. The listing is the input's distinct `(item_id, page_id)` pairs; a page without item has the item id `""`. An id
+   with a tab is an error.
+2. Items are ordered by `(H(f"{seed}\t{item_id}"), item_id)` (the **item rank**), and only the first M are kept.
+   An item without pages takes no rank.
+3. Within an item, pages are ordered by `(H(f"{seed}\t{item_id}\t{page_id}"), page_id)` (the **page rank**), and
+   only the first K are kept; an item with fewer pages gives them all.
+4. The pages, in the order (item rank, page rank), are cut after the first N.
+
+The page hash includes the item, so items whose pages are named alike (`0001.png` in every item folder) do not all
+give the same positions. A rank depends only on its ids and the seed: an item added to the input moves no other
+item's pages, and a sample of N is the first N pages of a sample of 2N. With K the first N pages come from about N/K
+items. In Python:
+
+```python
+import hashlib
+
+def h(*ids):
+    return int.from_bytes(hashlib.sha256("\t".join(map(str, ids)).encode()).digest()[:8], "big")
+
+def sample(pairs, seed=0, n=None, k=None, m=None):
+    items = {}
+    for i, p in dict.fromkeys(pairs): items.setdefault(i, []).append(p)
+    order = sorted(items, key=lambda i: (h(seed, i), i))[:m]
+    return [(i, p) for i in order for p in sorted(items[i], key=lambda p: (h(seed, i, p), p))[:k]][:n]
+```
+
+The first 16 hex digits of the SHA-256 sort as `H` does, so SQL can order by them. A stratum is a separate run over
+a filtered input.
+
+**Per input** (the readers' `sample`, `linecaster.blocks.readers.sampling`):
+
+| Input | Ids | Read before the sample | The tasks |
+|---|---|---|---|
+| IMAGES (`--item-from-parent` for items) | the parent folder, the file name without extension | the file listing | the sample's files in turn |
+| `--parquet` (`--item-key` for items) | `--id-key`, or `<item>_<0001>` from `--item-key` and `--sequence-key` | the id columns only | the sample's rows in equal shards (by item with `task_per_item`); a row's image is read with the other sample rows of its row group |
+| `--manifests` | the item id of each entry, `<item>_<0001>` for its pages | the item ids; then the manifests of the items in rank order, as far as the rule reaches (every one with `--sample-per-item` alone) | the sample's items as the entries would be; only their sample pages' images are requested |
+| `--pages` | `page.item_id`, `id` | every record (no image) | their files as without a sample, passing on the sample's records alone |
+
+`--sample-per-item` and `--sample-items` need items. An id listed twice is read once (its first entry), counted in
+the record's `duplicates`. With `--manifests` the manifests the sample reads are saved to `OUT/manifests/` with an
+index (`sample.jsonl`: item id, entry, the URL it was read from, the copy's file, its pages); the tasks read those
+copies instead of fetching them again, and so does a resume when it computes the sample again. A manifest that
+cannot be read, or a IIIF Collection entry, stops the launch: the sample would depend on it. `--max-pages` and a
+sample exclude each other; `--limit` and `--skip` still count per task, over the task's share.
+
+The launch computes the sample once, before the tasks (`linecaster.runtime.run.sampled`); it travels with the pickled
+pipeline, and each task takes its share. It is recorded in the run record's `sample` section:
+
+| Field | Holds |
+|---|---|
+| `rule`, `hash` | `linecaster.sample/1` and the hashes in words |
+| `pages`, `items`, `per_item`, `seed` | N, M, K and S |
+| `listing` | `scope` (`pages`, or `items` for manifests, whose pages are known once read), `items`, `pages`, `duplicates`, `manifests_read`, `sha256`: of the distinct sorted lines `item_id<TAB>page_id` (for manifests `item_id`), each with a newline |
+| `selected` | `items`, `pages`, `sha256`: of the sample's lines `item_id<TAB>page_id` in sample order, each with a newline |
+| `file` | `sample.parquet` |
+
+`OUT/sample.parquet` (`linecaster.runtime.sample`) holds one row per sample page in sample order: `rank` (1-based: a
+sample of N is `rank <= N`), `item_id`, `page_id`, `item_rank`, `page_rank`, `item_hash`, `page_hash` (unsigned 64
+bit) and `item_pages` (the item's pages in the listing), with the record's section in the file's metadata
+(`linecaster.sample`). The same sample gives the same bytes. `linecaster sample [IMAGES] OUT` with the input and
+sample options writes it without a run (with `--manifests`, the manifests too), as a run with the same options would.
+A sample's options are operational parameters (the pipeline's hash leaves them out); a resume with another sample is
+refused.
 
 ## Tasks, workers and rate limits
 
@@ -324,7 +400,8 @@ the rate. On a restart the console's size starts with the finished tasks' `media
 (`linecaster.runtime.local.size_before`, read in the background). Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 `--max-pages N` (`--parquet`, IMAGES; the readers' `max_pages`) reads the input as if it ended after its first N
-pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove.
+pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove. The
+same pages for every setup and input order: a [sample](#samples).
 
 `--rate-limit` holds per worker: each worker process has one fetcher with its limits (`HTTPFetcher.shared`), so a
 server sees the workers running at once times the limits; the run states it before it starts
