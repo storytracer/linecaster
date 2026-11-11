@@ -876,7 +876,8 @@ class Pause:
             last = doubling(self._wait, self._ended, now) if fresh else self._wait
             asked, self._wait = block_wait(asked, last, self.max_total, self.first_wait)
         ongoing = self.paused
-        added = now + asked - (self.until if ongoing else now)
+        # a fresh pause adds exactly its wait (``now + asked - now`` drifts in floating point when the clock is large)
+        added = now + asked - self.until if ongoing else asked
         if added <= 0:                           # within the pause already
             return
         self.total.check(added, f"{_what(status)} from {host or 'the host'}", host or "the host")

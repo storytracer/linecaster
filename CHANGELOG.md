@@ -13,6 +13,8 @@ the tags; the first is `v0.1.0`.
   signature (`AT&TFORM`) and kept as `.djvu`; a resource kind or URL naming `djvu` expects the format, so an HTML page
   in its place still fails as `UnexpectedHTML`. A DjVu file served as `text/html` is no longer taken for an HTML page
   (`linecaster.net.http.DATA_MAGIC`).
+- A fresh pause counts exactly its wait toward `max_pause` (`Pause.hit`): it was computed as `now + wait - now`,
+  which floating point can make a hair shorter on a machine whose clock reads high.
 
 ## 0.5.0 (2026-11-11)
 
