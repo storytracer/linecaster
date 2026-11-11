@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../schemas/preset-1.json
 schema: linecaster.preset/1
 id: lightonocr-3-0.8b
-edition: 1
+edition: 2
 step: recognition
 model:
   id: lightonocr-3-0.8b
@@ -14,6 +14,9 @@ settings:
     max_tokens: 4096
     temperature: 0.2
     top_p: 0.9
+  repair:
+    max_tokens: 0
+    temperature: 0.1
   chat_template_kwargs:
     enable_thinking: false
   image:
@@ -25,7 +28,7 @@ serve:
   image: vllm/vllm-openai:v0.30.0
   flags:
   - --max-model-len
-  - '16384'
+  - '18000'
   - --default-chat-template-kwargs
   - '{"enable_thinking": false}'
   - --limit-mm-per-prompt
@@ -40,5 +43,8 @@ capabilities:
 provenance:
   derived_from:
   - lightonai/LightOnOCR-3-0.8B@36d8636925327c671bd8e479c517a004f7566bd9:README.md
+  - github.com/lightonai/LightOnOCR@36755d461be079737860a5f03ae0c803501269e9:README.md (--max-model-len 18000)
+  - huggingface.co/datasets/uv-scripts/ocr@e2b0aa514f433998f1e7ad00d0c37df0796574e4:lighton-ocr3-saturate.py (SERVING
+    context 18000 and repair_temperature 0.1)
   created: 2026-11-03
 support: experimental
