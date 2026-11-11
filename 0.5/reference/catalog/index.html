@@ -1613,7 +1613,8 @@ are written by <code>linecaster catalog pin</code>.</p>
 </tr>
 </tbody>
 </table>
-<p>A derivative's recipe lives in this catalog too (<code>squiddle</code>); the derivative names it by id.</p>
+<p>A recipe's environment and entry point is its script <code>recipes/&lt;id&gt;.py</code> (see Pipelines, recipes and <code>launch.py</code>); a
+recipe a derivative runs lives in this catalog too (<code>squiddle</code>).</p>
 <h2 id="measurements-live-elsewhere">Measurements live elsewhere<a class="headerlink" href="#measurements-live-elsewhere" title="Permanent link">&para;</a></h2>
 <p>linecaster is not a data repository: the catalog holds no measurements, and neither do the docs. An evaluation
 (a derivative's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
@@ -1803,15 +1804,14 @@ no default presets:
 the user fills every slot, or names a recipe (<code>--recipe id[@edition]</code>), with single flags on top recorded as
 overrides in the run record (<code>recipe</code>: the edition, the pipeline id, the hash and the overrides).</p>
 <p>The recipes: <code>squiddle</code> (<code>transcribe_modular.v1</code>: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
-recognition, tables, formulas and the rule-based steps; its recognition is kraken's, which
-<code>pipelines/transcribe_modular.py</code> leaves out, so it runs in an environment that adds kraken (a derivative's script),
-or with <code>--backend served --endpoint</code> against a server started from one) and <code>item-texts</code>
-(<code>bind.v1</code>: <code>unicode-recomposition@1</code>, <code>latin-historic@1</code>, <code>docling-composition@1</code>, the item stage's default
-combination).</p>
-<p><code>uv run launch.py NAME IMAGES OUT [options]</code> launches a recipe or a page preset by name: it finds the
-script whose <code>PIPELINE</code> the recipe names (<code>transcribe_vlm.v1</code> for chat page presets, <code>transcribe_page.v1</code> for page
-engines' presets) and runs it in that script's own
-environment with <code>--recipe</code> or <code>--recognition</code>. <code>serve</code> and <code>ray</code> pass through for recipes. A preset that is one step
+recognition, tables, formulas and the rule-based steps) and <code>item-texts</code> (<code>bind.v1</code>: <code>unicode-recomposition@1</code>,
+<code>latin-historic@1</code>, <code>docling-composition@1</code>, the item stage's default combination). Each has its script,
+<code>recipes/&lt;id&gt;.py</code> (<a href="../architecture/#recipe-scripts">architecture</a>): its environment, with exactly the engine packages
+its presets need, and its entry point. <code>recipes/squiddle.py</code> is the environment with kraken;
+<code>pipelines/transcribe_modular.py</code> leaves kraken out.</p>
+<p><code>uv run launch.py NAME IMAGES OUT [options]</code> launches a recipe or a page preset by name: a recipe runs its script
+<code>recipes/&lt;id&gt;.py</code>, a page preset the pipeline script of its kind (<code>transcribe_vlm.v1</code> for chat page presets,
+<code>transcribe_page.v1</code> for page engines' presets), each in its own environment, with <code>--recipe</code> or <code>--recognition</code>. <code>serve</code> and <code>ray</code> pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.</p>
 <h2 id="support">Support<a class="headerlink" href="#support" title="Permanent link">&para;</a></h2>
 <p><code>core</code> (maintained, validated), <code>experimental</code> (works, may change), <code>legacy</code> (kept resolvable;

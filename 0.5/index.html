@@ -1151,11 +1151,12 @@ uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> <
 <code>uv run</code> installs what it needs on the first run; models download on first use.</p>
 </div>
 <h2 id="three-ways-to-transcribe">🧭 Three ways to transcribe<a class="headerlink" href="#three-ways-to-transcribe" title="Permanent link">&para;</a></h2>
-<p><strong>1. A recipe</strong>: a tested combination of presets, one per step, with its own edition. The <code>squiddle</code> recipe reads
-lines with kraken, which the modular pipeline's script leaves out: it runs in an environment that adds kraken (a
-script of your own that runs the modular pipeline with <code>linecaster-kraken</code>), or against a kraken server started from
-one:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>squiddle<span class="w"> </span>scans/<span class="w"> </span>out/<span class="w"> </span>--backend<span class="w"> </span>served<span class="w"> </span>--endpoint<span class="w"> </span>http://127.0.0.1:8100/v1
+<p><strong>1. A recipe</strong>: a tested combination of presets, one per step, with its own edition. Each recipe has a script
+of its own in <code>recipes/</code>, which brings exactly the engines it needs:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>squiddle<span class="w"> </span>scans/<span class="w"> </span>out/
+</code></pre></div>
+<p>The same without a checkout, from the script's URL:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py<span class="w"> </span>scans/<span class="w"> </span>out/
 </code></pre></div>
 <p><strong>2. A vision-language model</strong> reads each page, or each layout region. It runs behind <a href="https://github.com/vllm-project/vllm">vLLM</a> or <a href="https://github.com/sgl-project/sglang">SGLang</a>, so it
 needs an NVIDIA GPU and the <code>vllm</code> command on the PATH.</p>
@@ -1326,9 +1327,8 @@ runs only the tasks that didn't finish.</p>
 uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>serve<span class="w"> </span><span class="nv">$P</span>
 uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>scans/<span class="w"> </span>out/<span class="w"> </span><span class="nv">$P</span><span class="w"> </span>--endpoint<span class="w"> </span>http://127.0.0.1:8100/v1
 </code></pre></div>
-<p>A server from another environment works too: a script with kraken serves the <code>squiddle</code> recipe (its <code>serve</code>
-command), and <code>uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1</code> runs the
-recipe against it.</p>
+<p>A recipe's script serves its models too: <code>uv run launch.py squiddle serve</code>, then <code>uv run launch.py squiddle scans/
+out/ --backend served --endpoint http://127.0.0.1:8100/v1</code>.</p>
 <p>For a vision-language model, <code>--recognition-endpoint</code> points <code>transcribe_vlm.py</code> at a running vLLM or SGLang.
 Servers listen on loopback only.</p>
 </details>
@@ -1491,7 +1491,7 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 </tbody>
 </table>
 <h2 id="versions">🏷️ Versions<a class="headerlink" href="#versions" title="Permanent link">&para;</a></h2>
-<p>The current release is <code>v0.5.0</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
+<p>The current release is <code>v0.5.2</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version (<a href="reference/compatibility/#versions-and-releases">versions and releases</a>); there are no deprecation
 periods yet. The

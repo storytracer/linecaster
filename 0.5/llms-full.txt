@@ -47,13 +47,17 @@ You get one page record per page in `out/pages/`. Add `--files out/files --forma
 
 ## 🧭 Three ways to transcribe
 
-**1. A recipe**: a tested combination of presets, one per step, with its own edition. The `squiddle` recipe reads
-lines with kraken, which the modular pipeline's script leaves out: it runs in an environment that adds kraken (a
-script of your own that runs the modular pipeline with `linecaster-kraken`), or against a kraken server started from
-one:
+**1. A recipe**: a tested combination of presets, one per step, with its own edition. Each recipe has a script
+of its own in `recipes/`, which brings exactly the engines it needs:
 
 ```bash
-uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
+uv run launch.py squiddle scans/ out/
+```
+
+The same without a checkout, from the script's URL:
+
+```bash
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/
 ```
 
 **2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
@@ -147,9 +151,8 @@ uv run pipelines/transcribe_modular.py serve $P
 uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
 ```
 
-A server from another environment works too: a script with kraken serves the `squiddle` recipe (its `serve`
-command), and `uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1` runs the
-recipe against it.
+A recipe's script serves its models too: `uv run launch.py squiddle serve`, then `uv run launch.py squiddle scans/
+out/ --backend served --endpoint http://127.0.0.1:8100/v1`.
 
 For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
 Servers listen on loopback only.
@@ -300,7 +303,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.5.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.5.2`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -791,12 +794,26 @@ block passes the conformance checks of `linecaster.testing` (`check_engine`: the
 the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
-engines/<engine>/tests`. `tests/test_engines_catalog.py` is also linecaster's only environment with kraken (with
-PaddleX and Tesseract, for the catalog's line-recognizer presets): a test script, not a pipeline script, since no
-pipeline of linecaster's names a model choice. A kraken chain runs in an environment that adds kraken
-(a derivative's own script running `transcribe_modular.v1`), or in
-`pipelines/transcribe_modular.py` with `--backend served --endpoint` against a server started from one; with
-`--endpoint` the served engines need not be installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
+engines/<engine>/tests`. `tests/test_engines_catalog.py` holds kraken, PaddleX and Tesseract for the catalog's
+line-recognizer presets.
+
+## Recipe scripts
+
+A catalog recipe is YAML (`src/linecaster/catalog/data/recipes/<id>.yaml`: its presets, editions and hash). Its
+environment and entry point is a uv script of its own, `recipes/<id>.py`: a PEP 723 block with `linecaster[ray]`
+and exactly the engine packages its presets need (recipe → presets → engines → packages:
+`linecaster.catalog.code.recipe_packages`), its lock, and a body that only calls
+`linecaster.runtime.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline shape with `--recipe`
+set. The pipeline scripts depend on no model choice (`pipelines/transcribe_modular.py` has PaddleX and Tesseract);
+the recipes bring theirs (`recipes/squiddle.py`: kraken and PaddleX).
+
+The recipe scripts take linecaster and its engine packages from the `main` branch on GitHub, so a script runs from
+its URL with no checkout (`uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py
+IMAGES OUT`, `hf jobs uv run <URL> ...`) as well as from one (`uv run recipes/squiddle.py`, `uv run launch.py
+squiddle`). A run from the URL resolves the header afresh; a run from a checkout uses the script's lock, whose
+linecaster commit moves when it is relocked. Their HF Jobs need no `--commit`: `jobs.dependencies` installs
+linecaster from `main` with the lock's versions as constraints. With `--endpoint` the served engines need not be
+installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
 mkdocs serve`.
 
 ## Pipeline scripts
@@ -1918,7 +1935,8 @@ are written by `linecaster catalog pin`.
 | `options` | the pipeline's options, by name |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
-A derivative's recipe lives in this catalog too (`squiddle`); the derivative names it by id.
+A recipe's environment and entry point is its script `recipes/<id>.py` (see Pipelines, recipes and `launch.py`); a
+recipe a derivative runs lives in this catalog too (`squiddle`).
 
 ## Measurements live elsewhere
 
@@ -2125,16 +2143,15 @@ the user fills every slot, or names a recipe (`--recipe id[@edition]`), with sin
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
 The recipes: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
-recognition, tables, formulas and the rule-based steps; its recognition is kraken's, which
-`pipelines/transcribe_modular.py` leaves out, so it runs in an environment that adds kraken (a derivative's script),
-or with `--backend served --endpoint` against a server started from one) and `item-texts`
-(`bind.v1`: `unicode-recomposition@1`, `latin-historic@1`, `docling-composition@1`, the item stage's default
-combination).
+recognition, tables, formulas and the rule-based steps) and `item-texts` (`bind.v1`: `unicode-recomposition@1`,
+`latin-historic@1`, `docling-composition@1`, the item stage's default combination). Each has its script,
+`recipes/<id>.py` ([architecture](architecture.md#recipe-scripts)): its environment, with exactly the engine packages
+its presets need, and its entry point. `recipes/squiddle.py` is the environment with kraken;
+`pipelines/transcribe_modular.py` leaves kraken out.
 
-`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: it finds the
-script whose `PIPELINE` the recipe names (`transcribe_vlm.v1` for chat page presets, `transcribe_page.v1` for page
-engines' presets) and runs it in that script's own
-environment with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
+`uv run launch.py NAME IMAGES OUT [options]` launches a recipe or a page preset by name: a recipe runs its script
+`recipes/<id>.py`, a page preset the pipeline script of its kind (`transcribe_vlm.v1` for chat page presets,
+`transcribe_page.v1` for page engines' presets), each in its own environment, with `--recipe` or `--recognition`. `serve` and `ray` pass through for recipes. A preset that is one step
 of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.
 
 ## Support

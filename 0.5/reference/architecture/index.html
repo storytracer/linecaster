@@ -506,6 +506,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#recipe-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recipe scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pipeline-scripts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1019,6 +1030,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#recipe-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recipe scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pipeline-scripts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1242,12 +1264,23 @@ scripts (<code>tests/test_engines_catalog.py</code>, <code>tests/test_page_engin
 block passes the conformance checks of <code>linecaster.testing</code> (<code>check_engine</code>: the engine protocol; <code>check_block</code>:
 the contract against what the block does to sample pages, <code>to_dict()</code>, pickling, <code>warm_up()</code>, failed pages).</p>
 <p>An engine package's tests run in an environment that has the engine: <code>uv run tests/test_engines_catalog.py
-engines/&lt;engine&gt;/tests</code>. <code>tests/test_engines_catalog.py</code> is also linecaster's only environment with kraken (with
-PaddleX and Tesseract, for the catalog's line-recognizer presets): a test script, not a pipeline script, since no
-pipeline of linecaster's names a model choice. A kraken chain runs in an environment that adds kraken
-(a derivative's own script running <code>transcribe_modular.v1</code>), or in
-<code>pipelines/transcribe_modular.py</code> with <code>--backend served --endpoint</code> against a server started from one; with
-<code>--endpoint</code> the served engines need not be installed in the client's environment. To preview the site from a checkout: <code>uv run linecaster docs</code>, then <code>uv run --group docs
+engines/&lt;engine&gt;/tests</code>. <code>tests/test_engines_catalog.py</code> holds kraken, PaddleX and Tesseract for the catalog's
+line-recognizer presets.</p>
+<h2 id="recipe-scripts">Recipe scripts<a class="headerlink" href="#recipe-scripts" title="Permanent link">&para;</a></h2>
+<p>A catalog recipe is YAML (<code>src/linecaster/catalog/data/recipes/&lt;id&gt;.yaml</code>: its presets, editions and hash). Its
+environment and entry point is a uv script of its own, <code>recipes/&lt;id&gt;.py</code>: a PEP 723 block with <code>linecaster[ray]</code>
+and exactly the engine packages its presets need (recipe → presets → engines → packages:
+<code>linecaster.catalog.code.recipe_packages</code>), its lock, and a body that only calls
+<code>linecaster.runtime.run.recipe(__file__, "&lt;id&gt;")</code>, which runs the recipe through its pipeline shape with <code>--recipe</code>
+set. The pipeline scripts depend on no model choice (<code>pipelines/transcribe_modular.py</code> has PaddleX and Tesseract);
+the recipes bring theirs (<code>recipes/squiddle.py</code>: kraken and PaddleX).</p>
+<p>The recipe scripts take linecaster and its engine packages from the <code>main</code> branch on GitHub, so a script runs from
+its URL with no checkout (<code>uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py
+IMAGES OUT</code>, <code>hf jobs uv run &lt;URL&gt; ...</code>) as well as from one (<code>uv run recipes/squiddle.py</code>, <code>uv run launch.py
+squiddle</code>). A run from the URL resolves the header afresh; a run from a checkout uses the script's lock, whose
+linecaster commit moves when it is relocked. Their HF Jobs need no <code>--commit</code>: <code>jobs.dependencies</code> installs
+linecaster from <code>main</code> with the lock's versions as constraints. With <code>--endpoint</code> the served engines need not be
+installed in the client's environment. To preview the site from a checkout: <code>uv run linecaster docs</code>, then <code>uv run --group docs
 mkdocs serve</code>.</p>
 <h2 id="pipeline-scripts">Pipeline scripts<a class="headerlink" href="#pipeline-scripts" title="Permanent link">&para;</a></h2>
 <p>There are no environment folders: a pipeline is a self-contained uv script in <code>pipelines/</code> (a PEP 723 block, a

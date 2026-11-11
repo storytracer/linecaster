@@ -841,12 +841,12 @@ recomposition (--recomposition; without one the page stays as laid out) and page
 records in OUT/pages; with --files per-page files in the --formats asked for (<code>&lt;item&gt;/&lt;page&gt;&lt;suffix&gt;.&lt;ext&gt;</code>, or with
 --naming flat <code>&lt;page&gt;&lt;suffix&gt;.&lt;ext&gt;</code> in one folder; --suffix SUFFIX, e.g. <code>.paddle</code>), with --item-texts one text per
 item in each text variant (an item stage: the item recomposed as one, normalized by --normalization). The script's
-environment has PaddleX and Tesseract; kraken's presets (the squiddle recipe's recognition) run in an environment that
-adds kraken (a script of your own that runs this shape with linecaster-kraken), or here with --backend served
---endpoint against a server started from one.</p>
+environment has PaddleX and Tesseract; kraken's presets (the squiddle recipe's recognition) run in the recipe's own
+script, recipes/squiddle.py (uv run launch.py squiddle IMAGES OUT), or here with --backend served --endpoint against a
+server started from it.</p>
 <div class="highlight"><pre><span></span><code>uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
     --recognition paddlex-ppocrv6-medium
-uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle --endpoint URL   # every slot from the recipe
+uv run recipes/squiddle.py IMAGES OUT                     # the recipe squiddle, in its own environment
 ... --typography ratios --recomposition unicode-recomposition --composition docling-composition
 ... --item-texts OUT/texts --recomposition unicode-recomposition --normalization latin-historic
 uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
