@@ -99,6 +99,15 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
   `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
+  `Chat(..., overrides={...})` sets the chat engine's options over the preset's settings (`max_tokens`, `temperature`,
+  `top_p`, `repair_max_tokens`, `repair_temperature`; `--set recognition.<option>=<value>` in
+  `pipelines/transcribe_vlm.py`); the ones that differ from the preset's are recorded with the adapter
+  (`overrides`) and count in `pipeline_sha256`. With `repair_max_tokens` set, `PageRecognizer` runs the
+  [repair pass](glossary.md): a page whose completion stopped at `max_tokens` waits while its second request goes
+  into the same window, and leaves the block with both recorded; `PageRecognizer(..., repair_only=True)` sends only
+  the repair requests, for page records read with `PageRecordReader` (`--pages ... --repair-only`). The streaming
+  loop of `ModelBlock` offers this to every served block: a finished request may ask for a second one
+  (`_second_request`), whose response comes back with it (`_second_done`).
   `PageRecognizer` also takes a page engine's `InProcess` or `Served` backend (or its preset's ref): a stream
   transform served, a per-unit transform in-process; it reads the page image and adds `text` and what the preset
   produces. A page engine's `endpoint` option (where its service is) is operational.
@@ -265,7 +274,9 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 
 Everything else is functional: block classes and their order, transcription names, engine options, presets and
 their hashes, the recipe stamp, conditions and groups, writers' formats and options, `item_shards`. The base list
-is `OPERATIONAL` in `linecaster.blocks.base.block`; a block class adds its own in `operational`. So a resumed run,
+is `OPERATIONAL` in `linecaster.blocks.base.block`; a block class adds its own in `operational`. A parameter added
+to a released block with a default that keeps the old behavior is left out while it has that default
+(`unhashed_defaults`, e.g. `PageRecognizer`'s `repair_only`), so the pipelines that do not use it keep their hash. So a resumed run,
 a run on another executor or backend, or into another folder has the same hash; another preset, option or block
 has another.
 

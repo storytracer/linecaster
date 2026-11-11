@@ -40,6 +40,11 @@ the image bytes, `metadata["page"]` the page record.
   words by the engine's own rule (kraken: split at whitespace, a word's box the bounding box of its cuts).
 - **A line's `text` is `None` until a recognizer ran**; an empty string is a line recognized as empty. Its
   `normalized` is `None` until the `CharacterNormalizer` ran; `text` is never overwritten.
+- **A VLM's transcription keeps its completion verbatim** in `extra["raw"]` (its text equals it) with
+  `extra["finish_reason"]`. After a [repair pass](glossary.md) it also has `extra["passes"]`, one entry per request
+  of the page (`raw`, `finish_reason`, `prompt_tokens`, `completion_tokens`, the `max_tokens`, `temperature` and
+  `top_p` it was sent with, `preset`), and `extra["kept"]`, the pass the transcription holds (1 or 2); `raw` and
+  `finish_reason` are the kept pass's.
 - **Text-only transcriptions** (a delivered plain text) are lines without geometry (`bbox` and `polygon`
   `None`), one per text line, `source.kind = "converted"`, `source.format = "text"`. They cannot be written as
   ALTO, PAGE or hOCR.
@@ -76,6 +81,7 @@ no other key (a test reads the code for every place that writes one). Values var
 | `device` | the device the step ran on |
 | `prompt_tokens`, `completion_tokens` | a VLM's tokens, summed over the page's requests |
 | `finish_reason` | why generation stopped: `stop`, `length`, `content_filter`, `tool_calls`, `function_call`, `abort` (`FINISH_REASONS`), or `None` |
+| `pass_prompt_tokens`, `pass_completion_tokens` | a page a VLM read twice (the repair pass): the tokens of each request, in order (`prompt_tokens` and `completion_tokens` are their sums) |
 | `regions`, `failed` | regions sent to a VLM one by one, and those whose request failed |
 | `tables`, `formulas` | table regions given a structure, formula regions read |
 | `changed` | strings a normalization changed |

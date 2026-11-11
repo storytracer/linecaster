@@ -4,6 +4,53 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- The repair pass for chat page presets: with `repair_max_tokens` set, `PageRecognizer` sends a page whose
+  completion stopped at `max_tokens` (`finish_reason` `length`) once more, at once and into the same window: the same
+  request (image, prompt, `top_p`) with `max_tokens` raised to `repair_max_tokens` (at most the served context minus
+  the page's prompt tokens; the context from the server's `/models` `max_model_len`, else the preset's
+  `--max-model-len`) and temperature `repair_temperature` (0.1). The page keeps the second completion where it
+  finished, else the first; there is no third request. The procedure is the reference script uv-scripts/ocr
+  `lighton-ocr3-saturate.py` at e2b0aa5's, which repairs at the end of a run. Where the context leaves no more room
+  than the first request had, no repair is sent (`repair_skipped`); a run warns at the start when `repair_max_tokens`
+  and a page's largest prompt do not fit the context. Stats `repair_sent`, `repair_stop`, `repair_length`,
+  `repair_kept`, `repair_skipped`, `repair_errors` next to `finish_length` (first requests).
+- A repaired page's transcription records every request in `extra["passes"]` (`raw`, `finish_reason`, tokens, the
+  `max_tokens`, `temperature` and `top_p` it was sent with, `preset`) and the one it holds in `extra["kept"]`;
+  `extra["raw"]` and `extra["finish_reason"]` are the kept one's. The step sums the tokens and lists them per request
+  (new measurements `pass_prompt_tokens`, `pass_completion_tokens`) and has `repair` in its settings.
+- `PageRecognizer(repair_only=True)` and `pipelines/transcribe_vlm.py --pages OUT/pages --repair-only`: the repair
+  pass over page records written earlier, also by earlier releases (`finish_reason` in `extra`, no `passes`); only
+  the pages that stopped at `max_tokens` and have no repair yet get a request, every other page is written unchanged
+  (`repair_not_needed`).
+- The chat engine's options (`ChatAdapter.Options`: `max_tokens`, `temperature`, `top_p`, `repair_max_tokens`,
+  `repair_temperature`) over a preset's settings: `Chat(..., overrides={...})`, `chat_model(..., overrides=...)` and
+  `pipelines/transcribe_vlm.py --set recognition.<option>=<value>` (`--set layout.<option>=...` for the layout
+  model). The values that differ from the preset's are recorded with the adapter (`overrides`) and change
+  `pipeline_sha256`. `repair_max_tokens` must be larger than `max_tokens`.
+- Chat presets may state `settings.repair` (`max_tokens`, `temperature`).
+- `lightonocr-3-0.8b@2`: `--max-model-len 18000` (LightOn's README), otherwise as `@1`, with the repair settings
+  stated (off). `@1` stays resolvable. `LightOnOCR3Adapter.max_prompt_tokens()` (4,160 tokens at 2048 px).
+- `ChatModelServer` starts vLLM with `VLLM_USE_FLASHINFER_SAMPLER=0` on a machine without a CUDA toolkit (no `nvcc`
+  on the server's `PATH`, neither `CUDA_HOME` nor `CUDA_PATH`) unless the variable is set: FlashInfer's sampler
+  compiles its kernels at first use and fails there ("Could not find nvcc"). Logged once.
+- `fake_chat_server(models=[...])` answers `GET /v1/models`.
+- `Block.unhashed_defaults`: parameters added to a released block whose default keeps the old behavior;
+  `pipeline_sha256` leaves them out at that default.
+
+### Changed
+
+- `lightonocr-3-0.8b` (without an edition) now means `@2`.
+- `ModelBlock`'s served loop lets a finished request ask for a second one (`_second_request`, `_second_done`).
+
+### Fixed
+
+- The chat recognizers' docstring said a completion cut off at `max_tokens` is "on page OCR nearly always a
+  repetition loop"; a dense table often only needs more tokens and finishes with more room.
+
 ## 0.5.2 (2026-11-11)
 
 ### Upgrade notes
