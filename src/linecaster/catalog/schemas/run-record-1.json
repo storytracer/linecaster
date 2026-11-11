@@ -259,6 +259,171 @@
       "title": "Recipe",
       "type": "object"
     },
+    "SampleListing": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "description": "what the listing's hash covers: its (item, page) ids, or its item ids (manifests: pages are known once read)",
+          "enum": [
+            "pages",
+            "items"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "items": {
+          "title": "Items",
+          "type": "integer"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pages"
+        },
+        "duplicates": {
+          "default": 0,
+          "description": "ids listed more than once (their first entry is read)",
+          "title": "Duplicates",
+          "type": "integer"
+        },
+        "manifests_read": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "manifests read to compute the sample",
+          "title": "Manifests Read"
+        },
+        "sha256": {
+          "description": "sha256 of the distinct sorted lines item_id<TAB>page_id (or item_id), each with a newline",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "items",
+        "sha256"
+      ],
+      "title": "SampleListing",
+      "type": "object"
+    },
+    "SampleRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "description": "the rule's id (linecaster.sample/1, linecaster.data.sample)",
+          "title": "Rule",
+          "type": "string"
+        },
+        "hash": {
+          "description": "the hashes that rank items and pages",
+          "title": "Hash",
+          "type": "string"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "N: at most this many pages in all",
+          "title": "Pages"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "M: at most this many items",
+          "title": "Items"
+        },
+        "per_item": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "K: at most this many pages of each item",
+          "title": "Per Item"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "listing": {
+          "$ref": "#/$defs/SampleListing"
+        },
+        "selected": {
+          "$ref": "#/$defs/SampleSelected"
+        },
+        "file": {
+          "description": "the sample's file in the run folder",
+          "title": "File",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "hash",
+        "seed",
+        "listing",
+        "selected",
+        "file"
+      ],
+      "title": "SampleRecord",
+      "type": "object"
+    },
+    "SampleSelected": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "title": "Items",
+          "type": "integer"
+        },
+        "pages": {
+          "title": "Pages",
+          "type": "integer"
+        },
+        "sha256": {
+          "description": "sha256 of the sample's lines item_id<TAB>page_id, each with a newline, in order",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "pages",
+        "sha256"
+      ],
+      "title": "SampleSelected",
+      "type": "object"
+    },
     "Script": {
       "additionalProperties": false,
       "properties": {
@@ -543,6 +708,18 @@
       "default": null,
       "description": "HF Jobs: the script's override-dependencies",
       "title": "Overrides"
+    },
+    "sample": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SampleRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the sample the run read (--sample ...): the rule, its seed and limits, the listing and the sample's hashes"
     },
     "software": {
       "$ref": "#/$defs/Software"

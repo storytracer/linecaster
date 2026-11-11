@@ -301,6 +301,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("image", help="the page image")
     p.add_argument("out", help="output folder: the page record in OUT/pages, files where the options say")
     p.add_argument("--pipeline", help=f"the pipeline id (default: the recipe's, else {PAGE_PIPELINE})")
+    sub.add_parser("sample", add_help=False,
+                   help="the sample of an input without a run (--sample N, --sample-per-item K, --sample-items M, "
+                        "--sample-seed S, and the pipelines' input options): OUT/sample.parquet, as a run writes it")
     t = sub.add_parser("traces", help="what a run's traces say: per block the time per page (p50/p90/p99), the split "
                                       "of served requests, gaps, the slowest pages, per task the warm-up")
     t.add_argument("out", help="the run folder (its traces/)")
@@ -332,11 +335,15 @@ def main(argv: list[str] | None = None) -> None:
     bp.add_argument("--yes", action="store_true", help="remove without asking")
     bp.add_argument("-v", "--verbose", action="store_true", help="list each removed file")
     a, rest = ap.parse_known_args(argv)
-    if rest and a.command != "page":
+    if rest and a.command not in ("page", "sample"):
         ap.error(f"unrecognized arguments: {' '.join(rest)}")
     try:
         if a.command == "page":
             _page(a, rest)
+        elif a.command == "sample":
+            from .runtime import run
+
+            run.sample(rest)
         elif a.command == "serve":
             _serve(a)
         elif a.command == "models":
