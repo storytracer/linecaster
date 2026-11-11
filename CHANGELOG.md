@@ -8,6 +8,8 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
+- `--uri-map PREFIX=REPLACEMENT` (repeatable) for `--pages`: image URIs in page records rewritten before reading, for
+  images that moved since the records were written (`PageRecordReader`'s `uri_map`).
 - The repair pass for chat page presets: with `repair_max_tokens` set, `PageRecognizer` sends a page whose
   completion stopped at `max_tokens` (`finish_reason` `length`) once more, at once and into the same window: the same
   request (image, prompt, `top_p`) with `max_tokens` raised to `repair_max_tokens` (at most the served context minus

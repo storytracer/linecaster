@@ -307,3 +307,20 @@ def test_image_bytes_of_a_page_without_image_media_is_a_page_error():
     ocr = Media(id="p", type=MediaType.DOCUMENT, url="p.xml", media_bytes=b"<alto/>")
     with pytest.raises(PageError, match="page p failed: it carries no image bytes"):
         image_bytes(Document(text="", id="p", media=[ocr]))
+
+
+def test_uri_map_option_reaches_the_page_records_reader(tmp_path):
+    """``--uri-map PREFIX=REPLACEMENT`` (repeatable) gives ``--pages`` its ``uri_map``: images that moved since the
+    records were written; a malformed value, or the option without ``--pages``, is refused."""
+    from linecaster.runtime import run
+
+    ap = run.parser(None)
+    a = run.check(ap, ap.parse_args(["--pages", str(tmp_path), "OUT", "--uri-map", "/old/images=/new/images",
+                                     "--uri-map", "hf://datasets/x=/local/x"]))
+    reader = run.reader(a)
+    assert reader.uri_map == {"/old/images": "/new/images", "hf://datasets/x": "/local/x"}
+    assert reader._mapped("/old/images/b/0001.jp2") == "/new/images/b/0001.jp2"
+    with pytest.raises(PipelineConfigError, match="PREFIX=REPLACEMENT"):
+        run.uri_map(["/old/images"])
+    with pytest.raises(SystemExit):
+        run.check(ap, ap.parse_args([str(tmp_path), "OUT", "--uri-map", "/a=/b"]))
