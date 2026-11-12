@@ -6,19 +6,32 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Upgrade notes
+
+- **vLLM's repetition detection is on by default** for every chat preset served by vLLM 0.17.0 or later (all of them
+  but `unlimited-ocr-2`, on SGLang): a completion that loops now ends early with `finish_reason` `repetition` instead
+  of running to `max_tokens` (and through the repair passes). The presets' editions stay the same (the maintainer's
+  decision: a default of linecaster's, not of each preset), so a run of the same edition can write a different text
+  for a page that loops, and rarely for one with a long run of one repeated token; the setting in effect is in each
+  step's settings and in `pipeline_sha256`, so runs before and after differ there.
+  `pipelines/transcribe_vlm.py --no-repetition-detection` (`--set recognition.repetition_detection=false`,
+  `Chat(..., overrides={"repetition_detection": False})`) gives the earlier requests.
+
 ### Added
 
 - vLLM's repetition detection as a chat option, `repetition_detection` (`linecaster.adapters.RepetitionDetection`;
-  `--set recognition.repetition_detection=true`, or `--repetition-detection` in `pipelines/transcribe_vlm.py`; one
-  field with `--set recognition.repetition_detection.min_count=12`): sent with every request of a page, repairs
-  included, as vLLM's own field. A completion that loops then ends early with `finish_reason` `repetition` (a new
-  value of `FINISH_REASONS`), stored as returned, counted (stat `finish_repetition`) and never repaired. Defaults:
-  patterns of 8 to 100 tokens repeated 16 times. Evidence (NOTES.md, 2026-11-12): simulated over 5,010
-  LightOnOCR-3-0.8B completions, they stopped all 15 loops (median 211 tokens) and no completion that finished;
-  4 to 100 tokens 10 times stopped a list of illustrations inside a dot leader on a server. Off
-  unless set, so no edition changes; refused unless the preset's server is vLLM 0.17.0 or later (older vLLM and
-  other servers ignore an unknown field silently). It is in the step's settings and, as an override,
-  `pipeline_sha256`.
+  `--set recognition.repetition_detection=false` turns it off, one field with
+  `--set recognition.repetition_detection.min_count=12`): sent with every request of a page, repairs included, as
+  vLLM's own field. A completion that loops then ends early with `finish_reason` `repetition` (a new value of
+  `FINISH_REASONS`), stored as returned, counted (stat `finish_repetition`) and never repaired. Defaults: patterns of
+  8 to 100 tokens repeated 16 times. Evidence (NOTES.md, 2026-11-12): simulated over 5,010 LightOnOCR-3-0.8B
+  completions, they stopped all 15 loops (median 211 tokens) and no completion that finished; on a server they ended
+  a looping page after 188 tokens in 1.5 s instead of about 85 s, ended no page of 998 that finishes, changed no more
+  text than run-to-run sampling does and cost no measurable throughput; 4 to 100 tokens 10 times had stopped a list
+  of illustrations inside a dot leader. On by default where the preset's server is vLLM 0.17.0 or later
+  (`ChatAdapter.takes_repetition_detection`); asking for it on another server is refused (older vLLM and other
+  servers ignore an unknown field silently). The setting in effect is in the step's settings and, while on, in the
+  adapter's record and `pipeline_sha256`.
 
 ### Fixed
 

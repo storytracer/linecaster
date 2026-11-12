@@ -109,13 +109,16 @@ class ChatAdapter:
     ``settings.sampling.repetition_detection`` (below). The values that differ from the preset's are the adapter's
     ``overrides``, recorded with it (``to_dict()``) and so in ``pipeline_sha256``.
 
-    **Repetition detection** (``repetition_detection``; off unless a preset or a run sets it): vLLM's own guard against
-    a completion that loops (``RepetitionDetection``), sent with every request of the page (its repairs too). A loop
-    then ends early with ``finish_reason`` ``repetition``: the text as returned (what came before the loop and the
-    repeats up to the stop), counted (stat ``finish_repetition``) and never repaired. ``true`` turns it on with the
-    defaults, ``false`` off; ``repetition_detection.<field>=<value>`` sets one field over the preset's (or the
-    defaults). Only vLLM 0.17.0 and later (the preset's ``serve.version``) take the field; for an older vLLM, SGLang or
-    another server the option is refused (``PipelineConfigError``), since those would ignore it silently.
+    **Repetition detection** (``repetition_detection``): vLLM's own guard against a completion that loops
+    (``RepetitionDetection``), sent with every request of the page (its repairs too). A loop then ends early with
+    ``finish_reason`` ``repetition``: the text as returned (what came before the loop and the repeats up to the stop),
+    counted (stat ``finish_repetition``) and never repaired. **On by default** wherever the preset's server takes it
+    (vLLM 0.17.0 and later, by the preset's ``serve.version``: ``takes_repetition_detection``), with linecaster's
+    defaults, unless the preset's settings or the run set it: ``false`` turns it off, ``true`` gives the defaults,
+    ``repetition_detection.<field>=<value>`` sets one field over the preset's (or the defaults). An older vLLM, SGLang
+    or another server would ignore the field silently: there it is off by default, and asking for it is refused
+    (``PipelineConfigError``). The setting in effect is in the step's settings and, while on, in the adapter's record
+    (``to_dict()``) and so in ``pipeline_sha256``.
 
     **The repair pass** (``repair_max_tokens`` above 0; ``PageRecognizer`` runs it): a page whose completion stopped
     at ``max_tokens`` (``finish_reason == "length"``) is sent once more, the same request (the same image and prompt,
@@ -153,9 +156,9 @@ class ChatAdapter:
                                                                  "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
                                                                  "at e2b0aa5)")
         repetition_detection: RepetitionDetection | StrictBool | None = Field(
-            None, description="vLLM's repetition detection (vLLM 0.17.0 and later): true for the defaults (patterns "
-                              "of 8 to 100 tokens repeated 16 times), false off, or its fields; "
-                              "repetition_detection.min_count=12 sets one field")
+            None, description="vLLM's repetition detection (vLLM 0.17.0 and later; on by default there): false "
+                              "turns it off, true gives the defaults (patterns of 8 to 100 tokens repeated 16 "
+                              "times), or its fields; repetition_detection.min_count=12 sets one field")
 
     def __init__(self, preset: ChatPreset, served_name: str | None = None):
         p = preset
@@ -172,8 +175,11 @@ class ChatAdapter:
         self.job_image: str | None = serve.get("image")
         self.serve_args: list[str] = list(serve.get("flags") or [])
         self.server_env: dict[str, str] = dict(serve.get("env") or {})
-        if self.sampling.get("repetition_detection") is not None:     # the preset's, checked as a run's would be
-            self.sampling["repetition_detection"] = self._detection(self.sampling["repetition_detection"])
+        given = self.sampling.pop("repetition_detection", None)
+        if given is not None and given is not False:                    # the preset's, checked as a run's would be
+            self.sampling["repetition_detection"] = self._detection(given)
+        elif given is None and self.takes_repetition_detection:        # on by default where the server takes it
+            self.sampling["repetition_detection"] = RepetitionDetection().model_dump()
 
         def server_option(key, default):
             return serve[key] if key in serve else self.options.get(key, default)
@@ -239,8 +245,7 @@ class ChatAdapter:
             d = value if isinstance(value, RepetitionDetection) else RepetitionDetection(**({} if value is True else value))
         except (ValidationError, TypeError) as e:
             raise PipelineConfigError(f"{self.preset}: repetition_detection: {e}") from None
-        version = tuple(int(x) for x in re.findall(r"\d+", self.server_version or "")[:3])
-        if self.server != "vllm" or not version or version < REPETITION_DETECTION_VLLM:
+        if not self.takes_repetition_detection:
             server = f"{self.server} {self.server_version or '(no version)'}"
             raise PipelineConfigError(
                 f"{self.preset}: repetition_detection needs vLLM {'.'.join(map(str, REPETITION_DETECTION_VLLM))} or "
@@ -346,14 +351,23 @@ class ChatAdapter:
                min(image.width, int((b.x1 + pad) * scale + 0.999)), min(image.height, int((b.y1 + pad) * scale + 0.999)))
         return image.crop(box)
 
+    @property
+    def takes_repetition_detection(self) -> bool:
+        """Whether the preset's server takes ``repetition_detection``: vLLM 0.17.0 or later by its ``serve.version``."""
+        version = tuple(int(x) for x in re.findall(r"\d+", self.server_version or "")[:3])
+        return self.server == "vllm" and bool(version) and version >= REPETITION_DETECTION_VLLM
+
     def to_dict(self) -> dict[str, Any]:
         """The adapter as the run record names it: the preset edition and its hash, the model and revision, the
-        adapter class and the name the server hosts the model under."""
+        adapter class and the name the server hosts the model under; the repetition detection in effect, while it
+        is on (on by default, so not in the preset)."""
         out = {"adapter": f"{type(self).__module__}:{type(self).__qualname__}", "preset": self.preset,
                "preset_sha256": self.preset_sha256, "model": self.model, "revision": self.revision,
                "served_name": self.served_name}
         if self.overrides:
             out["overrides"] = dict(self.overrides)
+        if self.sampling.get("repetition_detection"):
+            out["repetition_detection"] = dict(self.sampling["repetition_detection"])
         return out
 
     def settings(self) -> dict[str, Any]:

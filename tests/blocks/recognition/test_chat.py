@@ -51,7 +51,7 @@ def test_lighton_request_is_image_only_with_card_sampling():
     content = body["messages"][0]["content"]
     assert len(content) == 1 and content[0]["type"] == "image_url"      # no text part
     assert (body["max_tokens"], body["temperature"], body["top_p"]) == (4096, 0.2, 0.9)
-    assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p"}
+    assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p", "repetition_detection"}  # vLLM's, on
 
 
 def test_lighton_serve_args_match_the_preset():

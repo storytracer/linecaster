@@ -435,7 +435,8 @@ def test_chat_blocks_record_the_preset_model_and_revision():
     spec = chat_model("lightonocr-2-1b")
     block = PageRecognizer(Chat(spec, "http://127.0.0.1:8000/v1", served_name="m"))
     adapter = {"adapter": f"{type(spec).__module__}:{type(spec).__qualname__}", "preset": spec.preset,
-               "preset_sha256": spec.preset_sha256, "model": spec.model, "revision": spec.revision}
+               "preset_sha256": spec.preset_sha256, "model": spec.model, "revision": spec.revision,
+               "repetition_detection": {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}}          # on by default: in the hash
     assert block.to_dict()["params"]["backend"] == {
         "backend": "chat", **adapter, "served_name": "m", "endpoint": "http://127.0.0.1:8000/v1", "max_window": 32,
         "initial_window": 4, "read_timeout": 600.0}

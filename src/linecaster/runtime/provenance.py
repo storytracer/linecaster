@@ -196,8 +196,8 @@ def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any
     """What a model block's backend contributes to the pipeline's hash: the engine, its options and the preset
     edition with its hash, wherever the engine runs (in-process, or the server model a served backend names);
     for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
-    for a chat backend its adapter, preset edition and hash, model and revision, and the options set over the preset
-    (``overrides``: the sampling, the repair pass)."""
+    for a chat backend its adapter, preset edition and hash, model and revision, the options set over the preset
+    (``overrides``: the sampling, the repair pass) and, while it is on, the repetition detection (on by default)."""
     from ..blocks.base.block import ENGINE_OPERATIONAL, plain
 
     if backend.get("backend") == "in-process":       # where the engine's service is (an endpoint) does not count
@@ -206,6 +206,8 @@ def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any
                "preset": backend.get("preset"), "preset_sha256": backend.get("preset_sha256")}
     elif backend.get("backend") == "chat":         # the adapter, the preset and options over it, not the server
         out = {k: backend.get(k) for k in ("adapter", "preset", "preset_sha256", "model", "revision", "overrides")}
+        if backend.get("repetition_detection"):
+            out["repetition_detection"] = backend["repetition_detection"]
     elif (m := served.get(backend.get("model"))) is not None:
         out = {"engine": m.get("spec"), "options": plain(m.get("kwargs") or {}), "preset": m.get("preset"),
                "preset_sha256": m.get("preset_sha256")}

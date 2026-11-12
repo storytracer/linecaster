@@ -106,7 +106,8 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
                               "request_seconds": m.measurements["request_seconds"]}
     assert m.measurements["decoder"].startswith("Pillow ")       # the request's pixels (no GPU decodes a PNG)
     assert m.settings["repair"] == {"max_tokens": [8192], "temperature": 0.1} and m.preset == PRESET
-    assert m.settings["sampling"] == {"max_tokens": 4096, "temperature": 0.2, "top_p": 0.9}
+    assert m.settings["sampling"] == {"max_tokens": 4096, "temperature": 0.2, "top_p": 0.9,
+                                      "repetition_detection": {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}}
 
     # the repair stopped at its cap too: the first completion stays, even though the repair's is longer
     assert loops.extra["kept"] == 1 and loops.text == "| row |\n| row |\n"
@@ -194,7 +195,7 @@ def test_the_options_are_checked():
         chat_model(PRESET, overrides={"repair_max_tokens": "many"})
     a = chat_model(PRESET, overrides={"max_tokens": 5000, "temperature": 0, "top_p": 1, "repair_max_tokens": 9000,
                                       "repair_temperature": 0.0})
-    assert a.sampling == {"max_tokens": 5000, "temperature": 0.0, "top_p": 1.0}
+    assert a.sampling == {"max_tokens": 5000, "temperature": 0.0, "top_p": 1.0, "repetition_detection": {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}}
     assert (a.repair_max_tokens, a.repair_temperature) == (9000, 0.0)
     assert a.overrides == {"max_tokens": 5000, "temperature": 0.0, "top_p": 1.0, "repair_max_tokens": 9000,
                            "repair_temperature": 0.0}

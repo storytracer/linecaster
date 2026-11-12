@@ -65,7 +65,12 @@ Second round with linecaster's defaults changed to 8-100 tokens, 16 times (a run
   differ (6 pairs), `on` against `off` 0.84-1.59 % (8 pairs), `on` against `on` 1.13 %: detection changes no more
   than sampling at temperature 0.2 does from run to run.
 
-Still open before a preset turns it on: the simulation over the
+**Decision (the maintainer, 2026-11-13): on by default** for every chat preset whose server takes it (vLLM 0.17.0 or
+later), as a default of linecaster's adapters rather than in new preset editions; released editions keep their
+content and hash, and the setting in effect is recorded per step and in `pipeline_sha256`. Measured on
+LightOnOCR-3-0.8B only.
+
+Still open for the other models: the simulation over the
 other VLMs' evidence (dense and empty tables, tables of contents, indexes; DeepSeek-OCR and Unlimited-OCR on table
 pages, since their processors exempt table tags and vLLM's check has no exemptions).
 
