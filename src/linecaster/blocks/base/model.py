@@ -295,6 +295,9 @@ class ModelBlock(PageBlock):
         page = page_of(doc)
         out = item.out["transcription"]
         self._record_decoder(out, item.row.get("decoded"))
+        decoder = out.steps[-1].measurements.get("decoder") if out.steps and "decoded" not in item.row else None
+        if decoder:                                # decoded by the server
+            self.stat_update("gpu_decoded" if "(GPU" in decoder else "cpu_decoded")
         page.transcriptions[self.transcription] = out
         set_page(doc, page, self.primary)
         measured = out.steps[-1].measurements if out.steps else {}

@@ -2,6 +2,33 @@
 
 Measurements, decisions and open questions, newest first.
 
+## GPU page decoding in a transcription run (2026-11-12, x86_64 machine with 8 RTX A6000, 124 vCPUs)
+
+The `squiddle` recipe (layout, lines, recognition, tables and formulas served by `linecaster serve`, one per task) on
+Ray, 8 tasks with one GPU each, over 500 lossy JPEG 2000 page scans of 21 printed books (25 pages each), from a
+local checkout of the `image-decode-gpu` branch (commit `0eda6d1`); wall time from the launch to the last task,
+model warm-up included, and the model blocks' `model_seconds` summed over the pages:
+
+| Input, `--image-decode` | Wall | layout | lines | recognition | Text differs from the first row |
+|---|---|---|---|---|---|
+| JPEG 2000, `cpu` (Pillow, as 0.5.13) | 110 s | 319 s | 300 s | 491 s | — |
+| JPEG 2000, `auto` (nvJPEG2000) | 66 s | 80 s | 109 s | 179 s | 57 pages (11.4 %), similarity 0.994 |
+| WebP q80 (`webp-lossy-q80@3`), `auto` (Pillow: no GPU decodes WebP) | 68 s | 97 s | 123 s | 197 s | 264 pages (52.8 %), similarity 0.963 |
+
+- Every model step is served here, and the server decodes each request's image again (three decodes per page): keeping
+  decoded pages in a process saves nothing across requests, the GPU decoding is the gain. The model seconds fall with
+  it although they time the model call only, probably because the server's Pillow JPEG 2000 decodes hold the GIL in
+  the threads beside the model's (not profiled).
+- nvJPEG2000 refused 48 pages, 24 of each of two books (their encoding, not chance); those were decoded with Pillow, and
+  their texts equal the first run's exactly. So the models give the same text for the same pixels, and the 57
+  differences (of the 452 pages decoded on the GPU, 12.6 %) come from the GPU's pixels alone. Without ground truth this
+  says how often the text changes, not whether it gets better or worse. Similarity: difflib's ratio between the two
+  texts of a page, averaged over the pages that differ.
+- The WebP copies change far more text than the GPU decoding (they are a second lossy encoding; their pixel difference
+  was not measured here), and they are about as fast without any GPU decoder: libwebp decodes quickly.
+- Served blocks did not yet count `gpu_decoded`/`cpu_decoded` (the server decodes); they now count them from the step's
+  `decoder`.
+
 ## PNG level for VLM requests (2026-11-12, aarch64 GB10 machine)
 
 8 page scans thumbnailed to 2,048 px (as `lightonocr-3-0.8b`'s requests), Pillow PNG encoding: level 6 (Pillow's

@@ -15,7 +15,9 @@ the tags; the first is `v0.1.0`.
   JPEG 2000 is exact), so a page's text can differ slightly from a run that decoded with Pillow; each step names its
   decoder (measurement `decoder`). `--image-decode cpu` (`build(..., image_decode="cpu")`) keeps Pillow's pixels
   everywhere, as before; without nvImageCodec nothing changes. The transcription pipeline scripts install
-  `linecaster[nvimgcodec]`.
+  `linecaster[nvimgcodec]`. Evidence (NOTES.md, 2026-11-12): `squiddle` over 500 lossy JPEG 2000 pages on 8 RTX
+  A6000 ran in 66 s instead of 110 s; the text changed on 57 of the 452 pages the GPU decoded (similarity 0.994 on
+  those), none on the 48 it refused.
 - `linecaster.blocks.base.page.DECODED_KEPT` is gone: the decoded pages are kept by `linecaster.images.pixels`
   (`KEPT`). `decode_rgb(data, accel=None)` takes the decoding as an optional second argument.
 
@@ -28,7 +30,8 @@ the tags; the first is `v0.1.0`.
   `cpu_decoded`, `gpu_decode_refused` and `gpu_decode_errors`.
 - `linecaster serve` takes `image_decode` with a request (served blocks send theirs) and records the decoder on the
   step it returns.
-- Measurement `decoder`: what decoded the page image a step read.
+- Measurement `decoder`: what decoded the page image a step read; served blocks count `gpu_decoded`/`cpu_decoded` from
+  the server's.
 
 ### Changed
 

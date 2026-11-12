@@ -158,6 +158,7 @@ def test_the_server_decodes_as_the_block_asks_and_the_step_names_its_decoder(mon
                  for pid in out}
         assert steps["with"].measurements["decoder"].startswith("Pillow ")
         assert "decoder" not in steps["without"].measurements
+        assert step.stats["cpu_decoded"].total == 1            # counted from the server's record
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
