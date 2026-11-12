@@ -1,8 +1,9 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
-#     # Ray for --on ray and the ray command (a Job leaves it out)
-#     "linecaster[ray]",
+#     # Ray for --on ray and the ray command (a Job leaves it out); nvImageCodec to decode page images on NVIDIA
+#     # GPUs, used where the machine has one (its wheels install anywhere)
+#     "linecaster[ray,nvimgcodec]",
 #     # the recipe's engine packages: kraken's line recognizer (it brings the kraken fork and torch 2.14), PaddleX's
 #     # layout, line, table and formula engines (it brings the OpenCV stub)
 #     "linecaster-kraken",

@@ -62,16 +62,20 @@ def test_every_recipe_has_its_script():
 
 @pytest.mark.parametrize("script", RECIPES, ids=[p.stem for p in RECIPES])
 def test_a_recipe_script_lists_exactly_its_engine_packages(script):
-    """A recipe script's dependencies are ``linecaster[ray]`` and exactly the engine packages its presets need (recipe
-    -> presets -> engines -> packages: ``code.recipe_packages``), each from linecaster's ``main`` on GitHub, so the
-    script runs from its URL as well as from a checkout; its body only calls ``run.recipe`` with its own id."""
+    """A recipe script's dependencies are linecaster with ``ray`` (and ``nvimgcodec`` where its steps read page images)
+    and exactly the engine packages its presets need (recipe -> presets -> engines -> packages:
+    ``code.recipe_packages``), each from linecaster's ``main`` on GitHub, so the script runs from its URL as well as from
+    a checkout; its body only calls ``run.recipe`` with its own id."""
     import ast
+
+    from packaging.requirements import Requirement
 
     from linecaster.catalog import code
 
     meta = script_metadata(script)
     deps = meta["dependencies"]
-    assert "linecaster[ray]" in deps, script.name
+    (own,) = [Requirement(d) for d in deps if _name(d) == "linecaster"]
+    assert "ray" in own.extras and own.extras <= {"ray", "nvimgcodec"}, script.name
     assert {_name(d) for d in deps} - {"linecaster"} == code.recipe_packages(script.stem), script.name
     sources = meta["tool"]["uv"]["sources"]
     assert set(sources) == {_name(d) for d in deps}, script.name
