@@ -23,7 +23,8 @@ from ...data.page import Page
 from ...data.transcription import Transcription
 from ...errors import CatalogError, PipelineConfigError
 from .contract import Contract, parts
-from .page import ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error, set_page
+from .page import (ErrorBudget, PageBlock, decode_rgb, decodes, error_entry, failed, image_bytes, page_of, record_error,
+                   set_page)
 
 _END = object()
 
@@ -189,7 +190,12 @@ class ModelBlock(PageBlock):
         t = page.transcription(self.transcription)
         start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         engine = self.backend.model()
-        image = page_image(engine, image_bytes(doc)) if self.needs_image(t) else None
+        image = None
+        if self.needs_image(t):
+            before = decodes()
+            image = page_image(engine, image_bytes(doc))
+            if getattr(engine, "image_input", "rgb") != "bytes":       # decoded here, or a block before it did
+                self.stat_update("image_decoded" if decodes() != before else "image_shared")
         out = engine(image, t, **self.params)
         if out.steps:
             out.steps[-1].engine = out.steps[-1].engine or getattr(engine, "engine_id", None)

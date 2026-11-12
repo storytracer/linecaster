@@ -478,3 +478,32 @@ def test_a_script_outside_a_checkout_is_recorded_by_its_name(tmp_path: Path):
     named = script_entry(str(copy), "recipes/squiddle.py")
     assert named["path"] == "recipes/squiddle.py" and named["sha256"].startswith("sha256:")
     assert script_entry(__file__, "recipes/squiddle.py")["path"].endswith("tests/runtime/test_provenance.py")
+
+
+def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_path: Path):
+    """A line detector and a line recognizer both take the page's pixels: the file is decoded once (``decodes``), the
+    second block gets the same read-only array."""
+    from linecaster.blocks.base import page as base_page
+    from linecaster.blocks.lines.detector import LineDetector
+    from linecaster.blocks.readers.images import ImageFolderReader
+    from linecaster.blocks.recognition.recognizers import LineRecognizer
+
+    folder = Path(_images(tmp_path / "images"))
+    for name in ("p2.png", "p3.png"):
+        (folder / name).write_bytes((folder / "p1.png").read_bytes())
+    seen = []
+
+    class Seeing(StampModel):
+        def __call__(self, image, t, **params):
+            seen.append(image)
+            return super().__call__(image, t, **params)
+
+    import sys
+
+    sys.modules[__name__].Seeing = Seeing
+    before = base_page.decodes()
+    lines, recognizer = LineDetector(InProcess("test_provenance:OneLineModel")), LineRecognizer(InProcess(f"{__name__}:Seeing"))
+    docs = list(recognizer.run(lines.run(ImageFolderReader(str(folder)).run())))
+    assert len(docs) == 3 and base_page.decodes() - before == 3                 # one decode per page, not per block
+    assert lines.stats["image_decoded"].total == 3 and recognizer.stats["image_shared"].total == 3
+    assert all(not a.flags.writeable for a in seen) and seen[0].shape == (30, 40, 3)

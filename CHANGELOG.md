@@ -15,6 +15,11 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- A page's image is decoded once per process for all its in-process model blocks (`decode_rgb` keeps the last four
+  pages' pixels by the bytes object they came from), not once per block: a JPEG 2000 page went through Pillow's decoder
+  for layout, lines and recognition alike (about 0.7 s each on the x86_64 machine). The pixels are the same as before
+  (Pillow, `convert("RGB")`, read-only as they were); each model block counts `image_decoded` or `image_shared`, and
+  `linecaster.blocks.base.page.decodes()` the files decoded.
 - The PNGs a VLM request sends (whole pages, region crops) are encoded at zlib level 1 instead of Pillow's default 6:
   lossless either way, so the server decodes the same pixels and no edition changes; a 2,048-px page encodes 4.3
   times faster (147 against 637 ms) for about 10 % more bytes (`linecaster.adapters.PNG_LEVEL`).
