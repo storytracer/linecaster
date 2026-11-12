@@ -161,12 +161,12 @@ class ImageConverter(Contracted, PipelineStep):
         if not src:
             return ("reject", "rejected", "no image location", "missing", None, {})
         rel = f"{page.item_id or '_'}/{doc.id}.{ext}"
-        if self.skip_existing and out.exists(rel):
-            from ...images import open_image
-
-            with out.open(rel, "rb") as f, open_image(f.read()) as im:
-                return ("existing", rel, im.size)
         try:
+            if self.skip_existing and rel.rsplit("/", 1)[1] in self._listing(out, rel.rsplit("/", 1)[0]):
+                from ...images import open_image
+
+                with out.open(rel, "rb") as f, open_image(f.read()) as im:
+                    return ("existing", rel, im.size)
             raw = (next((m.media_bytes for m in doc.media if m.media_bytes is not None), None)
                    or read_uri(src, doc.id, page.metadata))
             start, began = now()
@@ -180,16 +180,32 @@ class ImageConverter(Contracted, PipelineStep):
             return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
                     src, {})
 
+    def _listing(self, out, folder: str) -> frozenset[str]:
+        """The file names in ``folder`` of the output, listed once per folder and run (fsspec's file systems, the
+        Hub's among them, are not safe to ask from many threads at once); none for a folder that is not there."""
+        with self._listings_lock:
+            if folder not in self._listings:
+                try:
+                    names = frozenset(p.rsplit("/", 1)[-1] for p in out.ls(folder, detail=False))
+                except (FileNotFoundError, KeyError):
+                    names = frozenset()
+                self._listings[folder] = names
+            return self._listings[folder]
+
     def _encode(self, decoded: tuple, engine, out, device: int) -> tuple:
         """The encoding stage: ``("converted", rel, raw, data, info, step)`` with the file written, or a reject."""
         _, rel, raw, done, start, began = decoded
         try:
             data, info = engine.encode(done, device) if hasattr(engine, "encode") else done
             step = stamp(engine.step_info(), self.backend, start, began)
-            tmp = f"{rel}.part"
-            with out.open(tmp, "wb") as f:
-                f.write(data)
-            out.mv(tmp, rel)
+            if _object_storage(out):              # an object appears only when its upload is complete
+                with out.open(rel, "wb") as f:
+                    f.write(data)
+            else:
+                tmp = f"{rel}.part"
+                with out.open(tmp, "wb") as f:
+                    f.write(data)
+                out.mv(tmp, rel)
             return ("converted", rel, raw, data, info, step)
         except Exception as e:  # noqa: BLE001 - an image that cannot be encoded or written: the page's error
             return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
@@ -248,6 +264,7 @@ class ImageConverter(Contracted, PipelineStep):
         from ...images import accel
 
         out = get_datafolder(self.output_folder)
+        self._listings, self._listings_lock = {}, threading.Lock()
         engine = self.backend.model()
         ext = engine.extension() if hasattr(engine, "extension") else "webp"
         index, workers = _WORKER_INDEX[0] or (0, 1)
@@ -300,6 +317,7 @@ class ImageConverter(Contracted, PipelineStep):
         decode, encode = self._limiter(top), self._limiter(top)
         loop = asyncio.get_running_loop()
         end = object()
+        failed: list[BaseException] = []
 
         with ThreadPoolExecutor(max_workers=2 * top, thread_name_prefix="linecaster-image") as pool:
 
@@ -323,15 +341,15 @@ class ImageConverter(Contracted, PipelineStep):
                                            tokens=kpx))
                     results.put((seq, doc, result))
                 except BaseException as e:  # noqa: BLE001 - the stages' own bug: surfaced in the pipeline's thread
+                    failed.append(e)
                     results.put(e)
-                    raise
                 finally:
                     windows["decode"] = max(windows.get("decode", 0), decode.limit)
                     windows["encode"] = max(windows.get("encode", 0), encode.limit)
 
             async with decode, encode:
                 tasks, seq = set(), 0
-                while True:
+                while not failed:                        # after a bug in a stage nothing more is read
                     await loop.run_in_executor(pool, ahead.acquire)
                     doc = await loop.run_in_executor(pool, next, docs, end)
                     if doc is end:
@@ -340,11 +358,19 @@ class ImageConverter(Contracted, PipelineStep):
                     seq += 1
                     tasks.add(task)
                     task.add_done_callback(tasks.discard)
-                if tasks:
-                    await asyncio.gather(*tasks)
+                if tasks:                                # every page in flight ends before the threads stop
+                    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 _END = object()
+
+
+def _object_storage(out) -> bool:
+    """Whether ``out`` (a ``DataFolder``) is on object storage (S3, the Hub's buckets, ...), where a file is seen only
+    once its upload is complete, so it needs no temporary name (a rename there is a copy)."""
+    protocol = getattr(out.fs, "protocol", "file")
+    protocols = protocol if isinstance(protocol, tuple | list) else (protocol,)
+    return not any(p in ("file", "local", "memory") for p in protocols)
 
 
 class Pressure:

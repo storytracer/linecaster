@@ -168,6 +168,23 @@ def test_the_batcher_hands_each_caller_its_own_result_from_shared_batches():
         t.join()
     assert got == {i: 2 * i for i in range(20)} and max(sizes) <= 8 and len(sizes) < 20
 
+    running, most = [0], [0]
+
+    def one_at_a_time(items):
+        running[0] += 1
+        most[0] = max(most[0], running[0])
+        time.sleep(0.01)
+        running[0] -= 1
+        return items
+
+    b = accel.Batcher(one_at_a_time, max_batch=2, wait=0)
+    threads = [threading.Thread(target=b.submit, args=(i,)) for i in range(30)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert most[0] == 1                                       # nvImageCodec is not safe from two threads at once
+
     def boom(items):
         raise OSError("device lost")
 
@@ -198,7 +215,8 @@ def _pages(tmp_path: Path, n: int = 6) -> list[Page]:
 @pytest.mark.parametrize("window", [None, 2])
 def test_the_converter_writes_every_page_in_the_inputs_order_and_goes_on_after_a_failure(tmp_path, window):
     pages = _pages(tmp_path)
-    block = ImageConverter(str(tmp_path / "out"), "webp-lossy-q80", window=window, max_window=4)
+    block = ImageConverter(str(tmp_path / "out"), "webp-lossy-q80", options={"accel": "cpu"}, window=window,
+                           max_window=4)
     docs = list(block.run(iter(map(_doc, pages))))
     assert [d.id for d in docs] == [p.page_id for p in pages]
     bad = docs[3]
@@ -257,3 +275,26 @@ def test_the_convert_pipeline_takes_one_worker_per_gpu(monkeypatch, tmp_path):
     steps, extra = convert.pipeline(a, "convert.py")
     assert a.workers == 4 and extra == {"engines": False}
     assert steps[0].read_images is False and steps[1].backend.kwargs["quality"] == 70
+
+
+# ------------------------------------------------------------------ a real GPU, where the machine has one
+
+needs_gpu = pytest.mark.skipif(not accel.gpu_available(), reason="no CUDA device or no nvImageCodec here")
+
+
+@needs_gpu
+def test_on_a_real_gpu_decoding_matches_pillow_within_one_step_and_encoding_reads_back():
+    """After the same colour handling, nvJPEG2000 decodes within one step of 255 of OpenJPEG and nvJPEG within three of
+    libjpeg-turbo (its own inverse DCT and colour conversion; its fancy upsampling is on); JPEG and JPEG 2000 encoded on
+    the GPU read back at full size, lossless JPEG 2000 exactly."""
+    page = _noise(size=(640, 480))
+    for data, most in ((_encode(page, "JPEG", quality=90), 3), (_encode(page, "JPEG2000"), 0),
+                       (_encode(page.convert("L"), "JPEG"), 3),
+                       (_encode(page, "JPEG2000", irreversible=True, quality_mode="dB", quality_layers=[38]), 1)):
+        r = transcode.compare_decoders(data)
+        assert r["gpu"] and r["max_abs"] <= most, r
+    rgb = transcode.decode(_encode(page, "PNG"), "cpu").rgb
+    out, encoder = transcode.encode(rgb, "jpg", quality=90, accel="gpu")
+    assert "GPU" in encoder and Image.open(io.BytesIO(out)).size == (640, 480)
+    out, encoder = transcode.encode(rgb, "jp2", lossless=True, accel="gpu")
+    assert "GPU" in encoder and np.array_equal(_decode(out), np.asarray(rgb))

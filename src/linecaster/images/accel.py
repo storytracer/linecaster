@@ -91,10 +91,14 @@ def device_for(index: int) -> int:
 class Batcher:
     """Calls ``fn(items) -> results`` with what several threads submit at once: the first caller waits ``wait``
     seconds (or until ``max_batch`` are there), then runs the batch for everyone. ``submit`` blocks until its own
-    result is there and returns it (or raises what ``fn`` raised)."""
+    result is there and returns it (or raises what ``fn`` raised). One batch runs at a time (``run_lock``, which
+    batchers that share one codec share): nvImageCodec's decoder and encoder are not safe to call from two threads at
+    once; the next batch gathers meanwhile."""
 
-    def __init__(self, fn: Callable[[list], list], max_batch: int = 64, wait: float = 0.003):
+    def __init__(self, fn: Callable[[list], list], max_batch: int = 64, wait: float = 0.003,
+                 run_lock: threading.Lock | None = None):
         self.fn, self.max_batch, self.wait = fn, max_batch, wait
+        self.run_lock = run_lock or threading.Lock()
         self._lock = threading.Condition()
         self._pending: list[list] = []                       # [item, result, done event, error]
         self._leader = False
@@ -124,7 +128,8 @@ class Batcher:
             more = bool(self._pending)
             self._leader = False
         try:
-            results = self.fn([e[0] for e in batch])
+            with self.run_lock:
+                results = self.fn([e[0] for e in batch])
             for e, r in zip(batch, results, strict=True):
                 e[1] = r
         except BaseException as err:  # noqa: BLE001 - every caller of the batch gets it
@@ -157,6 +162,7 @@ class GpuCodec:
         self._decode = Batcher(self._decode_batch)
         self._encode: dict[tuple, Batcher] = {}
         self._encode_lock = threading.Lock()
+        self._encoding = threading.Lock()                    # one encode call at a time, whatever its settings
 
     @property
     def version(self) -> str:
@@ -206,7 +212,8 @@ class GpuCodec:
         with self._encode_lock:
             batcher = self._encode.get(key)
             if batcher is None:
-                batcher = self._encode[key] = Batcher(lambda items, k=key: self._encode_batch(items, *k))
+                batcher = self._encode[key] = Batcher(lambda items, k=key: self._encode_batch(items, *k),
+                                                      run_lock=self._encoding)
         return batcher.submit(pixels)
 
     def _encode_batch(self, items: Sequence, fmt: str, params: tuple) -> list:

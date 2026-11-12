@@ -2,6 +2,27 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Image conversion on the GPU (2026-11-12, aarch64 machine with a GB10 GPU, 20 CPU cores)
+
+626 page scans as lossy JPEG 2000 (about 470 KB each, median about 2,000 x 3,600 px) converted to WebP q80
+(`webp-lossy-q80`), nvImageCodec 0.10.0, Pillow 13.0.0 with OpenJPEG 2.5.4 and libwebp 1.6.0:
+
+- **Decoding, GPU against CPU**, same colour handling after both: nvJPEG2000 differs from OpenJPEG by at most 1 of
+  255 in every image, in 0.0027 % of the channel values (median; at most 0.0033 %); no image is identical. Lossless
+  JPEG 2000 decodes identically. nvJPEG against libjpeg-turbo on 6 colour JPEG scans: at most 3 of 255, in about
+  1.7 % of the values (its own inverse DCT and colour conversion; fancy upsampling is already on, off gives up to 10).
+- **Throughput, local disk**: 626 pages in 20 s with GPU decoding (about 31 pages/s), 2 min 2 s with CPU decoding
+  (about 5 pages/s); the encoding is libwebp on the CPU either way.
+- **The outputs**: no WebP of the two runs is byte-identical; decoded, they differ by 48.5 dB PSNR (median of 63
+  pages, at worst 44.9 dB), against 40.3 dB between a WebP and its JPEG 2000 source: lossy WebP amplifies the
+  decoders' one-step differences in a few blocks, far below its own loss. Published images that must not depend on
+  the machine need `accel=cpu`.
+- **Hub buckets**: input from one bucket and output to another, 626 pages took 2 min (140 rising to 340 pages a
+  minute): each file is a download and an upload, and the Hub answered some uploads with 429 (retried after 10 s).
+- Fixed on the way: nvImageCodec's decoder and encoder are not safe to call from two threads at once (a crash), and
+  `HfFileSystem.exists` is not safe from many threads (its directory cache); the converter lists each output folder
+  once and writes to object storage without a temporary name.
+
 ## Repair passes on by default for LightOnOCR-3 0.8B (2026-11-12)
 
 `lightonocr-3-0.8b@3` repairs at 8192 tokens and then, if needed, at 12,288. On the 33-page trial of table and formula pages (one RTX A6000,
