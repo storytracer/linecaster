@@ -53,8 +53,19 @@ Validated on vLLM 0.30.0 (one server, `--data-parallel-size 4` over 4 RTX A6000,
   unit repeated 40 times is also a 4-token pattern repeated 10 times, so `min_pattern_size` 4 does not spare a long
   dot leader; whether the model would have ended the leader cannot be told from this run.
 
-Still open before a preset turns it on: settings that spare long dot leaders (8-100 tokens and 16 times needs 128
-tokens of the same unit and stopped every loop in the simulation, at 211 tokens median); the simulation over the
+Second round with linecaster's defaults changed to 8-100 tokens, 16 times (a run of one token is then stopped after
+128 tokens; in the simulation they stopped every loop, at 211 tokens median), the same server and pages, commit
+`28f9510`:
+
+- The looping page, 5 runs: it looped in 4, each ended `repetition` after 188 tokens, the page in 1.5 s, no repair.
+- The 499 pages, off, on, off, on: no page ended `repetition` (998 pages with detection on). 617, 716, 712 and 696
+  pages a minute; the first run after the server's start was the slow one (it also sent one repair), the other
+  `off` run and the two `on` runs are within 3 %.
+- Text, over these four runs and the first round's two `off` runs: `off` against `off` 0.99-1.70 % of characters
+  differ (6 pairs), `on` against `off` 0.84-1.59 % (8 pairs), `on` against `on` 1.13 %: detection changes no more
+  than sampling at temperature 0.2 does from run to run.
+
+Still open before a preset turns it on: the simulation over the
 other VLMs' evidence (dense and empty tables, tables of contents, indexes; DeepSeek-OCR and Unlimited-OCR on table
 pages, since their processors exempt table tags and vLLM's check has no exemptions).
 
