@@ -73,7 +73,8 @@ Every step that worked on a transcription adds one `StepInfo`, model steps and r
 | `measurements` | numbers of this page, in the measurements vocabulary (below) |
 
 The model blocks and `linecaster serve` fill `engine` from the engine's `engine_id`, `preset` from the backend, and
-`seconds` and `datetime`. The page files (ALTO, PAGE, hOCR) carry every field but `measurements` (`datetime` aside)
+`seconds` and `datetime`; the rule-based steps, the `unicode` step and the line assigner (step `assignment`) record
+their `seconds` and `datetime` too. The page files (ALTO, PAGE, hOCR) carry every field but `measurements` (`datetime` aside)
 and read them back ([serialization](serialization.md)).
 
 ### Measurements
@@ -83,9 +84,12 @@ no other key (a test reads the code for every place that writes one). Values var
 
 | Key | Meaning |
 |---|---|
-| `seconds` | wall time of the step on the page (the engine's call, in-process or in the server) |
-| `datetime` | when the step started on the page, ISO 8601 in UTC |
+| `seconds` | wall time of the step on the page (the engine's call, in-process or in the server); on the page record, the page's time in the run |
+| `datetime` | when the step started on the page, ISO 8601 in UTC; on the page record, when its reader handed it over |
 | `device` | the device the step ran on |
+| `request_seconds` | a served step: from its request being built to its (last) answer: the client's window, the HTTP round trip, the server's queue, decoding and model call |
+| `queue_seconds`, `decode_seconds` | a step served by `linecaster serve`: the request's wait in the server's queue, the server's decoding of the page image |
+| `decoder` | what decoded the page image the step read (`linecaster.images.pixels`) |
 | `prompt_tokens`, `completion_tokens` | a VLM's tokens, summed over the page's requests |
 | `finish_reason` | why generation stopped: `stop`, `length`, `content_filter`, `tool_calls`, `function_call`, `abort` (`FINISH_REASONS`), or `None` |
 | `pass_prompt_tokens`, `pass_completion_tokens` | a page a VLM read twice (the repair pass): the tokens of each request, in order (`prompt_tokens` and `completion_tokens` are their sums) |

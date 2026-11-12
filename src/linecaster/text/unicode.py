@@ -14,7 +14,9 @@ would fold ligatures, long s and superscripts) is refused here, those are the re
 """
 from __future__ import annotations
 
+import time
 import unicodedata
+from datetime import datetime, timezone
 
 from ..data.transcription import StepInfo, Transcription
 
@@ -26,6 +28,7 @@ def normalize_transcription(t: Transcription, form: str = "NFC") -> int:
     if form not in FORMS:
         raise ValueError(f"form {form!r}: linecaster keeps canonical equivalence only ({', '.join(FORMS)}); "
                          "compatibility folding belongs to the readable text variants")
+    start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     changed = 0
 
     def norm(s):
@@ -44,5 +47,6 @@ def normalize_transcription(t: Transcription, form: str = "NFC") -> int:
             w.alternatives = [norm(a) for a in w.alternatives]
     t.steps.append(StepInfo(step="unicode", name="unicodedata",
                             settings={"form": form, "unicode_version": unicodedata.unidata_version},
-                            measurements={"changed": changed}))
+                            measurements={"changed": changed, "seconds": round(time.perf_counter() - start, 4),
+                                          "datetime": began}))
     return changed

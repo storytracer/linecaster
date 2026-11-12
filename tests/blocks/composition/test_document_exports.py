@@ -119,8 +119,9 @@ def test_single_region_layout_takes_every_line():
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(r.id, r.label, r.bbox, r.reading_order) for r in t.regions] == [("page", "text", [0, 0, 1000, 1000], 0)]
     assert [(ln.id, ln.region_id, ln.row) for ln in t.lines] == [("page_l0", "page", 0), ("page_l1", "page", 1)]
-    step = t.steps[-1]
+    step, assigned = t.steps[-2:]
     assert (step.step, step.engine, step.preset) == ("layout", "layout.single-region.v1", "single-region@1")
+    assert assigned.step == "assignment" and set(assigned.measurements) == {"seconds", "datetime"}
     assert step.settings == {"label": "text", "region_id": "page"}
 
 

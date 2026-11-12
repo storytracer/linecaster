@@ -91,7 +91,7 @@ class Hosted:
     def work(self, loop: asyncio.AbstractEventLoop, tracer=None) -> None:
         tracer = tracer or trace_api.NoOpTracer()
         while True:
-            image, decoder, t, params, fut, parent, waiting = self.jobs.get()
+            image, decoder, decoded_in, queued, t, params, fut, parent, waiting = self.jobs.get()
             waiting.end()
             span = tracer.start_span("linecaster.serve.model", context=parent, attributes=self.attributes())
             token = otel_context.attach(trace_api.set_span_in_context(span))      # this thread's logs
@@ -107,8 +107,10 @@ class Hosted:
                     out.steps[-1].preset, out.steps[-1].preset_sha256 = self.preset, self.preset_sha256
                 if out.steps:
                     out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+                    out.steps[-1].measurements.setdefault("queue_seconds", round(start - queued, 4))
                     if decoder is not None:
                         out.steps[-1].measurements.setdefault("decoder", decoder)
+                        out.steps[-1].measurements.setdefault("decode_seconds", decoded_in)
                 dumped = out.model_dump(mode="json")
                 result = (200, {"transcription": dumped,
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},
@@ -200,10 +202,11 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
             try:
                 data = body["image"]
                 raw = None if data is None else base64.b64decode(data)
-                image, decoder = raw, None
+                image, decoder, decoded_in = raw, None, None
                 if raw is not None and getattr(h.model, "image_input", "rgb") != "bytes":
+                    began = time.perf_counter()
                     px = await loop.run_in_executor(pool, decode_pixels, raw, body.get("image_decode"))
-                    image, decoder = px.rgb, px.decoder
+                    image, decoder, decoded_in = px.rgb, px.decoder, round(time.perf_counter() - began, 4)
                 t = Transcription.model_validate(body.get("transcription") or {})
             except Exception as e:
                 decoding.set_status(StatusCode.ERROR)
@@ -213,7 +216,8 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
                 decoding.end()
             fut = loop.create_future()
             waiting = tracer.start_span("linecaster.serve.queue", context=parent, attributes=attrs)
-            h.jobs.put((image, decoder, t, body.get("params") or {}, fut, parent, waiting))
+            h.jobs.put((image, decoder, decoded_in, time.perf_counter(), t, body.get("params") or {}, fut, parent,
+                        waiting))
             status, payload = await fut
             if after_first_call is not None and h.name not in first_calls:
                 first_calls.add(h.name)

@@ -30,6 +30,7 @@ RULE_STEPS = ("image", "normalization", "typography", "recomposition", "composit
 OCRD_STEPS = {
     "layout": "layout/segmentation/region",
     "lines": "layout/segmentation/line",
+    "assignment": "layout/segmentation/line",          # the line assigner: detected lines into the layout's regions
     "recognition": "recognition/text-recognition",
     "tables": "layout/segmentation/region",
     "formulas": "recognition/text-recognition",

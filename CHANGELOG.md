@@ -13,6 +13,15 @@ the tags; the first is `v0.1.0`.
   `page.measurements.datetime`, when it started (`Page.measurements`, a new optional field;
   `linecaster.runtime.observers.PageTiming`, which the builder installs on every page stage that writes pages). The
   steps' own times stay on their step records.
+- Served steps record their times beyond the model call: `request_seconds` (from the request being built to its last
+  answer: the client's window, the HTTP round trip, the server's queue, decoding and model call) and, from
+  `linecaster serve`, `queue_seconds` and `decode_seconds`.
+
+### Changed
+
+- The line assigner records its step (`assignment`, with its settings, `seconds` and `datetime`; OCR-D
+  `layout/segmentation/line` in METS agents), and the `unicode` step its `seconds` and `datetime`: every step that
+  works on a page now has its time on the page record.
 
 ## 0.6.0 (2026-11-12)
 

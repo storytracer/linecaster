@@ -20,6 +20,12 @@ MEASUREMENTS: dict[str, str] = {
     "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date); on the page "
                 "record, when its reader handed it over",
     "device": "the device the step ran on, e.g. cuda:0 or cpu",
+    # served steps
+    "request_seconds": "a served step: from its request being built to its answer, in seconds (waiting for the "
+                       "client's window, the HTTP round trip, the server's queue, decoding and model call; a page sent "
+                       "again for a repair pass: to the last answer)",
+    "queue_seconds": "a step served by linecaster serve: the request's wait in the server's queue for its model",
+    "decode_seconds": "a step served by linecaster serve: the server's decoding of the page image",
     "decoder": "what decoded the page image the step read, e.g. nvImageCodec 0.10.0 (GPU 0) or Pillow 12.0.0 / "
                "OpenJPEG 2.5.4 (linecaster.images.pixels)",
     # vision-language models

@@ -199,6 +199,12 @@ class ModelBlock(PageBlock):
                 self.stat_update("gpu_decode_refused" if px.fallback == "refused" else "gpu_decode_errors")
 
     @staticmethod
+    def _record_request(t: Transcription, row: dict) -> None:
+        """A served step's time from its request being built to its (last) answer (measurement ``request_seconds``)."""
+        if t.steps and "built" in row:
+            t.steps[-1].measurements["request_seconds"] = round(time.perf_counter() - row["built"], 4)
+
+    @staticmethod
     def _record_decoder(t: Transcription, px) -> None:
         """The decoder of the pixels the step read, on its step record (measurement ``decoder``)."""
         if px is not None and t.steps:
@@ -295,6 +301,7 @@ class ModelBlock(PageBlock):
         page = page_of(doc)
         out = item.out["transcription"]
         self._record_decoder(out, item.row.get("decoded"))
+        self._record_request(out, item.row)
         decoder = out.steps[-1].measurements.get("decoder") if out.steps and "decoded" not in item.row else None
         if decoder:                                # decoded by the server
             self.stat_update("gpu_decoded" if "(GPU" in decoder else "cpu_decoded")
@@ -348,6 +355,7 @@ class ModelBlock(PageBlock):
             self.notify(doc, "prepare", **unit)
             forget_last()
             body = self._request(row)
+            row["built"] = time.perf_counter()
             if (decoded := last_decode()) is not None:  # the request was built from the pixels (a chat adapter)
                 row["decoded"] = decoded[0]
                 self._decoded(*decoded)

@@ -450,6 +450,7 @@ class PageRecognizer(ModelBlock):
                 break
         t = self._record(first_t, p1, repairs)
         self._record_decoder(t, item.row.get("decoded"))
+        self._record_request(t, item.row)
         sent = [p1, *t.extra["passes"][1:]] if not self.repair_only else t.extra["passes"][1:]
         for key in ("prompt_tokens", "completion_tokens"):
             value = _total(p[key] for p in sent)

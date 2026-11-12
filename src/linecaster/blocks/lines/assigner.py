@@ -11,12 +11,14 @@ is the reading rank (regions by reading order, then rows). Line ids are ``<regio
 """
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from ...data.geometry import BBox, bbox_of, xywh
 from ...data.geometry.order import place_unordered
 from ...data.page import Page
-from ...data.transcription import Line, Region
+from ...data.transcription import Line, Region, StepInfo
 from ..base.page import PageBlock
 
 SKIP_LABELS = frozenset({"picture", "chart"})
@@ -92,7 +94,8 @@ class LineAssigner(PageBlock):
 
     Reads ``lines`` and ``regions``; adds ``line_regions``; replaces ``regions`` (the orphan regions),
     ``reading_order`` and ``lines`` (ids and order). Lines inside skipped regions are dropped (stat
-    ``lines_in_skipped_regions``); stat ``orphan_rows`` counts the rows that became regions.
+    ``lines_in_skipped_regions``); stat ``orphan_rows`` counts the rows that became regions. The step is recorded:
+    ``StepInfo(step="assignment", name="line assigner")`` with its settings, ``seconds`` and ``datetime``.
 
     Args:
         transcription: the transcription whose lines and regions it works on.
@@ -116,6 +119,9 @@ class LineAssigner(PageBlock):
         return not (region.label == "formula" and self.formulas_separately)
 
     def process_page(self, doc, page: Page) -> Page:
+        from ..base.rule import now
+
+        start, began = now()
         t = page.transcription(self.transcription)
         contents = [_R(r) for r in t.regions]
         ocr = [c for c in contents if self._wants_lines(c.region)]
@@ -158,4 +164,8 @@ class LineAssigner(PageBlock):
         t.regions = [c.region for c in contents]
         t.lines = lines
         self.stat_update("lines", value=len(lines))
+        t.steps.append(StepInfo(step="assignment", name="line assigner",
+                                settings={"skip_labels": sorted(self.skip_labels),
+                                          "formulas_separately": self.formulas_separately},
+                                measurements={"seconds": round(time.perf_counter() - start, 4), "datetime": began}))
         return page
