@@ -22,6 +22,9 @@ Measurements, decisions and open questions, newest first.
   (1 thread: 4 files/s, 16: 35/s): 626 pages took 2 to 3 min. With the converter's four stages (fetch, decode,
   encode, write; the fetching and writing windows bounded apart from the CPUs) and the files going up in batches
   (`HfApi.batch_bucket_files`, up to 128 a call), 626 pages took 47 s (805 a minute), no 429.
+- **Pillow's JPEG 2000 decoder holds Python's GIL**: 4.6 pages/s with one thread, 4.3 with eight (WebP encoding
+  scales: 2.6 to 17.6). A CPU conversion therefore runs one worker process per CPU; with GPU decoding one per GPU
+  is enough (the GPU decodes and libwebp encodes in threads).
 - Fixed on the way: nvImageCodec's decoder and encoder are not safe to call from two threads at once (a crash), and
   `HfFileSystem.exists` is not safe from many threads (its directory cache); the converter lists each output folder
   once and writes to object storage without a temporary name.

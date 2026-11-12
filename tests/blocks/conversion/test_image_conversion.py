@@ -327,15 +327,15 @@ def test_files_for_a_hub_bucket_go_up_in_batches(tmp_path, monkeypatch):
 def test_on_ray_the_convert_tasks_reserve_a_gpu_and_its_share_of_the_cpus(monkeypatch, tmp_path):
     """Ray hides the GPUs from a task that reserved none: where GPUs decode, each task reserves one
     (``RayGPUExecutor``) and the CPUs divided by the GPUs; without GPUs, or with ``accel=cpu``, CPU tasks, one worker
-    per 16 CPUs."""
+    per CPU (Pillow's JPEG 2000 decoder holds the GIL)."""
     from linecaster.pipelines import convert
     from linecaster.runtime import cpus, run
 
     monkeypatch.setattr(cpus, "available_cpus", lambda: 124)
     argv = [str(tmp_path), str(tmp_path / "out"), "--preset", "webp-lossy-q80", "--on", "ray"]
     for gpus, extra, executor, workers, per_task in ((8, [], "RayGPUExecutor", 8, 15),
-                                                     (0, [], "RayExecutor", 7, 17),
-                                                     (8, ["--set", "image.accel=cpu"], "RayExecutor", 7, 17)):
+                                                     (0, [], "RayExecutor", 124, 1),
+                                                     (8, ["--set", "image.accel=cpu"], "RayExecutor", 124, 1)):
         monkeypatch.setattr(accel, "cuda_devices", lambda g=gpus: g)
         monkeypatch.setattr(accel, "gpu_available", lambda g=gpus: g > 0)
         a = run.parse(argv + extra, convert.__doc__, convert.options, convert.PIPELINE, convert.SLOTS)
