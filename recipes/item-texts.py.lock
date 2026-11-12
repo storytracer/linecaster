@@ -793,8 +793,8 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.7.0"
-source = { git = "https://github.com/storytracer/linecaster?branch=main#08b48ab6a9db35741deca62061079bc5cd23340f" }
+version = "0.7.1"
+source = { git = "https://github.com/storytracer/linecaster?branch=main#5603331fbf08b0b9b091b663b05e074dc6bab2d5" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
     { name = "docling-core" },
