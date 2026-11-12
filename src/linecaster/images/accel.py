@@ -9,7 +9,8 @@ On the GPU (``GPU_DECODERS``, ``GPU_ENCODERS``): decoding JPEG (nvJPEG), JPEG 20
 encoding JPEG and JPEG 2000. No GPU library writes PNG or WebP (nvImageCodec encodes them only through its CPU OpenCV
 extension), so those are encoded with Pillow on the CPU. Only the GPU implementations are allowed
 (``decoder_ids``/``encoder_ids``): an image nvImageCodec cannot do on the GPU comes back as None and the caller uses
-Pillow, so a CPU path is always Pillow's, never another CPU library's.
+Pillow, so a CPU path is always Pillow's, never another CPU library's. nvJPEG2000 refuses some code streams, e.g. with
+the vertically causal context (code-block style 0x08); they go to Pillow the same way (and nvImageCodec logs an error).
 
 ``GpuCodec`` is one device's decoder and encoder, shared by the threads of a process: calls that arrive together are
 decoded (encoded) in one batch (``Batcher``), which is how nvImageCodec keeps a GPU busy.

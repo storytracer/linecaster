@@ -1946,6 +1946,17 @@ presets:
         format: webp
         quality: 80
         method: 4
+  webp-lossy-q80@2:
+    sha256: sha256:8abed6ec406a6a3ce642ef76c780db33090fbc04665fbe50fdee5bce3a9337d0
+    released: '2026-11-12'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.convert.v1
+      options:
+        format: webp
+        quality: 80
+        method: 0
   working-image@1:
     sha256: sha256:a73383d8253ccb53c65b1497a432afe7dcfc6fb3ae789baf1d4452eacdb3d970
     released: '2026-11-06'

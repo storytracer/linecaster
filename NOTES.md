@@ -45,6 +45,24 @@ Measurements, decisions and open questions, newest first.
   sets the pace. What made the difference: one worker per CPU when the CPU decodes (Pillow's JPEG 2000 decoder holds
   the GIL), no CUDA start in CPU runs (124 processes starting CUDA at once took about 40 s), windows kept between a
   worker's tasks, and few long tasks (on Ray every task is a new process, which starts its windows again).
+- **libwebp's method at quality 80** (100 of the 626 pages, GB10 machine, one encode per process):
+
+  | method | s/page | size against 4 | PSNR to the source |
+  |---|---|---|---|
+  | 0 | 0.086 | +15.5 % | 40.24 dB |
+  | 1 | 0.110 | +13.0 % | 40.26 dB |
+  | 2 | 0.148 | +3.1 % | 39.83 dB |
+  | 3 | 0.375 | −0.2 % | 40.34 dB |
+  | 4 | 0.376 | 0 | 40.34 dB |
+  | 5 | 0.413 | −1.2 % | 40.20 dB |
+  | 6 | 0.611 | −3.8 % | 40.17 dB |
+
+  Methods 0 to 2 skip libwebp's search for the best encoding decisions. The maintainer prefers speed over size:
+  `webp-lossy-q80@2` uses method 0.
+- **What nvJPEG2000 refuses**: 2 of 200 pages on the x86_64 machine (30 of 2,000 in the runs above), grayscale JPEG
+  2000 files whose code blocks use the vertically causal context (code-block style 0x08 in COD; the accepted files
+  use 0); nvJPEG2000 rejects the stream while parsing it ("Bad jpeg"), whatever the output layout. Pillow decodes
+  them.
 - Fixed on the way: nvImageCodec's decoder and encoder are not safe to call from two threads at once (a crash), and
   `HfFileSystem.exists` is not safe from many threads (its directory cache); the converter lists each output folder
   once and writes to object storage without a temporary name.

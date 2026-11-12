@@ -227,7 +227,7 @@ def test_the_converter_writes_every_page_in_the_inputs_order_and_goes_on_after_a
     assert img.format == "webp" and (img.width, img.height) == (97, 61) and img.uri.endswith("out/b/b_0.webp")
     assert img.decoder.startswith("Pillow ") and img.extra["encoder"].startswith("Pillow ")
     assert img.extra["bytes"] == (tmp_path / "out" / "b" / "b_0.webp").stat().st_size
-    assert img.extra["original"]["format"] == "jpeg2000" and img.extra["step"]["preset"] == "webp-lossy-q80@1"
+    assert img.extra["original"]["format"] == "jpeg2000" and img.extra["step"]["preset"] == "webp-lossy-q80@2"
     assert docs[0].media == []
 
 

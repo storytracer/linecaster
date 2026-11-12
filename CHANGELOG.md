@@ -4,6 +4,20 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- `webp-lossy-q80@2`: libwebp's method 0 instead of 4 (Pillow's default): speed over size. Evidence (NOTES.md,
+  2026-11-12): on 100 lossy JPEG 2000 page scans at quality 80, method 0 encoded in 0.086 s a page against 0.376 s
+  (4.4 times faster) at the same PSNR to the source (40.2 against 40.3 dB), the files 15 % larger. Edition 1 stays
+  resolvable.
+
+### Documentation
+
+- nvJPEG2000 refuses JPEG 2000 code streams with the vertically causal context (code-block style 0x08); the converter
+  decodes them with Pillow, as every image a GPU decoder does not take.
+
 ## 0.5.8 (2026-11-12)
 
 ### Added
