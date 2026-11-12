@@ -56,8 +56,8 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
   `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)
   also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.
 - **Engine packages** version on their own by the same table, applied to their engines (ids, options, defaults).
-- **A derivative** pins a linecaster release tag and versions, if at all, by its own interface, not by linecaster's
-  numbers.
+- **A derivative** pins a linecaster release tag or follows `main` (a recipe script's raw URL), and versions, if at
+  all, by its own interface, not by linecaster's numbers.
 - **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.
 
