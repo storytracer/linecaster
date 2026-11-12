@@ -23,7 +23,13 @@ Measurements, decisions and open questions, newest first.
   encode, write; the fetching and writing windows bounded apart from the CPUs) and the files going up in batches
   (`HfApi.batch_bucket_files`, up to 128 a call), 626 pages took 47 s (805 a minute), no 429.
 - **Pillow's JPEG 2000 decoder holds Python's GIL**: 4.6 pages/s with one thread, 4.3 with eight (WebP encoding
-  scales: 2.6 to 17.6). A CPU conversion therefore runs one worker process per CPU; with GPU decoding one per GPU
+  scales: 2.6 to 17.6). Pillow 13's source says why: the decoder pulls its input through Python (`pulls_fd = 1` in
+  `decode.c`; OpenJPEG reads through `j2k_read` → `_imaging_read_pyFd`), and `decode.c` releases the GIL only for
+  decoders that do not; it never calls `opj_codec_set_threads`, so OpenJPEG decodes on one thread (`OPJ_NUM_THREADS`
+  changed nothing). Pillow's JPEG decoding scales partly (45 to 142 pages/s with 8 threads), its JPEG encoding with
+  optimized Huffman tables not at all (90 to 70). With Pillow, processes are the parallelism for JPEG 2000; the
+  converter decodes one at a time per process. The working copies stay at full resolution (the maintainer's decision):
+  no `reduce`. A CPU conversion therefore runs one worker process per CPU; with GPU decoding one per GPU
   is enough (the GPU decodes and libwebp encodes in threads).
 - **x86_64 machine with 8 RTX A6000 and 124 vCPUs (AMD EPYC 7513), the same conversion** of 2,000 lossy JPEG 2000
   page scans on a network mount (read once before, so every run reads from the page cache), output to the same mount:

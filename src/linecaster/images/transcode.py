@@ -5,7 +5,8 @@ Two steps, so a pipeline can run them in stages of their own (``linecaster.block
 
 * ``decode``: the image's header (Pillow, no pixels), the size limit (``convert.check_size``), its EXIF orientation
   (reported, not applied), then the pixels: on the GPU for JPEG, JPEG 2000 and TIFF in 8-bit ``L`` or ``RGB``
-  (nvJPEG, nvJPEG2000, nvTIFF), else with Pillow. Either way the pixels then go through the working image's colour
+  (nvJPEG, nvJPEG2000, nvTIFF), else with Pillow (one JPEG 2000 image at a time per process: Pillow's JPEG 2000
+  decoder holds the GIL throughout, so only processes decode those in parallel). Either way the pixels then go through the working image's colour
   handling (``convert.to_srgb``: the ICC profile to sRGB, 16 to 8 bit, alpha onto white): a GPU decode hands it the
   source's own mode with the profile read from the header, so both paths share every step after the decoder.
 * ``encode``: the 8-bit sRGB pixels as ``jpg`` (``quality``), ``jp2`` (``lossless``, else ``psnr``), ``png``
@@ -23,8 +24,10 @@ it can.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import io
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -39,6 +42,10 @@ from .convert import ImageTooLarge, _open, _warnings_into, check_size, to_srgb
 FORMATS = {"jpg": ("JPEG", "jpg"), "jp2": ("JPEG2000", "jp2"), "png": ("PNG", "png"), "webp": ("WEBP", "webp")}
 #: the source modes a GPU decoder hands over as they are: 8-bit gray and RGB (other modes: Pillow)
 GPU_MODES = frozenset({"L", "RGB"})
+#: Pillow decodes one JPEG 2000 image at a time per process: its decoder reads through Python (``pulls_fd``) and holds
+#: the GIL for the whole decode, so a second one in parallel gains nothing and only allocates OpenJPEG's buffers
+#: (4 bytes a sample) early; the threads waiting here hold only the file's bytes. Processes decode in parallel.
+_PILLOW_JP2 = threading.Lock()
 
 _PILLOW_LIBS = {"JPEG": ("libjpeg_turbo", "libjpeg-turbo"), "JPEG2000": ("jpg_2000", "OpenJPEG"),
                 "TIFF": ("libtiff", "libtiff"), "PNG": ("zlib", "zlib"), "WEBP": ("webp", "libwebp")}
@@ -124,7 +131,7 @@ def decode(data: bytes, accel: str = "auto", device: int = 0) -> Decoded:
         else:
             fallback = fallback or "refused"
     if decoder is None:
-        with _warnings_into(found):
+        with _warnings_into(found), (_PILLOW_JP2 if fmt == "JPEG2000" else contextlib.nullcontext()):
             im.load()
         decoder = pillow_codec(fmt)
     with _warnings_into(found):

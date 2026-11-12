@@ -21,6 +21,10 @@ the tags; the first is `v0.1.0`.
   `encode`); `ImageConverter` counts both (`gpu_decode_refused`, `gpu_decode_errors`, `gpu_encode_...`) and logs the
   failures as a WARNING. `accel` `gpu` makes either an error. nvJPEG2000, for one, rejects code streams with the
   vertically causal context (code-block style 0x08).
+- On the CPU, Pillow decodes one JPEG 2000 image at a time per process: its decoder reads through Python and holds the
+  GIL for the whole decode (`pulls_fd`; it sets no OpenJPEG threads), so parallel decodes in one process gained
+  nothing and allocated OpenJPEG's buffers early. Other formats and the GPU are not held; processes decode in parallel
+  as before.
 
 ## 0.5.8 (2026-11-12)
 

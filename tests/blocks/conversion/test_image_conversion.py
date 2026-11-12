@@ -398,3 +398,36 @@ def logger_add(lines: list):
 
     sink = logger.add(lambda m: lines.append(m.record["message"]), level="WARNING")
     return lambda: logger.remove(sink)
+
+
+def test_pillow_decodes_one_jpeg_2000_image_at_a_time_per_process(monkeypatch):
+    """Pillow's JPEG 2000 decoder holds the GIL for the whole decode: the CPU path decodes one at a time per process,
+    so concurrent pages wait with their bytes instead of allocating OpenJPEG's buffers; other formats are not held."""
+    from PIL import Jpeg2KImagePlugin, JpegImagePlugin
+
+    running, most = {"jp2": 0, "jpg": 0}, {"jp2": 0, "jpg": 0}
+    lock = threading.Lock()
+
+    def counting(kind, load):
+        def wrapped(self):
+            with lock:
+                running[kind] += 1
+                most[kind] = max(most[kind], running[kind])
+            time.sleep(0.02)
+            try:
+                return load(self)
+            finally:
+                with lock:
+                    running[kind] -= 1
+        return wrapped
+
+    monkeypatch.setattr(Jpeg2KImagePlugin.Jpeg2KImageFile, "load",
+                        counting("jp2", Jpeg2KImagePlugin.Jpeg2KImageFile.load))
+    monkeypatch.setattr(JpegImagePlugin.JpegImageFile, "load", counting("jpg", JpegImagePlugin.JpegImageFile.load))
+    jp2, jpg = _encode(_noise(), "JPEG2000"), _encode(_noise(), "JPEG")
+    threads = [threading.Thread(target=transcode.decode, args=(d, "cpu")) for d in [jp2] * 6 + [jpg] * 6]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert most["jp2"] == 1 and most["jpg"] > 1
