@@ -23,7 +23,8 @@ off at ``max_tokens`` (``finish_reason == "length"``) is stored like any other a
 (``finish_length``). It may be a repetition loop, or a page that needs more tokens than ``max_tokens`` (a dense
 table) and finishes with more room; deciding what it means is for whoever scores or post-processes the text. With the
 repair pass on (the chat option ``repair_max_tokens``, ``linecaster.adapters.ChatAdapter``), ``PageRecognizer`` sends
-such a page once more with a larger cap and keeps the second completion where it finished. A request that fails is
+such a page again with a larger cap, and again with the next while it stops at its cap, and keeps the first
+completion that finished. A request that fails is
 recorded on the page as an error (``doc.metadata["errors"]``), as for every model block.
 
 ``saturate`` reads the response's ``usage`` itself, so the window controller sees delivered tokens.
@@ -108,25 +109,27 @@ class PageRecognizer(ModelBlock):
     completion is kept verbatim (``extra["raw"]``); its ``finish_reason`` and token counts go to ``extra`` and the
     step's measurements, and a completion cut off at ``max_tokens`` is counted (stat ``finish_length``).
 
-    **The repair pass** (the chat option ``repair_max_tokens`` above 0; ``linecaster.adapters.ChatAdapter``): a page
-    whose completion stopped at ``max_tokens`` waits in the block while its repair request goes into the same window at
-    once (the same request body, so the same image and prompt and ``top_p``, with ``max_tokens`` raised and the repair
-    temperature); the other pages stream on. The repair's ``max_tokens`` is ``repair_max_tokens``, at most the served
-    context minus the first request's prompt tokens (the context from the server's ``/models`` ``max_model_len``, else
-    the preset's ``--max-model-len``); where that is not above the first ``max_tokens`` no repair is sent (stat
-    ``repair_skipped``). The page keeps the repair's completion where it finished (``"stop"``), its first one
-    otherwise; ``extra["passes"]`` records every request (``pass_entry``: the completion verbatim, finish reason,
-    tokens, ``max_tokens`` as sent, temperature, ``top_p``, preset), ``extra["kept"]`` which one the transcription
-    holds (1 or 2), and ``extra["raw"]`` and ``extra["finish_reason"]`` stay the kept one's. The step's measurements
-    sum the tokens of both and list them per request (``pass_prompt_tokens``, ``pass_completion_tokens``); its
-    settings add ``repair``. Pages that stopped otherwise are recorded as without the repair pass. A repair request
-    that fails leaves the page with its first completion (stat ``repair_errors``), not an error of the page. A page
-    record is written only after its repair, so an interrupted task sends both requests again. Stats:
-    ``finish_length`` (first requests), ``repair_sent``, ``repair_stop``, ``repair_length`` (the repairs' finish
-    reasons), ``repair_kept``, ``repair_skipped``, ``repair_errors``.
+    **The repair passes** (the chat option ``repair_max_tokens``: a cap, or a list of rising caps, one per pass;
+    ``linecaster.adapters.ChatAdapter``): a page whose completion stopped at ``max_tokens`` waits in the block while its
+    repair request goes into the same window at once (the same request body, so the same image and prompt and
+    ``top_p``, with ``max_tokens`` raised and the repair temperature); the other pages stream on. A repair that stops
+    at its cap too is sent again with the next cap, until one finishes or the caps run out. Each repair's
+    ``max_tokens`` is its cap, at most the served context minus the page's prompt tokens (the context from the
+    server's ``/models`` ``max_model_len``, else the preset's ``--max-model-len``); where that is not above the cap
+    before it, no more repairs are sent (none at all: stat ``repair_skipped``). The page keeps the first completion
+    that finished (``"stop"``), its first one otherwise; ``extra["passes"]`` records every request (``pass_entry``:
+    the completion verbatim, finish reason, tokens, ``max_tokens`` as sent, temperature, ``top_p``, preset),
+    ``extra["kept"]`` which one the transcription holds (from 1), and ``extra["raw"]`` and ``extra["finish_reason"]``
+    stay the kept one's. The step's measurements sum the tokens of every request and list them per request
+    (``pass_prompt_tokens``, ``pass_completion_tokens``); its settings add ``repair``. Pages that stopped otherwise are
+    recorded as without repairs. A repair request that fails ends the repairs, and the page keeps what the passes
+    before it give (stat ``repair_errors``), not an error of the page. A page record is written only after its
+    repairs, so an interrupted task sends every request again. Stats:
+    ``finish_length`` (first requests), ``repair_sent`` (repair requests), ``repair_stop``, ``repair_length`` (their
+    finish reasons), ``repair_kept`` (pages that keep a repair), ``repair_skipped``, ``repair_errors``.
 
     With ``repair_only`` it reads page records written earlier (``PageRecordReader``) and sends only the repair
-    request, by the same rules and recorded the same way: for the pages whose transcription's first completion
+    requests, by the same rules and recorded the same way: for the pages whose transcription's first completion
     stopped at ``max_tokens`` and has no repair yet (``extra["passes"]`` with one entry, or a record without
     ``passes``, as linecaster wrote before the repair pass). Every other page passes through unchanged, without a
     request (stat ``repair_not_needed``). The first request's prompt tokens and sampling come from the record.
@@ -157,7 +160,7 @@ class PageRecognizer(ModelBlock):
 
         PageRecognizer("lightonocr-2-1b@1")
         PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
-        PageRecognizer(Chat("lightonocr-3-0.8b@2", overrides={"repair_max_tokens": 8192}))   # with the repair pass
+        PageRecognizer(Chat("lightonocr-3-0.8b@2", overrides={"repair_max_tokens": [8192, 12288]}))   # repair passes
         PageRecognizer("indra-ocr@1")             # a page engine, in the pipeline's process
     """
 
@@ -180,7 +183,7 @@ class PageRecognizer(ModelBlock):
         super().__init__(backend, transcription, None, primary, skip_on_error, name=name or default)
         self.prepare_workers = prepare_workers
         self.repair_only = repair_only
-        if repair_only and not (self.chat and self.adapter.repair_max_tokens):
+        if repair_only and not (self.chat and self.adapter.repair_caps):
             raise PipelineConfigError(f"{type(self).__name__}: repair_only needs a Chat backend with the repair pass "
                                       "on (the option repair_max_tokens)")
         #: the served context the repair pass is checked against (``warm_up``: the server's, else the preset's)
@@ -191,7 +194,7 @@ class PageRecognizer(ModelBlock):
     @property
     def repairs(self) -> bool:
         """Whether the block runs the repair pass (a ``Chat`` backend whose adapter has ``repair_max_tokens``)."""
-        return self.chat and bool(self.adapter.repair_max_tokens)
+        return self.chat and bool(self.adapter.repair_caps)
 
     def _check_context(self, context: int | None, source: str) -> None:
         """A warning when ``repair_max_tokens`` and a page's largest prompt do not fit the served ``context``."""
@@ -228,8 +231,8 @@ class PageRecognizer(ModelBlock):
             if context != self._context:
                 self._check_context(context, source)
             self._context, self._context_read = context, True
-            logger.info("repair pass: repair_max_tokens {cap}, temperature {t}, served context {context} ({source})",
-                        cap=self.adapter.repair_max_tokens, t=self.adapter.repair_temperature, context=context,
+            logger.info("repair passes: max_tokens {cap}, temperature {t}, served context {context} ({source})",
+                        cap=", ".join(map(str, self.adapter.repair_caps)), t=self.adapter.repair_temperature, context=context,
                         source=source)
 
     @property
@@ -290,10 +293,13 @@ class PageRecognizer(ModelBlock):
                                       f"repair pass would ask {self.adapter.model}")
         return pass_entry(t)
 
-    def _cap(self, first: dict) -> tuple[int, bool]:
-        """The repair request's ``max_tokens`` after the context check, and whether it is above the first's."""
-        cap = self.adapter.repair_cap(first.get("prompt_tokens"), self._context)
-        return cap, cap > int(first.get("max_tokens") or self.adapter.sampling.get("max_tokens") or 0)
+    def _cap(self, first: dict, index: int = 0, previous: int | None = None) -> tuple[int, bool]:
+        """The ``index``-th repair request's ``max_tokens`` after the context check, and whether it is above the cap
+        of the request before it (``previous``; the first request's ``max_tokens`` for the first repair)."""
+        cap = self.adapter.repair_cap(first.get("prompt_tokens"), self._context, index)
+        before = previous if previous is not None else int(first.get("max_tokens")
+                                                           or self.adapter.sampling.get("max_tokens") or 0)
+        return cap, cap > before
 
     def _rows(self, data, results):
         if not self.repair_only:
@@ -308,113 +314,155 @@ class PageRecognizer(ModelBlock):
             cap, room = self._cap(first)
             if not room:                       # the context leaves no more room than the first request had
                 page.transcriptions[self.transcription] = self._record(page.transcriptions[self.transcription],
-                                                                       first, {})
+                                                                       first, [])
                 set_page(doc, page, self.primary)
                 results.put(Passed(doc, "repair_skipped"))
                 continue
             yield doc.id, {"doc": doc, "first": first, "cap": cap}
 
     def _second_request(self, done) -> dict | None:
-        """The repair request of a page whose first completion stopped at ``max_tokens`` (in saturate's loop)."""
-        if self.repair_only:                       # the request was the repair: ``_done`` records it
-            return None
-        body = done.row.pop("request", None)
+        """The first repair request of a page whose first completion stopped at ``max_tokens`` (in saturate's
+        loop); with ``repair_only`` the request that came back was that repair, and this asks for the next one."""
         if not self.repairs or done.error is not None:
+            done.row.pop("request", None)
             return None
+        if self.repair_only:                       # the stored first pass, then the repair just answered
+            done.out["first"] = done.row["first"]
+            done.out["repairs"] = [{"request": done.row.pop("request", None), "cap": done.row["cap"],
+                                    "transcription": done.out["transcription"]}]
+            return self._next_request(done)
+        body = done.row.pop("request", None)
         t = done.out["transcription"]
         if t.extra.get("finish_reason") != "length":
             return None
         first = done.out["first"] = pass_entry(t, body)
+        done.out["first_request"], done.out["repairs"] = body, []
         cap, room = self._cap(first)
         if not room:
-            done.out["repair"] = {}
             return None
-        request = self.adapter.repair_request(body, cap)
-        done.out["repair"] = {"request": request}
+        return self._send_repair(done, self.adapter.repair_request(body, cap), cap,
+                                 notify_first=True)
+
+    def _send_repair(self, done, request: dict, cap: int, notify_first: bool = False) -> dict:
+        done.out["repairs"].append({"request": request, "cap": cap})
         doc = done.row["doc"]
-        self.notify(doc, "done", **{k: first[k] for k in ("prompt_tokens", "completion_tokens", "finish_reason")
-                                    if first[k] is not None})
+        if notify_first:
+            first = done.out["first"]
+            self.notify(doc, "done", **{k: first[k] for k in ("prompt_tokens", "completion_tokens", "finish_reason")
+                                        if first[k] is not None})
         self.notify(doc, "request", carrier={})
         return request
 
     def _second_done(self, done, body: dict | None, error: str | None):
-        done.out["repair"].update(body=body, error=error)
+        done.out["repairs"][-1].update(body=body, error=error)
         return done
 
-    def _record(self, first: Transcription, p1: dict, repair: dict) -> Transcription:
-        """The page's transcription after the repair pass: the repair's (``repair["transcription"]``) where it
-        finished, else ``first``; with ``extra["passes"]`` and ``extra["kept"]``, the tokens of every request in the
-        step's measurements and the repair settings in its settings."""
+    def _next_request(self, done) -> dict | None:
+        """The next repair request while the last one stopped at its cap and the preset has a further cap whose
+        request the context leaves room for; ``None`` otherwise."""
+        repairs = done.out.get("repairs") or []
+        if not repairs:
+            return None
+        last = repairs[-1]
+        if last.get("error") is not None:
+            return None
+        if "transcription" in last:
+            finish = last["transcription"].extra.get("finish_reason")
+        elif last.get("body") is not None:
+            try:
+                finish = self.adapter.content(last["body"])[1]
+            except ServerError:                    # not a completion: _done records the error
+                return None
+        else:
+            return None
+        index = len(repairs)
+        if finish != "length" or index >= len(self.adapter.repair_caps):
+            return None
+        cap, room = self._cap(done.out["first"], index, last["cap"])
+        if not room:
+            return None
+        base = done.out.get("first_request") or last["request"]
+        return self._send_repair(done, self.adapter.repair_request(base, cap), cap)
+
+    def _record(self, first: Transcription, p1: dict, repairs: list[dict]) -> Transcription:
+        """The page's transcription after the repair passes: the first repair's that finished (``"stop"``), else
+        ``first``; with ``extra["passes"]`` (the first request and each repair) and ``extra["kept"]`` (the kept
+        pass, from 1), the tokens of every request in the step's measurements and the repair settings in its
+        settings."""
         a = self.adapter
-        passes, t = [p1], first
-        second = repair.get("transcription")
-        if second is not None:
-            passes.append(pass_entry(second, repair.get("request")))
-            if passes[1]["finish_reason"] == "stop":
+        passes, t, kept = [p1], first, 1
+        for r in repairs:
+            second = r.get("transcription")
+            if second is None:
+                break
+            passes.append(pass_entry(second, r.get("request")))
+            if kept == 1 and passes[-1]["finish_reason"] == "stop":
                 old, new = chat_step(first), chat_step(second)
                 second.steps = ([new if s is old else s for s in first.steps] if old is not None
                                 else [*first.steps, new])
-                t = second
+                t, kept = second, len(passes)
         step = chat_step(t)
         if step is not None:
-            step.settings = {**step.settings, "repair": {"max_tokens": a.repair_max_tokens,
+            step.settings = {**step.settings, "repair": {"max_tokens": list(a.repair_caps),
                                                          "temperature": a.repair_temperature}}
             step.measurements.update({
                 "prompt_tokens": _total(p["prompt_tokens"] for p in passes),
                 "completion_tokens": _total(p["completion_tokens"] for p in passes),
                 "pass_prompt_tokens": [p["prompt_tokens"] for p in passes],
                 "pass_completion_tokens": [p["completion_tokens"] for p in passes]})
-        t.extra["passes"], t.extra["kept"] = passes, (2 if t is second else 1)
+        t.extra["passes"], t.extra["kept"] = passes, kept
         return t
 
     def _done(self, item, budget: ErrorBudget):
-        """A page's result; with the repair pass, a page that needed one completes with it here."""
+        """A page's result; with the repair passes, a page that needed them completes with them here."""
         out = item.out or {}
-        if not self.chat or not (self.repair_only or "repair" in out):
+        if not self.chat or not (self.repair_only or "repairs" in out):
             yield from super()._done(item, budget)
             return
         doc = item.row["doc"]
         page = page_of(doc)
         self.stat_update("pages")
         budget.page()
-        if self.repair_only:
+        if "repairs" in out:
+            first_t = out["transcription"] if not self.repair_only else page.transcriptions[self.transcription]
+            p1, repairs = out["first"], [dict(r) for r in out["repairs"]]
+        else:                                      # repair_only, its first repair failed
             first_t, p1 = page.transcriptions[self.transcription], item.row["first"]
-            repair = {"request": item.row.get("request"), "error": item.error,
-                      "transcription": out.get("transcription")}
-        else:
-            first_t, p1, repair = out["transcription"], out["first"], dict(out["repair"])
-            if repair.get("body") is not None:
+            repairs = [{"request": item.row.get("request"), "cap": item.row.get("cap"), "error": item.error}]
+        for r in repairs:                          # the responses parsed
+            if "transcription" not in r and r.get("body") is not None and r.get("error") is None:
                 try:
-                    repair["transcription"] = self.adapter.parse(repair["body"], backend=self.backend.describe())
+                    r["transcription"] = self.adapter.parse(r["body"], backend=self.backend.describe())
                 except ServerError as e:
-                    repair["error"] = str(e)
+                    r["error"] = str(e)
         self.stat_update(f"finish_{p1['finish_reason']}")
-        if "request" not in repair:
+        if not repairs:
             self.stat_update("repair_skipped")
-        else:
+        error = None
+        for r in repairs:
             self.stat_update("repair_sent")
-        if repair.get("error") is not None:
-            self.stat_update("repair_errors")
-            logger.warning("page {page_id}: the repair request failed, the first completion stays: {error}",
-                           page_id=doc.id, error=repair["error"])
-            repair.pop("transcription", None)
-        t = self._record(first_t, p1, repair)
+            if r.get("error") is not None:
+                error = r["error"]
+                self.stat_update("repair_errors")
+                logger.warning("page {page_id}: a repair request failed, the passes before it stay: {error}",
+                               page_id=doc.id, error=error)
+                r.pop("transcription", None)
+                break
+        t = self._record(first_t, p1, repairs)
         sent = [p1, *t.extra["passes"][1:]] if not self.repair_only else t.extra["passes"][1:]
         for key in ("prompt_tokens", "completion_tokens"):
             value = _total(p[key] for p in sent)
             if value is not None:
                 self.stat_update(key, value=value, unit="doc")
-        if len(t.extra["passes"]) > 1:
-            self.stat_update(f"repair_{t.extra['passes'][1]['finish_reason']}")
-            if t.extra["kept"] == 2:
-                self.stat_update("repair_kept")
+        for p in t.extra["passes"][1:]:
+            self.stat_update(f"repair_{p['finish_reason']}")
+        if t.extra["kept"] > 1:
+            self.stat_update("repair_kept")
         page.transcriptions[self.transcription] = t
         set_page(doc, page, self.primary)
         last = t.extra["passes"][-1]
-        self.notify(doc, "done", error=repair.get("error"), **{k: last[k] for k in ("prompt_tokens",
-                                                                                     "completion_tokens",
-                                                                                     "finish_reason")
-                                                              if last[k] is not None})
+        self.notify(doc, "done", error=error, **{k: last[k] for k in ("prompt_tokens", "completion_tokens",
+                                                                       "finish_reason") if last[k] is not None})
         yield doc
 
 

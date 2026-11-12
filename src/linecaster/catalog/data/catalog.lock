@@ -576,7 +576,7 @@ presets:
         - '0'
         - --no-enable-prefix-caching
   lightonocr-3-0.8b@3:
-    sha256: sha256:c9acdd92d1dea146fc21b54f60d5a01b8afbc67620832acdf837e2cc0c34cfeb
+    sha256: sha256:86ddce22a55d5fe753e3ba28b862de4cc75093a190bf5dfbaec4295d6bc129c9
     released: '2026-11-12'
     linecaster: null
     resolved:
@@ -597,7 +597,9 @@ presets:
           temperature: 0.2
           top_p: 0.9
         repair:
-          max_tokens: 12288
+          max_tokens:
+          - 8192
+          - 12288
           temperature: 0.1
         chat_template_kwargs:
           enable_thinking: false

@@ -103,7 +103,7 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
     assert m.measurements == {"prompt_tokens": 2 * PROMPT_TOKENS, "completion_tokens": 9096, "finish_reason": "stop",
                               "pass_prompt_tokens": [PROMPT_TOKENS, PROMPT_TOKENS],
                               "pass_completion_tokens": [4096, 5000]}
-    assert m.settings["repair"] == {"max_tokens": 8192, "temperature": 0.1} and m.preset == PRESET
+    assert m.settings["repair"] == {"max_tokens": [8192], "temperature": 0.1} and m.preset == PRESET
     assert m.settings["sampling"] == {"max_tokens": 4096, "temperature": 0.2, "top_p": 0.9}
 
     # the repair stopped at its cap too: the first completion stays, even though the repair's is longer
@@ -177,9 +177,12 @@ def test_the_repair_pass_is_off_by_default():
 
 # ------------------------------------------------------------------------------------------ validation
 def test_the_options_are_checked():
-    with pytest.raises(PipelineConfigError, match=r"repair_max_tokens \(4096\) must be larger than max_tokens"):
+    with pytest.raises(PipelineConfigError, match=r"repair_max_tokens \(4096\) must rise, .*the first larger than "
+                                                   r"max_tokens"):
         chat_model(PRESET, overrides={"repair_max_tokens": 4096})
-    with pytest.raises(PipelineConfigError, match="must be larger"):
+    with pytest.raises(PipelineConfigError, match="must rise"):
+        chat_model(PRESET, overrides={"repair_max_tokens": [8192, 8192]})
+    with pytest.raises(PipelineConfigError, match="must rise"):
         chat_model(PRESET, overrides={"repair_max_tokens": 8192, "max_tokens": 9000})
     with pytest.raises(PipelineConfigError, match="no_such_option"):
         chat_model(PRESET, overrides={"no_such_option": 1})
@@ -256,7 +259,7 @@ def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
     assert block["params"]["backend"]["overrides"] == {"repair_max_tokens": 8192}
     records = _records(out)
     long = records["long"]["page"]["transcriptions"]["ocr_new"]
-    assert long["extra"]["kept"] == 2 and long["steps"][0]["settings"]["repair"]["max_tokens"] == 8192
+    assert long["extra"]["kept"] == 2 and long["steps"][0]["settings"]["repair"]["max_tokens"] == [8192]
     assert records["loops"]["page"]["transcriptions"]["ocr_new"]["extra"]["kept"] == 1
     assert len(server.requests) == 5
 
@@ -277,7 +280,7 @@ def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
         hash_of("lines.x=1")
     with pytest.raises(PipelineConfigError, match="bogus"):
         hash_of("recognition.bogus=1")
-    with pytest.raises(PipelineConfigError, match="must be larger"):
+    with pytest.raises(PipelineConfigError, match="must rise"):
         hash_of("recognition.repair_max_tokens=100")
     with pytest.raises(PipelineConfigError, match="--repair-only reads page records"):
         run.describe(shape, ["IN", "OUT", "--recognition", PRESET, "--repair-only",
@@ -372,3 +375,78 @@ def test_lightonocr_3_0_8b_edition_3_repairs_at_12288_and_edition_2_does_not():
     assert (three.repair_max_tokens, three.repair_temperature) == (12288, 0.1)
     assert two.repair_max_tokens == 0
     assert chat_model("lightonocr-3-0.8b@3").apply_overrides({"repair_max_tokens": 0}).repair_max_tokens == 0
+
+
+# ----------------------------------------------------------------------------------- several repair passes
+#: page width -> a page that needs more than 8192 tokens: it finishes only with the third cap
+LONGER = 600
+
+
+def escalating(body: dict) -> dict:
+    """The fake model of ``answer``, plus a page that finishes only above 8192 tokens."""
+    w, cap = sent_width(body), body["max_tokens"]
+    if w == LONGER and cap > 8192:
+        return completion("| longer | table |\n" * 5, usage={"prompt_tokens": PROMPT_TOKENS, "completion_tokens": 9000})
+    return answer(body)
+
+
+def test_repairs_escalate_while_a_page_stops_at_its_cap_and_keep_the_first_that_finished():
+    """``repair_max_tokens: [8192, 12288]``: a page that stops at 4096 is sent with 8192; if that stops at its cap
+    too, with 12288; never more. A page that finishes at 8192 gets no third request; one that loops gets all three
+    and keeps its first completion."""
+    pages = [*docs(), new_page_document("longer", image(LONGER))]
+    with fake_chat_server(escalating, models=[{"id": MODEL, "max_model_len": 18000}]) as server:
+        step = PageRecognizer(Chat(PRESET, server.url, max_window=4,
+                                   overrides={"repair_max_tokens": [8192, 12288]}))
+        out = {d.id: page_of(d).transcriptions["ocr_new"] for d in step.run(iter(pages))}
+        sent = by_width(server)
+    caps = {w: [b["max_tokens"] for b in bodies] for w, bodies in sent.items()}
+    assert caps == {STOPS: [4096], LONG: [4096, 8192], LOOPS: [4096, 8192, 12288], LONGER: [4096, 8192, 12288]}
+    assert all(b["temperature"] == 0.1 for w in (LONG, LOOPS, LONGER) for b in sent[w][1:])
+    longer, loops, long = out["longer"], out["loops"], out["long"]
+    assert [p["finish_reason"] for p in longer.extra["passes"]] == ["length", "length", "stop"]
+    assert longer.extra["kept"] == 3 and longer.text == "| longer | table |\n" * 5
+    assert [p["max_tokens"] for p in longer.extra["passes"]] == [4096, 8192, 12288]
+    assert [p["finish_reason"] for p in loops.extra["passes"]] == ["length"] * 3 and loops.extra["kept"] == 1
+    assert loops.text == "| row |\n" * 2                                   # its first completion stays
+    assert long.extra["kept"] == 2 and len(long.extra["passes"]) == 2
+    assert longer.steps[0].settings["repair"] == {"max_tokens": [8192, 12288], "temperature": 0.1}
+    assert longer.steps[0].measurements["pass_completion_tokens"] == [4096, 8192, 9000]
+    assert stats(step) == {"finish_length": 3, "repair_sent": 5, "repair_stop": 2, "repair_length": 3,
+                           "repair_kept": 2}
+
+
+def test_a_later_repair_the_context_leaves_no_room_for_is_not_sent():
+    """Each cap is at most the context minus the page's prompt; a pass whose cap is then not above the one before
+    is not sent."""
+    with fake_chat_server(escalating, models=[{"id": MODEL, "max_model_len": 3000 + 8192}]) as server:
+        step = PageRecognizer(Chat(PRESET, server.url, max_window=4,
+                                   overrides={"repair_max_tokens": [8192, 12288]}))
+        out = {d.id: page_of(d).transcriptions["ocr_new"] for d in step.run(iter([new_page_document(
+            "longer", image(LONGER))]))}
+        sent = by_width(server)
+    assert [b["max_tokens"] for b in sent[LONGER]] == [4096, 8192]          # 12288 cut to 8192: no room above
+    assert out["longer"].extra["kept"] == 1 and len(out["longer"].extra["passes"]) == 2
+
+
+def test_repair_only_continues_with_the_later_caps():
+    """Over page records written without repairs, ``repair_only`` sends the first repair and, while it stops at its
+    cap, the next."""
+    with fake_chat_server(escalating, models=[{"id": MODEL, "max_model_len": 18000}]) as server:
+        first = PageRecognizer(Chat(PRESET, server.url, max_window=4))
+        records = list(first.run(iter([new_page_document("longer", image(LONGER)),
+                                       new_page_document("stops", image(STOPS))])))
+        again = PageRecognizer(Chat(PRESET, server.url, max_window=4, overrides={"repair_max_tokens": [8192, 12288]}),
+                               repair_only=True)
+        out = {d.id: page_of(d).transcriptions["ocr_new"] for d in again.run(iter(records))}
+    longer = out["longer"]
+    assert [p["max_tokens"] for p in longer.extra["passes"]] == [4096, 8192, 12288] and longer.extra["kept"] == 3
+    assert "passes" not in out["stops"].extra                              # not needed: unchanged
+
+
+def test_lightonocr_3_0_8b_edition_3_escalates_to_twice_and_three_times_its_cap():
+    from linecaster.adapters import chat_model as model
+
+    three = model("lightonocr-3-0.8b@3")
+    assert three.sampling["max_tokens"] == 4096 and three.repair_caps == (8192, 12288)
+    assert model("lightonocr-3-0.8b@2").repair_caps == ()

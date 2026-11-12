@@ -101,10 +101,13 @@ class ChatAdapter:
         temperature: float | None = Field(None, ge=0, description="the sampling temperature (default: the preset's)")
         top_p: float | None = Field(None, gt=0, le=1, description="nucleus sampling (default: the preset's); the "
                                                                    "repair pass keeps it")
-        repair_max_tokens: int = Field(0, ge=0, description="the repair pass: a page whose completion stopped at "
-                                                            "max_tokens is sent once more with this cap (0: off; "
-                                                            "larger than max_tokens; the reference script suggests "
-                                                            "8192 for LightOnOCR-3, lightonocr-3-0.8b@3 sets 12288)")
+        repair_max_tokens: int | list[int] = Field(0, description="the repair passes' caps: a page whose completion "
+                                                                  "stopped at max_tokens is sent again with the first "
+                                                                  "cap, and again with the next while it stops at its "
+                                                                  "cap (a number: one repair; a list: one per pass, "
+                                                                  "rising, the first larger than max_tokens; 0 or []: "
+                                                                  "off; lightonocr-3-0.8b@3: [8192, 12288], twice and "
+                                                                  "three times its 4096)")
         repair_temperature: float = Field(0.1, ge=0, description="the repair pass's temperature (the reference "
                                                                  "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
                                                                  "at e2b0aa5)")
@@ -162,9 +165,16 @@ class ChatAdapter:
         return self
 
     @property
+    def repair_caps(self) -> tuple[int, ...]:
+        """The repair passes' caps in order (``settings.repair.max_tokens``: a number is one pass, 0 none)."""
+        value = self.repair.get("max_tokens") or 0
+        caps = value if isinstance(value, list | tuple) else [value]
+        return tuple(int(c) for c in caps if int(c) > 0)
+
+    @property
     def repair_max_tokens(self) -> int:
-        """The repair pass's cap (0: no repair pass)."""
-        return int(self.repair.get("max_tokens") or 0)
+        """The largest repair cap (0: no repair pass)."""
+        return max(self.repair_caps, default=0)
 
     @property
     def repair_temperature(self) -> float:
@@ -177,9 +187,16 @@ class ChatAdapter:
         first = self.sampling.get("max_tokens")
         if first is None:
             raise PipelineConfigError(f"{self.preset}: the repair pass needs settings.sampling.max_tokens")
-        if self.repair_max_tokens <= int(first):
-            raise PipelineConfigError(f"{self.preset}: repair_max_tokens ({self.repair_max_tokens}) must be larger "
-                                      f"than max_tokens ({first})")
+        value = self.repair.get("max_tokens")
+        listed = value if isinstance(value, list | tuple) else [value]
+        if any(isinstance(c, bool) or not isinstance(c, int) or c < 0 for c in listed):
+            raise PipelineConfigError(f"{self.preset}: repair_max_tokens is a number of tokens or a list of them, "
+                                      f"not {value!r}")
+        caps = self.repair_caps
+        if caps[0] <= int(first) or any(b <= a for a, b in zip(caps, caps[1:])):
+            raise PipelineConfigError(f"{self.preset}: repair_max_tokens ({', '.join(map(str, caps))}) must rise, "
+                                      f"each cap larger than the one before and the first larger than max_tokens "
+                                      f"({first})")
 
     def max_prompt_tokens(self) -> int | None:
         """The most prompt tokens a page can take (its image tokens at the largest page size, and a margin for the
@@ -203,10 +220,10 @@ class ChatAdapter:
         ``max_tokens`` = ``cap`` and the repair temperature."""
         return {**body, "max_tokens": int(cap), "temperature": self.repair_temperature}
 
-    def repair_cap(self, prompt_tokens: int | None, context: int | None) -> int:
-        """The repair request's ``max_tokens``: ``repair_max_tokens``, at most what the context leaves after the first
-        request's prompt (``context - prompt_tokens``, where both are known)."""
-        cap = self.repair_max_tokens
+    def repair_cap(self, prompt_tokens: int | None, context: int | None, index: int = 0) -> int:
+        """The ``index``-th repair request's ``max_tokens``: that pass's cap (``repair_caps``), at most what the
+        context leaves after the page's prompt (``context - prompt_tokens``, where both are known)."""
+        cap = self.repair_caps[index]
         if context and prompt_tokens:
             cap = min(cap, int(context) - int(prompt_tokens))
         return cap

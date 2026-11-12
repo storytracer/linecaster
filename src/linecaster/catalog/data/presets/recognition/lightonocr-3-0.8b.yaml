@@ -15,7 +15,9 @@ settings:
     temperature: 0.2
     top_p: 0.9
   repair:
-    max_tokens: 12288
+    max_tokens:
+    - 8192
+    - 12288
     temperature: 0.1
   chat_template_kwargs:
     enable_thinking: false

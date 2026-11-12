@@ -9,16 +9,15 @@ checkpoint).
 - Serve flags: `--max-model-len 18000` (LightOn's README for the 0.8B, and the reference script
   uv-scripts/ocr `lighton-ocr3-saturate.py` at e2b0aa5; a 2048-px page is at most 4096 image tokens), one image and
   no video per prompt, no multimodal processor cache, no prefix caching; no `--trust-remote-code`.
-- The repair pass is on, at 12,288 tokens (`settings.repair.max_tokens`): a page whose completion stopped at
-  `max_tokens` is sent once more, on demand and only once (two passes at most), with that cap and temperature 0.1
-  (`settings.repair.temperature`, the reference script's), and keeps the second completion where it finished
-  (`stop`); otherwise the first. 12,288 rather than the reference script's suggested 8192: a dense table page needed
-  8,958 tokens, and one needing about 7,960 hit 8192 in one run of three (NOTES.md).
-  `--set recognition.repair_max_tokens=0` turns it off. With 18000 tokens of context a repair of up to 13,840 tokens fits beside the largest page prompt
-  (4,096 image tokens and 64 for the rest).
+- Repair passes on demand (`settings.repair.max_tokens: [8192, 12288]`, twice and three times the first 4096): a
+  page whose completion stopped at `max_tokens` is sent again at 8192 tokens, and, if that stops at its cap too, at
+  12,288; never more (three passes at most). Temperature 0.1 (`settings.repair.temperature`, the reference script's);
+  the same image, prompt and `top_p`. The page keeps the first completion that finished (`stop`), otherwise its first
+  one. A dense table page needed 8,958 tokens, and one needing about 7,960 hit 8192 in one run of three (NOTES.md).
+  `--set recognition.repair_max_tokens=0` turns the passes off.
 - vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
   `vllm/vllm-openai:v0.30.0`.
 - The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Experimental.
 
 Editions: 1 served with `--max-model-len 16384` (linecaster's choice then); 2 serves with LightOn's 18000, so that a
-repair pass has room, and states the repair settings (off); 3 turns the repair pass on at 12,288 tokens.
+repair pass has room, and states the repair settings (off); 3 turns the repair passes on at 8192 and 12,288 tokens.

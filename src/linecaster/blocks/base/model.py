@@ -281,6 +281,11 @@ class ModelBlock(PageBlock):
         """``done`` with the second request's response ``body`` (or its ``error``) added, for ``_done``."""
         return done
 
+    def _next_request(self, done) -> dict | None:
+        """The body of one more request after a second one came back (``_second_done``): a third, a fourth, ...
+        (``PageRecognizer``'s repair passes), sent at once; ``None`` (the default): the result goes on."""
+        return None
+
     def _run_served(self, data):
         """The requests (``_rows``) through saturate: built in its prepare threads (``_request``, with the observers'
         ``prepare`` and ``request`` events around it), up to the backend's window in flight, each result handed to
@@ -315,8 +320,11 @@ class ModelBlock(PageBlock):
                                       read_timeout=b.read_timeout, headers=headers) as client:
 
                 async def second(done, body):
-                    out, error = await client.post(body, route)
-                    await asyncio.to_thread(results.put, self._second_done(done, out, error))
+                    while body is not None:          # the second request, and any it asks for after it
+                        out, error = await client.post(body, route)
+                        done = self._second_done(done, out, error)
+                        body = self._next_request(done)
+                    await asyncio.to_thread(results.put, done)
 
                 async with anyio.create_task_group() as seconds:     # left only when every second request is back
                     async with through(client, rows, request, self._parse, route=route,

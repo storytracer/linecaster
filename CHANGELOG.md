@@ -4,6 +4,17 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- Repair passes escalate: `repair_max_tokens` takes a list of rising caps, one repair pass each (a number stays one
+  pass). A repair that stops at its cap is sent again with the next cap; the page keeps the first completion that
+  finished (`stop`), else its first, and `extra["kept"]` numbers the kept pass from 1. `lightonocr-3-0.8b@3` now
+  repairs at `[8192, 12288]` (twice and three times its 4096): its edition 3, released in 0.5.4 with one repair at
+  12,288, was replaced in place (the 0.5.4 release of it was incomplete); its run records' hash changes.
+  `StepInfo.settings["repair"]["max_tokens"]` is now always a list.
+
 ## 0.5.4 (2026-11-12)
 
 ### Changed
