@@ -5,12 +5,18 @@ engine or GPU is needed; the transcribe stage then reads the page records withou
 With --items it fetches items' other remote files (resources: catalogue records, API JSON, manifests) as served,
 from URL templates (--resource KIND=URL with {item}) or a resource table, into OUT/<kind>/<item>/<name>.<ext> with a
 record each in OUT/resources/<rank>.jsonl.gz; --http-policy gives settings for every host and overrides per host
-(rate limits, proxies or direct, retries, statuses that stop the run).
+(rate limits, proxies or direct, retries, statuses that stop the run). --reuse-from DIR (repeatable) takes the files
+earlier harvests into other folders already hold: a resource whose source URL one of them fetched (by DIR's records,
+the newest successful one per URL across the folders, its copy checked by sha256) is read from there and written
+into OUT under its current item and name, with the earlier fetch's provenance and ``reused_from``; only the rest is
+fetched. So a changed list gets one complete folder of its own instead of a resume whose tasks no longer fit it; a
+resume of that folder with other --reuse-from folders is an ordinary resume.
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --rate-limit 5/1 --existing-ocr
     uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --http-policy http-policy.yaml \
         --resource marcxml=https://catalog.example.org/{item}/marcxml
+    uv run pipelines/harvest.py --items files-v2.parquet --item-key item OUT2 --reuse-from OUT --reuse-from TOPUP
     uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
         --rate-limit 150/60 --rate-limit 3/1
     uv run pipelines/harvest.py ... SMOKE --rate-limit 150/60 --rate-limit 3/1 --max-pages 2000     # a smoke test
@@ -55,6 +61,10 @@ def options(ap):
                     help="before fetching an item, list its folder in OUT and read the files an earlier launch wrote "
                          "instead of fetching them again (one listing per item; off by default, since on some object "
                          "storage a listing is slow even for an empty folder)")
+    ap.add_argument("--reuse-from", action="append", default=[], metavar="DIR",
+                    help="--items: an earlier harvest's folder (any fsspec path; repeatable): a resource whose URL it "
+                         "fetched is read from its copy there (by its records in DIR/resources, the newest successful "
+                         "one per URL across the folders; checked by sha256) and written into OUT, instead of fetched"),
 
 
 def models(a) -> list[dict]:
@@ -66,6 +76,9 @@ def pipeline(a, script: str) -> list:
         raise PipelineConfigError("harvest.py downloads: give --manifests, --parquet (with http(s) image URLs) or "
                                   "--items (resources)")
     out = a.out.rstrip("/")
+    if a.reuse_from and not a.items:
+        raise PipelineConfigError("harvest.py: --reuse-from reads earlier harvests' resources (--items); page images "
+                                  "(--manifests, --parquet) reuse only OUT's own files (--reuse)")
     if a.items:                     # items' remote files as served: OUT/<kind>/<item>/<name>.<ext>, OUT/resources
         return [
             run.reader(a, reuse_folder=out if a.reuse else None),

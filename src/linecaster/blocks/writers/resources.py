@@ -14,7 +14,8 @@ class ResourceFilesWriter(Contracted, PipelineStep):
     """Writes each resource's bytes as they came, one file per resource.
 
     Files go to ``<output_folder>/<kind>/<item>/<name>.<ext>`` (any fsspec folder), appearing only once whole (a
-    local file as ``<name>.part``, then renamed); a resource read back from its copy (``reused``) is not written again.
+    local file as ``<name>.part``, then renamed); a resource read back from its copy in this folder (``reused``) is not
+    written again, one read from an earlier harvest's folder (``reused_from``) is, so the folder holds every file.
     The record's ``uri`` then names the copy, its ``source_uri`` where it came from. A resource that failed (no
     bytes) passes through without a file.
 

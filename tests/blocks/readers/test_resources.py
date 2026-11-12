@@ -5,6 +5,7 @@ checked (XML, JSON, an image; an HTML page where another format was expected fai
 ``block_on`` (a pause direct, a proxy left out through proxies) and ``stop_on`` statuses that stop the run without a
 retry. The policy's schema, defaults and migration errors: ``tests/net/test_http_policy.py``."""
 import gzip
+import hashlib
 import io
 import json
 import struct
@@ -609,3 +610,132 @@ def test_per_worker_in_a_policy_and_its_checks(tmp_path):
             HTTPPolicy(policy_file(tmp_path, f"proxies: {{per_worker: {bad}}}\n"))
     with pytest.raises(PipelineConfigError, match="the hosts that use p.txt set its per_worker 2, share"):
         HTTPPolicy(policy_file(tmp_path, "proxies: {file: p.txt}\nhosts:\n  a.library.test: {proxies: {per_worker: 2}}\n"))
+
+
+# ---------------------------------------------------------------------------- --reuse-from: earlier harvests' folders
+
+def resource_table(tmp_path, rows, name="res"):
+    """A resource table: (item, kind, url, copy name) per row."""
+    (tmp_path / name).mkdir()
+    item, kind, url, copy = (list(c) for c in zip(*rows))
+    pq.write_table(pa.table({"item": item, "kind": kind, "url": url, "name": copy}), tmp_path / name / "r.parquet")
+    return str(tmp_path / name)
+
+
+def earlier_harvest(folder, entries, rank=0):
+    """An earlier harvest's folder as ``ResourceFilesWriter`` and ``ResourceRecordWriter`` leave it: per entry
+    (url, kind, item, name, data, fetched, error) a copy at ``<kind>/<item>/<name>.xml`` and a record whose ``uri`` is
+    an absolute path from where the folder was before (``/moved/away/...``)."""
+    (folder / "resources").mkdir(parents=True, exist_ok=True)
+    lines = []
+    for url, kind, item, name, data, fetched, error in entries:
+        record = {"item": item, "kind": kind, "name": name, "source_uri": url, "reused": False, "fetched": fetched,
+                  "final_uri": url, "status": 200, "content_type": "application/xml", "etag": f'"{name}-etag"',
+                  "last_modified": "Tue, 01 Oct 2026 10:00:00 GMT", "attempts": 1, "ext": "xml"}
+        if error:
+            record["error"] = error
+        else:
+            (folder / kind / item).mkdir(parents=True, exist_ok=True)
+            (folder / kind / item / f"{name}.xml").write_bytes(data)
+            record.update(bytes=len(data), sha256=hashlib.sha256(data).hexdigest(),
+                          uri=f"/moved/away/{folder.name}/{kind}/{item}/{name}.xml")
+        lines.append(json.dumps(record))
+    with gzip.open(folder / "resources" / f"{rank:05d}.jsonl.gz", "wt") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def test_reuse_from_reads_earlier_copies_by_url_and_writes_them_into_out(server, tmp_path):
+    """URL a is in the earlier folder (under another item and name), b failed there: a is read from the copy (its
+    sha256 checked), written into OUT under its new item and name with the earlier fetch's provenance and
+    ``reused_from``; b and c are fetched."""
+    base = server["base"]
+    a, b, c = f"{base}/marc/a1", f"{base}/marc/bad", f"{base}/marc/c3"
+    earlier = tmp_path / "v1"
+    earlier_harvest(earlier, [(a, "marcxml", "old-item", "a1", XML, "2026-10-01T10:00:00Z", None),
+                              (b, "marcxml", "old-item", "bad", None, "2026-10-01T10:00:01Z", "UnexpectedHTML: ...")])
+    table = resource_table(tmp_path, [("new", "marcxml", a, "a1_0002"), ("new", "marcxml", b, "b"),
+                                      ("new", "marcxml", c, "c3")])
+    out = tmp_path / "v2"
+    reader = ResourceReader(table, item_key="item", name_key="name", http=FAST, reuse_from=[str(earlier)])
+    reader.max_page_errors = None
+    docs = run_all(reader, out)
+    assert "/marc/a1" not in server["seen"] and server["seen"].count("/marc/c3") == 1 and "/marc/bad" in server["seen"]
+    assert (out / "marcxml" / "new" / "a1_0002.xml").read_bytes() == XML                 # in OUT, its new place
+    rec = next(r for r in records(out) if r["source_uri"] == a)
+    assert rec["reused_from"] == str(earlier) and rec["reused_from_uri"].endswith("v1/marcxml/old-item/a1.xml")
+    assert (rec["fetched"], rec["etag"], rec["status"], rec["attempts"]) == ("2026-10-01T10:00:00Z", '"a1-etag"', 200, 1)
+    assert rec["uri"] == str(out / "marcxml" / "new" / "a1_0002.xml") and not rec["reused"]
+    assert rec["sha256"] == hashlib.sha256(XML).hexdigest() and (rec["item"], rec["name"]) == ("new", "a1_0002")
+    assert "reused_from" not in next(r for r in records(out) if r["source_uri"] == c)
+    assert (reader.stats["reused_from"].total, reader.stats["fetched"].total) == (1, 1)
+    assert [d for d in docs if d.metadata.get("errors")][0].metadata["resource"]["source_uri"] == b
+
+
+def test_with_several_earlier_folders_the_newest_successful_copy_wins(server, tmp_path):
+    url = f"{server['base']}/marc/x"
+    old, new = b'<record><v>old</v></record>', b'<record><v>new</v></record>'
+    earlier_harvest(tmp_path / "first", [(url, "marcxml", "i", "x", new, "2026-10-02T00:00:00Z", None)])
+    earlier_harvest(tmp_path / "second", [(url, "marcxml", "i", "x", old, "2026-10-01T00:00:00Z", None),
+                                          (url, "marcxml", "i", "x_retry", None, "2026-10-03T00:00:00Z", "a failure")])
+    table = resource_table(tmp_path, [("i", "marcxml", url, "x")])
+    out = tmp_path / "out"
+    run_all(ResourceReader(table, item_key="item", name_key="name", http=FAST,
+                           reuse_from=[str(tmp_path / "second"), str(tmp_path / "first")]), out)
+    assert (out / "marcxml" / "i" / "x.xml").read_bytes() == new and server["seen"] == []
+    assert records(out)[0]["reused_from"] == str(tmp_path / "first")
+
+
+@pytest.mark.parametrize("fault", ["mismatch", "missing"])
+def test_an_earlier_copy_that_does_not_match_its_record_or_is_gone_is_fetched(server, tmp_path, fault):
+    url = f"{server['base']}/marc/y"
+    earlier = tmp_path / "v1"
+    earlier_harvest(earlier, [(url, "marcxml", "i", "y", XML, "2026-10-01T00:00:00Z", None)])
+    copy = earlier / "marcxml" / "i" / "y.xml"
+    if fault == "mismatch":
+        copy.write_bytes(XML.replace(b"x", b"z"))
+    else:
+        copy.unlink()
+    reader = ResourceReader(resource_table(tmp_path, [("i", "marcxml", url, "y")]), item_key="item", name_key="name",
+                            http=FAST, reuse_from=[str(earlier)])
+    out = tmp_path / "out"
+    run_all(reader, out)
+    assert server["seen"] == ["/marc/y"] and "reused_from" not in records(out)[0]
+    assert reader.stats[{"mismatch": "reuse_from_mismatch", "missing": "reuse_from_unreadable"}[fault]].total == 1
+
+
+def test_reuse_and_reuse_from_together_take_outs_copy_first_then_the_earlier_folders_then_fetch(server, tmp_path):
+    """--reuse reads OUT's own copy (not written again), --reuse-from an earlier folder's (written into OUT), the
+    rest is fetched."""
+    base = server["base"]
+    there, earlier_url, fresh = f"{base}/marc/p", f"{base}/marc/q", f"{base}/marc/r"
+    out = tmp_path / "out"
+    (out / "marcxml" / "i").mkdir(parents=True)
+    (out / "marcxml" / "i" / "p.xml").write_bytes(XML)
+    stamp = (out / "marcxml" / "i" / "p.xml").stat().st_mtime_ns
+    earlier_harvest(tmp_path / "v1", [(there, "marcxml", "i", "p", XML, "2026-10-01T00:00:00Z", None),
+                                      (earlier_url, "marcxml", "i", "q", XML, "2026-10-01T00:00:00Z", None)])
+    reader = ResourceReader(resource_table(tmp_path, [("i", "marcxml", u, n) for u, n in
+                                                      ((there, "p"), (earlier_url, "q"), (fresh, "r"))]),
+                            item_key="item", name_key="name", http=FAST, reuse_folder=str(out),
+                            reuse_from=[str(tmp_path / "v1")])
+    run_all(reader, out)
+    by = {r["name"]: r for r in records(out)}
+    assert by["p"]["reused"] and "reused_from" not in by["p"]
+    assert (out / "marcxml" / "i" / "p.xml").stat().st_mtime_ns == stamp                  # not written again
+    assert by["q"]["reused_from"] == str(tmp_path / "v1") and (out / "marcxml" / "i" / "q.xml").read_bytes() == XML
+    assert not by["r"]["reused"] and "reused_from" not in by["r"] and server["seen"] == ["/marc/r"]
+
+
+def test_reuse_from_is_for_resources_and_leaves_the_runs_fingerprint(tmp_path):
+    from linecaster.pipelines import harvest
+    from linecaster.runtime import run
+
+    a = run.parse(["--parquet", "p.parquet", "--image-key", "url", str(tmp_path / "out"), "--reuse-from", "v1"],
+                  harvest.__doc__, harvest.options, harvest.PIPELINE)
+    with pytest.raises(PipelineConfigError, match="--reuse-from reads earlier harvests' resources"):
+        harvest.pipeline(a, "harvest.py")
+    from linecaster.runtime.provenance import functional_block
+
+    one = ResourceReader("items", item_key="item", reuse_from=["v1"])
+    other = ResourceReader("items", item_key="item", reuse_from=["v1", "v2"])
+    assert "reuse_from" in one.operational_params() and functional_block(one) == functional_block(other)

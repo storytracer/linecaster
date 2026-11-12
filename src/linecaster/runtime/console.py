@@ -144,7 +144,8 @@ def bar(fraction: float, width: int = 20) -> str:
 #: the console of a run launched in this process (process, Console), set by ``Console.open``
 _CONSOLE: list = [None]
 #: what the tasks of this worker process have done so far, for the run's console (``Progress.report``)
-_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reused": 0, "reused_bytes": 0, "reported": 0.0}
+_WORKER = {"pages": 0, "failed": 0, "bytes": 0, "tasks": 0, "reused": 0, "reused_bytes": 0, "reported": 0.0,
+           "earlier": {}}
 
 
 def active() -> Console | None:
@@ -166,6 +167,8 @@ class Console:
         self.done_pages, self.done_tasks = done_pages, done_tasks
         self.shared, self._done_before = shared, done_tasks
         self.pages = self.failed = self.bytes = self.reused = self.reused_bytes = 0
+        #: files read from earlier harvests' folders (``--reuse-from``), per folder
+        self.earlier: dict[str, int] = {}
         #: the size of what was done before this launch (``add_before``); None while it is being read
         self.done_bytes: int | None = 0 if not done_tasks else None
         self.task: int | None = None
@@ -220,11 +223,14 @@ class Console:
             self.done_bytes = nbytes
         self._render(force=True)
 
-    def page(self, nbytes: int, failed: bool, reused: bool = False) -> None:
+    def page(self, nbytes: int, failed: bool, reused: bool = False, earlier: str | None = None) -> None:
         with self._lock:
-            if reused:                              # done before, not fetched now: not in the rate
-                self.reused += 1
+            if reused or earlier:                   # done before, not fetched now: not in the rate
                 self.reused_bytes += nbytes
+                if earlier:
+                    self.earlier[earlier] = self.earlier.get(earlier, 0) + 1
+                else:
+                    self.reused += 1
                 return
             self.pages += 1
             self.bytes += nbytes
@@ -255,6 +261,11 @@ class Console:
         self.done_tasks = self._done_before + sum(r[3] for r in reports)
         self.reused = sum(r[4] for r in reports)
         self.reused_bytes = sum(r[5] for r in reports)
+        earlier: dict[str, int] = {}
+        for r in reports:
+            for folder, n in (r[6] if len(r) > 6 else {}).items():
+                earlier[folder] = earlier.get(folder, 0) + n
+        self.earlier = earlier
 
     # -- what is shown
 
@@ -269,7 +280,7 @@ class Console:
         return (self.pages - p0) / (now - t0) if now > t0 else 0.0
 
     def status(self) -> str:
-        done = self.done_pages + self.reused + self.pages
+        done = self.done_pages + self.reused + sum(self.earlier.values()) + self.pages
         rate = self.rate()
         parts = []
         if self.total:
@@ -286,6 +297,8 @@ class Console:
             parts.append(f"{count(self.failed)} failed")
         if self.reused:
             parts.append(f"{count(self.reused)} reused")
+        if self.earlier:
+            parts.append(f"{count(sum(self.earlier.values()))} from earlier folders")
         from ..net.http import pause_left, paused, proxy_counts
 
         if (wait := paused()) is not None:
@@ -334,6 +347,9 @@ class Console:
             what += f", {size(self.bytes)}"
         if self.reused:
             what += f"; {count(self.reused)} reused (already there)"
+        if self.earlier:
+            what += "; from earlier folders: " + ", ".join(f"{count(n)} from {folder}"
+                                                           for folder, n in sorted(self.earlier.items()))
         head = "stopped" if error is not None else "done"
         resumed = f"; {count(self.done_pages)} {self.unit} from before" if self.done_pages else ""
         return (f"{self.title} {head}: {what} in {duration(seconds)} ({per_minute(self.pages, seconds)}){resumed}, "
@@ -358,7 +374,7 @@ class Progress(Observer):
 
     def _reset(self, rank: int, world_size: int) -> None:
         self.rank, self.world_size = rank, world_size
-        self.pages = self.failed = self.bytes = self.reused = 0
+        self.pages = self.failed = self.bytes = self.reused = self.earlier = 0
         self.unit = "pages"                         # "files" once a resource leaves
         self.start = self._logged = time.monotonic()
 
@@ -377,7 +393,7 @@ class Progress(Observer):
         _WORKER["reported"] = now
         try:
             self.report[os.getpid()] = (_WORKER["pages"], _WORKER["failed"], _WORKER["bytes"], _WORKER["tasks"],
-                                        _WORKER["reused"], _WORKER["reused_bytes"])
+                                        _WORKER["reused"], _WORKER["reused_bytes"], dict(_WORKER["earlier"]))
         except Exception:  # noqa: BLE001 - the run's console is gone; the pages go on
             self.report = None
 
@@ -392,18 +408,25 @@ class Progress(Observer):
 
         reused = is_reused(doc)
         nbytes, bad = _nbytes(doc), failed(doc)
+        earlier = None
         if "resource" in doc.metadata:
             self.unit = "files"
-        if reused:
+            earlier = None if bad else doc.metadata["resource"].get("reused_from")
+        if earlier:                                 # read from an earlier harvest's folder, not fetched now
+            self.earlier += 1
+        elif reused:
             self.reused += 1
         else:
             self.pages += 1
             self.bytes += nbytes
             self.failed += bad
         if (c := active()) is not None:
-            c.page(nbytes, bad, reused)
+            c.page(nbytes, bad, reused, earlier)
         elif self.report is not None:
-            if reused:
+            if earlier:
+                _WORKER["earlier"][earlier] = _WORKER["earlier"].get(earlier, 0) + 1
+                _WORKER["reused_bytes"] += nbytes
+            elif reused:
                 _WORKER["reused"] += 1
                 _WORKER["reused_bytes"] += nbytes
             else:
@@ -436,4 +459,6 @@ class Progress(Observer):
             out += f", {size(self.bytes)}"
         if self.reused:
             out += f", {count(self.reused)} reused"
+        if self.earlier:
+            out += f", {count(self.earlier)} from earlier folders"
         return out + (f" in {duration(seconds)}" if final else "") + f" ({per_minute(self.pages, seconds)})"

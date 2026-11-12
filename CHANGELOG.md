@@ -4,6 +4,23 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- `harvest.py --items --reuse-from DIR` (repeatable; `ResourceReader(reuse_from=...)`): a harvest into a new folder
+  takes the files earlier harvests' folders already hold and fetches only the rest, so a changed list gets one
+  complete folder instead of a resume whose tasks no longer fit it. The key is the source URL (an item and a name can
+  change between versions of a list): from each folder's records (`DIR/resources/*.jsonl.gz`, read once per worker
+  process; its file folders are never listed) the newest record without `error` and with a copy, across the folders.
+  The copy, found at its `<kind>/<item>/<file>` in DIR, must match its record's `sha256` (else, or when it cannot be
+  read, the resource is fetched: stats `reuse_from_mismatch`, `reuse_from_unreadable`) and passes the same check as a
+  download; `ResourceFilesWriter` writes it into OUT under its current item and name. Its record keeps the earlier
+  fetch's `fetched`, `final_uri`, `status`, `content_type`, `etag`, `last_modified` and `attempts`, and adds
+  `reused_from` (DIR) and `reused_from_uri` (the earlier copy). Order: OUT's own copy (`--reuse`), then the earlier
+  folders, then a fetch. `reuse_from` is operational: a resume with other folders keeps the run's fingerprint. The
+  console counts these files apart (stat `reused_from`) and the summary names how many came from each folder.
+
 ## 0.5.9 (2026-11-12)
 
 ### Changed

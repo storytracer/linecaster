@@ -619,7 +619,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
         return ResourceReader(folder, item_key=a.item_key, templates=getattr(a, "templates", None) or None,
                               url_key=a.url_key, kind_key=a.kind_key, name_key=a.name_key, http=http(a),
                               http_policy=a.http_policy, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
-                              limit=a.limit, skip=a.skip)
+                              limit=a.limit, skip=a.skip, reuse_from=getattr(a, "reuse_from", None) or None)
     if getattr(a, "manifests", None):
         from ..blocks.readers.manifests import ManifestReader
 

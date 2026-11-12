@@ -25,8 +25,22 @@ failed resource is the item's error (``doc.metadata["errors"]``, rejects), withi
 Requests go out per host (``http_policy``: a ``linecaster.net.policy`` file), each with its own fetcher, rate limits,
 breaker and pause; a status in a host's ``block_on`` (429 by default) pauses its requests until the server's
 ``Retry-After`` has passed (direct; through proxies the proxy is left out there) and the resource is then fetched
-again, a status in its ``stop_on`` stops the run (a ``ServerError``) without a retry. With ``reuse_folder`` a
-resource whose copy is there already (one listing of ``<kind>/<item>/`` per item) is read back instead of fetched.
+again, a status in its ``stop_on`` stops the run (a ``ServerError``) without a retry.
+
+Reuse: with ``reuse_folder`` (OUT itself) a resource whose copy is there already (one listing of ``<kind>/<item>/`` per
+item) is read back instead of fetched (``reused``), and not written again. With ``reuse_from`` (earlier harvests'
+folders) a resource whose source URL an earlier harvest fetched is read from that folder's copy: the earlier folders'
+resource records (``DIR/resources/*.jsonl.gz``, read once per worker process; their file folders are never listed)
+give, for each ``source_uri``, the newest record (``fetched``) without ``error`` and with a copy (``uri``), across
+the folders; the copy is looked for in its folder at ``<kind>/<item>/<file>``, the last three parts of the record's
+``uri`` (an absolute path from where the folder was), and a relative ``uri`` against the folder. The URL is the key,
+not the item or the name, which can differ between versions of a list. The copy's bytes must have the record's
+``sha256`` (else, or when the copy cannot be read, the resource is fetched, stats ``reuse_from_mismatch`` and
+``reuse_from_unreadable``) and pass the same ``check`` as a download; ``ResourceFilesWriter`` writes it into OUT
+under its current item and name, so OUT depends on no earlier folder. Its record keeps the earlier fetch's
+provenance (``fetched``, ``final_uri``, ``status``, ``content_type``, ``etag``, ``last_modified``, ``attempts``: the
+same bytes from that request) and says ``reused_from`` (the folder) and ``reused_from_uri`` (the earlier copy). A
+resource takes its copy in OUT first (``reuse_folder``), then an earlier folder's, else it is fetched.
 """
 from __future__ import annotations
 
@@ -142,6 +156,8 @@ class ResourceReader(Contracted, BaseDiskReader):
             (one listing per item and kind, ``linecaster.blocks.readers.existing``; one that takes over
             ``LISTING_TIMEOUT``, 60 s, or fails is a warning and a stat, ``reuse_listing_timeouts`` or
             ``reuse_listing_errors``, and the item's resources are fetched again).
+        reuse_from: earlier harvests' folders (any fsspec paths): a resource whose source URL one of them fetched is
+            read from its copy there and written into OUT (module docstring, Reuse).
         max_items: only the first ``max_items`` items of the input, for the whole run (a smoke test).
         limit, skip: resources per task, as datatrove's count documents; they apply before anything is fetched.
         paths_file, glob_pattern, recursive, file_progress, doc_progress, default_metadata, shuffle_files:
@@ -158,10 +174,13 @@ class ResourceReader(Contracted, BaseDiskReader):
     max_page_errors: float | None = 0.01
     #: what the console counts
     unit_label = "files"
+    #: where files come from, not which: a resume with other earlier folders is the same run
+    operational = ("reuse_from",)
 
     def __init__(self, data_folder: DataFolderLike, item_key: str, templates: dict[str, str] | None = None,
                  url_key: str = "url", kind_key: str = "kind", name_key: str | None = None, http: dict | None = None,
                  http_policy: str | None = None, reuse_folder: DataFolderLike | None = None, max_items: int | None = None,
+                 reuse_from: list[str] | tuple[str, ...] | None = None,
                  paths_file: DataFileLike | None = None, glob_pattern: str = "**/*.parquet", recursive: bool = True,
                  limit: int = -1, skip: int = 0, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False):
@@ -178,6 +197,7 @@ class ResourceReader(Contracted, BaseDiskReader):
 
         self.http, self.http_policy = dict(http or {}), http_policy
         self.reuse_folder, self.max_items = reuse_folder, max_items
+        self.reuse_from = tuple(str(d).rstrip("/") for d in reuse_from or ())
         self._layout = self._items = None
         self._fetchers = Fetchers(self.http, http_policy)      # pickled without its fetchers
         self._existing: dict[str, ExistingImages] = {}
@@ -277,6 +297,26 @@ class ResourceReader(Contracted, BaseDiskReader):
             self._existing[kind] = ExistingImages(posixpath.join(str(self.reuse_folder).rstrip("/"), kind))
         return self._existing[kind].get(item, name, self.stat_update)
 
+    def _earlier(self, url: str) -> Earlier | None:
+        """The earlier harvests' copy of ``url`` (``reuse_from``), read and checked; None when there is none or it
+        cannot be used (then the resource is fetched)."""
+        if not self.reuse_from:
+            return None
+        found = earlier_records(self.reuse_from).get(url)
+        if found is None:
+            return None
+        folder, record = found
+        try:
+            with get_datafolder(folder).open(copy_path(record), "rb") as f:
+                data = f.read()
+        except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched again
+            self.stat_update("reuse_from_unreadable")
+            return None
+        if record.get("sha256") and hashlib.sha256(data).hexdigest() != record["sha256"]:
+            self.stat_update("reuse_from_mismatch")
+            return None
+        return Earlier(folder, record, data)
+
     def _submit(self, entry):
         from concurrent.futures import Future
 
@@ -291,6 +331,10 @@ class ResourceReader(Contracted, BaseDiskReader):
                 return entry, done, None
             except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched again
                 pass
+        if (earlier := self._earlier(url)) is not None:     # an earlier harvest's copy: read, not fetched
+            done = Future()
+            done.set_result(earlier)
+            return entry, done, None
         fetcher = self._fetcher(url)
         return entry, fetcher.submit(url, expect=expected_format(kind, url)), fetcher
 
@@ -332,7 +376,9 @@ class ResourceReader(Contracted, BaseDiskReader):
                 budget.failed(doc, record_error(doc, error_entry(self, error, field="resource", raw_value=entry[3])),
                               error)
             else:
-                self.stat_update("resources", "reused" if doc.metadata[RESOURCE_KEY]["reused"] else "fetched")
+                record = doc.metadata[RESOURCE_KEY]
+                how = "reused" if record["reused"] else "reused_from" if record.get("reused_from") else "fetched"
+                self.stat_update("resources", how)
                 self.update_media_stats(doc.media[0])
             yield doc
 
@@ -352,6 +398,12 @@ class ResourceReader(Contracted, BaseDiskReader):
             if isinstance(raw, Reused):
                 data, ctype = raw.data, ""
                 record.update(reused=True, ext=raw.copy[2], uri=raw.copy[0])
+            elif isinstance(raw, Earlier):          # the earlier fetch's bytes, and its provenance
+                data, ctype = raw.data, raw.record.get("content_type") or ""
+                record.update({k: raw.record.get(k) for k in PROVENANCE})
+                record.update(reused_from=raw.folder, reused_from_uri=raw.record.get("uri"))
+                if raw.record.get("ext"):
+                    record["ext"] = raw.record["ext"]
             else:
                 data, ctype = raw.content, raw.headers.get("content-type", "")
                 fetch = fetch_record(raw) or {}
@@ -383,6 +435,59 @@ class ResourceReader(Contracted, BaseDiskReader):
                 record["attempts"] = fetch.get("attempts")
             record["error"] = f"{type(e).__name__}: {e}"
             return doc, e
+
+
+#: what a record read from an earlier harvest keeps of that fetch (the same bytes from that request)
+PROVENANCE = ("fetched", "final_uri", "status", "content_type", "etag", "last_modified", "attempts")
+
+
+class Earlier:
+    """An earlier harvest's copy of a resource (``reuse_from``): the folder, that fetch's record, the bytes."""
+
+    def __init__(self, folder: str, record: dict, data: bytes):
+        self.folder, self.record, self.data = folder, record, data
+
+
+def copy_path(record: dict) -> str:
+    """Where a record's copy is in its harvest's folder: ``<kind>/<item>/<file>``, the last three parts of its
+    ``uri`` (written as an absolute path, possibly from where the folder was then), or the ``uri`` itself if it is
+    relative."""
+    uri = str(record["uri"])
+    if not (uri.startswith("/") or "://" in uri):
+        return uri
+    return "/".join(uri.rstrip("/").split("/")[-3:])
+
+
+_EARLIER: dict[tuple[str, ...], dict[str, tuple[str, dict]]] = {}
+
+
+def earlier_records(folders: tuple[str, ...]) -> dict[str, tuple[str, dict]]:
+    """``source_uri`` -> (folder, record): for each URL the newest record (``fetched``) without ``error`` and with a
+    copy (``uri``) in the resource records of ``folders`` (``<folder>/resources/*.jsonl.gz``), across them; read once
+    per process (kept for its later tasks). A folder without records gives none.
+
+    Args:
+        folders: earlier harvests' folders (any fsspec paths).
+    """
+    if folders not in _EARLIER:
+        best: dict[str, tuple[str, dict]] = {}
+        for folder in folders:
+            records = get_datafolder(f"{folder}/resources")
+            try:
+                files = records.list_files(glob_pattern="*.jsonl.gz")
+            except FileNotFoundError:
+                files = []
+            for name in files:
+                with records.open(name, "rt", compression="gzip") as f:
+                    for line in f:
+                        r = json.loads(line)
+                        url = r.get("source_uri")
+                        if not url or r.get("error") or not r.get("uri"):
+                            continue
+                        if url not in best or str(r.get("fetched") or "") > str(best[url][1].get("fetched") or ""):
+                            best[url] = (folder, r)
+        _EARLIER[folders] = best
+    return _EARLIER[folders]
 
 
 #: content types by extension, for a copy read back (its own type is not stored with it)

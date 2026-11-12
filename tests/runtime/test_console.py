@@ -234,3 +234,17 @@ def test_retry_failed_runs_finished_tasks_with_rejects_again(tmp_path, capsys):
     assert sorted(p.name for p in ran.iterdir()) == ["1"]                    # only the task with rejects
     assert not (rejects / "00001.jsonl").exists()                            # no page failed this time
     assert "1 finished tasks with failed pages run again (--retry-failed)" in capsys.readouterr().err
+
+
+def test_files_from_earlier_folders_are_counted_per_folder_and_named_in_the_summary():
+    """``--reuse-from``: files read from earlier harvests' folders are done, not fetched now (not in the rate), and
+    the summary says how many came from each folder, apart from the copies already in OUT."""
+    c = Console("harvest", tasks=1, total=6, live=False, unit="files")
+    for earlier in ("v1", "v1", "topup", None):
+        c.page(100, False, earlier=earlier)
+    c.page(100, False, reused=True)
+    c.page(100, False)
+    assert "6 / 6 files" in c.status() and "3 from earlier folders" in c.status()
+    line = c.summary("OUT")
+    assert line.startswith("harvest done: 2 files") and "1 reused (already there)" in line
+    assert "from earlier folders: 1 from topup, 2 from v1" in line
