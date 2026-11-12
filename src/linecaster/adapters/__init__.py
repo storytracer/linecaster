@@ -363,7 +363,9 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     """RGB, longest side forced to exactly ``longest`` px (up or down, LANCZOS), base64 PNG; and the size."""
     from PIL import Image
 
-    with Image.open(io.BytesIO(image)) as im:
+    from ..images import open_image
+
+    with open_image(image) as im:
         img = im.convert("RGB")
     w, h = img.size
     if max(w, h) != longest:

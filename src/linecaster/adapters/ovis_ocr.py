@@ -26,7 +26,9 @@ def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple
     ``quality``; base64 and the size."""
     from PIL import Image
 
-    with Image.open(io.BytesIO(image)) as im:
+    from ..images import open_image
+
+    with open_image(image) as im:
         img = im.convert("RGB")
     w, h = img.size
     if w * h > max_pixels:

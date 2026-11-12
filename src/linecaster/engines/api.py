@@ -10,7 +10,10 @@ import):
   (unit and produces), from the catalog's schema;
 * the weight helpers: ``weights_of`` (a model pin as the ``weights`` a preset passes), ``hf_file`` and
   ``hf_snapshot`` (a Hugging Face pin's files, checked against their pinned sha256), and ``model_entry`` (a model's
-  catalog entry, for lookups).
+  catalog entry, for lookups);
+* ``drop_damaged_png_chunks``: an image file's bytes without a PNG's ancillary chunks whose checksum is wrong, which
+  Pillow refuses and libpng skips (``linecaster.images.drop_damaged_png_chunks``), for an engine that hands the bytes
+  to its package.
 
 Import-light, like the data model: the catalog is imported only when a helper is called.
 """
@@ -24,7 +27,20 @@ from ..data.transcription import Transcription
 if TYPE_CHECKING:
     from ..catalog.schema import Capabilities, ModelDoc
 
-__all__ = ["Capabilities", "Engine", "hf_file", "hf_snapshot", "model_entry", "weights_of"]
+__all__ = ["Capabilities", "drop_damaged_png_chunks", "Engine", "hf_file", "hf_snapshot", "model_entry",
+           "weights_of"]
+
+
+def drop_damaged_png_chunks(data: bytes) -> bytes:
+    """``data`` without a PNG's ancillary chunks whose checksum is wrong; anything else unchanged
+    (``linecaster.images.drop_damaged_png_chunks``, imported on the call).
+
+    Args:
+        data: the image file's bytes.
+    """
+    from ..images.convert import drop_damaged_png_chunks as drop
+
+    return drop(data)
 
 
 @runtime_checkable

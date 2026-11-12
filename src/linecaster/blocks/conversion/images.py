@@ -7,6 +7,7 @@ import hashlib
 from datatrove.data import Media, MediaType
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
+from loguru import logger
 
 from ...data.page import PageImage
 from ...errors import PageError
@@ -160,9 +161,13 @@ class ImageConverter(Contracted, PipelineStep):
             extra = {"original": original, "webp_settings": info["webp_settings"],
                      "icc_applied": info["icc_applied"], "alpha_flattened": info["alpha_flattened"],
                      "step": step.model_dump(mode="json", exclude_none=True)}
-            for k in ("exif_orientation", "icc_error"):
+            for k in ("exif_orientation", "icc_error", "warnings"):
                 if k in info:
                     extra[k] = info[k]
+            if info.get("warnings"):
+                self.stat_update("image_warnings")
+                logger.warning("page {page_id}: converted, with image warnings: {warnings}", page_id=doc.id,
+                               warnings="; ".join(info["warnings"]))
             uri = out.resolve_paths(rel)
             page.image = PageImage(uri=uri, format="webp", width=info["width"], height=info["height"],
                                    sha256=info["sha256"], pixels_sha256=info["pixels_sha256"],

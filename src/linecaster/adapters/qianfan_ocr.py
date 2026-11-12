@@ -40,6 +40,9 @@ class QianfanOCRAdapter(ChatAdapter):
         return dict(self.config.get("chat_template_kwargs") or {})
 
     def request(self, image: bytes) -> dict:
+        from ..images import drop_damaged_png_chunks
+
+        image = drop_damaged_png_chunks(image)            # the server's decoder refuses a damaged PNG chunk too
         url = f"data:{sniff_mime(image)};base64," + base64.b64encode(image).decode()
         return {
             "model": self.served_name,

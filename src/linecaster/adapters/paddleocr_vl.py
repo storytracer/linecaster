@@ -9,7 +9,6 @@ PaddleOCR-VL's PP-DocLayout + VLM pipeline.
 """
 from __future__ import annotations
 
-import io
 import math
 from typing import Any, ClassVar
 
@@ -42,7 +41,9 @@ class PaddleOCRVLAdapter(ChatAdapter):
         """RGB, ``smart_resize`` (LANCZOS) if the size changes, base64 PNG."""
         from PIL import Image
 
-        with Image.open(io.BytesIO(image)) as im:
+        from ..images import open_image
+
+        with open_image(image) as im:
             img = im.convert("RGB")
         w, h = img.size
         h_bar, w_bar = self.smart_resize(h, w)

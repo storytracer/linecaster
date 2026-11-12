@@ -14,7 +14,6 @@ script uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5: 16-px patches mer
 from __future__ import annotations
 
 import base64
-import io
 from typing import Any, ClassVar
 
 from . import ChatAdapter, data_url, png_bytes
@@ -27,9 +26,9 @@ PROMPT_MARGIN = 64
 
 def png_thumbnail(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     """RGB, ``thumbnail((longest, longest))`` (downscale only, Pillow's default filter), base64 PNG; and the size."""
-    from PIL import Image
+    from ..images import open_image
 
-    with Image.open(io.BytesIO(image)) as im:
+    with open_image(image) as im:
         img = im.convert("RGB")
     img.thumbnail((longest, longest))
     return png_bytes(img), img.size

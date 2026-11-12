@@ -215,3 +215,80 @@ def test_effort_changes_bytes_not_pixels():
     assert np.array_equal(_decode(fast), _decode(slow))
     assert i0["pixels_sha256"] == i1["pixels_sha256"]
     assert i0["webp_settings"]["quality"] == 0
+
+
+def _damage(data: bytes, kind: bytes) -> bytes:
+    """``data`` (a PNG) with the checksum of its first ``kind`` chunk wrong."""
+    i = data.index(kind) - 4
+    n = struct.unpack(">I", data[i:i + 4])[0]
+    end = i + 12 + n
+    crc = struct.unpack(">I", data[end - 4:end])[0] ^ 1
+    return data[:end - 4] + struct.pack(">I", crc) + data[end:]
+
+
+def test_a_png_with_a_damaged_ancillary_chunk_is_read_without_it():
+    """A bad checksum on an optional chunk (here the ICC profile, ``iCCP``) makes Pillow refuse the whole file, though
+    libpng and browsers read it; ``open_image`` leaves the chunk out and reads the pixels."""
+    from linecaster.images import drop_damaged_png_chunks, open_image
+
+    src = _noise("RGB")
+    srgb = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    good = _encode(src, "PNG", icc_profile=srgb)
+    bad = _damage(good, b"iCCP")
+    with pytest.raises(Exception):
+        Image.open(io.BytesIO(bad)).load()
+    with open_image(bad) as im:
+        assert np.array_equal(np.asarray(im.convert("RGB")), np.asarray(src)) and "icc_profile" not in im.info
+    assert drop_damaged_png_chunks(good) is good and b"iCCP" not in drop_damaged_png_chunks(bad)
+    webp, info = to_working_webp(bad)
+    assert np.array_equal(_decode(webp), np.asarray(src)) and info["icc_applied"] is False
+
+
+@pytest.mark.parametrize("damage", ["IHDR", "truncated"])
+def test_a_png_with_a_damaged_critical_chunk_or_cut_short_still_fails(damage):
+    from linecaster.images import drop_damaged_png_chunks, open_image
+
+    good = _encode(_noise("RGB"), "PNG")
+    bad = good[:len(good) // 2] if damage == "truncated" else _damage(good, damage.encode())
+    assert drop_damaged_png_chunks(bad) is bad
+    with pytest.raises(Exception):
+        with open_image(bad) as im:
+            im.load()
+
+
+def test_bytes_other_than_png_are_passed_through_unchanged():
+    from linecaster.images import drop_damaged_png_chunks
+
+    jpeg = _encode(_noise("RGB"), "JPEG")
+    assert drop_damaged_png_chunks(jpeg) is jpeg and drop_damaged_png_chunks(b"") == b""
+
+
+CORRUPT_EXIF = b"Exif\x00\x00II*\x00\x08\x00\x00\x00\xff\xff"        # an IFD that claims more entries than it has
+
+
+@pytest.mark.parametrize("case", ["damaged chunk", "corrupt exif"])
+def test_image_warnings_are_faults_read_around(case):
+    """An image warning is a fault the image is read around: the check passes with it, the conversion reports it
+    (``info["warnings"]``) and the pixels are the image's."""
+    from linecaster.images import image_warnings
+
+    src = _noise("RGB")
+    if case == "damaged chunk":
+        srgb = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        data = _damage(_encode(src, "PNG", icc_profile=srgb), b"iCCP")
+        want = "damaged PNG chunks, left out when read: iCCP"
+    else:
+        data, want = _encode(src, "PNG", exif=CORRUPT_EXIF), "UserWarning: Corrupt EXIF data."
+    found = image_warnings(data)
+    assert len(found) == 1 and found[0].startswith(want)
+    webp, info = to_working_webp(data)
+    assert info["warnings"][0].startswith(want) and np.array_equal(_decode(webp), np.asarray(src))
+
+
+def test_an_image_without_faults_has_no_image_warnings_and_a_damaged_header_fails():
+    from linecaster.images import image_warnings
+
+    good = _encode(_noise("RGB"), "PNG")
+    assert image_warnings(good) == [] and "warnings" not in to_working_webp(good)[1]
+    with pytest.raises(Exception):
+        image_warnings(_damage(good, b"IHDR"))

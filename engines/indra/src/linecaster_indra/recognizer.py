@@ -25,7 +25,7 @@ from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.data import Line, Source, StepInfo, Transcription
-from linecaster.engines.api import hf_snapshot
+from linecaster.engines.api import drop_damaged_png_chunks, hf_snapshot
 
 
 class IndraRecognitionEngine:
@@ -71,7 +71,9 @@ class IndraRecognitionEngine:
         self.version = indra_ocr.__version__
 
     def read(self, data: bytes):
-        """The package's ``Page`` for the page image (its file's bytes), read from a temporary file."""
+        """The package's ``Page`` for the page image (its file's bytes, a PNG without its damaged ancillary chunks),
+        read from a temporary file."""
+        data = drop_damaged_png_chunks(data)
         with Image.open(io.BytesIO(data)) as im:
             fmt = (im.format or "PNG").lower()
         fd, path = tempfile.mkstemp(suffix="." + {"jpeg": "jpg", "jpeg2000": "jp2"}.get(fmt, fmt))

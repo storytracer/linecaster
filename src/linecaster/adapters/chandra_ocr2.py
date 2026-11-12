@@ -16,7 +16,6 @@ them to Markdown (the vendor's ``parse_markdown``) is left to the consumer.
 from __future__ import annotations
 
 import hashlib
-import io
 from typing import Any, ClassVar
 
 from ..errors import CatalogError
@@ -81,9 +80,9 @@ class ChandraOCRAdapter(ChatAdapter):
 
     def encode_png(self, image: bytes) -> tuple[str, tuple[int, int]]:
         """RGB, ``scale_to_fit``, base64 PNG; and the size sent."""
-        from PIL import Image
+        from ..images import open_image
 
-        with Image.open(io.BytesIO(image)) as im:
+        with open_image(image) as im:
             img = self.scale(im.convert("RGB"))
         return png_bytes(img), img.size
 

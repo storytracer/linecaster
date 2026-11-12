@@ -546,9 +546,9 @@ class RegionRecognizer(PageRecognizer):
         return {"raw": raw, "finish_reason": finish, "usage": body.get("usage") or {}}
 
     def _rows(self, data, results):
-        import io
-
         from PIL import Image
+
+        from ...images import open_image
 
         for doc in self._passing(data, results):
             page = page_of(doc)
@@ -566,7 +566,7 @@ class RegionRecognizer(PageRecognizer):
                                block=entry["block"], error_type=entry["type"], error=entry["error"])
                 results.put(Passed(doc, "errors"))
                 continue
-            with Image.open(io.BytesIO(data)) as im:
+            with open_image(data) as im:
                 img = im.convert("RGB")
             longest = self.adapter.page_longest
             scale = longest / max(img.size) if longest else 1.0

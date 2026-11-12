@@ -157,4 +157,9 @@ delivered. Pages larger than the size limit go to `rejects/`.
 - **info**: `format`, `width`, `height`, `source_format`, `source_mode`, `pixels_sha256` (sha256 of
   the decoded 8-bit RGB bytes, row-major, what the WebP decodes to), `sha256` (of the WebP),
   `decoder` (`Pillow x / <source library> y / libwebp z`), `webp_settings`, `icc_applied`,
-  `alpha_flattened`; the keys match `PageImage` where they overlap.
+  `alpha_flattened`, and `warnings` when the image has image warnings ([glossary](glossary.md)); the keys match
+  `PageImage` where they overlap.
+- **Image warnings**: a fault the image is read around is reported, not fatal: a PNG's optional chunk with a wrong
+  checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
+  reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in `warnings` (also in the
+  page image's `extra`, and logged). A fault that keeps the pixels from being read rejects the page.

@@ -16,7 +16,6 @@ Markdown text. ``to_markdown`` renders it (the vendor's
 """
 from __future__ import annotations
 
-import io
 import re
 from typing import Any, ClassVar
 
@@ -25,9 +24,9 @@ from . import ChatAdapter, data_url, png_bytes
 
 def png_full(image: bytes) -> str:
     """RGB at the original size, base64 PNG."""
-    from PIL import Image
+    from ..images import open_image
 
-    with Image.open(io.BytesIO(image)) as im:
+    with open_image(image) as im:
         img = im.convert("RGB")
     return png_bytes(img)
 

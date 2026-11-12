@@ -20,13 +20,23 @@ Color conversion to 8-bit sRGB RGB (see ``docs/reference/serialization.md``):
   plain conversion;
 * EXIF orientation is NOT applied (coordinates refer to the stored pixel grid); it is reported.
 
+Image warnings: a fault an image is read around is a warning, not an error, and is reported (``warnings``): a PNG
+whose optional (ancillary) chunk, e.g. its ICC profile (``iCCP``) or text, fails its checksum is read without that chunk
+(``open_image``), as libpng and browsers read it (Pillow alone refuses the whole file); what Pillow warns about while
+reading (e.g. corrupt EXIF), EXIF that cannot be read and an ICC profile that cannot be applied are reported too. A
+fault that keeps the pixels from being read (a damaged header or palette, a truncated file) is an error.
+
 The output is always lossless WebP (``lossless=True, method=0, exact=True``) at full resolution.
 """
 from __future__ import annotations
 
 import hashlib
 import io
+import struct
 import warnings
+import zlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
@@ -70,12 +80,100 @@ def check_size(width: int, height: int) -> str | None:
     return None
 
 
-def _open(data: bytes) -> Image.Image:
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _png_chunks(data: bytes) -> tuple[bytes, list[str]]:
+    """(``data`` without a PNG's damaged ancillary chunks, their types); ``data`` itself and [] when none."""
+    if not data.startswith(PNG_SIGNATURE):
+        return data, []
+    keep, i, dropped = [data[:8]], 8, []
+    while i + 12 <= len(data):
+        n = struct.unpack(">I", data[i:i + 4])[0]
+        end = i + 12 + n
+        if end > len(data):
+            break
+        kind = data[i + 4:i + 8]
+        if kind[0] & 32 and zlib.crc32(data[i + 4:end - 4]) != struct.unpack(">I", data[end - 4:end])[0]:
+            dropped.append(kind.decode("latin-1"))            # ancillary, checksum wrong: left out
+        else:
+            keep.append(data[i:end])
+        i = end
+        if kind == b"IEND":
+            break
+    if not dropped:
+        return data, []
+    keep.append(data[i:])
+    return b"".join(keep), dropped
+
+
+def drop_damaged_png_chunks(data: bytes) -> bytes:
+    """``data`` without the ancillary chunks of a PNG whose checksum is wrong (a chunk whose type starts with a
+    lowercase letter: ICC profile, text, time, ...), as libpng skips them; anything else unchanged, the same object
+    when nothing is dropped. Critical chunks and a truncated end are left as they are, for Pillow to refuse.
+
+    Args:
+        data: the image file's bytes.
+    """
+    return _png_chunks(data)[0]
+
+
+def _damaged_note(dropped: list[str]) -> str:
+    return f"damaged PNG chunks, left out when read: {', '.join(dropped)}"
+
+
+@contextmanager
+def _warnings_into(out: list[str] | None) -> Iterator[None]:
+    """Pillow's warnings in the block, as text, into ``out`` (None: dropped); never the bomb warning (the size limit
+    is checked on its own, ``check_size``). ``warnings.catch_warnings`` is process-wide: across threads a warning may
+    land in another image's list."""
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+        yield
+    if out is not None:
+        out.extend(f"{w.category.__name__}: {w.message}" for w in seen)
+
+
+def open_image(data: bytes, warnings: list[str] | None = None) -> Image.Image:
+    """``Image.open`` of the bytes (the header only, pixels on demand), with a PNG's damaged ancillary chunks left
+    out (``drop_damaged_png_chunks``).
+
+    Args:
+        data: the image file's bytes.
+        warnings: a list the image warnings found while opening are appended to (the chunks left out, what Pillow
+            warns about); None: not collected.
+    """
+    clean, dropped = _png_chunks(data)
+    if dropped and warnings is not None:
+        warnings.append(_damaged_note(dropped))
+    with _warnings_into(warnings):
+        return Image.open(io.BytesIO(clean))
+
+
+def image_warnings(data: bytes) -> list[str]:
+    """Reads an image as a check and returns its image warnings (``open_image``; EXIF that cannot be read; what Pillow
+    warns about while verifying the file): faults it is read around. Raises on a fault that keeps it from being read
+    (Pillow's error), as ``Image.verify`` does.
+
+    Args:
+        data: the image file's bytes.
+    """
+    out: list[str] = []
+    with open_image(data, out) as im, _warnings_into(out):
+        try:
+            im.getexif()
+        except Exception as e:  # noqa: BLE001 - metadata only: the pixels can still be read
+            out.append(f"EXIF not readable: {type(e).__name__}: {e}")
+    with open_image(data) as im, _warnings_into(out):
+        im.verify()
+    return out
+
+
+def _open(data: bytes, found: list[str] | None = None) -> Image.Image:
     """Open from the header only; Pillow's own bomb error becomes ``ImageTooLarge``."""
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", Image.DecompressionBombWarning)
-            return Image.open(io.BytesIO(data))
+        return open_image(data, found)
     except Image.DecompressionBombError as e:
         # Pillow's open-time threshold is the same 2 x MAX_IMAGE_PIXELS this module enforces
         raise ImageTooLarge(f"pixel count exceeds 2 x PIL.Image.MAX_IMAGE_PIXELS = {max_pixels()}"
@@ -167,22 +265,26 @@ def to_working_webp(data: bytes, *, effort: int = 80) -> tuple[bytes, dict[str, 
     Raises ``ImageTooLarge`` (with ``reason``) before decoding when the page is over the limit.
     ``info`` keys: ``format`` (``"webp"``), ``width``, ``height``, ``source_format``, ``source_mode``,
     ``pixels_sha256`` (of the decoded 8-bit RGB pixels, row-major), ``sha256`` (of the WebP bytes),
-    ``decoder``, ``icc_applied``, ``alpha_flattened`` and, when present, ``exif_orientation``.
+    ``decoder``, ``icc_applied``, ``alpha_flattened`` and, when present, ``exif_orientation``, ``icc_error`` and
+    ``warnings`` (the image warnings: faults read around, see the module docstring).
     """
-    im = _open(data)
+    found: list[str] = []
+    im = _open(data, found)
     reason = check_size(im.width, im.height)
     if reason:
         raise ImageTooLarge(reason, im.width, im.height)
     source_format = im.format
     orientation = None
-    try:
-        orientation = im.getexif().get(0x0112)
-    except Exception:       # a broken EXIF block must not stop the conversion
-        orientation = None
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+    with _warnings_into(found):
+        try:
+            orientation = im.getexif().get(0x0112)
+        except Exception as e:  # noqa: BLE001 - a broken EXIF block must not stop the conversion
+            found.append(f"EXIF not readable: {type(e).__name__}: {e}")
+            orientation = None
         im.load()
-    rgb, notes = to_srgb(im)
+        rgb, notes = to_srgb(im)
+    if "icc_error" in notes:
+        found.append(f"ICC profile not applied: {notes['icc_error']}")
     pixels = rgb.tobytes()
     buf = io.BytesIO()
     rgb.save(buf, format="WEBP", lossless=True, method=0, exact=True, quality=effort)
@@ -200,4 +302,6 @@ def to_working_webp(data: bytes, *, effort: int = 80) -> tuple[bytes, dict[str, 
     }
     if orientation and orientation != 1:
         info["exif_orientation"] = int(orientation)
+    if found:
+        info["warnings"] = found
     return out, info

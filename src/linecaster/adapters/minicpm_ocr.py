@@ -119,9 +119,9 @@ class MiniCPMOCRAdapter(ChatAdapter):
     def request(self, image: bytes) -> dict:
         """A whole page as one ``text`` region (not how the SDK uses the model; for ``PageRecognizer``)."""
         buf = io.BytesIO()
-        from PIL import Image
+        from ..images import open_image
 
-        with Image.open(io.BytesIO(image)) as im:
+        with open_image(image) as im:
             im.convert("RGB").save(buf, format="PNG")
         return self.request_region(buf.getvalue())
 

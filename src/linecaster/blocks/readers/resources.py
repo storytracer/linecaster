@@ -10,9 +10,12 @@ their ``item_key`` value wherever their rows are (``tables.item_runs``), so a ta
 Each resource becomes one datatrove document (unit ``item``: the stream carries resources, not pages): its bytes as
 a media, and its fetch record in ``doc.metadata["resource"]``: ``item``, ``kind``, ``name``, ``ext``, ``source_uri``,
 ``final_uri``, ``status``, ``content_type``, ``bytes``, ``sha256``, ``etag``, ``last_modified``, ``fetched`` (UTC),
-``attempts``, ``reused``. ``ResourceFilesWriter`` writes the copy and ``ResourceRecordWriter`` the records.
+``attempts``, ``reused``, and ``warnings`` for an image kept with image warnings (faults it is read around, e.g. a
+PNG's damaged optional chunk, corrupt EXIF: ``linecaster.images.image_warnings``), also logged as a WARNING.
+``ResourceFilesWriter`` writes the copy, unchanged, and ``ResourceRecordWriter`` the records.
 
-A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must open, a DjVu file
+A response is checked before it counts (``check``): XML must parse, JSON must parse, an image must be readable (its
+image warnings do not fail it), a DjVu file
 must start with its signature (DjVu is served as ``image/vnd.djvu`` but is no image an image library opens). An HTML page
 where another format was expected (an error page, a CAPTCHA sent with 200) is a failed attempt of the fetch, retried
 (``linecaster.net.http.UnexpectedHTML``); a resource that fails with it also counts toward the host's breaker as a server
@@ -28,13 +31,13 @@ resource whose copy is there already (one listing of ``<kind>/<item>/`` per item
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import posixpath
 from datetime import datetime, timezone
 
 from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard_from_paths_file
 from datatrove.pipeline.readers.base import BaseDiskReader
+from loguru import logger
 
 from ...errors import PipelineConfigError, ServerError
 from ...net.http import prefetched
@@ -74,15 +77,21 @@ def expected_format(kind: str, url: str) -> str | None:
 
 def check(data: bytes, content_type: str, expected: str | None) -> str | None:
     """What is wrong with a response (``html`` first for an HTML page where another format was expected), or None."""
+    return inspect(data, content_type, expected)[0]
+
+
+def inspect(data: bytes, content_type: str, expected: str | None) -> tuple[str | None, list[str]]:
+    """(``check``'s problem or None, an image's image warnings: ``linecaster.images.image_warnings``)."""
     from ...net.http import is_html
 
     ctype = (content_type or "").split(";")[0].strip().lower()
     if expected and is_html(data, content_type):     # data a server labels text/html is read as what it is
-        return f"html: an HTML page ({len(data)} bytes) where {expected} was expected"
+        return f"html: an HTML page ({len(data)} bytes) where {expected} was expected", []
     fmt = expected or ("xml" if ctype.endswith("xml") else "json" if ctype.endswith("json")
                        else "djvu" if ctype in DJVU_TYPES else "image" if ctype.startswith("image/") else None)
     if fmt == "djvu":
-        return None if data.startswith(DJVU_SIGNATURE) else "not djvu: no DjVu signature (AT&TFORM)"
+        return (None if data.startswith(DJVU_SIGNATURE) else "not djvu: no DjVu signature (AT&TFORM)"), []
+    found: list[str] = []
     try:
         if fmt == "xml":
             from xml.etree import ElementTree
@@ -91,15 +100,14 @@ def check(data: bytes, content_type: str, expected: str | None) -> str | None:
         elif fmt == "json":
             json.loads(data)
         elif fmt == "image":
-            from PIL import Image
+            from ...images import image_warnings
 
-            with Image.open(io.BytesIO(data)) as im:
-                im.verify()
+            found = image_warnings(data)
     except Exception as e:  # noqa: BLE001 - what the parser says is the problem
-        return f"not {fmt}: {type(e).__name__}: {str(e)[:120]}"
+        return f"not {fmt}: {type(e).__name__}: {str(e)[:120]}", []
     if not data:
-        return "empty response"
-    return None
+        return "empty response", []
+    return None, found
 
 
 def extension(content_type: str, url: str, expected: str | None) -> str:
@@ -349,7 +357,7 @@ class ResourceReader(Contracted, BaseDiskReader):
                 fetch = fetch_record(raw) or {}
                 record.update(final_uri=str(raw.url), status=raw.status_code, etag=raw.headers.get("etag"),
                               last_modified=raw.headers.get("last-modified"), attempts=fetch.get("attempts"))
-            problem = check(data, ctype or EXTENSIONS_REVERSE.get(record.get("ext", ""), ""), expected)
+            problem, found = inspect(data, ctype or EXTENSIONS_REVERSE.get(record.get("ext", ""), ""), expected)
             if problem is not None:
                 if fetcher is not None:
                     fetcher._loop.call_soon_threadsafe(fetcher.breaker.record, 520)   # counts like a server error
@@ -357,6 +365,10 @@ class ResourceReader(Contracted, BaseDiskReader):
             record.update(content_type=ctype or None, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
             record.setdefault("ext", extension(ctype, url, expected))
             is_image = (ctype or "").startswith("image/") or expected == "image"
+            if found:
+                record["warnings"] = found
+                logger.warning("file {id}: kept, with image warnings: {warnings}", id=doc.id,
+                               warnings="; ".join(found))
             doc.media.append(Media(id=doc.id, type=MediaType.IMAGE if is_image else MediaType.DOCUMENT, url=url,
                                    media_bytes=data))
             return doc, None

@@ -4,6 +4,21 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- Image warnings: a fault an image is read around no longer fails it. A PNG whose optional (ancillary) chunk fails its
+  checksum (e.g. a damaged ICC profile, `iCCP`) is read without that chunk, as libpng and browsers read it; Pillow
+  alone refused the whole file, so the harvest failed such files as `not image: UnidentifiedImageError` and they
+  counted toward the host's breaker. Such faults, what Pillow warns about while reading (e.g. corrupt EXIF), EXIF
+  that cannot be read and an ICC profile that cannot be applied are now image warnings
+  (`linecaster.images.image_warnings`): the harvest keeps the file unchanged and records them in its fetch record
+  (`warnings`), the conversion in the page image's `extra` (`warnings`, stat `image_warnings`), both logged as a
+  WARNING. Every place that decodes image bytes reads through `linecaster.images.open_image`, and the chat adapters
+  that pass a page's bytes on unchanged send them without the damaged chunks; engine packages get
+  `drop_damaged_png_chunks` from the engine API. A fault that keeps the pixels from being read still fails.
+
 ## 0.5.6 (2026-11-12)
 
 ### Fixed

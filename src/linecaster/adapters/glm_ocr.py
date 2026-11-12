@@ -7,7 +7,6 @@
 """
 from __future__ import annotations
 
-import io
 from typing import Any, ClassVar
 
 from . import ChatAdapter, data_url, png_bytes
@@ -17,7 +16,9 @@ def encode_png(image: bytes, max_pixels: int) -> str:
     """RGB, downscaled to ``max_pixels`` if larger (never up), base64 PNG."""
     from PIL import Image
 
-    with Image.open(io.BytesIO(image)) as im:
+    from ..images import open_image
+
+    with open_image(image) as im:
         img = im.convert("RGB")
     w, h = img.size
     if w * h > max_pixels:

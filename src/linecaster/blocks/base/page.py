@@ -6,8 +6,6 @@ transcription once there is one.
 """
 from __future__ import annotations
 
-import io
-
 from datatrove.data import Document, Media, MediaType
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
@@ -44,9 +42,10 @@ def image_bytes(doc: Document) -> bytes:
 def decode_rgb(data: bytes):
     """The page image as an RGB uint8 array (what every engine backend receives)."""
     import numpy as np
-    from PIL import Image
 
-    with Image.open(io.BytesIO(data)) as im:
+    from ...images import open_image
+
+    with open_image(data) as im:
         return np.asarray(im.convert("RGB"))
 
 
@@ -109,9 +108,9 @@ class ErrorBudget:
 def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id: str | None = None,
                       sequence: int | None = None, metadata: dict | None = None) -> Document:
     """A ``Document`` for a page image read from ``uri``; size and format come from the image header."""
-    from PIL import Image
+    from ...images import open_image
 
-    with Image.open(io.BytesIO(data)) as im:
+    with open_image(data) as im:
         fmt, (w, h) = (im.format or "").lower() or None, im.size
     page = Page(page_id=page_id, item_id=item_id, sequence=sequence,
                 image=PageImage(uri=uri, format=fmt, width=w, height=h, sha256=PageImage.digest(data)),

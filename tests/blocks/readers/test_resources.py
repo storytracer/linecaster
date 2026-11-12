@@ -5,13 +5,17 @@ checked (XML, JSON, an image; an HTML page where another format was expected fai
 ``block_on`` (a pause direct, a proxy left out through proxies) and ``stop_on`` statuses that stop the run without a
 retry. The policy's schema, defaults and migration errors: ``tests/net/test_http_policy.py``."""
 import gzip
+import io
 import json
+import struct
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from loguru import logger
+from PIL import Image
 
 from linecaster.blocks.readers.resources import ResourceReader, check, expected_format
 from linecaster.blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
@@ -24,6 +28,19 @@ XML = b'<?xml version="1.0"?><record xmlns="http://www.loc.gov/MARC21/slim"><lea
 DJVU = b"AT&TFORM\x00\x00\x00\x10DJVMDIRM\x00\x00\x00\x04\x01\x00\x01\x00"   # a bundled DjVu's first chunks
 
 
+def damage(data: bytes, kind: bytes) -> bytes:
+    """``data`` (a PNG) with the checksum of its first ``kind`` chunk wrong."""
+    i = data.index(kind) - 4
+    end = i + 12 + struct.unpack(">I", data[i:i + 4])[0]
+    return data[:end - 4] + struct.pack(">I", struct.unpack(">I", data[end - 4:end])[0] ^ 1) + data[end:]
+
+
+def png(icc: bool = True) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (8, 8), "white").save(buf, format="PNG", **({"icc_profile": b"\0" * 128} if icc else {}))
+    return buf.getvalue()
+
+
 @pytest.fixture(autouse=True)
 def fresh_fetchers():
     close_shared()
@@ -34,7 +51,7 @@ def fresh_fetchers():
 @pytest.fixture
 def server():
     """``/marc/<id>``: MARCXML (``bad``: an HTML page, ``blocked``: 429, ``once``: 429 with ``Retry-After: 1`` the
-    first time); ``/json/<id>``: JSON; requests counted."""
+    first time); ``/json/<id>``: JSON; ``/png/<id>``: a PNG whose ICC profile fails its checksum; requests counted."""
     seen = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -55,6 +72,8 @@ def server():
                 body, ctype = XML, "application/xml;charset=UTF-8"
             elif kind == "json":
                 body, ctype = json.dumps({"item": item}).encode(), "application/json"
+            elif kind == "png":
+                body, ctype = damage(png(), b"iCCP"), "image/png"
             else:
                 body, ctype = b"<!DOCTYPE html><html><title>Just a moment...</title></html>", "text/html"
             self.send_response(200)
@@ -247,6 +266,29 @@ def test_check(data, ctype, expected, problem):
     assert expected_format("marcxml", "https://catalog.library.test/1/marcxml") == "xml"
     assert expected_format("item-json", "https://www.library.test/item/1/?fo=json") == "json"
     assert expected_format("scan", "https://media.example.org/b/Book.djvu") == "djvu"
+
+
+def test_check_takes_a_png_whose_only_fault_is_a_damaged_ancillary_chunk():
+    """A PNG whose ICC profile fails its checksum is an image (libpng reads it); a damaged header is not."""
+    assert check(damage(png(), b"iCCP"), "image/png", None) is None
+    assert check(damage(png(), b"IHDR"), "image/png", None).startswith("not image")
+
+
+def test_an_image_with_image_warnings_is_kept_with_them(server, tmp_path):
+    """A PNG whose ICC profile fails its checksum: the copy is the file as served; its record and the log carry the
+    image warning (the chunk a reader leaves out)."""
+    out, lines = tmp_path / "out", []
+    sink = logger.add(lambda m: lines.append(m.record), level="WARNING")
+    try:
+        (doc,) = run_all(ResourceReader(items_table(tmp_path, ["p1"]), item_key="lccn", http=FAST,
+                                        templates={"scan": server["base"] + "/png/{item}"}), out)
+    finally:
+        logger.remove(sink)
+    assert not doc.metadata.get("errors")
+    assert (out / "scan" / "p1" / "p1.png").read_bytes() == damage(png(), b"iCCP")
+    (rec,) = records(out)
+    assert rec["warnings"] == ["damaged PNG chunks, left out when read: iCCP"] and "error" not in rec
+    assert any("file p1/scan/p1: kept, with image warnings: damaged PNG chunks" in r["message"] for r in lines)
 
 
 def test_the_command_line_builds_the_resource_harvest(tmp_path):
