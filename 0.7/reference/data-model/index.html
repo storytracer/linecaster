@@ -1196,7 +1196,8 @@ the image bytes, <code>metadata["page"]</code> the page record.</p>
 handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
 between, waiting in served windows and queues included), and <code>datetime</code>, when the reader handed it over (ISO 8601,
 UTC). <code>linecaster.runtime.observers.PageTiming</code> sets them on every page stage that writes pages; a record read from
-an earlier run (<code>--after</code>) gets the new run's. Each step's own time is on its step record (<code>StepInfo.measurements</code>,
+an earlier run (<code>--after</code>, <code>--pages</code>) adds the new run's time to the one it carries and keeps the first <code>datetime</code>,
+so <code>seconds</code> is the page's time over all the runs that worked on it. Each step's own time is on its step record (<code>StepInfo.measurements</code>,
 below).</p>
 <h2 id="transcription"><code>Transcription</code><a class="headerlink" href="#transcription" title="Permanent link">&para;</a></h2>
 <table>
