@@ -14,6 +14,12 @@ only while the pass before stopped at its cap; a page keeps the first completion
 the trial's figures this gives 4 of the 5 pages at 8192 and the fifth at 12,288, without 12,288-token requests for
 the pages that finish at 8192.
 
+Checked on the same 33 pages with `@3` itself (linecaster 0602da6, one RTX A6000, 3 minutes with the server's start):
+6 pages stopped at 4096 (the first pass samples at 0.2, and a sixth looped this time); 5 finished at 8192 (2,334 to
+7,520 tokens; the looping page's repair ended its loop at 2,334) and the dense table hit 8192 again and finished at
+12,288 after 8,958 tokens, keeping its third pass. Stats: `repair_sent` 7, `repair_stop` 6, `repair_length` 1,
+`repair_kept` 6; every page written, no rejects.
+
 ## Recipe scripts (2026-11-11, aarch64 GB10)
 
 Since 0.5.0 no pipeline script installed `linecaster-kraken`, so linecaster could not run its own `squiddle` recipe:
