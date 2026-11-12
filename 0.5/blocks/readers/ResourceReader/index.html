@@ -954,6 +954,12 @@
 <td>only the first <code>max_items</code> items of the input, for the whole run (a smoke test).</td>
 </tr>
 <tr>
+<td><code>reuse_from</code></td>
+<td><code>list[str] \| tuple[str, ...] \| None</code></td>
+<td><code>None</code></td>
+<td>earlier harvests' folders (any fsspec paths): a resource whose source URL one of them fetched is read from its copy there and written into OUT (module docstring, Reuse).</td>
+</tr>
+<tr>
 <td><code>paths_file</code></td>
 <td><code>DataFileLike \| None</code></td>
 <td><code>None</code></td>

@@ -903,7 +903,8 @@
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
 <p>Files go to <code>&lt;output_folder&gt;/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code> (any fsspec folder), appearing only once whole (a
-local file as <code>&lt;name&gt;.part</code>, then renamed); a resource read back from its copy (<code>reused</code>) is not written again.
+local file as <code>&lt;name&gt;.part</code>, then renamed); a resource read back from its copy in this folder (<code>reused</code>) is not
+written again, one read from an earlier harvest's folder (<code>reused_from</code>) is, so the folder holds every file.
 The record's <code>uri</code> then names the copy, its <code>source_uri</code> where it came from. A resource that failed (no
 bytes) passes through without a file.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
