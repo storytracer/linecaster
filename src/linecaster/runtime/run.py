@@ -477,7 +477,7 @@ def available_proxies(path: str, hosts: set, broker: str | None, run: str | None
     (a first launch), or one that cannot be read (a warning), all are available."""
     from ..broker import survey_kind
     from ..net.http import read_proxies
-    from ..net.proxies import KIND, proxy_id
+    from ..net.proxies import KIND, TURN, proxy_id
 
     ids = {proxy_id(p) for p in read_proxies(path)}
     survey = {"resources": {}, "runs": {}}
@@ -494,7 +494,8 @@ def available_proxies(path: str, hosts: set, broker: str | None, run: str | None
         r = survey["resources"].get(pid)
         if r is None:
             continue
-        if r.marks if None in hosts else any(r.marked(h) is not None for h in hosts):
+        if (any(not s.startswith(TURN) for s in r.marks) if None in hosts
+                else any(r.marked(h) is not None for h in hosts)):         # a hand-over of a turn is no block
             blocked += 1
         elif r.holder is not None and r.holder in survey["runs"] and survey["runs"][r.holder] != run:
             held += 1

@@ -204,9 +204,12 @@ def fetch(f: HTTPFetcher, url: str, expect: str | None = "image"):
 
 
 def marks(tmp_path) -> list[tuple[str, float, object]]:
-    """(scope, seconds, status) of every mark in the broker: the proxies left out, for how long."""
+    """(scope, seconds, status) of every mark in the broker: the proxies left out, for how long (not the next turns
+    handed over with a released proxy, ``turn-<host>``)."""
     out = []
     for p in sorted((tmp_path / "broker").glob("proxies/*/marks/*/*.json")):
+        if p.parent.name.startswith("turn-"):
+            continue
         m = json.loads(p.read_text())
         out.append((p.parent.name, round(m["ttl"]), m.get("status")))
     return out

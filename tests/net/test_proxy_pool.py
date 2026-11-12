@@ -158,6 +158,27 @@ def test_sharing_does_not_hoard_at_the_start_and_converges_by_rebalancing(tmp_pa
     assert len(owned(b)) == 4 and not owned(a) & owned(b)
 
 
+def test_a_proxy_given_back_keeps_its_turns_for_the_next_owner(tmp_path):
+    """The rate limit per proxy holds across a hand-over: the worker that gives a proxy back (its share) marks its
+    next free turn there, and the worker that claims it starts no earlier. The mark is no block."""
+    clock = Clock()
+    proxies = PROXIES[:2]
+    a = worker(tmp_path, "a-0", proxies, clock=clock)
+    assert a.fill("images.library.test") == 2
+    starts = {}
+    for _ in range(6):                                   # three turns 0.5 s apart on each: the next at +1.5 s
+        proxy, wait = a.pick("images.library.test", 0.5)
+        starts.setdefault(proxy, []).append(clock.t + wait)
+    b = worker(tmp_path, "b-0", proxies, clock=clock)
+    a.rebalance()                                                                # its share is 1 now
+    (given,) = set(proxies) - owned(a)
+    assert b.fill("images.library.test", force=True) == 1 and owned(b) == {given}
+    proxy, wait = b.pick("images.library.test", 0.5)
+    assert proxy == given and clock.t + wait >= starts[given][-1] + 0.5 - 0.05
+    assert b.counts() == (1, 0, 0) and b.usable(given, "images.library.test")
+    assert a.pick("images.library.test", 0.5)[0] != given
+
+
 # ---------------------------------------------------------------- one proxy per worker, up to N
 
 

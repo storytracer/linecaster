@@ -64,6 +64,7 @@ def render_broker(report: dict) -> str:
     """Returns ``linecaster broker status``'s text for a ``linecaster.broker.survey_all`` report: the format, the
     workers, the slots per machine and per kind its resources held, free, blocked per scope and broken."""
     from .broker import FORMAT
+    from .net.proxies import TURN
 
     now = report["now"]
     fmt = report["format"] or "none (no broker.json)"
@@ -90,10 +91,11 @@ def render_broker(report: dict) -> str:
                          (k["held"]["live"], k["held"]["stale"], k["free"],
                           f"{broken['resources']} (until in {_ago(broken['until'] - now)})" if broken else 0,
                           k["expired_marks"])])
-        if k["blocked"]:
+        blocked = {s: b for s, b in k["blocked"].items() if not s.startswith(TURN)}   # hand-overs, no blocks
+        if blocked:
             lines += _table([("blocked at", kind, "until")]
                             + [(scope, b["resources"], f"in {_ago(b['until'] - now)}")
-                               for scope, b in k["blocked"].items()])
+                               for scope, b in blocked.items()])
     return "\n".join(lines) + "\n"
 
 

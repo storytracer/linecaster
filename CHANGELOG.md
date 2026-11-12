@@ -8,6 +8,12 @@ the tags; the first is `v0.1.0`.
 
 ### Fixed
 
+- Shared proxies keep a host's rate limit when they change hands. A worker that gave a proxy back (its fair share, a
+  swap, a block) forgot its next turns there, and the worker that claimed it could send at once, up to an interval
+  earlier than the limit allows, while the old owner's requests already on their way still went out. The old owner
+  now marks the proxy's next free turn at each host in the broker (scope `turn-<host>`, ending at that turn), and the
+  new owner starts there no earlier. `linecaster broker status` and the count of available proxies at a launch leave
+  these marks out.
 - A recipe script run from its URL is recorded as `recipes/<id>.py` (the run record's `script.path`, and the
   console's title) instead of the name of uv's temporary copy (`squiddleXXXXXX.py`). In a checkout its path there
   is recorded, as before.

@@ -35,7 +35,10 @@ a mark or a message of their own. With several hosts, a worker at its count whos
 one host swaps one of them for a free proxy usable for every host it uses, if there is one, and otherwise pauses that
 host's requests. ``pick`` chooses the owned proxy whose turn comes first and reserves its turn: requests through one
 proxy to one host are spread ``interval`` seconds apart (the host's strictest rate limit), and since nobody else uses
-the proxy, that holds per IP.
+the proxy, that holds per IP. The turns travel with the proxy too: a worker that gives a proxy back (its share, a
+swap, a block) first marks its next free turn at each host it reserved one for (scope ``turn-<host>``, ``TURN``,
+ending at that turn), and a worker that claims it starts there no earlier, so the requests of the old owner that were
+already on their way and the new owner's first ones keep the interval.
 
 The proxy ids in the broker are hashes of the proxies' hosts and ports (``proxy_id``): no credential reaches the
 folder.
@@ -45,6 +48,7 @@ from __future__ import annotations
 import hashlib
 import math
 import os
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -70,6 +74,14 @@ FILL_SECONDS = 5.0
 #: how often a pool in use checks its share (``rebalance``, in a thread of its own), besides after each renew, so a
 #: worker that joins gets its part within seconds
 REBALANCE_SECONDS = 10.0
+#: the prefix of the scopes that hand a proxy's next free turn at a host to its next owner (a mark ending at the turn)
+TURN = "turn-"
+
+
+def turn_scope(host: str) -> str:
+    """The scope of the mark that hands over a proxy's next free turn at ``host`` (as a name part, like the broker's
+    scopes)."""
+    return TURN + re.sub(r"[^A-Za-z0-9._-]", "_", host)
 
 
 def proxy_id(proxy: str) -> str:
@@ -128,6 +140,8 @@ class BlockNote:
     usable: int
     total: int
     data: dict = field(default_factory=dict)
+    #: its next free turns, handed to the next owner when it is released (``ProxyPool._turns``)
+    turns: list = field(default_factory=list)
 
 
 class ProxyPool:
@@ -155,6 +169,8 @@ class ProxyPool:
         self._owned: set[str] = set()
         self._blocked: dict[tuple[str, str], float] = {}      # (proxy id, scope) -> end (broker's clock)
         self._turn: dict[tuple[str, str], float] = {}         # (proxy id, host) -> next free turn (``clock``)
+        # (proxy id, turn scope) -> the next free turn its last owner handed over (broker's clock)
+        self._handed: dict[tuple[str, str], float] = {}
         self._failures: dict[str, int] = {}
         # (proxy id, scope) -> (the last wait without Retry-After or None, when: the end of the block this worker
         # marked, or the time of the successful response that started the doubling again); the broker's last mark
@@ -220,10 +236,18 @@ class ProxyPool:
             usable = [pid for pid in self._owned if self._usable(pid, host)]
             if not usable:
                 return None
-            pid = min(usable, key=lambda p: (self._turn.get((p, host), -math.inf), p))
-            start = max(now, self._turn.get((pid, host), -math.inf))
+            offset = now - self.broker.clock() if self._handed else 0.0
+            pid = min(usable, key=lambda p: (self._next(p, host, offset), p))
+            start = max(now, self._next(pid, host, offset))
             self._turn[(pid, host)] = start + interval
             return self.proxies[pid], start - now
+
+    def _next(self, pid: str, host: str, offset: float) -> float:
+        """The next free turn of ``pid`` at ``host`` (``clock``): this worker's, or the one its last owner handed over
+        (broker's clock + ``offset``), whichever is later. Called with the lock held."""
+        mine = self._turn.get((pid, host), -math.inf)
+        handed = self._handed.get((pid, turn_scope(host)))
+        return mine if handed is None else max(mine, handed + offset)
 
     def tick(self) -> None:
         """Checks the share (``rebalance``) in a thread of its own if ``REBALANCE_SECONDS`` have passed since the last
@@ -360,10 +384,44 @@ class ProxyPool:
                 with self._lock:
                     self._owned.add(pid)
                     self._failures.pop(pid, None)
+                    for key in [k for k in self._turn if k[0] == pid] + [k for k in self._handed if k[0] == pid]:
+                        self._turn.pop(key, None)                          # the listing has what came after
+                        self._handed.pop(key, None)
+                    r = self._survey.get(pid)
+                    for scope, end in (r.marks.items() if r is not None else ()):
+                        if scope.startswith(TURN):
+                            self._handed[(pid, scope)] = end
                     for key in [k for k in self._waits if k[0] == pid]:    # other workers may have used it since:
                         del self._waits[key]                               # the listing just made says
                 got += 1
         return got
+
+    def _turns(self, pid: str) -> list[tuple[str, float]]:
+        """(turn scope, end on the broker's clock) of ``pid``'s next free turns still to come, this worker's or handed
+        to it, for the next owner; forgets them. Called with the lock held."""
+        now, wall = self.clock(), self.broker.clock()
+        ends: dict[str, float] = {}
+        for (p, host), turn in list(self._turn.items()):
+            if p == pid:
+                del self._turn[(p, host)]
+                if turn > now:
+                    scope = turn_scope(host)
+                    ends[scope] = max(ends.get(scope, -math.inf), wall + turn - now)
+        for (p, scope), end in list(self._handed.items()):
+            if p == pid:
+                del self._handed[(p, scope)]
+                if end > wall:
+                    ends[scope] = max(ends.get(scope, -math.inf), end)
+        return sorted(ends.items())
+
+    def _release(self, pid: str, turns: list[tuple[str, float]]) -> None:
+        """Gives ``pid`` back: first marks its next free turns (``_turns``) for the next owner, then releases it."""
+        for scope, end in turns:
+            try:
+                self.broker.mark(KIND, pid, scope, end)
+            except Exception as e:  # noqa: BLE001 - the next owner may then send through it a turn too early once
+                logger.debug("proxy {pid}: next turn not handed over: {error}", pid=pid, error=e)
+        self.broker.release(KIND, pid)
 
     def _doubling(self, pid: str, scope: str) -> tuple[float | None, float | None]:
         """(the last wait without Retry-After, when the last block ended) of ``pid`` at ``scope``, from the later of
@@ -427,7 +485,8 @@ class ProxyPool:
             if got and give:                                   # swapped: the one blocked here goes back
                 with self._lock:
                     self._owned.discard(give[0])
-                self.broker.release(KIND, give[0])
+                    turns = self._turns(give[0])
+                self._release(give[0], turns)
             if got:
                 logger.debug("worker {worker} claimed {n} proxies for {host}; holds {held}",
                              worker=self.broker.worker, n=got, host=host, held=self.held())
@@ -457,6 +516,7 @@ class ProxyPool:
                     return (-blocked, pid)
                 give = sorted(self._owned, key=rank)[:extra]
                 self._owned -= set(give)
+            turns = {pid: self._turns(pid) for pid in give}
             free, want = [], 0
             if extra < 0 and self._hosts:
                 if self.per_worker == SHARE:
@@ -466,7 +526,7 @@ class ProxyPool:
                     first = set(every)
                     free, want = every + [p for p in self._order(self._free(hosts)) if p not in first], 1
         for pid in give:
-            self.broker.release(KIND, pid)
+            self._release(pid, turns[pid])
         if give:
             logger.debug("worker {worker} gave back {n} proxies beyond its {what} ({target})",
                          worker=self.broker.worker, n=len(give), target=target,
@@ -515,14 +575,16 @@ class ProxyPool:
             hosts = self._hosts | ({host} if host != EVERY_SCOPE else set())
             everywhere = all(not self._usable(pid, h) for h in hosts)
             owned = pid in self._owned
+            turns = []
             if everywhere:
                 self._owned.discard(pid)
                 self._refill = self._refill or owned
+                turns = self._turns(pid) if owned else []
             usable = sum(1 for p in self._owned if self._usable(p, host))
             total = len(self._owned)
         if last is not None:
             data["last_wait"] = last
-        return BlockNote(proxy, pid, host, seconds, until, last, everywhere and owned, usable, total, data)
+        return BlockNote(proxy, pid, host, seconds, until, last, everywhere and owned, usable, total, data, turns)
 
     def publish(self, note: BlockNote) -> None:
         """``block``'s part in the broker (``note_block`` made ``note``): the mark, the release of the proxy when it is
@@ -533,7 +595,7 @@ class ProxyPool:
             logger.warning("proxy {proxy}: block not marked in the broker {path}: {error}", proxy=_redact(note.proxy),
                            path=self.broker.path, error=e)
         if note.release:
-            self.broker.release(KIND, note.pid)
+            self._release(note.pid, note.turns)
         log = logger.warning if note.usable == 0 else logger.info
         log("proxy {proxy} blocked {where} for {seconds}; {usable} of the {held} held usable there",
             proxy=_redact(note.proxy), where="everywhere" if note.host == EVERY_SCOPE else f"at {note.host}",
