@@ -311,7 +311,8 @@ class ImageConverter(Contracted, PipelineStep):
         from ...runtime.cpus import available_cpus, ray_task_cpus
 
         index, workers = _WORKER_INDEX[0] or (0, 1)
-        device = accel.device_for(index)
+        cpu_only = getattr(getattr(engine, "options", None), "accel", "cpu") == "cpu"
+        device = 0 if cpu_only else accel.device_for(index)      # CUDA left alone where nothing runs on a GPU
         results: queue.Queue = queue.Queue()
         # the CPUs a Ray task reserved, else this machine's shared by the workers running at once
         cpus = available_cpus() if ray_task_cpus() else available_cpus() // workers
