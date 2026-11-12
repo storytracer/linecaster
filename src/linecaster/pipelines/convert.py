@@ -31,7 +31,10 @@ def options(ap):
     ap.add_argument("--overwrite", action="store_true", help="convert images whose file is there already again")
     ap.add_argument("--window", type=int, default=None, help="pages in flight per stage, fixed (default: adapted)")
     ap.add_argument("--max-window", type=int, default=None,
-                    help="the adapted windows' upper bound per worker (default: twice the CPUs, shared by the workers)")
+                    help="decoding and encoding: the adapted windows' upper bound per worker (default: twice the CPUs, "
+                         "shared by the workers)")
+    ap.add_argument("--max-io-window", type=int, default=256,
+                    help="fetching and writing: the adapted windows' upper bound per worker (they wait on storage)")
 
 
 def models(a) -> list[dict]:
@@ -49,7 +52,7 @@ def pipeline(a, script: str):
     out = a.out.rstrip("/")
     return [run.reader(a, read_images=False),
             ImageConverter(f"{out}/images", a.preset, options=over.get("image"), skip_existing=not a.overwrite,
-                           window=a.window, max_window=a.max_window),
+                           window=a.window, max_window=a.max_window, max_io_window=a.max_io_window),
             run.pages(a)], {"engines": False}
 
 

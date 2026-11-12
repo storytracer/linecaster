@@ -298,3 +298,26 @@ def test_on_a_real_gpu_decoding_matches_pillow_within_one_step_and_encoding_read
     assert "GPU" in encoder and Image.open(io.BytesIO(out)).size == (640, 480)
     out, encoder = transcode.encode(rgb, "jp2", lossless=True, accel="gpu")
     assert "GPU" in encoder and np.array_equal(_decode(out), np.asarray(rgb))
+
+
+def test_files_for_a_hub_bucket_go_up_in_batches(tmp_path, monkeypatch):
+    """Into a Hugging Face bucket the converter uploads what is written at about the same time in one call
+    (``HfApi.batch_bucket_files``), at the output folder's path in the bucket."""
+    import huggingface_hub
+
+    from linecaster.blocks.conversion import images as block
+
+    calls = []
+
+    class FakeApi:
+        def batch_bucket_files(self, bucket_id, add):
+            calls.append((bucket_id, [dest for _, dest in add]))
+
+    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    monkeypatch.setattr(block, "_hub_bucket", lambda out: ("ns/runs", "run-1/images"))
+    pages = _pages(tmp_path)
+    docs = list(ImageConverter(str(tmp_path / "out"), "webp-lossy-q80", options={"accel": "cpu"}).run(
+        iter(map(_doc, pages))))
+    assert sum(not d.metadata.get("errors") for d in docs) == 6
+    assert {b for b, _ in calls} == {"ns/runs"} and len(calls) < 6
+    assert sorted(p for _, batch in calls for p in batch) == [f"run-1/images/b/b_{i}.webp" for i in range(6)]

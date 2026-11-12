@@ -16,9 +16,12 @@ the tags; the first is `v0.1.0`.
   wheels, aarch64 and x86_64): JPEG, JPEG 2000 and TIFF decoded on an NVIDIA GPU, JPEG and JPEG 2000 encoded there;
   everything else with Pillow. Found out per machine (`auto`), forced with `accel` `gpu` or `cpu`; each image records
   its decoder and encoder. `linecaster images compare` measures how a GPU decode differs from Pillow's.
-- `ImageConverter` runs its pages through two stages, decoding and encoding, each with a window saturate's controller
-  adapts (`window`, `initial_window`, `max_window`), a GPU per worker process; it writes under a temporary name and
-  renames, skips files that are there already (`skip_existing`), and keeps the input's order.
+- `ImageConverter` runs its pages through four stages, fetching, decoding, encoding and writing, each with a window
+  saturate's controller adapts (`window`, `initial_window`; `max_window` for decoding and encoding, `max_io_window`
+  for fetching and writing), a page keeping its place in one stage until it has one in the next, a GPU per worker
+  process; it writes under a temporary name and renames (on object storage directly), uploads to a Hugging Face
+  bucket in batches (`HfApi.batch_bucket_files`), skips files that are there already (`skip_existing`), and keeps
+  the input's order.
 - `ImageFolderReader(read_images=False)` (`run.reader(read_images=False)`): pages carry only their images'
   addresses, for a block that reads the files itself.
 

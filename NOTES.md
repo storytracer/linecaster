@@ -17,8 +17,11 @@ Measurements, decisions and open questions, newest first.
   pages, at worst 44.9 dB), against 40.3 dB between a WebP and its JPEG 2000 source: lossy WebP amplifies the
   decoders' one-step differences in a few blocks, far below its own loss. Published images that must not depend on
   the machine need `accel=cpu`.
-- **Hub buckets**: input from one bucket and output to another, 626 pages took 2 min (140 rising to 340 pages a
-  minute): each file is a download and an upload, and the Hub answered some uploads with 429 (retried after 10 s).
+- **Hub buckets**: input from one bucket and output to another. Written one by one, the Hub takes about 4 files a
+  second however many threads upload (1 thread: 0.8/s, 16: 4.4/s; it answers with 429 beyond), while reading scales
+  (1 thread: 4 files/s, 16: 35/s): 626 pages took 2 to 3 min. With the converter's four stages (fetch, decode,
+  encode, write; the fetching and writing windows bounded apart from the CPUs) and the files going up in batches
+  (`HfApi.batch_bucket_files`, up to 128 a call), 626 pages took 47 s (805 a minute), no 429.
 - Fixed on the way: nvImageCodec's decoder and encoder are not safe to call from two threads at once (a crash), and
   `HfFileSystem.exists` is not safe from many threads (its directory cache); the converter lists each output folder
   once and writes to object storage without a temporary name.

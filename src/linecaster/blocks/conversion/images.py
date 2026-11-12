@@ -4,6 +4,7 @@ encoding where the machine has it, in stages kept busy by saturate's adaptive wi
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import os
 import queue
@@ -93,13 +94,19 @@ class ImageConverter(Contracted, PipelineStep):
     cannot be read or converted keeps its image and carries the reason as an error (field ``image``), so later model
     blocks pass it by and the ``RejectWriter`` writes it; the run goes on.
 
-    Pages go through two stages in threads, each with a window of its own that saturate's controller (``Auto``)
-    adapts: decoding (reading the file and decoding it; a GPU batches the decodes that arrive together) and encoding
-    (encoding and writing). A window grows while the throughput (pixels per second) still rises and shrinks when the
-    machine's memory or this process's open files run short (``Pressure``, saturate's ``kv`` gauge); ``window`` fixes
-    both instead. With an engine that does both steps in one call (``image.webp-lossless.v1``) the encoding stage
-    only writes. Each worker process uses one GPU (its worker index, round robin), so a machine's GPUs take one
-    worker each. Pages leave the block in the order they came in; at most twice the largest window is read ahead.
+    Pages go through four stages in threads (``STAGES``), each with a window of its own that saturate's controller
+    (``Auto``) adapts: fetching (the resume check and reading the delivered file), decoding (a GPU batches the decodes
+    that arrive together), encoding, and writing. So downloads run ahead of the decoders and uploads behind the
+    encoders, each as wide as its own latency needs, as saturate's read-ahead does for requests. A window grows while
+    its stage's throughput (kilobytes moved by fetching and writing, kilopixels by decoding and encoding) still rises
+    and shrinks when the machine's memory or this process's open files run short (``Pressure``, saturate's ``kv``
+    gauge); ``window`` fixes them all instead. Into a Hugging Face bucket the files written at about the same time go
+    up together (``HfApi.batch_bucket_files``), since the Hub takes only a few single uploads a second. Decoding and encoding are bounded by the CPUs (``max_window``),
+    fetching and writing, which wait on storage and the network, by ``max_io_window``. A page keeps its place in one
+    stage until it has one in the next, so each window also bounds what waits behind it (decoded pixels among them). With an engine that does both steps in one call
+    (``image.webp-lossless.v1``) the decoding stage converts and the encoding stage passes the result on. Each
+    worker process uses one GPU (its worker index, round robin), so a machine's GPUs take one worker each. Pages leave
+    the block in the order they came in.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
@@ -110,9 +117,11 @@ class ImageConverter(Contracted, PipelineStep):
         options: engine options over the preset's (recorded as the backend's ``overrides``).
         skip_existing: a page whose file exists is not converted again (a run that resumes).
         window: pages in flight per stage, fixed; None: adapted (``initial_window`` to ``max_window``).
-        initial_window: the windows' start.
+        initial_window: the compute windows' start (the fetching and writing windows start at four times it).
         max_window: the windows' upper bound (None: twice the CPUs, divided among the worker processes an executor
-            runs at once, at least 4).
+            runs at once, at least 4): decoding and encoding.
+        max_io_window: the fetching and writing windows' upper bound: they wait on storage and the network, so they
+            may be far wider than the CPUs.
     """
 
     type = "🔠 - LINECASTER"
@@ -120,17 +129,17 @@ class ImageConverter(Contracted, PipelineStep):
     step = "image"
     docs_args = {"output_folder": "out/images", "preset": "working-image@1"}
     # whether the image also travels on in memory, and how many pages are in flight: the same files
-    operational = ("keep_bytes", "skip_existing", "window", "initial_window", "max_window")
+    operational = ("keep_bytes", "skip_existing", "window", "initial_window", "max_window", "max_io_window")
 
     def __init__(self, output_folder: DataFolderLike, preset, keep_bytes: bool = False, options: dict | None = None,
                  skip_existing: bool = True, window: int | None = None, initial_window: int = 8,
-                 max_window: int | None = None):
+                 max_window: int | None = None, max_io_window: int = 256):
         super().__init__()
         self.output_folder, self.keep_bytes = output_folder, keep_bytes
         self.backend = rule_backend(preset, self.step, options)
         self.options = dict(options or {})
         self.skip_existing, self.window = skip_existing, window
-        self.initial_window, self.max_window = initial_window, max_window
+        self.initial_window, self.max_window, self.max_io_window = initial_window, max_window, max_io_window
 
     def init_params(self) -> dict:
         out = super().init_params()
@@ -153,9 +162,9 @@ class ImageConverter(Contracted, PipelineStep):
         return doc
 
     # ----------------------------------------------------------------- one page, in the stages' threads
-    def _decode(self, doc, engine, out, ext: str, device: int) -> tuple:
-        """The decoding stage: ``("existing", rel, size)``, ``("reject", stat, error, type, raw_value, extra)`` or
-        ``("decoded", rel, raw, decoded or (bytes, info), start, began)``."""
+    def _fetch(self, doc, out, ext: str) -> tuple:
+        """The fetching stage: ``("existing", rel, size)``, ``("reject", stat, error, type, raw_value, extra)`` or
+        ``("fetched", rel, raw)``."""
         page = page_of(doc)
         src = page.image.uri if page.image else None
         if not src:
@@ -169,16 +178,38 @@ class ImageConverter(Contracted, PipelineStep):
                     return ("existing", rel, im.size)
             raw = (next((m.media_bytes for m in doc.media if m.media_bytes is not None), None)
                    or read_uri(src, doc.id, page.metadata))
+            return ("fetched", rel, raw)
+        except Exception as e:  # noqa: BLE001 - an unreadable delivery: the page's error
+            return ("reject", "rejected_unreadable", f"cannot read: {type(e).__name__}: {e}", type(e).__name__,
+                    src, {})
+
+    def _decode(self, fetched: tuple, engine, device: int, src: str | None) -> tuple:
+        """The decoding stage: ``("decoded", rel, raw, decoded or (bytes, info), start, began)`` or a reject."""
+        _, rel, raw = fetched
+        try:
             start, began = now()
-            staged = hasattr(engine, "decode")
-            done = engine.decode(raw, device) if staged else engine(raw)
+            done = engine.decode(raw, device) if hasattr(engine, "decode") else engine(raw)
             return ("decoded", rel, raw, done, start, began)
         except ImageTooLarge as e:
             return ("reject", "rejected_too_large", e.reason, "ImageTooLarge", src,
                     {"width": e.width, "height": e.height})
-        except Exception as e:  # noqa: BLE001 - an undecodable or unreadable delivery: the page's error
+        except Exception as e:  # noqa: BLE001 - an undecodable delivery: the page's error
             return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
                     src, {})
+
+    def _bucket_batcher(self, bucket: tuple[str, str]):
+        """One ``Batcher`` per Hub bucket: the files written at about the same time go up in one
+        ``HfApi.batch_bucket_files`` call (one batch at a time), since the Hub takes a few uploads a second one by one."""
+        with self._listings_lock:
+            if self._batcher is None:
+                from huggingface_hub import HfApi
+
+                from ...images.accel import Batcher
+
+                api = HfApi()
+                self._batcher = Batcher(lambda items: (api.batch_bucket_files(bucket[0], add=list(items)),
+                                                       [None] * len(items))[1], max_batch=128, wait=1.0)
+            return self._batcher
 
     def _listing(self, out, folder: str) -> frozenset[str]:
         """The file names in ``folder`` of the output, listed once per folder and run (fsspec's file systems, the
@@ -192,13 +223,23 @@ class ImageConverter(Contracted, PipelineStep):
                 self._listings[folder] = names
             return self._listings[folder]
 
-    def _encode(self, decoded: tuple, engine, out, device: int) -> tuple:
-        """The encoding stage: ``("converted", rel, raw, data, info, step)`` with the file written, or a reject."""
+    def _encode(self, decoded: tuple, engine, device: int) -> tuple:
+        """The encoding stage: ``("encoded", rel, raw, data, info, step)`` or a reject."""
         _, rel, raw, done, start, began = decoded
         try:
             data, info = engine.encode(done, device) if hasattr(engine, "encode") else done
-            step = stamp(engine.step_info(), self.backend, start, began)
-            if _object_storage(out):              # an object appears only when its upload is complete
+            return ("encoded", rel, raw, data, info, stamp(engine.step_info(), self.backend, start, began))
+        except Exception as e:  # noqa: BLE001 - an image that cannot be encoded: the page's error
+            return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
+                    rel, {})
+
+    def _write(self, encoded: tuple, out) -> tuple:
+        """The writing stage: ``("converted", rel, raw, data, info, step)`` with the file written, or a reject."""
+        _, rel, data = encoded[0], encoded[1], encoded[3]
+        try:
+            if (bucket := _hub_bucket(out)) is not None:  # the Hub's buckets: many files per upload and commit
+                self._bucket_batcher(bucket).submit((data, f"{bucket[1]}/{rel}" if bucket[1] else rel))
+            elif _object_storage(out):            # an object appears only when its upload is complete
                 with out.open(rel, "wb") as f:
                     f.write(data)
             else:
@@ -206,9 +247,9 @@ class ImageConverter(Contracted, PipelineStep):
                 with out.open(tmp, "wb") as f:
                     f.write(data)
                 out.mv(tmp, rel)
-            return ("converted", rel, raw, data, info, step)
-        except Exception as e:  # noqa: BLE001 - an image that cannot be encoded or written: the page's error
-            return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
+            return ("converted", *encoded[1:])
+        except Exception as e:  # noqa: BLE001 - a file that cannot be written: the page's error
+            return ("reject", "rejected_unwritable", f"cannot write: {type(e).__name__}: {e}", type(e).__name__,
                     rel, {})
 
     def _finish(self, doc, result: tuple, out, ext: str):
@@ -264,15 +305,16 @@ class ImageConverter(Contracted, PipelineStep):
         from ...images import accel
 
         out = get_datafolder(self.output_folder)
-        self._listings, self._listings_lock = {}, threading.Lock()
+        self._listings, self._listings_lock, self._batcher = {}, threading.Lock(), None
         engine = self.backend.model()
         ext = engine.extension() if hasattr(engine, "extension") else "webp"
         index, workers = _WORKER_INDEX[0] or (0, 1)
         device = accel.device_for(index)
         results: queue.Queue = queue.Queue()
         top = self.max_window or max(4, 2 * (os.cpu_count() or 1) // workers)     # the CPUs shared by the workers
-        windows = {"top": top}
-        ahead = threading.Semaphore(2 * top)             # pages read and not yet left the block
+        io_top = self.max_io_window
+        windows = {"top": top, "io_top": io_top}
+        ahead = threading.Semaphore(2 * io_top + 2 * top)   # pages taken from the input, not yet left the block
 
         def worker():
             try:
@@ -295,59 +337,83 @@ class ImageConverter(Contracted, PipelineStep):
                 ahead.release()
                 yield self._finish(doc, result, out, ext)
         self.stat_update("wall_seconds", value=round(time.perf_counter() - started, 2))
-        for stage in ("decode", "encode"):
+        for stage in STAGES:
             if stage in windows:
                 self.stat_update(f"{stage}_window_max", value=windows[stage])
 
-    def _limiter(self, top: int):
+    def _limiter(self, top: int, io: bool = False):
         from saturate import AdaptiveLimiter, Auto, Fixed
 
-        window = Fixed(self.window) if self.window else Auto(initial=min(self.initial_window, top), min_limit=1,
-                                                             max_limit=top)
+        start = 4 * self.initial_window if io else self.initial_window
+        window = Fixed(self.window) if self.window else Auto(initial=min(start, top), min_limit=1, max_limit=top)
         return AdaptiveLimiter(window=window, signals=Pressure())
 
     async def _pump(self, docs, engine, out, ext: str, device: int, results: queue.Queue, windows: dict,
                     ahead: threading.Semaphore):
-        """Each page through the decoding and the encoding stage, each under its own window; results onto
-        ``results`` with the page's place in the input, as they finish. A page is read when ``ahead`` has room (the
-        pipeline's thread frees it as the page leaves)."""
+        """Each page through the stages (``STAGES``: fetch, decode, encode, write), each under its own window;
+        results onto ``results`` with the page's place in the input, as they finish. A page is taken from the input
+        when ``ahead`` has room (the pipeline's thread frees it as the page leaves)."""
         from saturate import Attempt
 
-        top = windows["top"]
-        decode, encode = self._limiter(top), self._limiter(top)
+        top, io_top = windows["top"], windows["io_top"]
+        limits = {name: self._limiter(io_top if name in IO_STAGES else top, name in IO_STAGES) for name in STAGES}
         loop = asyncio.get_running_loop()
         end = object()
         failed: list[BaseException] = []
 
-        with ThreadPoolExecutor(max_workers=2 * top, thread_name_prefix="linecaster-image") as pool:
+        def amount(name: str, r: tuple) -> int:
+            """The stage's throughput unit: kilobytes moved (fetch, write), kilopixels (decode, encode)."""
+            if name == "fetch":
+                return len(r[2]) // 1000
+            if name == "write":
+                return len(r[3]) // 1000
+            done = r[3] if name == "decode" else None
+            if done is not None and hasattr(done, "rgb"):
+                return done.rgb.width * done.rgb.height // 1000
+            info = (done[1] if done is not None else r[4])
+            return info["width"] * info["height"] // 1000
+
+        workers = 2 * io_top + 2 * top + 2               # every window full, and the input's reader
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="linecaster-image") as pool:
+            calls = {"fetch": lambda doc, r: (self._fetch, doc, out, ext),
+                     "decode": lambda doc, r: (self._decode, r, engine, device,
+                                               page_of(doc).image.uri if page_of(doc).image else None),
+                     "encode": lambda doc, r: (self._encode, r, engine, device),
+                     "write": lambda doc, r: (self._write, r, out)}
 
             async def one(seq, doc):
+                held = None                              # the slot the page holds, kept until it has the next one
                 try:
-                    t0 = time.perf_counter()
-                    async with decode.slot():
-                        decoded = await loop.run_in_executor(pool, self._decode, doc, engine, out, ext, device)
-                    if decoded[0] != "decoded":
-                        decode.observe(Attempt(ok=decoded[0] == "existing", latency_s=time.perf_counter() - t0))
-                        results.put((seq, doc, decoded))
-                        return
-                    done = decoded[3]
-                    rgb = getattr(done, "rgb", None)
-                    kpx = (rgb.width * rgb.height if rgb is not None else done[1]["width"] * done[1]["height"]) // 1000
-                    decode.observe(Attempt(ok=True, latency_s=time.perf_counter() - t0, tokens=kpx))
-                    t1 = time.perf_counter()
-                    async with encode.slot():
-                        result = await loop.run_in_executor(pool, self._encode, decoded, engine, out, device)
-                    encode.observe(Attempt(ok=result[0] == "converted", latency_s=time.perf_counter() - t1,
-                                           tokens=kpx))
-                    results.put((seq, doc, result))
+                    r = None
+                    for name in STAGES:
+                        limit = limits[name]
+                        slot = limit.slot()
+                        await slot.__aenter__()          # backpressure: a stage's window bounds what waits behind it
+                        if held is not None:
+                            await held.__aexit__(None, None, None)
+                        held = slot
+                        t0 = time.perf_counter()
+                        r = await loop.run_in_executor(pool, *calls[name](doc, r))
+                        on = r[0] not in ("reject", "existing")
+                        limit.observe(Attempt(ok=r[0] != "reject", latency_s=time.perf_counter() - t0,
+                                              tokens=amount(name, r) if on else 0))
+                        if not on:
+                            break
+                    await held.__aexit__(None, None, None)
+                    held = None
+                    results.put((seq, doc, r))
                 except BaseException as e:  # noqa: BLE001 - the stages' own bug: surfaced in the pipeline's thread
                     failed.append(e)
                     results.put(e)
                 finally:
-                    windows["decode"] = max(windows.get("decode", 0), decode.limit)
-                    windows["encode"] = max(windows.get("encode", 0), encode.limit)
+                    if held is not None:
+                        await held.__aexit__(None, None, None)
+                    for name, limit in limits.items():
+                        windows[name] = max(windows.get(name, 0), limit.limit)
 
-            async with decode, encode:
+            async with contextlib.AsyncExitStack() as stack:
+                for limit in limits.values():
+                    await stack.enter_async_context(limit)
                 tasks, seq = set(), 0
                 while not failed:                        # after a bug in a stage nothing more is read
                     await loop.run_in_executor(pool, ahead.acquire)
@@ -362,7 +428,20 @@ class ImageConverter(Contracted, PipelineStep):
                     await asyncio.gather(*tasks, return_exceptions=True)
 
 
+#: the converter's stages, in order, each with a window of its own
+STAGES = ("fetch", "decode", "encode", "write")
+#: the stages that wait on storage or the network, not on a processor: their windows have a bound of their own
+IO_STAGES = frozenset({"fetch", "write"})
 _END = object()
+
+
+def _hub_bucket(out) -> tuple[str, str] | None:
+    """``(bucket id, path in it)`` when ``out`` (a ``DataFolder``) is a folder of a Hugging Face bucket, else None."""
+    fs = getattr(out, "fs", None)
+    if type(fs).__name__ != "HfFileSystem" or not str(out.path).startswith("buckets/"):
+        return None
+    parts = str(out.path).split("/", 3)
+    return f"{parts[1]}/{parts[2]}", (parts[3] if len(parts) > 3 else "")
 
 
 def _object_storage(out) -> bool:
