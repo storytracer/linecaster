@@ -286,3 +286,24 @@ def test_harvest_runs_one_item_per_task_and_other_pipelines_do_not(tmp_path):
     assert harvest.task_per_item and not other.task_per_item
     run.allocate(a, [harvest])
     assert (a.tasks, a.workers) == (3, 1)
+
+
+def test_a_pipeline_with_engines_on_ray_gets_several_tasks_per_gpu(monkeypatch, tmp_path):
+    """On Ray a pipeline with engines is split into RAY_TASKS_PER_GPU tasks per GPU of the cluster (at most what the
+    reader can split the input into), so a task with slow pages does not hold the run up; locally it stays one task."""
+    from linecaster.runtime import run
+
+    monkeypatch.setattr(run, "ray_gpus", lambda a: 8)
+    for n, on, want in ((1000, "ray", 32), (10, "ray", 10), (1000, "local", 1)):
+        class Reader:
+            def auto_tasks(self, n=n):
+                return n
+        a = type("A", (), {"tasks": None, "workers": None, "on": on, "has_engines": True, "address": "auto",
+                           "page": None})()
+        run.allocate(a, [Reader()])
+        assert (a.tasks, a.workers) == (want, want), on
+    monkeypatch.setattr(run, "ray_gpus", lambda a: 0)
+    a = type("A", (), {"tasks": None, "workers": None, "on": "ray", "has_engines": True, "address": "auto",
+                       "page": None})()
+    run.allocate(a, [Reader()])
+    assert a.tasks == 1                                              # no GPUs to read: as before

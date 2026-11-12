@@ -564,15 +564,22 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     (``ceil(available / N)``), never capped by the CPUs (the workers mostly wait on the network); either way at most
     one per task and, with OUT on object storage, at most ``OBJECT_STORAGE_WORKERS``, the reason in
     ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,
-    ``linecaster.net.http.prefetched``); one per CPU otherwise. A pipeline with engines: one task, every task at once.
-    ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
+    ``linecaster.net.http.prefetched``); one per CPU otherwise. A pipeline with engines: one task, every task at once;
+    on Ray ``RAY_TASKS_PER_GPU`` tasks per GPU of the cluster (at most the reader's ``auto_tasks``), so a task that
+    holds slow pages does not hold the run up: a worker that is done takes the next one. ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
     count is never derived from a proxy list."""
     if getattr(a, "page", None):
         a.tasks, a.workers = 1, 1
         return
     if a.tasks is None:
         reader = next((b for b in pipeline if hasattr(b, "auto_tasks")), None)
-        a.tasks = reader.auto_tasks() if reader is not None and not has_engines(a) else 1
+        if has_engines(a) and getattr(a, "on", "local") == "ray":
+            gpus = ray_gpus(a)
+            a.tasks = max(1, RAY_TASKS_PER_GPU * gpus) if gpus else 1
+            if reader is not None and a.tasks > 1:
+                a.tasks = max(1, min(a.tasks, reader.auto_tasks()))
+        else:
+            a.tasks = reader.auto_tasks() if reader is not None and not has_engines(a) else 1
     if a.workers is None:
         if has_engines(a):
             a.workers = a.tasks
@@ -585,6 +592,21 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
             a.workers = 1
         else:
             a.workers = min(a.tasks, available_cpus())
+
+
+#: a pipeline with engines on Ray: tasks per GPU of the cluster, so the work is spread evenly however its pages differ
+RAY_TASKS_PER_GPU = 4
+
+
+def ray_gpus(a: argparse.Namespace) -> int:
+    """The GPUs of the Ray cluster at ``--address`` (joined here, as the launch joins it), 0 if it cannot be read."""
+    try:
+        connect_ray(a.address)
+        import ray
+
+        return int(ray.cluster_resources().get("GPU", 0))
+    except Exception:  # noqa: BLE001 - the launch joins the cluster and says what is wrong
+        return 0
 
 
 def _policy_rate_limited(a: argparse.Namespace) -> bool:

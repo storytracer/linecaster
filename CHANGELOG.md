@@ -15,6 +15,10 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- On Ray a pipeline with engines and no `--tasks` gets 4 tasks per GPU of the cluster (`RAY_TASKS_PER_GPU`, at most
+  what its reader can split the input into) instead of one: a worker that is done takes the next task, so a task that
+  holds slow pages (a run of JPEG 2000 files, say) no longer holds the run up. Each task loads its models again (a
+  Ray task is a new process); `--tasks` still decides.
 - A page's image is decoded once per process for all its in-process model blocks (`decode_rgb` keeps the last four
   pages' pixels by the bytes object they came from), not once per block: a JPEG 2000 page went through Pillow's decoder
   for layout, lines and recognition alike (about 0.7 s each on the x86_64 machine). The pixels are the same as before
