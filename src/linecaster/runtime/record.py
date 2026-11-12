@@ -13,7 +13,8 @@ class _Record(BaseModel):
 
 
 class Script(_Record):
-    path: str = Field(description="the pipeline script, relative to its git checkout (else its file name)")
+    path: str = Field(description="the pipeline script, relative to its git checkout (else its file name; a "
+                      "recipe script run from its URL: recipes/<id>.py)")
     sha256: str | None = Field(None, description="the script file's hash (sha256:<hex>)")
 
 

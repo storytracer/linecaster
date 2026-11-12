@@ -771,12 +771,13 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
                  "constraints": (deps.constraints or None) if deps else None,
                  "overrides": (deps.overrides or None) if deps else None}
     internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
-                "sample_record")
+                "sample_record", "script_name")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     if getattr(a, "sample_record", None):
         extra["sample"] = a.sample_record
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
-                      executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
+                      executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None),
+                      script_name=getattr(a, "script_name", None))
 
 
 def previous_record(out: str) -> dict | None:
@@ -886,7 +887,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
             from .local import LocalExecutor
 
             workers = a.workers or stage.tasks
-            title = Path(script).stem if script else "run"
+            title = Path(getattr(a, "script_name", None) or script).stem if script else "run"
             reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
             previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
                                      logging_dir=logs, depends=previous, out=out, reader=reader,
@@ -1176,6 +1177,7 @@ def recipe(script: str, recipe_id: str) -> None:
     def options(ap):
         shape.options(ap)
         ap.set_defaults(recipe=recipe_id)        # run adds --recipe to the same parser before these options
+        ap.set_defaults(script_name=f"recipes/{recipe_id}.py")   # the record's name for a copy run from the URL
 
     def build(a, path: str):
         if split_ref(a.recipe)[0] != recipe_id:

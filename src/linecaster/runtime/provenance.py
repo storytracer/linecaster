@@ -304,12 +304,13 @@ def _plain(v: Any) -> Any:
     return str(v)
 
 
-def script_entry(script: str | None) -> dict[str, Any] | None:
-    """The pipeline script: its path in its git checkout (else its file name) and the sha256 of the file."""
+def script_entry(script: str | None, name: str | None = None) -> dict[str, Any] | None:
+    """The pipeline script: its path in its git checkout (else ``name``, else its file name) and the sha256 of the
+    file. A recipe script run from its URL is uv's temporary copy, so its ``name`` is ``recipes/<id>.py``."""
     if not script:
         return None
     path = Path(script)
-    out: dict[str, Any] = {"path": path.name}
+    out: dict[str, Any] = {"path": name or path.name}
     try:
         top = subprocess.run(["git", "-C", str(path.resolve().parent), "rev-parse", "--show-toplevel"],
                              capture_output=True, text=True, timeout=10, check=False)
@@ -326,13 +327,15 @@ def script_entry(script: str | None) -> dict[str, Any] | None:
 
 def run_record(options: dict[str, Any], plan=None, *, script: str | None = None, argv: list[str] | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
-               created: dt.datetime | None = None, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+               created: dt.datetime | None = None, recipe: dict[str, Any] | None = None,
+               script_name: str | None = None) -> dict[str, Any]:
     """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the time, the
     pipeline script, the recipe (edition, hash, what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
     builder's ``plan`` (per stage its blocks as dicts, in order, with their contracts) and its ``pipeline_sha256``,
     ``extra`` (the Jobs' image and dependencies) and the software (linecaster release and commit, Python, key
-    packages, engine packages). Validated against ``RunRecord``."""
+    packages, engine packages); ``script_name`` names the script outside a git checkout (``script_entry``).
+    Validated against ``RunRecord``."""
     from .record import RunRecord
 
     opts = _plain(dict(options))
@@ -340,7 +343,7 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
         opts["env"] = [kv.split("=", 1)[0] + "=<redacted>" for kv in opts["env"]]
     when = (created or dt.datetime.now(dt.UTC)).astimezone(dt.UTC)
     rec: dict[str, Any] = {"schema": RUN_SCHEMA, "created": when.strftime("%Y-%m-%dT%H:%M:%SZ")}
-    entry = script_entry(script)
+    entry = script_entry(script, script_name)
     if entry:
         rec["script"] = entry
     if recipe:

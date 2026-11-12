@@ -465,3 +465,16 @@ def test_engines_carry_presets(monkeypatch):
 def test_redact_argv():
     assert provenance.redact_argv(["x", "--env", "A=1", "--env=B=2", "--on", "local"]) == [
         "x", "--env", "A=<redacted>", "--env=B=<redacted>", "--on", "local"]
+
+
+def test_a_script_outside_a_checkout_is_recorded_by_its_name(tmp_path: Path):
+    """A recipe script run from its URL is uv's temporary copy: the record names it ``recipes/<id>.py``. In a
+    checkout, its path there wins."""
+    from linecaster.runtime.provenance import script_entry
+
+    copy = tmp_path / "squiddleAb12Cd.py"
+    copy.write_text("print()\n")
+    assert script_entry(str(copy))["path"] == "squiddleAb12Cd.py"
+    named = script_entry(str(copy), "recipes/squiddle.py")
+    assert named["path"] == "recipes/squiddle.py" and named["sha256"].startswith("sha256:")
+    assert script_entry(__file__, "recipes/squiddle.py")["path"].endswith("tests/runtime/test_provenance.py")

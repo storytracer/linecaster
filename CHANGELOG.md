@@ -4,6 +4,14 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- A recipe script run from its URL is recorded as `recipes/<id>.py` (the run record's `script.path`, and the
+  console's title) instead of the name of uv's temporary copy (`squiddleXXXXXX.py`). In a checkout its path there
+  is recorded, as before.
+
 ## 0.5.5 (2026-11-12)
 
 ### Changed
