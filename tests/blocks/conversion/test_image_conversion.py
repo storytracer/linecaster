@@ -321,3 +321,23 @@ def test_files_for_a_hub_bucket_go_up_in_batches(tmp_path, monkeypatch):
     assert sum(not d.metadata.get("errors") for d in docs) == 6
     assert {b for b, _ in calls} == {"ns/runs"} and len(calls) < 6
     assert sorted(p for _, batch in calls for p in batch) == [f"run-1/images/b/b_{i}.webp" for i in range(6)]
+
+
+def test_on_ray_the_convert_tasks_reserve_a_gpu_and_its_share_of_the_cpus(monkeypatch, tmp_path):
+    """Ray hides the GPUs from a task that reserved none: where the launching machine has GPUs, each task reserves one
+    (``RayGPUExecutor``) and the CPUs divided by the GPUs; without GPUs, a CPU task as before."""
+    from linecaster.pipelines import convert
+    from linecaster.runtime import cpus, run
+
+    monkeypatch.setattr(cpus, "available_cpus", lambda: 124)
+    argv = [str(tmp_path), str(tmp_path / "out"), "--preset", "webp-lossy-q80", "--on", "ray"]
+    for gpus, executor, per_task in ((8, "RayGPUExecutor", 15), (0, "RayExecutor", None)):
+        monkeypatch.setattr(accel, "cuda_devices", lambda g=gpus: g)
+        a = run.parse(argv, convert.__doc__, convert.options, convert.PIPELINE, convert.SLOTS)
+        a.has_engines = bool(convert.models(a))                    # as run.main sets it
+        convert.pipeline(a, "convert.py")
+        assert run.executor_name(a) == executor and a.cpus_per_task == per_task and a.workers == max(1, gpus)
+    a = run.parse([*argv, "--cpus-per-task", "4"], convert.__doc__, convert.options, convert.PIPELINE, convert.SLOTS)
+    monkeypatch.setattr(accel, "cuda_devices", lambda: 8)
+    convert.pipeline(a, "convert.py")
+    assert a.cpus_per_task == 4                                     # given: kept

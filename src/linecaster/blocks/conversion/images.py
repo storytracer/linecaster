@@ -118,8 +118,8 @@ class ImageConverter(Contracted, PipelineStep):
         skip_existing: a page whose file exists is not converted again (a run that resumes).
         window: pages in flight per stage, fixed; None: adapted (``initial_window`` to ``max_window``).
         initial_window: the compute windows' start (the fetching and writing windows start at four times it).
-        max_window: the windows' upper bound (None: twice the CPUs, divided among the worker processes an executor
-            runs at once, at least 4): decoding and encoding.
+        max_window: the windows' upper bound (None: twice the CPUs, at least 4; the CPUs a Ray task reserved, else
+            the machine's divided among the worker processes an executor runs at once): decoding and encoding.
         max_io_window: the fetching and writing windows' upper bound: they wait on storage and the network, so they
             may be far wider than the CPUs.
     """
@@ -308,10 +308,14 @@ class ImageConverter(Contracted, PipelineStep):
         self._listings, self._listings_lock, self._batcher = {}, threading.Lock(), None
         engine = self.backend.model()
         ext = engine.extension() if hasattr(engine, "extension") else "webp"
+        from ...runtime.cpus import available_cpus, ray_task_cpus
+
         index, workers = _WORKER_INDEX[0] or (0, 1)
         device = accel.device_for(index)
         results: queue.Queue = queue.Queue()
-        top = self.max_window or max(4, 2 * (os.cpu_count() or 1) // workers)     # the CPUs shared by the workers
+        # the CPUs a Ray task reserved, else this machine's shared by the workers running at once
+        cpus = available_cpus() if ray_task_cpus() else available_cpus() // workers
+        top = self.max_window or max(4, 2 * cpus)
         io_top = self.max_io_window
         windows = {"top": top, "io_top": io_top}
         ahead = threading.Semaphore(2 * io_top + 2 * top)   # pages taken from the input, not yet left the block

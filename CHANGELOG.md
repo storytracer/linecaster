@@ -27,6 +27,9 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- `--cpus-per-task` (Ray) defaults to 12 or a pipeline's own share: `convert.py` reserves one GPU per task
+  (`RayGPUExecutor`, since Ray hides the GPUs from a task that reserved none) and the launching machine's CPUs
+  divided by its GPUs, where it has GPUs.
 - `ImageConverter`'s display name is `🖼️ image converter` (was `🖼️ image converter (lossless WebP)`); the working
   image is written as before.
 

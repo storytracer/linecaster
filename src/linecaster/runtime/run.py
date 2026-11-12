@@ -112,8 +112,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g = ap.add_argument_group("Ray")
     g.add_argument("--address", default="auto",
                    help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
-    g.add_argument("--cpus-per-task", type=int, default=12,
-                   help="CPUs a task reserves on its Ray node (start the workers with ray start --num-cpus at least this)")
+    g.add_argument("--cpus-per-task", type=int, default=None,
+                   help="CPUs a task reserves on its Ray node (default: 12, or the pipeline's own share; start the "
+                        "workers with ray start --num-cpus at least this)")
     g.add_argument("--mem-per-cpu-gb", type=float, default=4,
                    help="memory a task reserves per CPU, in GiB (ignored with --mem-per-task-gb)")
     g.add_argument("--mem-per-task-gb", type=float, default=None,
@@ -759,7 +760,7 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
 def executor_name(a: argparse.Namespace) -> str:
     if getattr(a, "page", None):
         return "run_pages"
-    ray = "RayGPUExecutor" if has_engines(a) else "RayExecutor"
+    ray = "RayGPUExecutor" if has_engines(a) or getattr(a, "gpu_tasks", False) else "RayExecutor"
     return {"local": "LocalPipelineExecutor", "ray": ray}.get(a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsExecutor")
 
 
@@ -775,7 +776,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
                  "constraints": (deps.constraints or None) if deps else None,
                  "overrides": (deps.overrides or None) if deps else None}
     internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
-                "sample_record", "script_name")
+                "sample_record", "script_name", "gpu_tasks")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     if getattr(a, "sample_record", None):
         extra["sample"] = a.sample_record
@@ -898,13 +899,13 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
                                      title=f"{title}/{stage.name}" if many else title, note=run_notes(a),
                                      retry_failed=getattr(a, "retry_failed", False))
         elif a.on == "ray":
-            if servers or (not many and has_engines(a)):
+            if servers or (not many and (has_engines(a) or getattr(a, "gpu_tasks", False))):
                 from .ray import RayGPUExecutor as Ray
             else:                                    # a stage without models (an item stage, a harvest) needs no GPU
                 from .ray import RayExecutor as Ray
 
             previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
-                           cpus_per_task=a.cpus_per_task, mem_per_cpu_gb=a.mem_per_cpu_gb,
+                           cpus_per_task=a.cpus_per_task or 12, mem_per_cpu_gb=a.mem_per_cpu_gb,
                            mem_per_task_gb=getattr(a, "mem_per_task_gb", None),
                            check_fit=getattr(a, "fit_check", True), logging_dir=logs, depends=previous)
         else:

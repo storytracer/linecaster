@@ -15,7 +15,8 @@ The presets (``linecaster models``, step ``image``): ``webp-lossy-q80``, ``jpeg-
 ``lossless``, ``psnr``, ``method``, ``compress_level``, ``accel``). A page goes through two stages, decoding and
 encoding, each with a window saturate's controller adapts to the throughput and the machine's memory (``--window``
 fixes it); a GPU batches the decodes that arrive together. One worker process per GPU (one without a GPU) unless
---workers says otherwise; the image files are read in the stages, many at once, not by the reader. A run into the same
+--workers says otherwise; with --on ray each task reserves one GPU and that GPU's share of the CPUs (--cpus-per-task),
+where the launching machine has GPUs; the image files are read in the stages, many at once, not by the reader. A run into the same
 OUT resumes: finished tasks are skipped, and within a task an image whose file is there already is not converted
 again (``--overwrite`` converts it again). Files are written under a temporary name and renamed when complete.
 """
@@ -46,8 +47,14 @@ def pipeline(a, script: str):
 
     if not a.preset:
         raise PipelineConfigError("convert: pick --preset (an image preset, e.g. webp-lossy-q80; `linecaster models`)")
+    from ..runtime.cpus import available_cpus
+
+    gpus = cuda_devices()
+    a.gpu_tasks = gpus > 0                   # on Ray: one GPU per task (RayGPUExecutor), else Ray hides the GPUs
     if a.workers is None:                    # one worker per GPU: each process uses one, round robin
-        a.workers = max(1, cuda_devices())
+        a.workers = max(1, gpus)
+    if a.on == "ray" and a.cpus_per_task is None and gpus:     # a GPU's share of this machine's CPUs per task
+        a.cpus_per_task = max(1, available_cpus() // gpus)
     over = run.overrides(a.set, steps=["image"])
     out = a.out.rstrip("/")
     return [run.reader(a, read_images=False),
