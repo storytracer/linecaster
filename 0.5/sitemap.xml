@@ -189,6 +189,10 @@
          <lastmod>2026-11-12</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/engines/image.convert.v1/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/0.5/catalog/engines/image.webp-lossless.v1/</loc>
          <lastmod>2026-11-12</lastmod>
     </url>
@@ -437,6 +441,10 @@
          <lastmod>2026-11-12</lastmod>
     </url>
     <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/pipelines/convert.v1/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
          <loc>https://storytracer.github.io/linecaster/0.5/catalog/pipelines/harvest.v1/</loc>
          <lastmod>2026-11-12</lastmod>
     </url>
@@ -462,6 +470,22 @@
     </url>
     <url>
          <loc>https://storytracer.github.io/linecaster/0.5/catalog/presets/formulas/pp-formulanet-plus-l/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/presets/image/jp2-lossless/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/presets/image/jpeg-q90/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/presets/image/png/</loc>
+         <lastmod>2026-11-12</lastmod>
+    </url>
+    <url>
+         <loc>https://storytracer.github.io/linecaster/0.5/catalog/presets/image/webp-lossy-q80/</loc>
          <lastmod>2026-11-12</lastmod>
     </url>
     <url>

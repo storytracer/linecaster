@@ -1323,6 +1323,11 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 <td><code>bind.v1</code></td>
 <td>item texts and item documents from page records</td>
 </tr>
+<tr>
+<td><code>convert.py</code></td>
+<td><code>convert.v1</code></td>
+<td>page images converted to JPEG, JPEG 2000, PNG or WebP by an image preset, on NVIDIA GPUs where the machine has them</td>
+</tr>
 </tbody>
 </table>
 <p><code>linecaster.runtime.run.main</code> gives every pipeline the same command line: <code>--on local|ray|hf-jobs</code>, <code>--backend
@@ -1332,7 +1337,7 @@ them (<code>--recipe</code>); <code>launch.py</code> runs a recipe or a page pre
 Each script's page in the <a href="../../catalog/">catalog's docs</a> lists its slots and options.</p>
 <p>Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
 itself: linecaster with the extra every pipeline uses (<code>ray</code> for <code>--on ray</code> and <code>ray start</code>) and its engine
-packages; <code>s3://</code> paths need no extra (the core
+packages (<code>convert.py</code> also <code>nvimgcodec</code>: NVIDIA's GPU codecs, used where the machine has a GPU); <code>s3://</code> paths need no extra (the core
 installs datatrove's <code>s3</code> extra, s3fs). A source is
 declared by the package that needs it, and <code>uv lock</code> applies the sources of path and git dependencies too:
 the kraken fork by <code>linecaster-kraken</code>, and <code>stubs/opencv-contrib-python</code> (the
@@ -1367,7 +1372,7 @@ fixed in <code>tests/test_scripts.py</code> (<code>TORCH</code>), so it changes 
 <td>its own pin: it probes the CUDA build of <code>linecaster-kraken</code>'s torch on a Jobs host</td>
 </tr>
 <tr>
-<td><code>pipelines/transcribe_modular.py</code>, <code>transcribe_vlm.py</code>, <code>harvest.py</code>, <code>bind.py</code>, <code>launch.py</code>, <code>tests/test_line_recognizers.py</code>, linecaster's own (<code>uv.lock</code>)</td>
+<td><code>pipelines/transcribe_modular.py</code>, <code>transcribe_vlm.py</code>, <code>harvest.py</code>, <code>bind.py</code>, <code>convert.py</code>, <code>launch.py</code>, <code>tests/test_line_recognizers.py</code>, linecaster's own (<code>uv.lock</code>)</td>
 <td>none</td>
 <td>no engine there needs it</td>
 </tr>

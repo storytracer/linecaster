@@ -567,6 +567,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image conversion (linecaster.images.transcode, linecaster.images.accel)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -941,6 +952,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image conversion (linecaster.images.transcode, linecaster.images.accel)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1169,8 +1191,8 @@ float/area classes, lines are <code>ocr_line</code>, <code>ocr_textfloat</code>,
 <code>&lt;strong&gt;</code>/<code>&lt;em&gt;</code>; <code>image "..."</code> may contain <code>;</code>.</p>
 <h2 id="working-images-linecasterimagesconvert">Working images (<code>linecaster.images.convert</code>)<a class="headerlink" href="#working-images-linecasterimagesconvert" title="Permanent link">&para;</a></h2>
 <p>The working format for converted images is lossless WebP at full resolution (the block <code>ImageConverter</code>, preset
-<code>working-image</code>); lossy output is never produced. Delivered images used as they are (an access derivative) stay as
-delivered. Pages larger than the size limit go to <code>rejects/</code>.</p>
+<code>working-image</code>): what the models read is never lossy. Delivered images used as they are (an access derivative) stay
+as delivered. Pages larger than the size limit go to <code>rejects/</code>. Other formats for other uses are the next section's.</p>
 <ul>
 <li><strong>Size limit</strong> (<code>check_size</code>): width ≤ 16,383 and height ≤ 16,383 (WebP) and
   width × height ≤ 2 × <code>PIL.Image.MAX_IMAGE_PIXELS</code>, read at call time, never changed. 2× is
@@ -1195,6 +1217,35 @@ delivered. Pages larger than the size limit go to <code>rejects/</code>.</p>
   checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
   reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in <code>warnings</code> (also in the
   page image's <code>extra</code>, and logged). A fault that keeps the pixels from being read rejects the page.</li>
+</ul>
+<h2 id="image-conversion-linecasterimagestranscode-linecasterimagesaccel">Image conversion (<code>linecaster.images.transcode</code>, <code>linecaster.images.accel</code>)<a class="headerlink" href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" title="Permanent link">&para;</a></h2>
+<p>Page images for other uses (publishing, downloads) are converted by the same block with an <code>image.convert.v1</code> preset
+(<code>webp-lossy-q80</code>, <code>jpeg-q90</code>, <code>jp2-lossless</code>, <code>png</code>; <code>pipelines/convert.py</code>): JPEG, JPEG 2000, PNG or WebP at full
+resolution, 8-bit sRGB, with the working image's size limit, colour handling and image warnings.</p>
+<ul>
+<li><strong>Decoding</strong>: JPEG (nvJPEG), JPEG 2000 (nvJPEG2000) and TIFF (nvTIFF) in 8-bit gray or RGB on an NVIDIA GPU where
+  the machine has one and nvImageCodec is installed (<code>linecaster[nvimgcodec]</code>, CUDA 13 wheels for aarch64 and
+  x86_64); every other image, and every image on a machine without them, with Pillow. Only nvImageCodec's GPU
+  decoders are allowed, so an image it cannot do on the GPU is decoded by Pillow, never by another CPU library. A
+  GPU decode hands the pixels on in the source's own mode with the ICC profile from the header, and the colour
+  handling above runs after either decoder.</li>
+<li><strong>Encoding</strong>: JPEG (nvJPEG) and JPEG 2000 (nvJPEG2000) on the GPU where it can, else with Pillow (libjpeg-turbo,
+  OpenJPEG); PNG and WebP always with Pillow (zlib, libwebp): no GPU library writes them (nvImageCodec only through
+  its CPU OpenCV extension).</li>
+<li><strong>Choice</strong>: found out per machine, never configured (<code>cuda_devices</code> asks the CUDA driver; nvImageCodec is used
+  when installed). <code>accel</code> <code>auto</code> takes the GPU where it can, <code>cpu</code> never, <code>gpu</code> is an error where it cannot. Each
+  image records its <code>decoder</code> and <code>encoder</code>: a GPU and a CPU decoder can round lossy JPEG and JPEG 2000 differently,
+  and a GPU and a CPU encoder write different bytes at the same quality. <code>linecaster images compare FILES</code> decodes
+  images both ways and says how far the pixels differ.</li>
+<li><strong>Throughput</strong>: decoding and encoding are stages with windows of their own, adapted by saturate's controller to
+  the pixels per second and cut when memory or open files run short; a GPU decodes what arrives together in one
+  batch. One worker process per GPU (round robin by worker index); the windows' bound divides the CPUs among the
+  workers.</li>
+<li><strong>Files</strong>: <code>&lt;output_folder&gt;/&lt;item&gt;/&lt;page&gt;.&lt;ext&gt;</code> under a temporary name (<code>.part</code>), renamed when complete; a file
+  that is there already is not converted again (<code>skip_existing</code>).</li>
+<li><strong>record</strong> (<code>page.image</code>, its <code>extra</code>): <code>format</code>, <code>width</code>, <code>height</code>, <code>sha256</code>, <code>pixels_sha256</code>, <code>decoder</code>;
+  <code>encoder</code>, <code>bytes</code>, <code>icc_applied</code>, <code>alpha_flattened</code>, and when present <code>exif_orientation</code>, <code>icc_error</code>,
+  <code>warnings</code>; the delivered image under <code>original</code>, the step under <code>step</code>.</li>
 </ul>
 
 

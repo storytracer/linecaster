@@ -125,6 +125,7 @@ uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
 | 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
 | 📜 `verbatim_txt` per item | the text as printed, for checking against a transcription |
 | 📖 `readable_txt`, `readable_md` per item | reading and training: letterforms folded, hyphens joined, paragraphs flowed |
+| 🖼️ Page images as JPEG, JPEG 2000, PNG or WebP (`pipelines/convert.py`) | publishing and downloads: decoded and encoded on NVIDIA GPUs where the machine has them |
 
 The text as written is always kept; readable text is derived from it. All text is Unicode [NFC]; spelling is never
 modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into
@@ -305,7 +306,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.5.7`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.5.8`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -839,6 +840,7 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 | `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
 | `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
+| `convert.py` | `convert.v1` | page images converted to JPEG, JPEG 2000, PNG or WebP by an image preset, on NVIDIA GPUs where the machine has them |
 
 `linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
 in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve` with the script's models), `ray`
@@ -848,7 +850,7 @@ Each script's page in the [catalog's docs](../catalog/README.md) lists its slots
 
 Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
 itself: linecaster with the extra every pipeline uses (`ray` for `--on ray` and `ray start`) and its engine
-packages; `s3://` paths need no extra (the core
+packages (`convert.py` also `nvimgcodec`: NVIDIA's GPU codecs, used where the machine has a GPU); `s3://` paths need no extra (the core
 installs datatrove's `s3` extra, s3fs). A source is
 declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
 the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
@@ -865,7 +867,7 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 | `tests/test_engines_catalog.py` | 2.14.0 | `linecaster-kraken`'s pin |
 | `pipelines/transcribe_page.py`, `tests/test_page_engines_catalog.py` | 2.14.0 | surya-ocr's (`>=2.7,<3`), not pinned: the version it was locked at |
 | `tools/cuda_probe.py` | 2.14.0 | its own pin: it probes the CUDA build of `linecaster-kraken`'s torch on a Jobs host |
-| `pipelines/transcribe_modular.py`, `transcribe_vlm.py`, `harvest.py`, `bind.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
+| `pipelines/transcribe_modular.py`, `transcribe_vlm.py`, `harvest.py`, `bind.py`, `convert.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
 
 ## Executors and Jobs
 
@@ -1199,7 +1201,7 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
 | servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
-| `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes` | presentation, file handling, memory |
+| `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes`, `.skip_existing`, `.window`, `.initial_window`, `.max_window`, `ImageFolderReader.read_images` | presentation, file handling, memory, how many pages are in flight |
 | server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
 | the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
 
@@ -1892,8 +1894,8 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
 ## Working images (`linecaster.images.convert`)
 
 The working format for converted images is lossless WebP at full resolution (the block `ImageConverter`, preset
-`working-image`); lossy output is never produced. Delivered images used as they are (an access derivative) stay as
-delivered. Pages larger than the size limit go to `rejects/`.
+`working-image`): what the models read is never lossy. Delivered images used as they are (an access derivative) stay
+as delivered. Pages larger than the size limit go to `rejects/`. Other formats for other uses are the next section's.
 
 - **Size limit** (`check_size`): width ≤ 16,383 and height ≤ 16,383 (WebP) and
   width × height ≤ 2 × `PIL.Image.MAX_IMAGE_PIXELS`, read at call time, never changed. 2× is
@@ -1918,6 +1920,36 @@ delivered. Pages larger than the size limit go to `rejects/`.
   checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
   reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in `warnings` (also in the
   page image's `extra`, and logged). A fault that keeps the pixels from being read rejects the page.
+
+## Image conversion (`linecaster.images.transcode`, `linecaster.images.accel`)
+
+Page images for other uses (publishing, downloads) are converted by the same block with an `image.convert.v1` preset
+(`webp-lossy-q80`, `jpeg-q90`, `jp2-lossless`, `png`; `pipelines/convert.py`): JPEG, JPEG 2000, PNG or WebP at full
+resolution, 8-bit sRGB, with the working image's size limit, colour handling and image warnings.
+
+- **Decoding**: JPEG (nvJPEG), JPEG 2000 (nvJPEG2000) and TIFF (nvTIFF) in 8-bit gray or RGB on an NVIDIA GPU where
+  the machine has one and nvImageCodec is installed (`linecaster[nvimgcodec]`, CUDA 13 wheels for aarch64 and
+  x86_64); every other image, and every image on a machine without them, with Pillow. Only nvImageCodec's GPU
+  decoders are allowed, so an image it cannot do on the GPU is decoded by Pillow, never by another CPU library. A
+  GPU decode hands the pixels on in the source's own mode with the ICC profile from the header, and the colour
+  handling above runs after either decoder.
+- **Encoding**: JPEG (nvJPEG) and JPEG 2000 (nvJPEG2000) on the GPU where it can, else with Pillow (libjpeg-turbo,
+  OpenJPEG); PNG and WebP always with Pillow (zlib, libwebp): no GPU library writes them (nvImageCodec only through
+  its CPU OpenCV extension).
+- **Choice**: found out per machine, never configured (`cuda_devices` asks the CUDA driver; nvImageCodec is used
+  when installed). `accel` `auto` takes the GPU where it can, `cpu` never, `gpu` is an error where it cannot. Each
+  image records its `decoder` and `encoder`: a GPU and a CPU decoder can round lossy JPEG and JPEG 2000 differently,
+  and a GPU and a CPU encoder write different bytes at the same quality. `linecaster images compare FILES` decodes
+  images both ways and says how far the pixels differ.
+- **Throughput**: decoding and encoding are stages with windows of their own, adapted by saturate's controller to
+  the pixels per second and cut when memory or open files run short; a GPU decodes what arrives together in one
+  batch. One worker process per GPU (round robin by worker index); the windows' bound divides the CPUs among the
+  workers.
+- **Files**: `<output_folder>/<item>/<page>.<ext>` under a temporary name (`.part`), renamed when complete; a file
+  that is there already is not converted again (`skip_existing`).
+- **record** (`page.image`, its `extra`): `format`, `width`, `height`, `sha256`, `pixels_sha256`, `decoder`;
+  `encoder`, `bytes`, `icc_applied`, `alpha_flattened`, and when present `exif_orientation`, `icc_error`,
+  `warnings`; the delivered image under `original`, the step under `step`.
 
 <!-- docs/reference/catalog.md -->
 
@@ -2970,7 +3002,7 @@ Every public block, by family: one page each with its contract, backends, option
 
 | Block | What it does |
 |---|---|
-| [`ImageConverter`](conversion/ImageConverter.md) | Converts each page's delivered image into the working image with an image engine and writes it. |
+| [`ImageConverter`](conversion/ImageConverter.md) | Converts each page's delivered image with an image engine and writes it, decoding and encoding as many pages at once as keeps the machine busy without overloading it. |
 | [`ImageFetcher`](conversion/ImageFetcher.md) | Loads each page's image again from its address, for the blocks that need pixels. |
 | [`TranscriptionConverter`](conversion/TranscriptionConverter.md) | Reads the transcription file that comes with each page (ALTO, PAGE-XML, hOCR or plain text) into a named transcription. |
 
@@ -3075,6 +3107,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | Pipeline | Slots |
 |---|---|
 | [`bind.v1`](pipelines/bind.v1.md) | recomposition, normalization, composition |
+| [`convert.v1`](pipelines/convert.v1.md) | image |
 | [`harvest.v1`](pipelines/harvest.v1.md) |  |
 | [`transcribe_modular.v1`](pipelines/transcribe_modular.v1.md) | layout, lines, recognition, tables, formulas, typography, recomposition, normalization, composition |
 | [`transcribe_page.v1`](pipelines/transcribe_page.v1.md) | recognition |
@@ -3087,6 +3120,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`chat.v1`](engines/chat.v1.md) | recognition | `linecaster` |
 | [`composition.docling.v1`](engines/composition.docling.v1.md) | composition | `linecaster` |
 | [`falcon.recognition.v1`](engines/falcon.recognition.v1.md) | recognition | `linecaster-services` |
+| [`image.convert.v1`](engines/image.convert.v1.md) | image | `linecaster` |
 | [`image.webp-lossless.v1`](engines/image.webp-lossless.v1.md) | image | `linecaster` |
 | [`indra.recognition.v1`](engines/indra.recognition.v1.md) | recognition | `linecaster-indra` |
 | [`kraken.recognition.v1`](engines/kraken.recognition.v1.md) | recognition | `linecaster-kraken` |
@@ -3157,6 +3191,10 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 
 | Preset | Engine | License |
 |---|---|---|
+| [`jp2-lossless`](presets/image/jp2-lossless.md) | `image.convert.v1` | - |
+| [`jpeg-q90`](presets/image/jpeg-q90.md) | `image.convert.v1` | - |
+| [`png`](presets/image/png.md) | `image.convert.v1` | - |
+| [`webp-lossy-q80`](presets/image/webp-lossy-q80.md) | `image.convert.v1` | - |
 | [`working-image`](presets/image/working-image.md) | `image.webp-lossless.v1` | - |
 
 ### 🔤 Normalization
