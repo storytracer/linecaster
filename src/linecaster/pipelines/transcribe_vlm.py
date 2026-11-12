@@ -33,7 +33,7 @@ server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINF
 change its ``pipeline_sha256``.
 
 --repetition-detection (``--set recognition.repetition_detection=true``) turns on vLLM's repetition detection with
-its defaults (patterns of 4 to 100 tokens repeated 10 times): a completion that loops ends early with
+its defaults (patterns of 8 to 100 tokens repeated 16 times): a completion that loops ends early with
 ``finish_reason`` ``repetition`` (stat ``finish_repetition``) and is not repaired, instead of running to
 ``max_tokens`` and through the repair passes. Only presets served by vLLM 0.17.0 or later take it; it is refused for
 the others, whose servers would ignore it.

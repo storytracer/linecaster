@@ -21,7 +21,7 @@ from linecaster.testing import fake_chat_server
 from linecaster.testing.chat import completion
 
 PRESET = "lightonocr-3-0.8b@3"          # vLLM 0.30.0; repairs at 8192, then 12288
-DEFAULTS = {"min_pattern_size": 4, "max_pattern_size": 100, "min_count": 10}
+DEFAULTS = {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}
 #: page width -> the fake model: finishes, needs more room than 4096 tokens, or loops (which vLLM's check ends)
 STOPS, LONG, LOOPS = 300, 400, 500
 
@@ -76,7 +76,7 @@ def test_fields_over_the_defaults_and_bad_values_refused():
     assert a.sampling["repetition_detection"] == {**DEFAULTS, "min_count": 12}
     a = chat_model(PRESET).apply_overrides({"repetition_detection": {"max_pattern_size": 50},
                                             "repetition_detection.min_pattern_size": 2})
-    assert a.sampling["repetition_detection"] == {"min_pattern_size": 2, "max_pattern_size": 50, "min_count": 10}
+    assert a.sampling["repetition_detection"] == {"min_pattern_size": 2, "max_pattern_size": 50, "min_count": 16}
     for bad in ({"repetition_detection.min_count": 1}, {"repetition_detection.min_pattern_size": 200},
                 {"repetition_detection.window": 3}, {"repetition_detection": "yes"}):
         with pytest.raises(PipelineConfigError, match="repetition_detection"):

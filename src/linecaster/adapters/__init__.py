@@ -51,15 +51,18 @@ class RepetitionDetection(BaseModel):
     """vLLM's repetition detection (``repetition_detection`` of a chat/completions request, ``SamplingParams``): after
     every output token the server tests whether the completion ends with a pattern of ``min_pattern_size`` to
     ``max_pattern_size`` tokens repeated ``min_count`` times in a row (exact token match) and, if so, ends the request
-    with ``finish_reason`` ``repetition``. The defaults (patterns of 4 to 100 tokens, 10 times) stopped every loop of
-    5,010 LightOnOCR-3 completions and no completion that finished (NOTES.md, 2026-11-12): shorter patterns or fewer
-    repeats stop dot leaders, asterisms and rows of empty table cells, and one loop's unit was longer than 50 tokens."""
+    with ``finish_reason`` ``repetition``. The defaults (patterns of 8 to 100 tokens, 16 times) stopped every loop of
+    5,010 LightOnOCR-3 completions and no completion that finished (NOTES.md, 2026-11-12). A unit repeats as every
+    multiple of itself, so a run of one token is stopped after ``min_pattern_size`` x ``min_count`` tokens: 128 here,
+    which leaves room for a long dot leader (4 to 100 tokens 10 times stopped one after 40 dots on a server); shorter
+    patterns or fewer repeats stop dot leaders, asterisms and rows of empty table cells, and one loop's unit was longer
+    than 50 tokens."""
 
     model_config = ConfigDict(extra="forbid")
 
-    min_pattern_size: int = Field(4, ge=1, description="the shortest repeating pattern tested, in tokens")
+    min_pattern_size: int = Field(8, ge=1, description="the shortest repeating pattern tested, in tokens")
     max_pattern_size: int = Field(100, ge=1, description="the longest repeating pattern tested, in tokens")
-    min_count: int = Field(10, ge=2, description="how many times in a row a pattern must repeat")
+    min_count: int = Field(16, ge=2, description="how many times in a row a pattern must repeat")
 
     @model_validator(mode="after")
     def _sizes(self):
@@ -151,7 +154,7 @@ class ChatAdapter:
                                                                  "at e2b0aa5)")
         repetition_detection: RepetitionDetection | StrictBool | None = Field(
             None, description="vLLM's repetition detection (vLLM 0.17.0 and later): true for the defaults (patterns "
-                              "of 4 to 100 tokens repeated 10 times), false off, or its fields; "
+                              "of 8 to 100 tokens repeated 16 times), false off, or its fields; "
                               "repetition_detection.min_count=12 sets one field")
 
     def __init__(self, preset: ChatPreset, served_name: str | None = None):

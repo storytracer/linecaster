@@ -13,8 +13,9 @@ the tags; the first is `v0.1.0`.
   field with `--set recognition.repetition_detection.min_count=12`): sent with every request of a page, repairs
   included, as vLLM's own field. A completion that loops then ends early with `finish_reason` `repetition` (a new
   value of `FINISH_REASONS`), stored as returned, counted (stat `finish_repetition`) and never repaired. Defaults:
-  patterns of 4 to 100 tokens repeated 10 times. Evidence (NOTES.md, 2026-11-12): simulated over 5,010
-  LightOnOCR-3-0.8B completions, they stopped all 15 loops (median 127 tokens) and no completion that finished. Off
+  patterns of 8 to 100 tokens repeated 16 times. Evidence (NOTES.md, 2026-11-12): simulated over 5,010
+  LightOnOCR-3-0.8B completions, they stopped all 15 loops (median 211 tokens) and no completion that finished;
+  4 to 100 tokens 10 times stopped a list of illustrations inside a dot leader on a server. Off
   unless set, so no edition changes; refused unless the preset's server is vLLM 0.17.0 or later (older vLLM and
   other servers ignore an unknown field silently). It is in the step's settings and, as an override,
   `pipeline_sha256`.
