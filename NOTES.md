@@ -38,12 +38,25 @@ make loops rarer, detection only ends a loop that happens anyway. vLLM before 0.
 and other servers ignore an unknown field without a word (vLLM logs it at debug level), so the option is refused
 for them.
 
-Not yet validated on a server (before a preset turns it on): the looping page ending within about 1,000 tokens in a
-few seconds without repairs; no finished page of a 500-page run ending `repetition`, and text differences against an
-`off` run no larger than between two `off` runs; throughput on and off within 2 % at full concurrency (the check runs
-in Python in the scheduler after every token); the simulation over the other VLMs' evidence (dense and empty tables,
-tables of contents, indexes; DeepSeek-OCR and Unlimited-OCR on table pages, since their processors exempt table tags
-and vLLM's check has no exemptions).
+Validated on vLLM 0.30.0 (one server, `--data-parallel-size 4` over 4 RTX A6000, `lightonocr-3-0.8b@3`,
+`transcribe_vlm.py --window 16 --tasks 8 --workers 8`, commit `42254ad`, defaults 4-100 tokens, 10 times):
+
+- The looping page, 5 runs with detection on: it looped in 4, and each loop ended `repetition` after 100 tokens, the
+  page in 1.2 s, no repair (with detection off: 24,576 tokens, about 85 s); the fifth finished by itself.
+- The other 499 pages, runs alternating off, on, off, on: 692, 698, 713 and 710 pages a minute (43, 43, 42 and 42 s;
+  the two `off` runs differ by more than `on` from `off`, so the check's cost is below this measurement's noise).
+- Text: 134 pages differ between the two `off` runs (character difference 1.41 %), 117-129 between an `on` and an
+  `off` run (0.93-1.51 %), 134 between the two `on` runs (1.52 %).
+- **One page that finished in the three other runs ended `repetition` in one `on` run**: a list of illustrations the
+  model wrote as an HTML table in three runs (1,928 characters) and with dot leaders (`. . . .`) in this one, where the
+  check stopped it inside a long dot run after 213 tokens, losing the rest of the page (784 characters). A one-token
+  unit repeated 40 times is also a 4-token pattern repeated 10 times, so `min_pattern_size` 4 does not spare a long
+  dot leader; whether the model would have ended the leader cannot be told from this run.
+
+Still open before a preset turns it on: settings that spare long dot leaders (8-100 tokens and 16 times needs 128
+tokens of the same unit and stopped every loop in the simulation, at 211 tokens median); the simulation over the
+other VLMs' evidence (dense and empty tables, tables of contents, indexes; DeepSeek-OCR and Unlimited-OCR on table
+pages, since their processors exempt table tags and vLLM's check has no exemptions).
 
 ## GPU page decoding in a transcription run (2026-11-12, x86_64 machine with 8 RTX A6000, 124 vCPUs)
 
