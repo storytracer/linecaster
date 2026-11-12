@@ -1042,7 +1042,10 @@ def sample(argv: list[str]) -> None:
 
 def connect_ray(address: str) -> None:
     """Joins the Ray cluster at ``address`` (``--address``: ``auto``, the cluster on this machine or ``RAY_ADDRESS``;
-    ``host:6379``; ``ray://host:10001``), unless this process has joined one already (inside a Ray job)."""
+    ``host:6379``; ``ray://host:10001``), unless this process has joined one already (inside a Ray job). Ray's own
+    ``uv run`` support is off here too (``RAY_UV``): a driver started by ``uv run`` would otherwise start the tasks'
+    workers with ``uv run`` in its folder, so a uv project there replaces the script's environment."""
+    os.environ.setdefault(RAY_UV, "0")
     import ray
 
     if not ray.is_initialized():
