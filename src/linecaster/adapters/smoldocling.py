@@ -26,10 +26,9 @@ def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple
     """RGB, downscaled (LANCZOS) only if the longest side exceeds ``longest``, base64 JPEG; and the size."""
     from PIL import Image
 
-    from ..images import open_image
+    from ..images.pixels import rgb_image
 
-    with open_image(image) as im:
-        img = im.convert("RGB")
+    img = rgb_image(image)
     w, h = img.size
     if max(w, h) > longest:
         scale = longest / max(w, h)

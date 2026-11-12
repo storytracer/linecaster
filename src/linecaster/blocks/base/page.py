@@ -6,9 +6,6 @@ transcription once there is one.
 """
 from __future__ import annotations
 
-import threading
-from collections import OrderedDict
-
 from datatrove.data import Document, Media, MediaType
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
@@ -42,43 +39,35 @@ def image_bytes(doc: Document) -> bytes:
     raise PageError(doc.id, message="it carries no image bytes")
 
 
-def decode_rgb(data: bytes):
+def decode_rgb(data: bytes, accel: str | None = None):
     """The page image as an RGB uint8 array (what every engine backend receives), read-only: decoded once per page and
-    process. The last ``DECODED_KEPT`` decodes are kept by the bytes object they came from (the page's ``media_bytes``,
-    the same object for every block a page passes in a task), so the blocks after the first that needs the image use
-    the same pixels instead of decoding the file again; datatrove's ``Document`` is left as it is (it has slots, and
-    its metadata is written out). ``decodes()`` counts the files actually decoded."""
-    import numpy as np
+    process, on a GPU where the machine has one (``linecaster.images.pixels``; ``accel`` default the process's, which
+    ``use_decoding`` sets). datatrove's ``Document`` is left as it is (it has slots, and its metadata is written out):
+    the decoded pages are kept by their bytes object."""
+    from ...images.pixels import decode_rgb as decode
 
-    from ...images import open_image
-
-    with _DECODED_LOCK:
-        kept = _DECODED.get(id(data))
-        if kept is not None and kept[0] is data:            # the same bytes object: the same page
-            _DECODED.move_to_end(id(data))
-            return kept[1]
-    with open_image(data) as im:
-        pixels = np.asarray(im.convert("RGB"))
-    pixels.setflags(write=False)                            # shared by the blocks after this one: never changed
-    with _DECODED_LOCK:
-        _DECODES[0] += 1
-        _DECODED[id(data)] = (data, pixels)
-        while len(_DECODED) > DECODED_KEPT:
-            _DECODED.popitem(last=False)
-    return pixels
+    return decode(data, accel)
 
 
-#: how many decoded pages a process keeps (``decode_rgb``): a page passes all of a task's in-process blocks before the
-#: next is read, so a few are enough; each is its RGB size (36 MB for 12 megapixels)
-DECODED_KEPT = 4
-_DECODED: OrderedDict[int, tuple[bytes, object]] = OrderedDict()
-_DECODED_LOCK = threading.Lock()
-_DECODES = [0]
+def use_decoding(accel: str) -> None:
+    """Sets this process's page decoding (``linecaster.images.pixels.set_decoding``): ``accel`` (``auto``, ``gpu``,
+    ``cpu``) and, where it may use a GPU, the worker's (one per worker, round robin; on Ray and Jobs a task sees its
+    own GPU only). CUDA is left alone for ``cpu`` and where nvImageCodec is not installed."""
+    from ...broker import _WORKER_INDEX
+    from ...images import accel as hw
+    from ...images.pixels import set_decoding
+
+    device = None
+    if accel != "cpu" and hw.gpu_available():
+        device = hw.device_for((_WORKER_INDEX[0] or (0, 1))[0])
+    set_decoding(accel, device)
 
 
 def decodes() -> int:
-    """How many image files this process has decoded in ``decode_rgb`` (not counting the pages it kept)."""
-    return _DECODES[0]
+    """How many image files this process has decoded (not counting the pages it kept)."""
+    from ...images.pixels import decodes as count
+
+    return count()
 
 
 def failed(doc: Document) -> bool:

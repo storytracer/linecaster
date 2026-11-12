@@ -449,6 +449,7 @@ class PageRecognizer(ModelBlock):
                 r.pop("transcription", None)
                 break
         t = self._record(first_t, p1, repairs)
+        self._record_decoder(t, item.row.get("decoded"))
         sent = [p1, *t.extra["passes"][1:]] if not self.repair_only else t.extra["passes"][1:]
         for key in ("prompt_tokens", "completion_tokens"):
             value = _total(p[key] for p in sent)
@@ -546,7 +547,7 @@ class RegionRecognizer(PageRecognizer):
     def _rows(self, data, results):
         from PIL import Image
 
-        from ...images import open_image
+        from ...images.pixels import decode_pixels, last_decode
 
         for doc in self._passing(data, results):
             page = page_of(doc)
@@ -564,13 +565,15 @@ class RegionRecognizer(PageRecognizer):
                                block=entry["block"], error_type=entry["type"], error=entry["error"])
                 results.put(Passed(doc, "errors"))
                 continue
-            with open_image(data) as im:
-                img = im.convert("RGB")
+            px = decode_pixels(data, self.image_decode)
+            self._decoded(*last_decode())
+            img = Image.fromarray(px.rgb, "RGB")
             longest = self.adapter.page_longest
             scale = longest / max(img.size) if longest else 1.0
             if scale != 1.0:
                 img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), Image.LANCZOS)
-            state = {"doc": doc, "page": page, "image": img, "remaining": len(regions), "out": {}, "scale": scale}
+            state = {"doc": doc, "page": page, "image": img, "remaining": len(regions), "out": {}, "scale": scale,
+                     "decoded": px}
             for r in regions:
                 yield f"{doc.id}|{r.id}", {"doc": doc, "state": state, "region": r}
 
@@ -600,7 +603,8 @@ class RegionRecognizer(PageRecognizer):
                                 backend=self.backend.describe(), settings={**a.settings(), "pad": self.pad,
                                                                            "page_scale": round(state["scale"], 6),
                                                                            "labels": sorted(self.labels)},
-                                measurements={**tokens, "regions": len(regions), "failed": len(failed)}))
+                                measurements={**tokens, "regions": len(regions), "failed": len(failed),
+                                              "decoder": state["decoded"].decoder}))
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
         entry = None

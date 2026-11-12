@@ -24,10 +24,9 @@ from . import ChatAdapter, data_url, png_bytes
 
 def png_full(image: bytes) -> str:
     """RGB at the original size, base64 PNG."""
-    from ..images import open_image
+    from ..images.pixels import rgb_image
 
-    with open_image(image) as im:
-        img = im.convert("RGB")
+    img = rgb_image(image)
     return png_bytes(img)
 
 

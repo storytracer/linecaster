@@ -81,6 +81,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
                    help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
                         "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
+    g.add_argument("--image-decode", choices=["auto", "gpu", "cpu"], default=None,
+                   help="how the model blocks decode page images: auto (on an NVIDIA GPU where the machine has one "
+                        "and linecaster[nvimgcodec] is installed, else Pillow), gpu (an error where none is), cpu "
+                        "(Pillow); default auto. Each step records its decoder")
     g.add_argument("--retry-failed", action="store_true",
                    help="local: finished tasks that left rejects (OUT/rejects) run again; with harvest.py their "
                         "images that are there are read back and only the failed pages fetched")
@@ -900,6 +904,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
                          max_page_errors=getattr(a, "max_page_errors", None),
+                         image_decode=getattr(a, "image_decode", None),
                          trace_sample=getattr(a, "trace_sample", None))
 
 

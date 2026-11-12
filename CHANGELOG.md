@@ -4,6 +4,39 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- Model blocks decode page images on an NVIDIA GPU where the machine has one and `linecaster[nvimgcodec]` is
+  installed (`--image-decode auto`, the default): JPEG, JPEG 2000 and TIFF in 8-bit gray or RGB, for in-process
+  engines, for chat adapters' requests and region crops, and in `linecaster serve`. A GPU rounds a lossy image's
+  pixels differently from Pillow (on test images up to 1 step of 255 for lossy JPEG 2000 and 3 for JPEG; lossless
+  JPEG 2000 is exact), so a page's text can differ slightly from a run that decoded with Pillow; each step names its
+  decoder (measurement `decoder`). `--image-decode cpu` (`build(..., image_decode="cpu")`) keeps Pillow's pixels
+  everywhere, as before; without nvImageCodec nothing changes. The transcription pipeline scripts install
+  `linecaster[nvimgcodec]`.
+- `linecaster.blocks.base.page.DECODED_KEPT` is gone: the decoded pages are kept by `linecaster.images.pixels`
+  (`KEPT`). `decode_rgb(data, accel=None)` takes the decoding as an optional second argument.
+
+### Added
+
+- `linecaster.images.pixels`: page images as engines receive them, plain RGB (`convert("RGB")`, no colour handling)
+  decoded once per process, on the GPU where it can (`decode_pixels` with the decoder and any GPU fallback,
+  `decode_rgb`, `rgb_image` for code that resizes or encodes the page, `set_decoding` for the process's choice and
+  device). Model blocks set it from `image_decode` (`--image-decode`), on the worker's GPU, and count `gpu_decoded`,
+  `cpu_decoded`, `gpu_decode_refused` and `gpu_decode_errors`.
+- `linecaster serve` takes `image_decode` with a request (served blocks send theirs) and records the decoder on the
+  step it returns.
+- Measurement `decoder`: what decoded the page image a step read.
+
+### Changed
+
+- Chat adapters and `RegionRecognizer` build their requests from the shared pixels instead of decoding the file
+  again: a page an in-process block before them decoded is not decoded twice.
+- `linecaster.images.accel.gpu_available` asks the driver only where nvImageCodec is installed: no CUDA call without
+  it.
+
 ## 0.5.13 (2026-11-12)
 
 ### Upgrade notes

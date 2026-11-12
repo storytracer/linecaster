@@ -14,6 +14,22 @@ from linecaster.testing import box, sample_transcription
 from linecaster.testing.markers import pytest_collection_modifyitems, pytest_configure  # noqa: F401 - the hooks
 
 
+@pytest.fixture(autouse=True)
+def pillow_decoding_for_adapters(request):
+    """The adapters' requests are compared with their reference scripts' own, which decode with Pillow: under
+    ``tests/adapters`` pages are decoded with Pillow (``image_decode`` ``cpu``); ``tests/images/test_pixels.py``
+    covers the GPU."""
+    if "adapters" not in request.node.path.parts:
+        yield
+        return
+    from linecaster.images import pixels
+
+    before = pixels.decoding()
+    pixels.set_decoding("cpu")
+    yield
+    pixels.set_decoding(*before)
+
+
 @pytest.fixture
 def transcription() -> Transcription:
     return sample_transcription()

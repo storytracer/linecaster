@@ -17,6 +17,8 @@ MEASUREMENTS: dict[str, str] = {
     "seconds": "wall time of the step on the page, in seconds (the engine's call, in-process or in the server)",
     "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date)",
     "device": "the device the step ran on, e.g. cuda:0 or cpu",
+    "decoder": "what decoded the page image the step read, e.g. nvImageCodec 0.10.0 (GPU 0) or Pillow 12.0.0 / "
+               "OpenJPEG 2.5.4 (linecaster.images.pixels)",
     # vision-language models
     "prompt_tokens": "tokens of the prompt (image and text), summed over the page's requests",
     "completion_tokens": "tokens generated, summed over the page's requests",

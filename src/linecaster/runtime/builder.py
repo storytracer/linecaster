@@ -634,7 +634,7 @@ def _describe_block(e: _Entry, node: Node) -> dict:
 def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
           observers: list[Observer] | None = None, max_page_errors: float | None = None,
-          trace_sample: float | None = None) -> Plan:
+          trace_sample: float | None = None, image_decode: str | None = None) -> Plan:
     """Turns a list of blocks into a checked plan of stages, cut where the stream changes from pages to items.
 
     The builder expands composites, checks the contracts (every part a block reads is added before it, units fit,
@@ -661,6 +661,8 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
         max_page_errors: every page block's error budget, a share of a task's pages; default each block's own
             (0.01).
         trace_sample: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
+        image_decode: how every model block decodes page images (``auto``, ``gpu``, ``cpu``;
+            ``linecaster.images.pixels``); default each block's own (``auto``).
 
     Example:
         from linecaster.blocks.readers import ImageFolderReader
@@ -674,7 +676,8 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
             print(stage.name, stage.tasks, len(stage.pipeline))
     """
     return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
-                  observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample)
+                  observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample,
+                  image_decode=image_decode)
 
 
 def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | None, problems: list[str]):
@@ -693,7 +696,7 @@ def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | No
 
 
 def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
-           observers=None, given: bool = False, max_page_errors=None, trace_sample=None) -> Plan:
+           observers=None, given: bool = False, max_page_errors=None, trace_sample=None, image_decode=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(blocks), problems)
     _converters(entries)
@@ -709,6 +712,10 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         for e in entries:
             if hasattr(e.block, "max_page_errors"):
                 e.block.max_page_errors = max_page_errors
+    if image_decode is not None:
+        for e in entries:
+            if hasattr(e.block, "image_decode"):
+                e.block.image_decode = image_decode
     cut = _cut(entries, tasks, run_folder, problems)
     graph, counter = Graph(), [0]
     analysis = _Analysis(graph, problems, counter)

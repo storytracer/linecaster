@@ -219,13 +219,13 @@ def test_wheels_for_both_machines(script):
 
 def test_pipelines_feed_the_jobs_helper():
     """A Job installs linecaster and the engine packages from the archive at the commit, and the sources the packages
-    declare themselves from the script's lock: the OpenCV stub. linecaster's own requirement has no extra (a Job leaves
-    out ``ray``)."""
+    declare themselves from the script's lock: the OpenCV stub. linecaster's own requirement keeps the script's extras
+    but ``ray``, which a Job leaves out: ``nvimgcodec`` decodes the pages on the Job's GPU."""
     modular, vlm = ROOT / "pipelines/transcribe_modular.py", ROOT / "pipelines/transcribe_vlm.py"
     repo = "https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
     for script in (modular, vlm):
         deps = dependencies("abc123", script).requirements
-        assert deps[0] == f"linecaster @ {repo}"   # an archive, no git (the vLLM image has none)
+        assert deps[0] == f"linecaster[nvimgcodec] @ {repo}"   # an archive, no git (the vLLM image has none)
         assert f"opencv-contrib-python @ {repo}#subdirectory=stubs/opencv-contrib-python" in deps
         assert not any(" @ ." in d or "path" in d for d in deps)
     for script in (modular, vlm):                   # kraken runs in an environment that adds it, not in these
@@ -233,7 +233,7 @@ def test_pipelines_feed_the_jobs_helper():
         assert not any(_name(r) in ("lightning", "torch", "kraken", "linecaster-kraken")
                        for r in d.requirements + d.constraints)
     # without engines: linecaster alone, no engines
-    assert dependencies("abc123", vlm, engines=False).requirements == [f"linecaster @ {repo}"]
+    assert dependencies("abc123", vlm, engines=False).requirements == [f"linecaster[nvimgcodec] @ {repo}"]
 
 
 @pytest.mark.parametrize("script", sorted((ROOT / "pipelines").glob("*.py")), ids=lambda p: p.name)

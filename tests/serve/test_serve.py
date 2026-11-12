@@ -127,3 +127,37 @@ def test_a_served_block_passes_a_failed_page_on_at_once():
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
+
+
+def test_the_server_decodes_as_the_block_asks_and_the_step_names_its_decoder(monkeypatch):
+    """A served block sends its ``image_decode`` with the image; the server decodes the page that way and records the
+    decoder on the step (measurement ``decoder``); a page sent without an image has none."""
+    from saturate.engine import wait_for_health
+
+    import linecaster.serve.app as app_module
+
+    asked = []
+    decode = app_module.decode_pixels
+
+    def recording(raw, accel=None, device=None):
+        asked.append(accel)
+        return decode(raw, accel, device)
+
+    monkeypatch.setattr(app_module, "decode_pixels", recording)
+    port = free_port()
+    loop, runner = serve_in_thread(port)
+    endpoint = f"http://127.0.0.1:{port}/v1"
+    try:
+        wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
+                        poll_interval=0.1)
+        step = TableRecognizer(Served(endpoint, model="tables"))
+        step.image_decode = "cpu"
+        out = {d.id: d for d in step.run(iter([page("with", "table"), page("without", "text")]))}
+        assert asked == ["cpu"]
+        steps = {pid: Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"].steps[-1]
+                 for pid in out}
+        assert steps["with"].measurements["decoder"].startswith("Pillow ")
+        assert "decoder" not in steps["without"].measurements
+    finally:
+        asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
+        loop.call_soon_threadsafe(loop.stop)

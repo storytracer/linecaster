@@ -41,10 +41,9 @@ class PaddleOCRVLAdapter(ChatAdapter):
         """RGB, ``smart_resize`` (LANCZOS) if the size changes, base64 PNG."""
         from PIL import Image
 
-        from ..images import open_image
+        from ..images.pixels import rgb_image
 
-        with open_image(image) as im:
-            img = im.convert("RGB")
+        img = rgb_image(image)
         w, h = img.size
         h_bar, w_bar = self.smart_resize(h, w)
         if (w_bar, h_bar) != (w, h):

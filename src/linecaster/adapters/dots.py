@@ -22,13 +22,14 @@ PASSTHROUGH = {"resize": None, "passthrough": "RGB PNG/JPEG", "else": "RGB PNG"}
 def encode_image(data: bytes) -> tuple[str, str]:
     """``(mime, base64)`` of a page image at full resolution (a PNG without its damaged ancillary chunks)."""
     from ..images import drop_damaged_png_chunks, open_image
+    from ..images.pixels import rgb_image
 
-    data = drop_damaged_png_chunks(data)
-    with open_image(data) as img:
+    clean = drop_damaged_png_chunks(data)
+    with open_image(clean) as img:
         mime = PASSTHROUGH_FORMATS.get(img.format)
         if mime and img.mode == "RGB":
-            return mime, base64.b64encode(data).decode()
-        png = png_encode(img.convert("RGB"))
+            return mime, base64.b64encode(clean).decode()
+    png = png_encode(rgb_image(data))                 # the page's own bytes: its pixels decoded once
     return "image/png", base64.b64encode(png).decode()
 
 

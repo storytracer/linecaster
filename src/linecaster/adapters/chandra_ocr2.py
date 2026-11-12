@@ -80,10 +80,9 @@ class ChandraOCRAdapter(ChatAdapter):
 
     def encode_png(self, image: bytes) -> tuple[str, tuple[int, int]]:
         """RGB, ``scale_to_fit``, base64 PNG; and the size sent."""
-        from ..images import open_image
+        from ..images.pixels import rgb_image
 
-        with open_image(image) as im:
-            img = self.scale(im.convert("RGB"))
+        img = self.scale(rgb_image(image))
         return png_bytes(img), img.size
 
     def request(self, image: bytes) -> dict:

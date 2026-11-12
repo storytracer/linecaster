@@ -117,11 +117,10 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
     def request(self, image: bytes) -> dict:
         """A whole page as one ``text`` region (not how the SDK uses the model; for ``PageRecognizer``)."""
-        from ..images import open_image
+        from ..images.pixels import rgb_image
         from . import png_encode
 
-        with open_image(image) as im:
-            png = png_encode(im.convert("RGB"))
+        png = png_encode(rgb_image(image))
         return self.request_region(png)
 
     def settings(self) -> dict[str, Any]:

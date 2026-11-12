@@ -4,7 +4,8 @@ Stateless: every request carries the page image, the transcription so far and th
 server keeps nothing between requests. Routes:
 
 * ``POST /v1/linecaster/{step}`` — ``{"model", "image" (base64; null for a page the step reads no region of),
-  "transcription", "params", "page_id"}``
+  "image_decode" (``auto``, ``gpu``, ``cpu``: how the server decodes it, ``linecaster.images.pixels``; default
+  ``auto``), "transcription", "params", "page_id"}``
   -> ``{"transcription", "usage", "timing"}``; 429 when the model's queue is full, 404 for an unknown
   model, 422 for a request the model cannot use.
 * ``GET /health`` — 200 once every model is loaded (saturate's ``Engine`` waits for it).
@@ -15,7 +16,8 @@ server keeps nothing between requests. Routes:
 Each model has one worker thread that runs its requests one at a time in arrival order: a page's
 result depends only on the page, and different models (layout, lines, recognition) work on
 different pages at the same time. Image decoding happens in a small thread pool before a request
-joins its model's queue.
+joins its model's queue, on the server's GPU where it has one; the step records its decoder (measurement
+``decoder``).
 
 Tracing: a request that carries a W3C ``traceparent`` (in the body, as linecaster's served blocks send it, or in
 the headers) continues that trace with ``linecaster.serve.decode`` (the image decoded, the transcription read),
@@ -42,7 +44,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.trace import StatusCode
 
 from ..backends import resolve
-from ..blocks.base.page import decode_rgb
+from ..images.pixels import decode_pixels
 from ..data.transcription import Transcription
 from ..tracing import context_of
 
@@ -89,7 +91,7 @@ class Hosted:
     def work(self, loop: asyncio.AbstractEventLoop, tracer=None) -> None:
         tracer = tracer or trace_api.NoOpTracer()
         while True:
-            image, t, params, fut, parent, waiting = self.jobs.get()
+            image, decoder, t, params, fut, parent, waiting = self.jobs.get()
             waiting.end()
             span = tracer.start_span("linecaster.serve.model", context=parent, attributes=self.attributes())
             token = otel_context.attach(trace_api.set_span_in_context(span))      # this thread's logs
@@ -105,6 +107,8 @@ class Hosted:
                     out.steps[-1].preset, out.steps[-1].preset_sha256 = self.preset, self.preset_sha256
                 if out.steps:
                     out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+                    if decoder is not None:
+                        out.steps[-1].measurements.setdefault("decoder", decoder)
                 dumped = out.model_dump(mode="json")
                 result = (200, {"transcription": dumped,
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},
@@ -196,8 +200,10 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
             try:
                 data = body["image"]
                 raw = None if data is None else base64.b64decode(data)
-                image = (raw if raw is None or getattr(h.model, "image_input", "rgb") == "bytes"
-                         else await loop.run_in_executor(pool, decode_rgb, raw))
+                image, decoder = raw, None
+                if raw is not None and getattr(h.model, "image_input", "rgb") != "bytes":
+                    px = await loop.run_in_executor(pool, decode_pixels, raw, body.get("image_decode"))
+                    image, decoder = px.rgb, px.decoder
                 t = Transcription.model_validate(body.get("transcription") or {})
             except Exception as e:
                 decoding.set_status(StatusCode.ERROR)
@@ -207,7 +213,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
                 decoding.end()
             fut = loop.create_future()
             waiting = tracer.start_span("linecaster.serve.queue", context=parent, attributes=attrs)
-            h.jobs.put((image, t, body.get("params") or {}, fut, parent, waiting))
+            h.jobs.put((image, decoder, t, body.get("params") or {}, fut, parent, waiting))
             status, payload = await fut
             if after_first_call is not None and h.name not in first_calls:
                 first_calls.add(h.name)

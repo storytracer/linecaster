@@ -102,7 +102,8 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
     (m,) = long.steps
     assert m.measurements == {"prompt_tokens": 2 * PROMPT_TOKENS, "completion_tokens": 9096, "finish_reason": "stop",
                               "pass_prompt_tokens": [PROMPT_TOKENS, PROMPT_TOKENS],
-                              "pass_completion_tokens": [4096, 5000]}
+                              "pass_completion_tokens": [4096, 5000], "decoder": m.measurements["decoder"]}
+    assert m.measurements["decoder"].startswith("Pillow ")       # the request's pixels (no GPU decodes a PNG)
     assert m.settings["repair"] == {"max_tokens": [8192], "temperature": 0.1} and m.preset == PRESET
     assert m.settings["sampling"] == {"max_tokens": 4096, "temperature": 0.2, "top_p": 0.9}
 
@@ -117,7 +118,7 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
     # a page that stopped by itself is recorded as without the repair pass
     assert "passes" not in stops.extra and "kept" not in stops.extra
     assert stops.steps[0].measurements == {"prompt_tokens": PROMPT_TOKENS, "completion_tokens": 50,
-                                           "finish_reason": "stop"}
+                                           "finish_reason": "stop", "decoder": m.measurements["decoder"]}
     assert stats(step) == {"finish_length": 2, "repair_sent": 2, "repair_stop": 1, "repair_length": 1,
                            "repair_kept": 1}
     assert step.stats["completion_tokens"].total == 50 + 4096 + 5000 + 4096 + 8192
@@ -162,7 +163,7 @@ def test_the_repair_pass_is_off_by_default():
     for page in t.values():
         assert set(page.extra) == {"raw", "finish_reason"}
         (m,) = page.steps
-        assert set(m.measurements) == {"prompt_tokens", "completion_tokens", "finish_reason"}
+        assert set(m.measurements) == {"prompt_tokens", "completion_tokens", "finish_reason", "decoder"}
         assert "repair" not in m.settings
     assert stats(step) == {"finish_length": 2}
     # the run record and the hash: no options over the preset, the same functional block as before the repair pass

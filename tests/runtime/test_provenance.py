@@ -507,3 +507,20 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     assert len(docs) == 3 and base_page.decodes() - before == 3                 # one decode per page, not per block
     assert lines.stats["image_decoded"].total == 3 and recognizer.stats["image_shared"].total == 3
     assert all(not a.flags.writeable for a in seen) and seen[0].shape == (30, 40, 3)
+    for doc in docs:                     # each step names the decoder of the pixels it read (no GPU decodes a PNG)
+        steps = base_page.page_of(doc).transcriptions["ocr_new"].steps
+        assert steps and all(s.measurements["decoder"].startswith("Pillow ") for s in steps)
+    assert lines.stats["cpu_decoded"].total == 3 and recognizer.stats["cpu_decoded"].total == 0       # shared
+
+
+def test_the_builder_sets_every_model_blocks_image_decode():
+    from linecaster.blocks.lines.detector import LineDetector
+    from linecaster.blocks.readers.images import ImageFolderReader
+    from linecaster.blocks.recognition.recognizers import LineRecognizer
+    from linecaster.runtime.builder import build
+
+    blocks = [ImageFolderReader("images"), LineDetector(InProcess("test_provenance:OneLineModel")),
+              LineRecognizer(InProcess("test_provenance:StampModel"))]
+    assert [b.image_decode for b in blocks[1:]] == ["auto", "auto"]
+    build(blocks, image_decode="cpu")
+    assert [b.image_decode for b in blocks[1:]] == ["cpu", "cpu"]

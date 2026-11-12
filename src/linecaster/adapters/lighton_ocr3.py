@@ -26,10 +26,9 @@ PROMPT_MARGIN = 64
 
 def png_thumbnail(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     """RGB, ``thumbnail((longest, longest))`` (downscale only, Pillow's default filter), base64 PNG; and the size."""
-    from ..images import open_image
+    from ..images.pixels import rgb_image
 
-    with open_image(image) as im:
-        img = im.convert("RGB")
+    img = rgb_image(image)
     img.thumbnail((longest, longest))
     return png_bytes(img), img.size
 

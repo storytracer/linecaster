@@ -175,7 +175,7 @@ Each script's page in the [catalog's docs](../catalog/README.md) lists its slots
 
 Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
 itself: linecaster with the extra every pipeline uses (`ray` for `--on ray` and `ray start`) and its engine
-packages (`convert.py` also `nvimgcodec`: NVIDIA's GPU codecs, used where the machine has a GPU); `s3://` paths need no extra (the core
+packages (`convert.py` and the transcription scripts also `nvimgcodec`: NVIDIA's GPU codecs, used where the machine has a GPU); `s3://` paths need no extra (the core
 installs datatrove's `s3` extra, s3fs). A source is
 declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
 the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the

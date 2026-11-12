@@ -235,6 +235,18 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
   0.01), judged from the 100th page on: from then, more errors than `share × pages` fail the task with a
   `PageError` (with the default: two failures in the first 100 pages, three in 300). Fewer pages are too few to
   judge. datatrove reruns a failed task whole.
+- **Page images** (`linecaster.images.pixels`). The model blocks give engines plain 8-bit RGB pixels (Pillow's
+  `convert("RGB")` of the file: no ICC profile applied, no EXIF orientation), decoded once per page and process: the
+  blocks after the first that needs a page's image use the same read-only array (stats `image_decoded`,
+  `image_shared`). `--image-decode` (`ModelBlock.image_decode`, set by the builder) says how: `auto` (the default)
+  decodes JPEG, JPEG 2000 and TIFF in 8-bit gray or RGB on an NVIDIA GPU where the machine has one and
+  `linecaster[nvimgcodec]` is installed, the worker's GPU, everything else with Pillow; `cpu` always with Pillow;
+  `gpu` like `auto`, but a machine without a GPU is an error. A served block sends its choice with the image, and
+  `linecaster serve` decodes there; a chat adapter builds its request from the same pixels. A GPU and Pillow round a
+  lossy image's pixels differently, so a step records its decoder (measurement `decoder`); an image a GPU refuses,
+  or a GPU that fails, is decoded with Pillow (stats `gpu_decoded`, `cpu_decoded`, `gpu_decode_refused`,
+  `gpu_decode_errors`). The option is operational: it is not part of `pipeline_sha256`, since `auto` depends on the
+  machine anyway.
 - **Errors** (`linecaster.errors`): library code raises `PipelineConfigError` (a pipeline, option or input that
   cannot work; `problems` lists them), `CatalogError`, `PageError(page_id, block)` and `ServerError`, all
   `LinecasterError`s, never `SystemExit`; the `linecaster` command and a pipeline script's `main` turn them into

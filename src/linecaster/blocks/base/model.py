@@ -23,8 +23,8 @@ from ...data.page import Page
 from ...data.transcription import Transcription
 from ...errors import CatalogError, PipelineConfigError
 from .contract import Contract, parts
-from .page import (ErrorBudget, PageBlock, decode_rgb, decodes, error_entry, failed, image_bytes, page_of, record_error,
-                   set_page)
+from .page import (ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error,
+                   set_page, use_decoding)
 
 _END = object()
 
@@ -151,6 +151,10 @@ class ModelBlock(PageBlock):
     #: a step that reads only regions with this label gets no image for a page without one (``None``)
     region_label: str | None = None
     prepare_workers: int = 2       # threads building requests ahead of admission (image encoding)
+    #: how page images are decoded (``auto``, ``gpu``, ``cpu``; ``linecaster.images.pixels``), here, in the server a
+    #: served block reaches, or in a chat adapter: the builder sets it from ``--image-decode``. Operational: ``auto``
+    #: depends on the machine anyway, and every step records its decoder (measurement ``decoder``)
+    image_decode: str = "auto"
     results_windows: int = 4       # served: finished results held for the pipeline, in windows
 
     def __init__(self, backend: InProcess | Served | str, transcription: str = "ocr_new", params: dict | None = None,
@@ -179,8 +183,26 @@ class ModelBlock(PageBlock):
 
     def warm_up(self) -> None:
         """The backend's: in-process the engine loads (not on the first page, so a page's measured ``seconds`` never
-        include it); served the client's settings are resolved."""
+        include it); served the client's settings are resolved. The process's page decoding is set (``use_decoding``:
+        ``image_decode``, the worker's GPU)."""
+        use_decoding(self.image_decode)
         self.backend.warm_up()
+
+    def _decoded(self, px, fresh: bool) -> None:
+        """Counts a page image decoded here (``fresh``) or kept from a block before: ``image_decoded`` or
+        ``image_shared``; for a fresh one also ``gpu_decoded`` or ``cpu_decoded``, and ``gpu_decode_refused`` /
+        ``gpu_decode_errors`` where a GPU did not."""
+        self.stat_update("image_decoded" if fresh else "image_shared")
+        if fresh:
+            self.stat_update("gpu_decoded" if px.gpu else "cpu_decoded")
+            if px.fallback:
+                self.stat_update("gpu_decode_refused" if px.fallback == "refused" else "gpu_decode_errors")
+
+    @staticmethod
+    def _record_decoder(t: Transcription, px) -> None:
+        """The decoder of the pixels the step read, on its step record (measurement ``decoder``)."""
+        if px is not None and t.steps:
+            t.steps[-1].measurements.setdefault("decoder", px.decoder)
 
     def needs_image(self, t: Transcription) -> bool:
         return self.region_label is None or any(r.label == self.region_label for r in t.regions)
@@ -190,13 +212,19 @@ class ModelBlock(PageBlock):
         t = page.transcription(self.transcription)
         start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         engine = self.backend.model()
-        image = None
+        image = px = None
         if self.needs_image(t):
-            before = decodes()
-            image = page_image(engine, image_bytes(doc))
-            if getattr(engine, "image_input", "rgb") != "bytes":       # decoded here, or a block before it did
-                self.stat_update("image_decoded" if decodes() != before else "image_shared")
+            data = image_bytes(doc)
+            if getattr(engine, "image_input", "rgb") == "bytes":
+                image = data
+            else:                                                       # decoded here, or a block before it did
+                from ...images.pixels import decode_pixels, last_decode
+
+                px = decode_pixels(data, self.image_decode)
+                image = px.rgb
+                self._decoded(*last_decode())
         out = engine(image, t, **self.params)
+        self._record_decoder(out, px)
         if out.steps:
             out.steps[-1].engine = out.steps[-1].engine or getattr(engine, "engine_id", None)
             out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
@@ -242,8 +270,10 @@ class ModelBlock(PageBlock):
     def _request(self, row: dict) -> dict:
         doc = row["doc"]
         t = page_of(doc).transcription(self.transcription)
+        image = self.needs_image(t)
         return {"model": self.backend.model, "page_id": doc.id,
-                "image": base64.b64encode(image_bytes(doc)).decode("ascii") if self.needs_image(t) else None,
+                "image": base64.b64encode(image_bytes(doc)).decode("ascii") if image else None,
+                **({"image_decode": self.image_decode} if image else {}),
                 "transcription": t.model_dump(mode="json"), "params": self.params}
 
     @staticmethod
@@ -264,6 +294,7 @@ class ModelBlock(PageBlock):
             return
         page = page_of(doc)
         out = item.out["transcription"]
+        self._record_decoder(out, item.row.get("decoded"))
         page.transcriptions[self.transcription] = out
         set_page(doc, page, self.primary)
         measured = out.steps[-1].measurements if out.steps else {}
@@ -308,9 +339,15 @@ class ModelBlock(PageBlock):
         headers = b.request_headers()            # secrets read here, in the task
 
         def request(row: dict) -> dict:       # in saturate's prepare threads
+            from ...images.pixels import forget_last, last_decode
+
             doc, unit = row["doc"], self._unit(row)
             self.notify(doc, "prepare", **unit)
+            forget_last()
             body = self._request(row)
+            if (decoded := last_decode()) is not None:  # the request was built from the pixels (a chat adapter)
+                row["decoded"] = decoded[0]
+                self._decoded(*decoded)
             carrier: dict = {}
             self.notify(doc, "request", carrier=carrier, **unit)
             # saturate sends the same headers with every request: linecaster serve reads the trace context from the

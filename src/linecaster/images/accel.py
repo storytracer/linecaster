@@ -54,7 +54,12 @@ ACCEL = ("auto", "gpu", "cpu")
 
 @cache
 def cuda_devices() -> int:
-    """How many CUDA devices the driver sees (``CUDA_VISIBLE_DEVICES`` applies); 0 without an NVIDIA driver."""
+    """How many CUDA devices the driver sees (``CUDA_VISIBLE_DEVICES`` applies); 0 without an NVIDIA driver, and 0 in a
+    process forked after its parent initialized CUDA (CUDA does not work across ``fork``: such a process decodes and
+    encodes with Pillow)."""
+    if _FORKED_AFTER_CUDA[0]:
+        return 0
+    _CUDA_STARTED[0] = True
     for name in ("libcuda.so.1", "libcuda.so", "nvcuda.dll"):
         try:
             lib = ctypes.CDLL(name)
@@ -80,7 +85,7 @@ def nvimgcodec():
 
 def gpu_available() -> bool:
     """Whether images can be decoded and encoded on a GPU here: a CUDA device and nvImageCodec."""
-    return cuda_devices() > 0 and nvimgcodec() is not None
+    return nvimgcodec() is not None and cuda_devices() > 0      # no CUDA call without the package
 
 
 def use_gpu(accel: str, supported: bool) -> bool:
@@ -273,6 +278,23 @@ def available(loaded: Sequence[str], wanted: Sequence[str]) -> list[str]:
 _SAID: set[tuple[str, ...]] = set()
 _CODECS: dict[int, GpuCodec] = {}
 _CODECS_LOCK = threading.Lock()
+_CUDA_STARTED = [False]            # this process called cuInit
+_FORKED_AFTER_CUDA = [False]       # this process was forked from one that had
+
+
+def _after_fork() -> None:
+    """In a forked child: a parent that started CUDA leaves the child without it (the GPU there is Pillow's)."""
+    global _CODECS_LOCK
+    if _CUDA_STARTED[0]:
+        _FORKED_AFTER_CUDA[0] = True
+        cuda_devices.cache_clear()
+        _CODECS.clear()
+        _CODECS_LOCK = threading.Lock()
+        logger.debug("forked after CUDA started: images are decoded and encoded with Pillow in this process")
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_after_fork)
 
 
 def gpu_codec(device: int) -> GpuCodec:
