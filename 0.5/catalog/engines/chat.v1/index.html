@@ -914,7 +914,7 @@ loop, which a repair does not end, but a dense table can simply need more tokens
 <td><code>repair_max_tokens</code></td>
 <td><code>int</code></td>
 <td><code>0</code></td>
-<td>the repair pass: a page whose completion stopped at max_tokens is sent once more with this cap (0: off; larger than max_tokens; 8192 is the reference script's suggestion for LightOnOCR-3)</td>
+<td>the repair pass: a page whose completion stopped at max_tokens is sent once more with this cap (0: off; larger than max_tokens; the reference script suggests 8192 for LightOnOCR-3, lightonocr-3-0.8b@3 sets 12288)</td>
 </tr>
 <tr>
 <td><code>repair_temperature</code></td>
