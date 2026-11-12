@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.5.11 (2026-11-12)
 
 ### Fixed
 
@@ -17,7 +17,8 @@ the tags; the first is `v0.1.0`.
   failure and counted, not logged per page.
 - Ctrl-C: after the summary and the cleanup (workers ended, unfinished tasks reported), a run prints no traceback and
   ends by SIGINT (`run.main`), so a shell loop around `python pipelines/<script>.py ...` stops; a second Ctrl-C ends
-  it at once. Under `uv run` the loop still goes on: uv turns the signal into exit code 130 (astral-sh/uv#11886);
+  it at once. A pool's worker processes ignore SIGINT from their first task on (the terminal sends it to all of them;
+  one waiting for its next task printed a traceback of its own): the main process ends them, as before. Under `uv run` the loop still goes on: uv turns the signal into exit code 130 (astral-sh/uv#11886);
   `trap 'exit 130' INT` before the loop stops it.
 
 ## 0.5.10 (2026-11-12)

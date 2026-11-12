@@ -118,6 +118,19 @@ def blocks(pipeline) -> list[str]:
     return [block_label(getattr(step, "block", step)) for step in pipeline if not isinstance(step, Boundary)]
 
 
+def ignore_ctrl_c_in_workers() -> None:
+    """In a pool's worker process, SIGINT is ignored from its first task on: a terminal sends Ctrl-C to the whole
+    process group, and the main process alone handles it (it ends the workers, says what runs again and ends by the
+    signal, ``linecaster.runtime.run.interrupted``); a worker waiting for its next task would otherwise print a
+    traceback of its own. A run without a pool (one worker, in the main process) keeps it."""
+    import signal
+
+    import multiprocess
+
+    if multiprocess.current_process().name != "MainProcess":
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 class LocalExecutor(LocalPipelineExecutor):
     """``LocalPipelineExecutor`` whose console is linecaster's: ``title`` names the run on it, ``out`` is the run
     folder the summary points at, and ``reader`` (a block with ``task_pages(rank, world_size)``, optional) gives the
@@ -155,6 +168,7 @@ class LocalExecutor(LocalPipelineExecutor):
         stack_dumps()
         from ..broker import set_worker_index
 
+        ignore_ctrl_c_in_workers()
         set_worker_index(local_rank, self.workers)   # the pool's worker index: the broker's slot search starts there
         if rank in self._retry:                  # a fresh rejects file, or none if no page fails this time
             self._remove_rejects(rank)
