@@ -43,13 +43,14 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
 `linecaster>=0.1,<0.6` then hold: every release inside them keeps what worked.
 
 - **Breaking changes are collected, not released one by one.** They are made on a branch and released together as
-  one minor when the maintainer asks for one. `main` carries only
+  one minor, proposed when the branch's work is finished. `main` carries only
   patch-level changes, so a fix can go out as a patch at any time.
 - **A minor needs something users must change:** its upgrade notes name it. A release with nothing to change is a
   patch.
-- **When:** when the maintainer decides, typically at a milestone a user or derivative is waiting for; never one
-  per piece of work or per commit. Finished work is merged into `main` and collects in `CHANGELOG.md`'s Unreleased
-  section until then. A commit that changes only the README is no release.
+- **When:** when the maintainer decides; never one per piece of work or per commit. Finished work is merged into
+  `main` and collects in `CHANGELOG.md`'s Unreleased section until then. A release is proposed to the maintainer
+  when it is due: the latest release is wrong or incomplete where its users meet it, a user or derivative needs what
+  only `main` has, or Unreleased holds a finished piece of work. A commit that changes only the README is no release.
 - **How:** the version in `pyproject.toml` and `linecaster.__version__` (`tests/test_version.py` checks they agree),
   `CHANGELOG.md`'s Unreleased section as `## <version> (<date>)`, the scripts relocked, an annotated tag
   `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)

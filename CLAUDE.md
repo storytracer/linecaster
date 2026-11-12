@@ -163,14 +163,17 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Releases
 
-- **A release is made when the maintainer asks for one, by
-  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**; the agent may propose one at a
-  milestone a user or derivative is waiting for, but never releases at the end of each piece of work. Finished work
-  is merged into `main` and collects under Unreleased in CHANGELOG.md, and patches are the rule. A version that moves
-  with every change tells derivatives nothing.
-- **Breaking changes wait on a branch and go out together as one minor** when the maintainer asks; `main` carries
-  only patch-level changes. A minor names in its upgrade notes what users must
-  change. The version should move slowly.
+- **The maintainer decides each release, and the agent asks unprompted when one is due**, by
+  [versions and releases](docs/reference/compatibility.md#versions-and-releases); it never releases on its own and
+  never at the end of each piece of work. Finished work is merged into `main` and collects under Unreleased in
+  CHANGELOG.md, and patches are the rule. A release is due when the latest one is wrong or incomplete where its users
+  meet it (a released edition fixed, a bug in released code), when a user or derivative needs what only `main` has, or
+  when Unreleased holds a finished piece of work; the agent then asks at the end of that task, naming what Unreleased
+  holds and the version it would get. A version that moves with every change tells derivatives nothing, and one that
+  lags leaves them on known bugs.
+- **Breaking changes wait on a branch and go out together as one minor**; the agent asks when the branch's work is
+  finished, and `main` carries only patch-level changes. A minor names in its upgrade notes what users must change.
+  The version should move slowly.
 - **Never 1.0.0 without the maintainer's word.** It is a promise of deprecation periods.
 
 ## Working style
