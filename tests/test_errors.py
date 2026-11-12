@@ -10,7 +10,8 @@ from linecaster.errors import CatalogError, LinecasterError, PageError, Pipeline
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "linecaster"
 #: where an error becomes an exit code: the ``linecaster`` command and a pipeline script's ``main``
-COMMAND_LINE = {("cli.py", None), ("runtime/run.py", "main"), ("runtime/run.py", "recipe")}
+COMMAND_LINE = {("cli.py", None), ("runtime/run.py", "main"), ("runtime/run.py", "recipe"),
+                ("runtime/run.py", "interrupted")}          # main's end after a Ctrl-C
 
 
 def test_the_hierarchy():

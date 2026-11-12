@@ -283,9 +283,11 @@ class ImageConverter(Contracted, PipelineStep):
                 extra[k] = info[k]
         for step, why in (info.get("gpu_fallback") or {}).items():
             self.stat_update(f"gpu_{step}_refused" if why == "refused" else f"gpu_{step}_errors")
-            if why != "refused":                  # the GPU failed, not the file: worth seeing
-                logger.warning("page {page_id}: the GPU could not {step} it, the CPU did: {why}", page_id=doc.id,
-                               step=step, why=why)
+            if why != "refused" and (step, why) not in _GPU_ERRORS_SAID:   # the GPU failed, not the file: said once
+                _GPU_ERRORS_SAID.add((step, why))
+                logger.warning("page {page_id}: the GPU could not {step} it, the CPU did: {why} (pages failing the "
+                               "same way are counted, gpu_{step}_errors, not logged)", page_id=doc.id, step=step,
+                               why=why)
         if info.get("warnings"):
             self.stat_update("image_warnings")
             logger.warning("page {page_id}: converted, with image warnings: {warnings}", page_id=doc.id,
@@ -439,6 +441,8 @@ class ImageConverter(Contracted, PipelineStep):
                 _REACHED.update({name: limit.limit for name, limit in limits.items()})
 
 
+#: the GPU failures this process has logged (step, reason): each once, the others counted
+_GPU_ERRORS_SAID: set[tuple[str, str]] = set()
 #: the converter's stages, in order, each with a window of its own
 STAGES = ("fetch", "decode", "encode", "write")
 #: the stages that wait on storage or the network, not on a processor: their windows have a bound of their own

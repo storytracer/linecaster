@@ -1247,3 +1247,24 @@ def main(script: str, description: str | None, options: Callable, models: Callab
     except LinecasterError as e:            # the command line's exit code (2: nothing launched); every problem listed
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))
+    except KeyboardInterrupt:               # Ctrl-C: the executor has said what stopped and what runs again
+        interrupted()
+
+
+def interrupted() -> None:
+    """Ends this process by SIGINT, after a Ctrl-C the run's executor has handled (its summary, its unfinished tasks,
+    its workers ended): no traceback, and the exit status a shell reads as killed by Ctrl-C (130, ``-2`` for a parent
+    process), so a shell loop around the command stops. A second Ctrl-C from here on ends it at once. A run started by
+    ``uv run`` still ends with exit code 130 and does not stop a shell loop: uv maps a child's signal to an exit code
+    (astral-sh/uv#11886); ``trap 'exit 130' INT`` in the loop stops it."""
+    import signal
+
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except Exception:  # noqa: BLE001 - a closed stream: nothing left to say
+            pass
+    if hasattr(signal, "SIGKILL"):          # POSIX: the signal itself
+        os.kill(os.getpid(), signal.SIGINT)
+    sys.exit(130)                           # elsewhere, or if the signal did not end it

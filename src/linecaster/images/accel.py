@@ -15,15 +15,29 @@ and ``linecaster.images.transcode`` falls back to Pillow for that too.
 
 ``GpuCodec`` is one device's decoder and encoder, shared by the threads of a process: calls that arrive together are
 decoded (encoded) in one batch (``Batcher``), which is how nvImageCodec keeps a GPU busy.
+
+nvImageCodec prints nothing (``PYNVIMGCODEC_VERBOSITY=0``, set before it is imported unless the environment sets it,
+e.g. ``PYNVIMGCODEC_VERBOSITY=2`` for its errors and warnings again): it logs every image a decoder rejects at ERROR
+severity (``[nvjpeg2k_decoder] Could not decode jpeg2k code stream``, ``[pynvimgcodec] Something went wrong during
+decoding image #0``), only verbosity 0 silences that, and the rejection is linecaster's to record
+(``linecaster.images.transcode``: ``gpu_fallback``, counted). What fails beyond one image surfaces as a Python error,
+which linecaster logs: a decoder or encoder that did not load is said once when a ``GpuCodec`` starts, and a GPU that
+fails raises.
 """
 from __future__ import annotations
 
 import ctypes
 import threading
 import time
+import os
 from collections.abc import Callable, Sequence
 from functools import cache
 from typing import Any
+
+from loguru import logger
+
+#: nvImageCodec's verbosity unless the environment sets one: 0 prints nothing (see the module docstring)
+VERBOSITY_ENV, QUIET = "PYNVIMGCODEC_VERBOSITY", "0"
 
 #: nvImageCodec's GPU decoders (``nvidia.nvimgcodec.get_decoder_ids()``): JPEG, lossless JPEG, JPEG 2000, TIFF
 GPU_DECODERS = ("nvjpeg_cuda_decoder", "nvjpeg_lossless_decoder", "nvjpeg2k_decoder", "nvtiff_cuda_decoder")
@@ -56,6 +70,7 @@ def cuda_devices() -> int:
 @cache
 def nvimgcodec():
     """The ``nvidia.nvimgcodec`` module, or None when it is not installed (or does not load)."""
+    os.environ.setdefault(VERBOSITY_ENV, QUIET)           # read when the module loads
     try:
         import nvidia.nvimgcodec as nvc
     except Exception:  # noqa: BLE001 - not installed, or its libraries do not load: the CPU then
@@ -159,8 +174,12 @@ class GpuCodec:
         if nvc is None:
             raise RuntimeError("nvImageCodec is not installed (pip install 'linecaster[nvimgcodec]')")
         self.nvc, self.device = nvc, device
-        self.decoder = nvc.Decoder(device_id=device, decoder_ids=list(GPU_DECODERS))
-        self.encoder = nvc.Encoder(device_id=device, encoder_ids=list(GPU_ENCODERS))
+        decoders, encoders = available(nvc.get_decoder_ids(), GPU_DECODERS), available(nvc.get_encoder_ids(), GPU_ENCODERS)
+        if not decoders:
+            raise RuntimeError("nvImageCodec has none of its GPU decoders here (nvJPEG, nvJPEG2000, nvTIFF did not "
+                               "load)")
+        self.decoder = nvc.Decoder(device_id=device, decoder_ids=decoders)
+        self.encoder = nvc.Encoder(device_id=device, encoder_ids=encoders) if encoders else None
         self._decode = Batcher(self._decode_batch)
         self._encode: dict[tuple, Batcher] = {}
         self._encode_lock = threading.Lock()
@@ -210,6 +229,8 @@ class GpuCodec:
             fmt: ``jpg`` or ``jp2``.
             params: the format's settings.
         """
+        if self.encoder is None:
+            return None
         key = (fmt, tuple(sorted(params.items())))
         with self._encode_lock:
             batcher = self._encode.get(key)
@@ -237,6 +258,19 @@ class GpuCodec:
         return [bytes(e) if e is not None else None for e in encoded]
 
 
+def available(loaded: Sequence[str], wanted: Sequence[str]) -> list[str]:
+    """The ``wanted`` GPU implementations nvImageCodec has loaded (``get_decoder_ids()``/``get_encoder_ids()``); the
+    missing ones are said once (a library that did not load: its formats go to the CPU)."""
+    have = [w for w in wanted if w in set(loaded)]
+    missing = [w for w in wanted if w not in set(loaded)]
+    if missing and tuple(missing) not in _SAID:
+        _SAID.add(tuple(missing))
+        logger.warning("nvImageCodec: {missing} not available here; what they would do runs on the CPU",
+                       missing=", ".join(missing))
+    return have
+
+
+_SAID: set[tuple[str, ...]] = set()
 _CODECS: dict[int, GpuCodec] = {}
 _CODECS_LOCK = threading.Lock()
 

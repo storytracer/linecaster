@@ -21,6 +21,13 @@ of a task skips its files written already; with --on ray each task reserves its 
 of the CPUs (--cpus-per-task) and, where GPUs decode, one GPU; the image files are read in the stages, many at once, not by the reader. A run into the same
 OUT resumes: finished tasks are skipped, and within a task an image whose file is there already is not converted
 again (``--overwrite`` converts it again). Files are written under a temporary name and renamed when complete.
+
+An image the GPU does not decode (nvJPEG2000 rejects some JPEG 2000 code streams, e.g. with the vertically causal
+context) is decoded on the CPU and counted (``gpu_decode_refused``; ``gpu_fallback`` in its record); nvImageCodec
+itself prints nothing about it (``PYNVIMGCODEC_VERBOSITY=0`` unless the environment sets it). A GPU that fails is
+logged once per kind of failure and counted (``gpu_decode_errors``). Ctrl-C stops the run: the summary says what
+runs again on the next launch, and the process ends by the signal. Under ``uv run`` a shell loop still goes on
+(uv turns the signal into exit code 130, astral-sh/uv#11886): ``trap 'exit 130' INT`` before the loop stops it.
 """
 from ..blocks.conversion.images import ImageConverter
 from ..errors import PipelineConfigError

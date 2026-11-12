@@ -364,9 +364,12 @@ class BrokenGpu(FakeGpu):
 
 def test_whatever_keeps_the_gpu_from_an_image_the_cpu_does_and_says_why(monkeypatch, tmp_path):
     """A file the GPU rejects and a GPU that fails both fall back to Pillow, recorded as ``gpu_fallback``; the block
-    counts them and logs the failures; ``accel=gpu`` makes both an error."""
+    counts them and logs each kind of failure once; ``accel=gpu`` makes both an error."""
+    from linecaster.blocks.conversion import images as block_module
+
     monkeypatch.setattr(accel, "gpu_available", lambda: True)
     monkeypatch.setattr(accel, "gpu_codec", lambda device: BrokenGpu())
+    monkeypatch.setattr(block_module, "_GPU_ERRORS_SAID", set())
     gray, rgb = _encode(_noise("L"), "JPEG2000"), _encode(_noise(), "JPEG2000")
     refused, failed = transcode.decode(gray, "auto"), transcode.decode(rgb, "auto")
     assert refused.decoder.startswith("Pillow ") and refused.notes["gpu_fallback"] == {"decode": "refused"}
@@ -390,7 +393,7 @@ def test_whatever_keeps_the_gpu_from_an_image_the_cpu_does_and_says_why(monkeypa
     assert [d.id for d in docs if not d.metadata.get("errors")] == ["b_0", "b_1"]      # b_bad: not an image at all
     assert page_of(docs[0]).image.extra["gpu_fallback"]["decode"].startswith("error:")
     assert block.stats["gpu_decode_errors"].total == 2 and block.stats["gpu_encode_errors"].total == 2
-    assert sum("the GPU could not decode it, the CPU did" in m for m in lines) == 2
+    assert sum("the GPU could not decode it, the CPU did" in m for m in lines) == 1      # said once, counted twice
 
 
 def logger_add(lines: list):
@@ -431,3 +434,56 @@ def test_pillow_decodes_one_jpeg_2000_image_at_a_time_per_process(monkeypatch):
     for t in threads:
         t.join()
     assert most["jp2"] == 1 and most["jpg"] > 1
+
+
+def test_nvimgcodec_prints_nothing_unless_the_environment_says_otherwise(monkeypatch):
+    """linecaster sets nvImageCodec's verbosity to 0 before importing it (a value given in the environment wins), and
+    a GPU decoder or encoder that did not load is said once by linecaster."""
+    import os
+
+    from loguru import logger
+
+    assert accel.nvimgcodec is not None
+    monkeypatch.delenv("PYNVIMGCODEC_VERBOSITY", raising=False)
+    accel.nvimgcodec.cache_clear()
+    accel.nvimgcodec()
+    assert os.environ["PYNVIMGCODEC_VERBOSITY"] == "0"
+    monkeypatch.setenv("PYNVIMGCODEC_VERBOSITY", "2")
+    accel.nvimgcodec.cache_clear()
+    accel.nvimgcodec()
+    assert os.environ["PYNVIMGCODEC_VERBOSITY"] == "2"
+    accel.nvimgcodec.cache_clear()
+
+    lines = []
+    sink = logger.add(lambda m: lines.append(m.record["message"]), level="WARNING")
+    monkeypatch.setattr(accel, "_SAID", set())
+    try:
+        for _ in range(2):
+            got = accel.available(["nvjpeg_cuda_decoder", "libjpeg_turbo_decoder"], accel.GPU_DECODERS)
+    finally:
+        logger.remove(sink)
+    assert got == ["nvjpeg_cuda_decoder"]
+    assert len(lines) == 1 and "nvjpeg2k_decoder" in lines[0] and "runs on the CPU" in lines[0]
+
+
+@needs_gpu
+def test_on_a_real_gpu_a_rejected_jpeg_2000_prints_nothing_and_is_recorded(tmp_path):
+    """A code stream nvJPEG2000 rejects (code-block style 0x08, the vertically causal context, set in the COD marker
+    of a generated JPEG 2000): nothing from nvImageCodec on stdout or stderr, the fallback recorded."""
+    import subprocess
+    import sys
+
+    data = bytearray(_encode(_noise("L", size=(64, 64)), "JPEG2000"))
+    cod = data.index(b"\xff\x52")
+    data[cod + 12] = 0x08                                     # code-block style: vertically causal context
+    (tmp_path / "vsc.jp2").write_bytes(bytes(data))
+    code = ("import json, sys; from linecaster.images import transcode as t\n"
+            "d = t.decode(open(sys.argv[1], 'rb').read(), 'auto')\n"
+            "print(json.dumps({'decoder': d.decoder, 'fallback': d.notes.get('gpu_fallback')}))")
+    done = subprocess.run([sys.executable, "-c", code, str(tmp_path / "vsc.jp2")], capture_output=True, text=True,
+                          env={k: v for k, v in __import__("os").environ.items() if k != "PYNVIMGCODEC_VERBOSITY"})
+    assert done.stderr == "", done.stderr
+    import json
+
+    out = json.loads(done.stdout)
+    assert out["fallback"] == {"decode": "refused"} and out["decoder"].startswith("Pillow ")

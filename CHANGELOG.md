@@ -4,6 +4,22 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- nvImageCodec prints nothing for an image its GPU decoder rejects: linecaster sets `PYNVIMGCODEC_VERBOSITY=0` before
+  importing it (a value in the environment wins, e.g. 2 for its errors and warnings). nvJPEG2000 logs each rejection
+  at ERROR severity (`[nvjpeg2k_decoder] Could not decode jpeg2k code stream - nvjpeg2k error #4 (Jpeg not
+  supported)`, `[pynvimgcodec] Something went wrong during decoding image #0`), so only 0 silences it; the rejection
+  stays recorded and counted by linecaster (`gpu_fallback`, `gpu_decode_refused`). A GPU decoder or encoder that did
+  not load is said once by linecaster (its formats go to the CPU), and a failing GPU is logged once per kind of
+  failure and counted, not logged per page.
+- Ctrl-C: after the summary and the cleanup (workers ended, unfinished tasks reported), a run prints no traceback and
+  ends by SIGINT (`run.main`), so a shell loop around `python pipelines/<script>.py ...` stops; a second Ctrl-C ends
+  it at once. Under `uv run` the loop still goes on: uv turns the signal into exit code 130 (astral-sh/uv#11886);
+  `trap 'exit 130' INT` before the loop stops it.
+
 ## 0.5.10 (2026-11-12)
 
 ### Added
