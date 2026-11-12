@@ -10,10 +10,9 @@
 from __future__ import annotations
 
 import base64
-import io
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url
+from . import ChatAdapter, data_url, png_encode
 
 #: formats sent byte-for-byte when the image is already RGB
 PASSTHROUGH_FORMATS = {"PNG": "image/png", "JPEG": "image/jpeg"}
@@ -29,9 +28,8 @@ def encode_image(data: bytes) -> tuple[str, str]:
         mime = PASSTHROUGH_FORMATS.get(img.format)
         if mime and img.mode == "RGB":
             return mime, base64.b64encode(data).decode()
-        buf = io.BytesIO()
-        img.convert("RGB").save(buf, format="PNG")
-    return "image/png", base64.b64encode(buf.getvalue()).decode()
+        png = png_encode(img.convert("RGB"))
+    return "image/png", base64.b64encode(png).decode()
 
 
 class DotsAdapter(ChatAdapter):

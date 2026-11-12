@@ -29,7 +29,6 @@ of aligned text blocks into one composite crop (``merge_blocks``).
 from __future__ import annotations
 
 import base64
-import io
 import json
 from typing import Any, ClassVar
 
@@ -118,12 +117,12 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
     def request(self, image: bytes) -> dict:
         """A whole page as one ``text`` region (not how the SDK uses the model; for ``PageRecognizer``)."""
-        buf = io.BytesIO()
         from ..images import open_image
+        from . import png_encode
 
         with open_image(image) as im:
-            im.convert("RGB").save(buf, format="PNG")
-        return self.request_region(buf.getvalue())
+            png = png_encode(im.convert("RGB"))
+        return self.request_region(png)
 
     def settings(self) -> dict[str, Any]:
         return {**super().settings(), "mm_processor_kwargs": self.mm_processor_kwargs,

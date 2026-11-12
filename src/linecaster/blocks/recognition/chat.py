@@ -533,13 +533,11 @@ class RegionRecognizer(PageRecognizer):
     # cannot go along: saturate sends the same headers with every request, and a chat server reads it from the
     # headers only
     def _request(self, row: dict) -> dict:
-        import io
+        from ...adapters import png_encode
 
         state, region = row["state"], row["region"]
         crop = self.adapter.crop_region(state["image"], region, state["scale"], self.pad)
-        buf = io.BytesIO()
-        crop.save(buf, format="PNG")
-        return self.adapter.request_region(buf.getvalue(), region)
+        return self.adapter.request_region(png_encode(crop), region)
 
     def _parse(self, body: dict) -> dict:
         raw, finish = self.adapter.content(body)

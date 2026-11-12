@@ -2,6 +2,12 @@
 
 Measurements, decisions and open questions, newest first.
 
+## PNG level for VLM requests (2026-11-12, aarch64 GB10 machine)
+
+8 page scans thumbnailed to 2,048 px (as `lightonocr-3-0.8b`'s requests), Pillow PNG encoding: level 6 (Pillow's
+default) 637 ms/page and 3.01 MB, level 3 216 ms and 3.14 MB, level 1 147 ms and 3.30 MB, level 0 70 ms and 7.00 MB;
+every level decodes to the same pixels. Requests now use level 1 (`PNG_LEVEL`): the PNG only travels to the server.
+
 ## libwebp's method in a whole conversion (2026-11-12, x86_64 machine with 8 RTX A6000, 124 vCPUs)
 
 `convert.py --preset webp-lossy-q80 --set image.method=M` (linecaster 0.5.11) on the same sample of 10,000 lossy JPEG

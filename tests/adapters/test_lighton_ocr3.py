@@ -58,7 +58,9 @@ def test_request_thumbnails_to_2048(size, expected):
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA")])
 def test_request_image_bytes_equal_the_reference(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    assert sent_png(chat_model("lightonocr-3-0.8b").request(data)) == reference_encode_png(data)
+    sent, reference = sent_png(chat_model("lightonocr-3-0.8b").request(data)), reference_encode_png(data)
+    with Image.open(io.BytesIO(sent)) as a, Image.open(io.BytesIO(reference)) as b:   # zlib's level differs, the
+        assert a.size == b.size and a.mode == b.mode and a.tobytes() == b.tobytes()  # pixels are the reference's
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))

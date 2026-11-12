@@ -352,11 +352,21 @@ def data_url(mime: str, b64: str) -> dict:
     return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
 
 
-def png_bytes(img) -> str:
-    """Base64 PNG of a Pillow image."""
+#: zlib's level for the PNGs a request sends: lossless at any level (the server decodes the same pixels); 1 encodes a
+#: 2,048-px page 4.3 times faster than Pillow's default 6 for about 10 % more bytes (NOTES.md, 2026-11-12)
+PNG_LEVEL = 1
+
+
+def png_encode(img) -> bytes:
+    """A Pillow image as PNG (``PNG_LEVEL``)."""
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode()
+    img.save(buf, format="PNG", compress_level=PNG_LEVEL)
+    return buf.getvalue()
+
+
+def png_bytes(img) -> str:
+    """Base64 PNG of a Pillow image (``PNG_LEVEL``)."""
+    return base64.b64encode(png_encode(img)).decode()
 
 
 def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:

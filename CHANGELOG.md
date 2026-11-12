@@ -15,6 +15,9 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- The PNGs a VLM request sends (whole pages, region crops) are encoded at zlib level 1 instead of Pillow's default 6:
+  lossless either way, so the server decodes the same pixels and no edition changes; a 2,048-px page encodes 4.3
+  times faster (147 against 637 ms) for about 10 % more bytes (`linecaster.adapters.PNG_LEVEL`).
 - `webp-lossy-q80@3`: method 4. Evidence (NOTES.md, 2026-11-12): a whole conversion of 10,000 lossy JPEG 2000 page
   scans (GPU decoding, 8 RTX A6000, 124 vCPUs, network mount) ran at 100 pages/s with method 4 against 133-138 with
   methods 1-2, for median files of 402 KB against 415-485 KB and the best PSNR (41.61 dB); on 40 pages method 0 gave
