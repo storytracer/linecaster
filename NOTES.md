@@ -25,6 +25,26 @@ Measurements, decisions and open questions, newest first.
 - **Pillow's JPEG 2000 decoder holds Python's GIL**: 4.6 pages/s with one thread, 4.3 with eight (WebP encoding
   scales: 2.6 to 17.6). A CPU conversion therefore runs one worker process per CPU; with GPU decoding one per GPU
   is enough (the GPU decodes and libwebp encodes in threads).
+- **x86_64 machine with 8 RTX A6000 and 124 vCPUs (AMD EPYC 7513), the same conversion** of 2,000 lossy JPEG 2000
+  page scans on a network mount (read once before, so every run reads from the page cache), output to the same mount:
+
+  | Run | Workers, tasks | Time | Pages/s |
+  |---|---|---|---|
+  | Pillow + libwebp in a process pool (the simplest script) | 64 processes | 77 s | 26 |
+  | the same | 124 processes | 63 s | 32 |
+  | local, CPU decoding | 124, 124 | 66 s | 30 |
+  | Ray, CPU decoding | 124, 124 | about 50 s | 40 |
+  | local, GPU decoding | 8, 64 | 34 s | 58 |
+  | local, GPU decoding | 8, 8 | 29 s | 69 |
+  | Ray, GPU decoding | 8, 64 | about 57 s | 35 |
+  | Ray, GPU decoding | 8, 8 | 28 s | 71 |
+
+  One page on one idle core: 0.75 s to decode, 0.88 s to encode (1.6 s; on the GB10 machine 0.35 + 0.39 s). nvJPEG2000
+  against OpenJPEG on 200 of these pages: at most 1 of 255, under 0.005 % of the values; 2 grayscale pages nvJPEG2000
+  refused were decoded by Pillow. With GPU decoding the GPUs ran at 0 to 60 % and the CPUs about half idle: libwebp
+  sets the pace. What made the difference: one worker per CPU when the CPU decodes (Pillow's JPEG 2000 decoder holds
+  the GIL), no CUDA start in CPU runs (124 processes starting CUDA at once took about 40 s), windows kept between a
+  worker's tasks, and few long tasks (on Ray every task is a new process, which starts its windows again).
 - Fixed on the way: nvImageCodec's decoder and encoder are not safe to call from two threads at once (a crash), and
   `HfFileSystem.exists` is not safe from many threads (its directory cache); the converter lists each output folder
   once and writes to object storage without a temporary name.
