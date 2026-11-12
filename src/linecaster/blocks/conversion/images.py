@@ -106,7 +106,7 @@ class ImageConverter(Contracted, PipelineStep):
     stage until it has one in the next, so each window also bounds what waits behind it (decoded pixels among them). With an engine that does both steps in one call
     (``image.webp-lossless.v1``) the decoding stage converts and the encoding stage passes the result on. Each
     worker process uses one GPU (its worker index, round robin), so a machine's GPUs take one worker each. Pages leave
-    the block in the order they came in.
+    the block in the order they came in. A worker's next task starts with the windows its last one reached.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
@@ -346,10 +346,10 @@ class ImageConverter(Contracted, PipelineStep):
             if stage in windows:
                 self.stat_update(f"{stage}_window_max", value=windows[stage])
 
-    def _limiter(self, top: int, io: bool = False):
+    def _limiter(self, top: int, io: bool = False, stage: str | None = None):
         from saturate import AdaptiveLimiter, Auto, Fixed
 
-        start = 4 * self.initial_window if io else self.initial_window
+        start = _REACHED.get(stage) or (4 * self.initial_window if io else self.initial_window)
         window = Fixed(self.window) if self.window else Auto(initial=min(start, top), min_limit=1, max_limit=top)
         return AdaptiveLimiter(window=window, signals=Pressure())
 
@@ -361,7 +361,7 @@ class ImageConverter(Contracted, PipelineStep):
         from saturate import Attempt
 
         top, io_top = windows["top"], windows["io_top"]
-        limits = {name: self._limiter(io_top if name in IO_STAGES else top, name in IO_STAGES) for name in STAGES}
+        limits = {name: self._limiter(io_top if name in IO_STAGES else top, name in IO_STAGES, name) for name in STAGES}
         loop = asyncio.get_running_loop()
         end = object()
         failed: list[BaseException] = []
@@ -431,12 +431,16 @@ class ImageConverter(Contracted, PipelineStep):
                     task.add_done_callback(tasks.discard)
                 if tasks:                                # every page in flight ends before the threads stop
                     await asyncio.gather(*tasks, return_exceptions=True)
+                _REACHED.update({name: limit.limit for name, limit in limits.items()})
 
 
 #: the converter's stages, in order, each with a window of its own
 STAGES = ("fetch", "decode", "encode", "write")
 #: the stages that wait on storage or the network, not on a processor: their windows have a bound of their own
 IO_STAGES = frozenset({"fetch", "write"})
+#: the window each stage had at the end of this process's last task: the next task starts there, since a task of a
+#: few seconds ends before saturate's controller (a decision every 2 s) has grown its windows
+_REACHED: dict[str, int] = {}
 _END = object()
 
 
