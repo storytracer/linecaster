@@ -40,7 +40,7 @@ def reference_encode_png(data: bytes) -> bytes:
 def test_registry_and_revisions(model):
     spec = chat_model(model)
     assert spec.adapter == "lighton-ocr-3" and spec.preset == {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b@1",
-                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b@1"}[model]
+                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b@2"}[model]
     assert spec.model == model and spec.revision == REVISIONS[model]
 
 
@@ -77,7 +77,8 @@ def test_request_body_is_the_reference(model):
 def test_serve_args_match_the_card(model):
     args = chat_model(model).vllm_args(0.8)
     assert args[:2] == ["--revision", REVISIONS[model]]
-    for flag in (["--max-model-len", "16384"],
+    context = {"lightonai/LightOnOCR-3-4B": "16384", "lightonai/LightOnOCR-3-0.8B": "18000"}[model]
+    for flag in (["--max-model-len", context],
                  ["--default-chat-template-kwargs", '{"enable_thinking": false}'],
                  ["--limit-mm-per-prompt", '{"image": 1, "video": 0}'],
                  ["--mm-processor-cache-gb", "0"], ["--gpu-memory-utilization", "0.8"]):
@@ -87,6 +88,16 @@ def test_serve_args_match_the_card(model):
     assert "--served-model-name" not in args
     cmd = ChatModelServer(chat_model(model), port=8123).command()
     assert cmd[:3] == ["vllm", "serve", model]
+
+
+def test_the_first_edition_of_the_08b_stays_resolvable():
+    old, new = chat_model("lightonocr-3-0.8b@1"), chat_model("lightonocr-3-0.8b@2")
+    assert old.preset == "lightonocr-3-0.8b@1" and old.flag("--max-model-len") == "16384"
+    assert new.flag("--max-model-len") == "18000" and new.served_context() == 18000
+    assert old.sampling == new.sampling and old.repair_max_tokens == new.repair_max_tokens == 0
+    assert new.repair_temperature == 0.1
+    # a 2048-px page: at most 64 x 64 image tokens, and the margin for the text
+    assert new.max_prompt_tokens() == 4096 + 64
 
 
 def test_parse_keeps_the_completion_verbatim():

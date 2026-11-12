@@ -105,7 +105,7 @@ are written by `linecaster catalog pin`.
 | `submodels` | further pins of a multi-model engine, by role |
 | `engine` | the engine's id: `engine: kraken.recognition.v1` |
 | `options` | the engine's options (its `Options` model) |
-| `settings` | prompts, sampling and other request settings (chat presets) |
+| `settings` | prompts, sampling and other request settings (chat presets; `repair`: the repair pass's `max_tokens`, 0 for off, and `temperature`) |
 | `labels` | native layout label → DoclingDocument label; unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
 | `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
@@ -229,6 +229,11 @@ layout and the rule-based engines. It declares
 `engine_id`, `step`, `Options` (a Pydantic model whose fields have descriptions; the docs come from it) and
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
+
+`chat.v1`'s `Options` (`linecaster.adapters.ChatAdapter.Options`) are what a run may set over a chat preset's
+settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `max_tokens`, `temperature` and
+`top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
+[repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`).
 
 **Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
 `linecaster-indra`, `linecaster-surya`, `linecaster-services`) have

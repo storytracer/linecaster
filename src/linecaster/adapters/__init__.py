@@ -23,6 +23,8 @@ import io
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
 from ..data.transcription import Line, Source, StepInfo, Transcription
 from ..errors import CatalogError, PipelineConfigError, ServerError
 
@@ -30,6 +32,14 @@ from ..errors import CatalogError, PipelineConfigError, ServerError
 ENGINE = "chat.v1"
 #: files ``check_default_branch`` ignores by default
 PIN_IGNORE = ("README.md", ".gitattributes")
+#: the repair pass's settings where a preset's ``settings.repair`` does not give them: off, and temperature 0.1 (the
+#: repair temperature of the reference procedure, uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5,
+#: ``SERVING["repair_temperature"]``)
+REPAIR_DEFAULTS = {"max_tokens": 0, "temperature": 0.1}
+#: options (``ChatAdapter.Options``) -> where they live in a preset's settings
+OPTION_SETTINGS = {"max_tokens": ("sampling", "max_tokens"), "temperature": ("sampling", "temperature"),
+                   "top_p": ("sampling", "top_p"), "repair_max_tokens": ("repair", "max_tokens"),
+                   "repair_temperature": ("repair", "temperature")}
 
 
 @dataclass(frozen=True)
@@ -60,9 +70,44 @@ class ChatAdapter:
     * ``revision_flag`` (pass ``--revision``; ``False`` for a server that must load the default branch, which
       the serve block then checks file by file against the pin, ``pin_ignore`` aside) and
       ``server_packages`` (installed into the server's Python first) from the serve block or, until the
-      serve schema has them, ``options``."""
+      serve schema has them, ``options``.
+
+    A run may set the options of ``Options`` over the preset's settings (``chat_model(..., overrides=...)``,
+    ``--set recognition.<option>=<value>``): ``max_tokens``, ``temperature`` and ``top_p`` replace the preset's
+    ``settings.sampling`` values; ``repair_max_tokens`` and ``repair_temperature`` its ``settings.repair`` values
+    (``max_tokens`` and ``temperature``; default off, and 0.1). The values that differ from the preset's are the
+    adapter's ``overrides``, recorded with it (``to_dict()``) and so in ``pipeline_sha256``.
+
+    **The repair pass** (``repair_max_tokens`` above 0; ``PageRecognizer`` runs it): a page whose completion stopped
+    at ``max_tokens`` (``finish_reason == "length"``) is sent once more, the same request (the same image and prompt,
+    the same ``top_p``) with ``max_tokens`` raised to ``repair_max_tokens`` (less where the served context leaves less
+    room: ``repair_cap``) and the temperature ``repair_temperature``. The repair's completion is kept where it
+    finished (``"stop"``), the first one otherwise, even when the repair's is longer; there is no third request. The
+    procedure is the reference script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5, its docstring
+    "Truncation and repair"), which repairs at the end of a run; ``PageRecognizer`` repairs a page as soon as its
+    first completion is back, with the same outcome. A completion cut off at ``max_tokens`` is often a repetition
+    loop, which a repair does not end, but a dense table can simply need more tokens and finish with more room.
+    ``repair_max_tokens`` must be larger than ``max_tokens`` (``PipelineConfigError``)."""
 
     adapter: ClassVar[str]
+
+    class Options(BaseModel):
+        """What a run may set over a chat preset's settings (``--set recognition.<option>=<value>``)."""
+
+        model_config = ConfigDict(extra="forbid")
+
+        max_tokens: int | None = Field(None, ge=1, description="the completion's cap (default: the preset's "
+                                                                "settings.sampling.max_tokens)")
+        temperature: float | None = Field(None, ge=0, description="the sampling temperature (default: the preset's)")
+        top_p: float | None = Field(None, gt=0, le=1, description="nucleus sampling (default: the preset's); the "
+                                                                   "repair pass keeps it")
+        repair_max_tokens: int = Field(0, ge=0, description="the repair pass: a page whose completion stopped at "
+                                                            "max_tokens is sent once more with this cap (0: off; "
+                                                            "larger than max_tokens; 8192 is the reference "
+                                                            "script's suggestion for LightOnOCR-3)")
+        repair_temperature: float = Field(0.1, ge=0, description="the repair pass's temperature (the reference "
+                                                                 "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
+                                                                 "at e2b0aa5)")
 
     def __init__(self, preset: ChatPreset, served_name: str | None = None):
         p = preset
@@ -87,9 +132,84 @@ class ChatAdapter:
         self.pin_ignore: tuple[str, ...] = tuple(server_option("pin_ignore", PIN_IGNORE))
         self._server_packages = [list(a) for a in server_option("server_packages", [])]
         self.served_name = served_name or self.options.get("served_name") or self.model
+        self.repair: dict[str, Any] = {**REPAIR_DEFAULTS, **(self.config.get("repair") or {})}
+        self.overrides: dict[str, Any] = {}
         if p.draft:
             self.draft_model, self.draft_revision = p.draft["repo"], p.draft.get("revision")
             self.draft_config: dict[str, Any] = dict(p.draft.get("speculative") or {})
+
+    # ------------------------------------------------------------- options
+    def apply_overrides(self, overrides: dict[str, Any] | None) -> ChatAdapter:
+        """Set ``Options`` over the preset's settings (``--set recognition.<option>=<value>``); returns the adapter.
+
+        Unknown options and values of the wrong type are a ``PipelineConfigError``; so is a repair pass whose
+        ``repair_max_tokens`` is not larger than ``max_tokens``. The values that differ from the preset's are kept
+        in ``overrides``."""
+        given = dict(overrides or {})
+        try:
+            checked = self.Options(**given)
+        except ValidationError as e:
+            problems = "; ".join(f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors())
+            raise PipelineConfigError(f"{self.preset}: {problems} (options: {', '.join(OPTION_SETTINGS)})") from None
+        for name in given:
+            value = getattr(checked, name)
+            where, key = OPTION_SETTINGS[name]
+            target = self.sampling if where == "sampling" else self.repair
+            if target.get(key) != value:
+                target[key] = value
+                self.overrides[name] = value
+        self.check_repair()
+        return self
+
+    @property
+    def repair_max_tokens(self) -> int:
+        """The repair pass's cap (0: no repair pass)."""
+        return int(self.repair.get("max_tokens") or 0)
+
+    @property
+    def repair_temperature(self) -> float:
+        return float(self.repair["temperature"])
+
+    def check_repair(self) -> None:
+        """A repair pass needs a ``max_tokens`` in the sampling and a larger ``repair_max_tokens``."""
+        if not self.repair_max_tokens:
+            return
+        first = self.sampling.get("max_tokens")
+        if first is None:
+            raise PipelineConfigError(f"{self.preset}: the repair pass needs settings.sampling.max_tokens")
+        if self.repair_max_tokens <= int(first):
+            raise PipelineConfigError(f"{self.preset}: repair_max_tokens ({self.repair_max_tokens}) must be larger "
+                                      f"than max_tokens ({first})")
+
+    def max_prompt_tokens(self) -> int | None:
+        """The most prompt tokens a page can take (its image tokens at the largest page size, and a margin for the
+        text), for the check that a repair fits the served context; ``None``: the adapter does not know."""
+        return None
+
+    def served_context(self) -> int | None:
+        """The context the preset's server flags give the model (``--max-model-len``, vLLM; ``--context-length``,
+        SGLang), or ``None``."""
+        for flag in ("--max-model-len", "--context-length"):
+            value = self.flag(flag)
+            if value is not None:
+                try:
+                    return int(value)
+                except ValueError:
+                    return None
+        return None
+
+    def repair_request(self, body: dict, cap: int) -> dict:
+        """The repair pass's request: the first request ``body`` (the same image, prompt and ``top_p``) with
+        ``max_tokens`` = ``cap`` and the repair temperature."""
+        return {**body, "max_tokens": int(cap), "temperature": self.repair_temperature}
+
+    def repair_cap(self, prompt_tokens: int | None, context: int | None) -> int:
+        """The repair request's ``max_tokens``: ``repair_max_tokens``, at most what the context leaves after the first
+        request's prompt (``context - prompt_tokens``, where both are known)."""
+        cap = self.repair_max_tokens
+        if context and prompt_tokens:
+            cap = min(cap, int(context) - int(prompt_tokens))
+        return cap
 
     @property
     def vllm_version(self) -> str | None:
@@ -129,9 +249,12 @@ class ChatAdapter:
     def to_dict(self) -> dict[str, Any]:
         """The adapter as the run record names it: the preset edition and its hash, the model and revision, the
         adapter class and the name the server hosts the model under."""
-        return {"adapter": f"{type(self).__module__}:{type(self).__qualname__}", "preset": self.preset,
-                "preset_sha256": self.preset_sha256, "model": self.model, "revision": self.revision,
-                "served_name": self.served_name}
+        out = {"adapter": f"{type(self).__module__}:{type(self).__qualname__}", "preset": self.preset,
+               "preset_sha256": self.preset_sha256, "model": self.model, "revision": self.revision,
+               "served_name": self.served_name}
+        if self.overrides:
+            out["overrides"] = dict(self.overrides)
+        return out
 
     def settings(self) -> dict[str, Any]:
         """Everything that decides the output, recorded in ``StepInfo.settings`` (next to the preset edition
@@ -176,10 +299,15 @@ class ChatAdapter:
 
     def step_info(self, backend: str | None = None, settings: dict | None = None,
                    measurements: dict | None = None) -> StepInfo:
-        """The ``StepInfo`` of one result: model, engine, revision, preset edition and its hash, settings."""
+        """The ``StepInfo`` of one result: model, engine, revision, preset edition and its hash, settings (with the
+        repair pass's, ``repair``, when it is on)."""
+        if settings is None:
+            settings = self.settings()
+            if self.repair_max_tokens:
+                settings["repair"] = {"max_tokens": self.repair_max_tokens, "temperature": self.repair_temperature}
         return StepInfo(step=self.step, name=self.model, engine=ENGINE, revision=self.revision, preset=self.preset,
-                        preset_sha256=self.preset_sha256, backend=backend,
-                        settings=self.settings() if settings is None else settings, measurements=measurements or {})
+                        preset_sha256=self.preset_sha256, backend=backend, settings=settings,
+                        measurements=measurements or {})
 
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
         """A text-only transcription: one line per text line of the completion, no geometry. The raw
@@ -288,10 +416,12 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     return sorted(ids, key=lambda pid: (c.preset(pid).capabilities.unit != prefer, pid))[0]
 
 
-def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page") -> ChatAdapter:
+def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page",
+               overrides: dict[str, Any] | None = None) -> ChatAdapter:
     """The configured adapter for a chat preset: ``chat_model("lightonocr-2-1b")``, ``chat_model("dots-ocr@1")``,
     or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="region"``:
-    its region preset). What it reads (``unit``) is the preset's capability."""
+    its region preset). What it reads (``unit``) is the preset's capability. ``overrides``: ``ChatAdapter.Options``
+    over the preset's settings, e.g. ``{"repair_max_tokens": 8192}``."""
     from ..catalog.registry import catalog as installed
 
     c = catalog or installed()
@@ -312,8 +442,8 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     preset = ChatPreset(ref=r.ref, sha256=r.sha256, repo=m.source.ref, revision=content["model"]["revision"],
                         unit=c.preset(r.id).capabilities.unit or "page", options=options, settings=dict(content.get("settings") or {}),
                         serve=dict(content.get("serve") or {}), draft=draft)
-    return adapter(options["adapter"])(preset, served_name=served_name)
+    return adapter(options["adapter"])(preset, served_name=served_name).apply_overrides(overrides)
 
 
-__all__ = ["ADAPTERS", "ChatAdapter", "ChatPreset", "ENGINE", "adapter", "adapters", "chat_model", "chat_presets",
+__all__ = ["ADAPTERS", "ChatAdapter", "ChatPreset", "ENGINE", "REPAIR_DEFAULTS", "adapter", "adapters", "chat_model", "chat_presets",
            "png_longest", "preset_ref", "text_transcription"]

@@ -1,4 +1,4 @@
-"""A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
+r"""A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
 region it finds (``RegionRecognizer``, a region preset), on the ``Chat`` backend. Each task starts vLLM or SGLang for the model itself
 (``ChatModelServer``, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (``--backend``, ``--endpoint`` as for any engine). Page records in OUT/pages; the
@@ -8,6 +8,10 @@ model's raw answer is in each page's transcription.
     uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
     uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
+    ... --set recognition.repair_max_tokens=8192          # the repair pass (below); =0: off
+    ... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
+    uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b@2 \
+        --set recognition.repair_max_tokens=8192           # the repair pass over page records written before
 
 --recognition takes a chat preset of the catalog (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
@@ -17,7 +21,26 @@ has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv env
 ``ChatModelServer`` starts the image's own server. SGLang presets and region reading start it outside that
 environment (``outside_venv``), so neither the image's Python nor its CUDA libraries see the pipeline's
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
-share); with --layout the layout server loads into the rest after vLLM's memory profiling.
+share); with --layout the layout server loads into the rest after vLLM's memory profiling. The server listens on port
+8000 in every run: two runs on one machine need a GPU each (``CUDA_VISIBLE_DEVICES``) and cannot both start their own
+server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``ChatModelServer``).
+
+--set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's ``max_tokens``,
+``temperature``, ``top_p``, ``repair_max_tokens`` and ``repair_temperature`` (``linecaster.adapters.ChatAdapter``),
+for --layout the layout engine's options. They go into the run record and change its ``pipeline_sha256``.
+
+The repair pass (``--set recognition.repair_max_tokens=N``, N larger than the preset's ``max_tokens``; page presets
+only): a page whose completion stopped at ``max_tokens`` is sent once more right away, the same image, prompt and
+``top_p``, with ``max_tokens`` N (at most the served context minus the page's prompt) and temperature
+``repair_temperature`` (0.1); the page keeps the second completion where it finished (``stop``), the first one
+otherwise, and its transcription records both (``extra["passes"]``, ``extra["kept"]``). The procedure is the reference
+script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5), which suggests 8192 for LightOnOCR-3. A page that
+stops at ``max_tokens`` is often a repetition loop, which a repair does not end, but a dense table can simply need
+more tokens and then finishes; the repair adds the second requests' tokens to the run (NOTES.md has the trials). A
+page whose prompt leaves no more room in the context than the first request had gets no repair (stat
+``repair_skipped``); a run warns at the start when N plus a page's largest prompt exceeds the context. With --repair-only (and --pages, page records of an earlier run of
+the same model) only the repair requests are sent: for the pages that stopped at ``max_tokens`` and have no repair
+yet; every other page is written as it was read.
 """
 from ..adapters import preset_ref
 from ..backends import Chat
@@ -40,19 +63,37 @@ def options(ap):
     ap.add_argument("--initial-window", type=int, default=8)
     ap.add_argument("--layout-window", type=int, default=16, help="pages in flight at the layout server")
     ap.add_argument("--read-timeout", type=float, default=1800.0, help="seconds per request")
+    ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
+                    help="an option over the preset's, e.g. recognition.repair_max_tokens=8192 (the repair pass), "
+                         "recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine "
+                         "option; repeatable")
+    ap.add_argument("--repair-only", action="store_true",
+                    help="with --pages: send only the repair pass (--set recognition.repair_max_tokens=N) for the "
+                         "pages that stopped at max_tokens and have none yet; the others are written unchanged")
+
+
+def sets(a) -> dict[str, dict]:
+    """``--set`` by step: ``recognition`` (the chat engine's options) and, with --layout, ``layout``."""
+    return run.overrides(a.set, steps=["recognition", *(["layout"] if a.layout else [])])
 
 
 def models(a) -> list[dict]:
-    return [{"name": "layout", "preset": a.layout}] if a.layout else []
+    over = sets(a)
+    return ([{"name": "layout", "preset": a.layout, **({"overrides": over["layout"]} if "layout" in over else {})}]
+            if a.layout else [])
 
 
 def pipeline(a, script: str):
     if not a.recognition:
         raise PipelineConfigError("vlm: pick --recognition (`linecaster models` lists the presets)")
     regions = bool(a.layout)
+    if a.repair_only and (regions or not a.pages):
+        raise PipelineConfigError("vlm: --repair-only reads page records (--pages OUT/pages) of whole pages, "
+                                  "without --layout")
     vlm = Chat(preset_ref(a.recognition, prefer="region" if regions else "page"),
                a.recognition_endpoint or f"http://127.0.0.1:{VLM_PORT}/v1", max_window=a.window,
-               initial_window=a.initial_window, read_timeout=a.read_timeout)
+               initial_window=a.initial_window, read_timeout=a.read_timeout,
+               overrides=sets(a).get("recognition"))
     spec = vlm.adapter
     if regions != (spec.unit == "region"):
         reads = "regions" if spec.unit == "region" else "whole pages"
@@ -65,7 +106,7 @@ def pipeline(a, script: str):
         b, servers = run.engines(a, models(a), script, a.layout_window)
         steps += [LayoutDetector(b["layout"]), RegionRecognizer(vlm)]
     else:
-        steps += [PageRecognizer(vlm)]
+        steps += [PageRecognizer(vlm, repair_only=a.repair_only)]
     if not a.recognition_endpoint:
         draft = getattr(spec, "draft_model", None)
         extra = [] if a.no_speculative or not draft else spec.speculative_args(draft, spec.draft_revision)

@@ -107,6 +107,9 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                                         "services (jpg, png, tif, webp; what the server offers)")
     g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
                                    "pipelines/harvest.py's OUT/pages), images fetched from their URIs")
+    g.add_argument("--uri-map", action="append", default=[], metavar="PREFIX=REPLACEMENT",
+                   help="--pages: rewrite the image URIs that start with PREFIX before reading them (the images "
+                        "moved since the records were written, or a local copy of remote files); repeatable")
     g.add_argument("--page", metavar="IMAGE", help="one page image instead of IMAGES, run in this process without "
                                                    "an executor (`linecaster page`)")
     g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
@@ -222,6 +225,18 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     return ap
 
 
+def uri_map(values: list[str]) -> dict[str, str]:
+    """``--uri-map PREFIX=REPLACEMENT`` options as ``PageRecordReader``'s ``uri_map`` (the first matching prefix
+    wins, in the order given)."""
+    out = {}
+    for v in values:
+        prefix, sep, repl = v.partition("=")
+        if not sep or not prefix:
+            raise PipelineConfigError(f"--uri-map needs PREFIX=REPLACEMENT, got {v!r}")
+        out[prefix] = repl
+    return out
+
+
 def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
     """``["5/1", "200/60"]`` -> ``[(5, 1.0), (200, 60.0)]`` (``linecaster.net.http.HTTPConfig.rate_limits``)."""
     out = []
@@ -240,6 +255,8 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     inputs = [x for x in ("images", "parquet", "manifests", "pages", "page", "items") if getattr(a, x, None)]
     if len(inputs) != 1:
         ap.error("give one of IMAGES, --parquet, --manifests, --pages, --page and --items")
+    if getattr(a, "uri_map", None) and not a.pages:
+        ap.error("--uri-map rewrites the image URIs of page records: it needs --pages")
     if a.items and not a.item_key:
         ap.error("--items needs --item-key: the column with each row's item id")
     a.templates = {}
@@ -562,7 +579,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               task_per_item=task_per_item, reuse_folder=reuse_folder,
                               http_policy=getattr(a, "http_policy", None))
     if getattr(a, "pages", None):
-        return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None))
+        return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None),
+                                uri_map=uri_map(getattr(a, "uri_map", None) or []))
     if getattr(a, "page", None):
         folder, _, name = a.page.rstrip("/").rpartition("/")
         return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
