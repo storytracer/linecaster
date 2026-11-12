@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../schemas/preset-1.json
 schema: linecaster.preset/1
 id: lightonocr-3-0.8b
-edition: 2
+edition: 3
 step: recognition
 model:
   id: lightonocr-3-0.8b
@@ -15,7 +15,7 @@ settings:
     temperature: 0.2
     top_p: 0.9
   repair:
-    max_tokens: 0
+    max_tokens: 12288
     temperature: 0.1
   chat_template_kwargs:
     enable_thinking: false

@@ -40,7 +40,7 @@ def reference_encode_png(data: bytes) -> bytes:
 def test_registry_and_revisions(model):
     spec = chat_model(model)
     assert spec.adapter == "lighton-ocr-3" and spec.preset == {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b@1",
-                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b@2"}[model]
+                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b@3"}[model]
     assert spec.model == model and spec.revision == REVISIONS[model]
 
 

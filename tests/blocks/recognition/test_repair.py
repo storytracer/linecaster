@@ -361,3 +361,14 @@ def test_the_region_recognizer_is_unchanged():
     assert line.extra == {"raw": "x x x", "finish_reason": "length"}
     assert set(provenance.functional_block(step)["params"]) == {"backend", "transcription", "labels", "pad",
                                                                 "primary", "skip_on_error"}
+
+
+def test_lightonocr_3_0_8b_edition_3_repairs_at_12288_and_edition_2_does_not():
+    """Edition 3 turns the repair pass on (12,288 tokens, temperature 0.1); edition 2 states it off; the run turns
+    either way with ``--set recognition.repair_max_tokens``."""
+    from linecaster.adapters import chat_model
+
+    three, two = chat_model("lightonocr-3-0.8b@3"), chat_model("lightonocr-3-0.8b@2")
+    assert (three.repair_max_tokens, three.repair_temperature) == (12288, 0.1)
+    assert two.repair_max_tokens == 0
+    assert chat_model("lightonocr-3-0.8b@3").apply_overrides({"repair_max_tokens": 0}).repair_max_tokens == 0

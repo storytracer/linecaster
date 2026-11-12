@@ -8,10 +8,10 @@ model's raw answer is in each page's transcription.
     uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
     uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
-    ... --set recognition.repair_max_tokens=8192          # the repair pass (below); =0: off
+    ... --set recognition.repair_max_tokens=12288         # the repair pass (below); =0: off (on in lightonocr-3-0.8b@3)
     ... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
-    uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b@2 \
-        --set recognition.repair_max_tokens=8192           # the repair pass over page records written before
+    uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b
+                                                          # the repair pass over page records written before
 
 --recognition takes a chat preset of the catalog (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
@@ -34,7 +34,8 @@ only): a page whose completion stopped at ``max_tokens`` is sent once more right
 ``top_p``, with ``max_tokens`` N (at most the served context minus the page's prompt) and temperature
 ``repair_temperature`` (0.1); the page keeps the second completion where it finished (``stop``), the first one
 otherwise, and its transcription records both (``extra["passes"]``, ``extra["kept"]``). The procedure is the reference
-script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5), which suggests 8192 for LightOnOCR-3. A page that
+script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5), which suggests 8192 for LightOnOCR-3;
+``lightonocr-3-0.8b@3`` turns it on at 12288, since dense tables needed up to about 9,000 tokens. A page that
 stops at ``max_tokens`` is often a repetition loop, which a repair does not end, but a dense table can simply need
 more tokens and then finishes; the repair adds the second requests' tokens to the run (NOTES.md has the trials). A
 page whose prompt leaves no more room in the context than the first request had gets no repair (stat
@@ -64,7 +65,7 @@ def options(ap):
     ap.add_argument("--layout-window", type=int, default=16, help="pages in flight at the layout server")
     ap.add_argument("--read-timeout", type=float, default=1800.0, help="seconds per request")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
-                    help="an option over the preset's, e.g. recognition.repair_max_tokens=8192 (the repair pass), "
+                    help="an option over the preset's, e.g. recognition.repair_max_tokens=12288 (the repair pass), "
                          "recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine "
                          "option; repeatable")
     ap.add_argument("--repair-only", action="store_true",

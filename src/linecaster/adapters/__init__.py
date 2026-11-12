@@ -103,8 +103,8 @@ class ChatAdapter:
                                                                    "repair pass keeps it")
         repair_max_tokens: int = Field(0, ge=0, description="the repair pass: a page whose completion stopped at "
                                                             "max_tokens is sent once more with this cap (0: off; "
-                                                            "larger than max_tokens; 8192 is the reference "
-                                                            "script's suggestion for LightOnOCR-3)")
+                                                            "larger than max_tokens; the reference script suggests "
+                                                            "8192 for LightOnOCR-3, lightonocr-3-0.8b@3 sets 12288)")
         repair_temperature: float = Field(0.1, ge=0, description="the repair pass's temperature (the reference "
                                                                  "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
                                                                  "at e2b0aa5)")

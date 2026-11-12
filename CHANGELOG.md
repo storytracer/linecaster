@@ -4,6 +4,16 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- `lightonocr-3-0.8b@3` turns the repair pass on at 12,288 tokens (`settings.repair.max_tokens`), otherwise as `@2`: a
+  page whose completion stopped at 4096 tokens is sent once more, only then and only once. `lightonocr-3-0.8b` without
+  an edition now resolves to `@3`, so its runs write a second pass for truncated pages and get a new
+  `pipeline_sha256`; `--recognition lightonocr-3-0.8b@2` (or `--set recognition.repair_max_tokens=0`) keeps the
+  former behavior, and a resume into a run of `@2` needs the edition named.
+
 ## 0.5.3 (2026-11-12)
 
 ### Added

@@ -233,7 +233,8 @@ layout and the rule-based engines. It declares
 `chat.v1`'s `Options` (`linecaster.adapters.ChatAdapter.Options`) are what a run may set over a chat preset's
 settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `max_tokens`, `temperature` and
 `top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
-[repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`).
+[repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`;
+`lightonocr-3-0.8b@3` sets 12288, the other presets leave it off).
 
 **Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
 `linecaster-indra`, `linecaster-surya`, `linecaster-services`) have

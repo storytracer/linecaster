@@ -2,6 +2,15 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The repair pass on by default for LightOnOCR-3 0.8B (2026-11-12)
+
+`lightonocr-3-0.8b@3` repairs at 12,288 tokens. On the 33-page trial of table and formula pages (one RTX A6000,
+vLLM 0.30.0), 5 pages stopped at 4096; repaired at 8192, 4 finished and one (a dense table) hit 8192 again, while at
+12,288 all 5 finished (the longest after 8,958 tokens). A third run, the repair over the existing first-pass records at
+8192, finished 3 of 5: a page that had finished after 7,959 tokens hit 8192 at temperature 0.1. 12,288 leaves room for
+both; with 18,000 tokens of context a repair of up to 13,840 tokens fits beside the largest page prompt. The pass
+stays one repair at most (two passes), sent only for a page that stopped at `max_tokens`.
+
 ## Recipe scripts (2026-11-11, aarch64 GB10)
 
 Since 0.5.0 no pipeline script installed `linecaster-kraken`, so linecaster could not run its own `squiddle` recipe:
