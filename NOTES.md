@@ -121,6 +121,18 @@ written, the run record naming `squiddle@1` and its hash.
 
 ## Open items
 
+- **Ray Serve is the model server of choice for the future (decided 2026-11-12, not to be built yet).** Today each
+  task starts its own server (`ModelServer`, `ChatModelServer`) and holds a GPU for its whole duration, also while it
+  works on the CPU. Ray Serve would make a cluster's GPUs one pool of model replicas that the tasks call, so GPUs that
+  wait on CPU work could serve other tasks and pipelines; Ray is already in every pipeline script (`linecaster[ray]`),
+  and its batching is opt-in (`@serve.batch`), so one page per request stays (the determinism rule). Not chosen:
+  Triton (its gain is dynamic batching across requests, which would make a page's result depend on what else is in
+  flight; kraken would run in its Python backend, as in `linecaster serve`), and LitServe, BentoML, TorchServe, KServe,
+  Seldon (little beyond `linecaster serve`, or Kubernetes only). Worth building once a profile of a real multi-node
+  run shows GPUs mostly waiting on CPU work; to settle then: the server outside the run (its versions and
+  configuration in the run record), and HF Jobs (no Ray) keeping today's servers. A CTC recognizer gains nothing from
+  vLLM (no autoregressive decoding, no KV cache): its speed comes from batching within a page and, if needed, an ONNX
+  or TensorRT export inside its engine.
 - A recipe of PaddleX and Tesseract presets for the engine-generalist modular script
   (`pipelines/transcribe_modular.py`, which has no kraken), once it is decided what "tested" means for a recipe now
   that evidence has left the catalog: for example a smoke test every recipe must pass (its pipeline built and run on
