@@ -1,0 +1,1585 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.6/reference/data-model/">
+      
+      
+        <link rel="prev" href="../pipelines/">
+      
+      
+        <link rel="next" href="../serialization/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Data model - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-data-model" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Data model
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-page-in-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A page in a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transcription" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transcription
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-stepinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps (StepInfo)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Steps (StepInfo)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paragraphs-paragraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paragraphs (Paragraph)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unicode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unicode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typography-linecastertexttypography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typography (linecaster.text.typography)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents-linecasterformatsdocling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents (linecaster.formats.docling)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-records-linecasterblocksbaseitem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item records (linecaster.blocks.base.item)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-variants-linecastertextvariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text variants (linecaster.text.variants)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-page-in-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A page in a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transcription" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transcription
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-stepinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps (StepInfo)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Steps (StepInfo)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paragraphs-paragraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paragraphs (Paragraph)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unicode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unicode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typography-linecastertexttypography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typography (linecaster.text.typography)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents-linecasterformatsdocling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents (linecaster.formats.docling)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-records-linecasterblocksbaseitem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item records (linecaster.blocks.base.item)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-variants-linecastertextvariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text variants (linecaster.text.variants)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="the-data-model">The data model<a class="headerlink" href="#the-data-model" title="Permanent link">&para;</a></h1>
+<p><code>linecaster.data</code> holds what a page's text recognition produces; <code>linecaster.data.page</code> the page record it
+travels in. Importing either needs neither datatrove nor saturate nor an engine.</p>
+<h2 id="classes">Classes<a class="headerlink" href="#classes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Is</th>
+<th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Item</code></td>
+<td>any multi-page unit: book, issue, manuscript, file</td>
+<td><code>item_id</code></td>
+</tr>
+<tr>
+<td><code>Page</code></td>
+<td>one page record: the page image and its named transcriptions</td>
+<td><code>page_id</code> = <code>item_id</code> + sequence</td>
+</tr>
+<tr>
+<td><code>PageImage</code></td>
+<td>the image's location, size, format and hashes</td>
+<td></td>
+</tr>
+<tr>
+<td><code>Transcription</code></td>
+<td>OCR, HTR or ground truth of one page</td>
+<td></td>
+</tr>
+<tr>
+<td><code>Text</code></td>
+<td>one text per item and variant (<code>linecaster.text.variants</code>)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="a-page-in-a-pipeline">A page in a pipeline<a class="headerlink" href="#a-page-in-a-pipeline" title="Permanent link">&para;</a></h2>
+<p>A page is one datatrove <code>Document</code>: <code>id</code> is the page id, <code>text</code> the primary transcription's text, <code>media[0]</code>
+the image bytes, <code>metadata["page"]</code> the page record.</p>
+<h2 id="transcription"><code>Transcription</code><a class="headerlink" href="#transcription" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>regions</code></td>
+<td>the layout: id, <code>label</code> (a DoclingDocument label), <code>raw_label</code> (the producer's), polygon, bbox, score, <code>reading_order</code>, <code>heading_level</code>, <code>extra</code></td>
+</tr>
+<tr>
+<td><code>lines</code></td>
+<td>id, <code>region_id</code>, <code>reading_order</code>, <code>row</code>, bbox, polygon, baseline, score, <code>text</code>, <code>normalized</code>, confidence, alternatives, <code>words</code>, <code>extra</code></td>
+</tr>
+<tr>
+<td><code>paragraphs</code></td>
+<td>the running text recomposed from the rows (<code>Paragraph</code>, below), in reading order</td>
+</tr>
+<tr>
+<td><code>docling</code></td>
+<td>the page's composed DoclingDocument, as docling-core dumps it</td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>steps</code></td>
+<td>one <code>StepInfo</code> per step that worked on it, in order (below)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>kind</code> (<code>produced</code>, <code>converted</code>, <code>ground_truth</code>), <code>format</code>, <code>uri</code>, image size</td>
+</tr>
+<tr>
+<td>derived</td>
+<td><code>text</code> (as written, as laid out, full page; tables as Markdown), <code>confidence</code> (line confidences weighted by length)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>regions</code> are the contract between steps.</strong> Lines and recognizers need the layout (label, polygon,
+  reading order, score) long before a DoclingDocument can be built, so regions are a primary part next to
+  <code>lines</code>; <code>docling</code> is composed from regions, lines and tables. Region ids are the producer's own
+  (PP-DocLayout: <code>&lt;raw label&gt;_&lt;index&gt;</code>; rows outside every region: <code>orphan_&lt;n&gt;</code>); lines refer to them with
+  <code>region_id</code>.</li>
+<li><strong>Words are the finest level</strong>; there is no glyph level. Engines with character positions turn them into
+  words by the engine's own rule (kraken: split at whitespace, a word's box the bounding box of its cuts).</li>
+<li><strong>A line's <code>text</code> is <code>None</code> until a recognizer ran</strong>; an empty string is a line recognized as empty. Its
+  <code>normalized</code> is <code>None</code> until the <code>CharacterNormalizer</code> ran; <code>text</code> is never overwritten.</li>
+<li><strong>A VLM's transcription keeps its completion verbatim</strong> in <code>extra["raw"]</code> (its text equals it) with
+  <code>extra["finish_reason"]</code>. After a <a href="../glossary/">repair pass</a> it also has <code>extra["passes"]</code>, one entry per request
+  of the page (<code>raw</code>, <code>finish_reason</code>, <code>prompt_tokens</code>, <code>completion_tokens</code>, the <code>max_tokens</code>, <code>temperature</code> and
+  <code>top_p</code> it was sent with, <code>preset</code>), and <code>extra["kept"]</code>, the pass the transcription holds (1 or 2); <code>raw</code> and
+  <code>finish_reason</code> are the kept pass's.</li>
+<li><strong>Text-only transcriptions</strong> (a delivered plain text) are lines without geometry (<code>bbox</code> and <code>polygon</code>
+  <code>None</code>), one per text line, <code>source.kind = "converted"</code>, <code>source.format = "text"</code>. They cannot be written as
+  ALTO, PAGE or hOCR.</li>
+</ul>
+<h2 id="steps-stepinfo">Steps (<code>StepInfo</code>)<a class="headerlink" href="#steps-stepinfo" title="Permanent link">&para;</a></h2>
+<p>Every step that worked on a transcription adds one <code>StepInfo</code>, model steps and rule-based steps alike:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step</code></td>
+<td>the step: <code>layout</code>, <code>lines</code>, <code>recognition</code>, <code>tables</code>, <code>formulas</code>, <code>unicode</code>, <code>typography</code>, <code>recomposition</code>, <code>normalization</code>, <code>composition</code>, ...</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>the model (<code>kraken-ppocrv6-medium</code>, <code>PP-DocLayoutV3</code>); for a step without a model, what ran (<code>unicodedata</code>, <code>retyper</code>, the engine's id)</td>
+</tr>
+<tr>
+<td><code>engine</code></td>
+<td>the engine's code id (<code>kraken.recognition.v1</code>, <code>typography.ratios.v1</code>); <code>None</code> for a step no engine ran (<code>unicode</code>)</td>
+</tr>
+<tr>
+<td><code>revision</code></td>
+<td>the model's revision</td>
+</tr>
+<tr>
+<td><code>preset</code>, <code>preset_sha256</code></td>
+<td>the preset edition it ran as, and its hash</td>
+</tr>
+<tr>
+<td><code>recipe</code>, <code>recipe_sha256</code></td>
+<td>the recipe edition the run followed, and its hash (<code>RecipeStamper</code>)</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td>in-process, or served with the server's address</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>what decided the output besides the preset: the engine's options, a VLM's prompt and sampling</td>
+</tr>
+<tr>
+<td><code>measurements</code></td>
+<td>numbers of this page, in the measurements vocabulary (below)</td>
+</tr>
+</tbody>
+</table>
+<p>The model blocks and <code>linecaster serve</code> fill <code>engine</code> from the engine's <code>engine_id</code>, <code>preset</code> from the backend, and
+<code>seconds</code> and <code>datetime</code>. The page files (ALTO, PAGE, hOCR) carry every field but <code>measurements</code> (<code>datetime</code> aside)
+and read them back (<a href="../serialization/">serialization</a>).</p>
+<h3 id="measurements">Measurements<a class="headerlink" href="#measurements" title="Permanent link">&para;</a></h3>
+<p><code>linecaster.data.MEASUREMENTS</code> is the vocabulary of <code>StepInfo.measurements</code>, key → meaning; linecaster code writes
+no other key (a test reads the code for every place that writes one). Values vary from run to run.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>seconds</code></td>
+<td>wall time of the step on the page (the engine's call, in-process or in the server)</td>
+</tr>
+<tr>
+<td><code>datetime</code></td>
+<td>when the step started on the page, ISO 8601 in UTC</td>
+</tr>
+<tr>
+<td><code>device</code></td>
+<td>the device the step ran on</td>
+</tr>
+<tr>
+<td><code>prompt_tokens</code>, <code>completion_tokens</code></td>
+<td>a VLM's tokens, summed over the page's requests</td>
+</tr>
+<tr>
+<td><code>finish_reason</code></td>
+<td>why generation stopped: <code>stop</code>, <code>length</code>, <code>content_filter</code>, <code>tool_calls</code>, <code>function_call</code>, <code>abort</code> (<code>FINISH_REASONS</code>), or <code>None</code></td>
+</tr>
+<tr>
+<td><code>pass_prompt_tokens</code>, <code>pass_completion_tokens</code></td>
+<td>a page a VLM read twice (the repair pass): the tokens of each request, in order (<code>prompt_tokens</code> and <code>completion_tokens</code> are their sums)</td>
+</tr>
+<tr>
+<td><code>regions</code>, <code>failed</code></td>
+<td>regions sent to a VLM one by one, and those whose request failed</td>
+</tr>
+<tr>
+<td><code>tables</code>, <code>formulas</code></td>
+<td>table regions given a structure, formula regions read</td>
+</tr>
+<tr>
+<td><code>changed</code></td>
+<td>strings a normalization changed</td>
+</tr>
+<tr>
+<td><code>body_size</code>, <code>leveled</code>, <code>demoted</code>, <code>split</code>, <code>drop_capitals</code>, <code>numbers_dropped</code></td>
+<td>typography: the body type size in pixels, headings given a level, section headers made text, headlines split off, drop capitals joined, page numbers removed</td>
+</tr>
+<tr>
+<td><code>paragraphs</code>, <code>continuations</code>, <code>marks_removed</code>, <code>marks_kept</code></td>
+<td>recomposition: paragraphs made, paragraphs continued into the next region or page, division marks removed, hyphens kept</td>
+</tr>
+</tbody>
+</table>
+<p>A new key is added to the vocabulary before code writes it. Page records of other producers are read with whatever
+keys they carry (<code>unknown_measurements</code> lists them).</p>
+<h2 id="paragraphs-paragraph">Paragraphs (<code>Paragraph</code>)<a class="headerlink" href="#paragraphs-paragraph" title="Permanent link">&para;</a></h2>
+<p>Running text recomposed from the rows of one region (the <code>Recomposer</code>), with the decisions that made it.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>region_id</code></td>
+<td><code>&lt;region id&gt;_p&lt;n&gt;</code>, and the region</td>
+</tr>
+<tr>
+<td><code>rows</code></td>
+<td>one <code>ParagraphRow</code> per visual row with text: <code>lines</code> (the ids of every line on the row, as <code>Line.row</code> groups them, empty ones too) and <code>start</code>, <code>end</code> (the row's characters in <code>text</code>)</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>as written, flowed: the rows joined, the division marks the recomposition removed gone</td>
+</tr>
+<tr>
+<td><code>normalized</code></td>
+<td>the same text normalized (the <code>CharacterNormalizer</code>), else <code>None</code></td>
+</tr>
+<tr>
+<td><code>continues</code>, <code>continues_from</code></td>
+<td>the paragraph it runs on into, and the one it continues (<code>ParagraphRef</code>: <code>id</code>, and <code>page_id</code> for a paragraph on another page of the item)</td>
+</tr>
+<tr>
+<td><code>decisions</code></td>
+<td><code>Decision</code>s: <code>kind</code> and <code>reason</code> (<code>DECISIONS</code>), <code>row</code> (the index into <code>rows</code>), <code>separator</code> (for a continuation: what joins it to the paragraph it runs on into)</td>
+</tr>
+</tbody>
+</table>
+<p>The rows are what a document's provenance needs: an item made from a paragraph has one provenance entry per row,
+whose box is the union of the row's lines' boxes (derived from their polygons, <code>geometry.bbox_of</code>) and whose
+<code>charspan</code> is <code>start</code>, <code>end</code>, shifted by the text before it when the item continues a paragraph of an earlier region
+or page. Rows without text belong to no paragraph; text-only transcriptions have rows without boxes (each line a row
+of its own, a region one paragraph; a page without regions is one region).</p>
+<table>
+<thead>
+<tr>
+<th>Decision <code>kind</code></th>
+<th>Reasons</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mark_removed</code></td>
+<td><code>letter_follows</code>: the next row starts with a lowercase or caseless letter</td>
+</tr>
+<tr>
+<td><code>hyphen_kept</code></td>
+<td><code>capital_follows</code>, <code>digit_follows</code>, <code>no_letter_follows</code>, <code>script_change</code> (a mark after a Hebrew letter before a row in another script), <code>attested</code> (the document has the hyphenated form and not the joined one)</td>
+</tr>
+<tr>
+<td><code>paragraph_break</code></td>
+<td><code>indent</code>, <code>gap</code> (about a blank line), <code>short_row</code> (justified text: the row before stopped short of the end margin)</td>
+</tr>
+<tr>
+<td><code>continuation</code></td>
+<td><code>division_mark</code>, <code>end_margin</code> (the last row reaches the end margin), without sentence-final punctuation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="geometry">Geometry<a class="headerlink" href="#geometry" title="Permanent link">&para;</a></h2>
+<p>Every <code>bbox</code> is <code>[x, y, width, height]</code> in pixels of the received image. Polygons and baselines are float
+lists exactly as the engine returned them. Algorithms derive boxes from the polygon (<code>geometry.bbox_of</code>), so
+their arithmetic matches the engine's (no <code>x + width</code> rounding). <code>Transcription.scaled(sx, sy)</code> moves every
+coordinate to another image size.</p>
+<h2 id="order">Order<a class="headerlink" href="#order" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Processing order</strong> is the list order of <code>Transcription.lines</code> after the line steps: regions in the layout
+  step's order, orphan rows last, rows within each region. A recognizer processes and batches lines in this
+  order.</li>
+<li><strong>Reading order</strong> is separate: <code>reading_order</code> ranks the lines on the page (regions by their reading order,
+  then rows); <code>row</code> is the visual row within a region.</li>
+</ul>
+<h2 id="unicode">Unicode<a class="headerlink" href="#unicode" title="Permanent link">&para;</a></h2>
+<p>The as-written layer is NFC, made by a step of its own: <code>UnicodeNormalizer</code> (<code>linecaster.text.unicode</code>) right after
+recognition, recorded as <code>StepInfo(step="unicode", name="unicodedata", settings={"form": "NFC", "unicode_version":
+...})</code>. Each
+engine's raw output stays exactly what the engine produced. Only canonical forms (NFC, NFD) are allowed; never
+NFKC, whose folding is the readable variants' job (<code>linecaster.text.variants</code>).</p>
+<h2 id="typography-linecastertexttypography">Typography (<code>linecaster.text.typography</code>)<a class="headerlink" href="#typography-linecastertexttypography" title="Permanent link">&para;</a></h2>
+<p>The retyper edits regions and lines in place:</p>
+<ul>
+<li>A split-off headline is region <code>&lt;region id&gt;_head</code> (raw label <code>&lt;raw&gt;/split</code>); its lines keep their ids and get
+  the new <code>region_id</code>.</li>
+<li>Removed regions (drop capitals, uncertain page numbers) leave <code>regions</code> with their lines and are recorded in
+  <code>Transcription.extra["retyper_dropped"]</code> (id, labels, text, line ids, reason, confidence).</li>
+<li>A drop capital's letter is prepended to the target line's text (<code>line.extra["drop_capital"]</code>); words are not
+  touched.</li>
+<li>Regions are re-ranked and lines re-ordered afterwards.</li>
+</ul>
+<h2 id="documents-linecasterformatsdocling">Documents (<code>linecaster.formats.docling</code>)<a class="headerlink" href="#documents-linecasterformatsdocling" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Page composition</strong> (<code>Composer</code>, <code>DocumentBuilder</code>): <code>docling</code> from regions, paragraphs or lines, and tables;
+  page headers and footers always in Docling's furniture layer. Exports choose whether to include them
+  (<code>furniture=True</code>). A text region with paragraphs (a <code>Recomposer</code> ran) is one item per paragraph, one provenance
+  entry per row; a paragraph that continues another (<code>continues_from</code>) is appended to that one's item, its rows'
+  character spans after the text before it (a division mark removed at the continuation stays in the span of the
+  row it ended); a region of one paragraph without a letter (a page number) is an
+  item of its own. Without paragraphs a text region is one item, one row per line, with the region's box
+  (diplomatic composition).</li>
+<li><strong>Item composition</strong> (<code>Composer(unit="item")</code>, <code>DocumentBuilder</code>): an item's pages composed into one
+  DoclingDocument whose page <code>n</code> is the item's <code>n</code>-th page (by sequence, then page id). Recomposed as an item (a
+  <code>Recomposer(unit="item")</code> before it), paragraphs continue across page breaks; sections are optional
+  (<code>options={"sections": True}</code>); <code>region_of</code> (item ref → <code>"&lt;page_no&gt;:&lt;region id&gt;"</code>) travels with the document for
+  Markdown dividers.</li>
+</ul>
+<h2 id="item-records-linecasterblocksbaseitem">Item records (<code>linecaster.blocks.base.item</code>)<a class="headerlink" href="#item-records-linecasterblocksbaseitem" title="Permanent link">&para;</a></h2>
+<p>An item travels as one datatrove <code>Document</code>: <code>id</code> is the item id, <code>metadata["item"]</code> the item record, <code>{"item_id":
+..., "pages": [...]}</code>, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the
+image bytes. The <code>Binder</code> makes it from a page stream (<code>gather</code>: an item is complete when its
+<code>metadata["item_page_count"]</code> pages have arrived, or when the input ends; a task must see whole items, so the run
+layout buckets page records by item, and with several tasks the builder writes them in item shards first). The
+item-unit blocks change the page records inside it: <code>Recomposer(unit="item")</code> (the paragraphs of the whole item, a
+<code>ParagraphRef.page_id</code> naming the other page of a continuation), <code>CharacterNormalizer(unit="item")</code> (<code>normalized</code>),
+<code>Composer(unit="item")</code> (the item's document next to the record: <code>metadata["docling"]</code>, <code>["region_of"]</code>,
+<code>["item_id"]</code>; <code>text</code> its plain text). The <code>ItemTextWriter</code> renders the text variants from it, the
+<code>ItemDocumentWriter</code> writes the document's exports, and the <code>Splitter</code> passes its pages on as page documents again,
+each with what the item-level blocks added.</p>
+<h2 id="text-variants-linecastertextvariants">Text variants (<code>linecaster.text.variants</code>)<a class="headerlink" href="#text-variants-linecastertextvariants" title="Permanent link">&para;</a></h2>
+<p>The vocabulary is era-neutral, on three independent dimensions: character fidelity (as written, normalized,
+expanded, regularized), flow (as laid out, flowed) and scope (full page, body only). Each transform moves one step
+on one dimension; the as-written layer is never overwritten. All text is NFC; the normalization folds ſ, ligatures,
+r rotunda and superscript e over a, o, u by an explicit mapping table, and keeps æ, œ, ø, å and ß; never NFKC;
+spelling is never modernized.</p>
+<p>Three variants per item:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Made from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>verbatim_txt</code></td>
+<td>as written, as laid out, full page: each page's <code>Transcription.text</code> (lines in reading order, tables as Markdown or HTML tables), pages joined with a form feed</td>
+</tr>
+<tr>
+<td><code>readable_txt</code></td>
+<td>normalized, flowed, body only: the item recomposition's paragraphs (<code>Paragraph.normalized</code>; a paragraph continued from another, also across a page break, appended to it with the continuation's separator), tables one row per line with tab-separated cells (each cell's <code>normalized</code>), a formula region's LaTeX; page headers, page footers, pictures and charts left out</td>
+</tr>
+<tr>
+<td><code>readable_md</code></td>
+<td>the same as Markdown: <code>#</code> title, <code>##</code> section header (by heading level), <code>-</code> list item, tables as pipe tables (HTML when a cell spans)</td>
+</tr>
+</tbody>
+</table>
+<p>The normalization engine (<code>normalization.latin-historic.v1</code>) sets <code>normalized</code> on every line, paragraph and table
+cell (<code>Region.extra["table"]["cells"][i]["normalized"]</code>); the as-written texts stay.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

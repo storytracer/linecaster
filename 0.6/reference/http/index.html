@@ -1,0 +1,1444 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.6/reference/http/">
+      
+      
+        <link rel="prev" href="../tracing/">
+      
+      
+        <link rel="next" href="../broker/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>HTTP - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#http" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              HTTP
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Blocks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_pause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_pause
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unexpected-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unexpected HTML
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retries-and-deadlines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retries and deadlines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trace-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace entries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-http-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The HTTP policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The HTTP policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fields-of-earlier-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields of earlier versions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-cdn-protected-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A CDN-protected host
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Blocks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_pause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_pause
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unexpected-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unexpected HTML
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retries-and-deadlines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retries and deadlines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trace-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace entries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-http-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The HTTP policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The HTTP policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fields-of-earlier-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields of earlier versions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-cdn-protected-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A CDN-protected host
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="http">HTTP<a class="headerlink" href="#http" title="Permanent link">&para;</a></h1>
+<p>How linecaster's readers fetch over http(s) (<code>linecaster.net.http</code>, <code>linecaster.net.proxies</code>,
+<code>linecaster.net.policy</code>): the defaults, what a block is and how each path answers it, unexpected HTML, retries, and
+the HTTP policy file that changes all of it per host. Terms are the <a href="../glossary/">glossary</a>'s; how workers share the
+proxies is in the <a href="../broker/">broker</a>, how runs choose their workers in
+<a href="../pipelines/#tasks-workers-and-rate-limits">pipelines</a>.</p>
+<p><strong>The principle:</strong> the defaults follow the HTTP standards (a 429 with its <code>Retry-After</code>, the retryable statuses,
+<code>Retry-After</code> as seconds or an HTTP-date); anything learned from one site or CDN (a block page served with 200, a 403
+that means "this IP", a block that lasts three days) is opted into per host in an HTTP policy.</p>
+<h2 id="the-defaults">The defaults<a class="headerlink" href="#the-defaults" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>user_agent</code></td>
+<td><code>HF-Research/1.0</code> (datatrove's, <code>USER_AGENT</code>)</td>
+<td>the User-Agent of every request; <code>random_user_agent</code> (<code>--random-user-agent</code>) a random browser one per task instead</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>300 s</td>
+<td>each phase of a request (connect, read, write, pool)</td>
+</tr>
+<tr>
+<td><code>max_keepalive_connections</code></td>
+<td>16</td>
+<td>idle connections kept open for reuse</td>
+</tr>
+<tr>
+<td><code>max_retries</code></td>
+<td>4</td>
+<td>retries after the first attempt (5 attempts; 0: one)</td>
+</tr>
+<tr>
+<td><code>retry_wait_min</code>, <code>retry_wait_max</code></td>
+<td>2 s, 60 s</td>
+<td>the wait after the n-th failed attempt: <code>retry_wait_min * 2**(n-1)</code>, at most <code>retry_wait_max</code> (2, 4, 8, 16 s)</td>
+</tr>
+<tr>
+<td><code>retry_after_max</code></td>
+<td>300 s</td>
+<td>the longest <code>Retry-After</code> a retry honors on the direct path</td>
+</tr>
+<tr>
+<td><code>attempt_timeout</code>, <code>attempt_min_rate</code></td>
+<td>15 s, 50,000 bytes/s</td>
+<td>the deadline per attempt: 15 s plus 1 s per 50 kB the response declares</td>
+</tr>
+<tr>
+<td>retryable statuses</td>
+<td>408, 425, 429, 500, 502, 503, 504, 520-524 (<code>RETRYABLE_STATUS_CODES</code>)</td>
+<td>tried again; every other 4xx and 5xx fails at once</td>
+</tr>
+<tr>
+<td><code>rate_limits</code></td>
+<td>none</td>
+<td><code>N/S</code> windows, at most N requests in any S seconds, all at once: per worker direct, per proxy through proxies</td>
+</tr>
+<tr>
+<td><code>block_on</code></td>
+<td><code>[429]</code> (<code>BLOCK_ON</code>)</td>
+<td>what is a block (statuses and <code>html</code>)</td>
+</tr>
+<tr>
+<td><code>stop_on</code></td>
+<td><code>[]</code></td>
+<td>what stops the run at once (statuses and <code>html</code>)</td>
+</tr>
+<tr>
+<td><code>max_pause</code></td>
+<td>6 h (<code>MAX_PAUSE</code>)</td>
+<td>the most a worker's requests to a host wait in all since the host's last successful response: in pauses direct, for a usable proxy through proxies (<a href="#max_pause">below</a>)</td>
+</tr>
+<tr>
+<td>first wait of a block</td>
+<td>60 s (<code>BLOCK_FIRST_WAIT</code>)</td>
+<td>a block without <code>Retry-After</code>: 60 s, then twice the last wait on each repeat</td>
+</tr>
+<tr>
+<td>shortest block</td>
+<td>1 s (<code>PAUSE_MIN_WAIT</code>)</td>
+<td>whatever <code>Retry-After</code> says (0, a date gone by)</td>
+</tr>
+<tr>
+<td><code>proxies: block_ttl</code></td>
+<td>3600 s (<code>BLOCK_TTL</code>)</td>
+<td>the longest a blocked proxy is left out without <code>Retry-After</code>: the ceiling of the doubling, and of a broken proxy's</td>
+</tr>
+<tr>
+<td><code>proxies: broken_after</code></td>
+<td>3 (<code>BROKEN_AFTER</code>)</td>
+<td>proxy errors in a row before a proxy is broken</td>
+</tr>
+<tr>
+<td><code>proxies: broken_ttl</code></td>
+<td>300 s (<code>BROKEN_TTL</code>)</td>
+<td>a broken proxy's first time out, doubling, at most <code>block_ttl</code></td>
+</tr>
+<tr>
+<td><code>proxies: per_worker</code></td>
+<td><code>share</code></td>
+<td>how many proxies of the list a worker holds (<a href="../broker/#proxies">broker</a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="blocks">Blocks<a class="headerlink" href="#blocks" title="Permanent link">&para;</a></h2>
+<p>A <strong>block</strong> means "this IP was turned away", through a proxy or direct: the server only sees an IP. What counts as a
+block is declared once for both paths (<code>block_on</code>: statuses, and <code>html</code> for an HTML page where another format was
+expected). The connection decides the reaction:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>direct (one IP)</th>
+<th>through proxies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a response in <code>block_on</code></td>
+<td>the worker's requests to that host wait (a <a href="../glossary/">pause</a>) for <code>Retry-After</code>, or else 60 s, doubling on each repeat; requests to other hosts go on; the run stops when the wait would be too long (past <code>max_pause</code> since the host's last successful response)</td>
+<td>the proxy is marked for that host (<code>Retry-After</code>, or else 60 s doubling up to <code>block_ttl</code>) and the request goes on at once through another proxy, without using up an attempt</td>
+</tr>
+<tr>
+<td>a response in <code>stop_on</code></td>
+<td>the run stops at once</td>
+<td>the run stops at once</td>
+</tr>
+<tr>
+<td>no usable proxy</td>
+<td>(none)</td>
+<td>the requests to that host wait for a block to end or a proxy to free up; the run stops when the waits would pass <code>max_pause</code> since the host's last successful response</td>
+</tr>
+<tr>
+<td>connection errors</td>
+<td>the host's errors: retries and the breaker</td>
+<td>the proxy's errors: they count toward <code>broken_after</code>, then the proxy is left out for every host</td>
+</tr>
+</tbody>
+</table>
+<p>How long a block lasts is one function for both paths (<code>linecaster.net.http.block_wait</code>): with <code>Retry-After</code>
+(seconds or an HTTP-date) exactly that, at least 1 s; without it 60 s, then twice the last wait for each block that
+repeats (for that host, and through proxies for that proxy at that host), at most <code>block_ttl</code> through proxies and
+<code>max_pause</code> direct. Direct, the worker keeps each host's doubling in memory (it owns its IP); through proxies the
+doubling travels with the proxy in the broker's marks, so a worker that claims a released proxy continues it
+(<a href="../broker/#proxies">broker</a>). <strong>The doubling starts again</strong> at 60 s after a successful response from the host
+(through proxies: through that proxy), or after a quiet period: when the next block comes more than the last wait
+after the last block there ended (<code>linecaster.net.http.doubling</code>). A response to a request sent before a block that
+still holds changes nothing. A block is never an attempt: the request that got it is tried again after the pause (direct) or at once through
+another proxy, with all its retries left.</p>
+<p>A <strong>broken proxy</strong> fails attempts itself (a proxy error, no connection to the proxy, <code>PROXY_ERRORS</code>) <code>broken_after</code>
+times in a row: it is left out for every host, first for <code>broken_ttl</code>, twice as long each time it breaks again before
+it carries an answer, at most <code>block_ttl</code>. A timeout reading the server's answer is a slow server, not a broken proxy:
+it is retried and leaves the proxy in. Blocks and broken proxies are marks in the <a href="../broker/">broker</a>, so every
+worker that shares it leaves the proxy out, and continues their doubling when it claims the proxy.</p>
+<h3 id="max_pause">max_pause<a class="headerlink" href="#max_pause" title="Permanent link">&para;</a></h3>
+<p><code>max_pause</code> is one count on both paths, per worker and host (<code>linecaster.net.http.PauseTotal</code>): the
+time the worker's requests to the host have spent waiting since the host's last successful response, direct in
+pauses (the length each block adds), through proxies waiting for a usable proxy (the time no proxy was usable there).
+Once the next wait would take it past <code>max_pause</code> (a block whose wait is known, the first proxy block that ends), or
+it has passed it (waiting for proxies other workers hold), the run stops with <code>StopRequests</code>, whose message says how
+long the host's requests waited. A successful response from the host starts it again, through any proxy. Each host
+counts for itself: a pause at one host neither holds nor counts against the requests to another. The
+<a href="#retries-and-deadlines">breaker</a>'s waits (a server that fails) do not count: each request waits one out a few
+times, then fails.</p>
+<h2 id="unexpected-html">Unexpected HTML<a class="headerlink" href="#unexpected-html" title="Permanent link">&para;</a></h2>
+<p>A successful response (2xx) with an HTML page where an image, XML, JSON or a manifest was expected is <strong>unexpected
+HTML</strong>: an error page served with 200, a soft 404, a login page after a redirect, a CDN's challenge. The readers say
+what they expect (<code>HTTPFetcher.submit</code>'s <code>expect</code>: images, manifests, ALTO files, resources whose kind or URL names a
+format). A body is HTML (<code>linecaster.net.http.is_html</code>, read after a UTF-8 byte order mark, whitespace and
+<code>&lt;!-- --&gt;</code> comments) when it starts as an HTML document (<code>&lt;!doctype html</code>, <code>&lt;html</code>), whatever its <code>Content-Type</code>
+says; or when it is labelled <code>text/html</code> and is empty, plain text (an error message), XHTML, or starts with an HTML
+element (<code>&lt;head&gt;</code>, <code>&lt;body&gt;</code>, <code>&lt;div&gt;</code>, ...: <code>HTML_ELEMENTS</code>). A body labelled <code>text/html</code> that starts as data is data a
+server mislabelled and passes: JSON, an XML declaration or another root element (ALTO, METS, MODS without a
+declaration), an image (<code>DATA_MAGIC</code>). <code>ResourceReader</code> checks its resources with the same rule.
+An error status with an HTML body is that status: a 503 maintenance page is a 503, retried as one.</p>
+<p>By default unexpected HTML is a failed attempt, on both paths: it counts, is retried after the backoff, and is traced
+<code>200-html</code>. After the last attempt the fetch fails with <code>UnexpectedHTML</code>, whose message names the expected format and
+the content type (<code>an HTML page (text/html; charset=utf-8, 1234 bytes) where an image was expected: URL</code>); through
+proxies as the cause of <code>MaxRetriesExceeded</code> (<code>after 5 attempts: an HTML page ...</code>). With <code>html</code> in <code>block_on</code> it is
+a block instead (above), with <code>html</code> in <code>stop_on</code> it stops the run.</p>
+<h2 id="retries-and-deadlines">Retries and deadlines<a class="headerlink" href="#retries-and-deadlines" title="Permanent link">&para;</a></h2>
+<p>A request is tried up to <code>max_retries + 1</code> times (<code>HTTPFetcher._attempts</code>, one loop for both paths). A transport
+error (a timeout, a broken connection, a proxy error, an attempt past its deadline), a retryable status and
+unexpected HTML are tried again after <code>retry_wait_min * 2**(n-1)</code> seconds (at most <code>retry_wait_max</code>); on the direct
+path at least as long as the response's <code>Retry-After</code> asks (at most <code>retry_after_max</code>); through proxies the next
+attempt goes out through another proxy, without it. Any other status fails at once (<code>httpx.HTTPStatusError</code>); a 404
+first tries the page's fallback URL, if it has one, with attempts of its own. Retries used up raise the last error
+(direct) or <code>MaxRetriesExceeded</code> naming it (through proxies). Each attempt must be done within its deadline:
+<code>attempt_timeout</code> plus 1 s per <code>attempt_min_rate</code> bytes the response declares, counted from when it goes out, after
+the rate limits; one that takes longer is cut and retried.</p>
+<p>Each fetcher also has a <strong>breaker</strong> (<code>linecaster.net.http.Breaker</code>): when most recent attempts got a server error,
+its requests pause, a probe goes out now and then, and the first answer that is not a server error ends the pause.
+Unexpected HTML is not an answer for it (it would keep the breaker closed while a host serves only error pages); a
+resource that fails as unexpected HTML counts once as a server error.</p>
+<h2 id="trace-entries">Trace entries<a class="headerlink" href="#trace-entries" title="Permanent link">&para;</a></h2>
+<p>Every fetch records its attempts (the fetch record's <code>tries</code>, the <code>http.tries</code> of a page's <code>linecaster.http.fetch</code>
+span, <a href="../tracing/">tracing</a>): <code>200</code> (or another status) for a response read whole, <code>200-cut</code> for one cut by the
+deadline per attempt, <code>200-html</code> for unexpected HTML, <code>no-response</code> for none (a timeout, a connection or proxy
+error). A block is traced with its status (<code>429</code>) but does not count among the attempts a failed fetch names. The
+record also has the time spent waiting for the rate limits (<code>wait_seconds</code>) and in pauses (<code>pause_seconds</code>).</p>
+<h2 id="the-http-policy">The HTTP policy<a class="headerlink" href="#the-http-policy" title="Permanent link">&para;</a></h2>
+<p><code>--http-policy FILE</code> (<code>linecaster.net.policy.HTTPPolicy</code>) gives a run's requests their settings from one YAML file,
+in three levels, each inheriting from the one above. It holds for every reader that fetches over http(s), the same
+way (<code>linecaster.net.policy.Fetchers</code>): <code>--items</code>, <code>--parquet</code> with http(s) image URLs, <code>--manifests</code> (the
+manifests, their images and OCR files) and <code>--pages</code> (the images it fetches again).</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 1. general: every request, direct or through a proxy</span>
+<span class="nt">rate_limits</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"100/60"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"2/1"</span><span class="p p-Indicator">]</span><span class="w">     </span><span class="c1"># per worker direct, per proxy through proxies</span>
+<span class="nt">attempt_timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120</span>
+<span class="nt">max_retries</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6</span>
+<span class="nt">random_user_agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># or user_agent: TEXT</span>
+<span class="nt">block_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">429</span><span class="p p-Indicator">]</span><span class="w">                    </span><span class="c1"># default [429]; 4xx/5xx statuses and `html`</span>
+<span class="nt">stop_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w">                        </span><span class="c1"># statuses and `html`; never also in block_on</span>
+<span class="nt">max_pause</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6h</span>
+<span class="c1"># 2. proxies: only for requests through the proxy list; inherits level 1</span>
+<span class="nt">proxies</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">proxies.txt</span>
+<span class="w">  </span><span class="nt">per_worker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">share</span><span class="w">                </span><span class="c1"># share | 1 | N</span>
+<span class="w">  </span><span class="nt">block_ttl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span><span class="w">                  </span><span class="c1"># a blocked proxy without Retry-After: the ceiling of the doubling</span>
+<span class="w">  </span><span class="nt">broken_after</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">                  </span><span class="c1"># proxy errors in a row before it is left out</span>
+<span class="w">  </span><span class="nt">broken_ttl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300</span><span class="w">                  </span><span class="c1"># a broken proxy's first time out, doubling, at most block_ttl</span>
+<span class="c1"># 3. hosts: per host, the same two levels; each field overrides the one above</span>
+<span class="nt">hosts</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">catalog.example.org</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">direct</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">rate_limits</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"25/60"</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">stop_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">html</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">images.example.org</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">proxies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">block_ttl</span><span class="p">:</span><span class="w"> </span><span class="nv">72h</span><span class="p p-Indicator">}</span>
+<span class="nt">broker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">s3://bucket/broker</span><span class="w">         </span><span class="c1"># root only</span>
+</code></pre></div>
+<p>Durations are seconds or a number with <code>s</code>, <code>m</code>, <code>h</code> or <code>d</code> (<code>72h</code>). A host's settings are, from the lowest
+precedence up:</p>
+<ol>
+<li>linecaster's defaults (above);</li>
+<li>the file's level 1, at its root;</li>
+<li>the run's own options: <code>--rate-limit</code>, <code>--proxies</code> (the proxy list's <code>file</code>), <code>--user-agent</code>,
+   <code>--random-user-agent</code>;</li>
+<li>the host's level 1, under <code>hosts:</code>.</li>
+</ol>
+<p>The <code>proxies:</code> section applies only on the proxy path: the root's, then the host's, field by field (a host's
+<code>proxies: {block_ttl: 72h}</code> keeps the root's <code>file</code>). A field at a host replaces the root's, it does not merge into
+it (<code>stop_on: [403]</code> at a host drops the root's <code>stop_on</code>). <code>direct: true</code> at a host means no proxies there, neither
+a list nor the environment's (<code>HTTPS_PROXY</code>); <code>direct: false</code> undoes a direct root. <code>broker</code> is the folder through
+which the workers share the proxies and their blocks, at the root only (default <code>OUT/logs/broker</code>). The checks at
+startup: something in both <code>block_on</code> (or its default) and <code>stop_on</code> is refused (to stop on a 429, write <code>block_on:
+[]</code> with <code>stop_on: [429]</code>); hosts that use one proxy list must agree on its <code>per_worker</code>; an unknown field is an
+error. Each host's settings get their own fetcher, so each host its own rate limits, breaker, pause and window.</p>
+<p>A run states the rules that hold per host and path before it starts (<code>HTTPPolicy.describe</code>, in the run's notes),
+defaults and opt-ins alike, e.g. <code>catalog.example.org: direct, 25/60 per worker, 4 retries, blocks on 429: the worker
+waits Retry-After, else 1 min doubling, and stops when the wait would pass 6 h, stops on html</code>.</p>
+<h3 id="fields-of-earlier-versions">Fields of earlier versions<a class="headerlink" href="#fields-of-earlier-versions" title="Permanent link">&para;</a></h3>
+<p>Fields of earlier versions are refused at startup with a <code>PipelineConfigError</code> that names the line to write instead:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Write instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pause_on: [429, 503]</code></td>
+<td><code>block_on: [429, 503]</code></td>
+</tr>
+<tr>
+<td><code>blacklist_on: [403]</code></td>
+<td><code>block_on: [429, 403]</code> (with the statuses of <code>pause_on</code>, if any)</td>
+</tr>
+<tr>
+<td><code>blacklist_ttl: 72h</code></td>
+<td><code>proxies: {block_ttl: 72h}</code></td>
+</tr>
+<tr>
+<td><code>blacklist_threshold: 2</code></td>
+<td><code>proxies: {broken_after: 2}</code></td>
+</tr>
+<tr>
+<td><code>proxies: proxies.txt</code></td>
+<td><code>proxies: {file: proxies.txt}</code></td>
+</tr>
+<tr>
+<td><code>proxies_per_worker: 1</code></td>
+<td><code>proxies: {per_worker: 1}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="a-cdn-protected-host">A CDN-protected host<a class="headerlink" href="#a-cdn-protected-host" title="Permanent link">&para;</a></h3>
+<p>A host behind a CDN that answers a turned-away IP with a challenge page (HTML with 200) and keeps an IP blocked for
+an hour, where one proxy error already means the proxy is unusable, gets the strict reaction back per host:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">proxies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="nv">proxies.txt</span><span class="p p-Indicator">}</span>
+<span class="nt">hosts</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">images.example.org</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">block_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">429</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">html</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># a challenge page is a block: the proxy is left out, the request goes on</span>
+<span class="w">    </span><span class="nt">proxies</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">block_ttl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span><span class="w">              </span><span class="c1"># left out up to an hour without Retry-After</span>
+<span class="w">      </span><span class="nt">broken_after</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">              </span><span class="c1"># one proxy error in a row: broken</span>
+</code></pre></div>
+<p>Direct, the same <code>block_on: [429, html]</code> makes the worker wait on a challenge page as on a 429, or stop when the
+wait would be too long.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

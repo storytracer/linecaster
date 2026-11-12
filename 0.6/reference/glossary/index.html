@@ -1,0 +1,1782 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.6/reference/glossary/">
+      
+      
+        <link rel="prev" href="../compatibility/">
+      
+      
+        <link rel="next" href="../conventions/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Glossary - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#glossary" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Glossary
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#running-things" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running things
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The catalog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pages-items-and-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pages, items and text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-and-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docs and changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-print-shop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The print shop
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#running-things" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running things
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The catalog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pages-items-and-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pages, items and text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-and-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docs and changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-print-shop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The print shop
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
+<p>The terms linecaster uses, one meaning each. Where a word means something else elsewhere (in datatrove, Haystack,
+everyday use), the <strong>not</strong> column says so. Code, docs and commit messages use these terms and no others; a new
+term is added here before it is used.</p>
+<h2 id="running-things">Running things<a class="headerlink" href="#running-things" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+<th>Not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>block</strong></td>
+<td>One processing unit of a pipeline: a datatrove <code>PipelineStep</code>. Blocks are named as role nouns (<code>LineRecognizer</code>, <code>Composer</code>, <code>PageJsonlWriter</code>). An HTTP server's refusal is a <em>block</em> too, always named with its host or proxy (below, <strong>block (HTTP)</strong>).</td>
+<td>not a "step" (that is a catalog term), not a "component", not a "module"</td>
+</tr>
+<tr>
+<td><strong>role</strong></td>
+<td>What a block does, defined by its contract; implementations and strategies of one role are interchangeable.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>family</strong></td>
+<td>A group of roles of one kind: readers, layout, lines, recognition, conversion, text, composition, binding, validation, servers, writers, composites. One subpackage of <code>linecaster.blocks</code> each.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>contract</strong></td>
+<td>What a block reads, adds, replaces and removes in the page record (or item record), and its unit. The builder checks contracts before a run.</td>
+<td>not a Python type signature</td>
+</tr>
+<tr>
+<td><strong>part</strong></td>
+<td>One named piece of the page record (or item record) a contract names: page-level (<code>image</code>, <code>metadata</code>), or of one transcription (<code>ocr_new:lines</code>); the vocabulary is <code>PARTS</code> (below).</td>
+<td>not a datatrove <code>Document</code> field</td>
+</tr>
+<tr>
+<td><strong>unit</strong></td>
+<td>What one call of a block or engine processes: <code>line</code>, <code>region</code>, <code>page</code> or <code>item</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>per-unit transform</strong>, <strong>stream transform</strong></td>
+<td>The two shapes of a block: a per-unit transform processes one unit per call and its base class owns the loop; a stream transform takes the whole stream and passes each unit on when it is done, possibly out of order (served model blocks).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>condition</strong></td>
+<td>A picklable predicate on the page record with a <code>describe()</code>; a block with one (<code>when=</code>) processes only the pages it accepts, the others pass unchanged. Blocks sharing a group are <strong>alternatives</strong>: each page goes through one of them.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>composite block</strong></td>
+<td>A named group of blocks with its own outward contract (e.g. <code>ModularTranscriber</code>). The builder expands it into its blocks.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>pipeline</strong></td>
+<td>An ordered list of blocks that a stream of pages (or items) passes through, run by an executor. datatrove's sense.</td>
+<td>not a graph of components as in Haystack</td>
+</tr>
+<tr>
+<td><strong>graph</strong></td>
+<td>The dependencies between a pipeline's blocks, derived from their contracts by the builder: for checking, drawing, and cutting into stages. It is not executed as a graph.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>builder</strong></td>
+<td>The code that turns a pipeline definition into stages: derives the graph, checks it, expands composites, cuts it at unit changes.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>stage</strong></td>
+<td>One datatrove pipeline run as part of a longer computation; stages run one after another and hand over through files (e.g. page records written in item shards, read by the next stage).</td>
+<td>not a "phase"</td>
+</tr>
+<tr>
+<td><strong>pipeline shape</strong></td>
+<td>One way of putting blocks together, with slots for presets: the code in <code>linecaster.pipelines.&lt;name&gt;</code> that adds its options, names the engines they ask for and builds its blocks, with its help text, pipeline id and slots. Named like its pipeline script and its pipeline id; a derivative's script imports it the same way.</td>
+<td>not the blocks of one run (that is the pipeline)</td>
+</tr>
+<tr>
+<td><strong>pipeline script</strong></td>
+<td>A self-contained uv script in <code>pipelines/</code> (PEP 723 metadata, a lock next to it) that gives one pipeline shape its environment and its command line, and runs it on every executor. Named as a verb: <code>harvest.py</code>, <code>transcribe_modular.py</code>, <code>transcribe_vlm.py</code>, <code>bind.py</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>pipeline id</strong></td>
+<td>A pipeline script's versioned id, its file name plus <code>.v&lt;n&gt;</code>: <code>transcribe_modular.v1</code>. Recipes name the pipeline they run by it.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>workflow</strong></td>
+<td>The sequence of pipeline scripts for a collection: harvest → transcribe → bind.</td>
+<td>not one pipeline; not a GitHub Actions workflow (say "CI workflow" for that)</td>
+</tr>
+<tr>
+<td><strong>executor</strong>, <strong>job</strong>, <strong>task</strong>, <strong>worker</strong>, <strong>shard</strong></td>
+<td>datatrove's terms: the executor runs a pipeline as tasks; a job is one launch (one HF Job, one Slurm job); a task is one unit of work with its own rank; workers are tasks running at once; a shard is the part of the input one task reads.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>item shard</strong></td>
+<td>A folder of page records holding every page of a set of items, so that a later stage reads whole items.</td>
+<td>not a datatrove shard</td>
+</tr>
+<tr>
+<td><strong>backend</strong></td>
+<td>Where a model block's engine runs: <code>in-process</code>, <code>served</code> (a server reached through saturate), or <code>chat</code> (an OpenAI-compatible VLM server).</td>
+<td>not the executor</td>
+</tr>
+<tr>
+<td><strong>server</strong></td>
+<td>A process that hosts models: <code>linecaster serve</code> for engines, vLLM or SGLang for VLMs, a service for a page engine. Started by the server blocks <code>ModelServer</code>, <code>ChatModelServer</code> and <code>ServiceServer</code>, which go last in a pipeline.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>service</strong></td>
+<td>The server a page engine talks to that is neither <code>linecaster serve</code> nor a chat server: a vendor's page pipeline behind its own HTTP API, in the vendor's image (Falcon-OCR, OXR-1.0), or the vLLM a vendor's package attaches to (surya-ocr). A page preset's <code>serve</code> block names it; <code>ServiceServer</code> starts it.</td>
+<td>not an operating-system service</td>
+</tr>
+<tr>
+<td><strong>observer</strong></td>
+<td>A callback at block boundaries (before and after a unit): taps, sampling, progress, tracing.</td>
+<td>not a Haystack "hook"</td>
+</tr>
+<tr>
+<td><strong>boundary step</strong></td>
+<td>The step the builder puts after a block when a stage has observers: it tells them that each unit left that block and entered the next. It adds no stats.</td>
+<td>not a block</td>
+</tr>
+<tr>
+<td><strong>tap</strong></td>
+<td>An observer that writes the page records as they pass a given block (<code>--tap-after</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>partial run</strong></td>
+<td>A run of part of a pipeline: up to a block (<code>--until</code>), or from page records after one (<code>--after</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>run folder</strong></td>
+<td>The output folder of a run (<code>OUT</code>): <code>pages/</code> (the page records), <code>rejects/</code>, <code>logs/</code>, <code>traces/</code>, <code>run.yaml</code>, with a sample <code>sample.parquet</code> (and from manifests <code>manifests/</code>), and the files the writers produce.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>sample</strong></td>
+<td>The pages a run reads when it is given a sample rule (<code>--sample N</code>, <code>--sample-per-item K</code>, <code>--sample-items M</code>, <code>--sample-seed S</code>; <code>linecaster.data.sample</code>): chosen from the ids of the input's listing before any image is read, by item rank and page rank, cut after M items, K pages per item and N pages. The same input and options give the same sample whatever the tasks; it goes to <code>OUT/sample.parquet</code> and the run record.</td>
+<td>not the trace sample; not a preset's <code>sampling</code> (decoding settings)</td>
+</tr>
+<tr>
+<td><strong>item rank</strong></td>
+<td>An item's place in the sample order (1-based): the items with pages ordered by <code>H(f"{seed}\t{item_id}")</code>, ties by id; <code>H</code> is the first 8 bytes of the SHA-256 as an unsigned big-endian integer.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>page rank</strong></td>
+<td>A page's place within its item in the sample order (1-based): ordered by <code>H(f"{seed}\t{item_id}\t{page_id}")</code>, ties by id.</td>
+<td>not the page's sequence</td>
+</tr>
+<tr>
+<td><strong>run record</strong></td>
+<td><code>OUT/run.yaml</code>: the pipeline as run (every block's parameters, <code>to_dict()</code>), the recipe, the command line, the executor and the software, with <code>pipeline_sha256</code> (the hash of the functional parameters).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>resource</strong></td>
+<td>A remote file of an item or of one of its pages (a catalogue record, an API's item JSON, a manifest, OCR, an image), with a kind (<code>marcxml</code>, <code>item-json</code>, ...): fetched as served by <code>ResourceReader</code> and kept as a raw copy, <code>&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code>, with a fetch record.</td>
+<td>not a datatrove <code>Media</code></td>
+</tr>
+<tr>
+<td><strong>HTTP policy</strong>, <strong>host entry</strong></td>
+<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>, <code>linecaster.net.policy</code>, <a href="../http/#the-http-policy">http</a>), in three levels: settings for every request at its root (rate limits, retries, deadline, User-Agent, what blocks and what stops the run, <code>max_pause</code>), the proxy path's own section (<code>proxies:</code>: the list, proxies per worker, how long a blocked or broken proxy is left out), and a host entry under <code>hosts:</code> for each host that differs, whose fields replace the root's. The run's own options go between the root and the host entries; each host's settings get their own fetcher.</td>
+<td>not several policies</td>
+</tr>
+<tr>
+<td><strong>broker</strong></td>
+<td>A shared folder (any <code>DataFolder</code>: local, S3, ...) through which workers across tasks, runs and machines agree on who uses which shared resource and what is unavailable until when, with leases and marks (<code>linecaster.broker</code>, <code>--broker</code>, default <code>OUT/logs/broker</code>; <a href="../broker/">broker</a>). Proxies are its first kind of resource.</td>
+<td>not a message broker (no server, no queue)</td>
+</tr>
+<tr>
+<td><strong>lease</strong></td>
+<td>A worker's claim on one resource in the broker (<code>&lt;kind&gt;/&lt;id&gt;/leases/</code>): it holds the resource while it renews the lease within the lease time (180 s); one worker holds a resource at a time, and a crashed worker's leases expire on their own.</td>
+<td>not a lock with a server</td>
+</tr>
+<tr>
+<td><strong>mark</strong></td>
+<td>A note in the broker that something holds for a resource in a scope until a time (<code>&lt;kind&gt;/&lt;id&gt;/marks/&lt;scope&gt;/</code>), written once and never changed, deleted by whoever sees it expired (past its <code>keep</code>, if it has one: kept readable that long after its end, for a proxy's doubling): a proxy's block at a host (scope the host), a broken proxy (scope <code>*</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>worker identity</strong>, <strong>worker slot</strong></td>
+<td>Who holds leases in the broker: a datatrove worker as a slot of its machine (<code>&lt;machine&gt;-&lt;n&gt;</code>), not a process. A process claims a free slot of its machine at its first use (its search starting at its executor's worker index, so processes started together do not race) and hands it over when it ends; the next process in the slot is the same worker and goes on with its leases (on Ray every task is a new process).</td>
+<td>not a process, not a task</td>
+</tr>
+<tr>
+<td><strong>proxies per worker</strong></td>
+<td>How many proxies of a list a worker holds at a time (<code>per_worker</code> in an HTTP policy's <code>proxies:</code> section, per host or at the root, <code>linecaster.net.proxies</code>): by default <code>share</code>, a fair share of the proxies not blocked (the free ones divided by the live workers), rebalanced as workers come and go; <code>1</code>, one, swapped for a free one when it is blocked; or up to N, claimed one by one. The run's default worker count follows it (sharing them, one worker per available proxy up to one per CPU; with <code>1</code> or N one per available proxy, divided by N; at most 64 with OUT on object storage).</td>
+<td>not proxies per task</td>
+</tr>
+<tr>
+<td><strong>block (HTTP)</strong></td>
+<td>A host turning an IP away: a response in the host's <code>block_on</code> (429 by default; with <code>html</code> there, an HTML page where another format was expected), whether through a proxy or direct, since the server only sees an IP (<a href="../http/#blocks">http</a>). Through proxies the proxy is left out for that host (a mark in the broker, until <code>Retry-After</code>, else 60 s doubling up to <code>block_ttl</code>) and the request goes on through another; direct the worker's requests to the host pause. A block is never an attempt.</td>
+<td>not a block of a pipeline, not a failed attempt</td>
+</tr>
+<tr>
+<td><strong>broken proxy</strong></td>
+<td>A proxy that failed attempts itself (a proxy error, no connection to it) <code>broken_after</code> times in a row (3 by default): left out for every host (a mark with scope <code>*</code>), first for <code>broken_ttl</code> (300 s), doubling, at most <code>block_ttl</code>. A slow server's timeout does not count.</td>
+<td>not a blocked proxy (that is the host's refusal)</td>
+</tr>
+<tr>
+<td><strong>pause</strong></td>
+<td>A time in which a fetcher (one per worker and host settings) sends no request to a host, or with the breaker none at all, and its requests wait instead of failing. Three things start one: a block on a direct connection, for that host, until the response's <code>Retry-After</code> has passed, else 60 s doubling while the blocks repeat, after which the request that got it is tried again (<code>linecaster.net.http.Pause</code>); the breaker during an outage; and, with a proxy list, no proxy usable for the host (every one the worker holds blocked there, none free to claim) until a block ends or another worker gives one back. The blocks' pauses and the waits for a proxy count toward the host's <code>max_pause</code> since its last successful response, and beyond it the run stops (<a href="../http/#max_pause">http</a>). Other hosts' requests and other workers' fetchers go on.</td>
+<td>not a stop of the run</td>
+</tr>
+<tr>
+<td><strong>unexpected HTML</strong></td>
+<td>A successful response (2xx) with an HTML page where an image, XML, JSON or a manifest was expected (an error page served with 200, a soft 404, a login page after a redirect): by default a failed attempt, retried and traced <code>200-html</code> (<code>linecaster.net.http.UnexpectedHTML</code>); a block or a stop where the host's policy has <code>html</code> in <code>block_on</code> or <code>stop_on</code>.</td>
+<td>not an error status with an HTML body (a 503 page is a 503)</td>
+</tr>
+<tr>
+<td><strong>breaker</strong></td>
+<td>A fetcher's guard against an outage (<code>linecaster.net.http.Breaker</code>): when most recent attempts got a server error it pauses the fetcher's requests, sends a probe now and then, and ends the pause with the first answer that is not a server error.</td>
+<td>not the pause after a block</td>
+</tr>
+<tr>
+<td><strong>reject</strong></td>
+<td>A page that failed a check or a step, written to <code>rejects/</code> with the reason; it stays in the page records with its errors.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>image warning</strong></td>
+<td>A fault of an image file that it is read around, recorded and logged as a WARNING but not failing it (<code>linecaster.images.image_warnings</code>): a PNG's optional (ancillary) chunk with a wrong checksum, left out when read (as libpng and browsers do); what Pillow warns about while reading (e.g. corrupt EXIF); EXIF that cannot be read; an ICC profile that cannot be applied. In a resource's fetch record and a converted page's image as <code>warnings</code>.</td>
+<td>not an error: a fault that keeps the pixels from being read (a damaged header, a truncated file) fails the resource or rejects the page</td>
+</tr>
+<tr>
+<td><strong>warm-up</strong></td>
+<td>What a block loads before its first unit (<code>warm_up()</code>): an engine, a server, a client's secrets. Timed as its own stat.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>error budget</strong></td>
+<td>The share of a task's pages a block may fail on before the task fails (<code>--max-page-errors</code>, default 1 % of at least 100 pages).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>functional parameter</strong>, <strong>operational parameter</strong></td>
+<td>A block parameter that can change what a run writes (functional), or only where things are and how the work runs (operational: folders, ports, endpoints, windows, worker counts). <code>pipeline_sha256</code> covers the functional ones.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>describe mode</strong></td>
+<td>Building a pipeline shape's blocks in the current process without its engines, for its description and hash (<code>linecaster.runtime.run.describe</code>).</td>
+<td>not <code>--dry-run</code>, which runs in the script's environment</td>
+</tr>
+<tr>
+<td><strong>secret reference</strong></td>
+<td><code>EnvVar("NAME")</code>: a credential named by its environment variable, read in the task, never stored in a pipeline or a record.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>trace</strong>, <strong>span</strong></td>
+<td>OpenTelemetry's terms: a trace is one page's (or one task's) path through a run, made of spans, one per operation, with times and attributes.</td>
+<td>not telemetry</td>
+</tr>
+<tr>
+<td><strong>trace sample</strong></td>
+<td>The pages that are traced: a fixed share chosen by page id (<code>--trace-sample</code>), plus every page that failed.</td>
+<td>not the sample a run reads</td>
+</tr>
+<tr>
+<td><strong>trace context</strong></td>
+<td>A page's W3C <code>traceparent</code> (<code>doc.metadata["trace"]</code>), given at the reader's boundary: the page's spans are its children, and a served block sends it with the page's request.</td>
+<td>not "the current span"</td>
+</tr>
+<tr>
+<td><strong>task span</strong></td>
+<td>A span of the task's own work, traced for every task: the task, a block's warm-up, a server start, a reader's file, a writer's flush.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>gap</strong></td>
+<td>The time a block had no page in it between its first page and its last: it waited for its input (<code>linecaster traces</code>).</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="parts">Parts<a class="headerlink" href="#parts" title="Permanent link">&para;</a></h2>
+<p>What contracts name besides the parts presets produce (<code>PRODUCES</code> in <code>linecaster.catalog.schema</code>: <code>regions</code>,
+<code>reading_order</code>, <code>lines</code>, <code>baselines</code>, <code>text</code>, <code>words</code>, ...); <code>PARTS</code> holds them all.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>image</code></td>
+<td>The page image's bytes, as the reader brought them (page-level).</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>The page record's own fields: ids, sequence, the image's record, the metadata (page-level).</td>
+</tr>
+<tr>
+<td><code>transcription_file</code></td>
+<td>A library's own transcription delivered with the page, as a file's bytes (a document media: ALTO, PAGE-XML, hOCR or text; page-level); the <code>TranscriptionConverter</code> reads it into a transcription.</td>
+</tr>
+<tr>
+<td><code>line_regions</code></td>
+<td>Lines assigned to the layout regions and ordered within them (the <code>LineAssigner</code>).</td>
+</tr>
+<tr>
+<td><code>hierarchy</code></td>
+<td>Heading levels, headline splits and drop capitals (the <code>Typographer</code>).</td>
+</tr>
+<tr>
+<td><code>nfc</code></td>
+<td>The as-written layer in one Unicode normalization form (the <code>UnicodeNormalizer</code>).</td>
+</tr>
+<tr>
+<td><code>paragraphs</code></td>
+<td>The running text recomposed from the rows, with its decisions (the <code>Recomposer</code>).</td>
+</tr>
+<tr>
+<td><code>normalized</code></td>
+<td>The normalized texts of lines and paragraphs (the <code>CharacterNormalizer</code>).</td>
+</tr>
+<tr>
+<td><code>document</code></td>
+<td>The DoclingDocument of a page (the <code>Composer</code>) or of an item (<code>Composer(unit="item")</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-catalog">The catalog<a class="headerlink" href="#the-catalog" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+<th>Not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>catalog</strong></td>
+<td>linecaster's register of models, engines, presets and recipes, in <code>src/linecaster/catalog/data/</code>.</td>
+<td>not a data repository: it holds no measurements</td>
+</tr>
+<tr>
+<td><strong>catalog entry</strong></td>
+<td>One registered thing: a model, a preset or a recipe; a YAML file, with a Markdown sidecar for its prose.</td>
+<td>not a "component", not a "document"</td>
+</tr>
+<tr>
+<td><strong>step</strong></td>
+<td>A catalog step: what an engine does, e.g. <code>layout</code>, <code>lines</code>, <code>recognition</code>, <code>tables</code>, <code>formulas</code>, <code>image</code>, <code>normalization</code>, <code>typography</code>, <code>recomposition</code>, <code>composition</code>. A preset belongs to one step.</td>
+<td>not a block</td>
+</tr>
+<tr>
+<td><strong>engine</strong></td>
+<td>Code with a versioned id (<code>kraken.recognition.v1</code>, <code>recomposition.unicode.v1</code>) that implements one step: a class with <code>Options</code>, capabilities, <code>load()</code> and a call per unit. Built-in engines live in the core; engine packages (<code>linecaster-kraken</code>, ...) add more.</td>
+<td>not saturate's <code>Engine</code> class (its server launcher)</td>
+</tr>
+<tr>
+<td><strong>strategy</strong></td>
+<td>An engine of a rule-based step (normalization, typography, recomposition, composition, image). A strategy declares the scripts it covers.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>script</strong></td>
+<td>A writing system, named by its ISO 15924 code (<code>Latn</code>, <code>Hebr</code>, <code>Arab</code>): Unicode's <code>Script</code> property. A by-script engine routes each decision to the strategy for the script around it; <code>*</code> stands for every script.</td>
+<td>not a pipeline script</td>
+</tr>
+<tr>
+<td><strong>model</strong></td>
+<td>An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim.</td>
+<td>not an engine, not a preset, not a VLM adapter</td>
+</tr>
+<tr>
+<td><strong>preset</strong></td>
+<td>A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as <code>id@edition</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>page preset</strong></td>
+<td>A preset whose unit is <code>page</code>: one model reads the whole page (a VLM, or a page engine). <code>launch.py</code> can run one directly.</td>
+<td>not "a model"</td>
+</tr>
+<tr>
+<td><strong>page engine</strong></td>
+<td>An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (<code>indra.recognition.v1</code>, <code>surya.recognition.v1</code>, and the clients of a vendor's service, <code>falcon.recognition.v1</code>, <code>oxr.recognition.v1</code>). <code>PageRecognizer</code> runs it.</td>
+<td>not a chat preset (<code>chat.v1</code>)</td>
+</tr>
+<tr>
+<td><strong>recipe</strong></td>
+<td>A tested combination: a pipeline id, a preset edition per slot, and options.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>slot</strong></td>
+<td>A place in a pipeline script that a preset fills; its name is the step's (<code>--layout</code>, <code>--lines</code>, <code>--recognition</code>, ...).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>repair pass</strong></td>
+<td>A further request for a page whose VLM completion stopped at its cap (<code>finish_reason</code> <code>length</code>): the same request with a larger cap and the repair temperature. <code>repair_max_tokens</code> gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a <strong>pass</strong>, recorded in the transcription's <code>extra["passes"]</code>; <code>extra["kept"]</code> says which one it holds.</td>
+<td>not a retry of a failed request</td>
+</tr>
+<tr>
+<td><strong>adapter</strong></td>
+<td>The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (<code>linecaster.adapters</code>).</td>
+<td>not an engine package</td>
+</tr>
+<tr>
+<td><strong>evidence</strong></td>
+<td>A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (<code>linecaster.evidence/1</code>), kept by an evaluation in its own repository.</td>
+<td>not a catalog entry</td>
+</tr>
+<tr>
+<td><strong>version</strong></td>
+<td>Upstream's name for a release of a model (<code>v6</code>, <code>3.5</code>).</td>
+<td>not an edition</td>
+</tr>
+<tr>
+<td><strong>revision</strong></td>
+<td>The exact upstream commit a model is pinned to.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>edition</strong></td>
+<td>linecaster's release number of a preset or recipe: <code>kraken-ppocrv6-medium@1</code>. A released edition never changes; its hash covers its YAML.</td>
+<td>not a version</td>
+</tr>
+<tr>
+<td><strong>code id</strong></td>
+<td>The versioned id of an engine or a pipeline: <code>&lt;name&gt;.v&lt;n&gt;</code>. An option added later keeps the id if its default keeps the old behavior.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>schema id</strong></td>
+<td>The format of a YAML file: <code>linecaster.preset/1</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>lock</strong></td>
+<td><code>catalog.lock</code>: the hash of every released edition, and the expanded pipeline of every recipe edition.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="pages-items-and-text">Pages, items and text<a class="headerlink" href="#pages-items-and-text" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+<th>Not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>item</strong></td>
+<td>Any multi-page unit: a book, an issue, a manuscript, a file. Key <code>item_id</code>.</td>
+<td>not "book" in generic code, flags or docs</td>
+</tr>
+<tr>
+<td><strong>page</strong></td>
+<td>One page of an item, with its image and its named transcriptions. <code>page_id</code> is <code>&lt;item_id&gt;_&lt;sequence:04d&gt;</code> unless the source has stable ids of its own.</td>
+<td>not the step <code>page</code> (there is none)</td>
+</tr>
+<tr>
+<td><strong>page record</strong></td>
+<td>A page with its image reference, its transcriptions and its metadata (<code>Page</code>): what a block reads and adds to while the page passes, and what is stored in <code>OUT/pages/</code> as JSONL or Parquet (everything but the image bytes).</td>
+<td>not a "page row"</td>
+</tr>
+<tr>
+<td><strong>item record</strong></td>
+<td>An item with its pages in order, as the <code>Binder</code> passes it on (<code>doc.metadata["item"]</code>, <code>linecaster.blocks.base.item</code>); the item-unit <code>Recomposer</code>, <code>CharacterNormalizer</code> and <code>Composer</code> read it, the item writers write from it, the <code>Splitter</code> turns it back into pages.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>manifest</strong></td>
+<td>An item's list of its pages and their files, in order: an IIIF Presentation manifest or a METS document (also inside OAI-PMH).</td>
+<td>not a BagIt checksum manifest</td>
+</tr>
+<tr>
+<td><strong>page image</strong></td>
+<td>The image a page's coordinates refer to (<code>PageImage</code>): its URI, format, size, hash.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>working image</strong></td>
+<td>The <code>working-image</code> preset of the <code>ImageConverter</code>: lossless WebP at full resolution, 8-bit sRGB.</td>
+<td>not a role</td>
+</tr>
+<tr>
+<td><strong>transcription</strong></td>
+<td>Everything read from a page by one source (<code>Transcription</code>): regions, lines, words, paragraphs, the document, the steps that made it, and its source. Named per page: <code>ocr_new</code> (linecaster's), <code>ocr_original</code> (the library's own), <code>ground_truth</code>.</td>
+<td>not "OCR" (it also holds HTR and ground truth)</td>
+</tr>
+<tr>
+<td><strong>region</strong></td>
+<td>An area of a page with a label (<code>text</code>, <code>title</code>, <code>table</code>, ...) from layout.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>reading order</strong></td>
+<td>The rank in which a page's regions are read (<code>Region.reading_order</code>), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster.</td>
+<td>not the order of <code>Transcription.lines</code>, which is the processing order</td>
+</tr>
+<tr>
+<td><strong>XY-cut</strong>, <strong>XY-Cut++</strong></td>
+<td>The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (<code>linecaster.data.geometry</code>, the layout option <code>reading_order</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>cross-layout region</strong></td>
+<td>A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting.</td>
+<td>not a region label</td>
+</tr>
+<tr>
+<td><strong>line</strong></td>
+<td>One printed or written line: its geometry and, once recognized, its text and words.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>row</strong></td>
+<td>The lines of one region that sit side by side at the same height (<code>Line.row</code>), as in typesetting; detection often splits one printed line into several lines on the same row.</td>
+<td>never a stored record</td>
+</tr>
+<tr>
+<td><strong>word</strong></td>
+<td>The finest unit: its text, box and confidence. linecaster has no glyph level.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>paragraph</strong></td>
+<td>Running text recomposed from a region's rows, with the decisions that made it. Added by the <code>Recomposer</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>document</strong></td>
+<td>A DoclingDocument: the composed structure of a page or an item. Added by the <code>Composer</code>.</td>
+<td>not a datatrove <code>Document</code> (say "datatrove document"), not a catalog entry</td>
+</tr>
+<tr>
+<td><strong>step info</strong></td>
+<td>One entry per step that worked on a transcription (<code>StepInfo</code>): step, engine, preset edition, backend, settings, measurements.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>measurements</strong></td>
+<td>Numbers a step records for a page: seconds, tokens, device, <code>finish_reason</code>, in a fixed vocabulary.</td>
+<td>not trace attributes</td>
+</tr>
+<tr>
+<td><strong>text variant</strong></td>
+<td>A named point on the three text dimensions, written per item: <code>verbatim_txt</code>, <code>readable_txt</code>, <code>readable_md</code>.</td>
+<td>not a "version"</td>
+</tr>
+<tr>
+<td><strong>character fidelity</strong>, <strong>flow</strong>, <strong>scope</strong></td>
+<td>The three text dimensions: as written → normalized (fidelity); as laid out → flowed (flow); full page → body only (scope). Each transform moves one step on one dimension.</td>
+<td>not "axes"</td>
+</tr>
+<tr>
+<td><strong>composition</strong></td>
+<td>Building a document from regions and paragraphs (the <code>Composer</code>).</td>
+<td>not "assembly"</td>
+</tr>
+<tr>
+<td><strong>recomposition</strong></td>
+<td>Turning lines back into running text: paragraphs, removed division marks, separators, continuation (the <code>Recomposer</code>).</td>
+<td>not "reflow" (the old name)</td>
+</tr>
+<tr>
+<td><strong>binding</strong></td>
+<td>Gathering an item's pages in order into one item (the <code>Binder</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>splitting</strong></td>
+<td>Passing an item record's pages on as pages again, with what the item-level steps added (the <code>Splitter</code>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>division mark</strong></td>
+<td>A hyphen the typesetter added where a word was divided at a line end.</td>
+<td>not a hyphen that belongs to the word</td>
+</tr>
+<tr>
+<td><strong>decision</strong></td>
+<td>One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+<th>Not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>engine API</strong></td>
+<td>What an engine package may import from linecaster besides the data model: <code>linecaster.engines.api</code> (the <code>Engine</code> protocol, <code>Capabilities</code>, the weight helpers).</td>
+<td>not the HTTP routes of <code>linecaster serve</code></td>
+</tr>
+<tr>
+<td><strong>fake engine</strong></td>
+<td>A deterministic CPU engine of <code>linecaster.testing</code> for tests, one per model step, registered under <code>fake.&lt;step&gt;.v1</code> by <code>register_fakes()</code> only.</td>
+<td>never in a catalog preset</td>
+</tr>
+<tr>
+<td><strong>conformance check</strong></td>
+<td><code>check_engine</code> (the engine protocol) or <code>check_block</code> (a block's contract against what it does, its <code>to_dict()</code>, pickling, <code>warm_up()</code> and failed pages), from <code>linecaster.testing</code>.</td>
+<td>not a parity check</td>
+</tr>
+<tr>
+<td><strong>marker</strong></td>
+<td>A pytest marker of linecaster's tests: <code>gpu</code>, <code>network</code>, <code>slow</code>. Tests marked <code>gpu</code> or <code>network</code> skip where the device or the network is missing.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>CI workflow</strong></td>
+<td><code>.github/workflows/ci.yml</code>: the core's tests and checks on a CPU, on every push and pull request to main.</td>
+<td>not a workflow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="docs-and-changes">Docs and changes<a class="headerlink" href="#docs-and-changes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+<th>Not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>derivative</strong></td>
+<td>A project built on linecaster: its own pipelines, blocks or engines, and its project-specific code, defaults and names.</td>
+<td>not a fork</td>
+</tr>
+<tr>
+<td><strong>generated docs</strong></td>
+<td>The files <code>linecaster docs</code> writes from code, docstrings and the catalog when the site is built: the catalog's and the blocks' pages, the site's index and changelog, and <code>llms.txt</code>. Never edited by hand and not in git.</td>
+<td>not the reference docs (<code>docs/reference/</code>, hand-written)</td>
+</tr>
+<tr>
+<td><strong>block page</strong></td>
+<td>The generated page of one block (<code>docs/blocks/&lt;family&gt;/&lt;Block&gt;.md</code>): its contract, backends, catalog step and presets, position, options, behavior and example.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>breaking change</strong></td>
+<td>A change after which code, a command line, a stored file or a catalog reference that worked before stops working or means something else (<a href="../compatibility/">compatibility</a>).</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>upgrade note</strong></td>
+<td>The entry in <code>CHANGELOG.md</code> for a breaking change: what changed, who is affected, what to do.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-print-shop">The print shop<a class="headerlink" href="#the-print-shop" title="Permanent link">&para;</a></h2>
+<p>The block names follow the roles of a hot-metal print shop, in the order they work. linecaster makes a new,
+digital edition of a printed item:</p>
+<table>
+<thead>
+<tr>
+<th>Print shop</th>
+<th>linecaster</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the linecaster (casts whole lines)</td>
+<td><code>LineRecognizer</code></td>
+<td>casts the lines anew, as text</td>
+</tr>
+<tr>
+<td>typographer</td>
+<td><code>Typographer</code></td>
+<td>determines the hierarchy: headings and their levels, initials, what is text at all</td>
+</tr>
+<tr>
+<td>compositor</td>
+<td><code>Recomposer</code>, <code>Composer</code></td>
+<td>recomposes the running text; makes up the page or item document</td>
+</tr>
+<tr>
+<td>binder</td>
+<td><code>Binder</code></td>
+<td>binds the pages into the item (the <code>Splitter</code> takes them apart again)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
