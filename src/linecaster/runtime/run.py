@@ -596,13 +596,14 @@ def _policy_rate_limited(a: argparse.Namespace) -> bool:
 
 
 def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
-           reuse_folder: str | None = None, read_images: bool = True):
+           reuse_folder: str | None = None, read_images: bool = True, reuse_index: str | None = None):
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
     (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
     pipeline writes its images, so a resumed run passes the ones already there on without a request. The sample
     options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
-    ``manifest_folder``, by default ``OUT/manifests``. Without ``read_images`` an image folder's pages carry only
+    ``manifest_folder``, by default ``OUT/manifests``. ``reuse_index``: the index of earlier harvests' page images a
+    page-image reader reads copies from (``linecaster.blocks.readers.earlier``). Without ``read_images`` an image folder's pages carry only
     their images' addresses and page records are read without their images (a block reads them itself)."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
@@ -636,7 +637,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a),
                               task_per_item=task_per_item, reuse_folder=reuse_folder,
-                              http_policy=getattr(a, "http_policy", None), sample=sample)
+                              http_policy=getattr(a, "http_policy", None), sample=sample, reuse_index=reuse_index)
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None),
                                 uri_map=uri_map(getattr(a, "uri_map", None) or []), sample=sample,
@@ -654,7 +655,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
                                   reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None),
-                                  sample=sample)
+                                  sample=sample, reuse_index=reuse_index)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file, sample=sample,

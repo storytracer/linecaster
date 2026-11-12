@@ -435,3 +435,143 @@ def test_page_tables_without_page_ids(tmp_path):
     assert [(p.page_id, p.sequence) for p in got] == [("b1_0002", 2), ("b1_0001", 1)]
     with pytest.raises(PipelineConfigError, match="no page id column"):
         list(ImageParquetReader(str(tmp_path / "data"), item_key="item").run())
+
+
+# ---------------------------------------------------------------------------- --reuse-from: earlier harvests' folders
+
+def harvest_into(reader, out):
+    """A page harvest as ``harvest.py`` runs it: the images into ``out/images``, the page records into ``out/pages``."""
+    docs = list(ImageFilesWriter(str(out / "images")).run(reader.run()))
+    with PageJsonlWriter(str(out / "pages")) as w:
+        for doc in docs:
+            w.write(doc, 0)
+    return docs
+
+
+def page_table(folder, rows):
+    """A page table: (id, item, image URL) per row."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    folder.mkdir(parents=True)
+    ids, items, urls = (list(c) for c in zip(*rows))
+    pq.write_table(pa.table({"id": ids, "item": items, "image": urls}), folder / "p.parquet")
+    return str(folder)
+
+
+def test_a_page_table_reads_earlier_harvests_copies_by_url(server, tmp_path):
+    """An image URL the earlier harvest fetched is read from its copy there (under its new item and page id), its
+    sha256 checked, and written into the new folder with ``reused_from``; the rest is fetched."""
+    from linecaster.blocks.readers.earlier import INDEX, build_index
+
+    base = server["base"]
+    first = page_table(tmp_path / "t1", [("p1", "A", f"{base}/direct/p1.png"), ("p2", "A", f"{base}/direct/p2.png")])
+    harvest_into(ImageParquetReader(first, item_key="item", http=FAST), tmp_path / "v1")
+    server["requests"].clear()
+    second = page_table(tmp_path / "t2", [("q1", "B", f"{base}/direct/p1.png"), ("q3", "B", f"{base}/direct/p3.png")])
+    out = tmp_path / "v2"
+    assert build_index([str(tmp_path / "v1")], str(out / INDEX)) == 2
+    reader = ImageParquetReader(second, item_key="item", http=FAST, reuse_index=str(out / INDEX))
+    docs = harvest_into(reader, out)
+    assert server["requests"] == ["/direct/p3.png"]
+    assert (out / "images" / "B" / "q1.png").read_bytes() == (tmp_path / "v1" / "images" / "A" / "p1.png").read_bytes()
+    extra = page_of(next(d for d in docs if d.id == "q1")).image.extra
+    assert extra["reused_from"] == str(tmp_path / "v1") and extra["reused_from_uri"].endswith("v1/images/A/p1.png")
+    assert extra["source_uri"] == f"{base}/direct/p1.png" and "reused" not in extra
+    assert "reused_from" not in page_of(next(d for d in docs if d.id == "q3")).image.extra
+    assert reader.stats["reused_from"].total == 1
+
+
+def test_a_manifest_harvest_reads_earlier_harvests_copies_by_url(server, tmp_path, png_format):
+    from linecaster.blocks.readers.earlier import INDEX, build_index
+
+    base = server["base"]
+    (tmp_path / "m1.txt").write_text(publish(server, "a", v3(base, "a", ["a1", "a2"])))
+    harvest_into(ManifestReader(paths_file=str(tmp_path / "m1.txt"), http=png_format), tmp_path / "v1")
+    server["requests"].clear()
+    (tmp_path / "m2.txt").write_text(publish(server, "b", v3(base, "b", ["a1", "b3"])))   # a1's image, a new one
+    out = tmp_path / "v2"
+    build_index([str(tmp_path / "v1")], str(out / INDEX))
+    docs = harvest_into(ManifestReader(paths_file=str(tmp_path / "m2.txt"), http=png_format,
+                                       reuse_index=str(out / INDEX)), out)
+    images = [r for r in server["requests"] if not r.endswith("/manifest")]
+    assert images == ["/iiif/b3/full/max/0/default.png"]
+    assert page_of(next(d for d in docs if d.id == "b_0001")).image.extra["reused_from"] == str(tmp_path / "v1")
+    assert (out / "images" / "b" / "b_0001.png").exists() and (out / "images" / "b" / "b_0002.png").exists()
+
+
+def test_the_newest_earlier_folder_wins_and_a_copy_that_differs_is_fetched(server, tmp_path):
+    from linecaster.blocks.readers.earlier import INDEX, build_index
+
+    base = server["base"]
+    url = f"{base}/direct/x.png"
+    for name, created in (("old", "2026-10-01T00:00:00Z"), ("new", "2026-11-01T00:00:00Z")):
+        harvest_into(ImageParquetReader(page_table(tmp_path / f"t-{name}", [("x", "I", url)]), item_key="item",
+                                        http=FAST), tmp_path / name)
+        (tmp_path / name / "run.yaml").write_text(f"created: '{created}'\n")
+    (tmp_path / "new" / "images" / "I" / "x.png").write_bytes(png("green"))     # no longer what new's record says
+    out = tmp_path / "out"
+    build_index([str(tmp_path / "new"), str(tmp_path / "old")], str(out / INDEX))
+    server["requests"].clear()
+    reader = ImageParquetReader(page_table(tmp_path / "t", [("x", "I", url)]), item_key="item", http=FAST,
+                                reuse_index=str(out / INDEX))
+    harvest_into(reader, out)
+    assert server["requests"] == [url.split(base)[1]] and reader.stats["reuse_from_mismatch"].total == 1
+    (tmp_path / "new" / "images" / "I" / "x.png").write_bytes((tmp_path / "old" / "images" / "I" / "x.png").read_bytes())
+    server["requests"].clear()
+    reader = ImageParquetReader(page_table(tmp_path / "t3", [("x", "I", url)]), item_key="item", http=FAST,
+                                reuse_index=str(out / INDEX))
+    [doc] = harvest_into(reader, tmp_path / "out3")
+    assert server["requests"] == [] and page_of(doc).image.extra["reused_from"] == str(tmp_path / "new")
+
+
+def test_reuse_and_reuse_from_together_for_page_images(server, tmp_path):
+    """OUT's own copy first (not written again), then an earlier folder's (written), then a fetch."""
+    from linecaster.blocks.readers.earlier import INDEX, build_index
+    from linecaster.blocks.readers.existing import is_reused
+
+    base = server["base"]
+    rows = [("r1", "R", f"{base}/direct/r1.png"), ("r2", "R", f"{base}/direct/r2.png"),
+            ("r3", "R", f"{base}/direct/r3.png")]
+    harvest_into(ImageParquetReader(page_table(tmp_path / "t1", rows[:2]), item_key="item", http=FAST),
+                 tmp_path / "v1")
+    out = tmp_path / "out"
+    (out / "images" / "R").mkdir(parents=True)
+    (out / "images" / "R" / "r1.png").write_bytes(png("red"))
+    stamp = (out / "images" / "R" / "r1.png").stat().st_mtime_ns
+    build_index([str(tmp_path / "v1")], str(out / INDEX))
+    server["requests"].clear()
+    docs = harvest_into(ImageParquetReader(page_table(tmp_path / "t2", rows), item_key="item", http=FAST,
+                                           reuse_folder=str(out / "images"), reuse_index=str(out / INDEX)), out)
+    by = {d.id: d for d in docs}
+    assert is_reused(by["r1"]) and (out / "images" / "R" / "r1.png").stat().st_mtime_ns == stamp
+    assert page_of(by["r2"]).image.extra["reused_from"] == str(tmp_path / "v1")
+    assert server["requests"] == ["/direct/r3.png"]
+
+
+def test_a_tasks_lookup_reads_only_the_index_row_groups_its_urls_fall_in(tmp_path, monkeypatch):
+    import pyarrow.parquet as pq
+
+    from linecaster.blocks.readers import earlier
+
+    folder = tmp_path / "v1"
+    (folder / "pages").mkdir(parents=True)
+    lines = [json.dumps({"id": f"p{i:03d}", "page": {"page_id": f"p{i:03d}", "item_id": "I", "image": {
+        "uri": f"/elsewhere/v1/images/I/p{i:03d}.png", "sha256": f"{i:064x}",
+        "extra": {"source_uri": f"https://images.library.test/{i:03d}.png"}}}}) for i in range(100)]
+    lines.append(json.dumps({"id": "bad", "errors": [{"error": "x"}], "page": {"page_id": "bad", "image": {
+        "uri": "/x/bad.png", "sha256": "0" * 64, "extra": {"source_uri": "https://images.library.test/bad.png"}}}}))
+    import gzip
+
+    with gzip.open(folder / "pages" / "00000.jsonl.gz", "wt") as f:
+        f.write("\n".join(lines) + "\n")
+    monkeypatch.setattr(earlier, "ROW_GROUP", 10)
+    index = str(tmp_path / "index.parquet")
+    assert earlier.build_index([str(folder)], index) == 100                      # the failed page is left out
+    read = []
+    original = pq.ParquetFile.read_row_group
+    monkeypatch.setattr(pq.ParquetFile, "read_row_group", lambda self, i, **kw: read.append(i) or original(self, i, **kw))
+    found = earlier.EarlierImages(index)
+    assert found.lookup([f"https://images.library.test/{i:03d}.png" for i in (41, 43, 47)]) == 3
+    assert read == [4]                                                       # one row group of ten
+    assert found._found["https://images.library.test/043.png"] == (str(folder), "I/p043.png", f"{43:064x}")

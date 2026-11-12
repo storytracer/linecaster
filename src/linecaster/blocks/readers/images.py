@@ -29,6 +29,7 @@ from datatrove.pipeline.readers.parquet import ParquetReader
 
 from ...errors import PageError, PipelineConfigError
 from ...net.http import prefetched
+from .earlier import Earlier, EarlierImages, mark_reused_from
 from .existing import ExistingImages, Reused, mark_reused
 from .sampling import Sampled
 from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, position_slices, row_slices, rows_between,
@@ -338,6 +339,11 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
             from the source. An item's listing that takes over ``LISTING_TIMEOUT`` (60 s) or fails is a warning and a
             stat (``reuse_listing_timeouts``, ``reuse_listing_errors``), and its pages are fetched again. Default:
             none.
+        reuse_index: the index of earlier harvests' page images (``pipelines/harvest.py --reuse-from``:
+            ``OUT/logs/reuse-from.parquet``, ``linecaster.blocks.readers.earlier``): a page whose source URL an earlier
+            harvest fetched is read from its copy there (checked by ``sha256``) after this run's own copy
+            (``reuse_folder``) and before a fetch, and written into this run's folder; its record says
+            ``image.extra["reused_from"]`` and ``["reused_from_uri"]``.
         task_per_item: the tasks divide the items (the ``item_key`` values, needs it; an item's rows need not be
             together), not the rows, and ``auto_tasks`` is one task per item: each item whole in its task, a task that
             fails costs one item (``pipelines/harvest.py``). Default: rows in equal shards.
@@ -350,6 +356,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
     name = "🖼️ image parquet"
     role = "reader"
     parts_added = ("image", "metadata")
+    operational = ("reuse_index",)         # where images come from, not which pages
     docs_args = {"data_folder": "pages/"}
     #: the share of a task's pages whose image may fail to be read (None: no limit; the builder sets it)
     max_page_errors: float | None = 0.01
@@ -361,7 +368,8 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                  read_metadata: bool = False, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
                  max_pages: int | None = None, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None,
+                 reuse_index: str | None = None):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
@@ -373,6 +381,8 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
         self.max_pages, self.task_per_item = max_pages, task_per_item
         self.reuse_folder = reuse_folder
         self._existing = ExistingImages(reuse_folder) if reuse_folder is not None else None
+        self.reuse_index = reuse_index
+        self._earlier = EarlierImages(reuse_index) if reuse_index else None
         self._starts = None
         self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
@@ -561,10 +571,17 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                     data = None
                 if data is not None:
                     return entry, _future(lambda: Reused(copy, data)), self._source(entry[3], filepath, page_id)
+            if self._earlier is not None and isinstance(entry[3], str):
+                source = self._source(entry[3], filepath, page_id)
+                if (earlier := self._earlier.read(source, self.stat_update)) is not None:   # an earlier harvest's
+                    return entry, _future(lambda: earlier), source
             return (entry, *self._request(entry[3], filepath, entry[0]))
 
         budget = getattr(self, "_budget", None) or ErrorBudget(self, self.max_page_errors)
         rows = self._rows(filepath, slices)
+        if self._earlier is not None:              # this task's URLs, looked up in the index at once
+            rows = list(rows)
+            self._earlier.lookup(self._source(e[3], filepath, e[0]) for e in rows if isinstance(e[3], str))
         for entry, future, uri in prefetched(rows, submit, lambda s: s[1].cancel(), future=lambda s: s[1],
                                              fetcher=lambda: self._opener._fetcher, ordered=False):
             page_id, item, sequence, _, row = entry
@@ -578,13 +595,16 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                             **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
                 try:
                     raw = future.result() if future.done() and not future.exception() else None
-                    reused = isinstance(raw, Reused)
-                    data = raw.data if reused else self._opener.result(future, fetches)
+                    reused, earlier = isinstance(raw, Reused), isinstance(raw, Earlier)
+                    data = raw.data if reused or earlier else self._opener.result(future, fetches)
                     doc = new_page_document(page_id, data, uri=uri, item_id=item_id, sequence=sequence,
                                             metadata=metadata)
                     if reused:
                         mark_reused(doc)
                         self.stat_update("reused")
+                    elif earlier:
+                        mark_reused_from(doc, raw)
+                        self.stat_update("reused_from")
                 except (*NOT_THE_PAGES, PageError):
                     raise
                 except Exception as e:  # noqa: BLE001 - the page's error; the task goes on within its budget

@@ -4,6 +4,22 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- `harvest.py --reuse-from DIR` for page-image harvests too (`--parquet`, `--manifests`; not with `--existing-ocr`,
+  whose OCR files would need fetching anyway). Page records can be large and many, so each launch reads the earlier
+  folders' records once (`DIR/pages/**/*.jsonl.gz`) into an index in the run's folder (`OUT/logs/reuse-from.parquet`:
+  source URL, the copy under `DIR/images`, `sha256`, sorted by URL; a record with errors gives nothing; the newest
+  folder holding a URL wins, by its run records' `created`), and each task (with `--manifests` each item) reads only
+  the index's row groups its URLs fall in (`linecaster.blocks.readers.earlier`). A copy is checked against its
+  `sha256` (else fetched: `reuse_from_mismatch`, `reuse_from_unreadable`), read after OUT's own copy (`--reuse`) and
+  before a fetch, and written into OUT under its current item and page id; its record says
+  `image.extra.reused_from` and `reused_from_uri`, and the console counts it per folder as for resources. The key is
+  the URL a record names, the one that was fetched: a page that came through a redirect or its fallback URL is
+  fetched again. `ImageParquetReader` and `ManifestReader` take `reuse_index`, an operational parameter.
+
 ## 0.5.11 (2026-11-12)
 
 ### Fixed

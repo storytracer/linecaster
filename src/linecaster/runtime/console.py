@@ -412,6 +412,11 @@ class Progress(Observer):
         if "resource" in doc.metadata:
             self.unit = "files"
             earlier = None if bad else doc.metadata["resource"].get("reused_from")
+        elif not bad:                               # a page image read from an earlier harvest's folder
+            from ..data.page import PAGE_KEY
+
+            image = (doc.metadata.get(PAGE_KEY) or {}).get("image") or {}
+            earlier = (image.get("extra") or {}).get("reused_from")
         if earlier:                                 # read from an earlier harvest's folder, not fetched now
             self.earlier += 1
         elif reused:

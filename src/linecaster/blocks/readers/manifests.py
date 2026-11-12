@@ -22,6 +22,7 @@ from loguru import logger
 
 from ...errors import PipelineConfigError
 from ...net.http import fetch_record, is_url, prefetched
+from .earlier import Earlier, EarlierImages, mark_reused_from
 from .existing import ExistingImages, Reused, mark_reused
 from .sampling import Sampled
 from .tables import ITEMS_PER_TASK, position_slices, row_slices, slice_batches, table_rows, tasks_for, total_rows
@@ -169,6 +170,11 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
             ``LISTING_TIMEOUT`` (60 s) or fails is a warning and a stat (``reuse_listing_timeouts``,
             ``reuse_listing_errors``), and its pages are fetched again. Not with ``existing_ocr`` (its OCR files would
             need fetching anyway).
+        reuse_index: the index of earlier harvests' page images (``pipelines/harvest.py --reuse-from``:
+            ``OUT/logs/reuse-from.parquet``, ``linecaster.blocks.readers.earlier``): a page whose source URL an earlier
+            harvest fetched is read from its copy there (checked by ``sha256``) after this run's own copy
+            (``reuse_folder``) and before a fetch (looked up per item), and written into this run's folder; its record says
+            ``image.extra["reused_from"]`` and ``["reused_from_uri"]``. Not with ``existing_ocr`` either.
         sample: only the pages of this ``linecaster.data.sample.SampleRule``. The items are ranked from the entries'
             item ids before anything is fetched; a page's id (``<item_id>_<sequence:04d>``) needs its manifest, so
             computing the sample reads the manifests of the items in rank order, only as far as the rule reaches
@@ -184,6 +190,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     name = "📜 manifests"
     role = "reader"
     whole_items = True          # a manifest is one entry, so an item's pages stay in one task
+    operational = ("reuse_index",)         # where images come from, not which pages
 
     def contract(self) -> Contract:
         """The page image and record, and with ``existing_ocr`` the library's OCR file."""
@@ -197,7 +204,8 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
                  existing_ocr: bool = False, manifest_folder: DataFolderLike | None = None,
                  http: dict | None = None, file_progress: bool = False, doc_progress: bool = False,
                  default_metadata: dict | None = None, shuffle_files: bool = False, task_per_item: bool = False,
-                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None):
+                 reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None,
+                 reuse_index: str | None = None):
         if glob_pattern is None:
             glob_pattern = "**/*.parquet" if manifest_key else "**/*.{json,xml}"
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
@@ -215,6 +223,12 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
         self._fetchers = Fetchers(self.http, http_policy)     # pickled without its fetchers
         self.reuse_folder = reuse_folder
         self._existing = ExistingImages(reuse_folder) if reuse_folder is not None and not existing_ocr else None
+        if reuse_index and existing_ocr:
+            raise PipelineConfigError("reuse_index (--reuse-from) does not go with existing_ocr: the pages' OCR files "
+                                      "would need fetching anyway")
+        self.reuse_index = reuse_index
+        self._earlier = EarlierImages(reuse_index) if reuse_index else None
+        self._earlier_item, self._item_pages = None, {}
         self._all: list[str] | None = None
         self._layout: list | None = None
         self._set_sample(sample)
@@ -518,6 +532,10 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
                 "rights": manifest.rights, "required_statement": manifest.required_statement,
                 "identifiers": dict(manifest.identifiers), "metadata": dict(manifest.metadata)}
         self.stat_update("manifest_pages", value=len(manifest.pages), unit="input_file")
+        if self._earlier is not None:            # for the item's lookup in the index (``_submit``)
+            self._item_pages[item_id] = manifest.pages
+            while len(self._item_pages) > 4:
+                self._item_pages.pop(next(iter(self._item_pages)))
         for page in manifest.pages:
             yield item_id, item, extra, page
 
@@ -539,6 +557,16 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
                     return entry, done, None
                 except Exception:  # noqa: BLE001 - a copy that cannot be read is fetched from the source
                     pass
+        if self._earlier is not None:
+            if self._earlier_item != item_id:      # the item's URLs, looked up in the index at once
+                self._earlier_item = item_id
+                self._earlier.lookup(resolve(p.url, base) for p in self._item_pages.get(item_id, ()))
+            if (earlier := self._earlier.read(resolve(page.url, base), self.stat_update)) is not None:
+                from concurrent.futures import Future
+
+                done = Future()
+                done.set_result(earlier)
+                return entry, done, None
         image = self._get(resolve(page.url, base), page.fallback_url and resolve(page.fallback_url, base),
                           expect="image")
         ocr = (self._get(resolve(page.ocr_url, base), expect="xml" if page.ocr_format == "alto" else None)
@@ -568,7 +596,8 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
         try:
             response = image.result()
             reused = isinstance(response, Reused)
-            if reused:                                 # read from its existing file; the source is still its URI
+            earlier = response if isinstance(response, Earlier) else None
+            if reused or earlier:                      # read from an existing file; the source is still its URI
                 response = _Local(response.data, resolve(page.url, item["url"]))
         except NOT_THE_PAGES:                         # a stop (stop_on, max_pause, no proxy left), a config error
             if ocr is not None:
@@ -597,6 +626,9 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
         if reused:
             mark_reused(doc)
             self.stat_update("reused")
+        elif earlier is not None:
+            mark_reused_from(doc, earlier)
+            self.stat_update("reused_from")
         fetches = [{**r, "what": "image"}] if (r := fetch_record(response)) is not None else []
         if fetches:
             doc.metadata["trace"] = {"fetch": fetches}

@@ -10,7 +10,10 @@ earlier harvests into other folders already hold: a resource whose source URL on
 the newest successful one per URL across the folders, its copy checked by sha256) is read from there and written
 into OUT under its current item and name, with the earlier fetch's provenance and ``reused_from``; only the rest is
 fetched. So a changed list gets one complete folder of its own instead of a resume whose tasks no longer fit it; a
-resume of that folder with other --reuse-from folders is an ordinary resume.
+resume of that folder with other --reuse-from folders is an ordinary resume. Page-image harvests (--parquet,
+--manifests) take --reuse-from too: each launch first indexes the earlier folders' page records once
+(OUT/logs/reuse-from.parquet: source URL, copy, sha256; the newest folder wins), each task looks up only its own URLs
+there, and a page read from an earlier copy says ``image.extra.reused_from``; not with --existing-ocr.
 
     uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
         --rate-limit 5/1 --existing-ocr
@@ -62,9 +65,10 @@ def options(ap):
                          "instead of fetching them again (one listing per item; off by default, since on some object "
                          "storage a listing is slow even for an empty folder)")
     ap.add_argument("--reuse-from", action="append", default=[], metavar="DIR",
-                    help="--items: an earlier harvest's folder (any fsspec path; repeatable): a resource whose URL it "
-                         "fetched is read from its copy there (by its records in DIR/resources, the newest successful "
-                         "one per URL across the folders; checked by sha256) and written into OUT, instead of fetched"),
+                    help="an earlier harvest's folder (any fsspec path; repeatable): a file whose source URL it "
+                         "fetched is read from its copy there (by its records: DIR/resources for --items, the newest "
+                         "successful one per URL; DIR/pages for page images, indexed once per launch; checked by "
+                         "sha256) and written into OUT, instead of fetched; not with --existing-ocr")
 
 
 def models(a) -> list[dict]:
@@ -76,9 +80,16 @@ def pipeline(a, script: str) -> list:
         raise PipelineConfigError("harvest.py downloads: give --manifests, --parquet (with http(s) image URLs) or "
                                   "--items (resources)")
     out = a.out.rstrip("/")
-    if a.reuse_from and not a.items:
-        raise PipelineConfigError("harvest.py: --reuse-from reads earlier harvests' resources (--items); page images "
-                                  "(--manifests, --parquet) reuse only OUT's own files (--reuse)")
+    if a.reuse_from and a.manifests and a.existing_ocr:
+        raise PipelineConfigError("harvest.py: --reuse-from does not go with --existing-ocr: the pages' OCR files "
+                                  "would need fetching anyway")
+    index = None
+    if a.reuse_from and not a.items:      # page images: one index of the earlier folders' records per launch
+        from ..blocks.readers.earlier import INDEX, build_index
+
+        index = f"{out}/{INDEX}"
+        if not getattr(a, "dry_run", False):
+            build_index(a.reuse_from, index)
     if a.items:                     # items' remote files as served: OUT/<kind>/<item>/<name>.<ext>, OUT/resources
         return [
             run.reader(a, reuse_folder=out if a.reuse else None),
@@ -90,7 +101,7 @@ def pipeline(a, script: str) -> list:
         # one item per task: an item is whole in its task, and a task that fails costs one item; with --reuse,
         # images an earlier launch wrote are not fetched again (one listing of the item's folder per task)
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None, task_per_item=True,
-                   reuse_folder=f"{out}/images" if a.reuse else None),
+                   reuse_folder=f"{out}/images" if a.reuse else None, reuse_index=index),
         # the library's OCR file (a document media) read into ocr_original
         *([TranscriptionConverter()] if ocr else []),
         ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if ocr else None),

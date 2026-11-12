@@ -726,13 +726,13 @@ def test_reuse_and_reuse_from_together_take_outs_copy_first_then_the_earlier_fol
     assert not by["r"]["reused"] and "reused_from" not in by["r"] and server["seen"] == ["/marc/r"]
 
 
-def test_reuse_from_is_for_resources_and_leaves_the_runs_fingerprint(tmp_path):
+def test_reuse_from_leaves_the_runs_fingerprint_and_not_with_existing_ocr(tmp_path):
     from linecaster.pipelines import harvest
     from linecaster.runtime import run
 
-    a = run.parse(["--parquet", "p.parquet", "--image-key", "url", str(tmp_path / "out"), "--reuse-from", "v1"],
+    a = run.parse(["--manifests", "m/", str(tmp_path / "out"), "--existing-ocr", "--reuse-from", "v1"],
                   harvest.__doc__, harvest.options, harvest.PIPELINE)
-    with pytest.raises(PipelineConfigError, match="--reuse-from reads earlier harvests' resources"):
+    with pytest.raises(PipelineConfigError, match="--reuse-from does not go with --existing-ocr"):
         harvest.pipeline(a, "harvest.py")
     from linecaster.runtime.provenance import functional_block
 
