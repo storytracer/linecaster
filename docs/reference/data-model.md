@@ -22,7 +22,8 @@ the image bytes, `metadata["page"]` the page record.
 handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
 between, waiting in served windows and queues included), and `datetime`, when the reader handed it over (ISO 8601,
 UTC). `linecaster.runtime.observers.PageTiming` sets them on every page stage that writes pages; a record read from
-an earlier run (`--after`) gets the new run's. Each step's own time is on its step record (`StepInfo.measurements`,
+an earlier run (`--after`, `--pages`) adds the new run's time to the one it carries and keeps the first `datetime`,
+so `seconds` is the page's time over all the runs that worked on it. Each step's own time is on its step record (`StepInfo.measurements`,
 below).
 
 ## `Transcription`

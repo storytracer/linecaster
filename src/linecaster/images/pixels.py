@@ -11,9 +11,11 @@ refuses, or a GPU that fails, is decoded with Pillow (``Pixels.fallback``: ``ref
 
 ``accel`` and the CUDA device come from the call, else from the process's choice (``set_decoding``), which linecaster's
 model blocks set from their ``image_decode`` (``--image-decode``) and the worker's GPU. A process decodes a page once:
-the last ``KEPT`` decodes are kept by the bytes object they came from (a page's ``media_bytes``, the same object for
-every block a page passes in a task), so the blocks after the first that needs the image use the same pixels, which are
-read-only. ``decodes()`` counts the files actually decoded; ``last_decode()`` is the calling thread's last decode (kept or
+the last decodes are kept by the file's content (Python's hash of the bytes, kept on the bytes object, then an equality
+check), so the blocks after the first that needs the image use the same pixels, which are read-only, whether they
+hold the same bytes object (a page's ``media_bytes`` in a task) or a copy (each request to ``linecaster serve``). How
+many: ``KEPT`` pages by default (a page passes a task's in-process blocks before the next is read), and at most
+``bytes`` of pixels where ``keep`` sets it (a server, which sees the requests of many pages in between). ``decodes()`` counts the files actually decoded; ``last_decode()`` is the calling thread's last decode (kept or
 new), which a block that hands the bytes to code that decodes them (a chat adapter) reads afterwards.
 """
 from __future__ import annotations
@@ -28,8 +30,8 @@ from loguru import logger
 
 from . import accel as hw
 
-#: how many decoded pages a process keeps: a page passes all of a task's in-process blocks before the next is read, so
-#: a few are enough; each is its RGB size (36 MB for 12 megapixels)
+#: how many decoded pages a process keeps by default (``keep``): a page passes all of a task's in-process blocks before
+#: the next is read, so a few are enough; each is its RGB size (36 MB for 12 megapixels)
 KEPT = 4
 
 
@@ -57,6 +59,21 @@ def set_decoding(accel: str | None = None, device: int | None = None) -> None:
         _SETTING["device"] = int(device)
 
 
+def keep(pages: int = KEPT, nbytes: int | None = None) -> None:
+    """How many decoded pages this process keeps: at most ``pages``, and at most ``nbytes`` of pixels (``None``: no
+    limit by size); the oldest go first."""
+    with _LOCK:
+        _LIMIT.update(pages=max(1, int(pages)), nbytes=nbytes)
+        _trim()
+
+
+def clear() -> None:
+    """Forgets the kept pages (the next request of each is decoded again)."""
+    with _LOCK:
+        _KEPT.clear()
+        _HELD[0] = 0
+
+
 def decoding() -> tuple[str, int]:
     """This process's choice: ``(accel, device)``."""
     return _SETTING["accel"], _SETTING["device"]
@@ -71,20 +88,32 @@ def decode_pixels(data: bytes, accel: str | None = None, device: int | None = No
         device: the CUDA device; default the process's.
     """
     accel = accel or _SETTING["accel"]
+    key = (hash(data), accel)
     with _LOCK:
-        kept = _KEPT.get(id(data))
-        if kept is not None and kept[0] is data and kept[1].accel == accel:       # the same bytes object: the page
-            _KEPT.move_to_end(id(data))
+        kept = _KEPT.get(key)
+        if kept is not None and (kept[0] is data or kept[0] == data):          # the same file: the page
+            _KEPT.move_to_end(key)
             _LAST.decode = (kept[1], False)
             return kept[1]
     px = _decode(data, accel, _SETTING["device"] if device is None else device)
     with _LOCK:
         _COUNT[0] += 1
-        _KEPT[id(data)] = (data, px)
-        while len(_KEPT) > KEPT:
-            _KEPT.popitem(last=False)
+        if key in _KEPT:
+            _HELD[0] -= _KEPT[key][1].rgb.nbytes
+        _KEPT[key] = (data, px)
+        _KEPT.move_to_end(key)
+        _HELD[0] += px.rgb.nbytes
+        _trim()
     _LAST.decode = (px, True)
     return px
+
+
+def _trim() -> None:
+    """Drops the oldest kept pages beyond ``_LIMIT`` (the newest always stays); under ``_LOCK``."""
+    while len(_KEPT) > 1 and (len(_KEPT) > _LIMIT["pages"]
+                              or (_LIMIT["nbytes"] is not None and _HELD[0] > _LIMIT["nbytes"])):
+        _, (_, px) = _KEPT.popitem(last=False)
+        _HELD[0] -= px.rgb.nbytes
 
 
 def decode_rgb(data: bytes, accel: str | None = None, device: int | None = None) -> np.ndarray:
@@ -147,7 +176,9 @@ def _decode(data: bytes, accel: str, device: int) -> Pixels:
 
 
 _SETTING: dict = {"accel": "auto", "device": 0}
-_KEPT: OrderedDict[int, tuple[bytes, Pixels]] = OrderedDict()
+_KEPT: OrderedDict[tuple[int, str], tuple[bytes, Pixels]] = OrderedDict()
+_LIMIT: dict = {"pages": KEPT, "nbytes": None}
+_HELD = [0]                        # bytes of the kept pixels
 _LOCK = threading.Lock()
 _COUNT = [0]
 _LAST = threading.local()

@@ -632,3 +632,13 @@ def test_every_page_record_carries_its_time_in_the_run(tmp_path: Path):
     assert build([ImageFolderReader(src), Mark("M")]).stages[0].observers is None
     hub = build([ImageFolderReader(src), PageJsonlWriter(str(tmp_path / "p"))]).stages[0].observers
     assert [type(o) for o in hub.observers] == [PageTiming]
+    # a second run over the records adds its time and keeps the first run's start
+    first = {r["id"]: r["page"]["measurements"] for f in (tmp_path / "out" / "pages").rglob("*.jsonl.gz")
+             for r in map(json.loads, gzip.open(f, "rt"))}
+    run_plan(build([PageRecordReader(str(tmp_path / "out" / "pages")), Slow("T", key="mark2"),
+                    PageJsonlWriter(str(tmp_path / "again" / "pages"))]))
+    again = {r["id"]: r["page"]["measurements"] for f in (tmp_path / "again" / "pages").rglob("*.jsonl.gz")
+             for r in map(json.loads, gzip.open(f, "rt"))}
+    assert again.keys() == first.keys()
+    for k, m in again.items():
+        assert m["datetime"] == first[k]["datetime"] and m["seconds"] >= first[k]["seconds"] + 0.05

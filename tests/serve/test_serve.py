@@ -165,3 +165,32 @@ def test_the_server_decodes_as_the_block_asks_and_the_step_names_its_decoder(mon
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
+
+
+def test_the_server_decodes_a_page_once_for_all_its_steps():
+    """Each served step sends the page's image with its request; the server keeps the decoded pages by their content,
+    so two steps of one page decode it once (the second request is a copy of the bytes, not the same object)."""
+    from saturate.engine import wait_for_health
+
+    from linecaster.images import pixels
+
+    pixels.clear()
+    port = free_port()
+    loop, runner = serve_in_thread(port)
+    endpoint = f"http://127.0.0.1:{port}/v1"
+    try:
+        wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
+                        poll_interval=0.1)
+        first = TableRecognizer(Served(endpoint, model="tables"))
+        second = TableRecognizer(Served(endpoint, model="tables"), transcription="ocr_new")
+        docs = [page("p1", "table"), page("p2", "table")]
+        for doc, w in zip(docs, (20, 30)):                                        # two images
+            buf = io.BytesIO()
+            Image.new("RGB", (w, 10), "white").save(buf, format="PNG")
+            doc.media[0].media_bytes = buf.getvalue()
+        before = pixels.decodes()
+        out = list(second.run(first.run(iter(docs))))
+        assert len(out) == 2 and pixels.decodes() - before == 2                   # two pages, four requests
+    finally:
+        asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
+        loop.call_soon_threadsafe(loop.stop)

@@ -17,7 +17,8 @@ Each model has one worker thread that runs its requests one at a time in arrival
 result depends only on the page, and different models (layout, lines, recognition) work on
 different pages at the same time. Image decoding happens in a small thread pool before a request
 joins its model's queue, on the server's GPU where it has one; the step records its decoder (measurement
-``decoder``).
+``decoder``). The server keeps the decoded pages by their content (``--decoded-gb``, default 4 GB), so the steps of
+one page (layout, lines, recognition: one request each, each with the image) decode it once.
 
 Tracing: a request that carries a W3C ``traceparent`` (in the body, as linecaster's served blocks send it, or in
 the headers) continues that trace with ``linecaster.serve.decode`` (the image decoded, the transcription read),
@@ -47,6 +48,10 @@ from ..backends import resolve
 from ..images.pixels import decode_pixels
 from ..data.transcription import Transcription
 from ..tracing import context_of
+
+#: decoded page images a server keeps, in GB (``--decoded-gb``): between a page's layout and its lines request the
+#: requests of many other pages come in (each block keeps a window of them in flight), and a 12-megapixel page is 36 MB
+DECODED_GB = 4.0
 
 
 
@@ -140,9 +145,15 @@ def _resolve(fut: asyncio.Future, result) -> None:
         fut.set_result(result)
 
 
-def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_first_call=None) -> web.Application:
+def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_first_call=None,
+              decoded_gb: float = DECODED_GB) -> web.Application:
     """The server's application. ``tracer``: where the spans of traced requests go (``serve_provider``); none:
-    no spans. ``after_first_call()`` runs in the event loop once each model has answered its first request."""
+    no spans. ``after_first_call()`` runs in the event loop once each model has answered its first request.
+    ``decoded_gb``: the decoded page images the process keeps (``linecaster.images.pixels.keep``), so the requests of
+    one page's steps decode it once."""
+    from ..images import pixels
+
+    pixels.keep(pages=1 << 20, nbytes=int(decoded_gb * 2**30))
     tracer = tracer or trace_api.NoOpTracer()
     first_calls: set[str] = set()
     by_name = {h.name: h for h in hosted}
@@ -259,13 +270,13 @@ def serve_provider(traces: str | None = None):
 
 
 def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decode_workers: int = 4,
-          traces: str | None = None) -> None:
+          traces: str | None = None, decoded_gb: float = DECODED_GB) -> None:
     from ..runtime.logs import configure, install_trace_ids
 
     configure()
     provider = serve_provider(traces)
     app = build_app(hosted, decode_workers, provider.get_tracer("linecaster") if provider else None,
-                    after_first_call=_graceful_signals if provider else None)
+                    after_first_call=_graceful_signals if provider else None, decoded_gb=decoded_gb)
     if provider is not None:
         install_trace_ids()
 

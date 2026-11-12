@@ -47,8 +47,12 @@ class FakeGpu:
 
 @pytest.fixture(autouse=True)
 def decoding():
+    """Each test starts with no kept pages (they are kept by content, and the tests' images repeat) and leaves the
+    process's choice as it found it."""
     before = pixels.decoding()
+    pixels.clear()
     yield
+    pixels.clear()
     pixels.set_decoding(*before)
 
 
@@ -60,9 +64,9 @@ def fake_gpu(monkeypatch):
     return gpu
 
 
-def test_pillow_decodes_plain_rgb_once_per_bytes_object():
-    """The pixels are Pillow's ``convert("RGB")``, read-only; the same bytes object is decoded once, a copy of it
-    again, and another choice of decoding again."""
+def test_pillow_decodes_plain_rgb_once_per_file():
+    """The pixels are Pillow's ``convert("RGB")``, read-only; a file is decoded once, whether the same bytes object
+    comes again or a copy of it (a server's requests); another file, or another choice of decoding, is decoded."""
     data = _encode(_noise("P"), "PNG")
     before = pixels.decodes()
     px = pixels.decode_pixels(data, "cpu")
@@ -70,9 +74,34 @@ def test_pillow_decodes_plain_rgb_once_per_bytes_object():
     assert px.decoder.startswith("Pillow ") and px.fallback is None and not px.gpu
     assert pixels.decode_pixels(data, "cpu") is px and pixels.decodes() - before == 1
     assert pixels.last_decode() == (px, False)
-    pixels.decode_pixels(bytes(bytearray(data)), "cpu")
+    assert pixels.decode_pixels(bytes(bytearray(data)), "cpu") is px and pixels.decodes() - before == 1
+    pixels.decode_pixels(_encode(_noise("P", seed=1), "PNG"), "cpu")
     assert pixels.decodes() - before == 2
     assert np.array_equal(pixels.rgb_image(data), _pillow(data))
+
+
+def test_the_kept_pages_are_bounded_by_count_and_by_size():
+    files = [_encode(_noise(size=(50, 40), seed=i), "PNG") for i in range(6)]
+    try:
+        pixels.keep(pages=3)
+        for f in files:
+            pixels.decode_pixels(f, "cpu")
+        before = pixels.decodes()
+        pixels.decode_pixels(files[-1], "cpu")                 # kept
+        pixels.decode_pixels(files[0], "cpu")                  # dropped: the oldest of six past three
+        assert pixels.decodes() - before == 1
+        pixels.clear()
+        pixels.keep(pages=100, nbytes=2 * 50 * 40 * 3)         # room for two such pages
+        before = pixels.decodes()
+        for f in files[:3]:
+            pixels.decode_pixels(f, "cpu")
+        pixels.decode_pixels(files[2], "cpu")
+        pixels.decode_pixels(files[1], "cpu")
+        assert pixels.decodes() - before == 3
+        pixels.decode_pixels(files[0], "cpu")
+        assert pixels.decodes() - before == 4
+    finally:
+        pixels.keep()
 
 
 def test_the_last_decode_is_the_calling_threads():

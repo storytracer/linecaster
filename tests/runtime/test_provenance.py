@@ -490,8 +490,10 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     from linecaster.blocks.recognition.recognizers import LineRecognizer
 
     folder = Path(_images(tmp_path / "images"))
-    for name in ("p2.png", "p3.png"):
-        (folder / name).write_bytes((folder / "p1.png").read_bytes())
+    for name, shade in (("p2.png", "gray"), ("p3.png", "black")):        # three files (pages are kept by content)
+        buf = io.BytesIO()
+        Image.new("RGB", (40, 30), shade).save(buf, format="PNG")
+        (folder / name).write_bytes(buf.getvalue())
     seen = []
 
     class Seeing(StampModel):

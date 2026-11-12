@@ -367,8 +367,10 @@ def test_the_region_recognizer_is_unchanged():
         step = RegionRecognizer(Chat("lightonocr-2-1b-regions", server.url, max_window=2))
         (out,) = list(step.run(iter([d])))
     assert len(server.requests) == 1 and step.stats["finish_length"].total == 1
-    (line,) = page_of(out).transcriptions["ocr_new"].lines
+    t = page_of(out).transcriptions["ocr_new"]
+    (line,) = t.lines
     assert line.extra == {"raw": "x x x", "finish_reason": "length"}
+    assert t.steps[-1].measurements["request_seconds"] >= 0          # the page's requests, first built to last answer
     assert set(provenance.functional_block(step)["params"]) == {"backend", "transcription", "labels", "pad",
                                                                 "primary", "skip_on_error"}
 

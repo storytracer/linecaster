@@ -160,8 +160,9 @@ class PageTiming(Observer):
     """Puts each page's time in the run into its page record (``Page.measurements``): ``seconds``, the wall time from
     when ``start`` (the stage's first block, its reader) handed the page over to when it reaches ``stop`` (the first
     block that writes pages, binds them or serves), waiting in served windows and queues included; ``datetime``, when
-    it was handed over. The steps' own times are on their step records. A record read from an earlier run
-    (``--after``) gets this run's. The builder installs it on every page stage that writes pages."""
+    it was handed over. The steps' own times are on their step records. A record read from an earlier run (``--after``,
+    ``--pages``) adds this run's time to the one it carries and keeps its ``datetime``: the page's time over the runs
+    that worked on it. The builder installs it on every page stage that writes pages."""
 
     def __init__(self, start, stop):
         self.start, self.stop = start, stop
@@ -187,8 +188,9 @@ class PageTiming(Observer):
         page = doc.metadata.get(PAGE_KEY)
         if began is None or not isinstance(page, dict):
             return
-        page["measurements"] = {**(page.get("measurements") or {}),
-                                "seconds": round(time.perf_counter() - began[0], 4), "datetime": began[1]}
+        earlier = page.get("measurements") or {}
+        seconds = time.perf_counter() - began[0] + float(earlier.get("seconds") or 0)
+        page["measurements"] = {**earlier, "seconds": round(seconds, 4), "datetime": earlier.get("datetime") or began[1]}
 
     def on_task_end(self, error=None) -> None:
         self._began.clear()                       # pages a block dropped

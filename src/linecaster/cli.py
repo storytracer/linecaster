@@ -36,7 +36,7 @@ def _serve(a) -> None:
         hosted.append(Hosted(name, spec, json.loads(kwargs.get(name, "{}")), a.max_queue))
     if not hosted:
         sys.exit("linecaster serve: no models (use --preset NAME=ID, --config or --model NAME=module:Class)")
-    serve(hosted, a.host, a.port, a.decode_workers, a.traces)
+    serve(hosted, a.host, a.port, a.decode_workers, a.traces, decoded_gb=a.decoded_gb)
 
 
 def _traces(a) -> None:
@@ -308,6 +308,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--port", type=int, default=8100)
     s.add_argument("--max-queue", type=int, default=64, help="requests a model accepts before answering 429")
     s.add_argument("--decode-workers", type=int, default=4)
+    s.add_argument("--decoded-gb", type=float, default=4.0, metavar="GB",
+                   help="decoded page images the server keeps, so the steps of one page (layout, lines, recognition) "
+                        "decode it once (default 4 GB)")
     s.add_argument("--traces", default=None, metavar="FILE",
                    help="write the spans of traced requests to FILE (OTLP JSON lines, .jsonl.gz; default "
                         "LINECASTER_TRACES, which a pipeline task sets for the server it starts)")

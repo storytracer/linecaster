@@ -4,6 +4,26 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- `linecaster serve` decodes a page once for all its steps: the decoded pages are kept by the file's content (Python's
+  hash of the bytes and an equality check), not by the bytes object, which every request brings anew, and a server
+  keeps up to 4 GB of them (`linecaster serve --decoded-gb`), since the requests of many pages come in between a
+  page's layout, lines and recognition requests. A served pipeline (the `squiddle` recipe: three served steps a page)
+  decoded each page once per step before. In a pipeline's process the same rule applies, so pages with identical
+  files are decoded once. `linecaster.images.pixels.keep` sets the limits (pages, bytes), `clear` forgets the kept
+  pages. Not measured yet.
+- A page record read from an earlier run (`--after`, `--pages`) adds the new run's time to its
+  `page.measurements.seconds` and keeps the first run's `datetime`, instead of replacing both: the page's time over
+  all the runs that worked on it.
+
+### Added
+
+- `RegionRecognizer` records `request_seconds` on its step: from the page's first region request being built to its
+  last answer.
+
 ## 0.7.0 (2026-11-13)
 
 ### Upgrade notes

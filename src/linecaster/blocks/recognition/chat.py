@@ -33,6 +33,8 @@ recorded on the page as an error (``doc.metadata["errors"]``), as for every mode
 """
 from __future__ import annotations
 
+import time
+
 from loguru import logger
 
 from ...adapters import ENGINE
@@ -601,13 +603,15 @@ class RegionRecognizer(PageRecognizer):
                 self.stat_update(f"finish_{res['finish_reason']}")
         t.lines = lines
         a = self.adapter
+        measured = {**tokens, "regions": len(regions), "failed": len(failed), "decoder": state["decoded"].decoder}
+        if "built" in state:                       # the page's requests: from the first built to the last answer
+            measured["request_seconds"] = round(time.perf_counter() - state["built"], 4)
         t.steps.append(StepInfo(step=self.step, name=a.model, engine=ENGINE, revision=a.revision,
                                 preset=a.preset, preset_sha256=a.preset_sha256,
                                 backend=self.backend.describe(), settings={**a.settings(), "pad": self.pad,
                                                                            "page_scale": round(state["scale"], 6),
                                                                            "labels": sorted(self.labels)},
-                                measurements={**tokens, "regions": len(regions), "failed": len(failed),
-                                              "decoder": state["decoded"].decoder}))
+                                measurements=measured))
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
         entry = None
@@ -623,6 +627,8 @@ class RegionRecognizer(PageRecognizer):
     def _done(self, item, budget: ErrorBudget):
         """A region's result, kept with its page; the page leaves when its last region is back."""
         state, region = item.row["state"], item.row["region"]
+        if "built" in item.row:                    # the page's requests: from the first built to the last answer
+            state["built"] = min(state.get("built", item.row["built"]), item.row["built"])
         state["out"][region.id] = {"error": item.error} if item.error is not None else item.out
         usage = (item.out or {}).get("usage") or {}
         self.notify(state["doc"], "done", region=region.id, error=item.error,

@@ -15,10 +15,10 @@ FINISH_REASONS = ("stop", "length", "content_filter", "tool_calls", "function_ca
 MEASUREMENTS: dict[str, str] = {
     # any step
     "seconds": "wall time of the step on the page, in seconds (the engine's call, in-process or in the server); on the "
-               "page record (Page.measurements), the page's time in the run, from its reader to its first writer, "
-               "waiting included",
+               "page record (Page.measurements), the page's time from its reader to its first writer, waiting "
+               "included, summed over the runs that worked on the record (--after, --pages)",
     "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date); on the page "
-                "record, when its reader handed it over",
+                "record, when the first run's reader handed it over",
     "device": "the device the step ran on, e.g. cuda:0 or cpu",
     # served steps
     "request_seconds": "a served step: from its request being built to its answer, in seconds (waiting for the "

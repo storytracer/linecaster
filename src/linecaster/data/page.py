@@ -56,8 +56,8 @@ class Page(BaseModel):
     image: PageImage | None = None
     transcriptions: dict[str, Transcription] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    # the page's time in the run that wrote the record (MEASUREMENTS: seconds, datetime; ``PageTiming``); each step's
-    # own time is on its step record
+    # the page's time in the runs that worked on the record (MEASUREMENTS: seconds, summed over the runs; datetime, when
+    # the first started it; ``PageTiming``); each step's own time is on its step record
     measurements: dict[str, Any] = Field(default_factory=dict)
 
     def transcription(self, name: str) -> Transcription:
