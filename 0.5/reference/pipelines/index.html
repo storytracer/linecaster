@@ -545,6 +545,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Samples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1085,6 +1096,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Samples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1335,6 +1357,15 @@ stages. Every pipeline script goes through it (<code>linecaster.runtime.run</cod
   endpoint) on <code>/v1/chat/completions</code>; <code>preset</code> is a preset ref, a model's Hugging Face id (its preset with unit
   <code>prefer</code>) or a configured adapter (<code>chat_model</code>); without an endpoint, the task's <code>ChatModelServer</code> on port 8000.
   <code>PageRecognizer(backend)</code> and <code>RegionRecognizer(backend, labels=..., pad=None)</code> (<code>pad</code>: the adapter's <code>region_pad</code>, else 8) take it (or a chat preset's ref).
+  <code>Chat(..., overrides={...})</code> sets the chat engine's options over the preset's settings (<code>max_tokens</code>, <code>temperature</code>,
+  <code>top_p</code>, <code>repair_max_tokens</code>, <code>repair_temperature</code>; <code>--set recognition.&lt;option&gt;=&lt;value&gt;</code> in
+  <code>pipelines/transcribe_vlm.py</code>); the ones that differ from the preset's are recorded with the adapter
+  (<code>overrides</code>) and count in <code>pipeline_sha256</code>. With <code>repair_max_tokens</code> set, <code>PageRecognizer</code> runs the
+  <a href="../glossary/">repair pass</a>: a page whose completion stopped at <code>max_tokens</code> waits while its second request goes
+  into the same window, and leaves the block with both recorded; <code>PageRecognizer(..., repair_only=True)</code> sends only
+  the repair requests, for page records read with <code>PageRecordReader</code> (<code>--pages ... --repair-only</code>). The streaming
+  loop of <code>ModelBlock</code> offers this to every served block: a finished request may ask for a second one
+  (<code>_second_request</code>), whose response comes back with it (<code>_second_done</code>).
   <code>PageRecognizer</code> also takes a page engine's <code>InProcess</code> or <code>Served</code> backend (or its preset's ref): a stream
   transform served, a per-unit transform in-process; it reads the page image and adds <code>text</code> and what the preset
   produces. A page engine's <code>endpoint</code> option (where its service is) is operational.</li>
@@ -1527,20 +1558,140 @@ server is reached. <code>pipeline_sha256</code> covers the functional ones (<cod
 </table>
 <p>Everything else is functional: block classes and their order, transcription names, engine options, presets and
 their hashes, the recipe stamp, conditions and groups, writers' formats and options, <code>item_shards</code>. The base list
-is <code>OPERATIONAL</code> in <code>linecaster.blocks.base.block</code>; a block class adds its own in <code>operational</code>. So a resumed run,
+is <code>OPERATIONAL</code> in <code>linecaster.blocks.base.block</code>; a block class adds its own in <code>operational</code>. A parameter added
+to a released block with a default that keeps the old behavior is left out while it has that default
+(<code>unhashed_defaults</code>, e.g. <code>PageRecognizer</code>'s <code>repair_only</code>), so the pipelines that do not use it keep their hash. So a resumed run,
 a run on another executor or backend, or into another folder has the same hash; another preset, option or block
 has another.</p>
 <p><strong>Resume.</strong> A run into an OUT that holds a run record is checked against its newest record (<code>run.yaml</code>, or a later
 <code>run-&lt;time&gt;.yaml</code>): another <code>pipeline_sha256</code> is refused with a <code>PipelineConfigError</code> (finished tasks would be
 skipped and the folder would mix two pipelines' outputs) unless <code>--new-pipeline</code> (the new record is written next
 to the earlier one and is the one the next resume is checked against); another <code>--tasks</code> is always refused (each
-task would read other input). The same hash and tasks: a resume, as datatrove's completion markers make it.
+task would read other input), and so is another sample (the record's <code>sample.selected.sha256</code>, <a href="#samples">samples</a>).
+The same hash, tasks and sample: a resume, as datatrove's completion markers make it.
 <code>--dry-run</code> reports the same problems.</p>
 <p><strong>Describe mode.</strong> <code>linecaster.runtime.run.describe(shape, argv)</code> builds a pipeline shape's plan in the current
 process without its engines: its options parsed, presets resolved without checking that their engines are
 installed, nothing loaded or started. <code>describe_recipe(ref)</code> describes a recipe edition that way (the shape of the
 recipe's pipeline id, <code>linecaster.pipelines.shape(id)</code>, with <code>--recipe REF</code> and placeholder folders): what
 <code>linecaster catalog release</code> records in the lock and <code>verify</code> compares (<a href="../catalog/">catalog</a>).</p>
+<h2 id="samples">Samples<a class="headerlink" href="#samples" title="Permanent link">&para;</a></h2>
+<p>A run reads a <strong>sample</strong> of its input with a sample rule: <code>--sample N</code> (at most N pages in all), <code>--sample-per-item K</code>
+(at most K pages of each item), <code>--sample-items M</code> (at most M items), <code>--sample-seed S</code> (default 0); any of the first
+three alone or together. The sample is chosen by the ids of the input's listing alone, before any image is read or
+fetched, and is the same whatever <code>--tasks</code>, executor or machine: an evaluation then scores every system on the same
+pages, and others can recompute them from the list of ids without linecaster.</p>
+<p>The rule (<code>linecaster.data.sample</code>, <code>linecaster.sample/1</code>), with <code>H(s)</code> the first 8 bytes of <code>sha256(s)</code> (UTF-8) as
+an unsigned big-endian integer:</p>
+<ol>
+<li>The listing is the input's distinct <code>(item_id, page_id)</code> pairs; a page without item has the item id <code>""</code>. An id
+   with a tab is an error.</li>
+<li>Items are ordered by <code>(H(f"{seed}\t{item_id}"), item_id)</code> (the <strong>item rank</strong>), and only the first M are kept.
+   An item without pages takes no rank.</li>
+<li>Within an item, pages are ordered by <code>(H(f"{seed}\t{item_id}\t{page_id}"), page_id)</code> (the <strong>page rank</strong>), and
+   only the first K are kept; an item with fewer pages gives them all.</li>
+<li>The pages, in the order (item rank, page rank), are cut after the first N.</li>
+</ol>
+<p>The page hash includes the item, so items whose pages are named alike (<code>0001.png</code> in every item folder) do not all
+give the same positions. A rank depends only on its ids and the seed: an item added to the input moves no other
+item's pages, and a sample of N is the first N pages of a sample of 2N. With K the first N pages come from about N/K
+items. In Python:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">h</span><span class="p">(</span><span class="o">*</span><span class="n">ids</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">ids</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">digest</span><span class="p">()[:</span><span class="mi">8</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">pairs</span><span class="p">):</span> <span class="n">items</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">h</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span> <span class="n">i</span><span class="p">))[:</span><span class="n">m</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">order</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="p">(</span><span class="n">h</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">),</span> <span class="n">p</span><span class="p">))[:</span><span class="n">k</span><span class="p">]][:</span><span class="n">n</span><span class="p">]</span>
+</code></pre></div>
+<p>The first 16 hex digits of the SHA-256 sort as <code>H</code> does, so SQL can order by them. A stratum is a separate run over
+a filtered input.</p>
+<p><strong>Per input</strong> (the readers' <code>sample</code>, <code>linecaster.blocks.readers.sampling</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Ids</th>
+<th>Read before the sample</th>
+<th>The tasks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IMAGES (<code>--item-from-parent</code> for items)</td>
+<td>the parent folder, the file name without extension</td>
+<td>the file listing</td>
+<td>the sample's files in turn</td>
+</tr>
+<tr>
+<td><code>--parquet</code> (<code>--item-key</code> for items)</td>
+<td><code>--id-key</code>, or <code>&lt;item&gt;_&lt;0001&gt;</code> from <code>--item-key</code> and <code>--sequence-key</code></td>
+<td>the id columns only</td>
+<td>the sample's rows in equal shards (by item with <code>task_per_item</code>); a row's image is read with the other sample rows of its row group</td>
+</tr>
+<tr>
+<td><code>--manifests</code></td>
+<td>the item id of each entry, <code>&lt;item&gt;_&lt;0001&gt;</code> for its pages</td>
+<td>the item ids; then the manifests of the items in rank order, as far as the rule reaches (every one with <code>--sample-per-item</code> alone)</td>
+<td>the sample's items as the entries would be; only their sample pages' images are requested</td>
+</tr>
+<tr>
+<td><code>--pages</code></td>
+<td><code>page.item_id</code>, <code>id</code></td>
+<td>every record (no image)</td>
+<td>their files as without a sample, passing on the sample's records alone</td>
+</tr>
+</tbody>
+</table>
+<p><code>--sample-per-item</code> and <code>--sample-items</code> need items. An id listed twice is read once (its first entry), counted in
+the record's <code>duplicates</code>. With <code>--manifests</code> the manifests the sample reads are saved to <code>OUT/manifests/</code> with an
+index (<code>sample.jsonl</code>: item id, entry, the URL it was read from, the copy's file, its pages); the tasks read those
+copies instead of fetching them again, and so does a resume when it computes the sample again. A manifest that
+cannot be read, or a IIIF Collection entry, stops the launch: the sample would depend on it. <code>--max-pages</code> and a
+sample exclude each other; <code>--limit</code> and <code>--skip</code> still count per task, over the task's share.</p>
+<p>The launch computes the sample once, before the tasks (<code>linecaster.runtime.run.sampled</code>); it travels with the pickled
+pipeline, and each task takes its share. It is recorded in the run record's <code>sample</code> section:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rule</code>, <code>hash</code></td>
+<td><code>linecaster.sample/1</code> and the hashes in words</td>
+</tr>
+<tr>
+<td><code>pages</code>, <code>items</code>, <code>per_item</code>, <code>seed</code></td>
+<td>N, M, K and S</td>
+</tr>
+<tr>
+<td><code>listing</code></td>
+<td><code>scope</code> (<code>pages</code>, or <code>items</code> for manifests, whose pages are known once read), <code>items</code>, <code>pages</code>, <code>duplicates</code>, <code>manifests_read</code>, <code>sha256</code>: of the distinct sorted lines <code>item_id&lt;TAB&gt;page_id</code> (for manifests <code>item_id</code>), each with a newline</td>
+</tr>
+<tr>
+<td><code>selected</code></td>
+<td><code>items</code>, <code>pages</code>, <code>sha256</code>: of the sample's lines <code>item_id&lt;TAB&gt;page_id</code> in sample order, each with a newline</td>
+</tr>
+<tr>
+<td><code>file</code></td>
+<td><code>sample.parquet</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>OUT/sample.parquet</code> (<code>linecaster.runtime.sample</code>) holds one row per sample page in sample order: <code>rank</code> (1-based: a
+sample of N is <code>rank &lt;= N</code>), <code>item_id</code>, <code>page_id</code>, <code>item_rank</code>, <code>page_rank</code>, <code>item_hash</code>, <code>page_hash</code> (unsigned 64
+bit) and <code>item_pages</code> (the item's pages in the listing), with the record's section in the file's metadata
+(<code>linecaster.sample</code>). The same sample gives the same rows and metadata, and with the same pyarrow the same bytes;
+<code>selected.sha256</code> compares samples across versions. <code>linecaster sample [IMAGES] OUT</code> with the input and
+sample options writes it without a run (with <code>--manifests</code>, the manifests too), as a run with the same options would.
+A sample's options are operational parameters (the pipeline's hash leaves them out); a resume with another sample is
+refused.</p>
 <h2 id="tasks-workers-and-rate-limits">Tasks, workers and rate limits<a class="headerlink" href="#tasks-workers-and-rate-limits" title="Permanent link">&para;</a></h2>
 <p><code>--tasks</code> and <code>--workers</code> are chosen when the command line leaves them open (<code>linecaster.runtime.run.allocate</code>):</p>
 <table>
@@ -1604,7 +1755,8 @@ the rate. On a restart the console's size starts with the finished tasks' <code>
 (<code>linecaster.runtime.local.size_before</code>, read in the background). Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 <code>--max-pages N</code> (<code>--parquet</code>, IMAGES; the readers' <code>max_pages</code>) reads the input as if it ended after its first N
-pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove.</p>
+pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove. The
+same pages for every setup and input order: a <a href="#samples">sample</a>.</p>
 <p><code>--rate-limit</code> holds per worker: each worker process has one fetcher with its limits (<code>HTTPFetcher.shared</code>), so a
 server sees the workers running at once times the limits; the run states it before it starts
 (<code>linecaster.runtime.run.rate_note</code>, e.g. <code>rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a

@@ -964,7 +964,13 @@ installed into the server's Python (<code>uv pip install --python &lt;that Pytho
 <code>revision_flag: false</code> (the server cannot be given <code>--revision</code> and loads the default branch) the block
 refuses to start unless the default branch's files equal the pinned revision's (<code>check_default_branch</code>); the
 preset's <code>server_env</code> goes into the server's environment. With OTLP configured, vLLM traces too
-(<code>tracing_args</code>). A server that does not start fails the task (<code>ServerError</code>).</p>
+(<code>tracing_args</code>). On a machine without a CUDA toolkit (no <code>nvcc</code> on the server's <code>PATH</code>, neither
+<code>CUDA_HOME</code> nor <code>CUDA_PATH</code> set) vLLM starts with <code>VLLM_USE_FLASHINFER_SAMPLER=0</code> (<code>flashinfer_env</code>),
+unless that variable is set already: FlashInfer's sampler compiles its kernels at first use and fails without
+<code>nvcc</code>. A server that does not start fails the task (<code>ServerError</code>).</p>
+<p>The server listens on <code>port</code> (8000 for <code>Chat</code> by default), so two runs on one machine collide unless each
+gets its own port and its own GPU (<code>CUDA_VISIBLE_DEVICES</code>): a second vLLM on a GPU that one already uses does
+not get its memory share, and a second server on the same port does not start.</p>
 <p>Its role is <code>server</code> and its unit <code>any</code>: it touches no part. Like <code>ModelServer</code>, it goes <strong>last</strong> in the
 pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
 written.</p>

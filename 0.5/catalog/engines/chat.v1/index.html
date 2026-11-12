@@ -779,6 +779,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adapters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -837,6 +848,21 @@
   <code>server_packages</code> (installed into the server's Python first) from the serve block or, until the
   serve schema has them, <code>options</code>.</li>
 </ul>
+<p>A run may set the options of <code>Options</code> over the preset's settings (<code>chat_model(..., overrides=...)</code>,
+<code>--set recognition.&lt;option&gt;=&lt;value&gt;</code>): <code>max_tokens</code>, <code>temperature</code> and <code>top_p</code> replace the preset's
+<code>settings.sampling</code> values; <code>repair_max_tokens</code> and <code>repair_temperature</code> its <code>settings.repair</code> values
+(<code>max_tokens</code> and <code>temperature</code>; default off, and 0.1). The values that differ from the preset's are the
+adapter's <code>overrides</code>, recorded with it (<code>to_dict()</code>) and so in <code>pipeline_sha256</code>.</p>
+<p><strong>The repair pass</strong> (<code>repair_max_tokens</code> above 0; <code>PageRecognizer</code> runs it): a page whose completion stopped
+at <code>max_tokens</code> (<code>finish_reason == "length"</code>) is sent once more, the same request (the same image and prompt,
+the same <code>top_p</code>) with <code>max_tokens</code> raised to <code>repair_max_tokens</code> (less where the served context leaves less
+room: <code>repair_cap</code>) and the temperature <code>repair_temperature</code>. The repair's completion is kept where it
+finished (<code>"stop"</code>), the first one otherwise, even when the repair's is longer; there is no third request. The
+procedure is the reference script's (uv-scripts/ocr <code>lighton-ocr3-saturate.py</code> at e2b0aa5, its docstring
+"Truncation and repair"), which repairs at the end of a run; <code>PageRecognizer</code> repairs a page as soon as its
+first completion is back, with the same outcome. A completion cut off at <code>max_tokens</code> is often a repetition
+loop, which a repair does not end, but a dense table can simply need more tokens and finish with more room.
+<code>repair_max_tokens</code> must be larger than <code>max_tokens</code> (<code>PipelineConfigError</code>).</p>
 <table>
 <thead>
 <tr>
@@ -852,6 +878,49 @@
 <tr>
 <td>Source</td>
 <td><a href="https://github.com/storytracer/linecaster/blob/main/src/linecaster/adapters/__init__.py"><strong>init</strong>.py</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_tokens</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>the completion's cap (default: the preset's settings.sampling.max_tokens)</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td><code>float \| None</code></td>
+<td><code>None</code></td>
+<td>the sampling temperature (default: the preset's)</td>
+</tr>
+<tr>
+<td><code>top_p</code></td>
+<td><code>float \| None</code></td>
+<td><code>None</code></td>
+<td>nucleus sampling (default: the preset's); the repair pass keeps it</td>
+</tr>
+<tr>
+<td><code>repair_max_tokens</code></td>
+<td><code>int</code></td>
+<td><code>0</code></td>
+<td>the repair pass: a page whose completion stopped at max_tokens is sent once more with this cap (0: off; larger than max_tokens; 8192 is the reference script's suggestion for LightOnOCR-3)</td>
+</tr>
+<tr>
+<td><code>repair_temperature</code></td>
+<td><code>float</code></td>
+<td><code>0.1</code></td>
+<td>the repair pass's temperature (the reference script's, uv-scripts/ocr lighton-ocr3-saturate.py at e2b0aa5)</td>
 </tr>
 </tbody>
 </table>

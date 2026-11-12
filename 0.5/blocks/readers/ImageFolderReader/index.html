@@ -977,6 +977,12 @@
 <td><code>None</code></td>
 <td>only the first <code>max_pages</code> files (sorted, or as <code>paths_file</code> lists them), for the whole run, divided over the tasks as all of them would be; default: every file.</td>
 </tr>
+<tr>
+<td><code>sample</code></td>
+<td></td>
+<td><code>None</code></td>
+<td>only the pages of this <code>linecaster.data.sample.SampleRule</code>, chosen from the files' item and page ids (<code>(item_id or "", page_id)</code>) before any is read; the sample's files, in the listing's order, are divided over the tasks in turn, the same whatever the task count (the first file of an id that is listed twice). Excludes <code>max_pages</code>. Default: every file.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

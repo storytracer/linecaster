@@ -1245,6 +1245,11 @@ the image bytes, <code>metadata["page"]</code> the page record.</p>
   words by the engine's own rule (kraken: split at whitespace, a word's box the bounding box of its cuts).</li>
 <li><strong>A line's <code>text</code> is <code>None</code> until a recognizer ran</strong>; an empty string is a line recognized as empty. Its
   <code>normalized</code> is <code>None</code> until the <code>CharacterNormalizer</code> ran; <code>text</code> is never overwritten.</li>
+<li><strong>A VLM's transcription keeps its completion verbatim</strong> in <code>extra["raw"]</code> (its text equals it) with
+  <code>extra["finish_reason"]</code>. After a <a href="../glossary/">repair pass</a> it also has <code>extra["passes"]</code>, one entry per request
+  of the page (<code>raw</code>, <code>finish_reason</code>, <code>prompt_tokens</code>, <code>completion_tokens</code>, the <code>max_tokens</code>, <code>temperature</code> and
+  <code>top_p</code> it was sent with, <code>preset</code>), and <code>extra["kept"]</code>, the pass the transcription holds (1 or 2); <code>raw</code> and
+  <code>finish_reason</code> are the kept pass's.</li>
 <li><strong>Text-only transcriptions</strong> (a delivered plain text) are lines without geometry (<code>bbox</code> and <code>polygon</code>
   <code>None</code>), one per text line, <code>source.kind = "converted"</code>, <code>source.format = "text"</code>. They cannot be written as
   ALTO, PAGE or hOCR.</li>
@@ -1330,6 +1335,10 @@ no other key (a test reads the code for every place that writes one). Values var
 <tr>
 <td><code>finish_reason</code></td>
 <td>why generation stopped: <code>stop</code>, <code>length</code>, <code>content_filter</code>, <code>tool_calls</code>, <code>function_call</code>, <code>abort</code> (<code>FINISH_REASONS</code>), or <code>None</code></td>
+</tr>
+<tr>
+<td><code>pass_prompt_tokens</code>, <code>pass_completion_tokens</code></td>
+<td>a page a VLM read twice (the repair pass): the tokens of each request, in order (<code>prompt_tokens</code> and <code>completion_tokens</code> are their sums)</td>
 </tr>
 <tr>
 <td><code>regions</code>, <code>failed</code></td>

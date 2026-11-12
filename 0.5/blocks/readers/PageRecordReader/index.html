@@ -941,6 +941,12 @@
 <td><code>None</code></td>
 <td>an HTTP policy file (<code>linecaster.net.policy</code>): settings per host for those URIs, with <code>http</code> between its root and its hosts.</td>
 </tr>
+<tr>
+<td><code>sample</code></td>
+<td></td>
+<td><code>None</code></td>
+<td>only the pages of this <code>linecaster.data.sample.SampleRule</code>, chosen from the records' ids (<code>page.item_id</code> or <code>""</code>, <code>id</code>), read from every record file before any image is fetched; each task reads its files as without it (only those holding sample pages) and passes on their sample pages alone (the first record of an id that is listed twice). Default: every record.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

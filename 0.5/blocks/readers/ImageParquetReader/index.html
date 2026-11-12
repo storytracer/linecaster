@@ -1025,6 +1025,12 @@
 <td><code>None</code></td>
 <td>an HTTP policy file (<code>linecaster.net.policy</code>): settings for every host of the image URLs under <code>http</code>'s, a host's own over both.</td>
 </tr>
+<tr>
+<td><code>sample</code></td>
+<td></td>
+<td><code>None</code></td>
+<td>only the pages of this <code>linecaster.data.sample.SampleRule</code>, chosen from the id columns alone (<code>id_key</code>, or <code>item_key</code> and <code>sequence_key</code>; <code>item_key</code>) before any image is read; the sample's rows, in the tables' order, are divided over the tasks in equal shards (with <code>task_per_item</code> by item), and <code>auto_tasks</code> counts them. A row's image is read with the other sample rows of its row group. The first row of an id that is listed twice. Excludes <code>max_pages</code>. Default: every row.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

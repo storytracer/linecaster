@@ -884,7 +884,7 @@
 </tr>
 <tr>
 <td>Presets</td>
-<td><a href="../../../catalog/presets/recognition/chandra-ocr-2/"><code>chandra-ocr-2@1</code></a>, <a href="../../../catalog/presets/recognition/deepseek-ocr/"><code>deepseek-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/deepseek-ocr-2/"><code>deepseek-ocr-2@1</code></a>, <a href="../../../catalog/presets/recognition/dots-mocr/"><code>dots-mocr@1</code></a>, <a href="../../../catalog/presets/recognition/dots-ocr/"><code>dots-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/glm-ocr/"><code>glm-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-2-1b/"><code>lightonocr-2-1b@1</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-3-0.8b/"><code>lightonocr-3-0.8b@1</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-3-4b/"><code>lightonocr-3-4b@1</code></a>, <a href="../../../catalog/presets/recognition/nemotron-3.5-parse/"><code>nemotron-3.5-parse@1</code></a>, <a href="../../../catalog/presets/recognition/olmocr-2-7b-1025-fp8/"><code>olmocr-2-7b-1025-fp8@1</code></a>, <a href="../../../catalog/presets/recognition/ovisocr2/"><code>ovisocr2@1</code></a>, <a href="../../../catalog/presets/recognition/ovisocr3/"><code>ovisocr3@1</code></a>, <a href="../../../catalog/presets/recognition/paddleocr-vl-1.6/"><code>paddleocr-vl-1.6@1</code></a>, <a href="../../../catalog/presets/recognition/qianfan-ocr/"><code>qianfan-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/qwen3.5-9b/"><code>qwen3.5-9b@1</code></a>, <a href="../../../catalog/presets/recognition/smoldocling-256m-preview/"><code>smoldocling-256m-preview@1</code></a>, <a href="../../../catalog/presets/recognition/unlimited-ocr/"><code>unlimited-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/unlimited-ocr-2/"><code>unlimited-ocr-2@1</code></a></td>
+<td><a href="../../../catalog/presets/recognition/chandra-ocr-2/"><code>chandra-ocr-2@1</code></a>, <a href="../../../catalog/presets/recognition/deepseek-ocr/"><code>deepseek-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/deepseek-ocr-2/"><code>deepseek-ocr-2@1</code></a>, <a href="../../../catalog/presets/recognition/dots-mocr/"><code>dots-mocr@1</code></a>, <a href="../../../catalog/presets/recognition/dots-ocr/"><code>dots-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/glm-ocr/"><code>glm-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-2-1b/"><code>lightonocr-2-1b@1</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-3-0.8b/"><code>lightonocr-3-0.8b@2</code></a>, <a href="../../../catalog/presets/recognition/lightonocr-3-4b/"><code>lightonocr-3-4b@1</code></a>, <a href="../../../catalog/presets/recognition/nemotron-3.5-parse/"><code>nemotron-3.5-parse@1</code></a>, <a href="../../../catalog/presets/recognition/olmocr-2-7b-1025-fp8/"><code>olmocr-2-7b-1025-fp8@1</code></a>, <a href="../../../catalog/presets/recognition/ovisocr2/"><code>ovisocr2@1</code></a>, <a href="../../../catalog/presets/recognition/ovisocr3/"><code>ovisocr3@1</code></a>, <a href="../../../catalog/presets/recognition/paddleocr-vl-1.6/"><code>paddleocr-vl-1.6@1</code></a>, <a href="../../../catalog/presets/recognition/qianfan-ocr/"><code>qianfan-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/qwen3.5-9b/"><code>qwen3.5-9b@1</code></a>, <a href="../../../catalog/presets/recognition/smoldocling-256m-preview/"><code>smoldocling-256m-preview@1</code></a>, <a href="../../../catalog/presets/recognition/unlimited-ocr/"><code>unlimited-ocr@1</code></a>, <a href="../../../catalog/presets/recognition/unlimited-ocr-2/"><code>unlimited-ocr-2@1</code></a></td>
 </tr>
 <tr>
 <td>Comes after</td>
@@ -952,14 +952,41 @@
 <td><code>None</code></td>
 <td>the block's name in stats and logs; <code>None</code>: <code>"page (&lt;model&gt;, served &lt;endpoint&gt;)"</code>.</td>
 </tr>
+<tr>
+<td><code>repair_only</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>send only the repair pass, for the pages of earlier page records that need it (a <code>Chat</code> backend with <code>repair_max_tokens</code> set; <code>PipelineConfigError</code> otherwise).</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
 <p>On the <code>Chat</code> backend (served only) a stream transform: one request per page, built by the preset's adapter
 from the page image, the completion parsed into a text-only transcription that replaces <code>transcription</code>. The
 completion is kept verbatim (<code>extra["raw"]</code>); its <code>finish_reason</code> and token counts go to <code>extra</code> and the
-step's measurements, and a completion cut off at <code>max_tokens</code> is counted (stat <code>finish_length</code>). On the
-<code>InProcess</code> or <code>Served</code> backend it runs a page engine (an engine of the recognition step whose unit is the
+step's measurements, and a completion cut off at <code>max_tokens</code> is counted (stat <code>finish_length</code>).</p>
+<p><strong>The repair pass</strong> (the chat option <code>repair_max_tokens</code> above 0; <code>linecaster.adapters.ChatAdapter</code>): a page
+whose completion stopped at <code>max_tokens</code> waits in the block while its repair request goes into the same window at
+once (the same request body, so the same image and prompt and <code>top_p</code>, with <code>max_tokens</code> raised and the repair
+temperature); the other pages stream on. The repair's <code>max_tokens</code> is <code>repair_max_tokens</code>, at most the served
+context minus the first request's prompt tokens (the context from the server's <code>/models</code> <code>max_model_len</code>, else
+the preset's <code>--max-model-len</code>); where that is not above the first <code>max_tokens</code> no repair is sent (stat
+<code>repair_skipped</code>). The page keeps the repair's completion where it finished (<code>"stop"</code>), its first one
+otherwise; <code>extra["passes"]</code> records every request (<code>pass_entry</code>: the completion verbatim, finish reason,
+tokens, <code>max_tokens</code> as sent, temperature, <code>top_p</code>, preset), <code>extra["kept"]</code> which one the transcription
+holds (1 or 2), and <code>extra["raw"]</code> and <code>extra["finish_reason"]</code> stay the kept one's. The step's measurements
+sum the tokens of both and list them per request (<code>pass_prompt_tokens</code>, <code>pass_completion_tokens</code>); its
+settings add <code>repair</code>. Pages that stopped otherwise are recorded as without the repair pass. A repair request
+that fails leaves the page with its first completion (stat <code>repair_errors</code>), not an error of the page. A page
+record is written only after its repair, so an interrupted task sends both requests again. Stats:
+<code>finish_length</code> (first requests), <code>repair_sent</code>, <code>repair_stop</code>, <code>repair_length</code> (the repairs' finish
+reasons), <code>repair_kept</code>, <code>repair_skipped</code>, <code>repair_errors</code>.</p>
+<p>With <code>repair_only</code> it reads page records written earlier (<code>PageRecordReader</code>) and sends only the repair
+request, by the same rules and recorded the same way: for the pages whose transcription's first completion
+stopped at <code>max_tokens</code> and has no repair yet (<code>extra["passes"]</code> with one entry, or a record without
+<code>passes</code>, as linecaster wrote before the repair pass). Every other page passes through unchanged, without a
+request (stat <code>repair_not_needed</code>). The first request's prompt tokens and sampling come from the record.</p>
+<p>On the <code>InProcess</code> or <code>Served</code> backend it runs a page engine (an engine of the recognition step whose unit is the
 page: a vendor package, or a client of a vendor's service) as every model block runs its engine: the engine
 gets the page image and returns the page's transcription. Either way it reads the page image and adds
 <code>text</code> and what the preset produces (<code>lines</code>, <code>markdown</code>, <code>html</code>, ...); the <code>StepInfo</code> records the
@@ -975,6 +1002,7 @@ preset edition and its hash. A failed request or call is the page's error.</p>
 
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="s2">"lightonocr-2-1b@1"</span><span class="p">)</span>
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="n">Chat</span><span class="p">(</span><span class="s2">"lightonocr-2-1b@1"</span><span class="p">,</span> <span class="s2">"http://127.0.0.1:8000/v1"</span><span class="p">,</span> <span class="n">max_window</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">initial_window</span><span class="o">=</span><span class="mi">8</span><span class="p">))</span>
+<span class="n">PageRecognizer</span><span class="p">(</span><span class="n">Chat</span><span class="p">(</span><span class="s2">"lightonocr-3-0.8b@2"</span><span class="p">,</span> <span class="n">overrides</span><span class="o">=</span><span class="p">{</span><span class="s2">"repair_max_tokens"</span><span class="p">:</span> <span class="mi">8192</span><span class="p">}))</span>   <span class="c1"># with the repair pass</span>
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="s2">"indra-ocr@1"</span><span class="p">)</span>             <span class="c1"># a page engine, in the pipeline's process</span>
 </code></pre></div>
 

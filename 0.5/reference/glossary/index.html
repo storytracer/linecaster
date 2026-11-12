@@ -1151,8 +1151,23 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>run folder</strong></td>
-<td>The output folder of a run (<code>OUT</code>): <code>pages/</code> (the page records), <code>rejects/</code>, <code>logs/</code>, <code>traces/</code>, <code>run.yaml</code>, and the files the writers produce.</td>
+<td>The output folder of a run (<code>OUT</code>): <code>pages/</code> (the page records), <code>rejects/</code>, <code>logs/</code>, <code>traces/</code>, <code>run.yaml</code>, with a sample <code>sample.parquet</code> (and from manifests <code>manifests/</code>), and the files the writers produce.</td>
 <td></td>
+</tr>
+<tr>
+<td><strong>sample</strong></td>
+<td>The pages a run reads when it is given a sample rule (<code>--sample N</code>, <code>--sample-per-item K</code>, <code>--sample-items M</code>, <code>--sample-seed S</code>; <code>linecaster.data.sample</code>): chosen from the ids of the input's listing before any image is read, by item rank and page rank, cut after M items, K pages per item and N pages. The same input and options give the same sample whatever the tasks; it goes to <code>OUT/sample.parquet</code> and the run record.</td>
+<td>not the trace sample; not a preset's <code>sampling</code> (decoding settings)</td>
+</tr>
+<tr>
+<td><strong>item rank</strong></td>
+<td>An item's place in the sample order (1-based): the items with pages ordered by <code>H(f"{seed}\t{item_id}")</code>, ties by id; <code>H</code> is the first 8 bytes of the SHA-256 as an unsigned big-endian integer.</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>page rank</strong></td>
+<td>A page's place within its item in the sample order (1-based): ordered by <code>H(f"{seed}\t{item_id}\t{page_id}")</code>, ties by id.</td>
+<td>not the page's sequence</td>
 </tr>
 <tr>
 <td><strong>run record</strong></td>
@@ -1255,9 +1270,9 @@ term is added here before it is used.</p>
 <td>not telemetry</td>
 </tr>
 <tr>
-<td><strong>sample</strong></td>
-<td>The pages that are traced: a fixed share chosen by page id, plus every page that failed.</td>
-<td></td>
+<td><strong>trace sample</strong></td>
+<td>The pages that are traced: a fixed share chosen by page id (<code>--trace-sample</code>), plus every page that failed.</td>
+<td>not the sample a run reads</td>
 </tr>
 <tr>
 <td><strong>trace context</strong></td>
@@ -1394,6 +1409,11 @@ term is added here before it is used.</p>
 <td><strong>slot</strong></td>
 <td>A place in a pipeline script that a preset fills; its name is the step's (<code>--layout</code>, <code>--lines</code>, <code>--recognition</code>, ...).</td>
 <td></td>
+</tr>
+<tr>
+<td><strong>repair pass</strong></td>
+<td>A second request for a page whose VLM completion stopped at <code>max_tokens</code> (<code>finish_reason</code> <code>length</code>): the same request with a larger cap (<code>repair_max_tokens</code>) and the repair temperature, sent once; the page keeps the second completion where it finished, else the first. Each request of a page is a <strong>pass</strong>, recorded in the transcription's <code>extra["passes"]</code>; <code>extra["kept"]</code> says which one it holds.</td>
+<td>not a retry of a failed request</td>
 </tr>
 <tr>
 <td><strong>adapter</strong></td>

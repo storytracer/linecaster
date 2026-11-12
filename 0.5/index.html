@@ -1246,7 +1246,9 @@ every step; <code>linecaster models</code> lists them.</p>
 </tbody>
 </table>
 <p>Any fsspec path works: local, <code>s3://</code>, <code>hf://</code>, <code>http(s)://</code>. linecaster reads IIIF Presentation and METS/MODS
-manifests itself; <code>--existing-ocr</code> also keeps the library's own OCR as <code>ocr_original</code>. PDF files are read by the <code>PdfReader</code> block (extra <code>pypdfium2</code>).</p>
+manifests itself; <code>--existing-ocr</code> also keeps the library's own OCR as <code>ocr_original</code>. PDF files are read by the <code>PdfReader</code> block (extra <code>pypdfium2</code>).
+<code>--sample 10000 --sample-per-item 8</code> reads a fixed sample of the input instead, chosen by hashes of its ids before
+any image is read and the same whatever the setup (<code>OUT/sample.parquet</code>; <code>linecaster sample</code> without a run).</p>
 <p>For large collections, fetch the images once, then transcribe, then bind the pages into items:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pipelines/harvest.py<span class="w"> </span>--manifests<span class="w"> </span>items.parquet<span class="w"> </span>--manifest-key<span class="w"> </span>url<span class="w"> </span>OUT<span class="w"> </span>--rate-limit<span class="w"> </span><span class="m">5</span>/1
 uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>--pages<span class="w"> </span>OUT/pages<span class="w"> </span>OUT2<span class="w"> </span>--layout<span class="w"> </span>pp-doclayoutv3<span class="w"> </span>--lines<span class="w"> </span>pp-ocrv6-medium-det<span class="w"> </span><span class="se">\</span>
@@ -1474,7 +1476,7 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 </tr>
 <tr>
 <td><a href="reference/tracing/">tracing</a></td>
-<td>where a run's time went: OpenTelemetry traces per task and for a sample of pages</td>
+<td>where a run's time went: OpenTelemetry traces per task and for a trace sample of pages</td>
 </tr>
 <tr>
 <td><a href="reference/compatibility/">compatibility</a></td>
@@ -1491,7 +1493,7 @@ SGLang; the other models run inside the pipeline or behind <code>linecaster serv
 </tbody>
 </table>
 <h2 id="versions">🏷️ Versions<a class="headerlink" href="#versions" title="Permanent link">&para;</a></h2>
-<p>The current release is <code>v0.5.2</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
+<p>The current release is <code>v0.5.3</code>; <a href="https://github.com/storytracer/linecaster/blob/main/CHANGELOG.md">CHANGELOG.md</a> lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version (<a href="reference/compatibility/#versions-and-releases">versions and releases</a>); there are no deprecation
 periods yet. The

@@ -1440,6 +1440,14 @@ pipeline reads the previous folder and writes complete page records with one mor
 <td><code>OUT/run.yaml</code></td>
 <td>the run record (<a href="../pipelines/#the-run-record">pipelines</a>)</td>
 </tr>
+<tr>
+<td><code>OUT/sample.parquet</code></td>
+<td>the sample a run read, one row per page in sample order (<a href="../pipelines/#samples">pipelines</a>)</td>
+</tr>
+<tr>
+<td><code>OUT/manifests/</code></td>
+<td>the manifests a sample read (with <code>sample.jsonl</code>), or a harvest saved</td>
+</tr>
 </tbody>
 </table>
 <p><code>PageRecordReader</code> reads page records of linecaster's writers, fetching images again by URI (<code>uri_map</code> for local

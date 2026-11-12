@@ -580,10 +580,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sampling" class="md-nav__link">
+  <a href="#the-trace-sample" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sampling
+        The trace sample
       
     </span>
   </a>
@@ -887,10 +887,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sampling" class="md-nav__link">
+  <a href="#the-trace-sample" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sampling
+        The trace sample
       
     </span>
   </a>
@@ -940,8 +940,8 @@
 
 
 <h1 id="tracing">Tracing<a class="headerlink" href="#tracing" title="Permanent link">&para;</a></h1>
-<p>Every run is traced with OpenTelemetry (<code>linecaster.tracing</code>): spans per task always, spans per page for a sample
-chosen by page id plus every page that failed. Traces go to the run folder and, when the standard <code>OTEL_*</code>
+<p>Every run is traced with OpenTelemetry (<code>linecaster.tracing</code>): spans per task always, spans per page for a trace
+sample chosen by page id plus every page that failed. Traces go to the run folder and, when the standard <code>OTEL_*</code>
 variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are the <a href="../glossary/">glossary</a>'s.</p>
 <h2 id="what-is-traced">What is traced<a class="headerlink" href="#what-is-traced" title="Permanent link">&para;</a></h2>
 <p><strong>Task spans</strong>, for every task:</p>
@@ -957,7 +957,7 @@ variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are 
 <tr>
 <td><code>linecaster.task</code></td>
 <td>the task, from its first page to its end (failed: status error, <code>linecaster.error.type</code>)</td>
-<td><code>task</code>, <code>tasks</code>, <code>sample</code>, <code>stage</code>, <code>units.failed_exported</code></td>
+<td><code>task</code>, <code>tasks</code>, <code>sample</code> (the trace sample's share), <code>stage</code>, <code>units.failed_exported</code></td>
 </tr>
 <tr>
 <td><code>linecaster.warm_up</code></td>
@@ -1040,10 +1040,11 @@ run folder's name, or <code>LINECASTER_RUN</code>), <code>linecaster.task</code>
 <code>linecaster.gpu</code> and <code>linecaster.gpus</code> (from the NVIDIA driver, when there is one); <code>OTEL_RESOURCE_ATTRIBUTES</code> adds to them.</p>
 <p>Log records carry <code>trace_id</code> and <code>span_id</code> in <code>extra</code> (JSON lines on Jobs show them): the page a record names by
 <code>page_id</code>, else the span of the per-unit block running in the thread, else the task's span.</p>
-<h2 id="sampling">Sampling<a class="headerlink" href="#sampling" title="Permanent link">&para;</a></h2>
-<p><code>--trace-sample SHARE</code> (<code>build(..., trace_sample=)</code>, default 0.01): a page is sampled when a hash of its id
-(BLAKE2b, 64 bits) is below <code>SHARE</code>, so the same pages on every rerun and machine, and a larger sample contains a
-smaller one. <code>0</code> traces only failed pages and the task spans; <code>1</code> traces every page. A sampled page's record
+<h2 id="the-trace-sample">The trace sample<a class="headerlink" href="#the-trace-sample" title="Permanent link">&para;</a></h2>
+<p><code>--trace-sample SHARE</code> (<code>build(..., trace_sample=)</code>, default 0.01): a page is in the trace sample when a hash of its
+id (BLAKE2b, 64 bits) is below <code>SHARE</code>, so the same pages on every rerun and machine, and a larger trace sample
+contains a smaller one. It is not the sample a run reads (<code>--sample</code>, <a href="../pipelines/#samples">pipelines</a>). <code>0</code>
+traces only failed pages and the task spans; <code>1</code> traces every page. A sampled page's record
 carries its trace id (<code>page.metadata.trace_id</code>), so the page records lead to the trace.</p>
 <p>Every page gets a trace context (<code>doc.metadata["trace"]["traceparent"]</code>, W3C, flags <code>01</code> for a sampled page, <code>00</code>
 otherwise). The spans of an unsampled page are recorded but not sampled and held per page in a span processor
@@ -1087,7 +1088,7 @@ backend, but as traces of their own, not joined to the pages'.</p>
 <li>the <strong>gaps</strong>: per block the time it had no page in it between its first page and its last (it waited for its
   input), when every page was traced (<code>--trace-sample 1</code>);</li>
 <li>the <code>N</code> slowest traced pages (default 10) with their id, seconds, lines, slowest block and trace id;</li>
-<li>per task its duration, GPU and sample, the warm-up of each block and the server starts, the reader's files
+<li>per task its duration, GPU and trace sample, the warm-up of each block and the server starts, the reader's files
   (pages, seconds reading) and the writers' flush.</li>
 </ul>
 <p><code>--json</code> gives the same as data.</p>

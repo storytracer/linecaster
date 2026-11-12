@@ -832,6 +832,10 @@ model's raw answer is in each page's transcription.</p>
 uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
 uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
 uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit &lt;sha&gt; --recognition unlimited-ocr-2
+... --set recognition.repair_max_tokens=8192          # the repair pass (below); =0: off
+... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
+uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b@2 \
+    --set recognition.repair_max_tokens=8192           # the repair pass over page records written before
 </code></pre></div>
 <p>--recognition takes a chat preset of the catalog (<code>linecaster models</code>; <code>id</code> or <code>id@edition</code>) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
@@ -841,7 +845,24 @@ has <code>uv</code>, Python 3.12 and <code>vllm</code> on PATH, so the pipeline 
 <code>ChatModelServer</code> starts the image's own server. SGLang presets and region reading start it outside that
 environment (<code>outside_venv</code>), so neither the image's Python nor its CUDA libraries see the pipeline's
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
-share); with --layout the layout server loads into the rest after vLLM's memory profiling.</p>
+share); with --layout the layout server loads into the rest after vLLM's memory profiling. The server listens on port
+8000 in every run: two runs on one machine need a GPU each (<code>CUDA_VISIBLE_DEVICES</code>) and cannot both start their own
+server; on a machine without a CUDA toolkit vLLM starts with <code>VLLM_USE_FLASHINFER_SAMPLER=0</code> (<code>ChatModelServer</code>).</p>
+<p>--set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's <code>max_tokens</code>,
+<code>temperature</code>, <code>top_p</code>, <code>repair_max_tokens</code> and <code>repair_temperature</code> (<code>linecaster.adapters.ChatAdapter</code>),
+for --layout the layout engine's options. They go into the run record and change its <code>pipeline_sha256</code>.</p>
+<p>The repair pass (<code>--set recognition.repair_max_tokens=N</code>, N larger than the preset's <code>max_tokens</code>; page presets
+only): a page whose completion stopped at <code>max_tokens</code> is sent once more right away, the same image, prompt and
+<code>top_p</code>, with <code>max_tokens</code> N (at most the served context minus the page's prompt) and temperature
+<code>repair_temperature</code> (0.1); the page keeps the second completion where it finished (<code>stop</code>), the first one
+otherwise, and its transcription records both (<code>extra["passes"]</code>, <code>extra["kept"]</code>). The procedure is the reference
+script's (uv-scripts/ocr <code>lighton-ocr3-saturate.py</code> at e2b0aa5), which suggests 8192 for LightOnOCR-3. A page that
+stops at <code>max_tokens</code> is often a repetition loop, which a repair does not end, but a dense table can simply need
+more tokens and then finishes; the repair adds the second requests' tokens to the run (NOTES.md has the trials). A
+page whose prompt leaves no more room in the context than the first request had gets no repair (stat
+<code>repair_skipped</code>); a run warns at the start when N plus a page's largest prompt exceeds the context. With --repair-only (and --pages, page records of an earlier run of
+the same model) only the repair requests are sent: for the pages that stopped at <code>max_tokens</code> and have no repair
+yet; every other page is written as it was read.</p>
 <h2 id="slots">Slots<a class="headerlink" href="#slots" title="Permanent link">&para;</a></h2>
 <p>Each slot takes a preset of that step; a recipe fills them all.</p>
 <table>
@@ -927,6 +948,18 @@ share); with --layout the layout server loads into the rest after vLLM's memory 
 <td>float</td>
 <td><code>1800.0</code></td>
 <td>seconds per request</td>
+</tr>
+<tr>
+<td><code>--set</code></td>
+<td></td>
+<td><code>[]</code></td>
+<td>an option over the preset's, e.g. recognition.repair_max_tokens=8192 (the repair pass), recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine option; repeatable</td>
+</tr>
+<tr>
+<td><code>--repair-only</code></td>
+<td>flag</td>
+<td></td>
+<td>with --pages: send only the repair pass (--set recognition.repair_max_tokens=N) for the pages that stopped at max_tokens and have none yet; the others are written unchanged</td>
 </tr>
 </tbody>
 </table>

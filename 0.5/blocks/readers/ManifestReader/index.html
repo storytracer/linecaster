@@ -1019,6 +1019,12 @@
 <td><code>None</code></td>
 <td>an HTTP policy file (<code>linecaster.net.policy</code>): settings per host, with <code>http</code> between its root and its hosts, for every request (manifests, images, OCR files).</td>
 </tr>
+<tr>
+<td><code>sample</code></td>
+<td></td>
+<td><code>None</code></td>
+<td>only the pages of this <code>linecaster.data.sample.SampleRule</code>. The items are ranked from the entries' item ids before anything is fetched; a page's id (<code>&lt;item_id&gt;_&lt;sequence:04d&gt;</code>) needs its manifest, so computing the sample reads the manifests of the items in rank order, only as far as the rule reaches (every one with <code>per_item</code> alone), and an item whose manifest cannot be read stops it (the sample would depend on the failure). With <code>manifest_folder</code> each manifest it read is saved there with an index (<code>SAMPLE_INDEX</code>), and the tasks, and a later launch computing the sample again, read those copies instead of fetching them again. The sample's items are divided over the tasks as the entries would be (an item whole in its task); only their sample pages' images are requested. A IIIF Collection entry is a <code>PipelineConfigError</code> (list its manifests). Default: every page.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>
