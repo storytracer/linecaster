@@ -18,9 +18,15 @@ working or starts to mean something else:
 | the run layout | a folder or file name under `OUT` (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) or its format changed | a new file or folder |
 | the catalog | a catalog id (model, preset, recipe) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
 | engines | an engine id removed; an option renamed or removed, or a default changed (a new code id, `.v2`, instead) | a new engine; a new option whose default keeps the old behavior (the same id) |
+| the Python API | a public name renamed, removed or given another meaning in `linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines.api`, `linecaster.pipelines` (the shapes), `linecaster.runtime.run` (`main`, `recipe`, the helpers the shapes use) or `linecaster.testing` (its checks and markers) | a new name |
+| the output files' contents | a change of structure in the files a pipeline writes (ALTO, PAGE-XML, hOCR, Markdown, HTML, DocLang, JSON) that breaks a reader of the old ones: other elements, attributes or fields | better text; a new optional element or field |
+| resuming a run | an unchanged command line gets another fingerprint (`pipeline_sha256`), so a run no longer continues in its folder without `--new-pipeline` | a new operational parameter (left out of the fingerprint) |
+| how a run runs | a run that succeeded before now fails or stops | an operational default that leaves the outputs as they were (workers, tasks, threads, windows, timeouts, retries) |
+| dependencies and environment | an extra or a dependency removed; a raised minimum (Python, uv, datatrove); another version of a pinned numerical library (torch, ONNX Runtime, a CUDA build), which can change the text a run produces | a relock that moves only other packages; a new extra |
+| state shared by runs | a broker layout or an HTTP policy field that older versions, running at the same time, no longer read alike | a new optional field older versions ignore |
 
-Internal modules and names with a leading underscore, log messages, stats and the generated docs are not part of
-it.
+Internal modules and names with a leading underscore, log messages, stats, the generated docs, `tests/`, CI, the
+docs build and NOTES.md are not part of it: a change there is never more than a patch.
 
 ## While the version is 0.x
 
