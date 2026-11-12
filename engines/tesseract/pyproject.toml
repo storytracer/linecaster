@@ -1,12 +1,12 @@
 [project]
 name = "linecaster-tesseract"
-version = "0.1.5"
+version = "0.1.6"
 description = "Tesseract engines for linecaster: Tesseract's LSTM line recognizer through tesserocr"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
-    "linecaster>=0.1,<0.7",
+    "linecaster>=0.1,<0.8",
     # the wheels bundle Tesseract 5.5.3 and Leptonica on Linux (aarch64 and x86_64); no system packages
     "tesserocr==2.12.0",
     "numpy",

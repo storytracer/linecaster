@@ -4,10 +4,12 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.7.0 (2026-11-13)
 
 ### Upgrade notes
 
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`, 0.1.6)
+  accept linecaster `<0.8`.
 - **vLLM's repetition detection is on by default** for every chat preset served by vLLM 0.17.0 or later (all of them
   but `unlimited-ocr-2`, on SGLang): a completion that loops now ends early with `finish_reason` `repetition` instead
   of running to `max_tokens` (and through the repair passes). The presets' editions stay the same (the maintainer's

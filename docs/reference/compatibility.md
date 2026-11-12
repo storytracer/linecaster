@@ -46,7 +46,7 @@ from 1.0 on. What a change bumps follows from the table above:
 | breaking (any surface above; it needs an upgrade note) | minor, collected (0.4.0 → 0.5.0) | major |
 
 A release bumps by its largest change; patches are the rule. Ranges such as the engine packages'
-`linecaster>=0.1,<0.7` then hold: every release inside them keeps what worked.
+`linecaster>=0.1,<0.8` then hold: every release inside them keeps what worked.
 
 - **Breaking changes are collected, not released one by one.** They are made on a branch and released together as
   one minor, proposed when the branch's work is finished. `main` carries only
