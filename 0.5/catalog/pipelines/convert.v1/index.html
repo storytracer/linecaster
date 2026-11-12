@@ -845,6 +845,12 @@ of a task skips its files written already; with --on ray each task reserves its 
 of the CPUs (--cpus-per-task) and, where GPUs decode, one GPU; the image files are read in the stages, many at once, not by the reader. A run into the same
 OUT resumes: finished tasks are skipped, and within a task an image whose file is there already is not converted
 again (<code>--overwrite</code> converts it again). Files are written under a temporary name and renamed when complete.</p>
+<p>An image the GPU does not decode (nvJPEG2000 rejects some JPEG 2000 code streams, e.g. with the vertically causal
+context) is decoded on the CPU and counted (<code>gpu_decode_refused</code>; <code>gpu_fallback</code> in its record); nvImageCodec
+itself prints nothing about it (<code>PYNVIMGCODEC_VERBOSITY=0</code> unless the environment sets it). A GPU that fails is
+logged once per kind of failure and counted (<code>gpu_decode_errors</code>). Ctrl-C stops the run: the summary says what
+runs again on the next launch, and the process ends by the signal. Under <code>uv run</code> a shell loop still goes on
+(uv turns the signal into exit code 130, astral-sh/uv#11886): <code>trap 'exit 130' INT</code> before the loop stops it.</p>
 <h2 id="slots">Slots<a class="headerlink" href="#slots" title="Permanent link">&para;</a></h2>
 <p>Each slot takes a preset of that step; a recipe fills them all.</p>
 <table>
