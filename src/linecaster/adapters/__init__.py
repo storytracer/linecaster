@@ -20,10 +20,11 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, model_validator
 
 from ..data.transcription import Line, Source, StepInfo, Transcription
 from ..errors import CatalogError, PipelineConfigError, ServerError
@@ -39,7 +40,33 @@ REPAIR_DEFAULTS = {"max_tokens": 0, "temperature": 0.1}
 #: options (``ChatAdapter.Options``) -> where they live in a preset's settings
 OPTION_SETTINGS = {"max_tokens": ("sampling", "max_tokens"), "temperature": ("sampling", "temperature"),
                    "top_p": ("sampling", "top_p"), "repair_max_tokens": ("repair", "max_tokens"),
-                   "repair_temperature": ("repair", "temperature")}
+                   "repair_temperature": ("repair", "temperature"),
+                   "repetition_detection": ("sampling", "repetition_detection")}
+#: the first vLLM release that takes ``repetition_detection`` (vLLM PR #35451); older releases, like any
+#: OpenAI-compatible server that does not know a field, ignore it without a word
+REPETITION_DETECTION_VLLM = (0, 17, 0)
+
+
+class RepetitionDetection(BaseModel):
+    """vLLM's repetition detection (``repetition_detection`` of a chat/completions request, ``SamplingParams``): after
+    every output token the server tests whether the completion ends with a pattern of ``min_pattern_size`` to
+    ``max_pattern_size`` tokens repeated ``min_count`` times in a row (exact token match) and, if so, ends the request
+    with ``finish_reason`` ``repetition``. The defaults (patterns of 4 to 100 tokens, 10 times) stopped every loop of
+    5,010 LightOnOCR-3 completions and no completion that finished (NOTES.md, 2026-11-12): shorter patterns or fewer
+    repeats stop dot leaders, asterisms and rows of empty table cells, and one loop's unit was longer than 50 tokens."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min_pattern_size: int = Field(4, ge=1, description="the shortest repeating pattern tested, in tokens")
+    max_pattern_size: int = Field(100, ge=1, description="the longest repeating pattern tested, in tokens")
+    min_count: int = Field(10, ge=2, description="how many times in a row a pattern must repeat")
+
+    @model_validator(mode="after")
+    def _sizes(self):
+        if self.min_pattern_size > self.max_pattern_size:
+            raise ValueError(f"min_pattern_size ({self.min_pattern_size}) is larger than max_pattern_size "
+                             f"({self.max_pattern_size})")
+        return self
 
 
 @dataclass(frozen=True)
@@ -75,14 +102,25 @@ class ChatAdapter:
     A run may set the options of ``Options`` over the preset's settings (``chat_model(..., overrides=...)``,
     ``--set recognition.<option>=<value>``): ``max_tokens``, ``temperature`` and ``top_p`` replace the preset's
     ``settings.sampling`` values; ``repair_max_tokens`` and ``repair_temperature`` its ``settings.repair`` values
-    (``max_tokens`` and ``temperature``; default off, and 0.1). The values that differ from the preset's are the
-    adapter's ``overrides``, recorded with it (``to_dict()``) and so in ``pipeline_sha256``.
+    (``max_tokens`` and ``temperature``; default off, and 0.1); ``repetition_detection`` its
+    ``settings.sampling.repetition_detection`` (below). The values that differ from the preset's are the adapter's
+    ``overrides``, recorded with it (``to_dict()``) and so in ``pipeline_sha256``.
+
+    **Repetition detection** (``repetition_detection``; off unless a preset or a run sets it): vLLM's own guard against
+    a completion that loops (``RepetitionDetection``), sent with every request of the page (its repairs too). A loop
+    then ends early with ``finish_reason`` ``repetition``: the text as returned (what came before the loop and the
+    repeats up to the stop), counted (stat ``finish_repetition``) and never repaired. ``true`` turns it on with the
+    defaults, ``false`` off; ``repetition_detection.<field>=<value>`` sets one field over the preset's (or the
+    defaults). Only vLLM 0.17.0 and later (the preset's ``serve.version``) take the field; for an older vLLM, SGLang or
+    another server the option is refused (``PipelineConfigError``), since those would ignore it silently.
 
     **The repair pass** (``repair_max_tokens`` above 0; ``PageRecognizer`` runs it): a page whose completion stopped
     at ``max_tokens`` (``finish_reason == "length"``) is sent once more, the same request (the same image and prompt,
     the same ``top_p``) with ``max_tokens`` raised to ``repair_max_tokens`` (less where the served context leaves less
     room: ``repair_cap``) and the temperature ``repair_temperature``. The repair's completion is kept where it
-    finished (``"stop"``), the first one otherwise, even when the repair's is longer; there is no third request. The
+    finished (``"stop"``), the first one otherwise, even when the repair's is longer. With a list of caps
+    (``repair_max_tokens: [8192, 12288]``) a repair that stops at its cap is sent once more with the next, and the
+    page keeps the first completion that finished, else its first one. The
     procedure is the reference script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5, its docstring
     "Truncation and repair"), which repairs at the end of a run; ``PageRecognizer`` repairs a page as soon as its
     first completion is back, with the same outcome. A completion cut off at ``max_tokens`` is often a repetition
@@ -111,6 +149,10 @@ class ChatAdapter:
         repair_temperature: float = Field(0.1, ge=0, description="the repair pass's temperature (the reference "
                                                                  "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
                                                                  "at e2b0aa5)")
+        repetition_detection: RepetitionDetection | StrictBool | None = Field(
+            None, description="vLLM's repetition detection (vLLM 0.17.0 and later): true for the defaults (patterns "
+                              "of 4 to 100 tokens repeated 10 times), false off, or its fields; "
+                              "repetition_detection.min_count=12 sets one field")
 
     def __init__(self, preset: ChatPreset, served_name: str | None = None):
         p = preset
@@ -127,6 +169,8 @@ class ChatAdapter:
         self.job_image: str | None = serve.get("image")
         self.serve_args: list[str] = list(serve.get("flags") or [])
         self.server_env: dict[str, str] = dict(serve.get("env") or {})
+        if self.sampling.get("repetition_detection") is not None:     # the preset's, checked as a run's would be
+            self.sampling["repetition_detection"] = self._detection(self.sampling["repetition_detection"])
 
         def server_option(key, default):
             return serve[key] if key in serve else self.options.get(key, default)
@@ -148,7 +192,7 @@ class ChatAdapter:
         Unknown options and values of the wrong type are a ``PipelineConfigError``; so is a repair pass whose
         ``repair_max_tokens`` is not larger than ``max_tokens``. The values that differ from the preset's are kept
         in ``overrides``."""
-        given = dict(overrides or {})
+        given = self._fold_detection(dict(overrides or {}))
         try:
             checked = self.Options(**given)
         except ValidationError as e:
@@ -158,11 +202,47 @@ class ChatAdapter:
             value = getattr(checked, name)
             where, key = OPTION_SETTINGS[name]
             target = self.sampling if where == "sampling" else self.repair
+            if name == "repetition_detection":
+                value = None if value is False else self._detection(value)
+                if target.get(key) != value:
+                    self.overrides[name] = value
+                    if value is None:
+                        target.pop(key, None)
+                    else:
+                        target[key] = value
+                continue
             if target.get(key) != value:
                 target[key] = value
                 self.overrides[name] = value
         self.check_repair()
         return self
+
+    def _fold_detection(self, given: dict) -> dict:
+        """``repetition_detection.<field>`` overrides folded into one ``repetition_detection`` value, over the run's
+        own value or else the preset's (or, without either, the defaults)."""
+        fields = {k.partition(".")[2]: given.pop(k) for k in [k for k in given if k.startswith("repetition_detection.")]}
+        if not fields:
+            return given
+        base = given.get("repetition_detection", self.sampling.get("repetition_detection"))
+        if isinstance(base, RepetitionDetection):
+            base = base.model_dump()
+        given["repetition_detection"] = {**(base if isinstance(base, dict) else {}), **fields}
+        return given
+
+    def _detection(self, value) -> dict:
+        """``repetition_detection`` as the request sends it (all three fields), refused where the server cannot take
+        it (``PipelineConfigError``)."""
+        try:
+            d = value if isinstance(value, RepetitionDetection) else RepetitionDetection(**({} if value is True else value))
+        except (ValidationError, TypeError) as e:
+            raise PipelineConfigError(f"{self.preset}: repetition_detection: {e}") from None
+        version = tuple(int(x) for x in re.findall(r"\d+", self.server_version or "")[:3])
+        if self.server != "vllm" or not version or version < REPETITION_DETECTION_VLLM:
+            server = f"{self.server} {self.server_version or '(no version)'}"
+            raise PipelineConfigError(
+                f"{self.preset}: repetition_detection needs vLLM {'.'.join(map(str, REPETITION_DETECTION_VLLM))} or "
+                f"later; the preset's server is {server}, which would ignore the field")
+        return d.model_dump()
 
     @property
     def repair_caps(self) -> tuple[int, ...]:

@@ -100,8 +100,8 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
   `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
   `Chat(..., overrides={...})` sets the chat engine's options over the preset's settings (`max_tokens`, `temperature`,
-  `top_p`, `repair_max_tokens`, `repair_temperature`; `--set recognition.<option>=<value>` in
-  `pipelines/transcribe_vlm.py`); the ones that differ from the preset's are recorded with the adapter
+  `top_p`, `repair_max_tokens`, `repair_temperature`, `repetition_detection`; `--set recognition.<option>=<value>` in
+  `pipelines/transcribe_vlm.py`, and `--repetition-detection` there for the last with its defaults); the ones that differ from the preset's are recorded with the adapter
   (`overrides`) and count in `pipeline_sha256`. With `repair_max_tokens` set, `PageRecognizer` runs the
   [repair passes](glossary.md): a page whose completion stopped at `max_tokens` waits while its repair requests go
   into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded; `PageRecognizer(..., repair_only=True)` sends only

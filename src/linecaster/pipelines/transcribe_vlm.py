@@ -10,6 +10,8 @@ model's raw answer is in each page's transcription.
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
     ... --set "recognition.repair_max_tokens=[8192, 12288]"   # repair passes (below); =0: off (on in lightonocr-3-0.8b@3)
     ... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
+    ... --repetition-detection                                # vLLM ends a looping completion (below)
+    ... --set recognition.repetition_detection.min_count=12   # one of its settings over the defaults
     uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b
                                                           # the repair pass over page records written before
 
@@ -26,8 +28,15 @@ share); with --layout the layout server loads into the rest after vLLM's memory 
 server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``ChatModelServer``).
 
 --set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's ``max_tokens``,
-``temperature``, ``top_p``, ``repair_max_tokens`` and ``repair_temperature`` (``linecaster.adapters.ChatAdapter``),
-for --layout the layout engine's options. They go into the run record and change its ``pipeline_sha256``.
+``temperature``, ``top_p``, ``repair_max_tokens``, ``repair_temperature`` and ``repetition_detection``
+(``linecaster.adapters.ChatAdapter``), for --layout the layout engine's options. They go into the run record and
+change its ``pipeline_sha256``.
+
+--repetition-detection (``--set recognition.repetition_detection=true``) turns on vLLM's repetition detection with
+its defaults (patterns of 4 to 100 tokens repeated 10 times): a completion that loops ends early with
+``finish_reason`` ``repetition`` (stat ``finish_repetition``) and is not repaired, instead of running to
+``max_tokens`` and through the repair passes. Only presets served by vLLM 0.17.0 or later take it; it is refused for
+the others, whose servers would ignore it.
 
 The repair pass (``--set recognition.repair_max_tokens=N``, N larger than the preset's ``max_tokens``; page presets
 only): a page whose completion stopped at ``max_tokens`` is sent again right away, the same image, prompt and
@@ -70,14 +79,24 @@ def options(ap):
                     help="an option over the preset's, e.g. 'recognition.repair_max_tokens=[8192, 12288]' (repair passes), "
                          "recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine "
                          "option; repeatable")
+    ap.add_argument("--repetition-detection", action="store_true",
+                    help="vLLM ends a completion that loops (finish_reason repetition, not repaired): its repetition "
+                         "detection with linecaster's defaults; --set recognition.repetition_detection.FIELD=N for "
+                         "one of min_pattern_size, max_pattern_size, min_count")
     ap.add_argument("--repair-only", action="store_true",
                     help="with --pages: send only the repair pass (--set recognition.repair_max_tokens=N) for the "
                          "pages that stopped at max_tokens and have none yet; the others are written unchanged")
 
 
 def sets(a) -> dict[str, dict]:
-    """``--set`` by step: ``recognition`` (the chat engine's options) and, with --layout, ``layout``."""
-    return run.overrides(a.set, steps=["recognition", *(["layout"] if a.layout else [])])
+    """``--set`` by step: ``recognition`` (the chat engine's options) and, with --layout, ``layout``;
+    --repetition-detection is ``recognition.repetition_detection=true`` unless --set gives it."""
+    out = run.overrides(a.set, steps=["recognition", *(["layout"] if a.layout else [])])
+    if getattr(a, "repetition_detection", False):
+        rec = out.setdefault("recognition", {})
+        if "repetition_detection" not in rec:
+            rec["repetition_detection"] = True
+    return out
 
 
 def models(a) -> list[dict]:

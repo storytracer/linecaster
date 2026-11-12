@@ -4,6 +4,26 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- vLLM's repetition detection as a chat option, `repetition_detection` (`linecaster.adapters.RepetitionDetection`;
+  `--set recognition.repetition_detection=true`, or `--repetition-detection` in `pipelines/transcribe_vlm.py`; one
+  field with `--set recognition.repetition_detection.min_count=12`): sent with every request of a page, repairs
+  included, as vLLM's own field. A completion that loops then ends early with `finish_reason` `repetition` (a new
+  value of `FINISH_REASONS`), stored as returned, counted (stat `finish_repetition`) and never repaired. Defaults:
+  patterns of 4 to 100 tokens repeated 10 times. Evidence (NOTES.md, 2026-11-12): simulated over 5,010
+  LightOnOCR-3-0.8B completions, they stopped all 15 loops (median 127 tokens) and no completion that finished. Off
+  unless set, so no edition changes; refused unless the preset's server is vLLM 0.17.0 or later (older vLLM and
+  other servers ignore an unknown field silently). It is in the step's settings and, as an override,
+  `pipeline_sha256`.
+
+### Fixed
+
+- The `ChatAdapter` docstring said a repair pass makes no third request; with a list of caps
+  (`lightonocr-3-0.8b@3`: `[8192, 12288]`) it does.
+
 ## 0.6.1 (2026-11-12)
 
 ### Added

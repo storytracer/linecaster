@@ -2,6 +2,49 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Repetition loops and vLLM's repetition detection (2026-11-12, x86_64 machine with 8 RTX A6000)
+
+A VLM that loops writes the same few tokens until `max_tokens`, and the repair passes send it again at larger caps,
+where it usually loops again: with `lightonocr-3-0.8b@3` (4096, then 8192, then 12,288) one looping page costs 24,576
+tokens and about 85 s, holds up its task and leaves about 10,000 characters of repetition in its text. linecaster
+cannot tell a loop from a dense table that needs more room: both end `length`.
+
+Evidence from an evaluation outside linecaster, on printed book pages:
+
+- 5,010 LightOnOCR-3-0.8B completions (2.06 M tokens): 15 stopped at the cap, all exact loops on one plate page; the
+  other 4,995 finished. That page loops in about 3 of 4 runs whatever its pixels (15 of 20); when it loops, all three
+  passes loop (85 s); the first repair rescued 2 of 9.
+- vLLM's check (vLLM PR #35451, `v1/core/sched/utils.py` `check_sequence_repetition`) simulated exactly on the 5,010
+  completions, with the model's tokenizer and the check after every token:
+
+  | Pattern (tokens) | `min_count` | Finished completions stopped | Loops stopped | Tokens at the stop, median / max |
+  |---|---|---|---|---|
+  | 1-100 | 10 | 18 | 15/15 | 97 / 622 |
+  | 2-100 | 6 | 4 | 15/15 | 85 / 374 |
+  | 2-100 | 8 | 0 | 15/15 | 91 / 498 |
+  | **4-100** | **10** | **0** | **15/15** | **127 / 622** |
+  | 8-100 | 16 | 0 | 15/15 | 211 / 994 |
+  | any-50 | any | - | 14/15 | - |
+
+  The loose settings stop legitimate repetition: dot leaders of a table of contents (`. . . . .`), an asterism row
+  (`* * * *`), tables of empty or elided cells (`<td></td>` six times, `<td>...</td>`). One loop's unit is longer
+  than 50 tokens, so `max_pattern_size` 100.
+
+Decision: the chat option `repetition_detection` passes vLLM's field through (defaults 4-100 tokens, 10 times; off
+unless set), and nothing else: no client-side detector, no penalties or logits processors. The presets' own guards
+(the n-gram processors of DeepSeek-OCR and Unlimited-OCR, MiniCPM-OCR's `no_repeat_ngram_size`, the repetition and
+presence penalties of GLM-OCR, olmOCR 2, Nemotron Parse and Qwen3.5) stay: they are the model authors' settings and
+make loops rarer, detection only ends a loop that happens anyway. vLLM before 0.17.0 (the first release with the PR)
+and other servers ignore an unknown field without a word (vLLM logs it at debug level), so the option is refused
+for them.
+
+Not yet validated on a server (before a preset turns it on): the looping page ending within about 1,000 tokens in a
+few seconds without repairs; no finished page of a 500-page run ending `repetition`, and text differences against an
+`off` run no larger than between two `off` runs; throughput on and off within 2 % at full concurrency (the check runs
+in Python in the scheduler after every token); the simulation over the other VLMs' evidence (dense and empty tables,
+tables of contents, indexes; DeepSeek-OCR and Unlimited-OCR on table pages, since their processors exempt table tags
+and vLLM's check has no exemptions).
+
 ## GPU page decoding in a transcription run (2026-11-12, x86_64 machine with 8 RTX A6000, 124 vCPUs)
 
 The `squiddle` recipe (layout, lines, recognition, tables and formulas served by `linecaster serve`, one per task) on

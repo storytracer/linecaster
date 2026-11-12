@@ -24,7 +24,9 @@ off at ``max_tokens`` (``finish_reason == "length"``) is stored like any other a
 table) and finishes with more room; deciding what it means is for whoever scores or post-processes the text. With the
 repair pass on (the chat option ``repair_max_tokens``, ``linecaster.adapters.ChatAdapter``), ``PageRecognizer`` sends
 such a page again with a larger cap, and again with the next while it stops at its cap, and keeps the first
-completion that finished. A request that fails is
+completion that finished. With vLLM's repetition detection on (the chat option ``repetition_detection``) a loop ends
+early instead, ``finish_reason == "repetition"``: stored like any other (the text as returned), counted
+(``finish_repetition``) and never repaired. A request that fails is
 recorded on the page as an error (``doc.metadata["errors"]``), as for every model block.
 
 ``saturate`` reads the response's ``usage`` itself, so the window controller sees delivered tokens.

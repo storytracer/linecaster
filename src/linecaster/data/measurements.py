@@ -9,7 +9,7 @@ hOCR) carries the step records without them, apart from ``datetime``.
 from __future__ import annotations
 
 #: the values of ``finish_reason``, as OpenAI-compatible servers report them (``None``: the server said nothing)
-FINISH_REASONS = ("stop", "length", "content_filter", "tool_calls", "function_call", "abort")
+FINISH_REASONS = ("stop", "length", "content_filter", "tool_calls", "function_call", "abort", "repetition")
 
 #: key -> meaning
 MEASUREMENTS: dict[str, str] = {

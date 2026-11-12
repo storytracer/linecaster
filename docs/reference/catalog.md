@@ -235,7 +235,10 @@ settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `ma
 `top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
 [repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`;
 a list of rising caps is one repair pass each; `lightonocr-3-0.8b@3` sets `[8192, 12288]`, the other presets leave it
-off).
+off), and `repetition_detection` over `settings.sampling.repetition_detection` ([repetition detection](glossary.md):
+`true` for its defaults, `false` off, `repetition_detection.<field>=<value>` for one of `min_pattern_size`,
+`max_pattern_size`, `min_count`; refused unless the preset's server is vLLM 0.17.0 or later; no preset turns it on
+yet).
 
 **Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
 `linecaster-indra`, `linecaster-surya`, `linecaster-services`) have
