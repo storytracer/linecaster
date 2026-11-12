@@ -1235,8 +1235,8 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.5.10"
-source = { git = "https://github.com/storytracer/linecaster?branch=main#38b92cbdbdaa05b1da9287ccebf4cd1e7faf0681" }
+version = "0.5.11"
+source = { git = "https://github.com/storytracer/linecaster?branch=main#f1c07d9b97ed4dbac48a232319cfa6bb9faa92b7" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
     { name = "docling-core" },
@@ -1264,7 +1264,7 @@ ray = [
 [[package]]
 name = "linecaster-kraken"
 version = "0.1.4"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&branch=main#38b92cbdbdaa05b1da9287ccebf4cd1e7faf0681" }
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&branch=main#f1c07d9b97ed4dbac48a232319cfa6bb9faa92b7" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "kraken" },
@@ -1278,7 +1278,7 @@ dependencies = [
 [[package]]
 name = "linecaster-paddlex"
 version = "0.1.4"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&branch=main#38b92cbdbdaa05b1da9287ccebf4cd1e7faf0681" }
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&branch=main#f1c07d9b97ed4dbac48a232319cfa6bb9faa92b7" }
 dependencies = [
     { name = "ftfy" },
     { name = "linecaster" },
@@ -1733,7 +1733,7 @@ wheels = [
 [[package]]
 name = "opencv-contrib-python"
 version = "4.10.0.84"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=stubs%2Fopencv-contrib-python&branch=main#38b92cbdbdaa05b1da9287ccebf4cd1e7faf0681" }
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=stubs%2Fopencv-contrib-python&branch=main#f1c07d9b97ed4dbac48a232319cfa6bb9faa92b7" }
 dependencies = [
     { name = "opencv-contrib-python-headless" },
 ]
