@@ -2,6 +2,28 @@
 
 Measurements, decisions and open questions, newest first.
 
+## libwebp's method in a whole conversion (2026-11-12, x86_64 machine with 8 RTX A6000, 124 vCPUs)
+
+`convert.py --preset webp-lossy-q80 --set image.method=M` (linecaster 0.5.11) on the same sample of 10,000 lossy JPEG
+2000 page scans in 668 books (`--sample 10000 --sample-per-item 16 --sample-seed 2026`), GPU decoding, libwebp 1.6.0
+encoding on the CPU, input and output on a network mount. Whole-run pages/s, median file size, and the median PSNR
+to the JPEG 2000 decoded by Pillow (100 pages):
+
+| method | pages/s | median size | PSNR |
+|---|---|---|---|
+| 1 | 138 | 485 KB | 41.36 dB |
+| 2 | 133 | 415 KB | 41.10 dB |
+| 3 | 99 | 401 KB | 41.61 dB |
+| 4 | 100 | 402 KB | 41.61 dB |
+| 5 | 93 | 397 KB | 41.53 dB |
+| 6 | 62 | 386 KB | 41.53 dB |
+
+Method 0 had no clean run (it was resumed); on 40 pages, encoded with Pillow directly, it gave files 27 % larger than
+method 4 (673 against 506 KB median) at the same PSNR. In a whole conversion method 4 costs about 30 % of the
+throughput against methods 1 and 2, for files 17 to 25 % smaller and the best PSNR; methods 5 and 6 save 1 to 4 % more
+at up to 1.6 times the time. Decided: `webp-lossy-q80@3` uses method 4 again (libwebp's and Pillow's default); the
+earlier per-image measurement (below) had suggested a gain of speed that a whole run does not show.
+
 ## Image conversion on the GPU (2026-11-12, aarch64 machine with a GB10 GPU, 20 CPU cores)
 
 626 page scans as lossy JPEG 2000 (about 470 KB each, median about 2,000 x 3,600 px) converted to WebP q80
@@ -63,8 +85,9 @@ Measurements, decisions and open questions, newest first.
   | 5 | 0.413 | −1.2 % | 40.20 dB |
   | 6 | 0.611 | −3.8 % | 40.17 dB |
 
-  Methods 0 to 2 skip libwebp's search for the best encoding decisions. The maintainer prefers speed over size:
-  `webp-lossy-q80@2` uses method 0.
+  Methods 0 to 2 skip libwebp's search for the best encoding decisions. These are times for the encoding alone, one
+  image per process: they do not carry over to a whole conversion, where decoding, I/O and the windows set much of
+  the pace (the whole-run comparison below). `webp-lossy-q80@2` used method 0 on their strength; `@3` is method 4.
 - **What nvJPEG2000 refuses**: 2 of 200 pages on the x86_64 machine (30 of 2,000 in the runs above), grayscale JPEG
   2000 files whose code blocks use the vertically causal context (code-block style 0x08 in COD; the accepted files
   use 0); nvJPEG2000 rejects the stream while parsing it ("Bad jpeg"), whatever the output layout. Pillow decodes

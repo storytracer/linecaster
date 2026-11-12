@@ -4,6 +4,23 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- `webp-lossy-q80` resolves to edition 3: libwebp's method 4 again (libwebp's and Pillow's default) instead of
+  edition 2's method 0. The default output changes: files about 20 % smaller, conversions slower. `--set
+  image.method=0` gives the old speed, `--preset webp-lossy-q80@2` reproduces earlier runs (@1 and @2 stay
+  resolvable).
+
+### Changed
+
+- `webp-lossy-q80@3`: method 4. Evidence (NOTES.md, 2026-11-12): a whole conversion of 10,000 lossy JPEG 2000 page
+  scans (GPU decoding, 8 RTX A6000, 124 vCPUs, network mount) ran at 100 pages/s with method 4 against 133-138 with
+  methods 1-2, for median files of 402 KB against 415-485 KB and the best PSNR (41.61 dB); on 40 pages method 0 gave
+  files 27 % larger than method 4 at the same PSNR. Edition 2's evidence (4.4 times faster encoding) timed the encoder
+  alone, which a whole run does not show.
+
 ## 0.5.12 (2026-11-12)
 
 ### Added

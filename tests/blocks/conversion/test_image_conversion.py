@@ -227,7 +227,7 @@ def test_the_converter_writes_every_page_in_the_inputs_order_and_goes_on_after_a
     assert img.format == "webp" and (img.width, img.height) == (97, 61) and img.uri.endswith("out/b/b_0.webp")
     assert img.decoder.startswith("Pillow ") and img.extra["encoder"].startswith("Pillow ")
     assert img.extra["bytes"] == (tmp_path / "out" / "b" / "b_0.webp").stat().st_size
-    assert img.extra["original"]["format"] == "jpeg2000" and img.extra["step"]["preset"] == "webp-lossy-q80@2"
+    assert img.extra["original"]["format"] == "jpeg2000" and img.extra["step"]["preset"] == "webp-lossy-q80@3"
     assert docs[0].media == []
 
 
@@ -487,3 +487,18 @@ def test_on_a_real_gpu_a_rejected_jpeg_2000_prints_nothing_and_is_recorded(tmp_p
 
     out = json.loads(done.stdout)
     assert out["fallback"] == {"decode": "refused"} and out["decoder"].startswith("Pillow ")
+
+
+def test_webp_lossy_q80_editions_and_a_run_records_the_current_one(tmp_path):
+    """@1 and @3 use libwebp's default effort (method 4), @2 the fastest (method 0); all three stay resolvable, and a
+    run with the plain id records @3 and method 4."""
+    from linecaster.catalog.registry import catalog
+
+    c = catalog()
+    assert [c.resolve(f"webp-lossy-q80@{e}").content["options"]["method"] for e in (1, 2, 3)] == [4, 0, 4]
+    pages = _pages(tmp_path, 1)
+    [doc, _] = list(ImageConverter(str(tmp_path / "out"), "webp-lossy-q80", options={"accel": "cpu"}).run(
+        iter(map(_doc, pages))))
+    step = page_of(doc).image.extra["step"]
+    assert step["preset"] == "webp-lossy-q80@3" and step["settings"]["method"] == 4
+

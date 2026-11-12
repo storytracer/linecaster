@@ -1,13 +1,14 @@
 # yaml-language-server: $schema=../../../schemas/preset-1.json
 schema: linecaster.preset/1
 id: webp-lossy-q80
-edition: 2
+edition: 3
 step: image
 engine: image.convert.v1
 options:
   format: webp
   quality: 80
-  method: 0
+  method: 4
+  accel: auto
 capabilities:
   unit: page
   produces:
