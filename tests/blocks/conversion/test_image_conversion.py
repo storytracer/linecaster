@@ -347,3 +347,54 @@ def test_on_ray_the_convert_tasks_reserve_a_gpu_and_its_share_of_the_cpus(monkey
     monkeypatch.setattr(accel, "gpu_available", lambda: True)
     convert.pipeline(a, "convert.py")
     assert a.cpus_per_task == 4                                     # given: kept
+
+
+class BrokenGpu(FakeGpu):
+    """A GPU that refuses some files and fails on others, the way nvImageCodec does: a rejection is None, a failure
+    of the GPU an exception."""
+
+    def decode(self, data: bytes, gray: bool):
+        if gray:
+            return None                                       # e.g. a code stream nvJPEG2000 does not support
+        raise RuntimeError("CUDA error: out of memory")
+
+    def encode(self, pixels, fmt: str, params: dict):
+        raise RuntimeError("CUDA error: device lost")
+
+
+def test_whatever_keeps_the_gpu_from_an_image_the_cpu_does_and_says_why(monkeypatch, tmp_path):
+    """A file the GPU rejects and a GPU that fails both fall back to Pillow, recorded as ``gpu_fallback``; the block
+    counts them and logs the failures; ``accel=gpu`` makes both an error."""
+    monkeypatch.setattr(accel, "gpu_available", lambda: True)
+    monkeypatch.setattr(accel, "gpu_codec", lambda device: BrokenGpu())
+    gray, rgb = _encode(_noise("L"), "JPEG2000"), _encode(_noise(), "JPEG2000")
+    refused, failed = transcode.decode(gray, "auto"), transcode.decode(rgb, "auto")
+    assert refused.decoder.startswith("Pillow ") and refused.notes["gpu_fallback"] == {"decode": "refused"}
+    assert failed.notes["gpu_fallback"] == {"decode": "error: RuntimeError: CUDA error: out of memory"}
+    assert np.array_equal(np.asarray(failed.rgb), np.asarray(transcode.decode(rgb, "cpu").rgb))
+    out, rec = transcode.convert(rgb, "jpg", quality=90)
+    assert rec["encoder"].startswith("Pillow ") and rec["gpu_fallback"]["encode"].startswith("error: RuntimeError")
+    with pytest.raises(RuntimeError, match="out of memory"):
+        transcode.decode(rgb, "gpu")
+    with pytest.raises(RuntimeError, match="no GPU decoder took"):
+        transcode.decode(gray, "gpu")
+
+    lines = []
+    sink = logger_add(lines)
+    try:
+        pages = _pages(tmp_path, 2)
+        block = ImageConverter(str(tmp_path / "out"), "jpeg-q90")
+        docs = list(block.run(iter(map(_doc, pages))))
+    finally:
+        sink()
+    assert [d.id for d in docs if not d.metadata.get("errors")] == ["b_0", "b_1"]      # b_bad: not an image at all
+    assert page_of(docs[0]).image.extra["gpu_fallback"]["decode"].startswith("error:")
+    assert block.stats["gpu_decode_errors"].total == 2 and block.stats["gpu_encode_errors"].total == 2
+    assert sum("the GPU could not decode it, the CPU did" in m for m in lines) == 2
+
+
+def logger_add(lines: list):
+    from loguru import logger
+
+    sink = logger.add(lambda m: lines.append(m.record["message"]), level="WARNING")
+    return lambda: logger.remove(sink)

@@ -13,10 +13,14 @@ the tags; the first is `v0.1.0`.
   (4.4 times faster) at the same PSNR to the source (40.2 against 40.3 dB), the files 15 % larger. Edition 1 stays
   resolvable.
 
-### Documentation
+### Fixed
 
-- nvJPEG2000 refuses JPEG 2000 code streams with the vertically causal context (code-block style 0x08); the converter
-  decodes them with Pillow, as every image a GPU decoder does not take.
+- Whatever keeps a GPU from an image, the CPU does it (`accel` `auto`): a file its decoder or encoder rejects (as
+  before), and now also a failing GPU (an error, too little memory, a codec that does not start), which failed the
+  pages of its batch. Each image records it (`gpu_fallback`: `{"decode": "refused" or "error: ..."}`, the same for
+  `encode`); `ImageConverter` counts both (`gpu_decode_refused`, `gpu_decode_errors`, `gpu_encode_...`) and logs the
+  failures as a WARNING. `accel` `gpu` makes either an error. nvJPEG2000, for one, rejects code streams with the
+  vertically causal context (code-block style 0x08).
 
 ## 0.5.8 (2026-11-12)
 

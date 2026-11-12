@@ -278,9 +278,14 @@ class ImageConverter(Contracted, PipelineStep):
                     "height": page.image.height if page.image else None}
         extra = {"original": original, "step": step.model_dump(mode="json", exclude_none=True)}
         for k in ("webp_settings", "encoder", "bytes", "icc_applied", "alpha_flattened", "exif_orientation",
-                  "icc_error", "warnings"):
+                  "icc_error", "warnings", "gpu_fallback"):
             if k in info:
                 extra[k] = info[k]
+        for step, why in (info.get("gpu_fallback") or {}).items():
+            self.stat_update(f"gpu_{step}_refused" if why == "refused" else f"gpu_{step}_errors")
+            if why != "refused":                  # the GPU failed, not the file: worth seeing
+                logger.warning("page {page_id}: the GPU could not {step} it, the CPU did: {why}", page_id=doc.id,
+                               step=step, why=why)
         if info.get("warnings"):
             self.stat_update("image_warnings")
             logger.warning("page {page_id}: converted, with image warnings: {warnings}", page_id=doc.id,

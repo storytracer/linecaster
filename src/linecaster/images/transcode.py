@@ -13,7 +13,10 @@ Two steps, so a pipeline can run them in stages of their own (``linecaster.block
   encoded on the GPU where it can (nvJPEG, nvJPEG2000); PNG and WebP always with Pillow (libpng/zlib, libwebp): no
   GPU library writes them.
 
-Each image records what decoded and what encoded it (``decoder``, ``encoder``), since a GPU and a CPU decoder can
+Whatever keeps a GPU from doing an image (its decoder or encoder rejects the file, or the GPU fails: an error, too
+little memory) the CPU does it instead, recorded as ``gpu_fallback`` (``{"decode": "refused" or "error: ..."}``, the
+same for ``encode``); ``accel`` ``gpu`` makes either an error. Each image records what decoded and what encoded it
+(``decoder``, ``encoder``), since a GPU and a CPU decoder can
 round differently (a lossy JPEG's IDCT and upsampling, a lossy JPEG 2000's wavelet): ``compare_decoders`` measures
 the difference on given images. ``accel`` (``auto``, ``gpu``, ``cpu``) chooses per step; ``auto`` takes the GPU where
 it can.
@@ -58,7 +61,7 @@ class Decoded:
     source_format: str | None
     source_mode: str
     decoder: str
-    notes: dict[str, Any] = field(default_factory=dict)       # icc_applied, alpha_flattened, icc_error
+    notes: dict[str, Any] = field(default_factory=dict)       # icc_applied, alpha_flattened, icc_error, gpu_fallback
     exif_orientation: int | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -102,9 +105,15 @@ def decode(data: bytes, accel: str = "auto", device: int = 0) -> Decoded:
     im = _header(data, found)
     fmt, mode, orientation = im.format, im.mode, _orientation(im, found)
     decoder = None
+    fallback = None
     if hw.use_gpu(accel, gpu_decodable(im)):
-        codec = hw.gpu_codec(device)
-        pixels = codec.decode(data, gray=mode == "L")
+        try:
+            codec = hw.gpu_codec(device)
+            pixels = codec.decode(data, gray=mode == "L")
+        except Exception as e:  # noqa: BLE001 - the GPU failed (not the file): Pillow decodes it, and it is said
+            if accel == "gpu":
+                raise
+            pixels, fallback = None, f"error: {type(e).__name__}: {str(e)[:200]}"
         if pixels is not None and pixels.shape[:2] == (im.height, im.width):
             gpu = Image.fromarray(np.ascontiguousarray(pixels), mode)
             if "icc_profile" in im.info:
@@ -112,6 +121,8 @@ def decode(data: bytes, accel: str = "auto", device: int = 0) -> Decoded:
             im, decoder = gpu, f"{codec.version} (GPU {device})"
         elif accel == "gpu":
             raise RuntimeError(f"accel gpu: no GPU decoder took this {fmt} image")
+        else:
+            fallback = fallback or "refused"
     if decoder is None:
         with _warnings_into(found):
             im.load()
@@ -121,11 +132,14 @@ def decode(data: bytes, accel: str = "auto", device: int = 0) -> Decoded:
     if "icc_error" in notes:
         found.append(f"ICC profile not applied: {notes['icc_error']}")
     notes.pop("source_mode", None)
+    if fallback:
+        notes["gpu_fallback"] = {"decode": fallback}
     return Decoded(rgb, fmt.lower() if fmt else None, mode, decoder, notes, orientation, found)
 
 
 def encode(rgb: Image.Image, fmt: str, *, quality: int = 80, lossless: bool = False, psnr: float | None = None,
-           method: int = 4, compress_level: int = 6, accel: str = "auto", device: int = 0) -> tuple[bytes, str]:
+           method: int = 4, compress_level: int = 6, accel: str = "auto", device: int = 0,
+           notes: dict | None = None) -> tuple[bytes, str]:
     """``(bytes, encoder)``: 8-bit sRGB pixels encoded as ``fmt`` at full resolution (module docstring).
 
     Args:
@@ -139,19 +153,28 @@ def encode(rgb: Image.Image, fmt: str, *, quality: int = 80, lossless: bool = Fa
         compress_level: ``png``: zlib's level, 0 to 9.
         accel: ``auto``, ``gpu`` or ``cpu`` (``jpg`` and ``jp2`` only; PNG and WebP are encoded on the CPU).
         device: the CUDA device for a GPU encode.
+        notes: where a GPU encode that fell back to Pillow is said (``gpu_fallback``: ``{"encode": "refused" or
+            "error: ..."}``).
     """
     if fmt not in FORMATS:
         raise ValueError(f"format {fmt!r}: one of {', '.join(FORMATS)}")
     if fmt == "jp2" and not lossless and psnr is None:
         raise ValueError("jp2: lossless, or a psnr")
     if hw.use_gpu(accel if fmt in hw.GPU_ENCODE_FORMATS else "cpu", fmt in hw.GPU_ENCODE_FORMATS):
-        codec = hw.gpu_codec(device)
         params = {"quality": quality} if fmt == "jpg" else {"lossless": lossless, "psnr": psnr}
-        out = codec.encode(np.asarray(rgb), fmt, params)
+        try:
+            codec = hw.gpu_codec(device)
+            out, why = codec.encode(np.asarray(rgb), fmt, params), "refused"
+        except Exception as e:  # noqa: BLE001 - the GPU failed (not the image): Pillow encodes it, and it is said
+            if accel == "gpu":
+                raise
+            out, why = None, f"error: {type(e).__name__}: {str(e)[:200]}"
         if out is not None:
             return out, f"{codec.version} (GPU {device})"
         if accel == "gpu":
             raise RuntimeError(f"accel gpu: no GPU encoder took this image as {fmt}")
+        if notes is not None:
+            notes.setdefault("gpu_fallback", {})["encode"] = why
     pil_fmt = FORMATS[fmt][0]
     buf = io.BytesIO()
     if fmt == "webp":
@@ -189,7 +212,7 @@ def record(decoded: Decoded, out: bytes, fmt: str, encoder: str) -> dict[str, An
 def convert(data: bytes, fmt: str, *, accel: str = "auto", device: int = 0, **settings) -> tuple[bytes, dict]:
     """``decode`` then ``encode`` (``settings``: its format settings): ``(bytes, record)``."""
     decoded = decode(data, accel, device)
-    out, encoder = encode(decoded.rgb, fmt, accel=accel, device=device, **settings)
+    out, encoder = encode(decoded.rgb, fmt, accel=accel, device=device, notes=decoded.notes, **settings)
     return out, record(decoded, out, fmt, encoder)
 
 

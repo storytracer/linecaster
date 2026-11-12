@@ -101,7 +101,8 @@ class ImageConvertEngine(RuleEngine):
         from ..images.transcode import encode, record
 
         o = self.configured(options)
-        out, encoder = encode(decoded.rgb, o.format, accel=o.accel, device=device, **self.settings(options))
+        out, encoder = encode(decoded.rgb, o.format, accel=o.accel, device=device, notes=decoded.notes,
+                              **self.settings(options))
         return out, record(decoded, out, o.format, encoder)
 
     def __call__(self, data: bytes, device: int = 0, **options) -> tuple[bytes, dict[str, Any]]:

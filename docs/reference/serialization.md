@@ -179,6 +179,10 @@ resolution, 8-bit sRGB, with the working image's size limit, colour handling and
 - **Encoding**: JPEG (nvJPEG) and JPEG 2000 (nvJPEG2000) on the GPU where it can, else with Pillow (libjpeg-turbo,
   OpenJPEG); PNG and WebP always with Pillow (zlib, libwebp): no GPU library writes them (nvImageCodec only through
   its CPU OpenCV extension).
+- **Fallback**: whatever keeps the GPU from an image, the CPU does it: a file its decoder or encoder rejects (nvJPEG2000,
+  for one, rejects code streams with the vertically causal context, code-block style 0x08), or a failing GPU (an
+  error, too little memory). The image's record says so (`gpu_fallback`), the block counts it, and a failure of the GPU
+  is logged as a WARNING; `accel` `gpu` makes either an error.
 - **Choice**: found out per machine, never configured (`cuda_devices` asks the CUDA driver; nvImageCodec is used
   when installed). `accel` `auto` takes the GPU where it can, `cpu` never, `gpu` is an error where it cannot. Each
   image records its `decoder` and `encoder`: a GPU and a CPU decoder can round lossy JPEG and JPEG 2000 differently,
