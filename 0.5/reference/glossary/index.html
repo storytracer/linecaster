@@ -1240,6 +1240,11 @@ term is added here before it is used.</p>
 <td></td>
 </tr>
 <tr>
+<td><strong>image warning</strong></td>
+<td>A fault of an image file that it is read around, recorded and logged as a WARNING but not failing it (<code>linecaster.images.image_warnings</code>): a PNG's optional (ancillary) chunk with a wrong checksum, left out when read (as libpng and browsers do); what Pillow warns about while reading (e.g. corrupt EXIF); EXIF that cannot be read; an ICC profile that cannot be applied. In a resource's fetch record and a converted page's image as <code>warnings</code>.</td>
+<td>not an error: a fault that keeps the pixels from being read (a damaged header, a truncated file) fails the resource or rejects the page</td>
+</tr>
+<tr>
 <td><strong>warm-up</strong></td>
 <td>What a block loads before its first unit (<code>warm_up()</code>): an engine, a server, a client's secrets. Timed as its own stat.</td>
 <td></td>

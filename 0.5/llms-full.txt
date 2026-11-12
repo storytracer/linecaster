@@ -305,7 +305,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.5.6`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.5.7`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -409,6 +409,7 @@ term is added here before it is used.
 | **unexpected HTML** | A successful response (2xx) with an HTML page where an image, XML, JSON or a manifest was expected (an error page served with 200, a soft 404, a login page after a redirect): by default a failed attempt, retried and traced `200-html` (`linecaster.net.http.UnexpectedHTML`); a block or a stop where the host's policy has `html` in `block_on` or `stop_on`. | not an error status with an HTML body (a 503 page is a 503) |
 | **breaker** | A fetcher's guard against an outage (`linecaster.net.http.Breaker`): when most recent attempts got a server error it pauses the fetcher's requests, sends a probe now and then, and ends the pause with the first answer that is not a server error. | not the pause after a block |
 | **reject** | A page that failed a check or a step, written to `rejects/` with the reason; it stays in the page records with its errors. | |
+| **image warning** | A fault of an image file that it is read around, recorded and logged as a WARNING but not failing it (`linecaster.images.image_warnings`): a PNG's optional (ancillary) chunk with a wrong checksum, left out when read (as libpng and browsers do); what Pillow warns about while reading (e.g. corrupt EXIF); EXIF that cannot be read; an ICC profile that cannot be applied. In a resource's fetch record and a converted page's image as `warnings`. | not an error: a fault that keeps the pixels from being read (a damaged header, a truncated file) fails the resource or rejects the page |
 | **warm-up** | What a block loads before its first unit (`warm_up()`): an engine, a server, a client's secrets. Timed as its own stat. | |
 | **error budget** | The share of a task's pages a block may fail on before the task fails (`--max-page-errors`, default 1 % of at least 100 pages). | |
 | **functional parameter**, **operational parameter** | A block parameter that can change what a run writes (functional), or only where things are and how the work runs (operational: folders, ports, endpoints, windows, worker counts). `pipeline_sha256` covers the functional ones. | |
@@ -1911,7 +1912,12 @@ delivered. Pages larger than the size limit go to `rejects/`.
 - **info**: `format`, `width`, `height`, `source_format`, `source_mode`, `pixels_sha256` (sha256 of
   the decoded 8-bit RGB bytes, row-major, what the WebP decodes to), `sha256` (of the WebP),
   `decoder` (`Pillow x / <source library> y / libwebp z`), `webp_settings`, `icc_applied`,
-  `alpha_flattened`; the keys match `PageImage` where they overlap.
+  `alpha_flattened`, and `warnings` when the image has image warnings ([glossary](glossary.md)); the keys match
+  `PageImage` where they overlap.
+- **Image warnings**: a fault the image is read around is reported, not fatal: a PNG's optional chunk with a wrong
+  checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
+  reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in `warnings` (also in the
+  page image's `extra`, and logged). A fault that keeps the pixels from being read rejects the page.
 
 <!-- docs/reference/catalog.md -->
 
