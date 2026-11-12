@@ -238,6 +238,8 @@ def _records(out: str) -> dict[str, dict]:
     for f in sorted(Path(out, "pages").glob("*.jsonl.gz")):
         with gzip.open(f, "rt") as fh:
             rows.update({(r := json.loads(line))["id"]: r for line in fh if line.strip()})
+    for r in rows.values():
+        r["page"].pop("measurements", None)                   # each run's time for the page
     return rows
 
 

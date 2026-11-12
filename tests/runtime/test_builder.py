@@ -27,7 +27,7 @@ from linecaster.catalog import yamlio
 from linecaster.data import Line
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
-from linecaster.runtime.builder import OTHERWISE, MetadataEquals, branch, build, run_pages
+from linecaster.runtime.builder import OTHERWISE, MetadataEquals, branch, build, run_pages, run_plan
 from linecaster.runtime.observers import Observer
 
 
@@ -78,11 +78,13 @@ def _problems(blocks, **kw) -> list[str]:
 
 
 def _records(folder: Path) -> dict[str, dict]:
-    """The page records by id, without what varies from run to run (a step's ``seconds`` and ``datetime``)."""
+    """The page records by id, without what varies from run to run (a step's and the page's ``seconds`` and
+    ``datetime``)."""
     out = {}
     for f in sorted(folder.rglob("*.jsonl.gz")):
         for line in gzip.open(f, "rt"):
             row = json.loads(line)
+            row["page"].pop("measurements", None)
             for t in row["page"]["transcriptions"].values():
                 for step in t["steps"]:
                     step["measurements"].pop("seconds", None)
@@ -598,3 +600,35 @@ def test_hf_jobs_need_a_namespace_and_take_none_from_the_account():
         _args("images", "memory://lc/ns", "--on", "hf-jobs", "--commit", "abc")
     assert _args("images", "memory://lc/ns", "--on", "hf-jobs", "--commit", "abc", "--namespace", "org").namespace == "org"
     assert _args("images", "memory://lc/ns").namespace is None
+
+
+def test_every_page_record_carries_its_time_in_the_run(tmp_path: Path):
+    """``PageTiming``: a page's record has ``measurements.seconds`` (from its reader to its first writer, so the time of
+    the blocks between; waiting included) and ``datetime`` (when the reader handed it over); a tap before the writer
+    has none yet, and a stage that writes no page gets no timing."""
+    import time
+
+    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.runtime.observers import PageTiming
+
+    class Slow(Mark):
+        def process_page(self, doc, page):
+            time.sleep(0.05)
+            return super().process_page(doc, page)
+
+    src = tmp_path / "images"
+    src.mkdir()
+    for name in ("p1", "p2"):
+        _png(src / f"{name}.png", 40)
+    src = str(src)
+    run_plan(build([ImageFolderReader(src), Slow("S"), PageJsonlWriter(str(tmp_path / "out" / "pages"))],
+                   taps={"S": str(tmp_path / "tap")}))
+    for f in (tmp_path / "out" / "pages").rglob("*.jsonl.gz"):
+        for line in gzip.open(f, "rt"):
+            m = json.loads(line)["page"]["measurements"]
+            assert set(m) == {"seconds", "datetime"} and 0.05 <= m["seconds"] < 5 and m["datetime"].endswith("Z")
+    for f in (tmp_path / "tap").rglob("*.jsonl.gz"):
+        assert all(json.loads(line)["page"]["measurements"] == {} for line in gzip.open(f, "rt"))
+    assert build([ImageFolderReader(src), Mark("M")]).stages[0].observers is None
+    hub = build([ImageFolderReader(src), PageJsonlWriter(str(tmp_path / "p"))]).stages[0].observers
+    assert [type(o) for o in hub.observers] == [PageTiming]

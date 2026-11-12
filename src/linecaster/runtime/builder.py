@@ -749,10 +749,24 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
     out = []
     for s, (name, stage_entries, stage_tasks) in enumerate(stages):
         tracing = _tracing(run_folder, trace_sample, name if len(stages) > 1 else None, problems)
-        hub = Observers([*tap_at.get(s, []), *(observers or []), *([tracing] if tracing else [])])
+        timing = _timing(stage_entries)
+        hub = Observers([*([timing] if timing else []), *tap_at.get(s, []), *(observers or []),
+                         *([tracing] if tracing else [])])
         out.append(Stage(name=name, tasks=stage_tasks, blocks=[e.block for e in stage_entries],
                          pipeline=_pipeline(stage_entries, hub if hub else None), observers=hub if hub else None))
     return Plan(stages=out, graph=graph, problems=problems, _describe=described)
+
+
+def _timing(entries: list[_Entry]):
+    """A page stage's ``PageTiming``: from its first block to the first that writes pages, binds or serves (where the
+    stream still carries pages, as for ``_rejects``); none for a stage of items or one that writes no page."""
+    from .observers import PageTiming
+
+    if not entries or entries[0].contract.unit not in ("page", "any") or entries[0].contract.output_unit == "item":
+        return None
+    stop = next((e.block for e in entries[1:] if e.contract.role in ("writer", "server", "binder")
+                 or e.contract.unit_out == "item"), None)
+    return None if stop is None else PageTiming(entries[0].block, stop)
 
 
 def _pipeline(entries: list[_Entry], hub: Observers | None) -> list:

@@ -303,7 +303,8 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
 
     Page-level: ``image`` (the image media's bytes), ``transcription_file`` (a document media's bytes),
     ``metadata`` (the page record apart from its transcriptions); each transcription by
-    ``transcription_changes``, its parts in that transcription. The page's ``errors`` and ``trace`` are not parts.
+    ``transcription_changes``, its parts in that transcription. The page's ``errors`` and ``trace`` are not parts, nor
+    its ``measurements`` (the run's time for the page, ``PageTiming``).
 
     Args:
         before, after: the page's document before and after.
@@ -321,7 +322,7 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
         elif a != b:
             out.append((part, frozenset({Part(part)})))
     pb, pa = before.metadata.get(PAGE_KEY) or {}, after.metadata.get(PAGE_KEY) or {}
-    rest = ({k: v for k, v in pb.items() if k != "transcriptions"}, {k: v for k, v in pa.items() if k != "transcriptions"})
+    rest = tuple({k: v for k, v in p.items() if k not in ("transcriptions", "measurements")} for p in (pb, pa))
     if rest[0] != rest[1]:
         out.append(("metadata", frozenset({Part("metadata")})))
     tb, ta = pb.get("transcriptions") or {}, pa.get("transcriptions") or {}

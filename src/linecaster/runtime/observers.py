@@ -156,6 +156,44 @@ class Boundary:
         return f"boundary after {getattr(self.block, 'name', None) or type(self.block).__name__}"
 
 
+class PageTiming(Observer):
+    """Puts each page's time in the run into its page record (``Page.measurements``): ``seconds``, the wall time from
+    when ``start`` (the stage's first block, its reader) handed the page over to when it reaches ``stop`` (the first
+    block that writes pages, binds them or serves), waiting in served windows and queues included; ``datetime``, when
+    it was handed over. The steps' own times are on their step records. A record read from an earlier run
+    (``--after``) gets this run's. The builder installs it on every page stage that writes pages."""
+
+    def __init__(self, start, stop):
+        self.start, self.stop = start, stop
+        self._began: dict[int, tuple[float, str]] = {}
+
+    def on_exit(self, block, doc, error=None) -> None:
+        if block is self.start:
+            import time
+            from datetime import datetime, timezone
+
+            self._began[id(doc)] = (time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+    def on_enter(self, block, doc) -> None:
+        if block is self.stop:
+            self._stamp(doc)
+
+    def _stamp(self, doc) -> None:
+        import time
+
+        from ..data.page import PAGE_KEY
+
+        began = self._began.pop(id(doc), None)
+        page = doc.metadata.get(PAGE_KEY)
+        if began is None or not isinstance(page, dict):
+            return
+        page["measurements"] = {**(page.get("measurements") or {}),
+                                "seconds": round(time.perf_counter() - began[0], 4), "datetime": began[1]}
+
+    def on_task_end(self, error=None) -> None:
+        self._began.clear()                       # pages a block dropped
+
+
 class Tap(Observer):
     """Writes the page record of every page that comes out of ``block`` to ``folder`` (``PageJsonlWriter``'s
     format, ``<folder>/<rank>.jsonl.gz``), as it is at that point; later blocks do not change what was written."""

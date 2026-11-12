@@ -4,6 +4,16 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- Every page record carries the page's time in the run: `page.measurements.seconds`, the wall time from the reader
+  handing the page over to its first writer (the blocks between, waiting in served windows and queues included), and
+  `page.measurements.datetime`, when it started (`Page.measurements`, a new optional field;
+  `linecaster.runtime.observers.PageTiming`, which the builder installs on every page stage that writes pages). The
+  steps' own times stay on their step records.
+
 ## 0.6.0 (2026-11-12)
 
 ### Upgrade notes

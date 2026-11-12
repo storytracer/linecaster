@@ -14,8 +14,11 @@ FINISH_REASONS = ("stop", "length", "content_filter", "tool_calls", "function_ca
 #: key -> meaning
 MEASUREMENTS: dict[str, str] = {
     # any step
-    "seconds": "wall time of the step on the page, in seconds (the engine's call, in-process or in the server)",
-    "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date)",
+    "seconds": "wall time of the step on the page, in seconds (the engine's call, in-process or in the server); on the "
+               "page record (Page.measurements), the page's time in the run, from its reader to its first writer, "
+               "waiting included",
+    "datetime": "when the step started on the page, ISO 8601 in UTC (ALTO processingDateTime, PAGE date); on the page "
+                "record, when its reader handed it over",
     "device": "the device the step ran on, e.g. cuda:0 or cpu",
     "decoder": "what decoded the page image the step read, e.g. nvImageCodec 0.10.0 (GPU 0) or Pillow 12.0.0 / "
                "OpenJPEG 2.5.4 (linecaster.images.pixels)",
