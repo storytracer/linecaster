@@ -1162,7 +1162,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.5.13"
+version = "0.6.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
@@ -1221,7 +1221,7 @@ docs = [
 
 [[package]]
 name = "linecaster-kraken"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "../engines/kraken" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1237,7 +1237,7 @@ dependencies = [
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
-    { name = "linecaster", specifier = ">=0.1,<0.6" },
+    { name = "linecaster", specifier = ">=0.1,<0.7" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
     { name = "torch", specifier = "==2.14.0" },
@@ -1246,7 +1246,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1268,7 +1268,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.1,<0.6" },
+    { name = "linecaster", specifier = ">=0.1,<0.7" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
@@ -1285,7 +1285,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-tesseract"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "../engines/tesseract" }
 dependencies = [
     { name = "linecaster" },
@@ -1297,7 +1297,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.1,<0.6" },
+    { name = "linecaster", specifier = ">=0.1,<0.7" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },

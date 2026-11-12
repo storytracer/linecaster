@@ -1,12 +1,12 @@
 [project]
 name = "linecaster-kraken"
-version = "0.1.4"
+version = "0.1.5"
 description = "kraken engines for linecaster: kraken's PP-OCRv6 line recognizer on torch"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
-    "linecaster>=0.1,<0.6",
+    "linecaster>=0.1,<0.7",
     # kraken with the PP-OCRv6 code: the fork in [tool.uv.sources] below, which uv lock applies to every script
     # that installs this package
     "kraken>=7.1.0",

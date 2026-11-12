@@ -4,10 +4,12 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.6.0 (2026-11-12)
 
 ### Upgrade notes
 
+- The engine packages (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-surya`, `-indra`, `-services`, 0.1.5)
+  accept linecaster `<0.7`.
 - Model blocks decode page images on an NVIDIA GPU where the machine has one and `linecaster[nvimgcodec]` is
   installed (`--image-decode auto`, the default): JPEG, JPEG 2000 and TIFF in 8-bit gray or RGB, for in-process
   engines, for chat adapters' requests and region crops, and in `linecaster serve`. A GPU rounds a lossy image's
