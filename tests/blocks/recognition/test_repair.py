@@ -366,17 +366,6 @@ def test_the_region_recognizer_is_unchanged():
                                                                 "primary", "skip_on_error"}
 
 
-def test_lightonocr_3_0_8b_edition_3_repairs_at_12288_and_edition_2_does_not():
-    """Edition 3 turns the repair pass on (12,288 tokens, temperature 0.1); edition 2 states it off; the run turns
-    either way with ``--set recognition.repair_max_tokens``."""
-    from linecaster.adapters import chat_model
-
-    three, two = chat_model("lightonocr-3-0.8b@3"), chat_model("lightonocr-3-0.8b@2")
-    assert (three.repair_max_tokens, three.repair_temperature) == (12288, 0.1)
-    assert two.repair_max_tokens == 0
-    assert chat_model("lightonocr-3-0.8b@3").apply_overrides({"repair_max_tokens": 0}).repair_max_tokens == 0
-
-
 # ----------------------------------------------------------------------------------- several repair passes
 #: page width -> a page that needs more than 8192 tokens: it finishes only with the third cap
 LONGER = 600
@@ -450,3 +439,4 @@ def test_lightonocr_3_0_8b_edition_3_escalates_to_twice_and_three_times_its_cap(
     three = model("lightonocr-3-0.8b@3")
     assert three.sampling["max_tokens"] == 4096 and three.repair_caps == (8192, 12288)
     assert model("lightonocr-3-0.8b@2").repair_caps == ()
+    assert three.repair_temperature == 0.1 and three.apply_overrides({"repair_max_tokens": 0}).repair_caps == ()

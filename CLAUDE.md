@@ -159,12 +159,13 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 
 ## Releases
 
-- **The agent decides and makes the releases, by
-  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**, and patches are the rule: fixes,
-  features that keep behavior and docs are patches, at the end of each finished piece of work, merged and green.
-  Derivatives and the engine ranges rely on the version saying what changed.
-- **Breaking changes wait on a branch and go out together as one minor** when a coherent piece of work is finished
-  or the maintainer asks; `main` carries only patch-level changes. A minor names in its upgrade notes what users must
+- **A release is made when the maintainer asks for one, by
+  [versions and releases](docs/reference/compatibility.md#versions-and-releases)**; the agent may propose one at a
+  milestone a user or derivative is waiting for, but never releases at the end of each piece of work. Finished work
+  is merged into `main` and collects under Unreleased in CHANGELOG.md, and patches are the rule. A version that moves
+  with every change tells derivatives nothing.
+- **Breaking changes wait on a branch and go out together as one minor** when the maintainer asks; `main` carries
+  only patch-level changes. A minor names in its upgrade notes what users must
   change. The version should move slowly.
 - **Never 1.0.0 without the maintainer's word.** It is a promise of deprecation periods.
 

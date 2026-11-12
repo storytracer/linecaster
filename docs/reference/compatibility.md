@@ -43,20 +43,20 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
 `linecaster>=0.1,<0.6` then hold: every release inside them keeps what worked.
 
 - **Breaking changes are collected, not released one by one.** They are made on a branch and released together as
-  one minor when a coherent piece of work is finished, or when the maintainer asks for one. `main` carries only
+  one minor when the maintainer asks for one. `main` carries only
   patch-level changes, so a fix can go out as a patch at any time.
 - **A minor needs something users must change:** its upgrade notes name it. A release with nothing to change is a
   patch.
-- **When:** at the end of a finished piece of work, once it is merged into `main` and CI is green; one release per
-  piece of work, not per commit. A commit that changes only the README is no release; other docs wait for the next
-  release unless they correct something wrong.
+- **When:** when the maintainer decides, typically at a milestone a user or derivative is waiting for; never one
+  per piece of work or per commit. Finished work is merged into `main` and collects in `CHANGELOG.md`'s Unreleased
+  section until then. A commit that changes only the README is no release.
 - **How:** the version in `pyproject.toml` and `linecaster.__version__` (`tests/test_version.py` checks they agree),
   `CHANGELOG.md`'s Unreleased section as `## <version> (<date>)`, the scripts relocked, an annotated tag
   `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)
   also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.
 - **Engine packages** version on their own by the same table, applied to their engines (ids, options, defaults).
-- **A derivative** versions by its own interface, not by linecaster's numbers: moving to a linecaster release that
-  leaves what the derivative documents unchanged is a patch for it.
+- **A derivative** pins a linecaster release tag and versions, if at all, by its own interface, not by linecaster's
+  numbers.
 - **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.
 
