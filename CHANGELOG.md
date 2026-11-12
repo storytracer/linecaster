@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.5.6 (2026-11-12)
 
 ### Fixed
 
