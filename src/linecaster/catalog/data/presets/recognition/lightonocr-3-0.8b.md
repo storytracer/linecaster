@@ -13,7 +13,7 @@ checkpoint).
   page whose completion stopped at `max_tokens` is sent again at 8192 tokens, and, if that stops at its cap too, at
   12,288; never more (three passes at most). Temperature 0.1 (`settings.repair.temperature`, the reference script's);
   the same image, prompt and `top_p`. The page keeps the first completion that finished (`stop`), otherwise its first
-  one. A dense table page needed 8,958 tokens, and one needing about 7,960 hit 8192 in one run of three (NOTES.md).
+  one. The second repair is linecaster's addition to the reference script's one; CHANGELOG.md names the evidence.
   `--set recognition.repair_max_tokens=0` turns the passes off.
 - vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
   `vllm/vllm-openai:v0.30.0`.

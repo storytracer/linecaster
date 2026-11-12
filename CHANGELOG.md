@@ -14,6 +14,11 @@ the tags; the first is `v0.1.0`.
   repairs at `[8192, 12288]` (twice and three times its 4096): its edition 3, released in 0.5.4 with one repair at
   12,288, was replaced in place (the 0.5.4 release of it was incomplete); its run records' hash changes.
   `StepInfo.settings["repair"]["max_tokens"]` is now always a list.
+  The second repair deviates from the reference script (uv-scripts/ocr `lighton-ocr3-saturate.py` at e2b0aa5: one
+  repair, 8192 suggested; its temperatures, 0.2 and 0.1 for the repair, are kept). Evidence (NOTES.md, 2026-11-12):
+  on a 33-page trial of table and formula pages, one RTX A6000, vLLM 0.30.0, 5 to 6 pages stopped at 4096; a single
+  repair at 8192 finished 4 of 5 in one run and 3 of 5 in another, the dense table stopping at 8192 both times; it
+  finished after 8,958 tokens with a cap of 12,288, and with `[8192, 12288]` every page finished.
 
 ## 0.5.4 (2026-11-12)
 

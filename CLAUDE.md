@@ -116,6 +116,10 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Released editions never change** (`linecaster catalog verify` stays OK): a change that can change outputs is a
   new edition; a change that keeps behavior is a catalog migration, which keeps the old hash as `previous_sha256`.
   Run records name an edition and its hash, and must keep resolving.
+- **A preset's settings are its reference's** (the model card, or the reference script it follows at a pinned
+  commit, named in its card) **until a measurement gives a reason to change one.** A deviation names its evidence in
+  CHANGELOG.md (the measurement itself in NOTES.md), and the card says which settings differ from the reference. The
+  references come from people who tuned them; a change without evidence is a guess.
 - **No measurements in the catalog or the docs; a measurement elsewhere is an evidence record with its source, and a
   claim is never a measurement.** linecaster is not a data repository, and a number that is not shipped cannot go
   stale.
