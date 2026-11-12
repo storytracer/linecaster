@@ -1,7 +1,7 @@
 # Tracing
 
-Every run is traced with OpenTelemetry (`linecaster.tracing`): spans per task always, spans per page for a sample
-chosen by page id plus every page that failed. Traces go to the run folder and, when the standard `OTEL_*`
+Every run is traced with OpenTelemetry (`linecaster.tracing`): spans per task always, spans per page for a trace
+sample chosen by page id plus every page that failed. Traces go to the run folder and, when the standard `OTEL_*`
 variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are the [glossary](glossary.md)'s.
 
 ## What is traced
@@ -10,7 +10,7 @@ variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are 
 
 | Span | What it covers | Attributes (besides `linecaster.block`) |
 |---|---|---|
-| `linecaster.task` | the task, from its first page to its end (failed: status error, `linecaster.error.type`) | `task`, `tasks`, `sample`, `stage`, `units.failed_exported` |
+| `linecaster.task` | the task, from its first page to its end (failed: status error, `linecaster.error.type`) | `task`, `tasks`, `sample` (the trace sample's share), `stage`, `units.failed_exported` |
 | `linecaster.warm_up` | a block loading its engine or client (`warm_up()`), per block that loads something | `block.name`, `preset`, `edition`, `engine`, `model`, `backend`, `server` |
 | `linecaster.server.start` | a server block's warm-up: starting `linecaster serve` or vLLM/SGLang until it answers | `server`, `model`, `preset`, `port` |
 | `linecaster.reader.file` | a file a reader is through: a Parquet file, a file of page records, a manifest (wall time, while its pages also passed the later blocks) | `file`, `pages`, `seconds.own` (the time spent reading) |
@@ -49,11 +49,12 @@ run folder's name, or `LINECASTER_RUN`), `linecaster.task`, `linecaster.tasks`, 
 Log records carry `trace_id` and `span_id` in `extra` (JSON lines on Jobs show them): the page a record names by
 `page_id`, else the span of the per-unit block running in the thread, else the task's span.
 
-## Sampling
+## The trace sample
 
-`--trace-sample SHARE` (`build(..., trace_sample=)`, default 0.01): a page is sampled when a hash of its id
-(BLAKE2b, 64 bits) is below `SHARE`, so the same pages on every rerun and machine, and a larger sample contains a
-smaller one. `0` traces only failed pages and the task spans; `1` traces every page. A sampled page's record
+`--trace-sample SHARE` (`build(..., trace_sample=)`, default 0.01): a page is in the trace sample when a hash of its
+id (BLAKE2b, 64 bits) is below `SHARE`, so the same pages on every rerun and machine, and a larger trace sample
+contains a smaller one. It is not the sample a run reads (`--sample`, [pipelines](pipelines.md#samples)). `0`
+traces only failed pages and the task spans; `1` traces every page. A sampled page's record
 carries its trace id (`page.metadata.trace_id`), so the page records lead to the trace.
 
 Every page gets a trace context (`doc.metadata["trace"]["traceparent"]`, W3C, flags `01` for a sampled page, `00`
@@ -104,7 +105,7 @@ reads `OUT/traces/**/*.jsonl.gz` (a task still running: what its file has so far
 - the **gaps**: per block the time it had no page in it between its first page and its last (it waited for its
   input), when every page was traced (`--trace-sample 1`);
 - the `N` slowest traced pages (default 10) with their id, seconds, lines, slowest block and trace id;
-- per task its duration, GPU and sample, the warm-up of each block and the server starts, the reader's files
+- per task its duration, GPU and trace sample, the warm-up of each block and the server starts, the reader's files
   (pages, seconds reading) and the writers' flush.
 
 `--json` gives the same as data.

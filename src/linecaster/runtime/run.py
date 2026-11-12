@@ -69,6 +69,81 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path: local, s3://, hf://), or "
                                               "--parquet, --manifests or --pages")
     ap.add_argument("out", help="output folder (any fsspec path): page records in OUT/pages, logs in OUT/logs")
+    input_options(ap)
+    g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
+    g.add_argument("--until", metavar="BLOCK", help="run the blocks up to BLOCK, then write the page records "
+                                                    "(OUT/pages)")
+    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the blocks after "
+                                                    "BLOCK")
+    g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
+                   help="also write the page records as they leave BLOCK into DIR; repeatable")
+    g = ap.add_argument_group("output")
+    g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
+                   help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
+                        "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
+    g.add_argument("--retry-failed", action="store_true",
+                   help="local: finished tasks that left rejects (OUT/rejects) run again; with harvest.py their "
+                        "images that are there are read back and only the failed pages fetched")
+    g.add_argument("--new-pipeline", action="store_true",
+                   help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
+                        "without it such a run is refused")
+    g.add_argument("--trace-sample", type=float, default=None, metavar="SHARE",
+                   help="the share of pages traced, chosen by page id (default 0.01; 0: only failed pages and the "
+                        "task spans, 1: every page); traces go to OUT/traces and, with the OTEL_* variables, to an "
+                        "OTLP endpoint")
+    g.add_argument("--item-shards", type=int, default=None, metavar="N",
+                   help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
+                        "stage (pipelines/bind.py) reads whole items")
+    g = ap.add_argument_group("where it runs")
+    g.add_argument("--on", choices=ON, default="local")
+    g.add_argument("--tasks", type=int, default=None,
+                   help="datatrove tasks (one GPU each on Ray and HF Jobs); default: a pipeline without engines "
+                        "tasks of about 1,000 pages (or 5 items) from its input (harvest.py: one item each), one "
+                        "otherwise")
+    g.add_argument("--workers", type=int, default=None,
+                   help="tasks at once; default: a pipeline without engines with --proxies one per available "
+                        "proxy, at most one per CPU (per_worker: share in an HTTP policy, the default) or divided by "
+                        f"per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
+                        "one with --rate-limit without proxies, one per CPU otherwise; all tasks with engines")
+    g.add_argument("--backend", choices=["in-process", "served"], default=None,
+                   help="engines inside the pipeline or behind a server in each task "
+                        "(default: in-process here, served on Ray and HF Jobs)")
+    g.add_argument("--endpoint", default=None, help="a running server for the engines")
+    g = ap.add_argument_group("Ray")
+    g.add_argument("--address", default="auto",
+                   help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
+    g.add_argument("--cpus-per-task", type=int, default=12,
+                   help="CPUs a task reserves on its Ray node (start the workers with ray start --num-cpus at least this)")
+    g.add_argument("--mem-per-cpu-gb", type=float, default=4,
+                   help="memory a task reserves per CPU, in GiB (ignored with --mem-per-task-gb)")
+    g.add_argument("--mem-per-task-gb", type=float, default=None,
+                   help="memory a task reserves, in GiB, whatever its CPUs (default: --mem-per-cpu-gb per CPU; "
+                        "start the workers with ray start --memory at least this)")
+    g.add_argument("--no-fit-check", dest="fit_check", action="store_false",
+                   help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
+                        "demand)")
+    g = ap.add_argument_group("Hugging Face Jobs")
+    g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed); required for linecaster's "
+                                    "own scripts, unused by a script outside the checkout that takes linecaster "
+                                    "from a git tag, branch or rev")
+    g.add_argument("--namespace", default=None,
+                   help="the Hugging Face user or organization the Jobs run under and are billed to (required "
+                        "with --on hf-jobs; there is no default)")
+    g.add_argument("--flavor", default="l4x1")
+    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
+    g.add_argument("--tasks-per-job", type=int, default=None,
+                   help="tasks a single-GPU Job runs one after the other (datatrove's tasks_per_job; each task "
+                        "starts its own servers)")
+    g.add_argument("--image", default=None, help="the Jobs' container image")
+    g.add_argument("--timeout", default="3h")
+    g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
+    g.add_argument("--dry-run", action="store_true", help="print the plan (stages, contracts, problems) and its "
+                                                          "Mermaid graph, pickle the pipeline; launch nothing")
+    return ap
+
+
+def input_options(ap: argparse.ArgumentParser) -> None:
+    """The input options (``reader``) and the sample's, shared by the pipelines and ``linecaster sample``."""
     g = ap.add_argument_group("input (datatrove's reader options)")
     g.add_argument("--paths-file", help="IMAGES: a file with one image per line, relative to IMAGES, instead of "
                                         "finding the images (datatrove's paths_file); --manifests FOLDER: one "
@@ -153,76 +228,18 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
                         "as the whole input would be (a smoke test of the real setup)")
     g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
-    g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
-    g.add_argument("--until", metavar="BLOCK", help="run the blocks up to BLOCK, then write the page records "
-                                                    "(OUT/pages)")
-    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the blocks after "
-                                                    "BLOCK")
-    g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
-                   help="also write the page records as they leave BLOCK into DIR; repeatable")
-    g = ap.add_argument_group("output")
-    g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
-                   help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
-                        "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
-    g.add_argument("--retry-failed", action="store_true",
-                   help="local: finished tasks that left rejects (OUT/rejects) run again; with harvest.py their "
-                        "images that are there are read back and only the failed pages fetched")
-    g.add_argument("--new-pipeline", action="store_true",
-                   help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
-                        "without it such a run is refused")
-    g.add_argument("--trace-sample", type=float, default=None, metavar="SHARE",
-                   help="the share of pages traced, chosen by page id (default 0.01; 0: only failed pages and the "
-                        "task spans, 1: every page); traces go to OUT/traces and, with the OTEL_* variables, to an "
-                        "OTLP endpoint")
-    g.add_argument("--item-shards", type=int, default=None, metavar="N",
-                   help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
-                        "stage (pipelines/bind.py) reads whole items")
-    g = ap.add_argument_group("where it runs")
-    g.add_argument("--on", choices=ON, default="local")
-    g.add_argument("--tasks", type=int, default=None,
-                   help="datatrove tasks (one GPU each on Ray and HF Jobs); default: a pipeline without engines "
-                        "tasks of about 1,000 pages (or 5 items) from its input (harvest.py: one item each), one "
-                        "otherwise")
-    g.add_argument("--workers", type=int, default=None,
-                   help="tasks at once; default: a pipeline without engines with --proxies one per available "
-                        "proxy, at most one per CPU (per_worker: share in an HTTP policy, the default) or divided by "
-                        f"per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
-                        "one with --rate-limit without proxies, one per CPU otherwise; all tasks with engines")
-    g.add_argument("--backend", choices=["in-process", "served"], default=None,
-                   help="engines inside the pipeline or behind a server in each task "
-                        "(default: in-process here, served on Ray and HF Jobs)")
-    g.add_argument("--endpoint", default=None, help="a running server for the engines")
-    g = ap.add_argument_group("Ray")
-    g.add_argument("--address", default="auto",
-                   help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
-    g.add_argument("--cpus-per-task", type=int, default=12,
-                   help="CPUs a task reserves on its Ray node (start the workers with ray start --num-cpus at least this)")
-    g.add_argument("--mem-per-cpu-gb", type=float, default=4,
-                   help="memory a task reserves per CPU, in GiB (ignored with --mem-per-task-gb)")
-    g.add_argument("--mem-per-task-gb", type=float, default=None,
-                   help="memory a task reserves, in GiB, whatever its CPUs (default: --mem-per-cpu-gb per CPU; "
-                        "start the workers with ray start --memory at least this)")
-    g.add_argument("--no-fit-check", dest="fit_check", action="store_false",
-                   help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
-                        "demand)")
-    g = ap.add_argument_group("Hugging Face Jobs")
-    g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed); required for linecaster's "
-                                    "own scripts, unused by a script outside the checkout that takes linecaster "
-                                    "from a git tag, branch or rev")
-    g.add_argument("--namespace", default=None,
-                   help="the Hugging Face user or organization the Jobs run under and are billed to (required "
-                        "with --on hf-jobs; there is no default)")
-    g.add_argument("--flavor", default="l4x1")
-    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
-    g.add_argument("--tasks-per-job", type=int, default=None,
-                   help="tasks a single-GPU Job runs one after the other (datatrove's tasks_per_job; each task "
-                        "starts its own servers)")
-    g.add_argument("--image", default=None, help="the Jobs' container image")
-    g.add_argument("--timeout", default="3h")
-    g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
-    g.add_argument("--dry-run", action="store_true", help="print the plan (stages, contracts, problems) and its "
-                                                          "Mermaid graph, pickle the pipeline; launch nothing")
-    return ap
+    g = ap.add_argument_group("sample (the same pages for every run setup: linecaster.data.sample)")
+    g.add_argument("--sample", type=int, default=None, metavar="N",
+                   help="only the first N pages of the sample order for the whole run, whatever --tasks: items "
+                        "ranked by sha256 of seed and item id, pages within each item by sha256 of seed, item and "
+                        "page id; with --sample-per-item K that is about N/K items; for IMAGES, --parquet, "
+                        "--manifests and --pages, chosen from their ids before any image is read; the sample goes to "
+                        "OUT/sample.parquet and the run record")
+    g.add_argument("--sample-per-item", type=int, default=None, metavar="K",
+                   help="at most the first K pages of each item (every item's first K pages without --sample)")
+    g.add_argument("--sample-items", type=int, default=None, metavar="M", help="only the first M items")
+    g.add_argument("--sample-seed", type=int, default=None, metavar="S",
+                   help="the seed of the sample order (default 0)")
 
 
 def uri_map(values: list[str]) -> dict[str, str]:
@@ -292,6 +309,9 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     if a.max_pages is not None and (a.max_pages < 1 or a.manifests or a.pages or getattr(a, "page", None)):
         ap.error("--max-pages N (at least 1) is for --parquet and IMAGES, whose pages are known before they are read; "
                  "--manifests: --tasks 1 with --limit")
+    problem = sample_problem(a)
+    if problem:
+        ap.error(problem)
     if a.pages and (a.limit != -1 or a.skip or a.glob_pattern):
         ap.error("--pages reads whole files of page records; --limit, --skip and --glob-pattern are for the other inputs")
     try:
@@ -317,6 +337,36 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         if "=" not in kv or kv.startswith("="):
             ap.error(f"--env needs KEY=VALUE, got {kv!r}")
     return a
+
+
+def sample_problem(a: argparse.Namespace) -> str | None:
+    """Why the sample options of ``a`` do not fit its input, or None."""
+    given = [f"--{k.replace('_', '-')}" for k in ("sample", "sample_per_item", "sample_items", "sample_seed")
+             if getattr(a, k, None) is not None]
+    if not given:
+        return None
+    if getattr(a, "sample", None) is None and getattr(a, "sample_per_item", None) is None and \
+            getattr(a, "sample_items", None) is None:
+        return "--sample-seed orders a sample: give --sample N, --sample-per-item K or --sample-items M"
+    for k in ("sample", "sample_per_item", "sample_items"):
+        if getattr(a, k, None) is not None and getattr(a, k) < 1:
+            return f"--{k.replace('_', '-')} needs at least 1"
+    if getattr(a, "page", None) or getattr(a, "items", None):
+        return f"{', '.join(given)}: a sample is of IMAGES, --parquet, --manifests or --pages"
+    if getattr(a, "max_pages", None) is not None:
+        return "--max-pages and --sample exclude each other: --sample N is the sample's first N pages"
+    return None
+
+
+def sample_rule(a: argparse.Namespace):
+    """The ``linecaster.data.sample.SampleRule`` of the sample options, or None without them."""
+    from ..data.sample import SampleRule
+
+    limits = [getattr(a, k, None) for k in ("sample", "sample_items", "sample_per_item")]
+    if all(v is None for v in limits):
+        return None
+    seed = getattr(a, "sample_seed", None)
+    return SampleRule(pages=limits[0], items=limits[1], per_item=limits[2], seed=0 if seed is None else seed)
 
 
 def has_engines(a: argparse.Namespace) -> bool:
@@ -548,9 +598,13 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
     (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
-    pipeline writes its images, so a resumed run passes the ones already there on without a request."""
+    pipeline writes its images, so a resumed run passes the ones already there on without a request. The sample
+    options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
+    ``manifest_folder``, by default ``OUT/manifests``."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
+
+    sample = sample_rule(a)
 
     if getattr(a, "items", None):
         from ..blocks.readers.resources import ResourceReader
@@ -572,15 +626,17 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
             folder, paths_file = parent or ".", src
         elif a.manifest_key and src.endswith(".parquet"):
             folder, glob = parent or ".", name
+        if sample is not None and manifest_folder is None:      # the manifests the sample reads, for the tasks
+            manifest_folder = f"{a.out.rstrip('/')}/manifests"
         return ManifestReader(folder, paths_file=paths_file, glob_pattern=glob, limit=a.limit, skip=a.skip,
                               manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
                               manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
                               existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a),
                               task_per_item=task_per_item, reuse_folder=reuse_folder,
-                              http_policy=getattr(a, "http_policy", None))
+                              http_policy=getattr(a, "http_policy", None), sample=sample)
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None),
-                                uri_map=uri_map(getattr(a, "uri_map", None) or []))
+                                uri_map=uri_map(getattr(a, "uri_map", None) or []), sample=sample)
     if getattr(a, "page", None):
         folder, _, name = a.page.rstrip("/").rpartition("/")
         return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
@@ -593,10 +649,11 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
-                                  reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None))
+                                  reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None),
+                                  sample=sample)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
-                             sequence=a.item_from_parent and not a.paths_file)
+                             sequence=a.item_from_parent and not a.paths_file, sample=sample)
 
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
@@ -713,8 +770,11 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
         extra = {"image": image, "dependencies": deps.requirements if deps else None,
                  "constraints": (deps.constraints or None) if deps else None,
                  "overrides": (deps.overrides or None) if deps else None}
-    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note")
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
+                "sample_record")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
+    if getattr(a, "sample_record", None):
+        extra["sample"] = a.sample_record
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None))
 
@@ -738,8 +798,9 @@ def previous_record(out: str) -> dict | None:
 
 def resume_problems(out: str, rec: dict, new_pipeline: bool = False) -> list[str]:
     """Why a run with the record ``rec`` cannot go into ``out``, where an earlier run left its record: another
-    ``--tasks`` (each task would read other input; never overridden) or another pipeline (``pipeline_sha256``; unless
-    ``new_pipeline``). Empty: a new folder, or a resume of the same pipeline."""
+    ``--tasks`` (each task would read other input; never overridden), another sample (its ``sample.selected.sha256``;
+    never overridden) or another pipeline (``pipeline_sha256``; unless ``new_pipeline``). Empty: a new folder, or a
+    resume of the same pipeline."""
     previous = previous_record(out)
     if previous is None:
         return []
@@ -748,6 +809,11 @@ def resume_problems(out: str, rec: dict, new_pipeline: bool = False) -> list[str
         problems.append(f"{out} holds a run with --tasks {previous.get('tasks')}; a resume with --tasks "
                         f"{rec.get('tasks')} would give each task other input. Resume with --tasks "
                         f"{previous.get('tasks')}, or run into a new folder")
+    was, now = ((r.get("sample") or {}).get("selected", {}).get("sha256") for r in (previous, rec))
+    if was != now:
+        problems.append(f"{out} holds a run of another sample (sample.selected.sha256 {was or 'none: every page'}, "
+                        f"this one {now or 'none: every page'}): its finished tasks would hold other pages. Run "
+                        "into a new folder, or with the same sample options and input")
     if previous.get("pipeline_sha256") != rec["pipeline_sha256"] and not new_pipeline:
         was = previous.get("pipeline_sha256") or "none (a record from before pipelines were hashed)"
         problems.append(f"{out} holds a run of another pipeline (pipeline_sha256 {was}, this one "
@@ -879,6 +945,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
     page in this process."""
     out = a.out.rstrip("/")
+    sample = sampled(a, pipeline)
     allocate(a, pipeline)
     p = build_plan(a, pipeline)
     blocks = p.blocks
@@ -904,6 +971,10 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     if problems:
         raise PipelineConfigError(problems)
     write_record(out, rec)
+    if sample is not None:
+        from .sample import write_sample
+
+        write_sample(out, sample)
     if getattr(a, "page", None):
         from .builder import run_plan
 
@@ -920,6 +991,47 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
+
+
+def sampled(a: argparse.Namespace, pipeline: list):
+    """The sample of the pipeline's reader (``linecaster.data.sample``), computed once here, before the tasks: kept
+    on the reader, it travels with the pickled pipeline, so every task takes its share of the same sample; its
+    record goes into the run record (``a.sample_record``). None without a sample. ``--dry-run`` saves nothing
+    (no manifest copies)."""
+    from .sample import sample_reader
+
+    reader = sample_reader(pipeline)
+    if reader is None:
+        return None
+    sample = reader.sampled(save=not getattr(a, "dry_run", False))
+    a.sample_record = sample.record()
+    if len(sample.selected) < (reader.sample.pages or 0):
+        from loguru import logger
+
+        logger.warning("the sample holds {got} pages of the {asked} asked for: the input has no more within the rule",
+                       got=len(sample.selected), asked=reader.sample.pages)
+    return sample
+
+
+def sample(argv: list[str]) -> None:
+    """``linecaster sample [IMAGES] OUT ...``: the sample of an input without a run. Writes ``OUT/sample.parquet``
+    (with ``--manifests`` also the manifests it read, ``OUT/manifests``), as a run with the same input and sample
+    options would, and prints its record."""
+    ap = argparse.ArgumentParser(prog="linecaster sample", description=sample.__doc__.split("\n\n")[0])
+    ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path), or --parquet, --manifests or "
+                                              "--pages")
+    ap.add_argument("out", help="output folder (any fsspec path): OUT/sample.parquet")
+    input_options(ap)
+    ap.set_defaults(on="local", tasks=None, workers=None, tasks_per_job=None, gpus=1, namespace=None, backend=None,
+                    endpoint=None, env=[])
+    a = check(ap, ap.parse_args(argv))
+    if sample_rule(a) is None:
+        ap.error("give --sample N, --sample-per-item K or --sample-items M")
+    from .sample import write_sample
+
+    found = reader(a).sampled()
+    path = write_sample(a.out.rstrip("/"), found)
+    print(json.dumps({**found.record(), "path": path}, indent=1))
 
 
 def connect_ray(address: str) -> None:

@@ -42,16 +42,33 @@ the tags; the first is `v0.1.0`.
 - `fake_chat_server(models=[...])` answers `GET /v1/models`.
 - `Block.unhashed_defaults`: parameters added to a released block whose default keeps the old behavior;
   `pipeline_sha256` leaves them out at that default.
+- Samples: `--sample N`, `--sample-per-item K`, `--sample-items M` and `--sample-seed S` (default 0) read a fixed
+  sample of the input, for IMAGES (`--item-from-parent` for items), `--parquet`, `--manifests` and `--pages`. Items
+  are ranked by `H(f"{seed}\t{item_id}")`, pages within an item by `H(f"{seed}\t{item_id}\t{page_id}")` (`H`: the
+  first 8 bytes of SHA-256, unsigned big-endian; ties by id), and the pages in (item rank, page rank) order are cut
+  after M items, K pages per item and N pages (`linecaster.sample/1`). The sample comes from the ids alone before any
+  image is read (Parquet: the id columns only; manifests: the manifests of the items the rule reaches, saved to
+  `OUT/manifests/` with an index and read back by the tasks), is the same whatever `--tasks`, and is recorded in
+  the run record's new `sample` section and in `OUT/sample.parquet`. A resume with another sample is refused.
+- `linecaster.data.sample` (standard library only): `SampleRule`, `select`, `sample_pairs`, `item_hash`,
+  `page_hash` and the listing and sample hashes, for derivatives that recompute a sample.
+- The readers' `sample` parameter (`ImageFolderReader`, `ImageParquetReader`, `ManifestReader`,
+  `PageRecordReader`) and `sampled()`.
+- `linecaster sample [IMAGES] OUT ...`: the sample of an input without a run (`OUT/sample.parquet`).
 
 ### Changed
 
 - `lightonocr-3-0.8b` (without an edition) now means `@2`.
 - `ModelBlock`'s served loop lets a finished request ask for a second one (`_second_request`, `_second_done`).
+- The glossary's "sample" of tracing is now the "trace sample"; "sample", "item rank" and "page rank" are the run's
+  sample. `--trace-sample` is unchanged.
+- Parquet slices of one row group are read with one read of the row group.
 
 ### Fixed
 
 - The chat recognizers' docstring said a completion cut off at `max_tokens` is "on page OCR nearly always a
   repetition loop"; a dense table often only needs more tokens and finishes with more room.
+
 
 ## 0.5.2 (2026-11-11)
 

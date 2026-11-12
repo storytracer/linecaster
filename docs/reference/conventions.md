@@ -97,7 +97,7 @@ are, and a test keeps them complete as signatures change.
 
 ## Tracing
 
-- Tracing (OpenTelemetry) is always on. Spans per task always; spans per page for a sample chosen by page id, plus
+- Tracing (OpenTelemetry) is always on. Spans per task always; spans per page for a trace sample chosen by page id, plus
   every page that failed. Reason: where a run loses time is only visible per page and across processes.
 - A page carries its trace context from the reader on; blocks open spans as children of the page's context, never
   of "the current span". Reason: pages are interleaved in the stream.

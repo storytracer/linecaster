@@ -102,6 +102,8 @@ Options after a recipe's name override single steps; the run record lists them.
 
 Any fsspec path works: local, `s3://`, `hf://`, `http(s)://`. linecaster reads IIIF Presentation and METS/MODS
 manifests itself; `--existing-ocr` also keeps the library's own OCR as `ocr_original`. PDF files are read by the `PdfReader` block (extra `pypdfium2`).
+`--sample 10000 --sample-per-item 8` reads a fixed sample of the input instead, chosen by hashes of its ids before
+any image is read and the same whatever the setup (`OUT/sample.parquet`; `linecaster sample` without a run).
 
 For large collections, fetch the images once, then transcribe, then bind the pages into items:
 
@@ -294,7 +296,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [catalog](docs/reference/catalog.md) | models, presets, recipes and editions, and where measurements live |
 | [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
-| [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a sample of pages |
+| [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a trace sample of pages |
 | [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
 | [conventions](docs/reference/conventions.md) | the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets |
 | [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every block, engine, model, preset and recipe, generated from the code |

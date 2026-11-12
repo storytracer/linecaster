@@ -63,6 +63,35 @@ class Software(_Record):
     packages: dict[str, str] = Field(default_factory=dict)
 
 
+class SampleListing(_Record):
+    scope: Literal["pages", "items"] = Field(description="what the listing's hash covers: its (item, page) ids, or "
+                                                         "its item ids (manifests: pages are known once read)")
+    items: int
+    pages: int | None = None
+    duplicates: int = Field(0, description="ids listed more than once (their first entry is read)")
+    manifests_read: int | None = Field(None, description="manifests read to compute the sample")
+    sha256: str = Field(description="sha256 of the distinct sorted lines item_id<TAB>page_id (or item_id), each "
+                                    "with a newline")
+
+
+class SampleSelected(_Record):
+    items: int
+    pages: int
+    sha256: str = Field(description="sha256 of the sample's lines item_id<TAB>page_id, each with a newline, in order")
+
+
+class SampleRecord(_Record):
+    rule: str = Field(description="the rule's id (linecaster.sample/1, linecaster.data.sample)")
+    hash: str = Field(description="the hashes that rank items and pages")
+    pages: int | None = Field(None, description="N: at most this many pages in all")
+    items: int | None = Field(None, description="M: at most this many items")
+    per_item: int | None = Field(None, description="K: at most this many pages of each item")
+    seed: int
+    listing: SampleListing
+    selected: SampleSelected
+    file: str = Field(description="the sample's file in the run folder")
+
+
 class RunRecord(_Record):
     schema_: Literal["linecaster.run-record/1"] = Field("linecaster.run-record/1", alias="schema")
     created: str = Field(description="when the run was launched, UTC (YYYY-MM-DDTHH:MM:SSZ)")
@@ -82,4 +111,6 @@ class RunRecord(_Record):
     constraints: list[str] | None = Field(None, description="HF Jobs: the versions each Job resolves, from the "
                                                             "script's lock (name==version)")
     overrides: list[str] | None = Field(None, description="HF Jobs: the script's override-dependencies")
+    sample: SampleRecord | None = Field(None, description="the sample the run read (--sample ...): the rule, its "
+                                                          "seed and limits, the listing and the sample's hashes")
     software: Software

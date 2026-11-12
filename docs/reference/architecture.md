@@ -225,6 +225,8 @@ pipeline reads the previous folder and writes complete page records with one mor
 | `OUT/logs/` | datatrove's completion markers, logs and stats; `OUT/logs/broker/`, the [broker](broker.md) by default |
 | `OUT/traces/` | the traces ([tracing](tracing.md)) |
 | `OUT/run.yaml` | the run record ([pipelines](pipelines.md#the-run-record)) |
+| `OUT/sample.parquet` | the sample a run read, one row per page in sample order ([pipelines](pipelines.md#samples)) |
+| `OUT/manifests/` | the manifests a sample read (with `sample.jsonl`), or a harvest saved |
 
 `PageRecordReader` reads page records of linecaster's writers, fetching images again by URI (`uri_map` for local
 copies). Checks like `PageValidator` record on the page why it failed.
