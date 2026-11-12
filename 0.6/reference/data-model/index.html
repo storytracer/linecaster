@@ -1192,6 +1192,12 @@ travels in. Importing either needs neither datatrove nor saturate nor an engine.
 <h2 id="a-page-in-a-pipeline">A page in a pipeline<a class="headerlink" href="#a-page-in-a-pipeline" title="Permanent link">&para;</a></h2>
 <p>A page is one datatrove <code>Document</code>: <code>id</code> is the page id, <code>text</code> the primary transcription's text, <code>media[0]</code>
 the image bytes, <code>metadata["page"]</code> the page record.</p>
+<p><strong>A page's time in the run</strong> is on its record, <code>Page.measurements</code>: <code>seconds</code>, the wall time from when the reader
+handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
+between, waiting in served windows and queues included), and <code>datetime</code>, when the reader handed it over (ISO 8601,
+UTC). <code>linecaster.runtime.observers.PageTiming</code> sets them on every page stage that writes pages; a record read from
+an earlier run (<code>--after</code>) gets the new run's. Each step's own time is on its step record (<code>StepInfo.measurements</code>,
+below).</p>
 <h2 id="transcription"><code>Transcription</code><a class="headerlink" href="#transcription" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1303,7 +1309,8 @@ the image bytes, <code>metadata["page"]</code> the page record.</p>
 </tbody>
 </table>
 <p>The model blocks and <code>linecaster serve</code> fill <code>engine</code> from the engine's <code>engine_id</code>, <code>preset</code> from the backend, and
-<code>seconds</code> and <code>datetime</code>. The page files (ALTO, PAGE, hOCR) carry every field but <code>measurements</code> (<code>datetime</code> aside)
+<code>seconds</code> and <code>datetime</code>; the rule-based steps, the <code>unicode</code> step and the line assigner (step <code>assignment</code>) record
+their <code>seconds</code> and <code>datetime</code> too. The page files (ALTO, PAGE, hOCR) carry every field but <code>measurements</code> (<code>datetime</code> aside)
 and read them back (<a href="../serialization/">serialization</a>).</p>
 <h3 id="measurements">Measurements<a class="headerlink" href="#measurements" title="Permanent link">&para;</a></h3>
 <p><code>linecaster.data.MEASUREMENTS</code> is the vocabulary of <code>StepInfo.measurements</code>, key → meaning; linecaster code writes
@@ -1318,15 +1325,27 @@ no other key (a test reads the code for every place that writes one). Values var
 <tbody>
 <tr>
 <td><code>seconds</code></td>
-<td>wall time of the step on the page (the engine's call, in-process or in the server)</td>
+<td>wall time of the step on the page (the engine's call, in-process or in the server); on the page record, the page's time in the run</td>
 </tr>
 <tr>
 <td><code>datetime</code></td>
-<td>when the step started on the page, ISO 8601 in UTC</td>
+<td>when the step started on the page, ISO 8601 in UTC; on the page record, when its reader handed it over</td>
 </tr>
 <tr>
 <td><code>device</code></td>
 <td>the device the step ran on</td>
+</tr>
+<tr>
+<td><code>request_seconds</code></td>
+<td>a served step: from its request being built to its (last) answer: the client's window, the HTTP round trip, the server's queue, decoding and model call</td>
+</tr>
+<tr>
+<td><code>queue_seconds</code>, <code>decode_seconds</code></td>
+<td>a step served by <code>linecaster serve</code>: the request's wait in the server's queue, the server's decoding of the page image</td>
+</tr>
+<tr>
+<td><code>decoder</code></td>
+<td>what decoded the page image the step read (<code>linecaster.images.pixels</code>)</td>
 </tr>
 <tr>
 <td><code>prompt_tokens</code>, <code>completion_tokens</code></td>

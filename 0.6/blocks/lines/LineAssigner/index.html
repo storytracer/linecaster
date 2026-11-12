@@ -921,7 +921,8 @@ follows (regions in the layout step's order, orphan rows last, rows within each 
 the reading rank (regions by reading order, then rows), and line ids are <code>&lt;region id&gt;_l&lt;n&gt;</code>.</p>
 <p>Reads <code>lines</code> and <code>regions</code>; adds <code>line_regions</code>; replaces <code>regions</code> (the orphan regions),
 <code>reading_order</code> and <code>lines</code> (ids and order). Lines inside skipped regions are dropped (stat
-<code>lines_in_skipped_regions</code>); stat <code>orphan_rows</code> counts the rows that became regions.</p>
+<code>lines_in_skipped_regions</code>); stat <code>orphan_rows</code> counts the rows that became regions. The step is recorded:
+<code>StepInfo(step="assignment", name="line assigner")</code> with its settings, <code>seconds</code> and <code>datetime</code>.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
     B["LineAssigner"]
