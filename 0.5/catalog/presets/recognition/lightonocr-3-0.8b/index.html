@@ -834,19 +834,18 @@ checkpoint).</p>
 <li>Serve flags: <code>--max-model-len 18000</code> (LightOn's README for the 0.8B, and the reference script
   uv-scripts/ocr <code>lighton-ocr3-saturate.py</code> at e2b0aa5; a 2048-px page is at most 4096 image tokens), one image and
   no video per prompt, no multimodal processor cache, no prefix caching; no <code>--trust-remote-code</code>.</li>
-<li>The repair pass is on, at 12,288 tokens (<code>settings.repair.max_tokens</code>): a page whose completion stopped at
-  <code>max_tokens</code> is sent once more, on demand and only once (two passes at most), with that cap and temperature 0.1
-  (<code>settings.repair.temperature</code>, the reference script's), and keeps the second completion where it finished
-  (<code>stop</code>); otherwise the first. 12,288 rather than the reference script's suggested 8192: a dense table page needed
-  8,958 tokens, and one needing about 7,960 hit 8192 in one run of three (NOTES.md).
-  <code>--set recognition.repair_max_tokens=0</code> turns it off. With 18000 tokens of context a repair of up to 13,840 tokens fits beside the largest page prompt
-  (4,096 image tokens and 64 for the rest).</li>
+<li>Repair passes on demand (<code>settings.repair.max_tokens: [8192, 12288]</code>, twice and three times the first 4096): a
+  page whose completion stopped at <code>max_tokens</code> is sent again at 8192 tokens, and, if that stops at its cap too, at
+  12,288; never more (three passes at most). Temperature 0.1 (<code>settings.repair.temperature</code>, the reference script's);
+  the same image, prompt and <code>top_p</code>. The page keeps the first completion that finished (<code>stop</code>), otherwise its first
+  one. The second repair is linecaster's addition to the reference script's one; CHANGELOG.md names the evidence.
+  <code>--set recognition.repair_max_tokens=0</code> turns the passes off.</li>
 <li>vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
   <code>vllm/vllm-openai:v0.30.0</code>.</li>
 <li>The completion is stored verbatim; <code>--gpu-memory-utilization</code> is the deployment's choice. Experimental.</li>
 </ul>
 <p>Editions: 1 served with <code>--max-model-len 16384</code> (linecaster's choice then); 2 serves with LightOn's 18000, so that a
-repair pass has room, and states the repair settings (off); 3 turns the repair pass on at 12,288 tokens.</p>
+repair pass has room, and states the repair settings (off); 3 turns the repair passes on at 8192 and 12,288 tokens.</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>lightonocr-3-0.8b<span class="w"> </span>IMAGES<span class="w"> </span>OUT
 </code></pre></div>
 <table>

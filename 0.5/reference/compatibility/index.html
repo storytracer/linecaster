@@ -1035,20 +1035,21 @@ from 1.0 on. What a change bumps follows from the table above:</p>
 <code>linecaster&gt;=0.1,&lt;0.6</code> then hold: every release inside them keeps what worked.</p>
 <ul>
 <li><strong>Breaking changes are collected, not released one by one.</strong> They are made on a branch and released together as
-  one minor when a coherent piece of work is finished, or when the maintainer asks for one. <code>main</code> carries only
+  one minor, proposed when the branch's work is finished. <code>main</code> carries only
   patch-level changes, so a fix can go out as a patch at any time.</li>
 <li><strong>A minor needs something users must change:</strong> its upgrade notes name it. A release with nothing to change is a
   patch.</li>
-<li><strong>When:</strong> at the end of a finished piece of work, once it is merged into <code>main</code> and CI is green; one release per
-  piece of work, not per commit. A commit that changes only the README is no release; other docs wait for the next
-  release unless they correct something wrong.</li>
+<li><strong>When:</strong> when the maintainer decides; never one per piece of work or per commit. Finished work is merged into
+  <code>main</code> and collects in <code>CHANGELOG.md</code>'s Unreleased section until then. A release is proposed to the maintainer
+  when it is due: the latest release is wrong or incomplete where its users meet it, a user or derivative needs what
+  only <code>main</code> has, or Unreleased holds a finished piece of work. A commit that changes only the README is no release.</li>
 <li><strong>How:</strong> the version in <code>pyproject.toml</code> and <code>linecaster.__version__</code> (<code>tests/test_version.py</code> checks they agree),
   <code>CHANGELOG.md</code>'s Unreleased section as <code>## &lt;version&gt; (&lt;date&gt;)</code>, the scripts relocked, an annotated tag
   <code>v&lt;version&gt;</code>, pushed (the docs workflow publishes <code>&lt;major&gt;.&lt;minor&gt;</code>). A minor bump while 0.x (a major one from 1.0)
   also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.</li>
 <li><strong>Engine packages</strong> version on their own by the same table, applied to their engines (ids, options, defaults).</li>
-<li><strong>A derivative</strong> versions by its own interface, not by linecaster's numbers: moving to a linecaster release that
-  leaves what the derivative documents unchanged is a patch for it.</li>
+<li><strong>A derivative</strong> pins a linecaster release tag and versions, if at all, by its own interface, not by linecaster's
+  numbers.</li>
 <li><strong>1.0.0</strong> is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.</li>
 </ul>

@@ -1412,7 +1412,7 @@ term is added here before it is used.</p>
 </tr>
 <tr>
 <td><strong>repair pass</strong></td>
-<td>A second request for a page whose VLM completion stopped at <code>max_tokens</code> (<code>finish_reason</code> <code>length</code>): the same request with a larger cap (<code>repair_max_tokens</code>) and the repair temperature, sent once; the page keeps the second completion where it finished, else the first. Each request of a page is a <strong>pass</strong>, recorded in the transcription's <code>extra["passes"]</code>; <code>extra["kept"]</code> says which one it holds.</td>
+<td>A further request for a page whose VLM completion stopped at its cap (<code>finish_reason</code> <code>length</code>): the same request with a larger cap and the repair temperature. <code>repair_max_tokens</code> gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a <strong>pass</strong>, recorded in the transcription's <code>extra["passes"]</code>; <code>extra["kept"]</code> says which one it holds.</td>
 <td>not a retry of a failed request</td>
 </tr>
 <tr>

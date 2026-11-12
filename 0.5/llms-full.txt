@@ -305,7 +305,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.5.4`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.5.5`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -453,7 +453,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **page engine** | An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (`indra.recognition.v1`, `surya.recognition.v1`, and the clients of a vendor's service, `falcon.recognition.v1`, `oxr.recognition.v1`). `PageRecognizer` runs it. | not a chat preset (`chat.v1`) |
 | **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
-| **repair pass** | A second request for a page whose VLM completion stopped at `max_tokens` (`finish_reason` `length`): the same request with a larger cap (`repair_max_tokens`) and the repair temperature, sent once; the page keeps the second completion where it finished, else the first. Each request of a page is a **pass**, recorded in the transcription's `extra["passes"]`; `extra["kept"]` says which one it holds. | not a retry of a failed request |
+| **repair pass** | A further request for a page whose VLM completion stopped at its cap (`finish_reason` `length`): the same request with a larger cap and the repair temperature. `repair_max_tokens` gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a **pass**, recorded in the transcription's `extra["passes"]`; `extra["kept"]` says which one it holds. | not a retry of a failed request |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
 | **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/1`), kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
@@ -1031,11 +1031,12 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   `top_p`, `repair_max_tokens`, `repair_temperature`; `--set recognition.<option>=<value>` in
   `pipelines/transcribe_vlm.py`); the ones that differ from the preset's are recorded with the adapter
   (`overrides`) and count in `pipeline_sha256`. With `repair_max_tokens` set, `PageRecognizer` runs the
-  [repair pass](glossary.md): a page whose completion stopped at `max_tokens` waits while its second request goes
-  into the same window, and leaves the block with both recorded; `PageRecognizer(..., repair_only=True)` sends only
+  [repair passes](glossary.md): a page whose completion stopped at `max_tokens` waits while its repair requests go
+  into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded; `PageRecognizer(..., repair_only=True)` sends only
   the repair requests, for page records read with `PageRecordReader` (`--pages ... --repair-only`). The streaming
   loop of `ModelBlock` offers this to every served block: a finished request may ask for a second one
-  (`_second_request`), whose response comes back with it (`_second_done`).
+  (`_second_request`), whose response comes back with it (`_second_done`), and that one for another
+  (`_next_request`).
   `PageRecognizer` also takes a page engine's `InProcess` or `Served` backend (or its preset's ref): a stream
   transform served, a per-unit transform in-process; it reads the page image and adds `text` and what the preset
   produces. A page engine's `endpoint` option (where its service is) is operational.
@@ -2149,7 +2150,8 @@ layout and the rule-based engines. It declares
 settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `max_tokens`, `temperature` and
 `top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
 [repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`;
-`lightonocr-3-0.8b@3` sets 12288, the other presets leave it off).
+a list of rising caps is one repair pass each; `lightonocr-3-0.8b@3` sets `[8192, 12288]`, the other presets leave it
+off).
 
 **Engine packages** (`engines/<engine>/`: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`,
 `linecaster-indra`, `linecaster-surya`, `linecaster-services`) have
@@ -2446,20 +2448,21 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
 `linecaster>=0.1,<0.6` then hold: every release inside them keeps what worked.
 
 - **Breaking changes are collected, not released one by one.** They are made on a branch and released together as
-  one minor when a coherent piece of work is finished, or when the maintainer asks for one. `main` carries only
+  one minor, proposed when the branch's work is finished. `main` carries only
   patch-level changes, so a fix can go out as a patch at any time.
 - **A minor needs something users must change:** its upgrade notes name it. A release with nothing to change is a
   patch.
-- **When:** at the end of a finished piece of work, once it is merged into `main` and CI is green; one release per
-  piece of work, not per commit. A commit that changes only the README is no release; other docs wait for the next
-  release unless they correct something wrong.
+- **When:** when the maintainer decides; never one per piece of work or per commit. Finished work is merged into
+  `main` and collects in `CHANGELOG.md`'s Unreleased section until then. A release is proposed to the maintainer
+  when it is due: the latest release is wrong or incomplete where its users meet it, a user or derivative needs what
+  only `main` has, or Unreleased holds a finished piece of work. A commit that changes only the README is no release.
 - **How:** the version in `pyproject.toml` and `linecaster.__version__` (`tests/test_version.py` checks they agree),
   `CHANGELOG.md`'s Unreleased section as `## <version> (<date>)`, the scripts relocked, an annotated tag
   `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)
   also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.
 - **Engine packages** version on their own by the same table, applied to their engines (ids, options, defaults).
-- **A derivative** versions by its own interface, not by linecaster's numbers: moving to a linecaster release that
-  leaves what the derivative documents unchanged is a patch for it.
+- **A derivative** pins a linecaster release tag and versions, if at all, by its own interface, not by linecaster's
+  numbers.
 - **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.
 

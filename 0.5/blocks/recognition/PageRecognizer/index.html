@@ -965,24 +965,26 @@
 from the page image, the completion parsed into a text-only transcription that replaces <code>transcription</code>. The
 completion is kept verbatim (<code>extra["raw"]</code>); its <code>finish_reason</code> and token counts go to <code>extra</code> and the
 step's measurements, and a completion cut off at <code>max_tokens</code> is counted (stat <code>finish_length</code>).</p>
-<p><strong>The repair pass</strong> (the chat option <code>repair_max_tokens</code> above 0; <code>linecaster.adapters.ChatAdapter</code>): a page
-whose completion stopped at <code>max_tokens</code> waits in the block while its repair request goes into the same window at
-once (the same request body, so the same image and prompt and <code>top_p</code>, with <code>max_tokens</code> raised and the repair
-temperature); the other pages stream on. The repair's <code>max_tokens</code> is <code>repair_max_tokens</code>, at most the served
-context minus the first request's prompt tokens (the context from the server's <code>/models</code> <code>max_model_len</code>, else
-the preset's <code>--max-model-len</code>); where that is not above the first <code>max_tokens</code> no repair is sent (stat
-<code>repair_skipped</code>). The page keeps the repair's completion where it finished (<code>"stop"</code>), its first one
-otherwise; <code>extra["passes"]</code> records every request (<code>pass_entry</code>: the completion verbatim, finish reason,
-tokens, <code>max_tokens</code> as sent, temperature, <code>top_p</code>, preset), <code>extra["kept"]</code> which one the transcription
-holds (1 or 2), and <code>extra["raw"]</code> and <code>extra["finish_reason"]</code> stay the kept one's. The step's measurements
-sum the tokens of both and list them per request (<code>pass_prompt_tokens</code>, <code>pass_completion_tokens</code>); its
-settings add <code>repair</code>. Pages that stopped otherwise are recorded as without the repair pass. A repair request
-that fails leaves the page with its first completion (stat <code>repair_errors</code>), not an error of the page. A page
-record is written only after its repair, so an interrupted task sends both requests again. Stats:
-<code>finish_length</code> (first requests), <code>repair_sent</code>, <code>repair_stop</code>, <code>repair_length</code> (the repairs' finish
-reasons), <code>repair_kept</code>, <code>repair_skipped</code>, <code>repair_errors</code>.</p>
+<p><strong>The repair passes</strong> (the chat option <code>repair_max_tokens</code>: a cap, or a list of rising caps, one per pass;
+<code>linecaster.adapters.ChatAdapter</code>): a page whose completion stopped at <code>max_tokens</code> waits in the block while its
+repair request goes into the same window at once (the same request body, so the same image and prompt and
+<code>top_p</code>, with <code>max_tokens</code> raised and the repair temperature); the other pages stream on. A repair that stops
+at its cap too is sent again with the next cap, until one finishes or the caps run out. Each repair's
+<code>max_tokens</code> is its cap, at most the served context minus the page's prompt tokens (the context from the
+server's <code>/models</code> <code>max_model_len</code>, else the preset's <code>--max-model-len</code>); where that is not above the cap
+before it, no more repairs are sent (none at all: stat <code>repair_skipped</code>). The page keeps the first completion
+that finished (<code>"stop"</code>), its first one otherwise; <code>extra["passes"]</code> records every request (<code>pass_entry</code>:
+the completion verbatim, finish reason, tokens, <code>max_tokens</code> as sent, temperature, <code>top_p</code>, preset),
+<code>extra["kept"]</code> which one the transcription holds (from 1), and <code>extra["raw"]</code> and <code>extra["finish_reason"]</code>
+stay the kept one's. The step's measurements sum the tokens of every request and list them per request
+(<code>pass_prompt_tokens</code>, <code>pass_completion_tokens</code>); its settings add <code>repair</code>. Pages that stopped otherwise are
+recorded as without repairs. A repair request that fails ends the repairs, and the page keeps what the passes
+before it give (stat <code>repair_errors</code>), not an error of the page. A page record is written only after its
+repairs, so an interrupted task sends every request again. Stats:
+<code>finish_length</code> (first requests), <code>repair_sent</code> (repair requests), <code>repair_stop</code>, <code>repair_length</code> (their
+finish reasons), <code>repair_kept</code> (pages that keep a repair), <code>repair_skipped</code>, <code>repair_errors</code>.</p>
 <p>With <code>repair_only</code> it reads page records written earlier (<code>PageRecordReader</code>) and sends only the repair
-request, by the same rules and recorded the same way: for the pages whose transcription's first completion
+requests, by the same rules and recorded the same way: for the pages whose transcription's first completion
 stopped at <code>max_tokens</code> and has no repair yet (<code>extra["passes"]</code> with one entry, or a record without
 <code>passes</code>, as linecaster wrote before the repair pass). Every other page passes through unchanged, without a
 request (stat <code>repair_not_needed</code>). The first request's prompt tokens and sampling come from the record.</p>
@@ -1002,7 +1004,7 @@ preset edition and its hash. A failed request or call is the page's error.</p>
 
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="s2">"lightonocr-2-1b@1"</span><span class="p">)</span>
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="n">Chat</span><span class="p">(</span><span class="s2">"lightonocr-2-1b@1"</span><span class="p">,</span> <span class="s2">"http://127.0.0.1:8000/v1"</span><span class="p">,</span> <span class="n">max_window</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">initial_window</span><span class="o">=</span><span class="mi">8</span><span class="p">))</span>
-<span class="n">PageRecognizer</span><span class="p">(</span><span class="n">Chat</span><span class="p">(</span><span class="s2">"lightonocr-3-0.8b@2"</span><span class="p">,</span> <span class="n">overrides</span><span class="o">=</span><span class="p">{</span><span class="s2">"repair_max_tokens"</span><span class="p">:</span> <span class="mi">8192</span><span class="p">}))</span>   <span class="c1"># with the repair pass</span>
+<span class="n">PageRecognizer</span><span class="p">(</span><span class="n">Chat</span><span class="p">(</span><span class="s2">"lightonocr-3-0.8b@2"</span><span class="p">,</span> <span class="n">overrides</span><span class="o">=</span><span class="p">{</span><span class="s2">"repair_max_tokens"</span><span class="p">:</span> <span class="p">[</span><span class="mi">8192</span><span class="p">,</span> <span class="mi">12288</span><span class="p">]}))</span>   <span class="c1"># repair passes</span>
 <span class="n">PageRecognizer</span><span class="p">(</span><span class="s2">"indra-ocr@1"</span><span class="p">)</span>             <span class="c1"># a page engine, in the pipeline's process</span>
 </code></pre></div>
 

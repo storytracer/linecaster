@@ -1361,11 +1361,12 @@ stages. Every pipeline script goes through it (<code>linecaster.runtime.run</cod
   <code>top_p</code>, <code>repair_max_tokens</code>, <code>repair_temperature</code>; <code>--set recognition.&lt;option&gt;=&lt;value&gt;</code> in
   <code>pipelines/transcribe_vlm.py</code>); the ones that differ from the preset's are recorded with the adapter
   (<code>overrides</code>) and count in <code>pipeline_sha256</code>. With <code>repair_max_tokens</code> set, <code>PageRecognizer</code> runs the
-  <a href="../glossary/">repair pass</a>: a page whose completion stopped at <code>max_tokens</code> waits while its second request goes
-  into the same window, and leaves the block with both recorded; <code>PageRecognizer(..., repair_only=True)</code> sends only
+  <a href="../glossary/">repair passes</a>: a page whose completion stopped at <code>max_tokens</code> waits while its repair requests go
+  into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded; <code>PageRecognizer(..., repair_only=True)</code> sends only
   the repair requests, for page records read with <code>PageRecordReader</code> (<code>--pages ... --repair-only</code>). The streaming
   loop of <code>ModelBlock</code> offers this to every served block: a finished request may ask for a second one
-  (<code>_second_request</code>), whose response comes back with it (<code>_second_done</code>).
+  (<code>_second_request</code>), whose response comes back with it (<code>_second_done</code>), and that one for another
+  (<code>_next_request</code>).
   <code>PageRecognizer</code> also takes a page engine's <code>InProcess</code> or <code>Served</code> backend (or its preset's ref): a stream
   transform served, a per-unit transform in-process; it reads the page image and adds <code>text</code> and what the preset
   produces. A page engine's <code>endpoint</code> option (where its service is) is operational.</li>

@@ -832,7 +832,7 @@ model's raw answer is in each page's transcription.</p>
 uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
 uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
 uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit &lt;sha&gt; --recognition unlimited-ocr-2
-... --set recognition.repair_max_tokens=12288         # the repair pass (below); =0: off (on in lightonocr-3-0.8b@3)
+... --set "recognition.repair_max_tokens=[8192, 12288]"   # repair passes (below); =0: off (on in lightonocr-3-0.8b@3)
 ... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
 uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b
                                                       # the repair pass over page records written before
@@ -852,12 +852,14 @@ server; on a machine without a CUDA toolkit vLLM starts with <code>VLLM_USE_FLAS
 <code>temperature</code>, <code>top_p</code>, <code>repair_max_tokens</code> and <code>repair_temperature</code> (<code>linecaster.adapters.ChatAdapter</code>),
 for --layout the layout engine's options. They go into the run record and change its <code>pipeline_sha256</code>.</p>
 <p>The repair pass (<code>--set recognition.repair_max_tokens=N</code>, N larger than the preset's <code>max_tokens</code>; page presets
-only): a page whose completion stopped at <code>max_tokens</code> is sent once more right away, the same image, prompt and
+only): a page whose completion stopped at <code>max_tokens</code> is sent again right away, the same image, prompt and
 <code>top_p</code>, with <code>max_tokens</code> N (at most the served context minus the page's prompt) and temperature
-<code>repair_temperature</code> (0.1); the page keeps the second completion where it finished (<code>stop</code>), the first one
-otherwise, and its transcription records both (<code>extra["passes"]</code>, <code>extra["kept"]</code>). The procedure is the reference
+<code>repair_temperature</code> (0.1); with a list of rising caps (<code>[8192, 12288]</code>), each repair that stops at its cap is
+sent again with the next. The page keeps the first completion that finished (<code>stop</code>), its first one otherwise, and
+its transcription records every pass (<code>extra["passes"]</code>, <code>extra["kept"]</code>). The procedure is the reference
 script's (uv-scripts/ocr <code>lighton-ocr3-saturate.py</code> at e2b0aa5), which suggests 8192 for LightOnOCR-3;
-<code>lightonocr-3-0.8b@3</code> turns it on at 12288, since dense tables needed up to about 9,000 tokens. A page that
+<code>lightonocr-3-0.8b@3</code> repairs at 8192 and then 12288 (twice and three times its 4096), since dense tables needed
+up to about 9,000 tokens. A page that
 stops at <code>max_tokens</code> is often a repetition loop, which a repair does not end, but a dense table can simply need
 more tokens and then finishes; the repair adds the second requests' tokens to the run (NOTES.md has the trials). A
 page whose prompt leaves no more room in the context than the first request had gets no repair (stat
@@ -954,7 +956,7 @@ yet; every other page is written as it was read.</p>
 <td><code>--set</code></td>
 <td></td>
 <td><code>[]</code></td>
-<td>an option over the preset's, e.g. recognition.repair_max_tokens=12288 (the repair pass), recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine option; repeatable</td>
+<td>an option over the preset's, e.g. 'recognition.repair_max_tokens=[8192, 12288]' (repair passes), recognition.max_tokens, .temperature, .top_p, .repair_temperature, or a layout engine option; repeatable</td>
 </tr>
 <tr>
 <td><code>--repair-only</code></td>
