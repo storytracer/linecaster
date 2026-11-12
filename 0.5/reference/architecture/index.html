@@ -1277,8 +1277,9 @@ the recipes bring theirs (<code>recipes/squiddle.py</code>: kraken and PaddleX).
 <p>The recipe scripts take linecaster and its engine packages from the <code>main</code> branch on GitHub, so a script runs from
 its URL with no checkout (<code>uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py
 IMAGES OUT</code>, <code>hf jobs uv run &lt;URL&gt; ...</code>) as well as from one (<code>uv run recipes/squiddle.py</code>, <code>uv run launch.py
-squiddle</code>). A run from the URL resolves the header afresh; a run from a checkout uses the script's lock, whose
-linecaster commit moves when it is relocked. Their HF Jobs need no <code>--commit</code>: <code>jobs.dependencies</code> installs
+squiddle</code>). A run from the URL resolves the header afresh, and its run record names the script <code>recipes/&lt;id&gt;.py</code>
+(uv runs a temporary copy); a run from a checkout uses the script's lock, whose linecaster commit moves when it is
+relocked. Their HF Jobs need no <code>--commit</code>: <code>jobs.dependencies</code> installs
 linecaster from <code>main</code> with the lock's versions as constraints. With <code>--endpoint</code> the served engines need not be
 installed in the client's environment. To preview the site from a checkout: <code>uv run linecaster docs</code>, then <code>uv run --group docs
 mkdocs serve</code>.</p>

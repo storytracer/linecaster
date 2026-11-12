@@ -1129,7 +1129,11 @@ list is set) works on the broker:</p>
   earlier process are given back).</li>
 <li><strong>Rate limits per proxy.</strong> With a proxy list the host's rate limits hold per proxy (per IP). The owner spaces the
   requests through a proxy to a host by the strictest limit and sends each request through the owned proxy whose turn
-  comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker.</li>
+  comes first. One owner per proxy makes the limit hold across all workers and runs that share the broker. When a
+  proxy changes hands (a worker gives it back for the fair share, swaps it or releases it), the owner first marks its
+  next free turn at each host (scope <code>turn-&lt;host&gt;</code>, ending at that turn) and the next owner starts there no earlier,
+  so the old owner's requests already on their way and the new owner's first ones keep the spacing too. These marks
+  are not blocks: the status and the count of available proxies leave them out.</li>
 <li><strong>Blocks.</strong> A status in the host's <code>block_on</code> (429 by default) and, with <code>html</code> there, an HTML page where another
   format was expected mark the proxy for that host (<a href="../http/#blocks">http</a>): until the response's <code>Retry-After</code>, else
   for 60 s, twice the last wait on each repeat of that proxy at that host, at most the host's <code>block_ttl</code> (an hour by
