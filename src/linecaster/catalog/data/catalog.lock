@@ -357,6 +357,26 @@ presets:
         math: false
         dpi: 200.0
         threads: 1
+  jp2-lossless@1:
+    sha256: sha256:5a3853ba238d269d8a87a8815bba9186a1d20d42720ff0adc0f863a1f4f7d9a0
+    released: '2026-11-12'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.convert.v1
+      options:
+        format: jp2
+        lossless: true
+  jpeg-q90@1:
+    sha256: sha256:00d3e36ecb98af091c552f7d6e8f7eb7afa1d5a0e809f30d72035b24822423b3
+    released: '2026-11-12'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.convert.v1
+      options:
+        format: jpg
+        quality: 90
   kraken-ppocrv6-medium@1:
     sha256: sha256:34b66a198e4b14d223d941b5eac419774933531ecca507a1d88cdfc3e501657c
     released: '2026-11-04'
@@ -1127,6 +1147,16 @@ presets:
         model_name: PP-OCRv6_tiny_rec
         batch_size: 8
         words: true
+  png@1:
+    sha256: sha256:bf3c4436c02a4d811cb8aac57860f5b6edf54c7fd51bec4f6c37d607cc538531
+    released: '2026-11-12'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.convert.v1
+      options:
+        format: png
+        compress_level: 6
   pp-doclayout-plus-l@1:
     sha256: sha256:add0bdb21842b44e74baec1f451df4449ca9efe24b70632bbe8076f0c70688b8
     released: '2026-11-04'
@@ -1905,6 +1935,17 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
+  webp-lossy-q80@1:
+    sha256: sha256:93383683ea5749e4080debd1ea3955ffd49420bd31c4564e863366931b874e9c
+    released: '2026-11-12'
+    linecaster: null
+    resolved:
+      step: image
+      engine: image.convert.v1
+      options:
+        format: webp
+        quality: 80
+        method: 4
   working-image@1:
     sha256: sha256:a73383d8253ccb53c65b1497a432afe7dcfc6fb3ae789baf1d4452eacdb3d970
     released: '2026-11-06'

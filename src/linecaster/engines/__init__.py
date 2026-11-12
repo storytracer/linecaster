@@ -6,14 +6,14 @@
 the data model: no datatrove, saturate, blocks or runtime."""
 from .base import RuleEngine, ScriptDispatch, Strategy
 from .composition import DoclingCompositionEngine
-from .image import WebpLosslessImageEngine
+from .image import ImageConvertEngine, WebpLosslessImageEngine
 from .layout import SingleRegionLayoutEngine
 from .normalization import ByScriptNormalizationEngine, LatinHistoricNormalizationEngine
 from .recomposition import ByScriptRecompositionEngine, UnicodeRecompositionEngine
 from .typography import RatiosTypographyEngine
 
 __all__ = [
-    "ByScriptNormalizationEngine", "ByScriptRecompositionEngine", "DoclingCompositionEngine",
+    "ByScriptNormalizationEngine", "ByScriptRecompositionEngine", "DoclingCompositionEngine", "ImageConvertEngine",
     "LatinHistoricNormalizationEngine", "RatiosTypographyEngine", "RuleEngine", "ScriptDispatch",
     "SingleRegionLayoutEngine", "Strategy", "UnicodeRecompositionEngine", "WebpLosslessImageEngine",
 ]

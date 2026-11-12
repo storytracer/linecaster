@@ -123,6 +123,7 @@ uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
 | 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
 | 📜 `verbatim_txt` per item | the text as printed, for checking against a transcription |
 | 📖 `readable_txt`, `readable_md` per item | reading and training: letterforms folded, hyphens joined, paragraphs flowed |
+| 🖼️ Page images as JPEG, JPEG 2000, PNG or WebP (`pipelines/convert.py`) | publishing and downloads: decoded and encoded on NVIDIA GPUs where the machine has them |
 
 The text as written is always kept; readable text is derived from it. All text is Unicode [NFC]; spelling is never
 modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into

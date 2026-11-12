@@ -138,6 +138,40 @@ def _broker_action(a) -> None:
     _report_removed(a, result, broker.CLEANED)
 
 
+def _images(a) -> None:
+    """``linecaster images compare``: a GPU decode against Pillow's, per image (JSON lines) and in sum."""
+    import json as _json
+
+    import fsspec
+
+    from .images import accel
+    from .images.transcode import compare_decoders
+
+    if not accel.gpu_available():
+        raise PipelineConfigError("images compare: no CUDA device or no nvImageCodec here "
+                                  "(pip install 'linecaster[nvimgcodec]')")
+    paths = list(a.files)
+    if a.paths_file:
+        with fsspec.open(a.paths_file, "rt") as f:
+            paths += [line.strip() for line in f if line.strip()]
+    worst, n, gpu, differing = 0, 0, 0, 0
+    for path in paths:
+        with fsspec.open(path, "rb") as f:
+            data = f.read()
+        try:
+            r = compare_decoders(data, a.device)
+        except Exception as e:  # noqa: BLE001 - an image that cannot be decoded: said, the others go on
+            print(_json.dumps({"path": path, "error": f"{type(e).__name__}: {e}"}), flush=True)
+            continue
+        print(_json.dumps({"path": path, **r}), flush=True)
+        n += 1
+        gpu += r["gpu"]
+        differing += r["max_abs"] > 0
+        worst = max(worst, r["max_abs"])
+    print(f"{n} images, {gpu} decoded on the GPU, {differing} with pixels that differ from Pillow's, "
+          f"largest difference {worst} (of 255)", file=sys.stderr)
+
+
 def _ask(a, question: str) -> bool:
     """``linecaster broker``'s confirmation: yes with ``--yes``, else the answer on a terminal; refused without one."""
     if a.yes:
@@ -313,6 +347,13 @@ def main(argv: list[str] | None = None) -> None:
                    help="group the time per page by block, preset edition or task")
     t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
     t.add_argument("--json", action="store_true", help="the report as JSON")
+    i = sub.add_parser("images", help="image codecs: how a GPU decode compares with Pillow's (compare)")
+    isub = i.add_subparsers(dest="action", required=True)
+    ic = isub.add_parser("compare", help="decode each image on the GPU and with Pillow, the same colour handling after "
+                                         "both, and say how the pixels differ (one JSON line each, a sum at the end)")
+    ic.add_argument("files", nargs="*", help="image files, any fsspec path")
+    ic.add_argument("--paths-file", help="a file listing image files, one per line")
+    ic.add_argument("--device", type=int, default=0, help="the CUDA device")
     b = sub.add_parser("broker", help="what a broker's folder holds (status); remove its expired files or, after "
                                       "a hard kill, all leases (clean); reset it (purge) (docs/reference/broker.md)")
     bsub = b.add_subparsers(dest="action", required=True)
@@ -358,6 +399,8 @@ def main(argv: list[str] | None = None) -> None:
             _traces(a)
         elif a.command == "broker":
             _broker(a)
+        elif a.command == "images":
+            _images(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))

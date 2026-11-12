@@ -19,7 +19,7 @@ from linecaster.engines import scripts
 MODEL_STEP_ENGINES = {"layout.single-region.v1"}
 RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - MODEL_STEP_ENGINES)
 #: engines whose options have no defaults (a by-script engine's strategies come from its preset)
-NEEDS_OPTIONS = {"normalization.by-script.v1", "recomposition.by-script.v1"}
+NEEDS_OPTIONS = {"image.convert.v1", "normalization.by-script.v1", "recomposition.by-script.v1"}
 
 
 def test_the_rule_based_steps_are_steps():

@@ -135,8 +135,8 @@ def test_a_removed_part_is_gone_for_later_blocks(tmp_path: Path):
 
     convert = ImageConverter(str(tmp_path / "webp"), "working-image@1")
     problems = _problems([ImageFolderReader("x"), convert, _lines(), PageJsonlWriter("o")])
-    assert problems == ["LineDetector (lines (in-process)) reads image, which ImageConverter (🖼️ image converter "
-                        "(lossless WebP)) removes before it"]
+    assert problems == ["LineDetector (lines (in-process)) reads image, which ImageConverter (🖼️ image converter) "
+                        "removes before it"]
     assert _problems([PageRecordReader("p"), convert, _lines()]) == problems[:1]
     assert _problems([ImageFolderReader("x"), convert, ImageFetcher(), _lines(), PageJsonlWriter("o")]) == []
     kept = ImageConverter(str(tmp_path / "webp"), "working-image@1", keep_bytes=True)

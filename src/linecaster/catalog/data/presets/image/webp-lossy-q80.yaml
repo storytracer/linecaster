@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: webp-lossy-q80
+edition: 1
+step: image
+engine: image.convert.v1
+options:
+  format: webp
+  quality: 80
+  method: 4
+capabilities:
+  unit: page
+  produces:
+  - image
+provenance:
+  derived_from:
+  - "linecaster's image conversion (image.convert.v1): lossy WebP at quality 80, full resolution, for published page images"
+  created: 2026-11-12
+support: core

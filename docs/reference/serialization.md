@@ -137,8 +137,8 @@ float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `oc
 ## Working images (`linecaster.images.convert`)
 
 The working format for converted images is lossless WebP at full resolution (the block `ImageConverter`, preset
-`working-image`); lossy output is never produced. Delivered images used as they are (an access derivative) stay as
-delivered. Pages larger than the size limit go to `rejects/`.
+`working-image`): what the models read is never lossy. Delivered images used as they are (an access derivative) stay
+as delivered. Pages larger than the size limit go to `rejects/`. Other formats for other uses are the next section's.
 
 - **Size limit** (`check_size`): width ≤ 16,383 and height ≤ 16,383 (WebP) and
   width × height ≤ 2 × `PIL.Image.MAX_IMAGE_PIXELS`, read at call time, never changed. 2× is
@@ -163,3 +163,33 @@ delivered. Pages larger than the size limit go to `rejects/`.
   checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
   reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in `warnings` (also in the
   page image's `extra`, and logged). A fault that keeps the pixels from being read rejects the page.
+
+## Image conversion (`linecaster.images.transcode`, `linecaster.images.accel`)
+
+Page images for other uses (publishing, downloads) are converted by the same block with an `image.convert.v1` preset
+(`webp-lossy-q80`, `jpeg-q90`, `jp2-lossless`, `png`; `pipelines/convert.py`): JPEG, JPEG 2000, PNG or WebP at full
+resolution, 8-bit sRGB, with the working image's size limit, colour handling and image warnings.
+
+- **Decoding**: JPEG (nvJPEG), JPEG 2000 (nvJPEG2000) and TIFF (nvTIFF) in 8-bit gray or RGB on an NVIDIA GPU where
+  the machine has one and nvImageCodec is installed (`linecaster[nvimgcodec]`, CUDA 13 wheels for aarch64 and
+  x86_64); every other image, and every image on a machine without them, with Pillow. Only nvImageCodec's GPU
+  decoders are allowed, so an image it cannot do on the GPU is decoded by Pillow, never by another CPU library. A
+  GPU decode hands the pixels on in the source's own mode with the ICC profile from the header, and the colour
+  handling above runs after either decoder.
+- **Encoding**: JPEG (nvJPEG) and JPEG 2000 (nvJPEG2000) on the GPU where it can, else with Pillow (libjpeg-turbo,
+  OpenJPEG); PNG and WebP always with Pillow (zlib, libwebp): no GPU library writes them (nvImageCodec only through
+  its CPU OpenCV extension).
+- **Choice**: found out per machine, never configured (`cuda_devices` asks the CUDA driver; nvImageCodec is used
+  when installed). `accel` `auto` takes the GPU where it can, `cpu` never, `gpu` is an error where it cannot. Each
+  image records its `decoder` and `encoder`: a GPU and a CPU decoder can round lossy JPEG and JPEG 2000 differently,
+  and a GPU and a CPU encoder write different bytes at the same quality. `linecaster images compare FILES` decodes
+  images both ways and says how far the pixels differ.
+- **Throughput**: decoding and encoding are stages with windows of their own, adapted by saturate's controller to
+  the pixels per second and cut when memory or open files run short; a GPU decodes what arrives together in one
+  batch. One worker process per GPU (round robin by worker index); the windows' bound divides the CPUs among the
+  workers.
+- **Files**: `<output_folder>/<item>/<page>.<ext>` under a temporary name (`.part`), renamed when complete; a file
+  that is there already is not converted again (`skip_existing`).
+- **record** (`page.image`, its `extra`): `format`, `width`, `height`, `sha256`, `pixels_sha256`, `decoder`;
+  `encoder`, `bytes`, `icc_applied`, `alpha_flattened`, and when present `exif_orientation`, `icc_error`,
+  `warnings`; the delivered image under `original`, the step under `step`.

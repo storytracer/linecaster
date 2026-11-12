@@ -595,13 +595,14 @@ def _policy_rate_limited(a: argparse.Namespace) -> bool:
 
 
 def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
-           reuse_folder: str | None = None):
+           reuse_folder: str | None = None, read_images: bool = True):
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
     (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
     pipeline writes its images, so a resumed run passes the ones already there on without a request. The sample
     options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
-    ``manifest_folder``, by default ``OUT/manifests``."""
+    ``manifest_folder``, by default ``OUT/manifests``. Without ``read_images`` an image folder's pages carry only
+    their images' addresses and page records are read without their images (a block reads them itself)."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
 
@@ -637,7 +638,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               http_policy=getattr(a, "http_policy", None), sample=sample)
     if getattr(a, "pages", None):
         return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None),
-                                uri_map=uri_map(getattr(a, "uri_map", None) or []), sample=sample)
+                                uri_map=uri_map(getattr(a, "uri_map", None) or []), sample=sample,
+                                **({} if read_images else {"fetch_images": False}))
     if getattr(a, "page", None):
         folder, _, name = a.page.rstrip("/").rpartition("/")
         return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
@@ -654,7 +656,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   sample=sample)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
-                             sequence=a.item_from_parent and not a.paths_file, sample=sample)
+                             sequence=a.item_from_parent and not a.paths_file, sample=sample,
+                             read_images=read_images)
 
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:

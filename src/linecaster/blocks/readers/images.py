@@ -46,6 +46,15 @@ def _stem(path: str) -> str:
     return posixpath.basename(path).rsplit(".", 1)[0]
 
 
+#: the page image's format (Pillow's name, lower case) by file extension, for a page read without its file
+EXTENSION_FORMATS = {"webp": "webp", "jpg": "jpeg", "jpeg": "jpeg", "png": "png", "tif": "tiff", "tiff": "tiff",
+                     "jp2": "jpeg2000", "j2k": "jpeg2000"}
+
+
+def _extension_format(path: str) -> str | None:
+    return EXTENSION_FORMATS.get(posixpath.splitext(path)[1].lstrip(".").lower())
+
+
 class _Opener:
     """Opens absolute URIs through datatrove ``DataFolder``s, one per folder (``hf://``, ``s3://``, local), and
     ``http(s)://`` URLs through ``linecaster.net.http`` (rate limits, retries that honor ``Retry-After``; ``http``
@@ -146,19 +155,23 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
             ids (``(item_id or "", page_id)``) before any is read; the sample's files, in the listing's order, are
             divided over the tasks in turn, the same whatever the task count (the first file of an id that is
             listed twice). Excludes ``max_pages``. Default: every file.
+        read_images: read each file (``image``: its bytes, the page image's size and format from its header);
+            without it each page carries only its image's address (``metadata``: ``page.image.uri``, the format
+            from the extension), for a block that reads the files itself, many at once (``ImageConverter``).
         recursive, limit, skip, file_progress, doc_progress, shuffle_files: datatrove's ``BaseDiskReader`` arguments.
     """
 
     name = "🖼️ image folder"
     role = "reader"
     parts_added = ("image", "metadata")
+    operational = ("read_images",)          # how the files are read: the pages are the same either way
     docs_args = {"data_folder": "scans/"}
 
     def __init__(self, data_folder: DataFolderLike, paths_file: DataFileLike | None = None,
                  glob_pattern: str = IMAGE_GLOB, recursive: bool = True, limit: int = -1, skip: int = 0,
                  item_from_parent: bool = False, item_id: str | None = None, sequence: bool = False,
                  file_progress: bool = False, doc_progress: bool = False, default_metadata: dict | None = None,
-                 shuffle_files: bool = False, max_pages: int | None = None, sample=None):
+                 shuffle_files: bool = False, max_pages: int | None = None, sample=None, read_images: bool = True):
         super().__init__(data_folder, paths_file, limit, skip, file_progress, doc_progress, None, "text", "id",
                          default_metadata, recursive, glob_pattern, shuffle_files, add_file_path=False)
         if max_pages is not None and max_pages < 1:
@@ -173,6 +186,9 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
             raise PipelineConfigError("sequence needs every file of an item, so it works with glob_pattern, not paths_file")
         self.item_from_parent, self.item_id, self.sequence = item_from_parent, item_id, sequence
         self._positions: dict[str, int] = {}
+        self.read_images = read_images
+        if not read_images:
+            self.parts_added = ("metadata",)
 
     def _item(self, path: str) -> str | None:
         if self.item_id is not None:
@@ -251,12 +267,23 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
             yield doc
 
     def read_file(self, filepath: str):
+        uri = self.data_folder.resolve_paths(filepath)
+        if not self.read_images:
+            from datatrove.data import Document
+
+            page = Page(page_id=_stem(filepath), item_id=self._item(filepath),
+                        sequence=self._positions.get(filepath), metadata=dict(self.default_metadata or {}),
+                        image=PageImage(uri=uri, format=_extension_format(filepath)))
+            doc = Document(text="", id=page.page_id, media=[])
+            set_page(doc, page)
+            self.stat_update("pages")
+            yield doc
+            return
         with self.track_time():
             with self.data_folder.open(filepath, "rb") as f:
                 raw = f.read()
-            doc = new_page_document(_stem(filepath), raw, uri=self.data_folder.resolve_paths(filepath),
-                                    item_id=self._item(filepath), sequence=self._positions.get(filepath),
-                                    metadata=dict(self.default_metadata or {}))
+            doc = new_page_document(_stem(filepath), raw, uri=uri, item_id=self._item(filepath),
+                                    sequence=self._positions.get(filepath), metadata=dict(self.default_metadata or {}))
         self.stat_update("pages")
         self.update_media_stats(doc.media[0])
         yield doc

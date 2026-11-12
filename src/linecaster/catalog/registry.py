@@ -555,6 +555,7 @@ def active(c: Catalog):
 #: steps' and the single-region layout (``linecaster.engines``: in the pipeline's process only)
 BUILTIN_ENGINES = {
     "chat.v1": "linecaster.adapters:ChatAdapter",
+    "image.convert.v1": "linecaster.engines:ImageConvertEngine",
     "image.webp-lossless.v1": "linecaster.engines:WebpLosslessImageEngine",
     "layout.single-region.v1": "linecaster.engines:SingleRegionLayoutEngine",
     "normalization.latin-historic.v1": "linecaster.engines:LatinHistoricNormalizationEngine",

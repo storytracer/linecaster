@@ -165,6 +165,7 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 | `transcribe_vlm.py` | `transcribe_vlm.v1` | a VLM per page or per layout region |
 | `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
+| `convert.py` | `convert.v1` | page images converted to JPEG, JPEG 2000, PNG or WebP by an image preset, on NVIDIA GPUs where the machine has them |
 
 `linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
 in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve` with the script's models), `ray`
@@ -174,7 +175,7 @@ Each script's page in the [catalog's docs](../catalog/README.md) lists its slots
 
 Script environments: the repository is not a uv workspace (engine pins conflict). A script lists what it needs
 itself: linecaster with the extra every pipeline uses (`ray` for `--on ray` and `ray start`) and its engine
-packages; `s3://` paths need no extra (the core
+packages (`convert.py` also `nvimgcodec`: NVIDIA's GPU codecs, used where the machine has a GPU); `s3://` paths need no extra (the core
 installs datatrove's `s3` extra, s3fs). A source is
 declared by the package that needs it, and `uv lock` applies the sources of path and git dependencies too:
 the kraken fork by `linecaster-kraken`, and `stubs/opencv-contrib-python` (the
@@ -191,7 +192,7 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 | `tests/test_engines_catalog.py` | 2.14.0 | `linecaster-kraken`'s pin |
 | `pipelines/transcribe_page.py`, `tests/test_page_engines_catalog.py` | 2.14.0 | surya-ocr's (`>=2.7,<3`), not pinned: the version it was locked at |
 | `tools/cuda_probe.py` | 2.14.0 | its own pin: it probes the CUDA build of `linecaster-kraken`'s torch on a Jobs host |
-| `pipelines/transcribe_modular.py`, `transcribe_vlm.py`, `harvest.py`, `bind.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
+| `pipelines/transcribe_modular.py`, `transcribe_vlm.py`, `harvest.py`, `bind.py`, `convert.py`, `launch.py`, `tests/test_line_recognizers.py`, linecaster's own (`uv.lock`) | none | no engine there needs it |
 
 ## Executors and Jobs
 

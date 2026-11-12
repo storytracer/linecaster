@@ -4,6 +4,29 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- Image conversion: page images (any format Pillow reads) to JPEG, JPEG 2000, PNG or WebP at full resolution, 8-bit
+  sRGB, with the working image's colour handling, size limit and image warnings: engine `image.convert.v1`
+  (`linecaster.images.transcode`), presets `webp-lossy-q80`, `jpeg-q90`, `jp2-lossless` and `png`, pipeline
+  `pipelines/convert.py` (`convert.v1`, `--preset`).
+- GPU acceleration where the machine has it (`linecaster.images.accel`, extra `nvimgcodec`: nvImageCodec's CUDA 13
+  wheels, aarch64 and x86_64): JPEG, JPEG 2000 and TIFF decoded on an NVIDIA GPU, JPEG and JPEG 2000 encoded there;
+  everything else with Pillow. Found out per machine (`auto`), forced with `accel` `gpu` or `cpu`; each image records
+  its decoder and encoder. `linecaster images compare` measures how a GPU decode differs from Pillow's.
+- `ImageConverter` runs its pages through two stages, decoding and encoding, each with a window saturate's controller
+  adapts (`window`, `initial_window`, `max_window`), a GPU per worker process; it writes under a temporary name and
+  renames, skips files that are there already (`skip_existing`), and keeps the input's order.
+- `ImageFolderReader(read_images=False)` (`run.reader(read_images=False)`): pages carry only their images'
+  addresses, for a block that reads the files itself.
+
+### Changed
+
+- `ImageConverter`'s display name is `🖼️ image converter` (was `🖼️ image converter (lossless WebP)`); the working
+  image is written as before.
+
 ## 0.5.7 (2026-11-12)
 
 ### Fixed

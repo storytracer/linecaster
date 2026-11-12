@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: jp2-lossless
+edition: 1
+step: image
+engine: image.convert.v1
+options:
+  format: jp2
+  lossless: true
+capabilities:
+  unit: page
+  produces:
+  - image
+provenance:
+  derived_from:
+  - "linecaster's image conversion (image.convert.v1): lossless JPEG 2000 (reversible wavelet), full resolution"
+  created: 2026-11-12
+support: core

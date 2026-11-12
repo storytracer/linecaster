@@ -45,6 +45,9 @@ dependencies = [
 minicpm-ocr = ["minicpm-ocr==1.0.1"]
 # Ray clusters: datatrove's RayPipelineExecutor (linecaster.runtime.ray.RayGPUExecutor)
 ray = ["ray[default]>=2.40"]
+# NVIDIA GPUs decode JPEG, JPEG 2000 and TIFF and encode JPEG and JPEG 2000 (linecaster.images.accel): nvImageCodec's
+# CUDA 13 wheels (aarch64, x86_64) with nvJPEG, nvJPEG2000 and nvTIFF
+nvimgcodec = ["nvidia-nvimgcodec-cu13[nvjpeg,nvjpeg2k,nvtiff]>=0.10,<0.11"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
 
