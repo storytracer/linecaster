@@ -1025,6 +1025,12 @@
 <td><code>None</code></td>
 <td>only the pages of this <code>linecaster.data.sample.SampleRule</code>. The items are ranked from the entries' item ids before anything is fetched; a page's id (<code>&lt;item_id&gt;_&lt;sequence:04d&gt;</code>) needs its manifest, so computing the sample reads the manifests of the items in rank order, only as far as the rule reaches (every one with <code>per_item</code> alone), and an item whose manifest cannot be read stops it (the sample would depend on the failure). With <code>manifest_folder</code> each manifest it read is saved there with an index (<code>SAMPLE_INDEX</code>), and the tasks, and a later launch computing the sample again, read those copies instead of fetching them again. The sample's items are divided over the tasks as the entries would be (an item whole in its task); only their sample pages' images are requested. A IIIF Collection entry is a <code>PipelineConfigError</code> (list its manifests). Default: every page.</td>
 </tr>
+<tr>
+<td><code>reuse_index</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>the index of earlier harvests' page images (<code>pipelines/harvest.py --reuse-from</code>: <code>OUT/logs/reuse-from.parquet</code>, <code>linecaster.blocks.readers.earlier</code>): a page whose source URL an earlier harvest fetched is read from its copy there (checked by <code>sha256</code>) after this run's own copy (<code>reuse_folder</code>) and before a fetch (looked up per item), and written into this run's folder; its record says <code>image.extra["reused_from"]</code> and <code>["reused_from_uri"]</code>. Not with <code>existing_ocr</code> either.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

@@ -824,7 +824,10 @@ earlier harvests into other folders already hold: a resource whose source URL on
 the newest successful one per URL across the folders, its copy checked by sha256) is read from there and written
 into OUT under its current item and name, with the earlier fetch's provenance and <code>reused_from</code>; only the rest is
 fetched. So a changed list gets one complete folder of its own instead of a resume whose tasks no longer fit it; a
-resume of that folder with other --reuse-from folders is an ordinary resume.</p>
+resume of that folder with other --reuse-from folders is an ordinary resume. Page-image harvests (--parquet,
+--manifests) take --reuse-from too: each launch first indexes the earlier folders' page records once
+(OUT/logs/reuse-from.parquet: source URL, copy, sha256; the newest folder wins), each task looks up only its own URLs
+there, and a page read from an earlier copy says <code>image.extra.reused_from</code>; not with --existing-ocr.</p>
 <div class="highlight"><pre><span></span><code>uv run pipelines/harvest.py --manifests items.parquet --manifest-key manifest_url --item-key item_id OUT \
     --rate-limit 5/1 --existing-ocr
 uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --http-policy http-policy.yaml \
@@ -882,7 +885,7 @@ pages are fetched (the others are read from OUT/images), without it every page o
 <td><code>--reuse-from</code></td>
 <td></td>
 <td><code>[]</code></td>
-<td>--items: an earlier harvest's folder (any fsspec path; repeatable): a resource whose URL it fetched is read from its copy there (by its records in DIR/resources, the newest successful one per URL across the folders; checked by sha256) and written into OUT, instead of fetched</td>
+<td>an earlier harvest's folder (any fsspec path; repeatable): a file whose source URL it fetched is read from its copy there (by its records: DIR/resources for --items, the newest successful one per URL; DIR/pages for page images, indexed once per launch; checked by sha256) and written into OUT, instead of fetched; not with --existing-ocr</td>
 </tr>
 </tbody>
 </table>
