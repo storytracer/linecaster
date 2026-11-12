@@ -636,7 +636,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.5.7"
+version = "0.5.8"
 source = { editable = "." }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
@@ -666,6 +666,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=5" },
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
+    { name = "nvidia-nvimgcodec-cu13", extras = ["nvjpeg", "nvjpeg2k", "nvtiff"], marker = "extra == 'nvimgcodec'", specifier = ">=0.10,<0.11" },
     { name = "opentelemetry-api", specifier = ">=1.45.2" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
@@ -679,7 +680,7 @@ requires-dist = [
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2"]
 
 [package.metadata.requires-dev]
 dev = [
