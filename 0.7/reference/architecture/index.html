@@ -1393,7 +1393,7 @@ fixed in <code>tests/test_scripts.py</code> (<code>TORCH</code>), so it changes 
 </tr>
 <tr>
 <td><code>ray</code></td>
-<td><code>RayGPUExecutor</code> for stages with servers and single-stage pipelines with engines (one task per GPU), <code>RayExecutor</code> (datatrove's <code>RayPipelineExecutor</code>) otherwise, on CPUs (an item stage, a harvest; extra <code>[ray]</code>); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task</td>
+<td><code>RayGPUExecutor</code> for stages with servers and single-stage pipelines with engines (each task holds one GPU; without <code>--tasks</code>, 4 tasks per GPU of the cluster, and one per GPU where each task starts a VLM's server, which takes minutes), <code>RayExecutor</code> (datatrove's <code>RayPipelineExecutor</code>) otherwise, on CPUs (an item stage, a harvest; extra <code>[ray]</code>); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task</td>
 </tr>
 <tr>
 <td><code>hf-jobs</code></td>
