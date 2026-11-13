@@ -158,7 +158,7 @@ meaning; linecaster code writes no other key. Values vary from run to run.
 | `regions`, `failed` | regions sent to a VLM one by one, and those whose request failed |
 | `tables`, `formulas` | table regions given a structure, formula regions read |
 | `changed` | strings a normalization changed |
-| `body_size`, `leveled`, `demoted`, `split`, `drop_capitals`, `numbers` | typography: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified |
+| `body_size`, `leveled`, `demoted`, `split`, `drop_capitals`, `numbers_dropped` | typography: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed |
 | `paragraphs`, `continuations`, `marks_removed`, `marks_kept` | recomposition: paragraphs made, continued, division marks removed, hyphens kept |
 
 ## Annotations
@@ -200,23 +200,26 @@ an annotator of its own (a word, a glyph, a cell) is a **shape** (`Shape`).
 | Field | Holds | In |
 |---|---|---|
 | `box` | `[x, y, width, height]` in pixels of the page image, or `None` (no geometry: a text-only answer, a ground truth without boxes) | `Shape` |
-| `polygon` | `[x1, y1, x2, y2, ...]` as the annotator gave it, or `None` | `Shape` |
+| `polygon` | `[[x, y], ...]` as the annotator gave it, or `None` | `Shape` |
 | `id` | unique within the page and set (`r3`, `l17`); never contains `#`, `/` or `[` | `Zone` |
 | `parent` | the zone it lies in (a running head's title and page number inside the running head) | `Zone` |
 | `label` | the annotator's own label (PP-DocLayout's `aside_text`, LightOn's `page_number`), verbatim | `Region` |
 | `region` | the region the line belongs to: set once, by the step that assigned it | `Line` |
-| `baseline` | `[x1, y1, ...]` | `Line` |
+| `baseline` | `[[x, y], ...]` | `Line` |
 | `reading` | the line's `Reading`, `None` until a recognizer ran | `Line` |
 
 Lines are found across the whole page and assigned to regions later; zones are therefore flat lists with stable ids,
-and a line names its region. A line's `confidence` is its detection score; its reading's is the recognizer's.
+and a line names its region, set once by the step that assigned it. A later step that moves a line into another
+region (typography splitting a headline off) adds a `part_of` link; the line's region is the latest `part_of`
+target, else `Line.region` (`Transcription.region_of`). A line's `confidence` is its detection score; its
+reading's is the recognizer's.
 
 ### Readings, words and glyphs
 
 A **reading** (`Reading`) is what a recognizer read on one line: `text` (exactly as the engine produced it, `""` for
 a line read as empty), `alternatives`, `words`, `formatting`, and its own annotator, raw output and confidence.
 A `Word` (`Shape`) has `text`, `confidence`, `hyphen` (it ends in a division mark), `alternatives`, `formatting`
-and `glyphs`; a `Glyph` (`Shape`) `text` and `confidence`. Engines with character positions keep them as glyphs.
+and `glyphs`, and an `id` only where its source gave one other than `<line>_w<n>`; a `Glyph` (`Shape`) `text` and `confidence`. Engines with character positions keep them as glyphs.
 
 `Formatting` is docling-core's: `bold`, `italic`, `underline`, `strikethrough`, `script` (`baseline`, `sub`,
 `super`); on a word, it covers the word; on a reading, each `Formatting` has a `charspan` (`[start, end]` in the
@@ -277,14 +280,16 @@ last edit of the kinds the text variant asks for.
 ### Links
 
 A `Link` is a cross-reference: `kind`, `source`, `target`. Kinds: `caption_of`, `note_of` (a footnote and its mark,
-`source` the note, `target` the mark's span), `continues` (a footnote continued from an earlier page: the note it
-continues), `refers_to`. A paragraph continued onto the next page is not a link: it is one range ([ranges](#ranges)).
+`source` the note, `target` the mark's span), `continues` (`source` continues `target`: a paragraph or footnote
+from an earlier column or page), `runs_into` (`source` runs on into `target`), `refers_to`, `part_of` (a line in
+another region than the one it was assigned to).
 
 ### Reading orders
 
-A `ReadingOrder` orders the page: `regions` (region ids in reading order) and `rows` (region id → its rows, each a
-list of line ids, top to bottom). A layout model that learned an order, XY-Cut++ and a ground truth each add their
-own; the policy's `precedence` picks one. Lines outside every region are ordered under `""`.
+A `ReadingOrder` orders the page: `regions` (region ids in reading order), `lines` (line ids in reading order) and
+`rows` (parallel to `lines`: each line's visual row within its region). An order of regions alone leaves `lines`
+empty. A layout model that learned an order, the line assigner, typography, XY-Cut++ and a ground truth each add
+their own; the latest counts unless the policy's `precedence` says otherwise.
 
 **Processing order** is separate: the list order of `lines` (regions in the layout step's order, orphan rows last,
 rows within each region), in which a recognizer processes and batches lines.
@@ -293,11 +298,13 @@ rows within each region), in which a recognizer processes and batches lines.
 
 A **range** (`Range`) is a logical unit of content: a document, a chapter, a section, an article, a list, a
 paragraph. A page stores only the **piece** of a range that lies on it, under the range's `id`; pieces with the same
-id on other pages of the item are the same range, and the item record joins them in page order.
+id on other pages of the item are the same range, and the item record joins them in page order. Paragraphs are the
+exception: their ids are page-local, and a paragraph continued in the next column or on the next page is two
+paragraphs joined by links (`runs_into`, `continues`).
 
 | Field | Holds |
 |---|---|
-| `id` | unique within the item; never contains `#`, `/` or `[`. linecaster names its own after the page they start on: `s<sequence>.<zone>.p<n>` |
+| `id` | unique within the item (paragraphs: within the page, `<region id>_p<n>`); never contains `#`, `/` or `[` |
 | `kind` | docling-core's `GroupLabel` (`chapter`, `section`, `list`, `ordered_list`, `inline`, `picture_area`, `form_area`, `key_value_area`, `comment_section`, `sheet`, `slide`) plus `document`, `article`, `work`, `paragraph`, `poem`, `stanza` |
 | `parent` | the range it is part of |
 | `parts` | the zones, spans and ranges of this piece, in order |
@@ -308,8 +315,7 @@ document unless ranges say otherwise. A **paragraph** (`Paragraph`, `kind` `para
 carries running text: `text` (as written, flowed: the rows joined, the division marks the recomposition removed
 gone), `rows` (`ParagraphRow`: `lines`, the ids of every line on the visual row, empty ones too, and `charspan`, the
 row's part of `text`), and `decisions` (`Decision`: `kind`, `reason`, `row`, `separator`; the vocabulary
-`DECISIONS`). A paragraph continued onto the next page has a piece on each page, each with its rows, text and
-decisions; its `continuation` decision's `separator` joins the pieces.
+`DECISIONS`). A paragraph's `continuation` decision's `separator` joins its text to the paragraph it runs on into.
 
 | Decision `kind` | Reasons |
 |---|---|
@@ -372,7 +378,10 @@ The `role` scheme's vocabulary, the **content roles**, is PAGE-XML's region type
 | `noise` | `NoiseRegion` | none | none |
 | `other` | `other` | `text` | body |
 
-A content role says what the content is, not where it is rendered: the layers in the last column are the default policy's.
+A content role says what the content is, not where it is rendered: the layers in the last column are the default
+policy's. A page number's Docling label depends on where it is: `page_header` when its centre lies in the top 15 %
+of the page (or without a box), else `page_footer`. A label that is neither a role nor a Docling label (a model's own) is kept as
+its own role and written as it is.
 
 ## Rendering
 
@@ -421,19 +430,24 @@ never NFKC; spelling is never modernized.
 | recognition | readings (words, glyphs, formatting), raw outputs; `language`, `script` classifications |
 | tables, formulas | tables, formulas |
 | unicode | `nfc` edits |
-| typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops; a split-off headline as a region with `parent` |
+| typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops, a `joined` edit for a drop capital joined to its line, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
 | ordering | a reading order (XY-cut, XY-Cut++) |
-| recomposition | paragraphs, `joined` edits |
+| recomposition | paragraphs and their `runs_into` and `continues` links |
 | normalization | `normalized` edits |
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |
 
-The model blocks merge what an engine returns into the set and refuse a change to an existing annotation.
+Composition (the `Composer`) adds nothing: it renders the set as a Docling document, which travels with the
+datatrove document (`doc.metadata["docling"]`) to the writers and is not stored in the page record.
+
+**Nothing is overwritten**: an engine call appends one annotator and adds annotations; it changes none that was there
+(setting a line's `region` or `reading` from `None` aside). The conformance checks (`linecaster.testing.check_engine`,
+`check_block`) check it.
 
 ## Geometry
 
-Every `box` is `[x, y, width, height]` in pixels of the page image; polygons and baselines are flat lists exactly as
-the annotator gave them. Algorithms derive boxes from the polygon (`geometry.bbox_of`). `AnnotationSet.scaled(sx,
+Every `box` is `[x, y, width, height]` in pixels of the page image; polygons and baselines are lists of `[x, y]`
+points exactly as the annotator gave them. Algorithms derive boxes from the polygon (`geometry.bbox_of`). `AnnotationSet.scaled(sx,
 sy)` moves every coordinate to another image size and records the factors in `source.scale`.
 
 ## Item records (`linecaster.blocks.base.item`)
@@ -470,9 +484,11 @@ item-level blocks added.
 | `Table`, `Cell` | (body as HTML) | `TableRegion`, `TableCell` | | `TableData`, `TableCell` |
 | `RenderingPolicy` layers | (none) | (none) | | `ContentLayer` |
 
-The IIIF export writes one AnnotationPage per set and page, motivation `supplementing` for readings (IIIF's
-transcription), linecaster's other motivations as `motivation` values and extension fields under a linecaster
-context; it is validated against the IIIF Presentation 3 JSON Schema in the tests.
+The IIIF export (`linecaster.formats.iiif.to_annotation_page`) writes one AnnotationPage per set and page: regions
+(`classifying`, the content role as the body), readings and words (`supplementing`, IIIF's motivation for a
+transcription, with the text granularity extension's `textGranularity`), edits (`editing`) and descriptions
+(`describing`), each targeting the canvas with a media fragment (`#xywh=`), with its annotator as `generator`
+(`creator` for people). It is validated against the IIIF Presentation 3 JSON Schema in the tests.
 
 ## From `linecaster.page/2`
 
@@ -497,31 +513,31 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Region.extra["table"]` | a `Table` |
 | `Region.extra["formula"]` | a `Formula` |
 | `Region.extra["generated"]` | a `Description` |
-| `Region.extra` (other keys) | namespaced extension fields (`lighton__continuation`, ...) |
+| `Region.extra` (other keys) | extension fields `page2__<key>` |
 | `Transcription.lines` | `lines` |
 | `Line.id` | `Line.id` |
 | `Line.region_id` | `Line.region` |
-| `Line.reading_order`, `Line.row` | the `ReadingOrder`'s `rows` |
+| `Line.reading_order`, `Line.row` | the `ReadingOrder`'s `lines` and `rows` |
 | `Line.bbox`, `polygon`, `baseline` | `Line.box`, `polygon`, `baseline` (flattened) |
 | `Line.score` | `Line.confidence` |
 | `Line.text`, `confidence`, `alternatives`, `words` | `Line.reading`: `text`, `confidence`, `alternatives`, `words` |
 | `Line.normalized` | a `normalized` edit |
-| `Line.extra` | namespaced extension fields (`drop_capital` → a `role` classification on the joined region and a `joined` edit) |
-| `Word.id` | its index in the reading (`<line>/<n>`) |
+| `Line.extra` | extension fields `page2__<key>` |
+| `Word.id` | `None` where it was `<line>_w<n>` (its index in the reading); kept otherwise |
 | `Word.text`, `confidence`, `hyphen`, `alternatives` | the same |
 | `Word.bbox` | `Word.box` |
-| `Word.extra` | namespaced extension fields |
+| `Word.extra` | extension fields `page2__<key>` |
 | `Transcription.paragraphs` | `Paragraph` ranges |
-| `Paragraph.id`, `region_id` | `Paragraph.id` (`s<sequence>.<id>`), `parts` |
+| `Paragraph.id`, `region_id` | `Paragraph.id`, `parts` |
 | `Paragraph.rows` | `rows` |
 | `ParagraphRow.lines` | the same |
 | `ParagraphRow.start`, `end` | `ParagraphRow.charspan` |
 | `Paragraph.text`, `decisions` | the same |
 | `Paragraph.normalized` | a `normalized` edit |
-| `Paragraph.continues`, `continues_from` | one range id for both pieces |
-| `ParagraphRef.id`, `page_id` | (the range id) |
+| `Paragraph.continues`, `continues_from` | `runs_into` and `continues` links |
+| `ParagraphRef.id`, `page_id` | the links' target: `<id>` or `<page_id>#<id>` |
 | `Decision.kind`, `reason`, `row`, `separator` | the same |
-| `Paragraph.extra` | namespaced extension fields |
+| `Paragraph.extra` | extension fields `page2__<key>` |
 | `Transcription.docling` | not stored: rendered on demand |
 | `Transcription.language` | a `language` classification on the page |
 | `Transcription.steps` | `annotators` |
@@ -529,8 +545,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Transcription.source` | `source` |
 | `Source.kind`, `format`, `uri`, `image_sha256`, `image_width`, `image_height` | the same |
 | `Source.extra["scale"]` | `Source.scale` |
-| `Source.extra` (other keys) | namespaced extension fields |
+| `Source.extra` (other keys) | extension fields `page2__<key>` |
 | `Transcription.extra["raw"]`, `["passes"]`, `["kept"]`, `["finish_reason"]` | `outputs` |
-| `Transcription.extra["retyper_dropped"]` | `status` `removed` classifications by typography |
-| `Transcription.extra["grounding"]` | the grounding annotator's `measurements` and extension fields |
-| `Transcription.extra` (other keys) | namespaced extension fields |
+| `Transcription.extra["retyper_dropped"]` | the regions again, with one line holding their text, classified `status` `removed` by typography |
+| `Transcription.extra` (other keys) | extension fields `page2__<key>` |

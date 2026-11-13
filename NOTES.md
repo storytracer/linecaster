@@ -2,6 +2,27 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Page records in the annotation model: sizes (2026-11-13, aarch64 GB10)
+
+The upgrade `page_2_to_3` run over real page records of three evaluation runs on proofread pages (three record files of
+the squiddle recipe, one each of the grounding and transcription presets; read-only copies), sizes per page as
+JSON Lines, gzip of a file and Parquet (zstd, the page record as a JSON string column, as `PageParquetWriter`
+writes it):
+
+| Records | Pages | page/2 JSON | page/2 gzip | page/2 Parquet | page/3 JSON | page/3 gzip | page/3 Parquet |
+|---|---|---|---|---|---|---|---|
+| squiddle (layout, lines, words, typography, paragraphs, DoclingDocument) | 1,657 | 81.6 KB | 14.2 KB | 11.1 KB | 50.1 KB | 10.9 KB | 9.2 KB |
+| transcription mode (text-only lines, raw completion) | 2,210 | 8.8 KB | 0.8 KB | 0.8 KB | 7.2 KB | 0.8 KB | 0.7 KB |
+
+- The squiddle records lose 39 % as JSON and 17 % as Parquet. The stored DoclingDocument was 9.5 KB of JSON per
+  page (page/2 without it: 72.1 KB); the rest comes from leaving defaults out and from the words' ids
+  (`<line>_w<n>`, derived again).
+- The upgrade takes 2.2 ms per squiddle page in Python and keeps every page text (the transcription's
+  `text`) except where page/2's stored row `text` was stale: on 3 of 500 pages it was computed before typography
+  dropped an uncertain page number, which page/3 classifies `removed` and leaves out, as page/2's transcription did.
+- The grounding records came from 0.7.3, whose parser fault left most of them without lines; they are no size
+  measure of the grounding mode.
+
 ## LightOnOCR-3's grounding mode (2026-11-13)
 
 Presets `lightonocr-3-0.8b-grounding@1` and `lightonocr-3-4b-grounding@1` (the maintainer's decisions: separate
