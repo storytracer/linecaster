@@ -101,7 +101,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **grounding** | A VLM's mode that labels and locates every block of the page as it transcribes it (LightOnOCR-3's `grounding` prompt: a placeholder with label and box before each block). linecaster makes one region per block, with page furniture as `page_header`/`page_footer`; what the model writes about a figure is kept apart from the text. | not a layout step: one completion holds the layout and the text |
 | **repetition detection** | vLLM's guard against a completion that loops (`repetition_detection` of a request, vLLM 0.17.0 and later): the server ends a completion whose last tokens repeat a pattern of `min_pattern_size` to `max_pattern_size` tokens `min_count` times in a row, with `finish_reason` `repetition`. Such a page is not sent to a [repair pass](glossary.md). On by default for presets served by vLLM 0.17.0 or later; linecaster's defaults: 8 to 100 tokens, 16 times (a run of one token is stopped after 128). | not a repetition penalty or an n-gram logits processor, which change sampling on every page |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
-| **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/1`), kept by an evaluation in its own repository. | not a catalog entry |
+| **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/2`) that names the run, the benchmark, the policy and the scoring it measured with; kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
 | **revision** | The exact upstream commit a model is pinned to. | |
 | **edition** | linecaster's release number of a preset or recipe: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its YAML. | not a version |
@@ -113,25 +113,44 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 
 | Term | Meaning | Not |
 |---|---|---|
-| **item** | Any multi-page unit as it is catalogued and scanned: a book, an issue, a manuscript, a file. Key `item_id`. The physical carrier, not its content: one item can hold several works (a bound volume, the articles of an issue) and one work can span items. | not "book" in generic code, flags or docs; never "document": in datatrove and in the data-processing pipelines that filter and deduplicate text datasets a document is one record of the stream (in linecaster a page, or an item after the `Binder`) |
-| **page** | One page of an item, with its image and its named transcriptions. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
-| **page record** | A page with its image reference, its transcriptions and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
+| **item** | A named, ordered container of one or more pages: the input names it and gives its id (`item_id`) and the pages' order (`sequence`). linecaster assumes nothing about what an item is or how its pages came about (a scanned book, an issue, a PDF, a folder of images). | not "book" in generic code, flags or docs; never "document": in datatrove and in the data-processing pipelines that filter and deduplicate text datasets a document is one record of the stream (in linecaster a page, or an item after the `Binder`); not "object" or "container" |
+| **page** | One page of an item, with its image and its named annotation sets. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
+| **page record** | A page with its image reference, its annotation sets and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
 | **item record** | An item with its pages in order, as the `Binder` passes it on (`doc.metadata["item"]`, `linecaster.blocks.base.item`); the item-unit `Recomposer`, `CharacterNormalizer` and `Composer` read it, the item writers write from it, the `Splitter` turns it back into pages. | |
 | **manifest** | An item's list of its pages and their files, in order: an IIIF Presentation manifest or a METS document (also inside OAI-PMH). | not a BagIt checksum manifest |
 | **page image** | The image a page's coordinates refer to (`PageImage`): its URI, format, size, hash. | |
 | **working image** | The `working-image` preset of the `ImageConverter`: lossless WebP at full resolution, 8-bit sRGB. | not a role |
-| **transcription** | Everything read from a page by one source (`Transcription`): regions, lines, words, paragraphs, the document, the steps that made it, and its source. Named per page: `ocr_new` (linecaster's), `ocr_original` (the library's own), `ground_truth`. | not "OCR" (it also holds HTR and ground truth) |
-| **region** | An area of a page with a label (`text`, `title`, `table`, ...) from layout. | |
+| **annotation** | One thing an annotator said about a page: a zone, a reading, a table, a formula, a classification, a description, an edit, a link, a reading order or a range, with its annotator, the raw output it was parsed from and what it was derived from. Never changed after it is added. | not a Python type annotation; not "observation" |
+| **annotation set** | Everything one source said about one page (`AnnotationSet`): its source, annotators, raw outputs and annotations. Named per page. | not IIIF's AnnotationPage (a page of a list) |
+| **transcription** | An annotation set that also holds text (`Transcription`): readings, tables, formulas, paragraphs, edits. Named per page: `ocr_new` (linecaster's), `ocr_original` (the library's own), `ground_truth`. | not "OCR" (it also holds HTR and ground truth) |
+| **annotator** | One thing that worked on an annotation set (`Annotator`): a model step, a rule-based step, a delivered file, or people; with its engine, preset and recipe editions, run, settings and measurements. | not a Python generator |
+| **raw output** | One request's answer, verbatim (`RawOutput`): a completion as the model wrote it, or an engine's native result, with its finish reason and tokens. | not a parsed annotation |
+| **motivation** | Why an annotation was made, one per class: `segmenting`, `transcribing`, `classifying`, `describing`, `editing`, `linking`, `ordering`, `structuring` (the W3C Web Annotation term; `transcribing` is exported to IIIF as `supplementing`). | |
+| **zone** | A place on the page image an annotator found (`Zone`): a region or a line, with an id, a box and a polygon. | not a TEI `zone` element, though named after it |
+| **shape** | Geometry without an annotator of its own (`Shape`): a word, a glyph, a cell. | |
+| **region** | A zone from a layout step, with the annotator's own label; what it is comes from classifications. | not a "block" |
+| **reading** | What a recognizer read on one line (`Reading`): its text, alternatives, words and glyphs. | not a reading order; not the `reading@1` lane |
+| **glyph** | One character of a word with its box and confidence, from engines with character positions. | |
+| **classification** | A value of one scheme given to a target (`Classification`): content role, production, heading level, language, script, status, picture class, code language. | not a role of a block |
+| **content role** | What a region, line or range is (`role` scheme): paragraph, heading, marginalia, footnote, header, page number, ... (PAGE-XML's region types, with docling-core's labels where PAGE has no word). | not a block's role |
+| **production** | How content was made (`production` scheme): printed, typewritten, handwritten, stamped, born digital. | |
+| **edit** | Another form of a target's text (`Edit`): `nfc`, `normalized`, `corrected`, `joined`, `expanded`, `regularized`. The target's own text stays. | not an edit operation of a score |
+| **link** | A cross-reference between two annotations (`Link`): caption of, note of, continues, refers to. | not a URL |
+| **range** | A logical unit of content (`Range`): a document, chapter, section, article, list or paragraph, stored as its pieces on each page under one id. | not a Python `range` |
+| **document range** | A document within or across items (`DocumentRange`): an item holds one unless ranges say otherwise. | not a datatrove `Document`, not a Docling document |
+| **reference** | A string naming an annotation in the same set (`Ref`): `<id>`, `<line>/<n>` (a word), `<ref>[<start>:<end>]` (characters), `""` (the page), `<page_id>#<ref>` (another page). | |
+| **rendering policy** | A catalog entry (`policy`, with editions) that decides which annotations go into which layer of a rendering, and whose annotations count where several annotators gave one. | |
+| **layer** | Where a rendering puts content: docling-core's content layers (`body`, `furniture`, `background`, `invisible`, `notes`), `metadata`, or `none`. | |
+| **rendering** | A Docling document, DocLang, ALTO, PAGE-XML, hOCR, an IIIF annotation page or a text made from an annotation set under a policy; written out, never stored in the page record. | |
 | **reading order** | The rank in which a page's regions are read (`Region.reading_order`), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster. | not the order of `Transcription.lines`, which is the processing order |
 | **XY-cut**, **XY-Cut++** | The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (`linecaster.data.geometry`, the layout option `reading_order`). | |
 | **cross-layout region** | A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting. | not a region label |
-| **line** | One printed or written line: its geometry and, once recognized, its text and words. | |
+| **line** | One printed or written line (`Line`): a zone, and once recognized its reading. | |
 | **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
-| **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
-| **paragraph** | Running text recomposed from a region's rows, with the decisions that made it. Added by the `Recomposer`. | |
-| **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry, not the item |
-| **step info** | One entry per step that worked on a transcription (`StepInfo`): step, engine, preset edition, backend, settings, measurements. | |
-| **measurements** | Numbers a step records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
+| **word** | A word of a reading: its text, box, confidence and glyphs. | |
+| **paragraph** | The bottom range: running text recomposed from rows of lines, with the decisions that made it (`Paragraph`). Added by the `Recomposer`. | |
+| **Docling document** | A DoclingDocument: a rendering of a page or an item as docling-core's structure, made by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a document range |
+| **measurements** | Numbers an annotator records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
 | **text variant** | A named point on the three text dimensions, written per item: `verbatim_txt`, `readable_txt`, `readable_md`. | not a "version" |
 | **character fidelity**, **flow**, **scope** | The three text dimensions: as written → normalized (fidelity); as laid out → flowed (flow); full page → body only (scope). Each transform moves one step on one dimension. | not "axes" |
 | **composition** | Building a document from regions and paragraphs (the `Composer`). | not "assembly" |
@@ -140,6 +159,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **splitting** | Passing an item record's pages on as pages again, with what the item-level steps added (the `Splitter`). | |
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. | not a hyphen that belongs to the word |
 | **decision** | One choice a recomposition made at a row end, with its reason from a fixed vocabulary: a division mark removed, a hyphen kept, a paragraph break, a continuation. Recorded on the paragraph. | |
+
+## Evaluation
+
+| Term | Meaning | Not |
+|---|---|---|
+| **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
+| **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
+| **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`), a catalog entry. | not a text variant |
+| **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
+| **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |
 
 ## Tests
 
