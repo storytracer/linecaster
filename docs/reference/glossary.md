@@ -129,7 +129,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
 | **paragraph** | Running text recomposed from a region's rows, with the decisions that made it. Added by the `Recomposer`. | |
-| **document** | A DoclingDocument: the composed structure of a page or an item, a rendering of its transcription. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry, not the item |
+| **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry, not the item |
 | **step info** | One entry per step that worked on a transcription (`StepInfo`): step, engine, preset edition, backend, settings, measurements. | |
 | **measurements** | Numbers a step records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
 | **text variant** | A named point on the three text dimensions, written per item: `verbatim_txt`, `readable_txt`, `readable_md`. | not a "version" |
