@@ -1,0 +1,1402 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.8/reference/evaluation/">
+      
+      
+        <link rel="prev" href="../data-model/">
+      
+      
+        <link rel="next" href="../serialization/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Evaluation - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#evaluation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Evaluation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ground-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ground truth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering-both-sides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering both sides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lanes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lanes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#score-records-linecasterscore1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Score records (linecaster.score/1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmarks-linecasterbenchmark1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarks (linecaster.benchmark/1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-linecasterevidence2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence (linecaster.evidence/2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run records
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ground-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ground truth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering-both-sides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering both sides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lanes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lanes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#score-records-linecasterscore1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Score records (linecaster.score/1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmarks-linecasterbenchmark1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarks (linecaster.benchmark/1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-linecasterevidence2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence (linecaster.evidence/2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run records
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h1>
+<p>linecaster scores transcriptions against ground truths and writes the result as evidence. It ships the scorer, the
+normalization lanes, the score pipeline and the formats (<code>linecaster.benchmark/1</code>, <code>linecaster.score/1</code>,
+<code>linecaster.evidence/2</code>); it ships no benchmark and no evidence: those live with the evaluation that made them
+(<a href="../catalog/#measurements-live-elsewhere">catalog</a>). Any two evidence records with the same benchmark, policy, lanes
+and scorer edition are comparable, whatever model, pipeline or machine produced the runs they measure.</p>
+<div class="highlight"><pre><span></span><code>ground truth ──import──► transcription (source.kind ground_truth) ─┐
+                                                                   ├─ render (one policy) ─ normalize (lanes) ─ count ─► score records ─ aggregate ─► evidence
+run's page records ─────► transcription (ocr_new) ─────────────────┘
+</code></pre></div>
+<p>Scoring is <code>linecaster.scoring</code> (import-light, like <code>linecaster.data</code>); its alignment needs the extra
+<code>linecaster[rapidfuzz]</code>.</p>
+<h2 id="ground-truth">Ground truth<a class="headerlink" href="#ground-truth" title="Permanent link">&para;</a></h2>
+<p>A ground truth is a transcription like any other, stored in the page record under its name (<code>ground_truth</code>, or
+the dataset's), with <code>source.kind = "ground_truth"</code>, <code>source.dataset</code> (<code>repo@revision</code>), <code>source.record</code> (the row
+or file it came from) and <code>source.sha256</code>. Its annotator is of kind <code>human</code> (people transcribed or checked it; their
+review in <code>settings.review</code>: <code>transcribed</code>, <code>proofread</code>, <code>validated</code>, or the source's own word) or <code>file</code> (a
+delivered file whose making is unknown). It holds what its source has and no more: roles, boxes, reading order,
+notes, continuations, corrections, illegible spans, each as the <a href="../data-model/">data model</a> defines them.</p>
+<p>Importers in linecaster are generic: ALTO, PAGE-XML and hOCR (<code>linecaster.formats</code>, <code>ground_truth=True</code>), Docling
+JSON (<code>from_docling</code>), and text or Markdown with optional header and footer fields. A source with conventions of its
+own (a wiki's templates, a project's markup) is imported by the evaluation's own code, which builds the annotations
+through <code>linecaster.data</code>.</p>
+<p><strong>What a ground truth supports</strong> is recorded in its benchmark (below): which roles it marks, whether it has boxes,
+a reading order of blocks, notes, continuations across pages. A metric that needs what it lacks is not computed.</p>
+<h2 id="rendering-both-sides">Rendering both sides<a class="headerlink" href="#rendering-both-sides" title="Permanent link">&para;</a></h2>
+<p>Ground truth and output are rendered under the same <a href="../data-model/#rendering">rendering policy</a>, named in the
+benchmark. Two texts per page are scored:</p>
+<table>
+<thead>
+<tr>
+<th>Text</th>
+<th>Layers</th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>full</code></td>
+<td>body, furniture</td>
+<td>everything printed on the page, in reading order</td>
+</tr>
+<tr>
+<td><code>body</code></td>
+<td>body</td>
+<td>the page without its furniture (running heads, page numbers, catchwords, signature marks)</td>
+</tr>
+</tbody>
+</table>
+<p>Each is rendered as laid out (lines, <code>verbatim_txt</code>'s rules) with the policy's edits for <code>verbatim_txt</code>: what a
+model writes about a figure (descriptions) is in neither. A ground truth's <code>corrected</code> edits are not applied: the
+output is compared with what is printed. Its <code>illegible</code> spans become U+FFFD, one per character.</p>
+<h2 id="lanes">Lanes<a class="headerlink" href="#lanes" title="Permanent link">&para;</a></h2>
+<p>A <strong>lane</strong> is a versioned normalization of a rendered text before it is counted, a catalog entry <code>lane</code> with
+editions (its functional content: the steps, in order). Both sides go through the same lane.</p>
+<table>
+<thead>
+<tr>
+<th>Lane</th>
+<th>Steps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>diplomatic@1</code></td>
+<td>NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures and diacritics kept</td>
+</tr>
+<tr>
+<td><code>reading@1</code></td>
+<td>markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters <code>` * \| ~ { } $ \</code>); NFKC; invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute accent to <code>'</code>, curly double quotes to <code>"</code>, the dashes U+2010 to U+2015 to <code>-</code>; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed</td>
+</tr>
+<tr>
+<td><code>alnum@1</code></td>
+<td>NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed</td>
+</tr>
+<tr>
+<td><code>ascii-alnum@1</code></td>
+<td>HTML tags removed; lowercased; only the ASCII letters and digits kept, their runs joined by single spaces (accented letters, ſ and ligatures separate words)</td>
+</tr>
+</tbody>
+</table>
+<p>NFKC appears only in a lane, never in a text variant: a lane makes two texts comparable, it is not a reading text.</p>
+<p><strong>U+FFFD in the ground truth</strong> marks one illegible character: it matches any one character of the output and is
+excluded from both the errors and the reference length.</p>
+<h2 id="metrics">Metrics<a class="headerlink" href="#metrics" title="Permanent link">&para;</a></h2>
+<p>Per page, per text (<code>full</code>, <code>body</code>) and per lane:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s</code>, <code>d</code>, <code>i</code>, <code>h</code></td>
+<td>substitutions, deletions, insertions and hits of the codepoint alignment of output against ground truth (Levenshtein, U+FFFD as above); <code>n = s + d + h</code></td>
+</tr>
+<tr>
+<td><code>cer</code></td>
+<td><code>(s + d + i) / n</code></td>
+</tr>
+<tr>
+<td><code>token_recall</code></td>
+<td>the share of the ground truth's words (whitespace tokens of the <code>reading@1</code> text, punctuation dropped) the output has, as multisets</td>
+</tr>
+<tr>
+<td><code>over_extraction</code></td>
+<td>the share of the output's words the ground truth does not have</td>
+</tr>
+</tbody>
+</table>
+<p>Per page and role, where the ground truth marks the role (no boxes needed):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>role_words_true</code>, <code>role_words_output</code>, <code>role_words_both</code></td>
+<td>the words (as for <code>token_recall</code>) the ground truth puts in the role, those the output puts there, and their multiset intersection; precision and recall per role follow</td>
+</tr>
+</tbody>
+</table>
+<p>Per page, where both sides have boxes: regions matched one to one by IoU (greedy, highest first, IoU ≥ 0.5), and a
+confusion table of their roles (<code>role_true</code>, <code>role_output</code>, <code>count</code>), with the unmatched on either side as <code>none</code>.</p>
+<p>Per page, always: the output's <code>finish_reason</code>s, whether it was repaired, its errors, <code>seconds</code> and tokens (from its
+annotators' measurements), so that truncation and cost are read next to the scores.</p>
+<h2 id="score-records-linecasterscore1">Score records (<code>linecaster.score/1</code>)<a class="headerlink" href="#score-records-linecasterscore1" title="Permanent link">&para;</a></h2>
+<p>One row per page, text and lane, in <code>OUT/scores/*.parquet</code>: <code>page_id</code>, <code>item_id</code>, <code>text</code>, <code>lane</code>, <code>s</code>, <code>d</code>, <code>i</code>,
+<code>h</code>, <code>n</code>, <code>token_recall</code> counts, <code>over_extraction</code> counts, the role word counts as a map, the confusion rows as a
+list, the page's flags (<code>finish_reason</code>, <code>repaired</code>, <code>error</code>) and measurements, and the ids that tie the row to its
+sources: <code>run_id</code>, <code>benchmark_sha256</code>, <code>policy</code>, <code>lane</code>, <code>scorer</code>. Rates are not stored: they are derived from the
+counts, so corpus rates are exact.</p>
+<h2 id="aggregation">Aggregation<a class="headerlink" href="#aggregation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Corpus rates</strong> pool the counts over the pages and divide once (micro average): <code>cer = Σ(s + d + i) / Σn</code>.</li>
+<li><strong>Intervals</strong>: a percentile bootstrap over items (pages of one item are drawn together), with the seed, the number
+  of resamples and the level the benchmark gives; the evidence names all three.</li>
+<li><strong>Strata</strong>: any page or item field the benchmark names (a collection, a century, a script) gives rates per
+  stratum.</li>
+<li><strong>Eligibility</strong>: a run is scored only on exactly the benchmark's page set; a page the run failed counts as an empty
+  output, and the evidence says how many there were. A run that lacks pages of the set is not eligible.</li>
+</ul>
+<h2 id="benchmarks-linecasterbenchmark1">Benchmarks (<code>linecaster.benchmark/1</code>)<a class="headerlink" href="#benchmarks-linecasterbenchmark1" title="Permanent link">&para;</a></h2>
+<p>A benchmark definition is a YAML file in the evaluation's repository:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema</code></td>
+<td><code>linecaster.benchmark/1</code></td>
+</tr>
+<tr>
+<td><code>id</code>, <code>edition</code></td>
+<td>its name and edition; a released edition never changes, its hash covers its functional content</td>
+</tr>
+<tr>
+<td><code>dataset</code></td>
+<td>the ground truth: <code>repo@revision</code>, the transcription's name, the importer</td>
+</tr>
+<tr>
+<td><code>pages</code></td>
+<td>the page set: a sample rule (<code>linecaster.data.sample</code>: seed, items, pages per item, pages) or a list of page ids, and its <code>sha256</code> (of the sorted page ids, one per line)</td>
+</tr>
+<tr>
+<td><code>supports</code></td>
+<td>what the ground truth has: <code>roles</code> (a list), <code>boxes</code>, <code>reading_order</code>, <code>notes</code>, <code>continuations</code></td>
+</tr>
+<tr>
+<td><code>policy</code></td>
+<td>the rendering policy edition both sides are rendered with</td>
+</tr>
+<tr>
+<td><code>texts</code>, <code>lanes</code></td>
+<td>which texts and lanes are scored</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>which metrics, of those the ground truth supports</td>
+</tr>
+<tr>
+<td><code>bootstrap</code></td>
+<td><code>seed</code>, <code>resamples</code>, <code>level</code></td>
+</tr>
+<tr>
+<td><code>strata</code></td>
+<td>fields to report rates by</td>
+</tr>
+</tbody>
+</table>
+<h2 id="evidence-linecasterevidence2">Evidence (<code>linecaster.evidence/2</code>)<a class="headerlink" href="#evidence-linecasterevidence2" title="Permanent link">&para;</a></h2>
+<p>One measurement per file, kept by the evaluation:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema</code></td>
+<td><code>linecaster.evidence/2</code></td>
+</tr>
+<tr>
+<td><code>preset</code> or <code>recipe</code></td>
+<td>the edition measured, <code>id@edition</code></td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>own-run</code>, <code>card-claim</code>, <code>vendor-benchmark</code></td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td><code>uri</code> (the run folder), <code>run_id</code>, <code>pipeline_sha256</code>, <code>record_sha256</code> (of <code>run.yaml</code>)</td>
+</tr>
+<tr>
+<td><code>benchmark</code></td>
+<td><code>id@edition</code> and its <code>sha256</code></td>
+</tr>
+<tr>
+<td><code>scoring</code></td>
+<td><code>policy</code>, <code>lanes</code>, <code>scorer</code> (linecaster's scorer edition), <code>linecaster</code> (version and commit)</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>name → <code>{value, lo, hi, n}</code>: <code>cer_full_diplomatic</code>, <code>cer_body_alnum</code>, <code>recall_header</code>, ... (<code>&lt;metric&gt;_&lt;text&gt;_&lt;lane&gt;</code>, <code>&lt;metric&gt;_&lt;role&gt;</code>)</td>
+</tr>
+<tr>
+<td><code>hardware</code></td>
+<td><code>gpu</code> (model and count), <code>driver</code>, <code>cuda</code>, <code>cpu</code>, from the run record</td>
+</tr>
+<tr>
+<td><code>software</code></td>
+<td>the server's version (vLLM, ...), the engine packages' versions</td>
+</tr>
+<tr>
+<td><code>date</code>, <code>notes</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><code>linecaster.evidence/1</code> records stay readable; <code>linecaster evidence check</code> validates a file of either edition, and
+<code>linecaster evidence compare</code> puts evidence records side by side, only those with the same benchmark edition, policy,
+lanes and scorer.</p>
+<h2 id="run-records">Run records<a class="headerlink" href="#run-records" title="Permanent link">&para;</a></h2>
+<p>A run record (<code>OUT/run.yaml</code>) carries what evidence names: <code>run_id</code> (stamped on every annotator the run adds),
+<code>pipeline_sha256</code>, the recipe and preset editions with their hashes, the policy edition, <code>hardware</code> (GPU model and
+count, driver, CUDA, CPU) and the software versions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

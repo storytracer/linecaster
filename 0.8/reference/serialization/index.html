@@ -1,0 +1,1508 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.8/reference/serialization/">
+      
+      
+        <link rel="prev" href="../evaluation/">
+      
+      
+        <link rel="next" href="../catalog/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Serialization - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#serialization-and-working-images" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Serialization
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#common-rules-for-alto-page-and-hocr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common rules for ALTO, PAGE and hOCR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alto-writes-44-reads-v1-to-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ALTO (writes 4.4, reads v1 to v4)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#page-writes-2019-07-15-reads-20092019" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PAGE (writes 2019-07-15, reads 2009–2019)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hocr-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hOCR 1.2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iiif-annotation-page-linecasterformatsiiif" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IIIF annotation page (linecaster.formats.iiif)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docling-linecasterformatsdocling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docling (linecaster.formats.docling)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-images-linecasterimagesconvert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working images (linecaster.images.convert)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image conversion (linecaster.images.transcode, linecaster.images.accel)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#common-rules-for-alto-page-and-hocr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common rules for ALTO, PAGE and hOCR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alto-writes-44-reads-v1-to-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ALTO (writes 4.4, reads v1 to v4)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#page-writes-2019-07-15-reads-20092019" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PAGE (writes 2019-07-15, reads 2009–2019)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hocr-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hOCR 1.2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iiif-annotation-page-linecasterformatsiiif" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IIIF annotation page (linecaster.formats.iiif)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docling-linecasterformatsdocling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docling (linecaster.formats.docling)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-images-linecasterimagesconvert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working images (linecaster.images.convert)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image conversion (linecaster.images.transcode, linecaster.images.accel)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="serialization-and-working-images">Serialization and working images<a class="headerlink" href="#serialization-and-working-images" title="Permanent link">&para;</a></h1>
+<p><code>linecaster.formats.{alto,pagexml,hocr}</code> write and read the three XML formats on lxml,
+<code>linecaster.formats.iiif</code> writes an annotation set as an IIIF annotation page and <code>linecaster.formats.docling</code> reads
+a DoclingDocument; <code>linecaster.images.convert</code> turns any page image into the working image. None of them imports
+datatrove, saturate or an engine. Each writer renders an annotation set under a <a href="../data-model/#rendering">rendering
+policy</a>; what it writes is a rendering, not stored in the page record.</p>
+<h2 id="common-rules-for-alto-page-and-hocr">Common rules for ALTO, PAGE and hOCR<a class="headerlink" href="#common-rules-for-alto-page-and-hocr" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Native first, extension for the rest.</strong> Every value goes into the format's own vocabulary
+   where it has a place. What it cannot hold, or what a reader would infer differently, goes into a
+   small JSON <em>extension</em> on the element: ALTO <code>OtherTag[@TYPE="linecaster"]/@DESCRIPTION</code>
+   referenced by <code>TAGREFS</code>; PAGE <code>UserDefined/UserAttribute[@name="linecaster"]/@value</code>; hOCR
+   <code>@data-linecaster</code>. Writers compute what their own reader would infer and only write the
+   extension when it differs, so ordinary pages carry few (ALTO: line confidences and scores;
+   PAGE: usually only <code>{"polygon": null}</code> for box-only lines). <code>extensions=False</code> writes pure
+   files; they then round-trip only what the format holds natively. Foreign files have no
+   extensions and readers fall back to the inferred values.</li>
+<li><strong>What is written</strong> (<code>linecaster.formats._xml.file_layout</code>): of the transcription <code>t</code>, under the policy
+   <code>policy</code> (<code>to_alto</code>, <code>to_page</code>, <code>to_hocr</code>; default <code>page-layers@1</code>, <code>linecaster.data.DEFAULT_POLICY</code>):</li>
+<li><strong>regions</strong>: id, polygon and box, detection confidence (the region's <em>score</em>), the annotator's own label
+     (<code>Region.label</code>, the <strong>raw label</strong>) and the region's <strong>Docling label</strong>, from its content role (<code>t.label</code>;
+     <code>handwritten_text</code> for running text classified as handwritten), and its heading level (its <code>heading_level</code>
+     classification, unless a later annotator classified its role anew);</li>
+<li><strong>lines</strong>: id, region (<code>t.region_of</code>: the latest <code>part_of</code> link, else <code>Line.region</code>), box, polygon, baseline,
+     detection confidence (the line's <em>score</em>) and its reading: the text as written (<code>t.text_of</code>: the reading's
+     text with the line's <code>nfc</code> and <code>joined</code> edits applied), confidence, alternatives, and the words with their ids,
+     text, box, confidence, alternatives and <code>hyphen</code> flag; a line not read has no reading;</li>
+<li><strong>the reading order</strong> that counts (<code>t.order</code>): each region's rank in it, each line's rank on the page and row
+     in its region;</li>
+<li>the page's <code>language</code> classification (hOCR only).</li>
+</ol>
+<p>Regions the policy puts in layer <code>none</code> (a <code>status</code> of removed, suppressed or duplicate under <code>page-layers@1</code>;
+   the roles separator and noise) are left out with their lines, and so are lines whose own <code>status</code> the policy puts
+   there (a line assignment's duplicates); ranks are counted among what is written. <strong>Not serialized</strong>: the other
+   classifications (production apart from handwritten running text, status, script, picture class, code language;
+   language in ALTO and PAGE), edits other than the as-written text (<code>normalized</code>, <code>corrected</code>, <code>expanded</code>, ...),
+   descriptions, links, ranges and paragraphs, tables and formulas, raw outputs, glyphs and formatting, annotations'
+   <code>annotator</code>, <code>output</code>, <code>derived_from</code> and extension fields, annotators of kind <code>file</code> and <code>human</code>, annotators'
+   <code>measurements</code> other than <code>datetime</code>, and the source.
+3. <strong>Reading</strong> (<code>linecaster.formats._xml.transcription</code>): a reader makes one transcription of the file: its
+   regions (the raw label as <code>Region.label</code>, a <code>role</code> classification of the Docling label they read as,
+   <code>linecaster.data.policy.classify_label</code>, and a <code>heading_level</code> one), its lines with their readings, and one
+   reading order (the regions with a rank, the lines by rank, with their rows); hOCR's <code>lang</code> becomes the page's
+   <code>language</code> classification. A content role comes back as the role of its Docling label: roles that share one
+   (marginalia, credit, floating and drop capitals read as paragraphs; endnotes and continued footnotes as footnotes;
+   a page number as a header or footer) come back as that label's role. The <strong>annotators</strong> are the steps the file
+   names (provenance, below); without any, the file is the one annotator (kind <code>file</code>, step <code>transcription</code>, named
+   after its format). What each annotator made: regions by
+   the latest layout step (else recognition, else lines), roles and heading levels by the latest typography step
+   (else layout, else recognition), lines by the line step (else recognition, else layout), readings by recognition
+   (else lines), the reading order by the latest of typography, assignment, ordering, lines, layout and recognition,
+   and by the first annotator where none of these ran. The <strong>source</strong> is <code>kind="converted"</code>, <code>format</code>, <code>uri</code> and
+   the image size, with ALTO's scale factors (<code>scale</code>) and the extension fields <code>alto__namespace</code> (the file's
+   namespace), <code>alto__measurement_unit</code> (when not <code>pixel</code>) and <code>page__namespace</code>. <strong><code>ground_truth=True</code></strong> (every
+   reader) makes the source a ground truth (<code>kind="ground_truth"</code>) and the file's own annotator people (kind
+   <code>human</code>); steps the file names stay what they are. Readers return regions and lines in document order, which
+   may differ from the original list order; tests compare by id.</p>
+<p><strong>Provenance</strong> round-trips: every annotator of kind <code>model</code> or <code>rule</code>, as a step record (step, name, engine,
+   revision, preset, preset hash, recipe, recipe hash, backend, settings; <code>datetime</code> as ALTO <code>processingDateTime</code>
+   and PAGE <code>MetadataItem/@date</code>), is written as ALTO <code>Processing</code>, PAGE <code>MetadataItem type="processingStep"</code> with
+   <code>Labels</code>, and hOCR <code>linecaster-step-&lt;n&gt;</code> metas next to <code>ocr-system</code> and <code>ocr-capabilities</code> (computed from what
+   the file contains); readers turn each back into an annotator, of kind <code>rule</code> for the rule-based steps
+   (<code>RULE_STEPS</code>), else <code>model</code>. Annotators of kind <code>file</code> and <code>human</code> are the set's source, not steps, and are not
+   written. Other tools' provenance is read too (ALTO <code>Processing</code> and <code>OCRProcessing</code>: the description as the step,
+   the software's name and version as model and revision, other settings as <code>raw</code>; OCR-D PAGE steps: <code>name</code> as the
+   step, <code>value</code> as the model, their parameters as settings; hOCR <code>ocr-system</code>: one recognition step). METS agents
+   per step: <code>linecaster.runtime.provenance.mets_agents</code>.
+4. <strong>Writing order.</strong> Regions are written by their rank in the reading order (regions it leaves out after the
+   others, in list order), each region's lines by rank. A line without a region goes before
+   the first region whose first line comes after it; consecutive ones share one block. Readers
+   rank the lines by their position in document order and give each the row of its position in its block, and rank
+   the regions by the format's reading order; the writers record the original rank or row in the extension
+   whenever that differs (gaps, a running head read last, a region outside the order), so irregular orders survive
+   too.
+5. <strong>Lines without a region.</strong> ALTO and PAGE need a block around every line: they get a synthetic
+   <code>TextBlock</code>/<code>TextRegion</code> (<code>id</code> <code>lc_block_&lt;n&gt;</code>, extension <code>{"synthetic": true}</code>) that the reader
+   drops again (with <code>extensions=False</code> it comes back as a <code>text</code> region). In hOCR such lines sit
+   directly in the <code>ocr_page</code>. The synthetic blocks are part of the format's reading order, so
+   consumers that follow it do not lose those lines.
+6. <strong>Rounding.</strong> ALTO coordinates are floats in the schema: <code>to_alto</code> writes them exactly (shortest
+   repr) by default, <code>precision=0</code> writes integers. PAGE and hOCR hold integers only: points are
+   rounded half up (<code>floor(v + 0.5)</code>, deterministic); boxes are rounded by their corners
+   (<code>x0 = r(x)</code>, <code>x1 = r(x + w)</code>, <code>w = x1 - x0</code>) so edges agree with the rounded polygons; PAGE
+   clamps negative values at 0 (its schema forbids them). Rounding happens once: a second round
+   trip is the identity (tested).
+7. <strong>Confidences.</strong> ALTO <code>WC</code> and PAGE <code>TextEquiv/@conf</code> / <code>Coords/@conf</code> are floats in 0..1 and
+   written exactly. hOCR <code>x_wconf</code> is an integer percentage: confidences come back to 0.01. ALTO
+   has no line confidence: a reader derives it as the length-weighted mean of the words' <code>WC</code>
+   (as for foreign files); the writer stores the real line confidence in the extension when it
+   differs from that mean.
+8. <strong>Line text vs. words.</strong> Words are joined with one space; when a line's text as written is not that join
+   (double spaces, <code>None</code> with words), the text goes into the extension. A line without words is
+   written as a single ALTO <code>String</code> carrying the line text and confidence (extension
+   <code>{"wordless": true}</code>), as a PAGE <code>TextLine</code> with only a line <code>TextEquiv</code>, as an hOCR line with
+   the text directly in the span. <code>text=None</code> (not recognized) and <code>text=""</code> (recognized as empty)
+   stay distinct in all three.
+9. <strong>Output is deterministic</strong>: same input, same bytes (PAGE <code>Created</code>/<code>LastChange</code> default to
+   <code>1970-01-01T00:00:00</code>; pass <code>created=</code> for a real timestamp).
+10. <strong>Ids are written as they are.</strong> Schema-valid output needs ids that are XML NCNames (letters,
+   digits, <code>_ - .</code>, not starting with a digit); the producers' ids (<code>text_2</code>, <code>orphan_0</code>, ...)
+   are. Ids the writers make up themselves (synthetic blocks, tags, the page) avoid every existing
+   id.
+11. <strong>Known limits.</strong> Characters XML cannot carry (C0 controls other than tab/newline) make the
+    writers raise lxml's <code>ValueError</code>; text is not silently altered. Language is written to hOCR
+    <code>lang</code> only.
+12. <strong>Tests</strong> cover the fixture in <code>tests/conftest.py</code> (polygon regions, baselines, box-only lines,
+    empty and unrecognized lines, a region-less line, hyphenation, alternatives), irregular orders,
+    300 seeded random transcriptions per format (every tenth also validated against the XSD),
+    and foreign files (ALTO v2 mm10, v3 without namespace, eScriptorium v4; PAGE 2010 and
+    Transkribus 2013; Tesseract hOCR and tag-soup HTML).</p>
+<h2 id="alto-writes-44-reads-v1-to-v4">ALTO (writes 4.4, reads v1 to v4)<a class="headerlink" href="#alto-writes-44-reads-v1-to-v4" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>What is written</th>
+<th>ALTO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>region</td>
+<td><code>TextBlock</code> (<code>Illustration TYPE=&lt;label&gt;</code> for picture/chart regions without lines); <code>Shape/Polygon</code> only when the polygon is not the box</td>
+</tr>
+<tr>
+<td>Docling label</td>
+<td><code>LayoutTag TYPE="label" LABEL=&lt;docling label&gt;</code>, one per distinct label, in <code>TAGREFS</code></td>
+</tr>
+<tr>
+<td>raw label (<code>Region.label</code>, when set)</td>
+<td><code>LayoutTag TYPE="raw_label" LABEL=&lt;raw&gt;</code></td>
+</tr>
+<tr>
+<td>region order</td>
+<td><code>ReadingOrder/OrderedGroup/ElementRef</code> (regions with a rank + synthetic blocks); without <code>ReadingOrder</code> readers use document order (ALTO's implicit order)</td>
+</tr>
+<tr>
+<td>line</td>
+<td><code>TextLine</code> with <code>BASELINE="x,y x,y ..."</code> (4.2+ points syntax), <code>Shape/Polygon</code></td>
+</tr>
+<tr>
+<td>word</td>
+<td><code>String</code> (<code>WC</code>, <code>ALTERNATIVE</code>), <code>SP</code> between words; a <code>hyphen</code> word that ends in <code>- ¬ ⸗ ‐ soft hyphen =</code> is split into <code>String</code> + <code>HYP</code> (reader re-joins: word text and line text unchanged)</td>
+</tr>
+<tr>
+<td>region and line score (detection confidence), heading level, line confidence</td>
+<td>extension</td>
+</tr>
+<tr>
+<td>model and rule annotators</td>
+<td><code>Description/Processing</code> (category, date when recorded, the step as <code>processingStepDescription</code>, the step record as JSON in <code>processingStepSettings</code>, linecaster as <code>softwareCreator</code> with the model and its revision), all referenced from <code>Page/@PROCESSINGREFS</code></td>
+</tr>
+</tbody>
+</table>
+<p>Reading foreign ALTO: namespaces v1–v4 or none; blocks anywhere under <code>Page</code> (margins,
+<code>PrintSpace</code>, nested <code>ComposedBlock</code>s, which are transparent); raw label = the <code>LABEL</code> of the first
+referenced tag (Transkribus <code>StructureTag</code>, eScriptorium <code>OtherTag</code>), the Docling label (and so the role) mapped
+from it;
+<code>BASELINE</code> as a single number (ALTO &lt; 4.2) becomes a horizontal line across the line box;
+<code>SUBS_TYPE</code>/<code>SUBS_CONTENT</code> are ignored (the word keeps its <code>CONTENT</code>); missing ids are generated
+(<code>line_&lt;rank&gt;</code>, <code>&lt;line&gt;_w&lt;k&gt;</code>, <code>block_&lt;n&gt;</code>); <code>GraphicalElement</code>s are not read. <strong>Units</strong>: <code>pixel</code>
+is read as is; with <code>image_width</code>/<code>image_height</code> and <code>Page/@WIDTH</code>/<code>@HEIGHT</code> every coordinate is
+scaled to the image (also corrects pixel ALTO made on a master of another size); <code>mm10</code> and
+<code>inch1200</code> without the image size need <code>dpi=</code> (<code>px = v * dpi / 254</code> resp. <code>/ 1200</code>); otherwise
+<code>from_alto</code> raises <code>ValueError</code> rather than guessing.</p>
+<h2 id="page-writes-2019-07-15-reads-20092019">PAGE (writes 2019-07-15, reads 2009–2019)<a class="headerlink" href="#page-writes-2019-07-15-reads-20092019" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>What is written</th>
+<th>PAGE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>region</td>
+<td><code>TextRegion</code> with <code>@type</code> from the Docling label (below); <code>ImageRegion</code>, <code>ChartRegion</code>, <code>TableRegion</code>, <code>MathsRegion</code> for picture, chart, table, formula regions <strong>without lines</strong> (PAGE does not allow lines in them)</td>
+</tr>
+<tr>
+<td>raw label (<code>Region.label</code>, when set)</td>
+<td><code>@custom="structure {type:&lt;raw&gt;;}"</code> (Transkribus convention; <code>; { } \</code> escaped as <code>\uXXXX</code>)</td>
+</tr>
+<tr>
+<td>region and line score (detection confidence)</td>
+<td><code>Coords/@conf</code></td>
+</tr>
+<tr>
+<td>region order</td>
+<td><code>ReadingOrder/OrderedGroup/RegionRefIndexed</code> (nested groups read recursively, <code>index</code> sorted)</td>
+</tr>
+<tr>
+<td>line</td>
+<td><code>TextLine</code>: <code>Coords</code> = polygon (the box when there is none, extension <code>{"polygon": null}</code>), <code>Baseline</code>, <code>TextEquiv/@conf</code>; alternatives as <code>TextEquiv/@index</code> 2.. (primary 1)</td>
+</tr>
+<tr>
+<td>word</td>
+<td><code>Word</code>: <code>Coords</code> = box, <code>TextEquiv</code></td>
+</tr>
+<tr>
+<td>box</td>
+<td>not in PAGE: readers take the bounds of <code>Coords</code>; the writer stores the box when it differs</td>
+</tr>
+<tr>
+<td>heading level</td>
+<td>extension</td>
+</tr>
+<tr>
+<td>model and rule annotators</td>
+<td><code>Metadata/MetadataItem type="processingStep"</code> (as OCR-D records its processors): <code>name</code> the step, <code>value</code> the preset edition or the model, <code>date</code> when recorded, <code>Labels externalModel="linecaster"</code> with <code>externalId="model"</code> (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and <code>externalId="settings"</code> (one label per setting); a summary in <code>Comments</code></td>
+</tr>
+</tbody>
+</table>
+<p>Label mapping, Docling → <code>TextRegion/@type</code>: text, paragraph, list_item, handwritten_text,
+reference → <code>paragraph</code>; title, section_header → <code>heading</code>; page_header → <code>header</code>; page_footer →
+<code>footer</code>; caption → <code>caption</code>; footnote → <code>footnote</code>; document_index → <code>TOC-entry</code>; others →
+<code>other</code> (or <code>paragraph</code>). Reading: <code>structure {type:...}</code> wins when it is a known name, then
+<code>@type</code>: paragraph → text, heading → section_header, header → page_header, footer, page-number,
+signature-mark, catch-word → page_footer, footnote(-continued)/endnote → footnote, TOC-entry →
+document_index, list-label → list_item, everything else → text; the raw label is the structure
+type, else <code>@type</code>, else the element name (<code>TableRegion</code>). The writer adds the Docling label to the
+extension when the reverse mapping would not return it (e.g. <code>title</code> → <code>heading</code> →
+<code>section_header</code>). The same name table (<code>_xml.RAW_TO_DOCLING</code>) also maps eScriptorium/SegmOnto
+zones and PP-DocLayout names. Old PAGE <code>Coords/Point</code> children are read; text on glyphs only is
+joined into the word.</p>
+<h2 id="hocr-12">hOCR 1.2<a class="headerlink" href="#hocr-12" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>What is written</th>
+<th>hOCR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>region</td>
+<td><code>div</code> of class <code>ocr_carea</code> (page_header → <code>ocr_header</code>, page_footer → <code>ocr_footer</code>, picture/chart → <code>ocr_photo</code>, table → <code>ocr_table</code>, formula → <code>ocr_math</code>) with one <code>p.ocr_par</code>; <code>bbox</code>, <code>poly</code> when not the box</td>
+</tr>
+<tr>
+<td>line</td>
+<td><code>span.ocr_line</code>: <code>bbox</code>, <code>baseline slope offset</code> (hOCR's straight line from the box's bottom-left), <code>poly</code>, <code>x_wconf</code></td>
+</tr>
+<tr>
+<td>baseline that <code>baseline</code> cannot express (polyline, vertical)</td>
+<td>also <code>x_bline x1 y1 x2 y2 ...</code> (custom property)</td>
+</tr>
+<tr>
+<td>word</td>
+<td><code>span.ocrx_word</code>: <code>bbox</code>, <code>x_wconf</code></td>
+</tr>
+<tr>
+<td>raw label, region and line score, heading level, hyphen, alternatives</td>
+<td>extension</td>
+</tr>
+<tr>
+<td>model and rule annotators</td>
+<td><code>meta name="linecaster-step-&lt;n&gt;"</code>, the step record as JSON; <code>ocr-system</code> is linecaster with its release, <code>ocr-capabilities</code> what the file contains</td>
+</tr>
+<tr>
+<td>the page's <code>language</code> classification</td>
+<td><code>html/@lang</code> and <code>xml:lang</code>; <code>ocr-langs</code> for an ISO 639-1 code</td>
+</tr>
+</tbody>
+</table>
+<p>Reading foreign hOCR: XHTML or tag-soup HTML (lxml.html fallback); regions are the top-level
+float/area classes, lines are <code>ocr_line</code>, <code>ocr_textfloat</code>, <code>ocr_caption</code> and <code>ocr_header</code>/
+<code>ocr_footer</code> spans inside a region (Tesseract's line classes); word text includes nested
+<code>&lt;strong&gt;</code>/<code>&lt;em&gt;</code>; <code>image "..."</code> may contain <code>;</code>.</p>
+<h2 id="iiif-annotation-page-linecasterformatsiiif">IIIF annotation page (<code>linecaster.formats.iiif</code>)<a class="headerlink" href="#iiif-annotation-page-linecasterformatsiiif" title="Permanent link">&para;</a></h2>
+<p><code>to_annotation_page(t, canvas, id, policy=DEFAULT_POLICY)</code> writes an annotation set as one IIIF Presentation 3
+<code>AnnotationPage</code> (W3C Web Annotations on the page's canvas <code>canvas</code>), its annotations numbered <code>&lt;id&gt;/&lt;n&gt;</code>, with the
+IIIF Presentation and text granularity contexts:</p>
+<table>
+<thead>
+<tr>
+<th>Annotation set</th>
+<th>Annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>region, in reading order</td>
+<td>motivation <code>classifying</code>, the content role as a <code>TextualBody</code> (purpose <code>classifying</code>)</td>
+</tr>
+<tr>
+<td>line with a reading, in reading order</td>
+<td><code>supplementing</code> (IIIF's motivation for a transcription), <code>textGranularity</code> <code>line</code>, the text as written, the page's <code>language</code> classification as the body's <code>language</code></td>
+</tr>
+<tr>
+<td>word</td>
+<td><code>supplementing</code>, <code>textGranularity</code> <code>word</code></td>
+</tr>
+<tr>
+<td>edit of a line's reading (or of a word or span of it)</td>
+<td><code>editing</code>, the edited text with its kind as the purpose, targeting the line's annotation</td>
+</tr>
+<tr>
+<td>description of a region</td>
+<td><code>describing</code>, its text with its kind as the purpose</td>
+</tr>
+</tbody>
+</table>
+<p>Targets are the canvas with a media fragment (<code>#xywh=</code>, rounded) where the annotation has a box (a line without
+one: its region's), the canvas itself where it has none. Each annotation names its annotator as <code>generator</code>
+(<code>Software</code>), or as <code>creator</code> (<code>Person</code>) for people, with the annotator's name. Regions the policy puts in layer
+<code>none</code> are left out with their lines and descriptions, and so are lines whose own <code>status</code> puts them nowhere. The
+output is validated against the IIIF Presentation 3 JSON Schema in the tests.</p>
+<h2 id="docling-linecasterformatsdocling">Docling (<code>linecaster.formats.docling</code>)<a class="headerlink" href="#docling-linecasterformatsdocling" title="Permanent link">&para;</a></h2>
+<p>The Docling document is a rendering (<a href="../data-model/#rendering">data model</a>): <code>build_docling(t, ..., policy)</code> makes
+one page's, <code>DocumentBuilder</code> an item's, and <code>export</code> writes it as Markdown, text, HTML, DocLang or JSON with
+docling-core's serializers. The <code>Composer</code> puts it into <code>doc.metadata["docling"]</code> for the writers; it is not stored.</p>
+<p><code>from_docling(source, page_no=None, ground_truth=False, name="docling", dataset=None, record=None)</code> reads a
+DoclingDocument (a document, its dict or its JSON) into a transcription:</p>
+<ul>
+<li>one region per item of the body, furniture and notes layers (on page <code>page_no</code>, or on every page), in the
+  document's order, which is also the transcription's one reading order: id <code>&lt;label&gt;_&lt;k&gt;</code>, the Docling label as
+  the region's <code>label</code> and, read as a content role, its <code>role</code> classification; the box of the item's first
+  provenance entry (in top-left coordinates; <code>None</code> without one); a section header's level as a <code>heading_level</code>
+  classification;</li>
+<li>a text item's text as one line per text line (<code>&lt;region&gt;_l&lt;j&gt;</code>, without geometry), each read with its text;</li>
+<li>a table as a <code>Table</code> of its region, with one line holding its cells' text, so it renders; a picture as a region
+  without lines.</li>
+</ul>
+<p>One annotator made all of it: people (kind <code>human</code>) with <code>ground_truth</code>, which also makes the source a ground truth,
+else the file (kind <code>file</code>), named <code>name</code>, step <code>transcription</code>. The source has <code>format</code> <code>docling</code>, <code>dataset</code> and
+<code>record</code> as given, and the image size of the page.</p>
+<h2 id="working-images-linecasterimagesconvert">Working images (<code>linecaster.images.convert</code>)<a class="headerlink" href="#working-images-linecasterimagesconvert" title="Permanent link">&para;</a></h2>
+<p>The working format for converted images is lossless WebP at full resolution (the block <code>ImageConverter</code>, preset
+<code>working-image</code>): what the models read is never lossy. Delivered images used as they are (an access derivative) stay
+as delivered. Pages larger than the size limit go to <code>rejects/</code>. Other formats for other uses are the next section's.</p>
+<ul>
+<li><strong>Size limit</strong> (<code>check_size</code>): width ≤ 16,383 and height ≤ 16,383 (WebP) and
+  width × height ≤ 2 × <code>PIL.Image.MAX_IMAGE_PIXELS</code>, read at call time, never changed. 2× is
+  exactly where Pillow's <code>Image.open</code> raises <code>DecompressionBombError</code>; that error is turned into
+  <code>ImageTooLarge</code> with the same kind of reason. Checked from the header (<code>Image.open</code> without
+  <code>load</code>), so oversized pages are never decoded; between 1× and 2× Pillow's warning is silenced
+  and the page converted.</li>
+<li><strong>Color</strong>: embedded ICC → sRGB (LittleCMS, perceptual); a profile that cannot be applied is
+  reported (<code>icc_error</code>) and the plain conversion used. 16-bit grayscale → 8 bit as
+  <code>round(v·255/65535)</code>; Pillow reads 16-bit RGB as 8-bit itself. Grayscale/bilevel/palette → RGB.
+  Alpha is composited onto white (<code>alpha_flattened</code>); fully opaque alpha is just dropped. CMYK
+  without a profile: Pillow's conversion. EXIF orientation is not applied (coordinates refer to
+  the stored pixels) but reported as <code>exif_orientation</code>.</li>
+<li><strong>Encoding</strong>: always lossless WebP (<code>VP8L</code>), full resolution, <code>method=0</code>, <code>exact=True</code>;
+  <code>effort</code> (Pillow's <code>quality</code> for lossless) defaults to Pillow's 80.</li>
+<li><strong>info</strong>: <code>format</code>, <code>width</code>, <code>height</code>, <code>source_format</code>, <code>source_mode</code>, <code>pixels_sha256</code> (sha256 of
+  the decoded 8-bit RGB bytes, row-major, what the WebP decodes to), <code>sha256</code> (of the WebP),
+  <code>decoder</code> (<code>Pillow x / &lt;source library&gt; y / libwebp z</code>), <code>webp_settings</code>, <code>icc_applied</code>,
+  <code>alpha_flattened</code>, and <code>warnings</code> when the image has image warnings (<a href="../glossary/">glossary</a>); the keys match
+  <code>PageImage</code> where they overlap.</li>
+<li><strong>Image warnings</strong>: a fault the image is read around is reported, not fatal: a PNG's optional chunk with a wrong
+  checksum is left out when read (as libpng does; Pillow alone refuses the file), and what Pillow warns about while
+  reading, EXIF that cannot be read and an ICC profile that cannot be applied are listed in <code>warnings</code> (also in the
+  page image's <code>extra</code>, and logged). A fault that keeps the pixels from being read rejects the page.</li>
+</ul>
+<h2 id="image-conversion-linecasterimagestranscode-linecasterimagesaccel">Image conversion (<code>linecaster.images.transcode</code>, <code>linecaster.images.accel</code>)<a class="headerlink" href="#image-conversion-linecasterimagestranscode-linecasterimagesaccel" title="Permanent link">&para;</a></h2>
+<p>Page images for other uses (publishing, downloads) are converted by the same block with an <code>image.convert.v1</code> preset
+(<code>webp-lossy-q80</code>, <code>jpeg-q90</code>, <code>jp2-lossless</code>, <code>png</code>; <code>pipelines/convert.py</code>): JPEG, JPEG 2000, PNG or WebP at full
+resolution, 8-bit sRGB, with the working image's size limit, colour handling and image warnings.</p>
+<ul>
+<li><strong>Decoding</strong>: JPEG (nvJPEG), JPEG 2000 (nvJPEG2000) and TIFF (nvTIFF) in 8-bit gray or RGB on an NVIDIA GPU where
+  the machine has one and nvImageCodec is installed (<code>linecaster[nvimgcodec]</code>, CUDA 13 wheels for aarch64 and
+  x86_64); every other image, and every image on a machine without them, with Pillow. Only nvImageCodec's GPU
+  decoders are allowed, so an image it cannot do on the GPU is decoded by Pillow, never by another CPU library. A
+  GPU decode hands the pixels on in the source's own mode with the ICC profile from the header, and the colour
+  handling above runs after either decoder.</li>
+<li><strong>Encoding</strong>: JPEG (nvJPEG) and JPEG 2000 (nvJPEG2000) on the GPU where it can, else with Pillow (libjpeg-turbo,
+  OpenJPEG); PNG and WebP always with Pillow (zlib, libwebp): no GPU library writes them (nvImageCodec only through
+  its CPU OpenCV extension).</li>
+<li><strong>Fallback</strong>: whatever keeps the GPU from an image, the CPU does it: a file its decoder or encoder rejects (nvJPEG2000,
+  for one, rejects code streams with the vertically causal context, code-block style 0x08), or a failing GPU (an
+  error, too little memory). The image's record says so (<code>gpu_fallback</code>), the block counts it, and a failure of the GPU
+  is logged as a WARNING; <code>accel</code> <code>gpu</code> makes either an error.</li>
+<li><strong>Choice</strong>: found out per machine, never configured (<code>cuda_devices</code> asks the CUDA driver; nvImageCodec is used
+  when installed). <code>accel</code> <code>auto</code> takes the GPU where it can, <code>cpu</code> never, <code>gpu</code> is an error where it cannot. Each
+  image records its <code>decoder</code> and <code>encoder</code>: a GPU and a CPU decoder can round lossy JPEG and JPEG 2000 differently,
+  and a GPU and a CPU encoder write different bytes at the same quality. <code>linecaster images compare FILES</code> decodes
+  images both ways and says how far the pixels differ.</li>
+<li><strong>Throughput</strong>: decoding and encoding are stages with windows of their own, adapted by saturate's controller to
+  the pixels per second and cut when memory or open files run short; a GPU decodes what arrives together in one
+  batch. One worker process per GPU (round robin by worker index); the windows' bound divides the CPUs among the
+  workers.</li>
+<li><strong>Files</strong>: <code>&lt;output_folder&gt;/&lt;item&gt;/&lt;page&gt;.&lt;ext&gt;</code> under a temporary name (<code>.part</code>), renamed when complete; a file
+  that is there already is not converted again (<code>skip_existing</code>).</li>
+<li><strong>record</strong> (<code>page.image</code>, its <code>extra</code>): <code>format</code>, <code>width</code>, <code>height</code>, <code>sha256</code>, <code>pixels_sha256</code>, <code>decoder</code>;
+  <code>encoder</code>, <code>bytes</code>, <code>icc_applied</code>, <code>alpha_flattened</code>, and when present <code>exif_orientation</code>, <code>icc_error</code>,
+  <code>warnings</code>; the delivered image under <code>original</code>, the step under <code>step</code>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

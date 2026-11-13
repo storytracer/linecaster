@@ -1,0 +1,2056 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.8/reference/catalog/">
+      
+      
+        <link rel="prev" href="../serialization/">
+      
+      
+        <link rel="next" href="../tracing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Catalog - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-catalog-models-presets-recipes-policies" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Catalog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-catalog-holds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the catalog holds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ids-and-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ids and versions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-modelsidmodelyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model (models/&lt;id&gt;/model.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preset-presetsstepidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preset (presets/&lt;step&gt;/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-recipesidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recipe (recipes/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-policiesidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy (policies/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#measurements-live-elsewhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements live elsewhere
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#released-editions-are-immutable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Released editions are immutable
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Released editions are immutable">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-recipe-editions-expanded-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A recipe edition's expanded pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catalog-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-capabilities-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps, capabilities, labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#page-engines-and-their-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page engines and their services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-single-region-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The single-region layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-based-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rule-based engines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scripts-and-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scripts and dispatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines-recipes-and-launchpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipelines, recipes and launch.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-catalog-holds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the catalog holds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ids-and-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ids and versions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-modelsidmodelyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model (models/&lt;id&gt;/model.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preset-presetsstepidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preset (presets/&lt;step&gt;/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-recipesidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recipe (recipes/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-policiesidyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy (policies/&lt;id&gt;.yaml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#measurements-live-elsewhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements live elsewhere
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#released-editions-are-immutable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Released editions are immutable
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Released editions are immutable">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-recipe-editions-expanded-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A recipe edition's expanded pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catalog-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-capabilities-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps, capabilities, labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#page-engines-and-their-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page engines and their services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-single-region-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The single-region layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-based-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rule-based engines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scripts-and-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scripts and dispatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines-recipes-and-launchpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipelines, recipes and launch.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="the-catalog-models-presets-recipes-policies">The catalog: models, presets, recipes, policies<a class="headerlink" href="#the-catalog-models-presets-recipes-policies" title="Permanent link">&para;</a></h1>
+<p>The catalog describes every model Linecaster can run, how it runs it, and the tested combinations. Its entries live in one folder, <code>src/linecaster/catalog/data/</code>, shipped with
+linecaster; <code>linecaster.catalog</code> reads, validates and resolves them.</p>
+<div class="highlight"><pre><span></span><code>src/linecaster/catalog/data/
+  models/&lt;id&gt;/model.yaml, model.md        # + upstream/&lt;revision&gt;/ (the upstream card, verbatim)
+  presets/&lt;step&gt;/&lt;id&gt;.yaml, &lt;id&gt;.md       # one folder per step (STEPS)
+  recipes/&lt;id&gt;.yaml, &lt;id&gt;.md
+  policies/&lt;id&gt;.yaml
+  catalog.lock
+src/linecaster/catalog/schemas/&lt;kind&gt;-&lt;n&gt;.json    # generated from the Pydantic models
+</code></pre></div>
+<h2 id="what-the-catalog-holds">What the catalog holds<a class="headerlink" href="#what-the-catalog-holds" title="Permanent link">&para;</a></h2>
+<p>The catalog and its docs are organized by six kinds: engines and pipelines (code, by versioned id) and
+four kinds of catalog entry (models, presets, recipes, policies; a YAML file each).</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Is</th>
+<th>Named</th>
+<th>Lives in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>engine</td>
+<td>code that implements one step: runs a model, or applies rules</td>
+<td>versioned id: <code>kraken.recognition.v1</code>, <code>typography.ratios.v1</code></td>
+<td><code>engines/&lt;engine&gt;/</code> (a package each); <code>chat.v1</code> and the rule-based engines in linecaster (<code>linecaster.engines</code>)</td>
+</tr>
+<tr>
+<td>model</td>
+<td>one upstream artifact at pinned revisions, with its card</td>
+<td>slug: <code>kraken-ppocrv6-medium</code></td>
+<td><code>models/&lt;id&gt;/model.yaml</code></td>
+</tr>
+<tr>
+<td>preset</td>
+<td>an engine, a model pin and the engine's options, ready to use</td>
+<td>slug, with an edition: <code>kraken-ppocrv6-medium@1</code></td>
+<td><code>presets/&lt;step&gt;/&lt;id&gt;.yaml</code></td>
+</tr>
+<tr>
+<td>pipeline</td>
+<td>code: a shape with slots and the run-anywhere command line</td>
+<td>versioned id: <code>transcribe_modular.v1</code> (the script's name)</td>
+<td><code>pipelines/&lt;name&gt;.py</code></td>
+</tr>
+<tr>
+<td>recipe</td>
+<td>a named combination: a pipeline, a preset edition per slot, options</td>
+<td>slug, with an edition: <code>squiddle@1</code></td>
+<td><code>recipes/&lt;id&gt;.yaml</code></td>
+</tr>
+<tr>
+<td>policy</td>
+<td>a <a href="../data-model/#rendering">rendering policy</a>: which annotations go into which layer of a rendering, and whose count where several annotators gave one</td>
+<td>slug, with an edition: <code>page-layers@1</code></td>
+<td><code>policies/&lt;id&gt;.yaml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Besides these: the <strong>lock</strong> (released editions) and the <strong>run record</strong> (<code>OUT/run.yaml</code>, and per page each
+<code>Annotator</code> of the page record: what a run resolved).</p>
+<h2 id="ids-and-versions">Ids and versions<a class="headerlink" href="#ids-and-versions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Whose</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version</code></td>
+<td>upstream</td>
+<td>what upstream calls it, verbatim, never parsed</td>
+<td><code>PP-OCRv6 medium</code>, <code>Chandra 2</code></td>
+</tr>
+<tr>
+<td><code>revision</code></td>
+<td>upstream</td>
+<td>the exact identity of the files</td>
+<td>HF commit, version DOI, git commit, sha256</td>
+</tr>
+<tr>
+<td><code>edition</code></td>
+<td>linecaster</td>
+<td>integer per preset, recipe or policy, raised when outputs can change</td>
+<td><code>edition: 3</code></td>
+</tr>
+<tr>
+<td><code>.v&lt;n&gt;</code></td>
+<td>linecaster</td>
+<td>the contract of an engine's options or a pipeline's slots and options</td>
+<td><code>transcribe_modular.v1</code></td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td>linecaster</td>
+<td>the format of a YAML file</td>
+<td><code>linecaster.preset/1</code></td>
+</tr>
+<tr>
+<td>release</td>
+<td>linecaster</td>
+<td>the package version (run records only)</td>
+<td><code>0.4.0</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Slugs (models, presets, recipes, policies): lowercase <code>[a-z0-9.-]</code>. They may contain upstream names
+  (<code>deepseek-ocr-2</code>), never our versions. Ids are unique across presets and recipes, so a name means one
+  thing.</li>
+<li>Code ids (<code>CODE_ID</code>): lowercase dotted names ending in <code>.v&lt;n&gt;</code>. An incompatible change is a new id
+  (<code>.v2</code>); the old one stays registered. Adding an option is compatible when its default keeps the old
+  behavior; changing a default, removing or renaming an option is not.</li>
+<li>A reference is <code>id@edition</code>; <code>id</code> alone means the current edition. Run records always store the explicit
+  edition and its hash.</li>
+<li>A tag or branch is resolved to a commit when a model is pinned; the tag is kept as <code>tag:</code> for information.
+  Zenodo: the version DOI identifies the files, the concept DOI is information. Downloads without a commit:
+  the file's sha256 is the revision.</li>
+</ul>
+<h2 id="files">Files<a class="headerlink" href="#files" title="Permanent link">&para;</a></h2>
+<p>A model, preset, recipe or policy is a YAML file, the data, validated strictly by <code>linecaster.catalog.schema</code> (unknown
+keys are errors), and a Markdown file of the same name next to it, the prose for people (why these settings,
+limitations, changes), without front matter. Tools read only the YAML; the docs generator also includes the
+prose. The prose is optional, except for presets and recipes with <code>support: core</code>. The lock is YAML only, and so
+is an evidence record (kept outside the catalog, <a href="#measurements-live-elsewhere">below</a>). Bulk data (page records,
+exports) is JSON Lines or Parquet, not catalog data.</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Schema id</th>
+<th>JSON Schema</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>model</td>
+<td><code>linecaster.model/1</code></td>
+<td><code>schemas/model-1.json</code></td>
+</tr>
+<tr>
+<td>preset</td>
+<td><code>linecaster.preset/1</code></td>
+<td><code>schemas/preset-1.json</code></td>
+</tr>
+<tr>
+<td>recipe</td>
+<td><code>linecaster.recipe/1</code></td>
+<td><code>schemas/recipe-1.json</code></td>
+</tr>
+<tr>
+<td>policy</td>
+<td><code>linecaster.policy/1</code></td>
+<td><code>schemas/policy-1.json</code></td>
+</tr>
+<tr>
+<td>evidence (not catalog data; its schema ships here)</td>
+<td><code>linecaster.evidence/2</code> (<code>linecaster.evidence/1</code> is read too)</td>
+<td><code>schemas/evidence-2.json</code>, <code>schemas/evidence-1.json</code></td>
+</tr>
+<tr>
+<td>benchmark (not catalog data; its schema ships here)</td>
+<td><code>linecaster.benchmark/1</code></td>
+<td><code>schemas/benchmark-1.json</code></td>
+</tr>
+<tr>
+<td>lock</td>
+<td><code>linecaster.lock/2</code></td>
+<td><code>schemas/lock-2.json</code></td>
+</tr>
+<tr>
+<td>run record (<code>OUT/run.yaml</code>, not catalog data; its schema ships here)</td>
+<td><code>linecaster.run-record/1</code></td>
+<td><code>schemas/run-record-1.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every YAML file names its format twice: its first line is <code># yaml-language-server: $schema=&lt;relative path to
+src/linecaster/catalog/schemas/&lt;kind&gt;-&lt;n&gt;.json&gt;</code> (for editors), and its field <code>schema</code> holds the schema id (for
+tools). The JSON Schemas are generated from the Pydantic models (<code>linecaster catalog schemas</code>); the test suite
+fails when a committed one differs from a fresh one.</p>
+<p>YAML has 1.2 semantics, read with <code>ruamel.yaml</code> through <code>linecaster.catalog.yamlio</code>: only <code>true</code> / <code>false</code> are
+booleans (<code>NO</code> stays Norwegian), and a duplicate key is an error. Values that look like numbers or versions are
+quoted (<code>"1.0"</code>). Commands that write a file back (<code>release</code>, <code>pin</code>) keep its comments.</p>
+<h3 id="model-modelsidmodelyaml">Model (<code>models/&lt;id&gt;/model.yaml</code>)<a class="headerlink" href="#model-modelsidmodelyaml" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>version</code></td>
+<td>our slug; upstream's name, verbatim</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>kind</code> (<code>hf</code>, <code>zenodo</code>, <code>git</code>, <code>url</code>) and <code>ref</code> (repo id, concept DOI, repository URL, download URL)</td>
+</tr>
+<tr>
+<td><code>pins</code></td>
+<td>one entry per upstream revision: <code>revision</code>, <code>tag</code>, <code>doi</code>, <code>pinned</code> (date), <code>files</code> (name → <code>sha256:&lt;hex&gt;</code>), <code>card</code>, <code>card_sha256</code>, <code>license_file</code></td>
+</tr>
+<tr>
+<td><code>license</code></td>
+<td>SPDX id where there is one, else the license's own name</td>
+</tr>
+<tr>
+<td><code>languages</code>, <code>scripts</code></td>
+<td>ISO 639-3 (<code>mul</code> for many), ISO 15924</td>
+</tr>
+<tr>
+<td><code>params</code></td>
+<td>parameter count, as upstream states it</td>
+</tr>
+<tr>
+<td><code>derived_from</code></td>
+<td><code>ref</code> and <code>relation</code> (<code>mirror</code>, <code>converted</code>, <code>quantized</code>, <code>finetuned</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The upstream card is always copied, verbatim, at the pinned revision, whatever its license: Hugging Face
+<code>README.md</code>, the HTRMoPo record, a repository README; a separate license file next to it. Its sha256 is in the
+pin. Cards are never edited; license, languages and scripts in <code>model.yaml</code> are taken from them where they say.
+A new upstream revision is a new entry in <code>pins</code>, with its own <code>upstream/&lt;revision&gt;/</code> folder. Model entries
+are written by <code>linecaster catalog pin</code>.</p>
+<h3 id="preset-presetsstepidyaml">Preset (<code>presets/&lt;step&gt;/&lt;id&gt;.yaml</code>)<a class="headerlink" href="#preset-presetsstepidyaml" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>edition</code>, <code>step</code></td>
+<td>the step must match the folder</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>id</code> and <code>revision</code> of a model pin</td>
+</tr>
+<tr>
+<td><code>submodels</code></td>
+<td>further pins of a multi-model engine, by role</td>
+</tr>
+<tr>
+<td><code>engine</code></td>
+<td>the engine's id: <code>engine: kraken.recognition.v1</code></td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td>the engine's options (its <code>Options</code> model)</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>prompts, sampling and other request settings (chat presets; <code>repair</code>: the repair pass's <code>max_tokens</code>, 0 for off, and <code>temperature</code>)</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td>native layout label → DoclingDocument label, from which the layout step classifies each region's content role (the native label stays the region's <code>label</code>); unmapped labels are <code>text</code></td>
+</tr>
+<tr>
+<td><code>by_script</code></td>
+<td>a by-script engine's strategies: ISO 15924 script code → preset <code>id@edition</code> of the same step, and <code>"*"</code> → the default for every other script (required)</td>
+</tr>
+<tr>
+<td><code>serve</code></td>
+<td>the server it was validated with: <code>server</code> (<code>vllm</code>, <code>sglang</code>, <code>linecaster</code>, <code>vendor</code>), <code>version</code>, <code>image</code> (with digest, for HF Jobs), <code>flags</code>, <code>env</code>, <code>revision_flag</code>, <code>pin_ignore</code>, <code>server_packages</code>, <code>draft</code> (speculative decoding); a vendor's service also <code>command</code>, <code>health</code>, <code>weights_dir</code> (<a href="#page-engines-and-their-services">page engines</a>)</td>
+</tr>
+<tr>
+<td><code>capabilities</code></td>
+<td><code>unit</code> (<code>line</code>, <code>region</code>, <code>page</code>, <code>item</code>) and <code>produces</code> (the parts it adds, vocabulary <code>PARTS</code>)</td>
+</tr>
+<tr>
+<td><code>provenance</code></td>
+<td><code>derived_from</code> (sources of the settings, each at a commit or revision), <code>authored_by</code>, <code>created</code></td>
+</tr>
+<tr>
+<td><code>support</code>, <code>superseded_by</code></td>
+<td>see Support</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recipe-recipesidyaml">Recipe (<code>recipes/&lt;id&gt;.yaml</code>)<a class="headerlink" href="#recipe-recipesidyaml" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>edition</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>pipeline</code></td>
+<td>the pipeline it fills: <code>pipeline: transcribe_modular.v1</code></td>
+</tr>
+<tr>
+<td><code>presets</code></td>
+<td>slot → preset <code>id@edition</code> (always an explicit edition)</td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td>the pipeline's options, by name</td>
+</tr>
+<tr>
+<td><code>provenance</code>, <code>support</code>, <code>superseded_by</code></td>
+<td>as for presets</td>
+</tr>
+</tbody>
+</table>
+<p>A recipe's environment and entry point is its script <code>recipes/&lt;id&gt;.py</code> (see Pipelines, recipes and <code>launch.py</code>); a
+recipe a derivative runs lives in this catalog too (<code>squiddle</code>).</p>
+<h3 id="policy-policiesidyaml">Policy (<code>policies/&lt;id&gt;.yaml</code>)<a class="headerlink" href="#policy-policiesidyaml" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>edition</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>what the policy is for (prose, not part of its functional content)</td>
+</tr>
+<tr>
+<td><code>rules</code></td>
+<td>the rules, the first that matches wins: <code>role</code>, <code>production</code>, <code>status</code>, <code>motivation</code> (each left out: any) and <code>to</code>, the layer (<code>body</code>, <code>furniture</code>, <code>background</code>, <code>invisible</code>, <code>notes</code>, <code>metadata</code>, <code>none</code>); without a match, the role's default layer</td>
+</tr>
+<tr>
+<td><code>precedence</code></td>
+<td>per scheme (<code>role</code>, <code>heading_level</code>, ...) or <code>order</code>: the steps or annotator names whose annotations count first; the latest annotator otherwise</td>
+</tr>
+<tr>
+<td><code>edits</code></td>
+<td>per text variant: the edit kinds it applies</td>
+</tr>
+</tbody>
+</table>
+<p>A policy entry is a <code>linecaster.data.policy.RenderingPolicy</code> with a <code>schema</code> and a <code>description</code> (<code>PolicyDoc</code>); the
+<a href="../data-model/#rendering">data model</a> says what it decides. The catalog ships <code>page-layers@1</code>, the policy a block
+renders with unless it is given another (<code>DEFAULT_POLICY_REF</code>; in code without the catalog,
+<code>linecaster.data.DEFAULT_POLICY</code>). Blocks and pipelines name a policy by <code>id@edition</code> (<code>--policy</code>);
+<code>linecaster.catalog.registry.rendering_policy</code> resolves it, and an edition other than the file's must be released.</p>
+<h2 id="measurements-live-elsewhere">Measurements live elsewhere<a class="headerlink" href="#measurements-live-elsewhere" title="Permanent link">&para;</a></h2>
+<p>linecaster is not a data repository: the catalog holds no measurements, and neither do the docs. An evaluation
+(a derivative's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
+by edition and hash. linecaster provides the format and the tooling to produce them:</p>
+<ul>
+<li><strong>The evidence format</strong> (<code>linecaster.evidence/1</code>, <code>linecaster.catalog.Evidence</code>, <code>schemas/evidence-1.json</code>): one
+  measurement per file, <code>preset: id@edition</code> or <code>recipe: id@edition</code>, <code>context</code> (for a preset measured inside a
+  pipeline: the rest of it), <code>source</code> (<code>own-run</code>, <code>card-claim</code>, <code>vendor-benchmark</code>), <code>dataset</code> (<code>repo@revision</code>, or
+  a description for claims), <code>metrics</code>, <code>date</code>, <code>hardware</code>, <code>software</code> (linecaster commit, server version,
+  <code>backend</code>: <code>in-process</code> or <code>served</code>), <code>run</code>, <code>notes</code>. Claims are never measurements.</li>
+<li><strong>What a measurement names:</strong> the run record (<code>OUT/run.yaml</code>: the recipe edition and its hash, every block's
+  parameters, <code>pipeline_sha256</code>) and the recipe and preset editions stamped on every annotator of every page.</li>
+<li><strong>What it measures:</strong> the page records (every transcription with its annotators' <code>measurements</code>: seconds, tokens,
+  device), the traces (<code>linecaster traces OUT</code>: time per block and page) and the per-page and per-item files.</li>
+<li>
+<p><strong>Ground truth and reference transcriptions:</strong> <code>ManifestReader(existing_ocr=True)</code> and the
+  <code>TranscriptionConverter</code> read a library's own ALTO, PAGE-XML, hOCR or text into a named transcription
+  (<code>ocr_original</code>, <code>ground_truth</code>, ...) of the page record, next to <code>ocr_new</code>; the writers turn page records into
+  datasets (JSON Lines or Parquet page records, ALTO, PAGE-XML, hOCR, text).</p>
+</li>
+<li>
+<p><strong>Scoring</strong> (<code>linecaster.scoring</code>, the <a href="../evaluation/">evaluation</a>): ground truths imported as transcriptions,
+  rendered under the same rendering policy as the output they are compared with, normalized by versioned lanes,
+  scored per page into score records (<code>linecaster.score/1</code>) and aggregated into one evidence record, which names the
+  run, the benchmark (<code>linecaster.benchmark/1</code>), the policy and the scorer's and lanes' editions. A benchmark
+  definition lives with the evaluation, like its evidence; linecaster ships the format, never a benchmark.
+  <code>linecaster score RUN TRUTH --benchmark FILE</code> scores a run (score records and an evidence record, by default in
+  <code>RUN/scores/</code>), <code>linecaster evidence check FILES</code> validates evidence records and <code>linecaster evidence compare
+  FILES</code> puts those scored the same way side by side.</p>
+</li>
+</ul>
+<h2 id="released-editions-are-immutable">Released editions are immutable<a class="headerlink" href="#released-editions-are-immutable" title="Permanent link">&para;</a></h2>
+<p><code>linecaster catalog release &lt;id&gt;</code> (a preset, recipe or policy) writes the current edition's resolved functional content and its sha256 into
+<code>catalog.lock</code> (per entry: <code>sha256</code>, <code>previous_sha256</code> where a catalog migration changed it (a list, oldest first,
+after several), <code>released</code>,
+<code>linecaster</code> commit, <code>resolved</code>; a recipe edition also <code>pipeline</code> and <code>pipeline_sha256</code>, below).</p>
+<ul>
+<li><strong>A preset's functional content</strong> is what can change outputs: <code>step</code>, the model pin and every submodel pin
+  (<code>id</code>, <code>revision</code>, <code>files</code>), <code>engine</code>, <code>options</code>, <code>settings</code>, <code>labels</code>, <code>by_script</code> (each strategy's edition with
+  that edition's hash, as a recipe names its presets) and <code>serve</code>. A by-script preset is released only on released
+  strategies. Only what the YAML file
+  states counts, so a new optional schema field changes no hash. The Markdown prose, provenance, support level
+  and capabilities are not part of it.</li>
+<li><strong>A policy's functional content</strong> is everything but its <code>description</code>: <code>id</code>, <code>edition</code>, <code>rules</code>, <code>precedence</code>
+  and <code>edits</code>. It goes into the lock's <code>policies</code> table, next to <code>presets</code> and <code>recipes</code>; <code>verify</code> fails on a
+  policy edition that is not released or whose content changed.</li>
+<li><strong>A recipe's functional content</strong> is its pipeline, each slot's preset edition with that edition's hash and
+  the options it states. A recipe is released only on released preset editions, so one recipe edition pins a
+  whole run down to the weights' files.</li>
+</ul>
+<p><code>linecaster catalog verify</code> (and <code>tests/catalog/test_catalog.py</code>) fails when a released edition's content changed;
+such a change is a new edition. Old editions stay resolvable from the lock after the file moves on.
+Unreleased editions are drafts.</p>
+<h3 id="a-recipe-editions-expanded-pipeline">A recipe edition's expanded pipeline<a class="headerlink" href="#a-recipe-editions-expanded-pipeline" title="Permanent link">&para;</a></h3>
+<p>A recipe names a pipeline id, presets and options; what runs is the pipeline its script builds from them. The lock
+keeps that too: <code>release</code> builds the recipe's pipeline (its pipeline script with <code>--recipe id@edition</code> on placeholder
+folders, in-process, one task) and records <code>pipeline</code>, every block with its class and its functional parameters
+(engines with their options, presets with their hashes; <a href="../pipelines/#the-run-record">pipelines</a>), and its
+<code>pipeline_sha256</code>, the hash a run record of that recipe names. <code>verify</code> builds every released recipe edition's
+pipeline again and reports drift: a block, a parameter or a default that changed in code changes the hash, and
+<code>verify</code> names the blocks that differ.</p>
+<p>Building it needs no engine: the <strong>describe mode</strong> (<code>linecaster.runtime.run.describe</code>) builds the recipe's pipeline
+shape (<code>linecaster.pipelines</code>) in the current process, and blocks and backends import no engine before
+<code>warm_up()</code>; a preset whose engine is not installed names the engine's class from the repository's engine packages
+(<code>catalog.code</code>). So <code>verify</code> runs in the core environment, and its hash is the one a run of the pipeline script
+with its engines records.</p>
+<p>Drift is resolved like any change of a released edition: a change that can change outputs gives the recipe a new
+edition; a change of the code that keeps behavior (a renamed parameter, a new option whose default keeps the old
+behavior) is recorded anew with <code>linecaster catalog release &lt;id&gt; --migrate-pipeline</code>. A recipe edition released
+before pipelines were locked gets its pipeline on its next <code>release</code> (a catalog migration: the edition and its
+<code>sha256</code> stay). The lock format stays <code>linecaster.lock/2</code>: the two fields are optional, and only recipe entries have
+them.</p>
+<h3 id="catalog-migrations">Catalog migrations<a class="headerlink" href="#catalog-migrations" title="Permanent link">&para;</a></h3>
+<p>A change of the catalog's own vocabulary or format that keeps every output as it was (a renamed step, a renamed
+pipeline id, a new file format) is a <strong>catalog migration</strong>: every released edition keeps its number, its
+<code>resolved</code> content is rewritten in the new terms and its hash recomputed, and the hash it had before stays in
+the lock as <code>previous_sha256</code> (after a second migration a list of both, oldest first). A run record names <code>id@edition</code> and that edition's hash at the time; it resolves
+by either hash (<code>Catalog.resolve(ref, sha256=...)</code>, <code>resolve_recipe</code>, <code>by_sha256</code>, <code>linecaster catalog show
+sha256:&lt;hex&gt;</code>). A change that can change outputs is never a migration: it is a new edition. A recipe that comes to
+name, as presets, what its pipeline already ran (<code>squiddle@1</code> naming the rule-based presets its pipeline ran through
+the option <code>text: reflow</code>) is a migration too: the pipeline it expands to is the same blocks with the same
+parameters, so the edition keeps its number, and <code>catalog release --migrate-pipeline</code> records the expanded pipeline
+again (the recipe stamp carries the new hash).</p>
+<h2 id="steps-capabilities-labels">Steps, capabilities, labels<a class="headerlink" href="#steps-capabilities-labels" title="Permanent link">&para;</a></h2>
+<p>Steps (<code>STEPS</code>): <code>layout</code>, <code>lines</code>, <code>recognition</code>, <code>tables</code>, <code>formulas</code>, whose engines run models, and the
+rule-based steps (<code>RULE_STEPS</code>) <code>image</code> (the working image), <code>normalization</code> (character fidelity: as written →
+normalized), <code>typography</code> (the hierarchy from type sizes), <code>recomposition</code> (running text from the rows: paragraphs)
+and <code>composition</code> (the document). Recognition reads a <code>unit</code> (<code>capabilities.unit</code>): <code>line</code> (kraken, PaddleX,
+Tesseract), <code>region</code> (a VLM per layout region) or <code>page</code> (a VLM or a page engine reads the whole page: a <strong>page preset</strong>, which
+<code>launch.py</code> runs by name); a rule-based engine reads a <code>page</code> or an <code>item</code> (the pages of one item, in order).
+<code>OCRD_STEPS</code> maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (<code>image</code>:
+<code>preprocessing/optimization</code>, <code>typography</code>: <code>layout/segmentation/classification</code>, <code>composition</code>:
+<code>layout/analysis</code>); the others are post-processing (<code>recognition/post-correction</code>).</p>
+<p>What depends on the code belongs to the engine (<code>capabilities</code> on the class), e.g. kraken's word boxes with
+confidences. What depends on the weights belongs to the model or preset: languages, scripts, output format.</p>
+<h2 id="engines">Engines<a class="headerlink" href="#engines" title="Permanent link">&para;</a></h2>
+<p>An engine is a class registered under its id in the entry-point group <code>linecaster.engines</code>
+(<code>"kraken.recognition.v1" = "linecaster_kraken:KrakenRecognitionEngine"</code>), or one of linecaster's own
+(<code>BUILTIN_ENGINES</code>): <code>chat.v1</code> (VLM presets, served only: <code>SERVED_ONLY</code>; the <code>Chat</code> backend), the single-region
+layout and the rule-based engines. It declares
+<code>engine_id</code>, <code>step</code>, <code>Options</code> (a Pydantic model whose fields have descriptions; the docs come from it) and
+<code>capabilities</code>, and takes the pin as <code>weights</code> (and <code>submodel_weights</code>), fetched and checked by
+<code>linecaster.catalog.fetch</code>. Engine packages carry code only; their presets and models are in this catalog.</p>
+<p><code>chat.v1</code>'s <code>Options</code> (<code>linecaster.adapters.ChatAdapter.Options</code>) are what a run may set over a chat preset's
+settings (<code>Chat(..., overrides=...)</code>, <code>--set recognition.&lt;option&gt;=&lt;value&gt;</code>): <code>max_tokens</code>, <code>temperature</code> and
+<code>top_p</code> over <code>settings.sampling</code>, <code>repair_max_tokens</code> and <code>repair_temperature</code> over <code>settings.repair</code> (the
+<a href="../glossary/">repair pass</a>; off unless <code>repair_max_tokens</code> is above 0, which must then be larger than <code>max_tokens</code>;
+a list of rising caps is one repair pass each; <code>lightonocr-3-0.8b@3</code> sets <code>[8192, 12288]</code>, the other presets leave it
+off), and <code>repetition_detection</code> over <code>settings.sampling.repetition_detection</code> (<a href="../glossary/">repetition detection</a>:
+on by default wherever the preset's server is vLLM 0.17.0 or later, <code>false</code> off, <code>true</code> the defaults,
+<code>repetition_detection.&lt;field&gt;=&lt;value&gt;</code> for one of <code>min_pattern_size</code>, <code>max_pattern_size</code>, <code>min_count</code>; refused
+for another server).</p>
+<p><strong>Engine packages</strong> (<code>engines/&lt;engine&gt;/</code>: <code>linecaster-kraken</code>, <code>linecaster-paddlex</code>, <code>linecaster-tesseract</code>,
+<code>linecaster-indra</code>, <code>linecaster-surya</code>, <code>linecaster-services</code>) have
+versions of their own and a range of linecaster releases they work with (<code>linecaster&gt;=0.8,&lt;0.9</code>), and import from
+linecaster only the data model (<code>linecaster.data</code>) and the engine API (<code>linecaster.engines.api</code>): the <code>Engine</code>
+protocol, <code>Capabilities</code>, and the weight helpers <code>weights_of</code> (a model pin as <code>weights</code>), <code>hf_file</code> and
+<code>hf_snapshot</code> (a Hugging Face pin's files, checked) and <code>model_entry</code> (a model's catalog entry);
+<code>tests/test_import_rule.py</code> reads the packages with <code>ast</code> and fails on any other import. They are not on PyPI: a
+preset whose engine is not installed is a <code>CatalogError</code> that names the package that provides it and the pipeline
+scripts whose environments install it (<code>catalog.code.install_hint</code>). Each package has its tests in
+<code>engines/&lt;engine&gt;/tests/</code> (conformance through <code>linecaster.testing.check_engine</code>, and its own units), run in an
+environment that has it (<code>uv run tests/test_engines_catalog.py engines/&lt;engine&gt;/tests</code>; the page engines'
+packages: <code>uv run tests/test_page_engines_catalog.py engines/&lt;engine&gt;/tests</code>, the environment of
+<code>pipelines/transcribe_page.py</code>).</p>
+<h3 id="page-engines-and-their-services">Page engines and their services<a class="headerlink" href="#page-engines-and-their-services" title="Permanent link">&para;</a></h3>
+<p>A page engine is an engine of the recognition step whose unit is the page (<code>capabilities.unit: page</code>): it gets the
+page image and returns the page's transcription, text-only, its raw output verbatim as a raw output (<code>RawOutput</code>),
+as a chat preset's completion is kept. <code>PageRecognizer</code> runs it like any model block (<code>InProcess</code>, or <code>Served</code> through
+<code>linecaster serve</code>); <code>pipelines/transcribe_page.py</code> is its pipeline. Where the engine talks to a <strong>service</strong>, its
+preset's <code>serve</code> block names it and <code>ServiceServer</code> starts it in the task:</p>
+<table>
+<thead>
+<tr>
+<th><code>serve.server</code></th>
+<th>The service</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vllm</code></td>
+<td><code>vllm serve &lt;the model pin, fetched&gt; --host --port &lt;flags&gt; --served-model-name &lt;the Hugging Face id&gt;</code>, for an engine package that attaches to vLLM (<code>surya.recognition.v1</code>)</td>
+<td><code>version</code>, <code>image</code>, <code>flags</code></td>
+</tr>
+<tr>
+<td><code>vendor</code></td>
+<td>a vendor's page pipeline in its own image (<code>falcon.recognition.v1</code>, <code>oxr.recognition.v1</code>): the image's entrypoint</td>
+<td><code>image</code> (by digest), <code>command</code> (the entrypoint), <code>env</code>, <code>health</code> (loopback URLs that must answer 200, in order), <code>weights_dir</code> (where the model pin is downloaded first, when the image reads the weights from a folder)</td>
+</tr>
+</tbody>
+</table>
+<p>The engine's <code>endpoint</code> option (where its service is) is operational: presets leave it to its default (the service's
+loopback port), a pipeline sets it for a running service (<code>--recognition-endpoint</code>), and the pipeline's hash leaves
+it out.</p>
+<h3 id="the-single-region-layout">The single-region layout<a class="headerlink" href="#the-single-region-layout" title="Permanent link">&para;</a></h3>
+<p><code>layout.single-region.v1</code> (<code>linecaster.engines:SingleRegionLayoutEngine</code>, preset <code>single-region@1</code>) is a layout
+engine without a model: one region covering the page image (label <code>text</code>, classified as a paragraph, id <code>page</code>; both
+options), alone in a reading order, by an annotator of kind <code>rule</code> and step <code>layout</code>. It has the model engines' call (<code>__call__(image, transcription)</code>), so
+<code>LayoutDetector("single-region@1")</code> runs it, and like the rule-based engines it is built in and runs in the
+pipeline's process only. <code>pipelines/transcribe_modular.py --layout single-region</code> reads a page as one region.</p>
+<h3 id="rule-based-engines">Rule-based engines<a class="headerlink" href="#rule-based-engines" title="Permanent link">&para;</a></h3>
+<p>The engines of the rule-based steps (<strong>strategies</strong>) live in <code>linecaster.engines</code>, are pure Python and run in the
+pipeline's process only (<code>IN_PROCESS_ONLY</code>; <code>linecaster serve</code> refuses them): <code>image.webp-lossless.v1</code>,
+<code>normalization.latin-historic.v1</code>, <code>typography.ratios.v1</code>, <code>recomposition.unicode.v1</code>, <code>composition.docling.v1</code>,
+and the by-script engines <code>normalization.by-script.v1</code> and <code>recomposition.by-script.v1</code>. Each has no weights; its
+<code>Options</code> turn the rules' thresholds into options whose defaults are the values the rules have always had, and it
+declares <code>scripts</code>: the ISO 15924 scripts it covers (<code>Latn</code>, <code>Hebr</code>, ...), <code>"*"</code> for all. The rules themselves stay
+in <code>linecaster.text</code>, <code>linecaster.images</code> and <code>linecaster.formats</code>; the engines are thin.</p>
+<p>The call per unit (<code>linecaster.engines.base</code>): page unit <code>__call__(t: Transcription, **options) -&gt; Transcription</code>;
+item unit <code>__call__(pages: list[Transcription], **options) -&gt; list[Transcription]</code> (an item's pages in order; a page
+is an item of one page); the image step takes and returns the image's bytes (<code>__call__(data, **options) -&gt; (bytes,
+info)</code>). Options given to a call override the engine's for that call. Each call appends an annotator (<code>Annotator</code>,
+kind <code>rule</code>) with its <code>engine</code> id, its options as <code>settings</code> and its counts as <code>measurements</code>; the block that runs
+it adds the preset edition and its hash, <code>seconds</code> and <code>datetime</code>. Composition is the exception: it renders the set
+as a Docling document and adds no annotator and no annotation. Its item unit is <code>item_document(pages, name, ...)</code>:
+an item's document is no transcription.</p>
+<p>Their blocks take a preset (<code>id@edition</code>) or an engine spec (<code>InProcess("module:Class", **options)</code>), with <code>options</code>
+over either, like model blocks but without a backend choice: <code>ImageConverter(output_folder, preset)</code> (<code>image</code>),
+<code>CharacterNormalizer(preset)</code> (<code>normalization</code>), <code>Typographer(preset)</code> (<code>typography</code>), <code>Recomposer(preset,
+unit="page"|"item")</code> (<code>recomposition</code>), <code>Composer(preset, unit="page"|"item")</code> (<code>composition</code>). The presets of the
+<code>squiddle</code> recipe's rules: <code>working-image@1</code>, <code>latin-historic@1</code>, <code>ratios@1</code>,
+<code>unicode-recomposition@1</code>, <code>docling-composition@1</code>. Running text or the page as laid out is the presence of a
+<code>Recomposer</code>: the <code>Composer</code> composes from paragraphs when there are, else from lines (diplomatic composition).</p>
+<h3 id="scripts-and-dispatch">Scripts and dispatch<a class="headerlink" href="#scripts-and-dispatch" title="Permanent link">&para;</a></h3>
+<p>A preset whose engine is a by-script engine names its strategies in <code>by_script</code>: an ISO 15924 code per script that
+needs its own rules, <code>"*"</code> for every other script.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-latin-recomposition</span>
+<span class="nt">step</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">recomposition</span>
+<span class="nt">engine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">recomposition.by-script.v1</span>
+<span class="nt">by_script</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Hebr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-recomposition@1</span>
+<span class="w">  </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unicode-recomposition@1</span>
+</code></pre></div>
+<p><code>engine_spec</code> resolves them into the engine's <code>strategies</code> (each strategy's engine, options, edition and hash).
+The engine (<code>ScriptDispatch</code>) routes each decision to the strategy of the script around it: for a decision at a row
+end (a division mark, the separator between two rows) the script of the last character before the row end that has
+one, else of the first after it (characters of the scripts Common and Inherited, such as spaces, hyphens, digits and
+combining marks, have none); for a normalization, each run of a text in one script (Common and Inherited
+characters stay with the run before them). A script without a strategy of its own goes to <code>"*"</code>. Scripts are
+Unicode's <code>Script</code> property, matched with the <code>regex</code> package's <code>\p{Script=...}</code>. <code>verify</code> checks that every
+strategy is an edition of the same step and covers its script.</p>
+<h2 id="pipelines-recipes-and-launchpy">Pipelines, recipes and <code>launch.py</code><a class="headerlink" href="#pipelines-recipes-and-launchpy" title="Permanent link">&para;</a></h2>
+<p>Every pipeline script declares <code>PIPELINE</code>, its id: its file name with <code>.v&lt;n&gt;</code> (<code>harvest.v1</code>,
+<code>transcribe_modular.v1</code>, <code>transcribe_vlm.v1</code>, <code>transcribe_page.v1</code>, <code>bind.v1</code>). A script with slots also declares <code>SLOTS</code> (slot →
+option; the option is the step's name: <code>--layout</code>, <code>--lines</code>, <code>--recognition</code>, ...; the rule-based steps are slots
+too: <code>transcribe_modular.v1</code> has <code>--typography</code>, <code>--recomposition</code>, <code>--normalization</code> (the readable item texts'
+normalization, for <code>--item-texts</code>) and <code>--composition</code>, <code>bind.v1</code> <code>--recomposition</code>, <code>--normalization</code> and
+<code>--composition</code>; a slot left empty leaves its step out, e.g. no recomposition: the page stays as laid out). It has
+no default presets:
+the user fills every slot, or names a recipe (<code>--recipe id[@edition]</code>), with single flags on top recorded as
+overrides in the run record (<code>recipe</code>: the edition, the pipeline id, the hash and the overrides).</p>
+<p>The recipes: <code>squiddle</code> (<code>transcribe_modular.v1</code>: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
+recognition, tables, formulas and the rule-based steps) and <code>item-texts</code> (<code>bind.v1</code>: <code>unicode-recomposition@1</code>,
+<code>latin-historic@1</code>, <code>docling-composition@1</code>, the item stage's default combination). Each has its script,
+<code>recipes/&lt;id&gt;.py</code> (<a href="../architecture/#recipe-scripts">architecture</a>): its environment, with exactly the engine packages
+its presets need, and its entry point. <code>recipes/squiddle.py</code> is the environment with kraken;
+<code>pipelines/transcribe_modular.py</code> leaves kraken out.</p>
+<p><code>uv run launch.py NAME IMAGES OUT [options]</code> launches a recipe or a page preset by name: a recipe runs its script
+<code>recipes/&lt;id&gt;.py</code>, a page preset the pipeline script of its kind (<code>transcribe_vlm.v1</code> for chat page presets,
+<code>transcribe_page.v1</code> for page engines' presets), each in its own environment, with <code>--recipe</code> or <code>--recognition</code>. <code>serve</code> and <code>ray</code> pass through for recipes. A preset that is one step
+of a pipeline gets a hint instead: the pipeline, the flag and the recipes that use it.</p>
+<h2 id="support">Support<a class="headerlink" href="#support" title="Permanent link">&para;</a></h2>
+<p><code>core</code> (maintained, validated), <code>experimental</code> (works, may change), <code>legacy</code> (kept resolvable;
+<code>superseded_by:</code> names the replacement).</p>
+<h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>linecaster models [--step STEP]</code></td>
+<td>lists the presets (and the recipes)</td>
+</tr>
+<tr>
+<td><code>linecaster catalog pin ID --hf REPO [--revision REV]</code></td>
+<td>pins a Hugging Face model: model entry, card, file hashes</td>
+</tr>
+<tr>
+<td><code>linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]</code></td>
+<td>pins files of a GitHub repository</td>
+</tr>
+<tr>
+<td><code>linecaster catalog release ID [--commit SHA] [--migrate-pipeline]</code></td>
+<td>freezes the current edition of a preset, recipe or policy in the lock, a recipe with its expanded pipeline</td>
+</tr>
+<tr>
+<td><code>linecaster catalog verify</code></td>
+<td>checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes (policies among them), recipes and their expanded pipelines</td>
+</tr>
+<tr>
+<td><code>linecaster catalog show REF</code></td>
+<td>the resolved functional content of a preset or recipe edition (<code>id@edition</code>, or a hash, today's or a previous one), with its hash</td>
+</tr>
+<tr>
+<td><code>linecaster catalog schemas [--out DIR]</code></td>
+<td>regenerates the JSON Schemas (default <code>src/linecaster/catalog/schemas/</code>)</td>
+</tr>
+<tr>
+<td><code>linecaster docs [--out docs] [--readme README.md]</code></td>
+<td>writes the generated docs (the catalog's pages among them; not in git, written before the site is built)</td>
+</tr>
+</tbody>
+</table>
+<p>The catalog's generated pages are grouped by kind: <code>docs/catalog/{engines, models, presets/&lt;step&gt;, pipelines,
+recipes}/</code> and an index. Engine and pipeline pages are read from the source (<code>linecaster.catalog.code</code>, with
+<code>ast</code>), so the engines need not be installed. The pages quote no measurements.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

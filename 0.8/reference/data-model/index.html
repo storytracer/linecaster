@@ -1,0 +1,3122 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.8/reference/data-model/">
+      
+      
+        <link rel="prev" href="../pipelines/">
+      
+      
+        <link rel="next" href="../evaluation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Data model - Linecaster</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-data-model" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Data model
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Units
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Units">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-page-in-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A page in a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotation-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation sets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotation sets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotators-and-raw-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotators and raw output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotators and raw output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zones
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#readings-words-and-glyphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Readings, words and glyphs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tables-and-formulas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables and formulas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#classifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Descriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading orders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ranges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#content-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Content roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rendering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-variants-linecastertextvariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text variants (linecaster.text.variants)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-and-what-they-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps and what they add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-records-linecasterblocksbaseitem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item records (linecaster.blocks.base.item)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-linecasterpage2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From linecaster.page/2
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Units
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Units">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-page-in-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A page in a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotation-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation sets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotation sets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotators-and-raw-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotators and raw output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotators and raw output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zones
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#readings-words-and-glyphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Readings, words and glyphs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tables-and-formulas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables and formulas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#classifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Descriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading orders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ranges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#content-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Content roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rendering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-variants-linecastertextvariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text variants (linecaster.text.variants)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps-and-what-they-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps and what they add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-records-linecasterblocksbaseitem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item records (linecaster.blocks.base.item)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-linecasterpage2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From linecaster.page/2
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="the-data-model">The data model<a class="headerlink" href="#the-data-model" title="Permanent link">&para;</a></h1>
+<p><code>linecaster.data</code> holds what is read from a page and how it is rendered; <code>linecaster.data.page</code> the page record it
+travels in. A stored page record names its format in its row's <code>schema</code>: <code>linecaster.page/3</code>. Importing
+<code>linecaster.data</code> needs neither datatrove nor saturate nor an engine.</p>
+<h2 id="principles">Principles<a class="headerlink" href="#principles" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Raw output is kept.</strong> What a model answered (a completion, an engine's native result) is stored verbatim, once
+   per request, next to what linecaster parsed from it (<code>RawOutput</code>).</li>
+<li><strong>Nothing is discarded or overwritten.</strong> Every step adds annotations; a normalization, a correction, a removal,
+   a relabelling is a new annotation that refers to the one it is about. A page record holds everything any step
+   said, and who said it.</li>
+<li><strong>Rendering is a recorded, overridable policy.</strong> Which annotations end up in which text (body, page furniture,
+   notes, metadata, nowhere) is decided by a rendering policy at rendering time, never by a parser or a step. The
+   policy is a catalog entry with an edition; run records and evidence name it.</li>
+<li><strong>Definitions generic, vocabularies specific.</strong> The classes hold any input (a scanned book, a manuscript, a
+   born-digital PDF, a newspaper issue); what a region is, how it was made and what a range is are words from
+   vocabularies borrowed from the standards (PAGE-XML, docling-core), extended where they lack a word.</li>
+<li><strong>Records are lean.</strong> Shared things are stored once per page and referred to by number (annotators, raw
+   outputs); geometry is numbers; parts are nested where they never move (words in readings, glyphs in words);
+   renderings (Docling documents, texts) are written out, not stored; defaults are not written.</li>
+</ol>
+<p>The concepts are borrowed from IIIF Presentation 3 and the W3C Web Annotation model (annotations with a target, a
+motivation and a body), PAGE-XML (region types, production), PROV (derivation) and docling-core (tables, content
+layers, group labels, formatting, picture classes), under linecaster's names; the mappings are below
+(<a href="#mappings">mappings</a>). Exports conform to each standard.</p>
+<h2 id="units">Units<a class="headerlink" href="#units" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Is</th>
+<th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Item</code></td>
+<td>a named, ordered container of one or more pages</td>
+<td><code>item_id</code></td>
+</tr>
+<tr>
+<td><code>Page</code></td>
+<td>one page of an item: its image and its annotation sets</td>
+<td><code>page_id</code></td>
+</tr>
+<tr>
+<td><code>PageImage</code></td>
+<td>the image a page's coordinates refer to: its location, size, format and hashes</td>
+<td></td>
+</tr>
+<tr>
+<td><code>DocumentRange</code></td>
+<td>a unit of continuous content within or across items (a work, an article, a letter); see <a href="#ranges">ranges</a></td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>Text</code></td>
+<td>one rendering of an item (or of a document range) as text: per variant, under a policy</td>
+<td><code>item_id</code>, <code>variant</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>An item</strong> is what the input names: it gives the item's id (<code>item_id</code>) and its pages' order (<code>sequence</code>).
+linecaster assumes nothing about what an item is or how its pages came about: a scanned book, an issue, a PDF, a
+folder of images. <code>page_id</code> is <code>&lt;item_id&gt;_&lt;sequence:04d&gt;</code> unless the source has stable page ids of its own; a page
+id never contains <code>#</code>.</p>
+<table>
+<thead>
+<tr>
+<th><code>Page</code> field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>page_id</code>, <code>item_id</code>, <code>sequence</code></td>
+<td>the page's ids and its place in the item</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>its <code>PageImage</code></td>
+</tr>
+<tr>
+<td><code>transcriptions</code></td>
+<td>name → <code>Transcription</code>: <code>ocr_new</code> (linecaster's), <code>ocr_original</code> (the library's own), <code>ground_truth</code>, <code>&lt;source&gt;</code></td>
+</tr>
+<tr>
+<td><code>annotations</code></td>
+<td>name → <code>AnnotationSet</code>: sets without text (a layout of its own, an evaluation's markings)</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>the source's page metadata, namespaced keys (<code>&lt;ns&gt;__&lt;field&gt;</code>)</td>
+</tr>
+<tr>
+<td><code>measurements</code></td>
+<td>the page's time in the runs that worked on it: <code>seconds</code>, <code>datetime</code> (below)</td>
+</tr>
+</tbody>
+</table>
+<p><code>PageImage</code> is unchanged from <code>linecaster.page/2</code>: <code>uri</code>, <code>format</code>, <code>width</code>, <code>height</code>, <code>sha256</code> (of the stored
+bytes), <code>pixels_sha256</code> (of the decoded pixels), <code>source_width</code>, <code>source_height</code> and <code>scale</code> (for a derivative of a
+master), <code>decoder</code>, <code>extra</code>.</p>
+<h3 id="a-page-in-a-pipeline">A page in a pipeline<a class="headerlink" href="#a-page-in-a-pipeline" title="Permanent link">&para;</a></h3>
+<p>A page is one datatrove <code>Document</code>: <code>id</code> is the page id, <code>text</code> the primary transcription's text
+(<code>Transcription.text</code>, under the default policy), <code>media[0]</code> the image bytes, <code>metadata["page"]</code> the page record.</p>
+<p><strong>A page's time in the run</strong> is on its record, <code>Page.measurements</code>: <code>seconds</code>, the wall time from when the reader
+handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
+between, waiting in served windows and queues included), and <code>datetime</code>, when the reader handed it over (ISO 8601,
+UTC). <code>linecaster.runtime.observers.PageTiming</code> sets them on every page stage that writes pages; a record read from
+an earlier run adds the new run's time to the one it carries and keeps the first <code>datetime</code>. Each annotator's own
+time is in its <code>measurements</code>.</p>
+<h2 id="annotation-sets">Annotation sets<a class="headerlink" href="#annotation-sets" title="Permanent link">&para;</a></h2>
+<p>An <strong>annotation set</strong> (<code>AnnotationSet</code>) is everything one source said about one page: the annotators that worked on
+it, their raw outputs, and their annotations. A <strong>transcription</strong> (<code>Transcription</code>, a subclass) is an annotation set
+that also holds text: readings, tables, formulas, paragraphs, edits. A page has any number of each, by name.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+<th>In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td>where the set comes from (<code>Source</code>, below)</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>annotators</code></td>
+<td>who worked on it, in the order they ran (<code>Annotator</code>)</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>outputs</code></td>
+<td>their raw outputs, one per request (<code>RawOutput</code>)</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>regions</code></td>
+<td><code>Region</code>s: the layout's zones</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>ranges</code></td>
+<td><code>Range</code>s, <code>DocumentRange</code>s and <code>Paragraph</code>s: the logical units, their pieces on this page</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>classifications</code></td>
+<td><code>Classification</code>s: role, production, the annotator's own label, heading level, language, status, ...</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>descriptions</code></td>
+<td><code>Description</code>s: what an annotator wrote about a zone that is not on the page</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>links</code></td>
+<td><code>Link</code>s: cross-references (caption of, note of)</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>orders</code></td>
+<td><code>ReadingOrder</code>s: one per annotator that ordered the page</td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>lines</code></td>
+<td><code>Line</code>s: the line zones, each with its <code>Reading</code></td>
+<td><code>Transcription</code></td>
+</tr>
+<tr>
+<td><code>tables</code></td>
+<td><code>Table</code>s: a region's table structure</td>
+<td><code>Transcription</code></td>
+</tr>
+<tr>
+<td><code>formulas</code></td>
+<td><code>Formula</code>s: a region's formula</td>
+<td><code>Transcription</code></td>
+</tr>
+<tr>
+<td><code>edits</code></td>
+<td><code>Edit</code>s: NFC, normalized, corrected, joined forms of a reading, a word, a cell or a paragraph</td>
+<td><code>Transcription</code></td>
+</tr>
+</tbody>
+</table>
+<p>Derived, not stored: <code>text</code> (the set rendered under a policy), <code>confidence</code> (reading confidences weighted by
+length), <code>objects</code> (regions in the shape of a Hugging Face <code>objects</code> column).</p>
+<p><strong>One of each per target and set</strong>: a line has at most one reading, a region at most one table and one formula in a
+set. A second recognizer of the same lines writes a transcription of its own; a second classifier of the same scheme
+adds a classification next to the first, and the policy's <code>precedence</code> says whose counts.</p>
+<h3 id="source"><code>Source</code><a class="headerlink" href="#source" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td><code>produced</code> (made by linecaster's annotators), <code>converted</code> (read from a delivered file), <code>ground_truth</code> (a reference transcription, made or checked by people)</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td>for converted sets and ground truth: <code>alto</code>, <code>page</code>, <code>hocr</code>, <code>docling</code>, <code>text</code>, <code>markdown</code>, or an evaluation's own name</td>
+</tr>
+<tr>
+<td><code>uri</code>, <code>sha256</code></td>
+<td>the delivered file and its hash</td>
+</tr>
+<tr>
+<td><code>dataset</code>, <code>record</code></td>
+<td>for ground truth and converted sets from a dataset: <code>repo@revision</code>, and the row or file the set was read from</td>
+</tr>
+<tr>
+<td><code>image_sha256</code>, <code>image_width</code>, <code>image_height</code></td>
+<td>the image the set's coordinates refer to</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>the factors (<code>[sx, sy]</code>) a set was scaled by onto this image (<code>AnnotationSet.scaled</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="annotators-and-raw-output">Annotators and raw output<a class="headerlink" href="#annotators-and-raw-output" title="Permanent link">&para;</a></h2>
+<p>An <strong>annotator</strong> (<code>Annotator</code>) is one thing that worked on a set: a model step, a rule-based step, a delivered file,
+or people. Annotations name it by its index in <code>annotators</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td><code>model</code>, <code>rule</code>, <code>file</code>, <code>human</code></td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td>the catalog step: <code>layout</code>, <code>lines</code>, <code>recognition</code>, <code>tables</code>, <code>formulas</code>, <code>unicode</code>, <code>typography</code>, <code>recomposition</code>, <code>normalization</code>, <code>assignment</code>, <code>ordering</code>, ...; for a file or people: <code>transcription</code></td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>the model (<code>kraken-ppocrv6-medium</code>); for a rule, what ran (<code>unicodedata</code>, the engine's id); for people, the group (<code>proofreaders</code>)</td>
+</tr>
+<tr>
+<td><code>engine</code>, <code>revision</code></td>
+<td>the engine's code id, the model's revision</td>
+</tr>
+<tr>
+<td><code>preset</code>, <code>preset_sha256</code>, <code>recipe</code>, <code>recipe_sha256</code></td>
+<td>the preset and recipe editions it ran as, and their hashes</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td>in-process, or served with the server's address</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>the run that produced the annotator's work (its run id, <code>RunRecord.run_id</code>); <code>None</code> for files and people</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>what decided the output besides the preset: the engine's options, a VLM's prompt and sampling; for people, their review: <code>review</code> (<code>transcribed</code>, <code>proofread</code>, <code>validated</code>, or the source's own word)</td>
+</tr>
+<tr>
+<td><code>measurements</code></td>
+<td>numbers of this page, in the measurements vocabulary (below)</td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>raw output</strong> (<code>RawOutput</code>) is one request's answer, verbatim:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>annotator</code></td>
+<td>its annotator</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>the completion as the model wrote it, or an engine's native result (JSON)</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td><code>text</code>, <code>json</code>, or the engine's own name</td>
+</tr>
+<tr>
+<td><code>pass_</code></td>
+<td>which pass of the page it is (1, 2 after a <a href="../glossary/">repair pass</a>); stored as <code>pass</code></td>
+</tr>
+<tr>
+<td><code>kept</code></td>
+<td>whether the annotations were parsed from it (a repair pass keeps one)</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>what this request was sent with when it differs from the annotator's: <code>max_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>preset</code></td>
+</tr>
+<tr>
+<td><code>image_size</code></td>
+<td>the size of the image sent, when it is not the page image's</td>
+</tr>
+<tr>
+<td><code>finish_reason</code>, <code>prompt_tokens</code>, <code>completion_tokens</code></td>
+<td>as the server reported them</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>the request's error, when it failed</td>
+</tr>
+</tbody>
+</table>
+<p>Engines that answer in-process with Python objects (a detector's boxes) store no raw output: their annotations are
+the output, and their raw form is not kept beyond them.</p>
+<h3 id="measurements">Measurements<a class="headerlink" href="#measurements" title="Permanent link">&para;</a></h3>
+<p><code>linecaster.data.MEASUREMENTS</code> is the vocabulary of <code>Annotator.measurements</code> and <code>Page.measurements</code>, key →
+meaning; linecaster code writes no other key. Values vary from run to run.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>seconds</code></td>
+<td>wall time of the step on the page (the engine's call, in-process or in the server); on the page record, the page's time in the run</td>
+</tr>
+<tr>
+<td><code>datetime</code></td>
+<td>when the step started on the page, ISO 8601 in UTC; on the page record, when its reader handed it over</td>
+</tr>
+<tr>
+<td><code>device</code></td>
+<td>the device the step ran on</td>
+</tr>
+<tr>
+<td><code>request_seconds</code></td>
+<td>a served step: from its request being built to its (last) answer</td>
+</tr>
+<tr>
+<td><code>queue_seconds</code>, <code>decode_seconds</code></td>
+<td>a step served by <code>linecaster serve</code>: the wait in the server's queue, the decoding of the page image</td>
+</tr>
+<tr>
+<td><code>decoder</code></td>
+<td>what decoded the page image the step read (<code>linecaster.images.pixels</code>)</td>
+</tr>
+<tr>
+<td><code>prompt_tokens</code>, <code>completion_tokens</code></td>
+<td>a VLM's tokens, summed over the page's requests (each request's are on its raw output)</td>
+</tr>
+<tr>
+<td><code>finish_reason</code></td>
+<td>the kept request's: <code>stop</code>, <code>length</code>, <code>repetition</code>, <code>content_filter</code>, <code>tool_calls</code>, <code>function_call</code>, <code>abort</code> (<code>FINISH_REASONS</code>), or <code>None</code></td>
+</tr>
+<tr>
+<td><code>regions</code>, <code>failed</code></td>
+<td>regions sent to a VLM one by one, and those whose request failed</td>
+</tr>
+<tr>
+<td><code>tables</code>, <code>formulas</code></td>
+<td>table regions given a structure, formula regions read</td>
+</tr>
+<tr>
+<td><code>changed</code></td>
+<td>strings a normalization changed</td>
+</tr>
+<tr>
+<td><code>body_size</code>, <code>leveled</code>, <code>demoted</code>, <code>split</code>, <code>drop_capitals</code>, <code>numbers_dropped</code></td>
+<td>typography: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed</td>
+</tr>
+<tr>
+<td><code>paragraphs</code>, <code>continuations</code>, <code>marks_removed</code>, <code>marks_kept</code></td>
+<td>recomposition: paragraphs made, continued, division marks removed, hyphens kept</td>
+</tr>
+</tbody>
+</table>
+<h2 id="annotations">Annotations<a class="headerlink" href="#annotations" title="Permanent link">&para;</a></h2>
+<p>Every annotation has an annotator and may name the raw output it was parsed from, what it was derived from, and a
+confidence:</p>
+<table>
+<thead>
+<tr>
+<th><code>Annotation</code> field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>annotator</code></td>
+<td>the index of its annotator in the set</td>
+</tr>
+<tr>
+<td><code>output</code></td>
+<td>the index of the raw output it was parsed from, if any</td>
+</tr>
+<tr>
+<td><code>derived_from</code></td>
+<td><a href="#references">references</a> to what it was made from (PROV's <code>wasDerivedFrom</code>): a paragraph's lines, an edit's source, a classification's evidence</td>
+</tr>
+<tr>
+<td><code>confidence</code></td>
+<td>the annotator's confidence, 0 to 1, if it gave one</td>
+</tr>
+<tr>
+<td><code>&lt;ns&gt;__&lt;field&gt;</code></td>
+<td>extension fields, namespaced: an adapter's or a step's own (<code>lighton__continuation</code>, <code>typography__reason</code>), never shared vocabulary</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Motivation</th>
+<th>Target</th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Region</code></td>
+<td>segmenting</td>
+<td>the page</td>
+<td>a zone found by a layout step</td>
+</tr>
+<tr>
+<td><code>Line</code></td>
+<td>segmenting</td>
+<td>the page</td>
+<td>a zone found by a line step</td>
+</tr>
+<tr>
+<td><code>Reading</code></td>
+<td>transcribing</td>
+<td>its line</td>
+<td>a line's text, with words and glyphs</td>
+</tr>
+<tr>
+<td><code>Table</code></td>
+<td>transcribing</td>
+<td>a region</td>
+<td>a region's table structure</td>
+</tr>
+<tr>
+<td><code>Formula</code></td>
+<td>transcribing</td>
+<td>a region</td>
+<td>a region's formula, as LaTeX</td>
+</tr>
+<tr>
+<td><code>Classification</code></td>
+<td>classifying</td>
+<td>a zone, a range, a reading span, the page</td>
+<td>one value of one scheme</td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>describing</td>
+<td>a zone</td>
+<td>text about the zone that is not on the page</td>
+</tr>
+<tr>
+<td><code>Edit</code></td>
+<td>editing</td>
+<td>a reading, a word, a cell, a paragraph, a span</td>
+<td>another form of the target's text</td>
+</tr>
+<tr>
+<td><code>Link</code></td>
+<td>linking</td>
+<td>two references</td>
+<td>a cross-reference</td>
+</tr>
+<tr>
+<td><code>ReadingOrder</code></td>
+<td>ordering</td>
+<td>the page</td>
+<td>an order of the page's regions and lines</td>
+</tr>
+<tr>
+<td><code>Range</code>, <code>DocumentRange</code>, <code>Paragraph</code></td>
+<td>structuring</td>
+<td>zones, spans, ranges</td>
+<td>a logical unit: its piece on this page</td>
+</tr>
+</tbody>
+</table>
+<p>The motivation is the class's, not a stored field. IIIF exports <code>transcribing</code> as <code>supplementing</code> (IIIF's word for
+a transcription), the others as W3C Web Annotation motivations (<code>classifying</code>, <code>describing</code>, <code>editing</code>, <code>linking</code>)
+or linecaster's own (<code>segmenting</code>, <code>ordering</code>, <code>structuring</code>).</p>
+<h3 id="zones">Zones<a class="headerlink" href="#zones" title="Permanent link">&para;</a></h3>
+<p>A <strong>zone</strong> (<code>Zone</code>) is a place on the page image an annotator found; <code>Region</code> and <code>Line</code> are zones. Geometry without
+an annotator of its own (a word, a glyph, a cell) is a <strong>shape</strong> (<code>Shape</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+<th>In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>box</code></td>
+<td><code>[x, y, width, height]</code> in pixels of the page image, or <code>None</code> (no geometry: a text-only answer, a ground truth without boxes)</td>
+<td><code>Shape</code></td>
+</tr>
+<tr>
+<td><code>polygon</code></td>
+<td><code>[[x, y], ...]</code> as the annotator gave it, or <code>None</code></td>
+<td><code>Shape</code></td>
+</tr>
+<tr>
+<td><code>id</code></td>
+<td>unique within the page and set (<code>r3</code>, <code>l17</code>); never contains <code>#</code>, <code>/</code> or <code>[</code></td>
+<td><code>Zone</code></td>
+</tr>
+<tr>
+<td><code>parent</code></td>
+<td>the zone it lies in (a running head's title and page number inside the running head)</td>
+<td><code>Zone</code></td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>the annotator's own label (PP-DocLayout's <code>aside_text</code>, LightOn's <code>page_number</code>), verbatim</td>
+<td><code>Region</code></td>
+</tr>
+<tr>
+<td><code>region</code></td>
+<td>the region the line belongs to: set once, by the step that assigned it</td>
+<td><code>Line</code></td>
+</tr>
+<tr>
+<td><code>baseline</code></td>
+<td><code>[[x, y], ...]</code></td>
+<td><code>Line</code></td>
+</tr>
+<tr>
+<td><code>reading</code></td>
+<td>the line's <code>Reading</code>, <code>None</code> until a recognizer ran</td>
+<td><code>Line</code></td>
+</tr>
+</tbody>
+</table>
+<p>Lines are found across the whole page and assigned to regions later; zones are therefore flat lists with stable ids,
+and a line names its region, set once by the step that assigned it. A later step that moves a line into another
+region (typography splitting a headline off) adds a <code>part_of</code> link; the line's region is the latest <code>part_of</code>
+target, else <code>Line.region</code> (<code>Transcription.region_of</code>). A line's <code>confidence</code> is its detection score; its
+reading's is the recognizer's.</p>
+<h3 id="readings-words-and-glyphs">Readings, words and glyphs<a class="headerlink" href="#readings-words-and-glyphs" title="Permanent link">&para;</a></h3>
+<p>A <strong>reading</strong> (<code>Reading</code>) is what a recognizer read on one line: <code>text</code> (exactly as the engine produced it, <code>""</code> for
+a line read as empty), <code>alternatives</code>, <code>words</code>, <code>formatting</code>, and its own annotator, raw output and confidence.
+A <code>Word</code> (<code>Shape</code>) has <code>text</code>, <code>confidence</code>, <code>hyphen</code> (it ends in a division mark), <code>alternatives</code>, <code>formatting</code>
+and <code>glyphs</code>, and an <code>id</code> only where its source gave one other than <code>&lt;line&gt;_w&lt;n&gt;</code>; a <code>Glyph</code> (<code>Shape</code>) <code>text</code> and <code>confidence</code>. Engines with character positions keep them as glyphs.</p>
+<p><code>Formatting</code> is docling-core's: <code>bold</code>, <code>italic</code>, <code>underline</code>, <code>strikethrough</code>, <code>script</code> (<code>baseline</code>, <code>sub</code>,
+<code>super</code>); on a word, it covers the word; on a reading, each <code>Formatting</code> has a <code>charspan</code> (<code>[start, end]</code> in the
+reading's text).</p>
+<h3 id="tables-and-formulas">Tables and formulas<a class="headerlink" href="#tables-and-formulas" title="Permanent link">&para;</a></h3>
+<p>A <code>Table</code> transcribes a region (<code>target</code>) as docling-core's table model, stored lean: <code>num_rows</code>, <code>num_cols</code>,
+<code>cells</code>, and <code>html</code> when the model wrote the table as HTML. A <code>Cell</code> (<code>Shape</code>) has docling-core's <code>TableCell</code>
+fields: <code>start_row</code>, <code>end_row</code>, <code>start_col</code>, <code>end_col</code> (docling-core's <code>*_offset_idx</code>, end exclusive), <code>text</code>,
+<code>column_header</code>, <code>row_header</code>, <code>row_section</code>. Spans and the grid are not stored (they follow from the offsets);
+<code>linecaster.formats.docling.table_data</code> and <code>from_table_data</code> convert to and from docling-core's <code>TableData</code>
+losslessly. A chart's data, when a model gives it, is a <code>Table</code> too, on the chart's region.</p>
+<p>A <code>Formula</code> transcribes a region as <code>latex</code>.</p>
+<h3 id="classifications">Classifications<a class="headerlink" href="#classifications" title="Permanent link">&para;</a></h3>
+<p>A <code>Classification</code> gives one <code>target</code> one <code>value</code> in one <code>scheme</code>. Several annotators may classify the same target
+in the same scheme (the layout model and the typography rules); none overwrites another.</p>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Values</th>
+<th>Typical annotator</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>role</code></td>
+<td>what the content is (<a href="#content-roles">content roles</a>)</td>
+<td>layout, typography, a grounding VLM, a ground truth</td>
+</tr>
+<tr>
+<td><code>production</code></td>
+<td>how it was made: <code>printed</code>, <code>typewritten</code>, <code>handwritten</code>, <code>stamped</code>, <code>born_digital</code></td>
+<td>layout, a ground truth</td>
+</tr>
+<tr>
+<td><code>heading_level</code></td>
+<td><code>1</code>, <code>2</code>, ... (docling-core's <code>SectionHeaderItem.level</code>)</td>
+<td>typography</td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td>a BCP 47 tag, on the page (<code>""</code>), a zone or a span</td>
+<td>recognition, a ground truth</td>
+</tr>
+<tr>
+<td><code>script</code></td>
+<td>an ISO 15924 code</td>
+<td>recognition</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>illegible</code>, <code>gap</code> (text left out), <code>suppressed</code>, <code>duplicate</code>, <code>removed</code></td>
+<td>a ground truth, typography</td>
+</tr>
+<tr>
+<td><code>picture_class</code></td>
+<td>docling-core's <code>PictureClassificationLabel</code> (<code>photograph</code>, <code>map</code>, <code>stamp</code>, <code>signature</code>, <code>music</code>, ...)</td>
+<td>a picture classifier</td>
+</tr>
+<tr>
+<td><code>code_language</code></td>
+<td>docling-core's <code>CodeLanguageLabel</code></td>
+<td>a VLM</td>
+</tr>
+</tbody>
+</table>
+<p>The annotator's own label is the region's <code>label</code>, not a classification; the mapping from it to a role is catalog
+data per engine (each engine's label map), applied by the annotator that made the region.</p>
+<h3 id="descriptions">Descriptions<a class="headerlink" href="#descriptions" title="Permanent link">&para;</a></h3>
+<p>A <code>Description</code> is text an annotator wrote about a zone that is not printed on the page (a VLM's description of a
+figure, chart data it read off, an editor's note): <code>target</code>, <code>kind</code> (<code>description</code>, <code>data</code>, <code>note</code>), <code>text</code>, <code>format</code> (<code>text</code>, <code>markdown</code>, <code>html</code>).
+docling-core's <code>DescriptionMetaField</code>.</p>
+<h3 id="edits">Edits<a class="headerlink" href="#edits" title="Permanent link">&para;</a></h3>
+<p>An <code>Edit</code> is another form of a target's text; the target's own text stays. <code>target</code> (a reading, a word, a cell, a
+paragraph, a span of one), <code>kind</code>, <code>text</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nfc</code></td>
+<td>the text in Unicode NFC (the <code>unicode</code> step); only when it differs</td>
+</tr>
+<tr>
+<td><code>normalized</code></td>
+<td>the text normalized (<code>CharacterNormalizer</code>: ſ, ligatures, r rotunda ...)</td>
+</tr>
+<tr>
+<td><code>corrected</code></td>
+<td>an editor's correction of what is printed (a misprint); the reading keeps the printed form</td>
+</tr>
+<tr>
+<td><code>joined</code></td>
+<td>a word divided across lines or pages, joined: on its first half, <code>derived_from</code> naming the other half</td>
+</tr>
+<tr>
+<td><code>expanded</code>, <code>regularized</code></td>
+<td>abbreviations expanded, spelling regularized (the text dimensions' later steps)</td>
+</tr>
+</tbody>
+</table>
+<p>Edits chain: an edit may target another edit's result through <code>derived_from</code>; a renderer takes, per target, the
+last edit of the kinds the text variant asks for.</p>
+<h3 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h3>
+<p>A <code>Link</code> is a cross-reference: <code>kind</code>, <code>source</code>, <code>target</code>. Kinds: <code>caption_of</code>, <code>note_of</code> (a footnote and its mark,
+<code>source</code> the note, <code>target</code> the mark's span), <code>continues</code> (<code>source</code> continues <code>target</code>: a paragraph or footnote
+from an earlier column or page), <code>runs_into</code> (<code>source</code> runs on into <code>target</code>), <code>refers_to</code>, <code>part_of</code> (a line in
+another region than the one it was assigned to).</p>
+<h3 id="reading-orders">Reading orders<a class="headerlink" href="#reading-orders" title="Permanent link">&para;</a></h3>
+<p>A <code>ReadingOrder</code> orders the page: <code>regions</code> (region ids in reading order), <code>lines</code> (line ids in reading order) and
+<code>rows</code> (parallel to <code>lines</code>: each line's visual row within its region). An order of regions alone leaves <code>lines</code>
+empty. A layout model that learned an order, the line assigner, typography, XY-Cut++ and a ground truth each add
+their own; the latest counts unless the policy's <code>precedence</code> says otherwise.</p>
+<p><strong>Processing order</strong> is separate: the list order of <code>lines</code> (regions in the layout step's order, orphan rows last,
+rows within each region), in which a recognizer processes and batches lines.</p>
+<h3 id="ranges">Ranges<a class="headerlink" href="#ranges" title="Permanent link">&para;</a></h3>
+<p>A <strong>range</strong> (<code>Range</code>) is a logical unit of content: a document, a chapter, a section, an article, a list, a
+paragraph. A page stores only the <strong>piece</strong> of a range that lies on it, under the range's <code>id</code>; pieces with the same
+id on other pages of the item are the same range, and the item record joins them in page order. Paragraphs are the
+exception: their ids are page-local, and a paragraph continued in the next column or on the next page is two
+paragraphs joined by links (<code>runs_into</code>, <code>continues</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>unique within the item (paragraphs: within the page, <code>&lt;region id&gt;_p&lt;n&gt;</code>); never contains <code>#</code>, <code>/</code> or <code>[</code></td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td>docling-core's <code>GroupLabel</code> (<code>chapter</code>, <code>section</code>, <code>list</code>, <code>ordered_list</code>, <code>inline</code>, <code>picture_area</code>, <code>form_area</code>, <code>key_value_area</code>, <code>comment_section</code>, <code>sheet</code>, <code>slide</code>) plus <code>document</code>, <code>article</code>, <code>work</code>, <code>paragraph</code>, <code>poem</code>, <code>stanza</code></td>
+</tr>
+<tr>
+<td><code>parent</code></td>
+<td>the range it is part of</td>
+</tr>
+<tr>
+<td><code>parts</code></td>
+<td>the zones, spans and ranges of this piece, in order</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>the range's title, if known</td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>document range</strong> (<code>DocumentRange</code>, <code>kind</code> <code>document</code>) is a document within or across items: an item holds one
+document unless ranges say otherwise. A <strong>paragraph</strong> (<code>Paragraph</code>, <code>kind</code> <code>paragraph</code>) is the bottom range that
+carries running text: <code>text</code> (as written, flowed: the rows joined, the division marks the recomposition removed
+gone), <code>rows</code> (<code>ParagraphRow</code>: <code>lines</code>, the ids of every line on the visual row, empty ones too, and <code>charspan</code>, the
+row's part of <code>text</code>), and <code>decisions</code> (<code>Decision</code>: <code>kind</code>, <code>reason</code>, <code>row</code>, <code>separator</code>; the vocabulary
+<code>DECISIONS</code>). A paragraph's <code>continuation</code> decision's <code>separator</code> joins its text to the paragraph it runs on into.</p>
+<table>
+<thead>
+<tr>
+<th>Decision <code>kind</code></th>
+<th>Reasons</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mark_removed</code></td>
+<td><code>letter_follows</code></td>
+</tr>
+<tr>
+<td><code>hyphen_kept</code></td>
+<td><code>capital_follows</code>, <code>digit_follows</code>, <code>no_letter_follows</code>, <code>script_change</code>, <code>attested</code></td>
+</tr>
+<tr>
+<td><code>paragraph_break</code></td>
+<td><code>indent</code>, <code>gap</code>, <code>short_row</code></td>
+</tr>
+<tr>
+<td><code>continuation</code></td>
+<td><code>division_mark</code>, <code>end_margin</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h3>
+<p>A reference (<code>Ref</code>) names something in the same set:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;id&gt;</code></td>
+<td>a zone or a range piece on this page</td>
+</tr>
+<tr>
+<td><code>&lt;line&gt;/&lt;n&gt;</code>, <code>&lt;line&gt;/&lt;n&gt;/&lt;m&gt;</code></td>
+<td>word <code>n</code> of the line's reading, glyph <code>m</code> of that word</td>
+</tr>
+<tr>
+<td><code>&lt;region&gt;/r&lt;row&gt;c&lt;col&gt;</code></td>
+<td>the cell of the region's table that starts at that row and column</td>
+</tr>
+<tr>
+<td><code>&lt;ref&gt;[&lt;start&gt;:&lt;end&gt;]</code></td>
+<td>characters <code>start</code> to <code>end</code> (end exclusive) of the text the reference names</td>
+</tr>
+<tr>
+<td><code>""</code></td>
+<td>the page</td>
+</tr>
+<tr>
+<td><code>&lt;page_id&gt;#&lt;ref&gt;</code></td>
+<td>something on another page of the item</td>
+</tr>
+</tbody>
+</table>
+<h2 id="content-roles">Content roles<a class="headerlink" href="#content-roles" title="Permanent link">&para;</a></h2>
+<p>The <code>role</code> scheme's vocabulary, the <strong>content roles</strong>, is PAGE-XML's region types, with docling-core's labels where PAGE has no word:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>PAGE-XML</th>
+<th>docling-core label</th>
+<th>Default layer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paragraph</code></td>
+<td><code>paragraph</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>heading</code></td>
+<td><code>heading</code></td>
+<td><code>section_header</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>(<code>heading</code>)</td>
+<td><code>title</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>caption</code></td>
+<td><code>caption</code></td>
+<td><code>caption</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>list_item</code></td>
+<td>(<code>paragraph</code>)</td>
+<td><code>list_item</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>list_label</code></td>
+<td><code>list-label</code></td>
+<td>(the list item's <code>marker</code>)</td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>toc_entry</code></td>
+<td><code>TOC-entry</code></td>
+<td><code>document_index</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>footnote</code></td>
+<td><code>footnote</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>footnote_continued</code></td>
+<td><code>footnote-continued</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>endnote</code></td>
+<td><code>endnote</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>marginalia</code></td>
+<td><code>marginalia</code></td>
+<td><code>text</code> (<code>aside_text</code> before)</td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>drop_capital</code></td>
+<td><code>drop-capital</code></td>
+<td>(joined to its word)</td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>credit</code></td>
+<td><code>credit</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>floating</code></td>
+<td><code>floating</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>reference</code></td>
+<td>(<code>paragraph</code>)</td>
+<td><code>reference</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>(<code>other</code>)</td>
+<td><code>code</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>table</code></td>
+<td><code>TableRegion</code></td>
+<td><code>table</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>formula</code></td>
+<td><code>MathsRegion</code></td>
+<td><code>formula</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>chemistry</code></td>
+<td><code>ChemRegion</code></td>
+<td><code>formula</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>music</code></td>
+<td><code>MusicRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>picture</code></td>
+<td><code>ImageRegion</code>, <code>GraphicRegion</code>, <code>LineDrawingRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>chart</code></td>
+<td><code>ChartRegion</code></td>
+<td><code>chart</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>map</code></td>
+<td><code>MapRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>advert</code></td>
+<td><code>AdvertRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>form</code></td>
+<td>(<code>other</code>)</td>
+<td><code>form</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>key_value</code></td>
+<td>(<code>other</code>)</td>
+<td><code>key_value_region</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>header</code></td>
+<td><code>header</code></td>
+<td><code>page_header</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>footer</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>page_number</code></td>
+<td><code>page-number</code></td>
+<td><code>page_header</code>, <code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>catch_word</code></td>
+<td><code>catch-word</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>signature_mark</code></td>
+<td><code>signature-mark</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>separator</code></td>
+<td><code>SeparatorRegion</code></td>
+<td><code>picture</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>noise</code></td>
+<td><code>NoiseRegion</code></td>
+<td><code>picture</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>other</code></td>
+<td><code>other</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+</tbody>
+</table>
+<p>A content role says what the content is, not where it is rendered: the layers in the last column are the default
+policy's. A page number's Docling label depends on where it is: <code>page_header</code> when its centre lies in the top 15 %
+of the page (or without a box), else <code>page_footer</code>. A label that is neither a role nor a Docling label (a model's own) is kept as
+its own role and written as it is.</p>
+<h2 id="rendering">Rendering<a class="headerlink" href="#rendering" title="Permanent link">&para;</a></h2>
+<p>A <strong>rendering policy</strong> (<code>RenderingPolicy</code>, a catalog entry <code>policy</code> with editions, like a preset) decides which
+annotations go into which <strong>layer</strong> of a rendering. The layers are docling-core's <code>ContentLayer</code> (<code>body</code>,
+<code>furniture</code>, <code>background</code>, <code>invisible</code>, <code>notes</code>), plus <code>metadata</code> (kept out of the text, written to the rendering's
+metadata) and <code>none</code>.</p>
+<table>
+<thead>
+<tr>
+<th><code>RenderingPolicy</code> field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>, <code>edition</code></td>
+<td>as a preset's</td>
+</tr>
+<tr>
+<td><code>rules</code></td>
+<td><code>RenderingRule</code>s, the first that matches wins: <code>role</code>, <code>production</code>, <code>status</code>, <code>motivation</code> (each <code>None</code>: any) → <code>to</code> (a layer, <code>metadata</code> or <code>none</code>)</td>
+</tr>
+<tr>
+<td><code>precedence</code></td>
+<td>whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (<code>role: [typography, layout]</code>), for reading orders (<code>order: [layout, ordering]</code>) and ranges</td>
+</tr>
+<tr>
+<td><code>edits</code></td>
+<td>which edits a text variant applies, by variant (<code>readable_txt: [nfc, joined, normalized]</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The default policy, <code>page-layers@1</code>, gives every role its default layer, <code>status</code> <code>suppressed</code>, <code>duplicate</code> and
+<code>removed</code> → <code>none</code>, descriptions → <code>metadata</code>; without <code>precedence</code> the latest annotator's classifications count
+(typography's over the layout's). Its <code>verbatim_txt</code> applies <code>nfc</code> and <code>joined</code> (a drop capital joined to its line),
+the readable variants also <code>normalized</code>. A run names its
+policy (<code>--policy</code>); without one it uses the default, and the run record says which.</p>
+<p>Renderings are made from a set under a policy and are not stored: the Docling document (<code>linecaster.formats.docling</code>,
+one item per paragraph or region, the layer as the item's <code>content_layer</code>, roles as Docling labels), DocLang, ALTO,
+PAGE-XML, hOCR, the IIIF annotation page, and the texts.</p>
+<h3 id="text-variants-linecastertextvariants">Text variants (<code>linecaster.text.variants</code>)<a class="headerlink" href="#text-variants-linecastertextvariants" title="Permanent link">&para;</a></h3>
+<p>Three variants per item, each a choice of layers and edits from the policy:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Layers</th>
+<th>Edits</th>
+<th>Flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>verbatim_txt</code></td>
+<td>body, furniture</td>
+<td><code>nfc</code>, <code>joined</code></td>
+<td>as laid out: each page's readings in reading order, tables as Markdown or HTML, pages joined with a form feed</td>
+</tr>
+<tr>
+<td><code>readable_txt</code></td>
+<td>body</td>
+<td><code>nfc</code>, <code>joined</code>, <code>normalized</code></td>
+<td>flowed: the item's paragraphs, a paragraph's pieces joined with their separator, tables one row per line with tab-separated cells, a formula's LaTeX</td>
+</tr>
+<tr>
+<td><code>readable_md</code></td>
+<td>body</td>
+<td>as <code>readable_txt</code></td>
+<td>the same as Markdown: <code>#</code> title, <code>##</code> heading (by heading level), <code>-</code> list item, tables as pipe tables (HTML when a cell spans)</td>
+</tr>
+</tbody>
+</table>
+<p>The vocabulary is era-neutral, on three dimensions: character fidelity (as written → normalized → expanded →
+regularized), flow (as laid out → flowed) and scope (full page → body only). All text is NFC; the normalization folds
+ſ, ligatures, r rotunda and superscript e over a, o, u by an explicit mapping table, and keeps æ, œ, ø, å and ß;
+never NFKC; spelling is never modernized.</p>
+<h2 id="steps-and-what-they-add">Steps and what they add<a class="headerlink" href="#steps-and-what-they-add" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>layout</td>
+<td>regions, <code>role</code> and <code>production</code> classifications (by the engine's label map), a reading order if the model learned one</td>
+</tr>
+<tr>
+<td>lines</td>
+<td>lines (geometry only)</td>
+</tr>
+<tr>
+<td>assignment</td>
+<td>each line's <code>region</code></td>
+</tr>
+<tr>
+<td>recognition</td>
+<td>readings (words, glyphs, formatting), raw outputs; <code>language</code>, <code>script</code> classifications</td>
+</tr>
+<tr>
+<td>tables, formulas</td>
+<td>tables, formulas</td>
+</tr>
+<tr>
+<td>unicode</td>
+<td><code>nfc</code> edits</td>
+</tr>
+<tr>
+<td>typography</td>
+<td><code>role</code> and <code>heading_level</code> classifications (a demoted heading is classified <code>paragraph</code> again, by typography), <code>status</code> <code>removed</code> for what it drops, a <code>joined</code> edit for a drop capital joined to its line, a split-off headline as a region with <code>parent</code> and <code>part_of</code> links, a new reading order</td>
+</tr>
+<tr>
+<td>ordering</td>
+<td>a reading order (XY-cut, XY-Cut++)</td>
+</tr>
+<tr>
+<td>recomposition</td>
+<td>paragraphs and their <code>runs_into</code> and <code>continues</code> links</td>
+</tr>
+<tr>
+<td>normalization</td>
+<td><code>normalized</code> edits</td>
+</tr>
+<tr>
+<td>a VLM page step</td>
+<td>regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs</td>
+</tr>
+<tr>
+<td>a ground-truth import</td>
+<td>everything its source has, <code>source.kind</code> <code>ground_truth</code>, an annotator of kind <code>human</code> or <code>file</code></td>
+</tr>
+</tbody>
+</table>
+<p>Composition (the <code>Composer</code>) adds nothing: it renders the set as a Docling document, which travels with the
+datatrove document (<code>doc.metadata["docling"]</code>) to the writers and is not stored in the page record.</p>
+<p><strong>Nothing is overwritten</strong>: an engine call appends one annotator and adds annotations; it changes none that was there
+(setting a line's <code>region</code> or <code>reading</code> from <code>None</code> aside). The conformance checks (<code>linecaster.testing.check_engine</code>,
+<code>check_block</code>) check it.</p>
+<h2 id="geometry">Geometry<a class="headerlink" href="#geometry" title="Permanent link">&para;</a></h2>
+<p>Every <code>box</code> is <code>[x, y, width, height]</code> in pixels of the page image; polygons and baselines are lists of <code>[x, y]</code>
+points exactly as the annotator gave them. Algorithms derive boxes from the polygon (<code>geometry.bbox_of</code>). <code>AnnotationSet.scaled(sx,
+sy)</code> moves every coordinate to another image size and records the factors in <code>source.scale</code>.</p>
+<h2 id="item-records-linecasterblocksbaseitem">Item records (<code>linecaster.blocks.base.item</code>)<a class="headerlink" href="#item-records-linecasterblocksbaseitem" title="Permanent link">&para;</a></h2>
+<p>An item travels as one datatrove <code>Document</code>: <code>id</code> is the item id, <code>metadata["item"]</code> the item record, <code>{"item_id":
+..., "pages": [...]}</code>, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the
+image bytes. The <code>Binder</code> makes it from a page stream; the item-unit blocks add to the page records inside it
+(<code>Recomposer(unit="item")</code>: paragraphs whose pieces span pages; <code>CharacterNormalizer(unit="item")</code>: edits); the
+renderers join a range's pieces across pages; the <code>Splitter</code> passes the pages on again, each with what the
+item-level blocks added.</p>
+<h2 id="mappings">Mappings<a class="headerlink" href="#mappings" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>linecaster</th>
+<th>IIIF Presentation 3 / W3C Web Annotation</th>
+<th>PAGE-XML</th>
+<th>PROV</th>
+<th>docling-core</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Item</code></td>
+<td>Manifest</td>
+<td>(a METS file group)</td>
+<td>Entity</td>
+<td>(a document's origin)</td>
+</tr>
+<tr>
+<td><code>Page</code></td>
+<td>Canvas</td>
+<td><code>Page</code></td>
+<td>Entity</td>
+<td><code>PageItem</code></td>
+</tr>
+<tr>
+<td><code>AnnotationSet</code>, <code>Transcription</code></td>
+<td>AnnotationPage</td>
+<td><code>PcGts</code></td>
+<td>Collection</td>
+<td><code>DoclingDocument</code> (rendered)</td>
+</tr>
+<tr>
+<td><code>Annotator</code></td>
+<td><code>creator</code> / <code>generator</code> (Software, Person)</td>
+<td><code>Metadata/MetadataItem</code></td>
+<td>Agent, Activity</td>
+<td><code>created_by</code></td>
+</tr>
+<tr>
+<td><code>RawOutput</code></td>
+<td>(none; a linecaster extension)</td>
+<td>(none)</td>
+<td>Entity, <code>wasGeneratedBy</code></td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>Annotation</code></td>
+<td>Annotation</td>
+<td>(an element)</td>
+<td>Entity</td>
+<td><code>DocItem</code></td>
+</tr>
+<tr>
+<td><code>derived_from</code></td>
+<td>(extension)</td>
+<td>(none)</td>
+<td><code>wasDerivedFrom</code></td>
+<td><code>ProvenanceItem</code></td>
+</tr>
+<tr>
+<td><code>Zone.box</code>, <code>polygon</code></td>
+<td><code>FragmentSelector</code> <code>xywh=</code>, <code>SvgSelector</code></td>
+<td><code>Coords</code></td>
+<td></td>
+<td><code>BoundingBox</code> (<code>l, t, r, b</code>)</td>
+</tr>
+<tr>
+<td><code>Region</code> + <code>role</code></td>
+<td>Annotation, motivation <code>classifying</code></td>
+<td><code>TextRegion@type</code>, other regions</td>
+<td></td>
+<td><code>DocItemLabel</code></td>
+</tr>
+<tr>
+<td><code>Line</code>, <code>Reading</code></td>
+<td>Annotation, motivation <code>supplementing</code>, <code>textGranularity</code> <code>line</code></td>
+<td><code>TextLine</code>, <code>TextEquiv</code></td>
+<td></td>
+<td><code>TextItem.orig</code></td>
+</tr>
+<tr>
+<td><code>Word</code>, <code>Glyph</code></td>
+<td><code>textGranularity</code> <code>word</code>, <code>glyph</code></td>
+<td><code>Word</code>, <code>Glyph</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>Edit</code></td>
+<td>motivation <code>editing</code></td>
+<td><code>TextEquiv@index</code></td>
+<td><code>wasRevisionOf</code></td>
+<td><code>TextItem.text</code> (the edited form)</td>
+</tr>
+<tr>
+<td><code>Classification</code></td>
+<td>motivation <code>classifying</code></td>
+<td><code>@type</code>, <code>@production</code>, <code>TextStyle</code></td>
+<td></td>
+<td><code>label</code>, <code>level</code>, <code>meta</code></td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>motivation <code>describing</code></td>
+<td>(none)</td>
+<td></td>
+<td><code>DescriptionMetaField</code></td>
+</tr>
+<tr>
+<td><code>Link</code></td>
+<td>motivation <code>linking</code></td>
+<td><code>Relations</code></td>
+<td></td>
+<td>(<code>captions</code>, <code>footnotes</code> refs)</td>
+</tr>
+<tr>
+<td><code>ReadingOrder</code></td>
+<td>Range of canvases' annotations</td>
+<td><code>ReadingOrder</code></td>
+<td></td>
+<td>the body's order</td>
+</tr>
+<tr>
+<td><code>Range</code>, <code>DocumentRange</code></td>
+<td>Range</td>
+<td>(none)</td>
+<td></td>
+<td><code>GroupItem</code> (<code>GroupLabel</code>)</td>
+</tr>
+<tr>
+<td><code>Paragraph</code></td>
+<td>Annotation, <code>textGranularity</code> <code>paragraph</code></td>
+<td>(<code>TextRegion</code> of type paragraph)</td>
+<td></td>
+<td><code>TextItem</code> with provenance per row</td>
+</tr>
+<tr>
+<td><code>Table</code>, <code>Cell</code></td>
+<td>(body as HTML)</td>
+<td><code>TableRegion</code>, <code>TableCell</code></td>
+<td></td>
+<td><code>TableData</code>, <code>TableCell</code></td>
+</tr>
+<tr>
+<td><code>RenderingPolicy</code> layers</td>
+<td>(none)</td>
+<td>(none)</td>
+<td></td>
+<td><code>ContentLayer</code></td>
+</tr>
+</tbody>
+</table>
+<p>The IIIF export (<code>linecaster.formats.iiif.to_annotation_page</code>) writes one AnnotationPage per set and page: regions
+(<code>classifying</code>, the content role as the body), readings and words (<code>supplementing</code>, IIIF's motivation for a
+transcription, with the text granularity extension's <code>textGranularity</code>), edits (<code>editing</code>) and descriptions
+(<code>describing</code>), each targeting the canvas with a media fragment (<code>#xywh=</code>), with its annotator as <code>generator</code>
+(<code>creator</code> for people). It is validated against the IIIF Presentation 3 JSON Schema in the tests.</p>
+<h2 id="from-linecasterpage2">From <code>linecaster.page/2</code><a class="headerlink" href="#from-linecasterpage2" title="Permanent link">&para;</a></h2>
+<p><code>PageRecordReader</code> upgrades a page/2 record when it reads one (<code>linecaster.data.upgrade.page_2_to_3</code>). What page/2
+had already lost cannot come back: text before the <code>unicode</code> step, labels before typography, regions typography
+dropped beyond <code>extra["retyper_dropped"]</code>. Every field:</p>
+<table>
+<thead>
+<tr>
+<th>page/2</th>
+<th>page/3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Page.page_id</code>, <code>item_id</code>, <code>sequence</code>, <code>image</code>, <code>metadata</code>, <code>measurements</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Page.transcriptions</code></td>
+<td>the same, each upgraded</td>
+</tr>
+<tr>
+<td><code>PageImage.uri</code>, <code>format</code>, <code>width</code>, <code>height</code>, <code>sha256</code>, <code>pixels_sha256</code>, <code>source_width</code>, <code>source_height</code>, <code>scale</code>, <code>decoder</code>, <code>extra</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Transcription.regions</code></td>
+<td><code>regions</code></td>
+</tr>
+<tr>
+<td><code>Region.id</code></td>
+<td><code>Region.id</code></td>
+</tr>
+<tr>
+<td><code>Region.label</code></td>
+<td>a <code>role</code> classification (Docling label → role), by the layout annotator; by typography where its step changed it</td>
+</tr>
+<tr>
+<td><code>Region.raw_label</code></td>
+<td><code>Region.label</code></td>
+</tr>
+<tr>
+<td><code>Region.polygon</code></td>
+<td><code>Region.polygon</code>, flattened</td>
+</tr>
+<tr>
+<td><code>Region.bbox</code></td>
+<td><code>Region.box</code></td>
+</tr>
+<tr>
+<td><code>Region.score</code></td>
+<td><code>Region.confidence</code></td>
+</tr>
+<tr>
+<td><code>Region.reading_order</code></td>
+<td>the layout annotator's <code>ReadingOrder</code></td>
+</tr>
+<tr>
+<td><code>Region.heading_level</code></td>
+<td>a <code>heading_level</code> classification</td>
+</tr>
+<tr>
+<td><code>Region.extra["table"]</code></td>
+<td>a <code>Table</code></td>
+</tr>
+<tr>
+<td><code>Region.extra["formula"]</code></td>
+<td>a <code>Formula</code></td>
+</tr>
+<tr>
+<td><code>Region.extra["generated"]</code></td>
+<td>a <code>Description</code></td>
+</tr>
+<tr>
+<td><code>Region.extra</code> (other keys)</td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+<tr>
+<td><code>Transcription.lines</code></td>
+<td><code>lines</code></td>
+</tr>
+<tr>
+<td><code>Line.id</code></td>
+<td><code>Line.id</code></td>
+</tr>
+<tr>
+<td><code>Line.region_id</code></td>
+<td><code>Line.region</code></td>
+</tr>
+<tr>
+<td><code>Line.reading_order</code>, <code>Line.row</code></td>
+<td>the <code>ReadingOrder</code>'s <code>lines</code> and <code>rows</code></td>
+</tr>
+<tr>
+<td><code>Line.bbox</code>, <code>polygon</code>, <code>baseline</code></td>
+<td><code>Line.box</code>, <code>polygon</code>, <code>baseline</code> (flattened)</td>
+</tr>
+<tr>
+<td><code>Line.score</code></td>
+<td><code>Line.confidence</code></td>
+</tr>
+<tr>
+<td><code>Line.text</code>, <code>confidence</code>, <code>alternatives</code>, <code>words</code></td>
+<td><code>Line.reading</code>: <code>text</code>, <code>confidence</code>, <code>alternatives</code>, <code>words</code></td>
+</tr>
+<tr>
+<td><code>Line.normalized</code></td>
+<td>a <code>normalized</code> edit</td>
+</tr>
+<tr>
+<td><code>Line.extra</code></td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+<tr>
+<td><code>Word.id</code></td>
+<td><code>None</code> where it was <code>&lt;line&gt;_w&lt;n&gt;</code> (its index in the reading); kept otherwise</td>
+</tr>
+<tr>
+<td><code>Word.text</code>, <code>confidence</code>, <code>hyphen</code>, <code>alternatives</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Word.bbox</code></td>
+<td><code>Word.box</code></td>
+</tr>
+<tr>
+<td><code>Word.extra</code></td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+<tr>
+<td><code>Transcription.paragraphs</code></td>
+<td><code>Paragraph</code> ranges</td>
+</tr>
+<tr>
+<td><code>Paragraph.id</code>, <code>region_id</code></td>
+<td><code>Paragraph.id</code>, <code>parts</code></td>
+</tr>
+<tr>
+<td><code>Paragraph.rows</code></td>
+<td><code>rows</code></td>
+</tr>
+<tr>
+<td><code>ParagraphRow.lines</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>ParagraphRow.start</code>, <code>end</code></td>
+<td><code>ParagraphRow.charspan</code></td>
+</tr>
+<tr>
+<td><code>Paragraph.text</code>, <code>decisions</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Paragraph.normalized</code></td>
+<td>a <code>normalized</code> edit</td>
+</tr>
+<tr>
+<td><code>Paragraph.continues</code>, <code>continues_from</code></td>
+<td><code>runs_into</code> and <code>continues</code> links</td>
+</tr>
+<tr>
+<td><code>ParagraphRef.id</code>, <code>page_id</code></td>
+<td>the links' target: <code>&lt;id&gt;</code> or <code>&lt;page_id&gt;#&lt;id&gt;</code></td>
+</tr>
+<tr>
+<td><code>Decision.kind</code>, <code>reason</code>, <code>row</code>, <code>separator</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Paragraph.extra</code></td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+<tr>
+<td><code>Transcription.docling</code></td>
+<td>not stored: rendered on demand</td>
+</tr>
+<tr>
+<td><code>Transcription.language</code></td>
+<td>a <code>language</code> classification on the page</td>
+</tr>
+<tr>
+<td><code>Transcription.steps</code></td>
+<td><code>annotators</code></td>
+</tr>
+<tr>
+<td><code>StepInfo.step</code>, <code>name</code>, <code>engine</code>, <code>revision</code>, <code>preset</code>, <code>preset_sha256</code>, <code>recipe</code>, <code>recipe_sha256</code>, <code>backend</code>, <code>settings</code>, <code>measurements</code></td>
+<td>the same <code>Annotator</code> fields; <code>kind</code> from the step</td>
+</tr>
+<tr>
+<td><code>Transcription.source</code></td>
+<td><code>source</code></td>
+</tr>
+<tr>
+<td><code>Source.kind</code>, <code>format</code>, <code>uri</code>, <code>image_sha256</code>, <code>image_width</code>, <code>image_height</code></td>
+<td>the same</td>
+</tr>
+<tr>
+<td><code>Source.extra["scale"]</code></td>
+<td><code>Source.scale</code></td>
+</tr>
+<tr>
+<td><code>Source.extra</code> (other keys)</td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+<tr>
+<td><code>Transcription.extra["raw"]</code>, <code>["passes"]</code>, <code>["kept"]</code>, <code>["finish_reason"]</code></td>
+<td><code>outputs</code></td>
+</tr>
+<tr>
+<td><code>Transcription.extra["retyper_dropped"]</code></td>
+<td>the regions again, with one line holding their text, classified <code>status</code> <code>removed</code> by typography</td>
+</tr>
+<tr>
+<td><code>Transcription.extra</code> (other keys)</td>
+<td>extension fields <code>page2__&lt;key&gt;</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
