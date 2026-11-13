@@ -54,8 +54,9 @@ editions (its functional content: the steps, in order). Both sides go through th
 | Lane | Steps |
 |---|---|
 | `diplomatic@1` | NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
-| `reading@1` | invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); NFKC; quotes and apostrophes to `'`, dashes and hyphens to `-`; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed |
+| `reading@1` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute accent to `'`, curly double quotes to `"`, the dashes U+2010 to U+2015 to `-`; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed |
 | `alnum@1` | NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed |
+| `ascii-alnum@1` | HTML tags removed; lowercased; only the ASCII letters and digits kept, their runs joined by single spaces (accented letters, ſ and ligatures separate words) |
 
 NFKC appears only in a lane, never in a text variant: a lane makes two texts comparable, it is not a reading text.
 

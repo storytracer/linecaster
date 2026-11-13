@@ -14,10 +14,13 @@ from linecaster.scoring import (confusion, edit_counts, normalize, rates, role_r
 @pytest.mark.parametrize("lane,raw,want", [
     ("diplomatic@1", "  The  ſhip\n of\tSteers ", "The ſhip of Steers"),
     ("diplomatic", "Café", "Café"),
-    ("reading@1", "The “ſhip” — co-\noperative­", "the 'ship' - cooperative"),
+    ("reading@1", "The \u2018ſhip\u2019 \u2014 co-\noperative\u00ad", "the 'ship' - cooperative"),
+    ("reading@1", "\u201cquoted\u201d \u2212 1", '"quoted" \u2212 1'),
+    ("reading@1", "## A *b* <b>c</b> $x$ <Hand>", "a b c x <hand>"),
     ("reading@1", "ﬁne", "fine"),
     ("alnum@1", "Hello, World! 3rd—ed.", "hello world 3rd ed"),
     ("alnum@1", "a\ufffdc!", "a\ufffdc"),
+    ("ascii-alnum@1", "The <b>Café</b>, 3rd—ſhip", "the caf 3rd hip"),
 ])
 def test_lanes(lane, raw, want):
     assert normalize(raw, lane) == want

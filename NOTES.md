@@ -2,6 +2,29 @@
 
 Measurements, decisions and open questions, newest first.
 
+## The scorer against two existing evaluations (2026-11-13, aarch64 GB10)
+
+`linecaster score` run on the stored outputs of two existing evaluations, against their ground truths imported as
+transcriptions, to check that linecaster's lanes and counts reproduce theirs.
+
+- **A ground truth of 2,165 expert-transcribed pages** (DoclingDocuments, read with `formats.docling.from_docling`)
+  against the stored output texts of two models (a kraken line recognizer and a 0.8B VLM; 2,165 and 2,146 pages
+  without producer errors), compared page by page with the evaluation's own score records: the full text and the
+  body text, in `diplomatic@1` and `reading@1`, have the same substitutions, deletions, insertions and hits on every
+  page, so the same corpus rates (for example 0.03446 diplomatic and 0.02794 reading, full text, for the line
+  recognizer). The ground truth's text rendered from its DoclingDocuments equals the evaluation's own on all pages.
+  `reading@1` follows that evaluation's reading lane as its records were made (its markup removal, quotes, dashes,
+  invisible characters); the evaluation's later table regrouping for index tables is not part of it.
+- **A proofread ground truth** (running head, body, footnotes and running foot as text, no boxes; imported by a
+  script of the evaluation's), 1,652 pages with text of a squiddle run, `ascii-alnum@1` (the evaluation's ASCII
+  letters and digits): the reference lengths equal on every page, the edit distances on 1,642. The 10 others all
+  hold a table: linecaster renders a table region from its cells, the evaluation from the table's lines. Corpus
+  rates: full text 1.2348 % (the evaluation) against 1.2403 %, body 1.3742 % against 1.3797 %. Scoring took 14 s for
+  the 1,657 pages, reading the records included.
+- A failed page counts as an empty output in linecaster (the run is then not eligible), where the evaluations leave
+  it out: the VLM's corpus rates over all 2,165 pages are higher than over its 2,146 (0.0885 against 0.0813
+  diplomatic, full text).
+
 ## Page records in the annotation model: sizes (2026-11-13, aarch64 GB10)
 
 The upgrade `page_2_to_3` run over real page records of three evaluation runs on proofread pages (three record files of
