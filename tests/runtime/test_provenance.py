@@ -504,6 +504,9 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     import sys
 
     sys.modules[__name__].Seeing = Seeing
+    from linecaster.images import pixels
+
+    pixels.clear()                       # pages are kept by content: an earlier test in this process may hold these
     before = base_page.decodes()
     lines, recognizer = LineDetector(InProcess("test_provenance:OneLineModel")), LineRecognizer(InProcess(f"{__name__}:Seeing"))
     docs = list(recognizer.run(lines.run(ImageFolderReader(str(folder)).run())))
