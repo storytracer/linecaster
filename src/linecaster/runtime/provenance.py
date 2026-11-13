@@ -1,15 +1,17 @@
 """Provenance: what produced a transcription, for METS, and what a run resolved, for ``OUT/run.yaml``.
 
-* ``mets_agent(m)`` turns one step (``StepInfo``) into an OCR-D-style METS ``agent`` (an lxml element, for a
+* ``mets_agent(m)`` turns one step (an ``Annotator`` of kind model or rule) into an OCR-D-style METS ``agent`` (an lxml element, for a
   derivative's METS output): ``TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER"``, ``OTHERROLE`` the OCR-D
   functional step (``linecaster.catalog.schema.OCRD_STEPS``), ``name`` linecaster with its release and the
   model, a ``note`` with OCR-D's ``ocrd:option="parameter"`` for the settings (JSON) and one ``note`` per
   identifying field (``lc:option="preset"``, ``preset_sha256``, ``revision``, ...). ``from_mets_agent`` reads
   it back.
 * ``step_entries(models)``: the steps as plain dicts, the shape the run record and the page files share.
-* ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.runtime.run.run``): script, recipe,
-  command line, options, executor, the pipeline (every stage's blocks as ``to_dict()`` with their contracts), its
-  ``pipeline_sha256`` (``functional_pipeline``: the functional parameters only), software.
+* ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.runtime.run.run``): its run
+  id (``new_run_id``, which every annotator the run adds names), script, recipe, command line, options, executor, the
+  pipeline (every stage's blocks as ``to_dict()`` with their contracts), its ``pipeline_sha256``
+  (``functional_pipeline``: the functional parameters only), software and the launching machine's hardware
+  (``hardware``, best effort).
 
 Import-light: lxml and the standard library (datatrove only for the blocks it inspects, lazily).
 """
@@ -18,7 +20,9 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 import platform
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -26,7 +30,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import StepInfo
+from ..data.transcription import Annotator
 from ..formats import _provenance as P
 
 RUN_SCHEMA = "linecaster.run-record/1"
@@ -114,13 +118,14 @@ def software(extra_packages=()) -> dict[str, Any]:
 
 # ------------------------------------------------------------------------------------------------ steps
 
-def step_entry(m: StepInfo) -> dict[str, Any]:
+def step_entry(m: Annotator) -> dict[str, Any]:
     """One step as the page files record it: step, name, revision, preset, preset hash, backend, settings."""
     return P.record(m)
 
 
-def step_entries(models: list[StepInfo]) -> list[dict[str, Any]]:
-    return [step_entry(m) for m in models]
+def step_entries(models: list[Annotator]) -> list[dict[str, Any]]:
+    """The steps of ``models`` (the annotators of kind model and rule, in order) as plain dicts."""
+    return [step_entry(m) for m in P.written(models)]
 
 
 def ocrd_step(step: str) -> str:
@@ -130,7 +135,7 @@ def ocrd_step(step: str) -> str:
     return OCRD_STEPS.get(step, OCRD_FALLBACK_STEP)
 
 
-def mets_agent(m: StepInfo) -> etree._Element:
+def mets_agent(m: Annotator) -> etree._Element:
     """An OCR-D-style METS ``agent`` for one step (namespaces ``mets``, ``ocrd`` and ``lc`` declared on it)::
 
         <mets:agent TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER" OTHERROLE="recognition/text-recognition">
@@ -159,11 +164,12 @@ def mets_agent(m: StepInfo) -> etree._Element:
     return agent
 
 
-def mets_agents(models: list[StepInfo]) -> list[etree._Element]:
-    return [mets_agent(m) for m in models]
+def mets_agents(models: list[Annotator]) -> list[etree._Element]:
+    """The agents of the steps of ``models`` (the annotators of kind model and rule, in order)."""
+    return [mets_agent(m) for m in P.written(models)]
 
 
-def from_mets_agent(agent: etree._Element) -> StepInfo:
+def from_mets_agent(agent: etree._Element) -> Annotator:
     """The step a ``mets_agent`` describes."""
     rec: dict[str, Any] = {}
     for note in agent.iter(f"{{{METS}}}note"):
@@ -327,24 +333,80 @@ def script_entry(script: str | None, name: str | None = None) -> dict[str, Any] 
     return out
 
 
+def new_run_id() -> str:
+    """A new run id: 32 hex digits (a uuid4's), unique for every launch (``RunRecord.run_id``'s default)."""
+    from .record import _run_id
+
+    return _run_id()
+
+
+def _command(*args: str, timeout: float = 10.0) -> str | None:
+    """What a command printed, or None when it is missing, fails or takes too long."""
+    try:
+        r = subprocess.run(list(args), capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def _cpu_name() -> str | None:
+    try:
+        for line in Path("/proc/cpuinfo").read_text(errors="replace").splitlines():
+            key, _, value = line.partition(":")
+            if key.strip() in ("model name", "Model", "Hardware") and value.strip():
+                return value.strip()
+    except OSError:
+        pass
+    return platform.processor() or None
+
+
+@lru_cache(maxsize=1)
+def hardware() -> dict[str, Any]:
+    """The machine this process runs on, best effort and never failing: its GPUs (``gpu``: their names,
+    ``gpu_count``, ``driver``, ``cuda``: from ``nvidia-smi`` where it is installed), ``cpu`` (the processor's name
+    and core count) and ``machine`` (the architecture, e.g. ``aarch64``). What cannot be found is left out."""
+    out: dict[str, Any] = {}
+    try:
+        gpus = _command("nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader")
+        if gpus:
+            rows = [[x.strip() for x in line.split(",")] for line in gpus.splitlines() if line.strip()]
+            out["gpu"] = [r[0] for r in rows]
+            out["gpu_count"] = len(rows)
+            if rows and len(rows[0]) > 1 and rows[0][1]:
+                out["driver"] = rows[0][1]
+            header = _command("nvidia-smi") or ""
+            m = re.search(r"CUDA Version:\s*([0-9.]+)", header)
+            if m:
+                out["cuda"] = m.group(1)
+        cpu, cores = _cpu_name(), os.cpu_count()
+        if cpu or cores:
+            out["cpu"] = " ".join(x for x in (cpu, f"({cores} cores)" if cores else None) if x)
+        if platform.machine():
+            out["machine"] = platform.machine()
+    except Exception:  # noqa: BLE001 - best effort: a record without hardware rather than no record
+        pass
+    return out
+
+
 def run_record(options: dict[str, Any], plan=None, *, script: str | None = None, argv: list[str] | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
                created: dt.datetime | None = None, recipe: dict[str, Any] | None = None,
-               script_name: str | None = None) -> dict[str, Any]:
-    """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the time, the
-    pipeline script, the recipe (edition, hash, what the command line changed in it), the command line (``--env``
+               script_name: str | None = None, run_id: str | None = None) -> dict[str, Any]:
+    """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the run id
+    (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (edition, hash, what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
     builder's ``plan`` (per stage its blocks as dicts, in order, with their contracts) and its ``pipeline_sha256``,
-    ``extra`` (the Jobs' image and dependencies) and the software (linecaster release and commit, Python, key
-    packages, engine packages); ``script_name`` names the script outside a git checkout (``script_entry``).
-    Validated against ``RunRecord``."""
+    ``extra`` (the Jobs' image and dependencies), the software (linecaster release and commit, Python, key
+    packages, engine packages) and the launching machine's ``hardware``; ``script_name`` names the script outside a
+    git checkout (``script_entry``). Validated against ``RunRecord``."""
     from .record import RunRecord
 
     opts = _plain(dict(options))
     if opts.get("env"):
         opts["env"] = [kv.split("=", 1)[0] + "=<redacted>" for kv in opts["env"]]
     when = (created or dt.datetime.now(dt.UTC)).astimezone(dt.UTC)
-    rec: dict[str, Any] = {"schema": RUN_SCHEMA, "created": when.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    rec: dict[str, Any] = {"schema": RUN_SCHEMA, "run_id": run_id or new_run_id(),
+                           "created": when.strftime("%Y-%m-%dT%H:%M:%SZ")}
     entry = script_entry(script, script_name)
     if entry:
         rec["script"] = entry
@@ -365,4 +427,6 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
     if extra:
         rec.update(_plain({k: v for k, v in extra.items() if v is not None}))
     rec["software"] = software(engine_packages(plan))
+    if found := hardware():
+        rec["hardware"] = found
     return RunRecord.model_validate(rec).model_dump(mode="json", by_alias=True, exclude_none=True)

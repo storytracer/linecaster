@@ -1,6 +1,6 @@
 """`linecaster serve` with served blocks, end to end in one process: a step that reads only some regions sends
 no image for a page without them, a malformed answer is that page's error, and saturate's readiness check
-passes once the models are loaded."""
+passes once the models are loaded; a client refuses a server that speaks another transcription format."""
 import asyncio
 import io
 import socket
@@ -11,7 +11,7 @@ from PIL import Image
 from linecaster.backends import Served
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.recognition.recognizers import TableRecognizer
-from linecaster.data import Region, Transcription
+from linecaster.data import Annotator, Transcription
 from linecaster.data.page import Page
 from linecaster.testing import FakeTableEngine
 
@@ -26,9 +26,9 @@ class FakeTables(FakeTableEngine):
         SEEN[transcription.regions[0].id] = image is not None
         if transcription.regions[0].label == "bad":
             class Bad:
-                steps = []
+                annotators = []
 
-                def model_dump(self, mode="json"):
+                def model_dump(self, mode="json", **kwargs):
                     return {"lines": "not a list"}
             return Bad()
         return super().__call__(image, transcription, **params)
@@ -43,9 +43,11 @@ def png() -> bytes:
 def page(page_id: str, label: str):
     doc = new_page_document(page_id, png())
     box = [0.0, 0.0, 10.0, 5.0]
-    region = Region(id=f"{page_id}-r", label=label, polygon=[[0, 0], [10, 0], [10, 5], [0, 5]], bbox=box)
+    t = Transcription()
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    t.add_region(a, f"{page_id}-r", box, [[0, 0], [10, 0], [10, 5], [0, 5]], label=label, role=label)
     p = page_of(doc)
-    p.transcriptions["ocr_new"] = Transcription(regions=[region])
+    p.transcriptions["ocr_new"] = t
     set_page(doc, p)
     return doc
 
@@ -90,7 +92,8 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
         assert SEEN == {"with-r": True, "without-r": False, "x-r": False}
         for pid in ("with", "without"):            # both pages carry the step's record, image or not
             t: Transcription = Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"]
-            assert [(m.name, m.engine) for m in t.steps] == [("fake-tables", "fake.tables.v1")] and not out[pid].metadata.get("errors")
+            assert [(m.name, m.engine) for m in t.annotators] == [("test", None), ("fake-tables", "fake.tables.v1")]
+            assert not out[pid].metadata.get("errors")
         assert out["x"].metadata["errors"][0]["step"] == "tables"     # the malformed answer: this page only
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
@@ -123,7 +126,7 @@ def test_a_served_block_passes_a_failed_page_on_at_once():
             seen.append(d.id)
             out_first.set()
         assert seen == ["failed", "next"] and step.stats["skipped_after_error"].total == 1
-        assert not page_of(failed).transcriptions["ocr_new"].steps    # the step never read it
+        assert len(page_of(failed).transcriptions["ocr_new"].annotators) == 1    # the step never read it
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
@@ -154,7 +157,7 @@ def test_the_server_decodes_as_the_block_asks_and_the_step_names_its_decoder(mon
         step.image_decode = "cpu"
         out = {d.id: d for d in step.run(iter([page("with", "table"), page("without", "text")]))}
         assert asked == ["cpu"]
-        steps = {pid: Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"].steps[-1]
+        steps = {pid: Page.model_validate(out[pid].metadata["page"]).transcriptions["ocr_new"].annotators[-1]
                  for pid in out}
         assert steps["with"].measurements["decoder"].startswith("Pillow ")
         assert "decoder" not in steps["without"].measurements
@@ -194,3 +197,34 @@ def test_the_server_decodes_a_page_once_for_all_its_steps():
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
+
+
+def test_a_client_checks_the_server_s_protocol():
+    """``/health`` says the transcription format; ``Served.warm_up`` refuses a server that speaks another (or is too
+    old to say), and passes one that does not answer yet or is no linecaster server."""
+    import pytest
+    from saturate.engine import wait_for_health
+
+    from linecaster.backends.served import server_protocol
+    from linecaster.errors import ServerError
+    from linecaster.testing import fake_service
+
+    port = free_port()
+    loop, runner = serve_in_thread(port)
+    endpoint = f"http://127.0.0.1:{port}/v1"
+    try:
+        wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
+                        poll_interval=0.1)
+        assert server_protocol(endpoint) == "linecaster.page/3"
+        Served(endpoint, model="tables").warm_up()
+    finally:
+        asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
+        loop.call_soon_threadsafe(loop.stop)
+    for health, refused in (({"status": "ok", "protocol": "linecaster.page/2"}, "speaks linecaster.page/2"),
+                            ({"status": "ok"}, "speaks an older protocol")):
+        with fake_service({"GET /health": lambda body, h=health: h}) as s:
+            with pytest.raises(ServerError, match=refused):
+                Served(f"{s.url}/v1", model="tables").warm_up()
+    with fake_service({"GET /health": lambda body: {}}) as s:          # not linecaster serve: nothing to check
+        Served(f"{s.url}/v1", model="tables").warm_up()
+    Served(f"http://127.0.0.1:{free_port()}/v1", model="tables").warm_up()     # nothing there yet

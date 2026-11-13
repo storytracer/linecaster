@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..errors import PipelineConfigError
+from ..errors import PipelineConfigError, ServerError
 from ..runtime.secrets import EnvVar, resolve
+
+#: seconds the protocol check waits for a server's ``/health``
+HEALTH_TIMEOUT = 10.0
 
 
 def check_secrets(backend: str, api_key, headers) -> None:
@@ -26,6 +29,49 @@ def request_headers(api_key: EnvVar | None, headers: dict | None) -> dict[str, s
     return out
 
 
+def server_protocol(endpoint: str, headers: dict[str, str] | None = None,
+                    timeout: float = HEALTH_TIMEOUT) -> str | None:
+    """The transcription format a ``linecaster serve`` at ``endpoint`` (its ``.../v1`` base URL) speaks, from its
+    ``/health`` (``protocol``; a server too old to say: ``""``); ``None`` when no linecaster server answers there
+    (not reachable yet, or another kind of server)."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    from ..net.http import USER_AGENT
+
+    root = endpoint.rstrip("/")
+    root = root[:-len("/v1")] if root.endswith("/v1") else root
+    request = urllib.request.Request(f"{root}/health", headers={"User-Agent": USER_AGENT, **(headers or {})})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as r:
+            body = r.read()
+    except urllib.error.HTTPError as e:       # 503 while the models load: the body still says the protocol
+        body = e.read()
+    except (OSError, ValueError):             # not reachable (yet): the requests will say so
+        return None
+    try:
+        info = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(info, dict) or "status" not in info:
+        return None
+    return str(info.get("protocol") or "")
+
+
+def check_protocol(endpoint: str, headers: dict[str, str] | None = None) -> str | None:
+    """Refuses a ``linecaster serve`` at ``endpoint`` that speaks another transcription format than this client
+    (``ServerError``): its transcriptions would not read here, nor ours there. Returns the protocol, ``None`` when no
+    linecaster server answered (``server_protocol``)."""
+    from ..data.page import PAGE_SCHEMA
+
+    found = server_protocol(endpoint, headers)
+    if found is not None and found != PAGE_SCHEMA:
+        raise ServerError(f"the server at {endpoint} speaks {found or 'an older protocol (linecaster.page/2)'}, this "
+                          f"client {PAGE_SCHEMA}: run the same linecaster version on both sides")
+    return found
+
+
 @dataclass
 class Served:
     """Runs a model block's engine behind ``linecaster serve`` (or any server speaking its routes), reached through
@@ -34,7 +80,9 @@ class Served:
     The block streams its pages to ``POST <endpoint>/linecaster/{step}``: a window of requests in flight, adapted
     to the server's queue gauges and 429s, results passed on as they finish. Secrets are read in the task, when the
     block's client opens (``warm_up()`` reads them first, so a missing one fails the task before its first page);
-    a key given as text is refused (``PipelineConfigError``).
+    a key given as text is refused (``PipelineConfigError``). Requests and responses carry ``linecaster.page/3``
+    transcriptions: ``warm_up()`` asks a server that already answers for its protocol (``/health``) and refuses one
+    that speaks another (``ServerError``).
 
     Args:
         endpoint: the server's ``.../v1`` base URL.
@@ -79,9 +127,12 @@ class Served:
         return request_headers(self.api_key, self.headers)
 
     def warm_up(self) -> None:
-        """The secrets are read (a missing one fails the task before its first page); nothing else to load: the
-        client opens with the block's run."""
-        self.request_headers()
+        """The secrets are read (a missing one fails the task before its first page), and a server that answers
+        already is asked for its protocol (``check_protocol``); nothing else to load: the client opens with the
+        block's run."""
+        headers = self.request_headers()
+        if not getattr(self, "_protocol_checked", False):
+            self._protocol_checked = check_protocol(self.endpoint, headers) is not None
 
     def to_dict(self) -> dict:
         """The backend as the run record names it: endpoint, the served model's name, the window and timeout, the

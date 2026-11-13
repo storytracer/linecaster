@@ -93,8 +93,27 @@ class SampleRecord(_Record):
     file: str = Field(description="the sample's file in the run folder")
 
 
+class Hardware(_Record):
+    """The machine a run was launched on, as far as it could be found (``provenance.hardware``)."""
+
+    gpu: list[str] | None = Field(None, description="the GPUs' names, one per GPU")
+    gpu_count: int | None = None
+    driver: str | None = Field(None, description="the NVIDIA driver's version")
+    cuda: str | None = Field(None, description="the CUDA version the driver supports")
+    cpu: str | None = Field(None, description="the processor and its core count")
+    machine: str | None = Field(None, description="the architecture: aarch64, x86_64, ...")
+
+
+def _run_id() -> str:
+    import uuid
+
+    return uuid.uuid4().hex
+
+
 class RunRecord(_Record):
     schema_: Literal["linecaster.run-record/1"] = Field("linecaster.run-record/1", alias="schema")
+    run_id: str = Field(default_factory=_run_id, description="the run's id, made when the record is: 32 hex digits, "
+                                                             "named by every annotator the run adds (Annotator.run)")
     created: str = Field(description="when the run was launched, UTC (YYYY-MM-DDTHH:MM:SSZ)")
     script: Script | None = None
     recipe: Recipe | None = None
@@ -115,3 +134,4 @@ class RunRecord(_Record):
     sample: SampleRecord | None = Field(None, description="the sample the run read (--sample ...): the rule, its "
                                                           "seed and limits, the listing and the sample's hashes")
     software: Software
+    hardware: Hardware | None = Field(None, description="the machine the run was launched on (best effort)")

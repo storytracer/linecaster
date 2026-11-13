@@ -9,7 +9,8 @@ class LineRecognizer(ModelBlock):
     """Recognizes the text of every line by a line recognition engine.
 
     Reads the page image and the transcription's ``lines``; adds ``text`` and what its preset produces (``words``,
-    word and line confidences, ...), the lines in the order the line step left them. One page per call or request;
+    word and line confidences, ...): a reading of every line that has none, by the engine's annotator, the lines in
+    the order the line step left them. One page per call or request;
     an engine batches only the lines of one page.
 
     Example:
@@ -26,8 +27,8 @@ class LineRecognizer(ModelBlock):
 class TableRecognizer(ModelBlock):
     """Recognizes the structure of every table region by a table engine.
 
-    Reads the page image and the transcription's ``regions``; adds ``tables`` (the cells of each ``table`` region,
-    or what its preset produces). A page without a ``table`` region gets no image: the engine has nothing to read.
+    Reads the page image and the transcription's ``regions``; adds ``tables`` (a ``Table`` annotation with the cells of
+    each ``table`` region, or what its preset produces). A page without a ``table`` region gets no image: the engine has nothing to read.
 
     Example:
         TableRecognizer("slanet-plus@2")
@@ -41,8 +42,8 @@ class TableRecognizer(ModelBlock):
 class FormulaRecognizer(ModelBlock):
     """Recognizes every formula region as LaTeX by a formula engine.
 
-    Reads the page image and the transcription's ``regions``; adds ``formulas`` (or what its preset produces:
-    ``latex``). A page without a ``formula`` region gets no image: the engine has nothing to read. A
+    Reads the page image and the transcription's ``regions``; adds ``formulas`` (a ``Formula`` annotation of each
+    ``formula`` region, or what its preset produces: ``latex``). A page without a ``formula`` region gets no image: the engine has nothing to read. A
     ``LineAssigner`` (or ``ModularTranscriber``) with ``formulas_separately`` leaves formula regions without lines
     for it.
 

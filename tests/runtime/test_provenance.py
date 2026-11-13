@@ -1,4 +1,5 @@
-"""Provenance: the steps in ALTO, PAGE and hOCR (written and read back), METS agents, the run record."""
+"""Provenance: the steps (annotators of kind model and rule) in ALTO, PAGE and hOCR (written and read back), METS
+agents, the run record (its run id on every annotator the run adds, the hardware)."""
 from __future__ import annotations
 
 import io
@@ -11,7 +12,7 @@ from PIL import Image
 
 from linecaster.backends import InProcess, Served
 from linecaster.catalog import yamlio
-from linecaster.data import StepInfo
+from linecaster.data import Annotator
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import _provenance as P, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.runtime import provenance, run
@@ -22,12 +23,15 @@ from conftest import sample_transcription
 SCHEMAS = Path(__file__).parents[1] / "schemas"
 SHA = "sha256:" + "ab" * 32
 STEPS = [
-    StepInfo(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
-    StepInfo(step="recognition", name="kraken-ppocrv6-medium", engine="kraken.recognition.v1", revision="0123abcd",
-             preset="kraken-ppocrv6-medium@1", preset_sha256=SHA, backend="in-process", settings={"batch_size": 8, "model": "medium", "n": "16"},
-             measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
-    StepInfo(step="unicode", name="unicodedata", settings={"form": "NFC"}),
+    Annotator(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
+    Annotator(step="recognition", name="kraken-ppocrv6-medium", engine="kraken.recognition.v1", revision="0123abcd",
+              preset="kraken-ppocrv6-medium@1", preset_sha256=SHA, backend="in-process",
+              settings={"batch_size": 8, "model": "medium", "n": "16"},
+              measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
+    Annotator(kind="rule", step="unicode", name="unicodedata", settings={"form": "NFC"}),
 ]
+#: the annotator of a set read from a file that names no steps
+FILE = Annotator(kind="file", step="transcription", name="sample")
 
 
 def _schema(name):
@@ -36,8 +40,19 @@ def _schema(name):
 
 def _t():
     t = sample_transcription()
-    t.steps = [m.model_copy(deep=True) for m in STEPS]
+    t.annotators = [m.model_copy(deep=True) for m in STEPS]        # the sample's annotations name the first
     return t
+
+
+def _untold():
+    """The sample transcription read from a file that names no steps."""
+    t = sample_transcription()
+    t.annotators = [FILE.model_copy()]
+    return t
+
+
+def _files(t) -> list[str]:
+    return [a.kind for a in t.annotators]
 
 
 def _same_steps(got, want=STEPS):
@@ -72,15 +87,14 @@ def test_alto_processing_per_step():
     page = root.find("a:Layout/a:Page", ns)
     assert page.get("PROCESSINGREFS") == " ".join(p.get("ID") for p in procs)
     got = from_alto(data)
-    _same_steps(got.steps)
-    assert got.steps[1].measurements == {"datetime": "2026-11-03T21:00:00Z"}
+    _same_steps(got.annotators)
+    assert got.annotators[1].measurements == {"datetime": "2026-11-03T21:00:00Z"}
 
 
 def test_alto_without_steps_has_no_processing():
-    t = sample_transcription()
-    data = to_alto(t)
+    data = to_alto(_untold())
     assert b"Processing" not in data and b"PROCESSINGREFS" not in data
-    assert from_alto(data).steps == []
+    assert _files(from_alto(data)) == ["file"]
 
 
 ALTO_V2_OCR_PROCESSING = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -101,7 +115,7 @@ ALTO_V2_OCR_PROCESSING = b"""<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_alto_foreign_ocr_processing():
-    m = from_alto(ALTO_V2_OCR_PROCESSING).steps
+    m = from_alto(ALTO_V2_OCR_PROCESSING).annotators
     assert [(x.step, x.name, x.revision, x.settings) for x in m] == [
         ("deskew", "unknown", None, {}), ("unknown", "FineReader", "10.0", {"raw": "mode: fast"})]
     assert m[1].measurements == {"datetime": "2012-05-01"}
@@ -131,7 +145,7 @@ def test_page_metadata_items():
         ("software", P.software())]
     assert [(lb.get("type"), lb.get("value")) for lb in settings] == [
         ("batch_size", "8"), ("model", "medium"), ("n", '"16"')]
-    _same_steps(from_page(data).steps)
+    _same_steps(from_page(data).annotators)
 
 
 PAGE_OCRD = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -155,7 +169,7 @@ PAGE_OCRD = b"""<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_page_foreign_ocrd_processing_step():
-    m = from_page(PAGE_OCRD).steps
+    m = from_page(PAGE_OCRD).annotators
     assert len(m) == 1
     assert (m[0].step, m[0].name) == ("recognition/text-recognition", "ocrd-tesserocr-recognize")
     assert m[0].settings == {"model": "deu", "textequiv_level": "word", "ocrd-tesserocr-recognize": "0.17.0"}
@@ -170,7 +184,7 @@ def _metas(data: bytes) -> dict:
 
 def test_hocr_metadata_and_steps():
     t = _t()
-    t.language = "de"
+    t.classify(0, "", "language", "de")
     metas = _metas(to_hocr(t))
     assert metas["ocr-system"] == P.software()
     assert metas["ocr-number-of-pages"] == "1" and metas["ocr-langs"] == "de"
@@ -180,25 +194,27 @@ def test_hocr_metadata_and_steps():
         "step": "recognition", "name": "kraken-ppocrv6-medium", "engine": "kraken.recognition.v1", "revision": "0123abcd",
         "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA, "backend": "in-process",
         "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
-    _same_steps(from_hocr(to_hocr(t)).steps)
+    _same_steps(from_hocr(to_hocr(t)).annotators)
 
 
 def test_hocr_capabilities_follow_the_content():
-    t = sample_transcription()
-    t.regions = []
+    t = _untold()
+    t.regions, t.classifications = [], []
     for ln in t.lines:
-        ln.region_id, ln.words, ln.polygon, ln.confidence = None, [], None, None
-    t.language = "deu"                  # not ISO 639-1: no ocr-langs, but lang attributes
+        ln.region, ln.polygon = None, None
+        if ln.reading is not None:
+            ln.reading.words, ln.reading.confidence = [], None
+    t.classify(0, "", "language", "deu")          # not ISO 639-1: no ocr-langs, but lang attributes
     metas = _metas(to_hocr(t))
     assert metas["ocr-capabilities"] == "ocr_page ocr_line ocrp_lang"
     assert "ocr-langs" not in metas and not any(k.startswith("linecaster-step-") for k in metas)
-    assert from_hocr(to_hocr(t)).steps == []
+    assert _files(from_hocr(to_hocr(t))) == ["file"]
 
 
 def test_hocr_foreign_ocr_system():
     html = (b"<html xmlns='http://www.w3.org/1999/xhtml'><head><meta name='ocr-system' content='tesseract 5.3.0'/>"
             b"</head><body><div class='ocr_page' title='bbox 0 0 10 10'></div></body></html>")
-    assert [(m.step, m.name) for m in from_hocr(html).steps] == [("recognition", "tesseract 5.3.0")]
+    assert [(m.step, m.name) for m in from_hocr(html).annotators] == [("recognition", "tesseract 5.3.0")]
 
 
 # ------------------------------------------------------------------------------------------------ values
@@ -241,7 +257,7 @@ def test_mets_agents_validate():
 # ------------------------------------------------------------------------------------------------ run record
 
 class StampModel:
-    """A test engine: records a step and changes nothing else."""
+    """A test engine: appends its annotator and adds nothing else."""
 
     engine_id, step, name = "stamp.recognition.v1", "recognition", "stamp"
 
@@ -252,13 +268,13 @@ class StampModel:
         pass
 
     def __call__(self, image, t, **params):
-        t.steps.append(StepInfo(step=self.step, name=self.name, revision="r1", backend="in-process",
-                                settings=dict(self.kwargs)))
+        t.add_annotator(Annotator(step=self.step, name=self.name, revision="r1", backend="in-process",
+                                  settings=dict(self.kwargs)))
         return t
 
 
 class OneLineModel:
-    """A test line engine: one line over the page, no step recorded."""
+    """A test line engine: one line over the page, its annotator without engine, revision or settings."""
 
     step, name = "lines", "one-line"
 
@@ -269,10 +285,9 @@ class OneLineModel:
         pass
 
     def __call__(self, image, t, **params):
-        from linecaster.data import Line
-
         h, w = image.shape[:2]
-        t.lines = [Line(id="l0", bbox=[0, 0, w, h], polygon=[[0, 0], [w, 0], [w, h], [0, h]])]
+        a = t.add_annotator(Annotator(step=self.step, name=self.name))
+        t.add_line(a, "l0", [0, 0, w, h], [[0, 0], [w, 0], [w, h], [0, h]])
         return t
 
 
@@ -309,6 +324,9 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert "secret" not in text
     rec = yamlio.load(text)
     assert rec["schema"] == "linecaster.run-record/1" and rec["created"].endswith("Z")
+    assert len(rec["run_id"]) == 32 and int(rec["run_id"], 16) >= 0
+    assert isinstance(rec.get("hardware", {}), dict) and set(rec.get("hardware", {})) <= {
+        "gpu", "gpu_count", "driver", "cuda", "cpu", "machine"}
     assert RunRecord.model_validate(rec).pipeline_sha256 == rec["pipeline_sha256"]
     assert rec["script"]["path"].endswith("tests/runtime/test_provenance.py")
     assert rec["script"]["sha256"].startswith("sha256:")
@@ -328,16 +346,24 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
     assert set(sw["packages"]) >= {"datatrove", "saturate", "docling-core"}
-    # every page file carries the step with its preset
+    # every page file carries the steps, the recognizer with its preset
     for name, reader in (("p1.alto.xml", from_alto), ("p1.page.xml", from_page), ("p1.hocr", from_hocr)):
-        m = reader((tmp_path / "files" / name).read_bytes()).steps
+        m = reader((tmp_path / "files" / name).read_bytes()).annotators
         assert [(x.step, x.name, x.engine, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
+            ("lines", "one-line", None, None, None, None, {}),
             ("recognition", "stamp", "stamp.recognition.v1", "r1", "stamp@2", SHA, {"size": 3})]
+    # every annotator the run added names it in the page records
+    import gzip
+
+    [row] = [json.loads(x) for f in (tmp_path / "out" / "pages").rglob("*.jsonl.gz") for x in gzip.open(f, "rt")]
+    assert [a.get("run") for a in row["page"]["transcriptions"]["ocr_new"]["annotators"]] == [rec["run_id"]] * 2
     # a second launch of the same pipeline into the same OUT (a resume) keeps run.yaml and writes its own record next
     # to it
-    run.run(a, _pipeline(a, files), __file__, argv=argv)
+    again = _args(*argv)
+    run.run(again, _pipeline(again, files), __file__, argv=argv)
     assert (tmp_path / "out" / "run.yaml").read_text() == text
-    assert len(list((tmp_path / "out").glob("run-*.yaml"))) == 1
+    [later] = list((tmp_path / "out").glob("run-*.yaml"))
+    assert yamlio.load(later.read_text())["run_id"] not in (None, rec["run_id"])        # each launch its own id
 
 
 def test_a_run_into_a_folder_of_another_pipeline_or_tasks_is_refused(tmp_path: Path):
@@ -514,7 +540,7 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     assert lines.stats["image_decoded"].total == 3 and recognizer.stats["image_shared"].total == 3
     assert all(not a.flags.writeable for a in seen) and seen[0].shape == (30, 40, 3)
     for doc in docs:                     # each step names the decoder of the pixels it read (no GPU decodes a PNG)
-        steps = base_page.page_of(doc).transcriptions["ocr_new"].steps
+        steps = base_page.page_of(doc).transcriptions["ocr_new"].annotators
         assert steps and all(s.measurements["decoder"].startswith("Pillow ") for s in steps)
     assert lines.stats["cpu_decoded"].total == 3 and recognizer.stats["cpu_decoded"].total == 0       # shared
 

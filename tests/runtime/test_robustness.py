@@ -17,7 +17,7 @@ from linecaster.blocks.lines import LineAssigner, LineDetector
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.recognition import LineRecognizer
 from linecaster.blocks.writers import PageJsonlWriter
-from linecaster.data import Line
+from linecaster.data import Annotator
 from linecaster.errors import PageError
 from linecaster.runtime.builder import build, run_pages, run_plan
 from linecaster.runtime.observers import Observer
@@ -40,11 +40,10 @@ class SlowLines:
         time.sleep(self.LOAD_SECONDS)
 
     def __call__(self, image, t, **params):
-        from linecaster.data.transcription import StepInfo
-
         h, w = image.shape[:2]
-        t.lines = [Line(id=f"l{i}", bbox=[0, y, w, h // 2]) for i, y in enumerate((0, h // 2))]
-        t.steps.append(StepInfo(step="lines", name=self.name))
+        a = t.add_annotator(Annotator(step="lines", name=self.name))
+        for i, y in enumerate((0, h // 2)):
+            t.add_line(a, f"l{i}", [0, y, w, h // 2])
         return t
 
 
@@ -64,8 +63,9 @@ class Text:
         EVENTS.append(("read", w))
         if w in self.fail_widths:
             raise RuntimeError(f"cannot read a page {w} wide")
+        a = t.add_annotator(Annotator(step="recognition", name=self.name))
         for i, ln in enumerate(t.lines):
-            ln.text = f"line {i}"
+            t.read(a, ln, f"line {i}")
         return t
 
 
@@ -108,7 +108,7 @@ def test_warm_up_loads_before_the_first_page_and_is_its_own_stat():
     assert lines.stats["warm_up_seconds"].total >= SlowLines.LOAD_SECONDS
     # a page's measured seconds never include the loading
     for doc in out:
-        assert page_of(doc).transcriptions["ocr_new"].steps[0].measurements["seconds"] < SlowLines.LOAD_SECONDS
+        assert page_of(doc).transcriptions["ocr_new"].annotators[0].measurements["seconds"] < SlowLines.LOAD_SECONDS
     # blocks without anything to load have no warm-up stat
     assert "warm_up_seconds" not in blocks[2].stats.stats
 
@@ -144,7 +144,7 @@ def test_a_failing_page_carries_its_error_and_the_others_are_unaffected():
                                           "type": "RuntimeError", "error": "cannot read a page 50 wide"}]
     for d in (out[0], out[2]):
         assert not d.metadata.get("errors")
-        assert [ln.text for ln in page_of(d).transcriptions["ocr_new"].lines] == ["line 0", "line 1"]
+        assert [ln.reading.text for ln in page_of(d).transcriptions["ocr_new"].lines] == ["line 0", "line 1"]
 
 
 def test_later_model_blocks_pass_a_failed_page_by():

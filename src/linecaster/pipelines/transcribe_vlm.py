@@ -43,7 +43,7 @@ only): a page whose completion stopped at ``max_tokens`` is sent again right awa
 ``top_p``, with ``max_tokens`` N (at most the served context minus the page's prompt) and temperature
 ``repair_temperature`` (0.1); with a list of rising caps (``[8192, 12288]``), each repair that stops at its cap is
 sent again with the next. The page keeps the first completion that finished (``stop``), its first one otherwise, and
-its transcription records every pass (``extra["passes"]``, ``extra["kept"]``). The procedure is the reference
+its transcription records every pass as a raw output (``outputs``: its ``pass``, and ``kept`` for the one kept). The procedure is the reference
 script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5), which suggests 8192 for LightOnOCR-3;
 ``lightonocr-3-0.8b@3`` repairs at 8192 and then 12288 (twice and three times its 4096), since dense tables needed
 up to about 9,000 tokens. A page that

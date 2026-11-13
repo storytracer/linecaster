@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.backends import Chat, InProcess
 from linecaster.blocks.base.page import page_of
 from linecaster.catalog.registry import BUILTIN_ENGINES, SERVED_ONLY, catalog, engine_class, engine_ids, engine_spec
-from linecaster.data import Region, StepInfo
+from linecaster.data import Annotator
 from linecaster.engines.normalization import TextNormalization
 from linecaster.testing import (FAKE_ENGINES, FakeLineEngine, FakeRecognitionEngine, check_block, check_engine,
                                 fake_chat_server, register_fakes, sample_boxes, sample_document, sample_documents,
@@ -40,12 +40,12 @@ def test_the_sample_page():
     assert min(image.crop((x, y, x + w, y + h)).convert("L").get_flattened_data()) < 100      # ink in the box
     assert min(image.crop((0, 0, 400, y)).convert("L").get_flattened_data()) == 255            # none above it
     t = sample_layout(400, 300, ["one", "two"], text=True)
-    assert [ln.text for ln in t.lines] == ["one", "two"] and [ln.bbox for ln in t.lines] == boxes
-    assert t.regions[0].id == "text_0" and all(ln.region_id == "text_0" for ln in t.lines)
+    assert [ln.reading.text for ln in t.lines] == ["one", "two"] and [ln.box for ln in t.lines] == boxes
+    assert t.regions[0].id == "text_0" and all(ln.region == "text_0" for ln in t.lines)
     doc = sample_document("b_0001", transcription=t, item_id="b", sequence=1)
     page = page_of(doc)
     assert (page.page_id, page.item_id, page.image.width, page.image.format) == ("b_0001", "b", 800, "png")
-    assert doc.text == "one\ntwo" and page.transcriptions["ocr_new"].lines[1].text == "two"
+    assert doc.text == "one\ntwo" and page.transcriptions["ocr_new"].lines[1].reading.text == "two"
     assert [page_of(d).sequence for d in sample_documents(3)] == [1, 2, 3]
 
 
@@ -56,9 +56,9 @@ def test_the_fakes_are_engines_and_registered_only_on_request():
     for target in FAKE_ENGINES.values():
         check_engine(engine_class(next(k for k, v in FAKE_ENGINES.items() if v == target)))
     t = check_engine(FakeLineEngine, options={"boxes": sample_boxes()})
-    assert [ln.bbox for ln in t.lines] == sample_boxes()
+    assert [ln.box for ln in t.lines] == sample_boxes()
     out = check_engine(FakeRecognitionEngine, options={"template": "{line}@{width}x{height}"})
-    assert out.lines[0].text == "text_0_l0@800x400"
+    assert out.lines[0].reading.text == "text_0_l0@800x400"
 
 
 def test_the_fake_chat_server_answers_from_its_function():
@@ -90,15 +90,15 @@ class _Base:
         pass
 
     def __call__(self, image, t, **params):
+        a = t.add_annotator(Annotator(step=self.step, name="test"))
         for ln in t.lines:
-            ln.text = self.options.prefix + ln.id
-        t.steps.append(StepInfo(step=self.step, name="test"))
+            t.read(a, ln, self.options.prefix + ln.id)
         return t
 
 
 def test_check_engine_passes_a_good_engine():
     out = check_engine(_Base, options={"prefix": "y"})
-    assert out.lines[0].text == "ytext_0_l0"
+    assert out.lines[0].reading.text == "ytext_0_l0" and out.lines[0].reading.annotator == 1
 
 
 @pytest.mark.parametrize("change, problem", [
@@ -135,20 +135,69 @@ def test_check_engine_finds_wrong_behavior():
             Moody.calls += 1
             return super().__call__(image, t) if Moody.calls == 1 else t
 
-    class Unknown(_Base):               # a measurement outside the vocabulary, a step record of another engine
+    class Unknown(_Base):               # a measurement outside the vocabulary, an annotator of another engine
         def __call__(self, image, t, **params):
-            t.steps.append(StepInfo(step="recognition", name="x", engine="other.recognition.v1",
-                                    measurements={"lines_read": 3}))
+            t.add_annotator(Annotator(step="recognition", name="x", engine="other.recognition.v1",
+                                      measurements={"lines_read": 3}))
+            return t
+
+    class Relabels(_Base):              # changes an annotation that was there
+        def __call__(self, image, t, **params):
+            t.regions[0].label = "paragraph"
+            return super().__call__(image, t)
+
+    class Twice(_Base):                 # appends two annotators
+        def __call__(self, image, t, **params):
+            t.add_annotator(Annotator(step=self.step, name="first"))
+            return super().__call__(image, t)
+
+    class Anonymous(_Base):             # its readings name another annotator
+        def __call__(self, image, t, **params):
+            t.add_annotator(Annotator(step=self.step, name="test"))
+            for ln in t.lines:
+                t.read(0, ln, ln.id)
+            return t
+
+    class File(_Base):                  # an engine's annotator says it is a file
+        def __call__(self, image, t, **params):
+            a = t.add_annotator(Annotator(kind="file", step=self.step, name="test"))
+            for ln in t.lines:
+                t.read(a, ln, ln.id)
             return t
 
     for cls, problem in ((Undocumented, "without a description: prefix"),
                          (Baselines, r"changed lines.baseline, which needs one of \['baselines', 'lines'\]"),
+                         (Baselines, r"changed lines 'text_0_l0' \(baseline\)"),
                          (Inks, "changed the image array"), (Moody, "not deterministic"),
-                         (Unknown, "measurements outside the vocabulary")):
+                         (Unknown, "measurements outside the vocabulary"),
+                         (Relabels, r"changed regions 'text_0' \(label\)"),
+                         (Twice, "2 annotators appended, not one"),
+                         (Anonymous, "do not name the call's annotator: the reading of text_0_l0"),
+                         (File, "Annotator kind 'file', not 'model' or 'rule'")):
         with pytest.raises(AssertionError, match=problem):
             check_engine(cls)
-    with pytest.raises(AssertionError, match="StepInfo engine 'other.recognition.v1'"):
+    with pytest.raises(AssertionError, match="Annotator engine 'other.recognition.v1'"):
         check_engine(Unknown)
+
+
+def test_overwritten_allows_what_was_none_to_be_set():
+    from linecaster.testing.conformance import overwritten
+
+    t = sample_layout()
+    before = t.model_dump(mode="json", by_alias=True)
+    a = t.add_annotator(Annotator(step="recognition", name="r"))
+    t.read(a, t.lines[0], "x")                                        # a reading, from None
+    t.annotators[0].run = "r1"                                       # an annotator's run, from None
+    t.annotators[0].measurements = {"seconds": 1.0}                  # measurements are left out
+    t.classify(a, "text_0", "role", "heading")                       # appended
+    assert overwritten(before, t.model_dump(mode="json", by_alias=True, exclude_defaults=True)) == []
+    t.lines[1].region = "elsewhere"
+    t.orders.pop()
+    t.annotators[0].name = "other"
+    assert overwritten(before, t.model_dump(mode="json")) == [
+        "changed or removed an annotator that was there (annotators are only appended)",
+        "changed or removed orders that were there (they are only appended)",
+        "changed lines 'text_0_l1' (region)"]
 
 
 # ------------------------------------------------------------------------------ the built-in engines
@@ -209,6 +258,30 @@ def test_check_block_finds_an_undeclared_change():
         parts_replaced = ("metadata",)
 
     assert len(check_block(Declares())) == 2
+
+
+def test_check_block_finds_an_overwritten_annotation():
+    """A block changes nothing a transcription held, except the annotations of the parts its contract replaces."""
+    from linecaster.blocks.base.page import PageBlock
+
+    class Drops(PageBlock):
+        """Removes a page's last line."""
+
+        parts_read = ("lines",)
+        parts_added = ("lines",)
+
+        def process_page(self, doc, page):
+            page.transcriptions["ocr_new"].lines.pop()
+            return page
+
+    with pytest.raises(AssertionError, match=r"ocr_new: removed lines 'text_0_l3'"):
+        check_block(Drops())
+
+    class Replaces(Drops):
+        parts_added = ()
+        parts_replaced = ("lines",)
+
+    assert len(check_block(Replaces())) == 2
 
 
 def test_check_block_finds_an_undeclared_removal(tmp_path):
@@ -290,9 +363,8 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         ("tables", "FakeTableEngine"), ("formulas", "FakeFormulaEngine"))}
     tables = sample_documents(1)
     t = page_of(tables[0]).transcriptions["ocr_new"]
-    t.regions += [Region(id="table_1", label="table", polygon=[[0, 0], [10, 0], [10, 10], [0, 10]], bbox=[0, 0, 10, 10]),
-                  Region(id="formula_2", label="formula", polygon=[[0, 0], [10, 0], [10, 10], [0, 10]],
-                         bbox=[0, 0, 10, 10])]
+    for rid, label in (("table_1", "table"), ("formula_2", "formula")):
+        t.add_region(0, rid, [0, 0, 10, 10], [[0, 0], [10, 0], [10, 10], [0, 10]], label=label, role=label)
     from linecaster.blocks.base.page import set_page
 
     page = page_of(tables[0])

@@ -285,13 +285,16 @@ def test_a_recipe_edition_locks_its_expanded_pipeline(tmp_path):
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
     from linecaster.blocks.validation.recipe import RecipeStamper
-    from linecaster.data import StepInfo, Transcription
+    from linecaster.data import Annotator, Transcription
     from linecaster.data.page import Page
 
-    page = Page(page_id="p", item_id="i", transcriptions={"ocr_new": Transcription(steps=[
-        StepInfo(step="layout", name="a"), StepInfo(step="recognition", name="b")])})
+    page = Page(page_id="p", item_id="i", transcriptions={"ocr_new": Transcription(annotators=[
+        Annotator(step="layout", name="a"), Annotator(kind="rule", step="unicode", name="b"),
+        Annotator(step="recognition", name="c", recipe="earlier@2"),
+        Annotator(kind="file", step="transcription", name="alto")])})
     out = RecipeStamper("r@1", "sha256:" + "1" * 64).process_page(None, page)
-    assert {(m.recipe, m.recipe_sha256[:8]) for m in out.transcriptions["ocr_new"].steps} == {("r@1", "sha256:1")}
+    assert [(m.recipe, (m.recipe_sha256 or "")[:8]) for m in out.transcriptions["ocr_new"].annotators] == [
+        ("r@1", "sha256:1"), ("r@1", "sha256:1"), ("earlier@2", ""), (None, "")]   # what ran here, nothing overwritten
 
 
 def test_committed_schemas_are_the_models():

@@ -30,6 +30,47 @@ def _by_id(items: list[dict]) -> dict[str, dict]:
     return {x.get("id"): x for x in items}
 
 
+def _full(t: dict | None) -> dict:
+    """A transcription dump with every field (a stored record leaves defaults out)."""
+    from ..data import Transcription
+
+    return Transcription.model_validate(t or {}).model_dump(mode="json", by_alias=True)
+
+
+#: the fields every annotation has, besides its own
+_ANNOTATION = ("annotator", "output", "derived_from", "confidence")
+
+
+def _extensions(x: dict, known: Iterable[str]) -> dict:
+    return {k: v for k, v in x.items() if k not in known and k not in _ANNOTATION}
+
+
+#: line field -> the parts that may change it
+LINE_FIELDS = {
+    "region": ("lines", "line_regions", "hierarchy"), "box": ("lines",), "polygon": ("lines",),
+    "confidence": ("lines",), "baseline": ("lines", "baselines"), "parent": ("lines", "hierarchy"),
+}
+#: a line's reading field -> the parts that may change it (words: ``_word_changes``)
+READING_FIELDS = {"text": ("text", "nfc"), "alternatives": ("text", "nfc"), "confidence": ("line_confidences", "text"),
+                  "formatting": ("text", "words")}
+#: region field -> the parts that may change it
+REGION_FIELDS = {"label": ("regions",), "box": ("regions", "hierarchy"), "polygon": ("regions", "hierarchy"),
+                 "confidence": ("regions",), "parent": ("regions", "hierarchy")}
+#: a classification's scheme -> the parts that may add it (other schemes: any part, ``ANY``)
+SCHEME_PARTS = {"role": ("regions", "hierarchy"), "heading_level": ("hierarchy", "regions"),
+                "status": ("regions", "hierarchy"), "production": ("regions", "text")}
+#: an edit's kind -> the parts that may add it
+EDIT_PARTS = {"nfc": ("nfc", "text"), "normalized": ("normalized",),
+              "joined": ("text", "lines", "regions", "hierarchy", "paragraphs"), "corrected": ("text",),
+              "expanded": ("text", "normalized"), "regularized": ("text", "normalized")}
+#: a link's kind -> the parts that may add it
+LINK_PARTS = {"part_of": ("lines", "line_regions", "hierarchy"), "runs_into": ("paragraphs",),
+              "continues": ("paragraphs",), "caption_of": ("hierarchy", "regions"),
+              "note_of": ("hierarchy", "regions"), "refers_to": ("hierarchy", "regions")}
+#: what descriptions (text about a region that is not on the page) need
+DESCRIPTION_PARTS = ("regions", "hierarchy", "tables", "formulas", "text", "markdown")
+
+
 def _word_changes(where: str, before: list[dict], after: list[dict], out: list) -> None:
     def strip(words, *keys):
         return [{k: v for k, v in w.items() if k not in keys} for w in words]
@@ -42,73 +83,93 @@ def _word_changes(where: str, before: list[dict], after: list[dict], out: list) 
              ("words", "paragraphs", "text"), out)
 
 
-#: line field -> the parts that may change it
-LINE_FIELDS = {
-    "region_id": ("lines", "line_regions", "hierarchy"), "row": ("lines", "line_regions", "hierarchy"),
-    "reading_order": ("lines", "line_regions", "hierarchy"), "bbox": ("lines",), "polygon": ("lines",),
-    "score": ("lines",), "baseline": ("lines", "baselines"), "text": ("text", "nfc"),
-    "alternatives": ("text", "nfc"), "normalized": ("normalized",), "confidence": ("line_confidences", "text"),
-    "extra": ("lines", "text"),
-}
-#: region field -> the parts that may change it
-REGION_FIELDS = {
-    "label": ("regions", "hierarchy"), "raw_label": ("regions",), "polygon": ("regions", "hierarchy"),
-    "bbox": ("regions", "hierarchy"), "score": ("regions",), "reading_order": ("reading_order", "regions",
-                                                                                 "line_regions"),
-    "heading_level": ("hierarchy", "regions"),
-}
-#: a region's extra key -> the parts that may change it (other keys: any region part)
-REGION_EXTRA = {"table": ("tables", "html"), "formula": ("formulas", "latex")}
+def _multiset_changes(where: str, before: list[dict], after: list[dict], parts_of, out: list) -> None:
+    """Annotations without ids, added or gone: each with the parts ``parts_of(annotation)`` names."""
+    rest = [json.dumps(x, sort_keys=True) for x in before]
+    for x in after:
+        key = json.dumps(x, sort_keys=True)
+        if key in rest:
+            rest.remove(key)
+        else:
+            out.append((f"{where}.{x.get('scheme') or x.get('kind') or 'added'}", frozenset(parts_of(x))))
+    for key in rest:
+        x = json.loads(key)
+        out.append((f"{where}.{x.get('scheme') or x.get('kind') or 'removed'}", frozenset(parts_of(x))))
+
+
+def _resolved_order(t: dict, of: str):
+    found = [o for o in t["orders"] if o.get(of)]
+    if not found:
+        return None
+    o = found[-1]
+    return o[of] if of == "regions" else list(zip(o["lines"], o["rows"]))
 
 
 def transcription_changes(before: dict | None, after: dict | None) -> list[tuple[str, frozenset[str]]]:
-    """Returns what differs between two transcriptions (their ``model_dump(mode="json")``), each difference with the
-    parts that may account for it.
+    """Returns what differs between two transcriptions (their JSON dumps, a stored record's or a full one), each
+    difference with the parts that may account for it.
 
-    Regions, lines and words are compared by id and field (a region's ``reading_order``: ``reading_order``, a
-    line's ``text``: ``text`` or ``nfc``, a word's ``confidence``: ``word_confidences``, ...); paragraphs as
-    ``paragraphs`` (only their ``normalized``: ``normalized``), the DoclingDocument as ``document``. The steps are
-    left out (checked on their own); ``source``, ``language`` and ``extra`` are accounted for by any part of the
+    Regions, lines and ranges are compared by id: a region or line added or gone is ``regions`` or ``lines``, and of
+    the ones in both their fields (a line's ``region``: ``line_regions``, its reading's ``text``: ``text``, a word's
+    ``confidence``: ``word_confidences``, ...). The other annotations are compared as they are, added or gone, each
+    by what it is: a classification by its scheme (``role``: ``regions`` or ``hierarchy``), an edit by its kind
+    (``nfc``, ``normalized``), a link by its kind (``part_of``: ``line_regions``, ``runs_into``: ``paragraphs``),
+    tables as ``tables``, formulas as ``formulas``, paragraphs as ``paragraphs``; the reading order as it resolves
+    (the regions' ``reading_order``, the lines' ``lines``). The annotators are left out (checked on their own); the
+    source, the raw outputs, the set's extension fields and the other schemes are accounted for by any part of the
     transcription (``ANY``).
 
     Args:
         before, after: the two transcriptions as JSON-compatible dicts; ``None``: none (an empty transcription).
     """
-    from ..data import Transcription
-
-    empty = Transcription().model_dump(mode="json")
-    b, a, out = before or empty, after or empty, []
+    b, a, out = _full(before), _full(after), []
     rb, ra = _by_id(b["regions"]), _by_id(a["regions"])
     _changes("regions", sorted(rb, key=str), sorted(ra, key=str), ("regions",), out)
-    _changes("regions.order", list(rb), list(ra), ("regions", "reading_order", "line_regions"), out)
     for rid in rb.keys() & ra.keys():
         for f, parts in REGION_FIELDS.items():
             _changes(f"regions.{f}", rb[rid].get(f), ra[rid].get(f), parts, out)
-        eb, ea = rb[rid].get("extra") or {}, ra[rid].get("extra") or {}
-        for k in eb.keys() | ea.keys():
-            _changes(f"regions.extra.{k}", eb.get(k), ea.get(k),
-                     REGION_EXTRA.get(k, ("regions", "hierarchy", "tables", "formulas")), out)
+        _changes("regions.extensions", _extensions(rb[rid], REGION_FIELDS | {"id": 0}),
+                 _extensions(ra[rid], REGION_FIELDS | {"id": 0}), ("regions", "hierarchy", "tables", "formulas"), out)
     if any(names == frozenset({"regions"}) for where, names in out if where == "regions"):
         out = [(w, n) for w, n in out if not w.startswith("regions.")]   # regions made anew: their fields with them
+    _changes("orders.regions", _resolved_order(b, "regions"), _resolved_order(a, "regions"),
+             ("reading_order", "regions", "line_regions"), out)
     lb, la = _by_id(b["lines"]), _by_id(a["lines"])
     _changes("lines", sorted(lb, key=str), sorted(la, key=str), ("lines",), out)
-    _changes("lines.order", list(lb), list(la), ("lines", "line_regions", "hierarchy"), out)
+    _changes("orders.lines", _resolved_order(b, "lines"), _resolved_order(a, "lines"),
+             ("lines", "line_regions", "hierarchy"), out)
     lines_from = len(out)
+    empty = {"text": None, "alternatives": [], "confidence": None, "formatting": [], "words": []}
     for lid in lb.keys() & la.keys():
         for f, parts in LINE_FIELDS.items():
             _changes(f"lines.{f}", lb[lid].get(f), la[lid].get(f), parts, out)
-        _word_changes("lines", lb[lid].get("words") or [], la[lid].get("words") or [], out)
+        _changes("lines.extensions", _extensions(lb[lid], LINE_FIELDS | {"id": 0, "reading": 0}),
+                 _extensions(la[lid], LINE_FIELDS | {"id": 0, "reading": 0}), ("lines", "text"), out)
+        rdb, rda = lb[lid].get("reading") or empty, la[lid].get("reading") or empty
+        for f, parts in READING_FIELDS.items():
+            _changes(f"lines.reading.{f}", rdb.get(f), rda.get(f), parts, out)
+        _word_changes("lines.reading", rdb.get("words") or [], rda.get("words") or [], out)
     # the lines' geometry made anew (a line step): what they carried goes with them
-    if any(w in ("lines.bbox", "lines.polygon") for w, _ in out[lines_from:]):
+    if any(w in ("lines.box", "lines.polygon") for w, _ in out[lines_from:]):
         out = out[:lines_from] + [(w, n | {"lines"}) for w, n in out[lines_from:]]
-    strip = [{k: v for k, v in p.items() if k != "normalized"} for p in b["paragraphs"]]
-    _changes("paragraphs", strip, [{k: v for k, v in p.items() if k != "normalized"} for p in a["paragraphs"]],
-             ("paragraphs",), out)
-    _changes("paragraphs.normalized", [p.get("normalized") for p in b["paragraphs"]],
-             [p.get("normalized") for p in a["paragraphs"]], ("normalized", "paragraphs"), out)
-    _changes("docling", b.get("docling"), a.get("docling"), ("document",), out)
-    for f in ("source", "language", "extra"):
-        _changes(f, b.get(f), a.get(f), ANY, out)
+    gb, ga = _by_id(b["ranges"]), _by_id(a["ranges"])
+    for rid in gb.keys() | ga.keys():
+        x = ga.get(rid) or gb.get(rid)
+        _changes(f"ranges.{x.get('kind')}", gb.get(rid), ga.get(rid),
+                 ("paragraphs",) if x.get("kind") == "paragraph" else ("hierarchy", "paragraphs"), out)
+    _multiset_changes("classifications", b["classifications"], a["classifications"],
+                      lambda c: ANY if c["target"] == "" else SCHEME_PARTS.get(c["scheme"], ANY), out)
+    _multiset_changes("edits", b["edits"], a["edits"], lambda e: EDIT_PARTS.get(e["kind"], ("text",)), out)
+    _multiset_changes("links", b["links"], a["links"], lambda ln: LINK_PARTS.get(ln["kind"], ("hierarchy",)), out)
+    _multiset_changes("tables", b["tables"], a["tables"], lambda _: ("tables", "html"), out)
+    _multiset_changes("formulas", b["formulas"], a["formulas"], lambda _: ("formulas", "latex"), out)
+    _multiset_changes("descriptions", b["descriptions"], a["descriptions"], lambda _: DESCRIPTION_PARTS, out)
+    known = {"source", "annotators", "outputs", "regions", "ranges", "classifications",
+                                        "descriptions", "links", "orders", "lines", "tables", "formulas", "edits"}
+    _changes("source", b.get("source"), a.get("source"), ANY, out)
+    _changes("outputs", b.get("outputs"), a.get("outputs"), ANY, out)
+    _changes("extensions", {k: v for k, v in b.items() if k not in known},
+             {k: v for k, v in a.items() if k not in known}, ANY, out)
     return out
 
 
@@ -116,8 +177,114 @@ def _covered(names: frozenset[str], declared: set[str]) -> bool:
     return names == ANY and bool(declared) or bool(names & declared) or "*" in declared
 
 
-def _steps(t: dict) -> list[dict]:
-    return t.get("steps") or []
+# ------------------------------------------------------------------------------------- nothing overwritten
+
+#: the lists of a transcription whose annotations have ids
+_ZONES = ("regions", "lines", "ranges")
+#: the lists of annotations without ids: appended to, never changed
+_APPENDED = ("outputs", "classifications", "descriptions", "links", "orders", "tables", "formulas", "edits")
+
+
+def _kept(before, after) -> bool:
+    """Whether ``after`` keeps ``before``: equal, or a dict whose fields that were ``None`` (and only those) are
+    set, the others kept the same way."""
+    if before is None:
+        return True
+    if isinstance(before, dict) and isinstance(after, dict):
+        return before.keys() <= after.keys() and all(_kept(v, after[k]) for k, v in before.items())
+    return before == after
+
+
+def _without_measurements(annotators: list[dict]) -> list[dict]:
+    return [{k: v for k, v in a.items() if k != "measurements"} for a in annotators]
+
+
+def made_anew(before: dict | None, after: dict | None) -> bool:
+    """Whether ``after`` is another annotation set than ``before`` (its annotators do not begin with
+    ``before``'s): a transcription made anew, as a page engine returns one, rather than added to."""
+    b, a = _full(before), _full(after)
+    ab, aa = _without_measurements(b["annotators"]), _without_measurements(a["annotators"])
+    return len(aa) < len(ab) or not all(_kept(x, y) for x, y in zip(ab, aa))
+
+
+#: the parts a contract's ``replaces`` may name for a change to the annotations of a list that were there (``ANY``:
+#: any part of the transcription; annotators: none, they are only appended)
+OVERWRITE_PARTS = {
+    "annotators": frozenset(), "outputs": ANY, "source": ANY,
+    "classifications": frozenset({"regions", "hierarchy", "text"}),
+    "descriptions": frozenset(DESCRIPTION_PARTS),
+    "links": frozenset({"lines", "line_regions", "hierarchy", "paragraphs", "regions"}),
+    "orders": frozenset({"reading_order", "regions", "lines", "line_regions", "hierarchy"}),
+    "tables": frozenset({"tables", "html"}), "formulas": frozenset({"formulas", "latex"}),
+    "edits": frozenset({"nfc", "normalized", "text", "paragraphs", "lines"}),
+    "regions": frozenset({"regions"}), "lines": frozenset({"lines"}), "ranges": frozenset({"paragraphs", "hierarchy"}),
+}
+
+
+def overwrites(before: dict | None, after: dict | None) -> list[tuple[str, frozenset[str]]]:
+    """What ``after`` changed of what ``before`` held (``overwritten``), each with the parts whose replacement
+    accounts for it (``OVERWRITE_PARTS``; a line whose reading changed also ``text``)."""
+    b, a, problems = _full(before), _full(after), []
+    ab, aa = _without_measurements(b["annotators"]), _without_measurements(a["annotators"])
+    if len(aa) < len(ab) or not all(_kept(x, y) for x, y in zip(ab, aa)):
+        problems.append(("changed or removed an annotator that was there (annotators are only appended)",
+                         OVERWRITE_PARTS["annotators"]))
+    for key in _APPENDED:
+        if a[key][:len(b[key])] != b[key]:
+            problems.append((f"changed or removed {key} that were there (they are only appended)",
+                             OVERWRITE_PARTS[key]))
+    for key in _ZONES:
+        after_by = _by_id(a[key])
+        for x in b[key]:
+            y = after_by.get(x["id"])
+            if y is None:
+                problems.append((f"removed {key} {x['id']!r}", OVERWRITE_PARTS[key] | ({"text"} if key == "lines"
+                                                                                       else set())))
+            elif not _kept(x, y):
+                fields = sorted(k for k in x if not _kept(x[k], y.get(k)))
+                parts = OVERWRITE_PARTS[key] | ({"text"} if key == "lines" and "reading" in fields else set())
+                problems.append((f"changed {key} {x['id']!r} ({', '.join(fields)})", parts))
+    if not _kept(b["source"], a["source"]):
+        problems.append(("changed the source", OVERWRITE_PARTS["source"]))
+    return problems
+
+
+def overwritten(before: dict | None, after: dict | None) -> list[str]:
+    """Returns what ``after`` changed of what ``before`` held: every annotation must still be there as it was.
+
+    Annotators are only appended (an earlier one may get a field that was ``None``, e.g. its run or preset, and
+    its measurements are left out); raw outputs and the annotations without ids (classifications, descriptions,
+    links, orders, tables, formulas, edits) only appended; regions, lines and ranges matched by id, each kept with
+    its fields, of which those that were ``None`` may be set (a line's ``region`` and ``reading`` once). The source
+    may gain fields (its image size, ...).
+
+    Args:
+        before, after: the two transcriptions as JSON-compatible dicts.
+    """
+    return [p for p, _ in overwrites(before, after)]
+
+
+def _annotators(t: dict) -> list[dict]:
+    return t.get("annotators") or []
+
+
+def _named(t: dict, b: dict, index: int) -> list[str]:
+    """The annotations ``t`` added to ``b`` that do not name the annotator ``index``."""
+    full, fb, bad = _full(t), _full(b), []
+    for key in (*_APPENDED, "regions", "ranges"):
+        for x in full[key][len(fb[key]):] if key in _APPENDED else [x for x in full[key] if x["id"] not in
+                                                                     _by_id(fb[key])]:
+            if x.get("annotator") != index:
+                bad.append(f"{key} {x.get('id') or x.get('scheme') or x.get('kind') or ''}".rstrip())
+    known = _by_id(fb["lines"])
+    for ln in full["lines"]:
+        old = known.get(ln["id"])
+        if old is None and ln.get("annotator") != index:
+            bad.append(f"lines {ln['id']}")
+        if ln.get("reading") is not None and (old is None or old.get("reading") is None) \
+                and ln["reading"].get("annotator") != index:
+            bad.append(f"the reading of {ln['id']}")
+    return bad
 
 
 def _without_varying(value: Any) -> Any:
@@ -125,7 +292,7 @@ def _without_varying(value: Any) -> Any:
     value = copy.deepcopy(value)
 
     def strip(t):
-        for s in t.get("steps") or []:
+        for s in t.get("annotators") or []:
             for k in VARYING:
                 (s.get("measurements") or {}).pop(k, None)
 
@@ -137,24 +304,49 @@ def _without_varying(value: Any) -> Any:
 
 # ------------------------------------------------------------------------------------------------ engines
 
-def _engine_input(cls, transcription):
-    """The transcription an engine of ``cls``'s step and unit gets by default."""
-    from ..data import Region
+def _rendered(out) -> str:
+    """A rendering's result (a document and its map, ...) as canonical JSON, to compare two calls."""
+    def plain(x):
+        if hasattr(x, "model_dump"):
+            return x.model_dump(mode="json")
+        if isinstance(x, (list, tuple)):
+            return [plain(v) for v in x]
+        if isinstance(x, dict):
+            return {str(k): plain(v) for k, v in x.items()}
+        return x
+
+    return json.dumps(plain(out), sort_keys=True, default=str)
+
+
+def _step_input(step: str, unit: str | None):
+    """The transcription an engine or block of ``step`` and ``unit`` gets by default: what the steps before it
+    made of a sample page (``sample_layout``)."""
+    from ..data import Annotator, Source, Transcription
     from .samples import box
 
+    t = sample_layout(text=step not in ("recognition",))
+    if step == "layout" or (step == "recognition" and unit == "page"):    # a page engine reads the page itself
+        return Transcription(source=Source(**t.source.model_dump()))
+    if step == "lines":
+        out = Transcription(source=Source(**t.source.model_dump()))
+        a = out.add_annotator(Annotator(step="layout", name="sample"))
+        r = t.regions[0]
+        out.add_region(a, r.id, r.box, r.polygon, label=r.label, role=t.role(r.id), confidence=r.confidence)
+        out.add_order(a, [r.id])
+        return out
+    if step in ("tables", "formulas"):
+        label = "table" if step == "tables" else "formula"
+        t.add_region(0, f"{label}_1", [80, 40, 640, 60], box(80, 40, 640, 60), label=label, role=label)
+        o = t.orders[-1]
+        t.orders[-1] = o.model_copy(update={"regions": [*o.regions, f"{label}_1"]})
+    return t
+
+
+def _engine_input(cls, transcription):
+    """The transcription an engine of ``cls``'s step and unit gets by default (``_step_input``)."""
     if transcription is not None:
         return transcription
-    step, unit = cls.step, (cls.capabilities or {}).get("unit")
-    t = sample_layout(text=step not in ("recognition",))
-    if step in ("layout", "lines"):
-        t.regions, t.lines = ([], []) if step == "layout" else (t.regions, [])
-    elif step in ("tables", "formulas"):
-        label = "table" if step == "tables" else "formula"
-        t.regions.append(Region(id=f"{label}_1", label=label, raw_label=label, polygon=box(80, 40, 640, 60),
-                                bbox=[80, 40, 640, 60], reading_order=1))
-    elif step == "recognition" and unit == "page":      # a page engine reads the page itself
-        t.regions, t.lines = [], []
-    return t
+    return _step_input(cls.step, (cls.capabilities or {}).get("unit"))
 
 
 def check_engine(engine_cls, *, options: dict | None = None, image=None, transcription=None):
@@ -168,13 +360,16 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     * a model engine (the steps that are not rule-based) as ``engine(image, transcription)`` (the image as an RGB
       array, or as a PNG file's bytes for an engine whose ``image_input`` is ``"bytes"``): it returns a
       ``Transcription`` in which only the parts its ``capabilities.produces`` declares changed
-      (``transcription_changes``), with one more ``StepInfo``, and leaves the image array as it was;
+      (``transcription_changes``), and leaves the image array as it was;
     * a rule-based engine by its unit: ``engine(transcription)`` (page), ``engine([t1, t2])`` (item, the
       transcriptions of two pages), ``engine(image_bytes) -> (bytes, info)`` (the image step);
 
-    every new ``StepInfo`` names the engine's step, the engine id (or no engine: the block fills it in) and only
-    measurements of the vocabulary (``linecaster.data.MEASUREMENTS``), and the second call returns the same as the
-    first, apart from the measurements that vary from run to run (``seconds``, ``datetime``). An engine with
+    a composition (a rendering) returns what it renders and changes nothing in the transcription it reads; every
+    other call gives each transcription exactly one more ``Annotator``, of kind ``rule`` for a rule-based step
+    (``model`` or ``rule`` for a model step: one without a model is a rule), naming the engine's step, the engine id (or no engine: the block fills it in) and only measurements of the vocabulary
+    (``linecaster.data.MEASUREMENTS``); every annotation the call added names it, and nothing that was there changed
+    (``overwritten``: annotations only appended, a field that was ``None`` set at most). The second call returns the
+    same as the first, apart from the measurements that vary from run to run (``seconds``, ``datetime``). An engine with
     weights loads them in ``load()``: a test that checks it needs them (mark it ``network``).
 
     Args:
@@ -183,16 +378,16 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
         image: the page image, an RGB array (the image step and an engine whose ``image_input`` is ``"bytes"``: an
             image file's bytes); default ``sample_page()`` (``sample_png()``).
         transcription: the transcription it is called with; default a sample layout fit for its step and unit
-            (``sample_layout``: recognition gets lines without text, layout an empty transcription, tables and
-            formulas a region of their label, a page engine (recognition, unit page) an empty transcription,
-            rule-based engines a recognized page).
+            (``sample_layout``: recognition gets lines without readings, layout an empty transcription, lines a
+            region, tables and formulas a region of their label besides a recognized one, a page engine
+            (recognition, unit page) an empty transcription, rule-based engines a recognized page).
 
     Example:
         from linecaster.testing import check_engine
         from linecaster_tesseract import TesseractRecognitionEngine
 
         out = check_engine(TesseractRecognitionEngine, options={"lang": "eng"})
-        assert all(line.text for line in out.lines)
+        assert all(line.reading.text for line in out.lines)
     """
     import numpy as np
     from pydantic import BaseModel
@@ -241,10 +436,17 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
                 problems.append(f"the image step returns (bytes, info), not {type(out).__name__}")
                 break
             result, dump = out, (out[0], json.dumps(out[1], sort_keys=True, default=str))
+        elif step == "composition":         # a rendering: it returns the document and adds nothing
+            t = _engine_input(engine_cls, copy.deepcopy(transcription))
+            kept = t.model_dump(mode="json", by_alias=True)
+            out = engine(t)
+            if t.model_dump(mode="json", by_alias=True) != kept:
+                problems.append("a composition changed the transcription it renders (it adds nothing)")
+            result, dump = out, _rendered(out)
         else:
             t = _engine_input(engine_cls, copy.deepcopy(transcription))
             inputs = [t, copy.deepcopy(t)] if rule and caps.unit == "item" else [t]
-            before = [x.model_dump(mode="json") for x in inputs]
+            before = [x.model_dump(mode="json", by_alias=True) for x in inputs]
             if rule:
                 out = engine(inputs) if caps.unit == "item" else engine(t)
                 outs = out if caps.unit == "item" else [out]
@@ -263,23 +465,29 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
                 problems.append(f"the call returns {type(out).__name__}, not "
                                 f"{'a list of Transcriptions' if caps.unit == 'item' else 'a Transcription'}")
                 break
-            dump = [o.model_dump(mode="json") for o in outs]
+            dump = [o.model_dump(mode="json", by_alias=True) for o in outs]
             if attempt == 0:
                 for b, a in zip(before, dump):
                     for where, parts in transcription_changes(b, a):
                         if not _covered(parts, produces):
                             problems.append(f"changed {where}, which needs one of {sorted(parts)}; capabilities "
                                             f"produce {sorted(produces)}")
-                    new = _steps(a)[len(_steps(b)):]
-                    if not new:
-                        problems.append("no StepInfo added")
+                    problems.extend(overwritten(b, a))
+                    new = _annotators(a)[len(_annotators(b)):]
+                    if len(new) != 1:
+                        problems.append(f"{len(new)} annotators appended, not one")
                     for s in new:
                         if s.get("step") != step:
-                            problems.append(f"StepInfo step {s.get('step')!r}, not {step!r}")
+                            problems.append(f"Annotator step {s.get('step')!r}, not {step!r}")
+                        kinds = ("rule",) if rule else ("model", "rule")        # a model step without a model: a rule
+                        if s.get("kind") not in kinds:
+                            problems.append(f"Annotator kind {s.get('kind')!r}, not {' or '.join(map(repr, kinds))}")
                         if s.get("engine") not in (None, eid):
-                            problems.append(f"StepInfo engine {s.get('engine')!r}, not {eid!r}")
+                            problems.append(f"Annotator engine {s.get('engine')!r}, not {eid!r}")
                         if bad := unknown_measurements(s.get("measurements") or {}):
-                            problems.append(f"StepInfo measurements outside the vocabulary: {bad}")
+                            problems.append(f"Annotator measurements outside the vocabulary: {bad}")
+                    if len(new) == 1 and (bad := _named(a, b, len(_annotators(a)) - 1)):
+                        problems.append(f"annotations that do not name the call's annotator: {', '.join(bad)}")
             result = out
             dump = _without_varying(dump)
         if attempt == 0:
@@ -334,6 +542,29 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
     return out
 
 
+def _overwritten_on_page(before, after, contract) -> list[str]:
+    """What a block changed of the transcriptions a page carried (``overwrites``, per transcription) that its
+    contract does not replace: a change to the annotations of a part it replaces is the replacement (``*``: every
+    part); a transcription it made anew (``made_anew``, as a page engine's) only where it replaces a part of it."""
+    from ..data.page import PAGE_KEY
+
+    tb = (before.metadata.get(PAGE_KEY) or {}).get("transcriptions") or {}
+    ta = (after.metadata.get(PAGE_KEY) or {}).get("transcriptions") or {}
+    out = []
+    for name in sorted(tb.keys() & ta.keys()):
+        replaced = {p.name for p in contract.replaces
+                    if p.transcription == name or (p.name == "*" and p.transcription is None)}
+        if made_anew(tb[name], ta[name]):
+            if not replaced:
+                out.append(f"made {name} anew, and the contract replaces nothing of it")
+            continue
+        for problem, parts in overwrites(tb[name], ta[name]):
+            if "*" in replaced or (parts == ANY and replaced) or (parts & replaced):
+                continue
+            out.append(f"{name}: {problem}")
+    return out
+
+
 def _part_covers(declared, changed) -> bool:
     """Whether a declared part accounts for a changed one: ``*`` (of the page, or of the transcription) covers
     every part of it, and a change any part of a transcription accounts for (``ANY``) is covered by any of them."""
@@ -342,9 +573,18 @@ def _part_covers(declared, changed) -> bool:
     return changed.name == "*" and changed.transcription is not None and declared.transcription == changed.transcription
 
 
-def _sample_docs(unit: str) -> list:
-    """Two sample pages of one item with a recognized layout, or (unit ``item``) their item record."""
+def _sample_docs(unit: str, block=None) -> list:
+    """Two sample pages of one item with a recognized layout, or (unit ``item``) their item record; for a layout or
+    line model block, the pages as its step finds them (no layout; a layout without lines: ``_step_input``)."""
     docs = sample_documents(2)
+    step = getattr(block, "step", None)
+    if unit == "page" and step in ("layout", "lines") and hasattr(block, "backend"):
+        from ..blocks.base.page import page_of, set_page
+
+        for d in docs:
+            page = page_of(d)
+            page.transcriptions[getattr(block, "transcription", None) or "ocr_new"] = _step_input(step, "page")
+            set_page(d, page)
     if unit != "item":
         return docs
     from ..blocks.binding import Binder
@@ -359,15 +599,16 @@ def check_block(block, docs=None, *, run: bool = True) -> list:
     twice, and the same for a copy pickled with dill before ``warm_up()``, as datatrove's executors pickle
     pipelines); ``warm_up()`` is idempotent (a second call keeps the loaded engine). With ``run``: the block runs on
     ``docs`` in this process (``run_pages``), and on each page only parts its contract adds or replaces changed and
-    only parts it removes are gone (``page_changes``; not for a block that changes the unit, a binder or a
-    splitter); a model block passes a page that carries an earlier error through unchanged; a page block that reads
+    only parts it removes are gone (``page_changes``), and nothing a transcription held was changed (``overwritten``)
+    but the annotations of the parts its contract replaces (a transcription made anew only where the contract
+    replaces a part of it), not for a block that changes the unit (a binder or a splitter); a model block passes a page that carries an earlier error through unchanged; a page block that reads
     the image records a page without image bytes as that page's error and passes it on.
 
     Args:
         block: the block, built as a pipeline would build it.
         docs: the datatrove documents it runs on; ``None``: two sample pages of one item with a recognized layout
-            (``sample_documents``), as an item record for an item-unit block; a reader reads its own input after
-            them.
+            (``sample_documents``; a layout or line model block gets them as its step finds them), as an item record
+            for an item-unit block; a reader reads its own input after them.
         run: run the block; ``False`` (a server block) checks only what needs no run.
 
     Example:
@@ -410,7 +651,8 @@ def check_block(block, docs=None, *, run: bool = True) -> list:
         block.warm_up()
         if loaded is not None and getattr(backend, "_model", None) is not loaded:
             problems.append("a second warm_up() loaded the engine again")
-        docs = list(docs) if docs is not None else (_sample_docs(contract.unit) if contract.role != "reader" else [])
+        docs = list(docs) if docs is not None else (_sample_docs(contract.unit, block) if contract.role != "reader"
+                                             else [])
         before = {d.id: copy.deepcopy(d) for d in docs}
         out = run_pages([block], docs)
         declared = contract.adds | contract.replaces
@@ -427,6 +669,7 @@ def check_block(block, docs=None, *, run: bool = True) -> list:
                         problems.append(f"page {d.id}: {what} {sorted(map(str, parts))}; the contract "
                                         f"{'removes' if where == 'removed' else 'adds or replaces'} "
                                         f"{sorted(map(str, ok)) or 'nothing'}")
+                problems.extend(f"page {d.id}: {p}" for p in _overwritten_on_page(b, d, contract))
         if contract.role == "model" and contract.unit == "page" and docs:
             failed = copy.deepcopy(docs[0])
             failed.id = f"{failed.id}-failed"

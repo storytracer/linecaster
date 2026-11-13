@@ -18,12 +18,12 @@ from linecaster.blocks.readers.records import PageRecordReader
 from linecaster.blocks.validation.pages import PageValidator
 from linecaster.blocks.writers.records import PageParquetWriter
 from linecaster.blocks.writers.rejects import RejectWriter
-from linecaster.data import Line, Region, Source, Transcription, Word
+from linecaster.data import Annotator, Source, Transcription, Word
 from linecaster.data.page import PAGE_KEY, Page, PageImage
 from linecaster.errors import PipelineConfigError
 from linecaster.text import variants as T
 
-from conftest import item_variants
+from conftest import item_variants, page_with
 
 
 def _doc(page: Page, media: bytes | None = None) -> Document:
@@ -36,21 +36,22 @@ def _doc(page: Page, media: bytes | None = None) -> Document:
 # ------------------------------------------------------------------ Transcription.scaled
 
 def test_scaled_scales_everything_and_copies():
-    t = Transcription(
-        regions=[Region(id="r", label="text", polygon=[[10, 20], [30, 20], [30, 40]], bbox=[10, 20, 20, 20])],
-        lines=[Line(id="l", region_id="r", bbox=[10, 20, 20, 10], polygon=[[10, 20], [30, 30]],
-                    baseline=[[10, 28], [30, 28]], words=[Word(id="w", text="a", bbox=[10, 20, 5, 10]),
-                                                          Word(id="v", text="b")])],
-        source=Source(image_width=100, image_height=50))
+    t = Transcription(source=Source(image_width=100, image_height=50))
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    t.add_region(a, "r", [10, 20, 20, 20], [[10, 20], [30, 20], [30, 40]], label="text", role="text")
+    t.add_line(a, "l", [10, 20, 20, 10], [[10, 20], [30, 30]], region="r", baseline=[[10, 28], [30, 28]])
+    t.read(a, "l", "a b", words=[Word(id="w", text="a", box=[10, 20, 5, 10]), Word(id="v", text="b")])
     s = t.scaled(2.0, 3.0)
-    assert s.regions[0].polygon == [[20, 60], [60, 60], [60, 120]] and s.regions[0].bbox == [20, 60, 40, 60]
+    assert s.regions[0].polygon == [[20, 60], [60, 60], [60, 120]] and s.regions[0].box == [20, 60, 40, 60]
     ln = s.lines[0]
-    assert ln.bbox == [20, 60, 40, 30] and ln.polygon == [[20, 60], [60, 90]] and ln.baseline == [[20, 84], [60, 84]]
-    assert ln.words[0].bbox == [20, 60, 10, 30] and ln.words[1].bbox is None
-    assert (s.source.image_width, s.source.image_height) == (200, 150) and s.source.extra["scale"] == [2.0, 3.0]
-    assert t.lines[0].bbox == [10, 20, 20, 10]                       # the original is untouched
-    assert s.scaled(0.5).source.extra["scale"] == [1.0, 1.5]
-    assert Transcription(lines=[Line(id="x", text="t")]).scaled(2).lines[0].bbox is None
+    assert ln.box == [20, 60, 40, 30] and ln.polygon == [[20, 60], [60, 90]] and ln.baseline == [[20, 84], [60, 84]]
+    assert ln.reading.words[0].box == [20, 60, 10, 30] and ln.reading.words[1].box is None
+    assert (s.source.image_width, s.source.image_height) == (200, 150) and s.source.scale == [2.0, 3.0]
+    assert t.lines[0].box == [10, 20, 20, 10]                        # the original is untouched
+    assert s.scaled(0.5).source.scale == [1.0, 1.5]
+    bare = Transcription()
+    bare.add_line(bare.add_annotator(Annotator(kind="file", step="transcription", name="text")), "x", text="t")
+    assert bare.scaled(2).lines[0].box is None
 
 
 # ------------------------------------------------------------------ filters
@@ -118,14 +119,14 @@ def test_normalize_never_nfkc():
 
 
 def _page(regions, start=0) -> Transcription:
-    t, n = Transcription(), 0
+    rs, ls, n = [], [], 0
     for i, (rid, label, lines) in enumerate(regions):
-        t.regions.append(Region(id=rid, label=label, polygon=[[0, 0], [1, 0], [1, 1]], bbox=[0, 0, 1, 1],
-                                reading_order=i))
+        rs.append({"id": rid, "label": label, "polygon": [[0, 0], [1, 0], [1, 1]], "bbox": [0, 0, 1, 1],
+                   "reading_order": i})
         for k, s in enumerate(lines):
-            t.lines.append(Line(id=f"{rid}{k}", region_id=rid, reading_order=n, row=k, text=s))
+            ls.append({"id": f"{rid}{k}", "region_id": rid, "reading_order": n, "row": k, "text": s})
             n += 1
-    return t
+    return page_with(rs, ls)
 
 
 def test_variants():

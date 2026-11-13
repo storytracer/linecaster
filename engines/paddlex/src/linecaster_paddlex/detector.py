@@ -6,7 +6,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import Line, StepInfo, Transcription
+from linecaster.data import Annotator, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_predictor, paddle_image
@@ -56,9 +56,9 @@ class PaddleTextDetector:
 
 class PaddleLineEngine:
     """linecaster engine for the lines step: PP-OCRv6 detection on the whole page (default) or,
-    with ``per_region``, on each region's crop. Fills ``Transcription.lines`` with geometry (polygon,
-    bbox, score); text stays ``None``. Replaces any lines already present. The model files: ``weights`` (a
-    catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""
+    with ``per_region``, on each region's crop (each line then assigned to its region). Adds the lines with their
+    geometry (polygon, box, confidence; no reading) and their reading order, by one annotator. The model files:
+    ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""
 
     engine_id: ClassVar[str] = "paddlex.lines.v1"
     step = "lines"
@@ -95,17 +95,18 @@ class PaddleLineEngine:
         self.detector = PaddleTextDetector(self.name, self.device, model_dir=model_dir, **self.kwargs)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
+        t, d = transcription, self.detector
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend="paddlex/onnxruntime",
+                                      settings={"unclip_ratio": d.unclip_ratio, "box_thresh": d.box_thresh,
+                                                "thresh": d.thresh, "per_region": self.per_region}))
         found = []
         if self.per_region:
-            for r in sorted(transcription.regions, key=lambda r: (r.reading_order is None, r.reading_order or 0)):
-                found.extend(self.detector.detect(image, r))
+            for r in t.ordered_regions():
+                found.extend(d.detect(image, r))
         else:
-            found = self.detector.detect(image)
-        transcription.lines = [Line(id=f"det_{i}", region_id=rid or None, reading_order=i, bbox=xywh(BBox.of(pts)),
-                                    polygon=pts.tolist(), score=score) for i, (pts, score, rid) in enumerate(found)]
-        d = self.detector
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend="paddlex/onnxruntime",
-                                            settings={"unclip_ratio": d.unclip_ratio, "box_thresh": d.box_thresh,
-                                                      "thresh": d.thresh, "per_region": self.per_region}))
-        return transcription
+            found = d.detect(image)
+        ids = [t.add_line(a, f"det_{i}", xywh(BBox.of(pts)), pts.tolist(), region=rid or None, confidence=score).id
+               for i, (pts, score, rid) in enumerate(found)]
+        t.add_order(a, lines=ids)
+        return t

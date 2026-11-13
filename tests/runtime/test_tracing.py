@@ -143,7 +143,7 @@ def test_failed_unsampled_pages_are_exported_and_the_others_not(tmp_path: Path):
     assert len(by_name(spans, "linecaster.task")) == 1                  # task spans always
     # no page record carries a trace id: none was sampled
     rows = [json.loads(x) for f in (out / "pages").glob("*.jsonl.gz") for x in gzip.open(f, "rt")]
-    assert not any("trace_id" in r["page"]["metadata"] for r in rows)
+    assert not any("trace_id" in r["page"].get("metadata", {}) for r in rows)
     assert all(TRACE_KEY in d.metadata for d in docs)
     tracing = plan.stages[0].observers.observers[-1]
     assert tracing.provider is None                                      # shut down at the task's end

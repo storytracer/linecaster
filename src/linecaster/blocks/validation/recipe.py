@@ -1,4 +1,4 @@
-"""``RecipeStamper``: the recipe edition a run followed, on every step of every page (``StepInfo.recipe``).
+"""``RecipeStamper``: the recipe edition a run followed, on every step of every page (``Annotator.recipe``).
 The builder (``build(..., recipe=...)``, which ``linecaster.runtime.run.main`` calls for ``--recipe``) puts it before
 the first writer, so the page records and every ALTO, PAGE-XML and hOCR file name the recipe edition and its hash
 next to each preset. Before an item writer it stamps the pages of each item record.
@@ -13,7 +13,8 @@ class RecipeStamper(PageBlock):
     """Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an
     item record.
 
-    It sets ``StepInfo.recipe`` and ``StepInfo.recipe_sha256`` and adds no part (unit ``any``: pages or item
+    It sets ``Annotator.recipe`` and ``Annotator.recipe_sha256`` on every annotator of kind model or rule that names
+    no recipe yet (one that names one keeps it: nothing is overwritten) and adds no part (unit ``any``: pages or item
     records). The builder puts one before the first writer when a run follows a recipe.
 
     Args:
@@ -30,9 +31,10 @@ class RecipeStamper(PageBlock):
         self.recipe, self.recipe_sha256 = recipe, recipe_sha256
 
     def process_page(self, doc, page):
-        for t in page.transcriptions.values():
-            for m in t.steps:
-                m.recipe, m.recipe_sha256 = self.recipe, self.recipe_sha256
+        for t in [*page.transcriptions.values(), *page.annotations.values()]:
+            for m in t.annotators:
+                if m.kind in ("model", "rule") and m.recipe is None:
+                    m.recipe, m.recipe_sha256 = self.recipe, self.recipe_sha256
         return page
 
     def run(self, data, rank: int = 0, world_size: int = 1):

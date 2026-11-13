@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dataclasses import dataclass, field
 
-from linecaster.data import StepInfo, Transcription
+from linecaster.data import Annotator, Cell, Table, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
 from .compat import create_pipeline, paddle_image
@@ -176,9 +176,9 @@ class PaddleTableRecognizer:
 
 class PaddleTableEngine:
     """linecaster engine for the tables step: the cell structure of every ``table`` region, with the
-    region's recognized lines placed into the cells (needs the recognition step first). The result goes
-    into ``region.extra["table"]``: ``num_rows``, ``num_cols``, ``html`` and ``cells`` (text, row, col,
-    row_span, col_span, bbox, header).
+    region's recognized lines placed into the cells (needs the recognition step first). Each structure found is a
+    ``Table`` annotation of its region: ``num_rows``, ``num_cols``, ``html`` and ``cells`` (text, row and column
+    offsets, box, column header), by one annotator (measurement ``tables``: the table regions read).
 
     The pipeline's models: the structure model (``STRUCTURE``, for wired and wireless tables) from ``weights``
     (a catalog pin) or the catalog's newest pin; the classifier and the two cell detectors (``SUBMODELS``) at
@@ -201,7 +201,7 @@ class PaddleTableEngine:
                                              "box the models can flip to a worse cell set; stable from 8 px)")
         e2e: bool = Field(True, description="structure and cell boxes from SLANet_plus's own prediction for both "
                                             "table classes (False: the cell detectors, PP-StructureV3's route)")
-        name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded in StepInfo")
+        name: str = Field("table_recognition_v2/SLANet_plus", description="the name recorded as the annotator's")
         submodel_revisions: dict[str, str] | None = Field(
             None, description="PaddleX model name -> Hugging Face commit of its ONNX package, for the table "
                               "classifier and the cell detectors; each must be a pin in the catalog (None: the "
@@ -231,18 +231,22 @@ class PaddleTableEngine:
                                                 config=table_pipeline_config(model_dirs=dirs))
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
+        t = transcription
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend="paddlex/onnxruntime",
+                                      settings={"crop_pad": self.crop_pad, "e2e": self.e2e}))
         n = 0
-        for region in transcription.regions:
-            if region.label != "table":
+        for region in t.regions:
+            if t.label(region.id) != "table":
                 continue
-            lines = [ln for ln in transcription.lines if ln.region_id == region.id]
-            res = self.recognizer.structure(image, region, lines, [ln.text or "" for ln in lines])
-            region.extra["table"] = {
-                "num_rows": res.num_rows, "num_cols": res.num_cols, "html": res.html,
-                "cells": [{"text": c.text, "row": c.row, "col": c.col, "row_span": c.row_span, "col_span": c.col_span,
-                           "bbox": xywh(c.bbox) if c.bbox is not None else None, "header": c.header} for c in res.cells]}
+            lines = [ln for ln in t.lines if t.region_of(ln) == region.id]
+            res = self.recognizer.structure(image, region, lines, [t.text_of(ln) or "" for ln in lines])
+            if res.cells or res.html:
+                t.tables.append(Table(
+                    annotator=a, target=region.id, num_rows=res.num_rows, num_cols=res.num_cols, html=res.html,
+                    cells=[Cell(start_row=c.row, end_row=c.row + c.row_span, start_col=c.col,
+                                end_col=c.col + c.col_span, text=c.text, column_header=c.header,
+                                box=xywh(c.bbox) if c.bbox is not None else None) for c in res.cells]))
             n += 1
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend="paddlex/onnxruntime",
-                                            settings={"crop_pad": self.crop_pad, "e2e": self.e2e}, measurements={"tables": n}))
-        return transcription
+        t.annotators[a].measurements = {"tables": n}
+        return t

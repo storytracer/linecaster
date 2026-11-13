@@ -634,7 +634,7 @@ def _describe_block(e: _Entry, node: Node) -> dict:
 def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
           observers: list[Observer] | None = None, max_page_errors: float | None = None,
-          trace_sample: float | None = None, image_decode: str | None = None) -> Plan:
+          trace_sample: float | None = None, image_decode: str | None = None, run_id: str | None = None) -> Plan:
     """Turns a list of blocks into a checked plan of stages, cut where the stream changes from pages to items.
 
     The builder expands composites, checks the contracts (every part a block reads is added before it, units fit,
@@ -663,6 +663,8 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
         trace_sample: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
         image_decode: how every model block decodes page images (``auto``, ``gpu``, ``cpu``;
             ``linecaster.images.pixels``); default each block's own (``auto``).
+        run_id: the run's id (``RunRecord.run_id``), given to every block that names it on the annotators the run
+            adds (``run_id``: the page record writers); default none (nothing named).
 
     Example:
         from linecaster.blocks.readers import ImageFolderReader
@@ -677,7 +679,7 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
     """
     return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
                   observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample,
-                  image_decode=image_decode)
+                  image_decode=image_decode, run_id=run_id)
 
 
 def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | None, problems: list[str]):
@@ -696,7 +698,8 @@ def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | No
 
 
 def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
-           observers=None, given: bool = False, max_page_errors=None, trace_sample=None, image_decode=None) -> Plan:
+           observers=None, given: bool = False, max_page_errors=None, trace_sample=None, image_decode=None,
+           run_id=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(blocks), problems)
     _converters(entries)
@@ -748,6 +751,10 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         tap_at.setdefault(s, []).append(Tap(e.block, folder))
     out = []
     for s, (name, stage_entries, stage_tasks) in enumerate(stages):
+        if run_id is not None:            # the blocks that name the run on the annotators it added
+            for e in stage_entries:
+                if hasattr(type(e.block), "run_id"):
+                    e.block.run_id = run_id
         tracing = _tracing(run_folder, trace_sample, name if len(stages) > 1 else None, problems)
         timing = _timing(stage_entries)
         hub = Observers([*([timing] if timing else []), *tap_at.get(s, []), *(observers or []),

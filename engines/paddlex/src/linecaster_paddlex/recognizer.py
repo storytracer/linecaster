@@ -14,7 +14,7 @@ import numpy as np
 import regex
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription, Word
+from linecaster.data import Annotator, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .compat import create_predictor, paddle_image
@@ -50,7 +50,7 @@ def crop_line(image: np.ndarray, box: np.ndarray) -> np.ndarray:
     return crop
 
 
-def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word]:
+def line_words(text: str, word_info, box: np.ndarray) -> list[Word]:
     """Words of ``text`` placed along ``box`` by the CTC columns of their characters. ``word_info`` is
     the recognizer's ``[col_num, word_list, word_col_list, state_list]``; flattened, ``word_col_list``
     has one column per character of ``text``."""
@@ -71,15 +71,15 @@ def line_words(text: str, word_info, box: np.ndarray, line_id: str) -> list[Word
             t0 = min(cols[offset] / col_num, 1.0)
             t1 = min((cols[offset + len(segment) - 1] + 1) / col_num, 1.0)
             pts = np.array(at(t0) + at(t1))
-            words.append(Word(id=f"{line_id}_w{len(words)}", text=segment, bbox=[float(v) for v in xywh(BBox.of(pts))]))
+            words.append(Word(text=segment, box=[float(v) for v in xywh(BBox.of(pts))]))
         offset += len(segment)
     return words
 
 
 class PaddleRecognitionEngine:
     """linecaster engine for the recognition step: a PaddleOCR text recognizer on every line of the
-    transcription (``RECOGNIZERS``). Fills text, confidence (the recognizer's mean character probability) and words
-    (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model
+    transcription that has none yet (``RECOGNIZERS``). Gives each its reading: text, confidence (the recognizer's mean
+    character probability) and words (positions only; PaddleX gives no per-word confidence). A page's result depends only on the page. The model
     files: ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name`` (``weights.resolve``)."""
 
     engine_id: ClassVar[str] = "paddlex.recognition.v1"
@@ -111,10 +111,14 @@ class PaddleRecognitionEngine:
                                           model_dir=model_dir)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
-        lines = [ln for ln in transcription.lines if ln.polygon or ln.bbox]
+        t = transcription
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend="paddlex/onnxruntime",
+                                      settings={"batch_size": self.batch_size, "words": self.words}))
+        lines = [ln for ln in t.lines if (ln.polygon or ln.box) and ln.reading is None]
         boxes, crops = [], []
         for ln in lines:
-            x, y, w, h = ln.bbox if not ln.polygon else (0, 0, 0, 0)
+            x, y, w, h = ln.box if not ln.polygon else (0, 0, 0, 0)
             poly = ln.polygon or BBox(x, y, x + w, y + h).polygon.tolist()
             box = line_rectangle(poly)
             boxes.append(box)
@@ -129,13 +133,10 @@ class PaddleRecognitionEngine:
         for i, ln in enumerate(lines):
             res = results.get(i)
             if res is None:
-                ln.text, ln.confidence, ln.words = "", 0.0, []
+                t.read(a, ln, "", 0.0)
                 continue
             rec = res["rec_text"]
             text, info = (rec[0], rec[1]) if isinstance(rec, tuple) else (rec, None)
-            ln.text, ln.confidence = text, float(res["rec_score"])
-            ln.words = line_words(text, info, boxes[i], ln.id) if info is not None else []
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend="paddlex/onnxruntime",
-                                            settings={"batch_size": self.batch_size, "words": self.words}))
-        return transcription
+            t.read(a, ln, text, float(res["rec_score"]),
+                   words=line_words(text, info, boxes[i]) if info is not None else [])
+        return t

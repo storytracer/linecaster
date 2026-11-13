@@ -22,14 +22,14 @@ from linecaster_paddlex.weights import catalog_weights, check, model_id
 ], ids=["layout", "lines", "recognition", "tables"])
 def test_conformance_on_the_cpu(engine, options):
     out = check_engine(engine, options={**options, "device": "cpu"})
-    assert out.steps[-1].revision
+    assert out.annotators[-1].revision
 
 
 @pytest.mark.network
 @pytest.mark.slow
 def test_formula_conformance_on_the_cpu():
     out = check_engine(PaddleFormulaEngine, options={"model_name": "PP-FormulaNet-L", "device": "cpu"})
-    assert isinstance(next(r for r in out.regions if r.label == "formula").extra.get("formula"), str)
+    assert isinstance(out.formula(next(r.id for r in out.regions if out.label(r.id) == "formula")).latex, str)
 
 
 def test_models_resolve_through_the_catalog():

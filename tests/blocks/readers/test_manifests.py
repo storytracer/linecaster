@@ -420,7 +420,7 @@ def test_harvest_saves_manifests_and_ocr_files(server, tmp_path):
     assert (tmp_path / "manifests" / "flora.xml").read_text().startswith("<?xml")
     assert (tmp_path / "ocr" / "flora" / "flora_0001.xml").read_text() == ALTO
     t = page_of(doc).transcriptions[OCR_ORIGINAL]
-    assert t.source.extra["file"] == str(tmp_path / "ocr" / "flora" / "flora_0001.xml")
+    assert t.source.extensions["ocr__file"] == str(tmp_path / "ocr" / "flora" / "flora_0001.xml")
     assert t.source.uri.endswith("/ocr/f1.xml")
 
 

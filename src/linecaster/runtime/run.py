@@ -20,8 +20,10 @@ builds a shape in this process without its engines. The builder may also return
 the pipeline's engine packages or linecaster alone.
 
 Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.runtime.provenance.run_record``:
-the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and presets, software); a
-later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml`` next to it.
+the run id, the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and
+presets, software, hardware); a later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml``
+next to it, with its own run id. The page record writers name the launch's run id on every annotator it added
+(``Annotator.run``).
 Before that the builder (``linecaster.runtime.builder``) turns the blocks the script returns into a plan: it checks
 their contracts (every problem listed, nothing launched), stamps the recipe before the first writer, applies
 ``--until``, ``--after`` and ``--tap-after``, and cuts the pipeline into stages where the stream changes from pages to
@@ -814,13 +816,13 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
                  "constraints": (deps.constraints or None) if deps else None,
                  "overrides": (deps.overrides or None) if deps else None}
     internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
-                "sample_record", "script_name", "gpu_tasks")
+                "sample_record", "script_name", "gpu_tasks", "run_id")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     if getattr(a, "sample_record", None):
         extra["sample"] = a.sample_record
     return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
                       executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None),
-                      script_name=getattr(a, "script_name", None))
+                      script_name=getattr(a, "script_name", None), run_id=getattr(a, "run_id", None))
 
 
 def previous_record(out: str) -> dict | None:
@@ -916,7 +918,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
                          max_page_errors=getattr(a, "max_page_errors", None),
                          image_decode=getattr(a, "image_decode", None),
-                         trace_sample=getattr(a, "trace_sample", None))
+                         trace_sample=getattr(a, "trace_sample", None), run_id=getattr(a, "run_id", None))
 
 
 def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, script: str | None = None):
@@ -990,6 +992,10 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
     page in this process."""
     out = a.out.rstrip("/")
+    if not getattr(a, "run_id", None):           # this launch's id: in its record and on every annotator it adds
+        from .provenance import new_run_id
+
+        a.run_id = new_run_id()
     sample = sampled(a, pipeline)
     allocate(a, pipeline)
     p = build_plan(a, pipeline)

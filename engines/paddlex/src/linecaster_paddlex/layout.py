@@ -13,7 +13,7 @@ from typing import ClassVar, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import Region as LCRegion, StepInfo, Transcription
+from linecaster.data import Annotator, Transcription
 from linecaster.data.geometry import BBox, xywh
 from linecaster.data.geometry.order import suppress_contained, xy_cut_order
 from linecaster.data.geometry.xy_cut_plus_plus import xy_cut_plus_plus_order
@@ -145,9 +145,9 @@ class PaddleLayout:
 
 
 class PaddleLayoutEngine:
-    """linecaster engine for the layout step: fills ``Transcription.regions`` (Docling labels,
-    PP-DocLayoutV3's reading order and polygons, or the order ``reading_order`` gives). Replaces any regions already
-    present.
+    """linecaster engine for the layout step: adds regions (the model's own label, a ``role`` classification from its
+    Docling label, ``LABEL_MAP``, a page number placed by position as a page header or footer) and a reading order
+    (PP-DocLayoutV3's own, or the order ``reading_order`` gives), all by one annotator.
     The model files: ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name``
     (``weights.resolve``)."""
 
@@ -199,11 +199,16 @@ class PaddleLayoutEngine:
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         regions = self.layout.analyze(image)
-        transcription.regions = [
-            LCRegion(id=r.id, label=r.label, raw_label=r.raw_label, polygon=np.asarray(r.polygon, dtype=float).tolist(),
-                     bbox=xywh(r.bbox), score=r.score, reading_order=r.order) for r in regions]
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend="paddlex/onnxruntime",
-                                            settings={"threshold": str(self.layout.threshold) if isinstance(self.layout.threshold, float) else "model default",
-                                                      "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
-        return transcription
+        t = transcription
+        threshold = self.layout.threshold
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend="paddlex/onnxruntime",
+                                      settings={"threshold": str(threshold) if isinstance(threshold, float)
+                                                else "model default",
+                                                "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
+        for r in regions:
+            t.add_region(a, r.id, xywh(r.bbox), np.asarray(r.polygon, dtype=float).tolist(), label=r.raw_label,
+                         role=r.label, confidence=r.score)
+        ranked = sorted((r for r in regions if r.order is not None), key=lambda r: r.order)
+        t.add_order(a, [r.id for r in ranked])
+        return t

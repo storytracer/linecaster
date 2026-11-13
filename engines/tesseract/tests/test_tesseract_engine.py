@@ -13,8 +13,8 @@ from linecaster_tesseract.recognizer import crop_line
 @pytest.mark.network
 def test_conformance():
     out = check_engine(TesseractRecognitionEngine, options={"weights": weights_of("tessdata-best"), "lang": "eng"})
-    assert [ln.text for ln in out.lines][0].startswith("The species")
-    assert all(w.confidence is not None for ln in out.lines for w in ln.words)
+    assert [ln.reading.text for ln in out.lines][0].startswith("The species")
+    assert all(w.confidence is not None for ln in out.lines for w in ln.reading.words)
 
 
 def test_the_data_is_the_catalog_pin():

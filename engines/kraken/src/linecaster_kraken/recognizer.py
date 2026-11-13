@@ -15,7 +15,7 @@ import regex
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription, Word
+from linecaster.data import Annotator, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, SIZES, fetch_weights, resolve_kraken_model, size_weights
@@ -33,7 +33,7 @@ def max_bbox(cuts) -> BBox:
     return BBox(min(flat[::2]), min(flat[1::2]), max(flat[::2]), max(flat[1::2]))
 
 
-def record_words(rec, line_id: str) -> list[Word]:
+def record_words(rec) -> list[Word]:
     """Words from a kraken record the way kraken's serializer makes them: the prediction split at
     whitespace, a word's box the box around its characters' cuts, its confidence their mean."""
     words, offset = [], 0
@@ -44,8 +44,8 @@ def record_words(rec, line_id: str) -> list[Word]:
             continue
         if not segment.isspace():
             seg_cuts, seg_conf = cuts[offset:offset + len(segment)], confs[offset:offset + len(segment)]
-            words.append(Word(id=f"{line_id}_w{len(words)}", text=segment,
-                              bbox=[float(v) for v in xywh(max_bbox(seg_cuts))] if seg_cuts else None,
+            words.append(Word(text=segment,
+                              box=[float(v) for v in xywh(max_bbox(seg_cuts))] if seg_cuts else None,
                               confidence=float(sum(seg_conf) / len(seg_conf)) if seg_conf else None))
         offset += len(segment)
     return words
@@ -108,8 +108,9 @@ class KrakenRecognizer:
 
 class KrakenRecognitionEngine:
     """linecaster engine for the recognition step: kraken's PP-OCRv6 recognizer on every line of
-    the transcription, in list order (the line step's processing order), ``batch_size`` lines per
-    forward pass. A page's result depends only on the page. Fills text, confidence and words.
+    the transcription that has no reading yet, in list order (the line step's processing order), ``batch_size``
+    lines per forward pass. A page's result depends only on the page. Gives each line its reading: text,
+    confidence and words.
 
     The model file: ``weights`` (a catalog pin, as a preset passes it) when given, else ``model``: a size
     name, resolved to its model document's newest pin, or a kraken model file."""
@@ -162,17 +163,16 @@ class KrakenRecognitionEngine:
                                            precision=self.precision_setting, compile_backbone=self.compile_backbone)
 
     def __call__(self, image, transcription: Transcription, **params) -> Transcription:
-        lines = transcription.lines
+        t = transcription
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend=f"kraken/torch ({self.recognizer.device})",
+                                      settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
+                                                "text_direction": self.text_direction,
+                                                **({"compile_backbone": True} if self.compile_backbone else {})}))
+        lines = [ln for ln in t.lines if ln.reading is None]
         if lines:
             h, w = image.shape[:2]
-            seg = lines_to_segmentation(w, h, lines, self.text_direction)
+            seg = lines_to_segmentation(w, h, lines, self.text_direction, regions=[t.region_of(ln) for ln in lines])
             for ln, rec in zip(lines, self.recognizer.predict(Image.fromarray(image), seg), strict=True):
-                ln.text = rec.prediction
-                ln.confidence = mean_confidence(rec)
-                ln.words = record_words(rec, ln.id)
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend=f"kraken/torch ({self.recognizer.device})",
-                                            settings={"batch_size": self.batch_size, "precision": self.recognizer.precision,
-                                                      "text_direction": self.text_direction,
-                                                      **({"compile_backbone": True} if self.compile_backbone else {})}))
-        return transcription
+                t.read(a, ln, rec.prediction, mean_confidence(rec), words=record_words(rec))
+        return t

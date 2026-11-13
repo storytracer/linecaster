@@ -78,17 +78,18 @@ def _problems(blocks, **kw) -> list[str]:
 
 
 def _records(folder: Path) -> dict[str, dict]:
-    """The page records by id, without what varies from run to run (a step's and the page's ``seconds`` and
-    ``datetime``)."""
+    """The page records by id, without what varies from run to run (an annotator's and the page's ``seconds`` and
+    ``datetime``, the run that added the annotator)."""
     out = {}
     for f in sorted(folder.rglob("*.jsonl.gz")):
         for line in gzip.open(f, "rt"):
             row = json.loads(line)
             row["page"].pop("measurements", None)
             for t in row["page"]["transcriptions"].values():
-                for step in t["steps"]:
-                    step["measurements"].pop("seconds", None)
-                    step["measurements"].pop("datetime", None)
+                for a in t.get("annotators") or []:
+                    a.pop("run", None)
+                    a.get("measurements", {}).pop("seconds", None)
+                    a.get("measurements", {}).pop("datetime", None)
             out[row["id"]] = row
     return out
 
@@ -323,7 +324,7 @@ def test_nested_composites_and_given_contracts():
 def test_modular_transcriber_runs_as_its_blocks():
     out = run_pages([ModularTranscriber(_lines(), _text(), "single-region@1")], [_doc("p1", 40)])
     t = page_of(out[0]).transcriptions["ocr_new"]
-    assert [(ln.id, ln.region_id, ln.text) for ln in t.lines] == [("page_l0", "page", "page 40x30 line 0"),
+    assert [(ln.id, t.region_of(ln), ln.reading.text) for ln in t.lines] == [("page_l0", "page", "page 40x30 line 0"),
                                                                  ("page_l1", "page", "page 40x30 line 1")]
 
 
@@ -426,13 +427,13 @@ def test_until_after_and_taps(items, tmp_path: Path):
     assert {str(x) for x in p.blocks[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
     run.run(second, _modular(second), __file__, argv=[])
     halfway = _records(tmp_path / "first" / "pages")
-    assert all(not ln.get("text") for r in halfway.values() for ln in r["page"]["transcriptions"]["ocr_new"]["lines"])
+    assert all(not ln.get("reading") for r in halfway.values() for ln in r["page"]["transcriptions"]["ocr_new"]["lines"])
     done, whole = _records(tmp_path / "second" / "pages"), _records(tmp_path / "full" / "pages")
     assert len(whole) == 5 and done == whole
     tapped = _records(tmp_path / "tap")
     assert sorted(tapped) == sorted(whole)
     lines = tapped["a1"]["page"]["transcriptions"]["ocr_new"]["lines"]
-    assert [ln["id"] for ln in lines] == ["page_l0", "page_l1"] and not any(ln.get("text") for ln in lines)
+    assert [ln["id"] for ln in lines] == ["page_l0", "page_l1"] and not any(ln.get("reading") for ln in lines)
 
 
 def test_partial_run_problems(tmp_path: Path):
@@ -503,7 +504,7 @@ def test_run_pages_checks_first():
         run_pages([_lines(), Binder(), Composer("docling-composition@1")], [_doc()])
     out = run_pages([LayoutDetector("single-region@1"), _lines(), LineAssigner(), _text()], [_doc("p1"), _doc("p2", 50)])
     assert [d.id for d in out] == ["p1", "p2"]
-    assert page_of(out[1]).transcriptions["ocr_new"].lines[0].text == "page 50x30 line 0"
+    assert page_of(out[1]).transcriptions["ocr_new"].lines[0].reading.text == "page 50x30 line 0"
 
 
 def test_contracts_with_tables_and_validation():
@@ -541,7 +542,7 @@ def test_one_page_in_this_process(tmp_path: Path, capsys):
     assert json.loads(capsys.readouterr().out) == {"out": str(tmp_path / "out"), "pages": ["p2"]}
     records = _records(tmp_path / "out" / "pages")
     assert list(records) == ["p2"]
-    assert records["p2"]["page"]["transcriptions"]["ocr_new"]["lines"][0]["text"] == "page 50x30 line 0"
+    assert records["p2"]["page"]["transcriptions"]["ocr_new"]["lines"][0]["reading"]["text"] == "page 50x30 line 0"
     assert yamlio.load((tmp_path / "out" / "run.yaml").read_text())["executor"] == "run_pages"
     ap = run.parser(None)
     with pytest.raises(SystemExit):

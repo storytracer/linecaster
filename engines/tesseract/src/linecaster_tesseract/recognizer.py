@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription, Word
+from linecaster.data import Annotator, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
 from .models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
@@ -38,8 +38,9 @@ def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, in
 
 class TesseractRecognitionEngine:
     """linecaster engine for the recognition step: Tesseract 5 (LSTM) on every line of the
-    transcription. ``lang`` is a tessdata language or script (``eng``, ``deu+lat``, ``script/Latin``),
-    ``data`` ``best`` or ``fast``. Fills text, confidence and words with boxes and confidences.
+    transcription that has no reading yet. ``lang`` is a tessdata language or script (``eng``, ``deu+lat``,
+    ``script/Latin``), ``data`` ``best`` or ``fast``. Gives each line its reading: text, confidence and words with
+    boxes and confidences.
     The language data: ``weights`` (a catalog pin; only its files) or ``data``'s newest pin in the catalog."""
 
     engine_id: ClassVar[str] = "tesseract.recognition.v1"
@@ -80,7 +81,7 @@ class TesseractRecognitionEngine:
         self.api.SetVariable("user_defined_dpi", str(self.dpi))
         self.version = tesserocr.tesseract_version().split()[1]
 
-    def read(self, crop: np.ndarray, dx: int, dy: int, line_id: str) -> list[Word]:
+    def read(self, crop: np.ndarray, dx: int, dy: int) -> list[Word]:
         from tesserocr import RIL, iterate_level
 
         self.api.SetImage(Image.fromarray(crop))
@@ -97,24 +98,26 @@ class TesseractRecognitionEngine:
             if not text:
                 continue
             x0, y0, x1, y1 = w.BoundingBox(RIL.WORD)
-            words.append(Word(id=f"{line_id}_w{len(words)}", text=text,
-                              bbox=[float(v) for v in xywh(BBox(x0 + dx, y0 + dy, x1 + dx, y1 + dy))],
+            words.append(Word(text=text,
+                              box=[float(v) for v in xywh(BBox(x0 + dx, y0 + dy, x1 + dx, y1 + dy))],
                               confidence=float(w.Confidence(RIL.WORD)) / 100.0))
         return words
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
-        for ln in transcription.lines:
+        t = transcription
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend=f"tesseract {self.version} (tesserocr)",
+                                      settings={"lang": self.lang, "data": self.data, "psm": 7,
+                                                "pad": self.pad, "dpi": self.dpi}))
+        for ln in t.lines:
+            if ln.reading is not None:
+                continue
             poly = ln.polygon
-            if not poly and ln.bbox:
-                x, y, w, h = ln.bbox
+            if not poly and ln.box:
+                x, y, w, h = ln.box
                 poly = BBox(x, y, x + w, y + h).polygon.tolist()
             crop, dx, dy = crop_line(image, poly, self.pad) if poly else (np.zeros((0, 0)), 0, 0)
-            words = self.read(crop, dx, dy, ln.id) if crop.size else []
-            ln.words = words
-            ln.text = " ".join(w.text for w in words)
-            ln.confidence = float(np.mean([w.confidence for w in words])) if words else 0.0
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend=f"tesseract {self.version} (tesserocr)",
-                                            settings={"lang": self.lang, "data": self.data, "psm": 7,
-                                                      "pad": self.pad, "dpi": self.dpi}))
-        return transcription
+            words = self.read(crop, dx, dy) if crop.size else []
+            t.read(a, ln, " ".join(w.text for w in words),
+                   float(np.mean([w.confidence for w in words])) if words else 0.0, words=words)
+        return t

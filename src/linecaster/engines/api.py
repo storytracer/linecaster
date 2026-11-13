@@ -54,7 +54,9 @@ class Engine(Protocol):
     ``__call__`` takes the page image as an RGB array (``None`` when the step needs no pixels for the page; the
     image file's bytes, as the reader brought them, for an engine whose optional ``image_input`` is ``"bytes"``: a
     vendor's package that decodes the file itself) and the transcription so far, and returns the transcription with
-    its part added and one ``StepInfo`` appended.
+    one ``Annotator`` appended (``Transcription.add_annotator``, first) and its annotations added, each naming that
+    annotator; it changes nothing that was there (only a line's ``region`` or ``reading`` may be set where it was
+    ``None``). A page engine may return a new ``Transcription`` with its own annotator instead.
     ``linecaster.testing.check_engine`` checks an engine class against it.
     """
 

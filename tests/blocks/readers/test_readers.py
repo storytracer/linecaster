@@ -119,7 +119,7 @@ def test_page_records_carry_their_format(tmp_path):
     with PageJsonlWriter(str(tmp_path / "jsonl")) as w:
         w.write(doc, 0)
     (row,) = [json.loads(x) for x in gzip.open(tmp_path / "jsonl" / "00000.jsonl.gz", "rt")]
-    assert PAGE_SCHEMA == "linecaster.page/2" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
+    assert PAGE_SCHEMA == "linecaster.page/3" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
     with PageParquetWriter(str(tmp_path / "parquet")) as w:
         w.write(doc, 0)
     for folder in ("jsonl", "parquet"):
@@ -130,7 +130,7 @@ def test_page_records_carry_their_format(tmp_path):
 
 def test_page_records_of_format_1(tmp_path):
     """A ``linecaster.page/1`` record named a transcription's steps ``model`` (``ModelInfo``); they are read as
-    ``steps``, from JSONL and Parquet alike."""
+    annotators (through ``linecaster.page/2``'s ``steps``), from JSONL and Parquet alike."""
     import json
 
     import pyarrow as pa
@@ -149,11 +149,11 @@ def test_page_records_of_format_1(tmp_path):
              for doc in PageRecordReader(str(tmp_path / folder), glob_pattern=glob, fetch_images=False).run()]
     assert pages[0] == pages[1]
     new, original = pages[0].transcriptions["ocr_new"], pages[0].transcriptions["ocr_original"]
-    assert [(m.step, m.name, m.preset) for m in new.steps] == [
+    assert [(m.step, m.name, m.preset) for m in new.annotators] == [
         ("layout", "PP-DocLayoutV3", "pp-doclayoutv3@1"), ("recognition", "kraken-ppocrv6-medium", "kraken-ppocrv6-medium@1")]
-    assert new.steps[0].measurements == {"seconds": 0.12, "datetime": "2026-11-04T10:00:00Z"}
-    assert [m.name for m in original.steps] == ["ABBYY FineReader"] and new.paragraphs == []
-    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/2"
+    assert new.annotators[0].measurements == {"seconds": 0.12, "datetime": "2026-11-04T10:00:00Z"}
+    assert [m.name for m in original.annotators] == ["ABBYY FineReader"] and new.paragraphs == []
+    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/3"
 
 
 def test_parquet_page_records_keep_errors_after_a_page_without(tmp_path):
@@ -189,8 +189,8 @@ def test_page_records_from_before_phase_1(tmp_path):
     page = page_of(doc)
     assert list(page.transcriptions) == ["ocr_new"] and doc.text == "Die Untersuchung"
     t = page.transcriptions["ocr_new"]
-    assert [w.text for w in t.lines[0].words] == ["Die", "Untersuchung"] and t.steps[0].preset == "kraken-ppocrv6-medium@1"
-    assert t.steps[0].engine is None
+    assert [w.text for w in t.lines[0].reading.words] == ["Die", "Untersuchung"]
+    assert t.annotators[0].preset == "kraken-ppocrv6-medium@1" and t.annotators[0].engine is None
     (same,) = PageRecordReader(str(tmp_path / "OUT" / "rows"), fetch_images=False).run()     # or named directly
     assert page_of(same) == page
     with pytest.raises(PipelineConfigError, match="unknown format 'linecaster.page/9'"):

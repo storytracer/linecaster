@@ -12,7 +12,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription
+from linecaster.data import Annotator, Formula, Transcription
 from linecaster.data.geometry import bbox_of
 
 from .compat import create_transformers_predictor, paddle_image
@@ -23,8 +23,8 @@ DEFAULT_FORMULA_MODEL = "PP-FormulaNet_plus-L"
 
 
 class PaddleFormulaEngine:
-    """linecaster engine for the formulas step: LaTeX for every ``formula`` region, into
-    ``region.extra["formula"]``. The page's formula crops are read together, in the regions' list order,
+    """linecaster engine for the formulas step: LaTeX for every ``formula`` region, as a ``Formula`` annotation of
+    the region. The page's formula crops are read together, in the regions' list order,
     ``batch_size`` crops per forward pass (a page's result depends only on the page). The model files:
     ``weights`` (a catalog pin of the ``_safetensors`` package) or the catalog's newest pin for
     ``model_name`` (``weights.resolve``)."""
@@ -56,7 +56,10 @@ class PaddleFormulaEngine:
                                                        model_dir=model_dir)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
-        targets = [r for r in transcription.regions if r.label == "formula"]
+        t = transcription
+        a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
+                                      backend="paddlex/transformers", settings={"batch_size": self.batch_size}))
+        targets = [r for r in t.regions if t.label(r.id) == "formula"]
         crops = [paddle_image(crop_bbox(image, bbox_of(r.polygon))) for r in targets]
         todo = [i for i, c in enumerate(crops) if c.size]
         latex = [""] * len(targets)
@@ -64,8 +67,6 @@ class PaddleFormulaEngine:
             for i, res in zip(todo, self.predictor.predict([crops[i] for i in todo])):
                 latex[i] = str(res["rec_formula"]).strip()
         for region, text in zip(targets, latex):
-            region.extra["formula"] = text
-        transcription.steps.append(StepInfo(step=self.step, name=self.name, revision=self.revision,
-                                            backend="paddlex/transformers",
-                                            settings={"batch_size": self.batch_size}, measurements={"formulas": len(targets)}))
-        return transcription
+            t.formulas.append(Formula(annotator=a, target=region.id, latex=text))
+        t.annotators[a].measurements = {"formulas": len(targets)}
+        return t

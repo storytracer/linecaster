@@ -8,7 +8,8 @@ class LineDetector(ModelBlock):
     """Detects the text lines of every page, with their geometry, by a line detection engine.
 
     Reads the page image; adds ``lines`` (polygons, boxes, baselines where the engine gives them: what its preset
-    produces). Lines found on the whole page are assigned to the layout regions afterwards by a ``LineAssigner``.
+    produces) and their reading order, by the engine's annotator. Lines found on the whole page are assigned to the
+    layout regions afterwards by a ``LineAssigner``.
 
     Example:
         LineDetector("pp-ocrv6-medium-det@1")

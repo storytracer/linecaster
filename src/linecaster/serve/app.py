@@ -7,8 +7,12 @@ server keeps nothing between requests. Routes:
   "image_decode" (``auto``, ``gpu``, ``cpu``: how the server decodes it, ``linecaster.images.pixels``; default
   ``auto``), "transcription", "params", "page_id"}``
   -> ``{"transcription", "usage", "timing"}``; 429 when the model's queue is full, 404 for an unknown
-  model, 422 for a request the model cannot use.
-* ``GET /health`` — 200 once every model is loaded (saturate's ``Engine`` waits for it).
+  model, 422 for a request the model cannot use. Both transcriptions are ``linecaster.page/3`` annotation sets
+  (``model_dump(mode="json", by_alias=True, exclude_defaults=True)``); the one returned has the call's
+  ``Annotator`` appended, stamped with the engine, the preset and the server's times.
+* ``GET /health`` — ``{"status", "protocol"}``: 200 once every model is loaded (saturate's ``Engine`` waits for
+  it), 503 while they load; ``protocol`` is the transcription format (``PROTOCOL``, ``linecaster.page/3``), which a
+  ``Served`` client checks when it warms up.
 * ``GET /metrics`` — vLLM-shaped gauges per model (``vllm:num_requests_waiting``,
   ``vllm:num_requests_running``), which saturate's window controller reads.
 * ``GET /v1/models`` — the hosted models.
@@ -46,8 +50,12 @@ from opentelemetry.trace import StatusCode
 
 from ..backends import resolve
 from ..images.pixels import decode_pixels
-from ..data.transcription import Transcription
+from ..data.transcription import SCHEMA, Transcription
 from ..tracing import context_of
+
+#: the format of the transcriptions requests and responses carry (``/health`` says it; a ``Served`` client refuses a
+#: server that speaks another)
+PROTOCOL = SCHEMA
 
 #: decoded page images a server keeps, in GB (``--decoded-gb``): between a page's layout and its lines request the
 #: requests of many other pages come in (each block keeps a window of them in flight), and a 12-megapixel page is 36 MB
@@ -104,19 +112,20 @@ class Hosted:
             start = time.perf_counter()
             try:
                 began = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                known = len(t.annotators)
                 out = self.model(image, t, **params)
-                if out.steps:
-                    out.steps[-1].engine = out.steps[-1].engine or getattr(self.model, "engine_id", None)
-                    out.steps[-1].measurements.setdefault("datetime", began)
-                if self.preset and out.steps:
-                    out.steps[-1].preset, out.steps[-1].preset_sha256 = self.preset, self.preset_sha256
-                if out.steps:
-                    out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
-                    out.steps[-1].measurements.setdefault("queue_seconds", round(start - queued, 4))
+                if out.annotators and (out is not t or len(out.annotators) > known):   # the call's annotator
+                    a = out.annotators[-1]
+                    a.engine = a.engine or getattr(self.model, "engine_id", None)
+                    a.measurements.setdefault("datetime", began)
+                    if self.preset:
+                        a.preset, a.preset_sha256 = self.preset, self.preset_sha256
+                    a.measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+                    a.measurements.setdefault("queue_seconds", round(start - queued, 4))
                     if decoder is not None:
-                        out.steps[-1].measurements.setdefault("decoder", decoder)
-                        out.steps[-1].measurements.setdefault("decode_seconds", decoded_in)
-                dumped = out.model_dump(mode="json")
+                        a.measurements.setdefault("decoder", decoder)
+                        a.measurements.setdefault("decode_seconds", decoded_in)
+                dumped = out.model_dump(mode="json", by_alias=True, exclude_defaults=True)
                 result = (200, {"transcription": dumped,
                                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},
                                 "timing": {"model_seconds": round(time.perf_counter() - start, 4)}})
@@ -124,7 +133,8 @@ class Hosted:
                     lines = dumped.get("lines") or []
                     span.set_attributes({"linecaster.lines": len(lines),
                                          "linecaster.regions": len(dumped.get("regions") or []),
-                                         "linecaster.words": sum(len(x.get("words") or ()) for x in lines)})
+                                         "linecaster.words": sum(len((x.get("reading") or {}).get("words") or ())
+                                                                 for x in lines)})
                 self.served += 1
             except Exception as e:  # a page the model cannot read: an error for this request only
                 logger.opt(exception=True).warning("model {model} failed on a request: {error_type}: {error}",
@@ -169,7 +179,8 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
         ready["ok"] = True
 
     async def health(request):
-        return web.json_response({"status": "ok" if ready["ok"] else "loading"}, status=200 if ready["ok"] else 503)
+        return web.json_response({"status": "ok" if ready["ok"] else "loading", "protocol": PROTOCOL},
+                                 status=200 if ready["ok"] else 503)
 
     async def models(request):
         return web.json_response({"object": "list", "data": [

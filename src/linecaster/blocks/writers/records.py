@@ -1,5 +1,6 @@
 """Page records (everything but the image bytes, plus id and text) on datatrove's writers: ``PageJsonlWriter``,
-``PageParquetWriter``, one file per task (``${rank}``) or per item (``${item_id}``)."""
+``PageParquetWriter``, one file per task (``${rank}``) or per item (``${item_id}``). In a run they name the run
+(``run_id``, which the builder gives them) on every annotator the run added (``stamp_run``)."""
 from __future__ import annotations
 
 import json
@@ -11,9 +12,23 @@ from ...data.page import PAGE_KEY, PAGE_SCHEMA
 from ..base.contract import Contracted
 
 
+def stamp_run(page: dict, run_id: str) -> None:
+    """Names the run ``run_id`` on every annotator of a page record (a dict, changed in place) that the run added:
+    those that name no run yet (an earlier run's name theirs), in the sets the run produced, and the file or people
+    a set converted in the run comes from (the steps such a file names ran elsewhere)."""
+    for sets in (page.get("transcriptions") or {}, page.get("annotations") or {}):
+        for t in sets.values():
+            produced = (t.get("source") or {}).get("kind", "produced") == "produced"
+            for a in t.get("annotators") or []:
+                if a.get("run") is None and (produced or a.get("kind", "model") in ("file", "human")):
+                    a["run"] = run_id
+
+
 def page_record(self, doc) -> dict:
-    """datatrove adapter: the format (``schema``), ``id``, ``text`` and the page record; errors recorded on the way
-    are kept."""
+    """datatrove adapter: the format (``schema``), ``id``, ``text`` and the page record (the run named on the
+    annotators it added, ``stamp_run``, when the writer has a ``run_id``); errors recorded on the way are kept."""
+    if getattr(self, "run_id", None) and isinstance(doc.metadata.get(PAGE_KEY), dict):
+        stamp_run(doc.metadata[PAGE_KEY], self.run_id)
     row = {"schema": PAGE_SCHEMA, "id": doc.id, "text": doc.text, PAGE_KEY: doc.metadata.get(PAGE_KEY)}
     if doc.metadata.get("errors"):
         row["errors"] = doc.metadata["errors"]
@@ -55,8 +70,9 @@ class _Flushed:
 class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     """Writes the page records as JSON Lines, one file per task, or into item shards for a later stage.
 
-    A row per page: ``schema`` (``linecaster.page/2``), ``id``, ``text``, ``page`` (the page record without the
-    image bytes) and ``errors`` when a block failed on the page. It reads no part in particular (the whole page
+    A row per page: ``schema`` (``linecaster.page/3``), ``id``, ``text``, ``page`` (the page record without the
+    image bytes) and ``errors`` when a block failed on the page. In a run, every annotator the run added names it
+    (``Annotator.run``: the builder gives the writer the run's ``run_id``; ``stamp_run``). It reads no part in particular (the whole page
     record). The files' flush is reported to the observers. Pages pass through.
 
     Args:
@@ -71,6 +87,7 @@ class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     name = "🐿 page records (jsonl)"
     role = "writer"            # the whole page record: no part in particular
     docs_args = {"output_folder": "out/pages"}
+    run_id: str | None = None  # the run named on the annotators it added (set by the builder)
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
                  item_shards: int | None = None, **kwargs):
@@ -96,7 +113,7 @@ class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
 
     The columns are fixed (``parquet_schema``): ``schema``, ``id``, ``text``, ``page`` (the page record as a JSON
     string) and ``errors`` (a JSON string, or null), so every row has the same columns. It reads no part in
-    particular. The files' flush is reported to the observers. Pages pass through.
+    particular. In a run, every annotator the run added names it (as ``PageJsonlWriter``). The files' flush is reported to the observers. Pages pass through.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the records go to.
@@ -108,6 +125,7 @@ class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
     name = "📒 page records (parquet)"
     role = "writer"
     docs_args = {"output_folder": "out/pages"}
+    run_id: str | None = None  # the run named on the annotators it added (set by the builder)
 
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.parquet", **kwargs):
         kwargs.setdefault("schema", parquet_schema())

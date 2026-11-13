@@ -228,7 +228,7 @@ class ImageConverter(Contracted, PipelineStep):
         _, rel, raw, done, start, began = decoded
         try:
             data, info = engine.encode(done, device) if hasattr(engine, "encode") else done
-            return ("encoded", rel, raw, data, info, stamp(engine.step_info(), self.backend, start, began))
+            return ("encoded", rel, raw, data, info, stamp(engine.annotator(), self.backend, start, began))
         except Exception as e:  # noqa: BLE001 - an image that cannot be encoded: the page's error
             return ("reject", "rejected_unreadable", f"cannot convert: {type(e).__name__}: {e}", type(e).__name__,
                     rel, {})

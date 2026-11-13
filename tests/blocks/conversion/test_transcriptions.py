@@ -45,7 +45,8 @@ def test_the_formats_at_the_page_images_size(fmt, write):
         assert (t.source.image_width, t.source.image_height) == (W, H)
         assert t.source.image_sha256 == page_of(doc).image.sha256
         assert t.text == original.text
-        assert t.lines[1].bbox == pytest.approx(original.lines[1].bbox, abs=2.0)
+        assert t.lines[1].box == pytest.approx(original.lines[1].box, abs=2.0)
+        assert all(a.kind != "human" for a in t.annotators)
         assert "ocr_new" not in page_of(doc).transcriptions and "errors" not in doc.metadata
     assert sniff(half) == fmt
 
@@ -53,7 +54,8 @@ def test_the_formats_at_the_page_images_size(fmt, write):
 def test_plain_text_a_uri_and_pages_without_a_file(tmp_path):
     [doc] = run(TranscriptionConverter(format="text", transcription="ground_truth"), page("ein\nzwei\n".encode()))
     t = page_of(doc).transcriptions["ground_truth"]
-    assert [ln.text for ln in t.lines] == ["ein", "zwei"] and t.lines[0].bbox is None and t.source.format == "text"
+    assert [ln.reading.text for ln in t.lines] == ["ein", "zwei"] and t.lines[0].box is None
+    assert (t.source.kind, t.source.format, [a.kind for a in t.annotators]) == ("converted", "text", ["file"])
     (tmp_path / "p1.xml").write_bytes(to_alto(sample_transcription(), image_width=W, image_height=H))
     by_uri = TranscriptionConverter(source="uri", uri_key="library.ocr")
     [doc] = run(by_uri, page(metadata={"library": {"ocr": str(tmp_path / "p1.xml")}}))
@@ -65,6 +67,19 @@ def test_plain_text_a_uri_and_pages_without_a_file(tmp_path):
         TranscriptionConverter(source="uri")
     with pytest.raises(PipelineConfigError):
         TranscriptionConverter(format="pdf")
+
+
+@pytest.mark.parametrize("fmt, write", [("alto", to_alto), ("page", to_page), ("hocr", to_hocr), ("text", None)])
+def test_a_ground_truth(fmt, write):
+    """``ground_truth``: the source is a ground truth and, where the file names no steps, people read it; plain
+    text gives lines without geometry."""
+    data = write(sample_transcription(), image_width=W, image_height=H) if write else "ein\nzwei".encode()
+    [doc] = run(TranscriptionConverter(format=fmt, transcription="ground_truth", ground_truth=True), page(data))
+    t = page_of(doc).transcriptions["ground_truth"]
+    assert t.source.kind == "ground_truth" and "errors" not in doc.metadata
+    if write is None:
+        assert [(ln.reading.text, ln.box, ln.polygon) for ln in t.lines] == [("ein", None, None), ("zwei", None, None)]
+        assert [(a.kind, a.step) for a in t.annotators] == [("human", "transcription")]
 
 
 def test_a_file_that_cannot_be_read_is_the_pages_error():

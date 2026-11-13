@@ -38,16 +38,16 @@ def test_paddle_words_follow_ctc_columns():
     # 10 columns over a 100 px line: a=0 b=1 space=2 c=6 d=7
     info = [10, [["a", "b"], [" "], ["c", "d"]], [[0, 1], [2], [6, 7]], ["en&num", "symbol", "en&num"]]
     box = np.array([[0, 0], [100, 0], [100, 20], [0, 20]], dtype=np.float32)
-    words = rec.line_words(text, info, box, "l0")
+    words = rec.line_words(text, info, box)
     assert [w.text for w in words] == ["ab", "cd"]
-    assert [w.bbox for w in words] == [pytest.approx([0, 0, 20, 20]), pytest.approx([60, 0, 20, 20])]
-    assert all(w.id.startswith("l0_w") for w in words)
+    assert [w.box for w in words] == [pytest.approx([0, 0, 20, 20]), pytest.approx([60, 0, 20, 20])]
+    assert all(w.id is None for w in words)           # the default ids, <line>_w<n>
 
 
 def test_paddle_words_need_one_column_per_character():
     rec = pytest.importorskip("linecaster_paddlex.recognizer")
     box = np.array([[0, 0], [100, 0], [100, 20], [0, 20]], dtype=np.float32)
-    assert rec.line_words("abc", [10, [["a"]], [[0]], ["en&num"]], box, "l0") == []
+    assert rec.line_words("abc", [10, [["a"]], [[0]], ["en&num"]], box) == []
 
 
 def test_tesseract_crop_masks_outside_the_polygon():

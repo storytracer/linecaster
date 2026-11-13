@@ -213,6 +213,94 @@
       "title": "Contract",
       "type": "object"
     },
+    "Hardware": {
+      "additionalProperties": false,
+      "description": "The machine a run was launched on, as far as it could be found (``provenance.hardware``).",
+      "properties": {
+        "gpu": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the GPUs' names, one per GPU",
+          "title": "Gpu"
+        },
+        "gpu_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Count"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the NVIDIA driver's version",
+          "title": "Driver"
+        },
+        "cuda": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the CUDA version the driver supports",
+          "title": "Cuda"
+        },
+        "cpu": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the processor and its core count",
+          "title": "Cpu"
+        },
+        "machine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the architecture: aarch64, x86_64, ...",
+          "title": "Machine"
+        }
+      },
+      "title": "Hardware",
+      "type": "object"
+    },
     "Recipe": {
       "additionalProperties": false,
       "properties": {
@@ -538,6 +626,11 @@
       "title": "Schema",
       "type": "string"
     },
+    "run_id": {
+      "description": "the run's id, made when the record is: 32 hex digits, named by every annotator the run adds (Annotator.run)",
+      "title": "Run Id",
+      "type": "string"
+    },
     "created": {
       "description": "when the run was launched, UTC (YYYY-MM-DDTHH:MM:SSZ)",
       "title": "Created",
@@ -723,6 +816,18 @@
     },
     "software": {
       "$ref": "#/$defs/Software"
+    },
+    "hardware": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Hardware"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the machine the run was launched on (best effort)"
     }
   },
   "required": [
