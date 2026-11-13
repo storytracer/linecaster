@@ -1,0 +1,568 @@
+{
+ "schema": "linecaster.page/3",
+ "id": "library.test_item1_0012",
+ "page": {
+  "page_id": "library.test_item1_0012",
+  "item_id": "library.test_item1",
+  "sequence": 12,
+  "image": {
+   "uri": "https://library.test/iiif/item1/12/full/max/0/default.jpg",
+   "format": "jpeg",
+   "width": 2000,
+   "height": 3000,
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "transcriptions": {
+   "ground_truth": {
+    "source": {
+     "kind": "ground_truth",
+     "format": "markdown",
+     "dataset": "example.org/ground-truth@0123456789ab",
+     "record": "item1/12"
+    },
+    "annotators": [
+     {
+      "kind": "human",
+      "step": "transcription",
+      "name": "proofreaders",
+      "settings": {
+       "review": "validated"
+      }
+     }
+    ],
+    "regions": [
+     {
+      "annotator": 0,
+      "id": "r1",
+      "box": null
+     },
+     {
+      "annotator": 0,
+      "id": "r1a",
+      "parent": "r1",
+      "box": null
+     },
+     {
+      "annotator": 0,
+      "id": "r1b",
+      "parent": "r1",
+      "box": null
+     },
+     {
+      "annotator": 0,
+      "id": "r2",
+      "box": null
+     },
+     {
+      "annotator": 0,
+      "id": "r3",
+      "box": null
+     }
+    ],
+    "lines": [
+     {
+      "annotator": 0,
+      "id": "l1",
+      "region": "r1a",
+      "reading": {
+       "annotator": 0,
+       "text": "THE HISTORY OF THE HOUSE"
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l2",
+      "region": "r1b",
+      "reading": {
+       "annotator": 0,
+       "text": "12"
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l3",
+      "region": "r2",
+      "reading": {
+       "annotator": 0,
+       "text": "It was teh custom of the house to keep"
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l4",
+      "region": "r2",
+      "reading": {
+       "annotator": 0,
+       "text": "the c�st of every journey,* and else-"
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l5",
+      "region": "r2",
+      "reading": {
+       "annotator": 0,
+       "text": "where the accounts were kept by the stew-"
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l6",
+      "region": "r3",
+      "reading": {
+       "annotator": 0,
+       "text": "* A note on the journeys."
+      }
+     }
+    ],
+    "classifications": [
+     {
+      "annotator": 0,
+      "target": "",
+      "scheme": "production",
+      "value": "printed"
+     },
+     {
+      "annotator": 0,
+      "target": "",
+      "scheme": "language",
+      "value": "en"
+     },
+     {
+      "annotator": 0,
+      "target": "r1",
+      "scheme": "role",
+      "value": "header"
+     },
+     {
+      "annotator": 0,
+      "target": "r1b",
+      "scheme": "role",
+      "value": "page_number"
+     },
+     {
+      "annotator": 0,
+      "target": "r2",
+      "scheme": "role",
+      "value": "paragraph"
+     },
+     {
+      "annotator": 0,
+      "target": "r3",
+      "scheme": "role",
+      "value": "footnote"
+     },
+     {
+      "annotator": 0,
+      "target": "l4[5:6]",
+      "scheme": "status",
+      "value": "illegible"
+     }
+    ],
+    "edits": [
+     {
+      "annotator": 0,
+      "target": "l3[7:10]",
+      "kind": "corrected",
+      "text": "the"
+     },
+     {
+      "annotator": 0,
+      "target": "l4[32:37]",
+      "kind": "joined",
+      "text": "elsewhere",
+      "derived_from": [
+       "l5[0:5]"
+      ]
+     },
+     {
+      "annotator": 0,
+      "target": "l5[36:41]",
+      "kind": "joined",
+      "text": "steward",
+      "derived_from": [
+       "library.test_item1_0013#l1[0:3]"
+      ]
+     }
+    ],
+    "links": [
+     {
+      "annotator": 0,
+      "kind": "note_of",
+      "source": "r3",
+      "target": "l4[26:27]"
+     }
+    ],
+    "orders": [
+     {
+      "annotator": 0,
+      "regions": [
+       "r1",
+       "r2",
+       "r3"
+      ],
+      "rows": {
+       "r1": [
+        [
+         "l1",
+         "l2"
+        ]
+       ],
+       "r2": [
+        [
+         "l3"
+        ],
+        [
+         "l4"
+        ],
+        [
+         "l5"
+        ]
+       ],
+       "r3": [
+        [
+         "l6"
+        ]
+       ]
+      }
+     }
+    ],
+    "ranges": [
+     {
+      "annotator": 0,
+      "kind": "paragraph",
+      "id": "s12.r2.p1",
+      "parts": [
+       "r2"
+      ],
+      "text": "It was teh custom of the house to keep the c�st of every journey,* and elsewhere the accounts were kept by the stew",
+      "rows": [
+       {
+        "lines": [
+         "l3"
+        ],
+        "charspan": [
+         0,
+         38
+        ]
+       },
+       {
+        "lines": [
+         "l4"
+        ],
+        "charspan": [
+         39,
+         75
+        ]
+       },
+       {
+        "lines": [
+         "l5"
+        ],
+        "charspan": [
+         75,
+         115
+        ]
+       }
+      ],
+      "decisions": [
+       {
+        "kind": "mark_removed",
+        "reason": "letter_follows",
+        "row": 1
+       },
+       {
+        "kind": "continuation",
+        "reason": "division_mark",
+        "row": 2,
+        "separator": ""
+       }
+      ]
+     }
+    ]
+   },
+   "ocr_new": {
+    "source": {
+     "kind": "produced",
+     "image_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+     "image_width": 2000,
+     "image_height": 3000
+    },
+    "annotators": [
+     {
+      "kind": "model",
+      "step": "recognition",
+      "name": "lightonocr-3-0.8b",
+      "engine": "chat.v1",
+      "revision": "0000000000000000000000000000000000000000",
+      "preset": "lightonocr-3-0.8b-grounding@1",
+      "preset_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "backend": "served http://127.0.0.1:8000",
+      "run": "run-0001",
+      "settings": {
+       "prompt": "grounding",
+       "max_tokens": 4096,
+       "temperature": 0.2,
+       "top_p": 0.9
+      },
+      "measurements": {
+       "seconds": 1.9,
+       "datetime": "2026-11-13T12:00:00Z",
+       "prompt_tokens": 1500,
+       "completion_tokens": 180,
+       "finish_reason": "stop"
+      }
+     },
+     {
+      "kind": "rule",
+      "step": "unicode",
+      "name": "unicodedata",
+      "run": "run-0001",
+      "settings": {
+       "form": "NFC",
+       "unicode_version": "16.0.0"
+      },
+      "measurements": {
+       "seconds": 0.0001
+      }
+     }
+    ],
+    "outputs": [
+     {
+      "annotator": 0,
+      "content": "![header](80,40,620,60) THE HISTORY OF THE HOUSE\n![page_number](880,40,920,60) 12\n![text](80,90,920,400) It was the custom of the house to keep\nthe cost of every journey,* and else-\nwhere the accounts were kept by the stew-\n![image](200,420,800,800) A woodcut of a manor house.\n![footnote](80,880,920,910) * A note on the journeys.",
+      "format": "text",
+      "pass": 1,
+      "kept": true,
+      "finish_reason": "stop",
+      "prompt_tokens": 1500,
+      "completion_tokens": 180
+     }
+    ],
+    "regions": [
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "r1",
+      "box": [
+       160.0,
+       120.0,
+       1080.0,
+       60.0
+      ],
+      "label": "header"
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "r2",
+      "box": [
+       1760.0,
+       120.0,
+       80.0,
+       60.0
+      ],
+      "label": "page_number"
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "r3",
+      "box": [
+       160.0,
+       270.0,
+       1680.0,
+       930.0
+      ],
+      "label": "text"
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "r4",
+      "box": [
+       400.0,
+       1260.0,
+       1200.0,
+       1140.0
+      ],
+      "label": "image"
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "r5",
+      "box": [
+       160.0,
+       2640.0,
+       1680.0,
+       90.0
+      ],
+      "label": "footnote"
+     }
+    ],
+    "lines": [
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l1",
+      "region": "r1",
+      "box": [
+       160.0,
+       120.0,
+       1080.0,
+       60.0
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "THE HISTORY OF THE HOUSE"
+      }
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l2",
+      "region": "r2",
+      "box": [
+       1760.0,
+       120.0,
+       80.0,
+       60.0
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "12"
+      }
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l3",
+      "region": "r3",
+      "box": [
+       160.0,
+       270.0,
+       1680.0,
+       309.99
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "It was the custom of the house to keep"
+      }
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l4",
+      "region": "r3",
+      "box": [
+       160.0,
+       579.99,
+       1680.0,
+       310.02
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "the cost of every journey,* and else-"
+      }
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l5",
+      "region": "r3",
+      "box": [
+       160.0,
+       890.01,
+       1680.0,
+       309.99
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "where the accounts were kept by the stew-"
+      }
+     },
+     {
+      "annotator": 0,
+      "output": 0,
+      "id": "l6",
+      "region": "r5",
+      "box": [
+       160.0,
+       2640.0,
+       1680.0,
+       90.0
+      ],
+      "reading": {
+       "annotator": 0,
+       "output": 0,
+       "text": "* A note on the journeys."
+      }
+     }
+    ],
+    "classifications": [
+     {
+      "annotator": 0,
+      "target": "r1",
+      "scheme": "role",
+      "value": "header"
+     },
+     {
+      "annotator": 0,
+      "target": "r2",
+      "scheme": "role",
+      "value": "page_number"
+     },
+     {
+      "annotator": 0,
+      "target": "r3",
+      "scheme": "role",
+      "value": "paragraph"
+     },
+     {
+      "annotator": 0,
+      "target": "r4",
+      "scheme": "role",
+      "value": "picture"
+     },
+     {
+      "annotator": 0,
+      "target": "r5",
+      "scheme": "role",
+      "value": "footnote"
+     }
+    ],
+    "descriptions": [
+     {
+      "annotator": 0,
+      "output": 0,
+      "target": "r4",
+      "kind": "description",
+      "text": "A woodcut of a manor house."
+     }
+    ],
+    "orders": [
+     {
+      "annotator": 0,
+      "regions": [
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "r5"
+      ]
+     }
+    ]
+   }
+  },
+  "measurements": {
+   "seconds": 2.4,
+   "datetime": "2026-11-13T12:00:00Z"
+  }
+ }
+}

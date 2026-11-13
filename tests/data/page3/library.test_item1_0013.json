@@ -1,0 +1,116 @@
+{
+ "schema": "linecaster.page/3",
+ "id": "library.test_item1_0013",
+ "page": {
+  "page_id": "library.test_item1_0013",
+  "item_id": "library.test_item1",
+  "sequence": 13,
+  "image": {
+   "uri": "https://library.test/iiif/item1/13/full/max/0/default.jpg",
+   "format": "jpeg"
+  },
+  "transcriptions": {
+   "ground_truth": {
+    "source": {
+     "kind": "ground_truth",
+     "format": "markdown",
+     "dataset": "example.org/ground-truth@0123456789ab",
+     "record": "item1/13"
+    },
+    "annotators": [
+     {
+      "kind": "human",
+      "step": "transcription",
+      "name": "proofreaders",
+      "settings": {
+       "review": "proofread"
+      }
+     }
+    ],
+    "regions": [
+     {
+      "annotator": 0,
+      "id": "r1",
+      "box": null
+     },
+     {
+      "annotator": 0,
+      "id": "r2",
+      "box": null
+     }
+    ],
+    "lines": [
+     {
+      "annotator": 0,
+      "id": "l1",
+      "region": "r2",
+      "reading": {
+       "annotator": 0,
+       "text": "ard, who wrote them in a hand none could read."
+      }
+     },
+     {
+      "annotator": 0,
+      "id": "l2",
+      "region": "r1",
+      "reading": {
+       "annotator": 0,
+       "text": "13"
+      }
+     }
+    ],
+    "classifications": [
+     {
+      "annotator": 0,
+      "target": "",
+      "scheme": "production",
+      "value": "printed"
+     },
+     {
+      "annotator": 0,
+      "target": "r1",
+      "scheme": "role",
+      "value": "page_number"
+     },
+     {
+      "annotator": 0,
+      "target": "r2",
+      "scheme": "role",
+      "value": "paragraph"
+     }
+    ],
+    "ranges": [
+     {
+      "annotator": 0,
+      "kind": "paragraph",
+      "id": "s12.r2.p1",
+      "parts": [
+       "r2"
+      ],
+      "text": "ard, who wrote them in a hand none could read.",
+      "rows": [
+       {
+        "lines": [
+         "l1"
+        ],
+        "charspan": [
+         0,
+         46
+        ]
+       }
+      ]
+     }
+    ],
+    "orders": [
+     {
+      "annotator": 0,
+      "regions": [
+       "r2",
+       "r1"
+      ]
+     }
+    ]
+   }
+  }
+ }
+}
