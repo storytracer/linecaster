@@ -40,9 +40,7 @@ Rules for working on linecaster, each with its reason. What linecaster is and ho
 - **Follow the conventions** (names, American spelling, YAML and Markdown, contracts, docstrings, tracing,
   logging, errors, secrets). They are what makes names guessable and pipelines checkable.
 - **Data model classes are plain nouns** (`Item`, `Page`, `PageImage`, `Transcription`, `Text`): no "Class"
-  suffixes. `Document` is linecaster's logical unit of content (the maintainer's decision, 2026-11-13); where a module
-  also needs datatrove's `Document`, it imports that one by its module (`datatrove.data.Document`) or as
-  `DatatroveDocument`, never both as `Document`. One name, one class per module.
+  suffixes, and never `Document`. `Document` is datatrove's.
 
 ## Dependencies
 
