@@ -59,6 +59,7 @@ nav:
       - Architecture: reference/architecture.md
       - Pipelines: reference/pipelines.md
       - Data model: reference/data-model.md
+      - Evaluation: reference/evaluation.md
       - Serialization: reference/serialization.md
       - Catalog: reference/catalog.md
       - Tracing: reference/tracing.md

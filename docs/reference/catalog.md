@@ -146,7 +146,11 @@ by edition and hash. linecaster provides the format and the tooling to produce t
   (`ocr_original`, `ground_truth`, ...) of the page record, next to `ocr_new`; the writers turn page records into
   datasets (JSON Lines or Parquet page records, ALTO, PAGE-XML, hOCR, text).
 
-Scoring (CER and the like) is the evaluation's own; linecaster has no scorer.
+- **Scoring** (`linecaster.scoring`, the [evaluation](evaluation.md)): ground truths imported as transcriptions,
+  rendered under the same rendering policy as the output they are compared with, normalized by versioned lanes,
+  scored per page into score records (`linecaster.score/1`) and aggregated into one evidence record, which names the
+  run, the benchmark (`linecaster.benchmark/1`), the policy and the scorer's and lanes' editions. A benchmark
+  definition lives with the evaluation, like its evidence; linecaster ships the format, never a benchmark.
 
 ## Released editions are immutable
 
