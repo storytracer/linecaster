@@ -117,13 +117,20 @@ def test_typography_is_the_retyper_and_records_its_step():
     from linecaster.text.typography import retype
 
     want, got = _typography_page(), _typography_page()
-    stats = retype(want)
+    n = len(want.annotators)
+    stats = retype(want, annotator=want.add_annotator(RatiosTypographyEngine().annotator()))
     RatiosTypographyEngine()(got)
-    m = got.steps[-1]
-    assert (m.step, m.name, m.engine) == ("typography", "typography.ratios.v1", "typography.ratios.v1")
+    m = got.annotators[-1]
+    assert len(got.annotators) == n + 1 and (m.kind, m.step, m.name, m.engine) == (
+        "rule", "typography", "typography.ratios.v1", "typography.ratios.v1")
     assert m.measurements == stats.counts() and m.settings == RatiosTypographyEngine.Options().model_dump(mode="json")
-    got.steps = []
+    want.annotators[-1].measurements = m.measurements
     assert got == want
+    # every annotation it added names it; nothing that was there changed
+    before = _typography_page()
+    assert all(c.annotator == n for c in got.classifications[len(before.classifications):])
+    assert [r for r in got.regions if r.id in {x.id for x in before.regions}] == before.regions
+    assert got.lines == before.lines and got.orders[:len(before.orders)] == before.orders
 
 
 def test_every_typography_threshold_is_an_option():
@@ -132,7 +139,8 @@ def test_every_typography_threshold_is_an_option():
     def run(**options):
         t = _typography_page()
         RatiosTypographyEngine(**options)(t)
-        return {r.id: (r.label, r.heading_level) for r in t.regions}, t.steps[-1].measurements
+        return ({r.id: (t.label(r.id), t.heading_level(r.id)) for r in t.regions if t.status(r.id) is None},
+                t.annotators[-1].measurements)
 
     regions, m = run()
     assert regions["doc_title_0"] == ("title", 1) and regions["section_header_3"] == ("section_header", 2)
@@ -146,7 +154,7 @@ def test_every_typography_threshold_is_an_option():
     assert run(heading_labels=["title"])[0]["section_header_2"] == ("section_header", None)  # not a heading: untouched
     assert run(demote=1.0)[1]["demoted"] == 0
     e = RatiosTypographyEngine(demote=1.0)
-    assert e(_typography_page(), demote=1.2).steps[-1].settings["demote"] == 1.2           # a call's options win
+    assert e(_typography_page(), demote=1.2).annotators[-1].settings["demote"] == 1.2      # a call's options win
     with pytest.raises(ValueError):
         RatiosTypographyEngine(no_such=1)
 
@@ -158,21 +166,28 @@ def test_normalization_fills_the_normalized_texts():
     from linecaster.text.variants import normalize
 
     t = sample_transcription()
-    t.lines[0].text = "Vnterſuchung der ﬁſche"
+    t.lines[0].reading.text = "Vnterſuchung der ﬁſche"
     from conftest import recomposed
 
     recomposed(t)
     before = t.model_copy(deep=True)
     LatinHistoricNormalizationEngine()(t)
-    assert t.lines[0].normalized == "Vntersuchung der fische"
-    assert [ln.normalized for ln in t.lines] == [None if ln.text is None else normalize(ln.text) for ln in t.lines]
-    assert [ln.text for ln in t.lines] == [ln.text for ln in before.lines]      # as written stays
-    assert [p.normalized for p in t.paragraphs] == [normalize(p.text) for p in t.paragraphs]
-    assert t.paragraphs[0].normalized == "Vntersuchung der fische" and t.paragraphs[0].text == "Vnterſuchung der ﬁſche"
-    m = t.steps[-1]
+
+    def normalized(target, text):
+        return t.edit(target, ("normalized",)) or text
+
+    assert normalized("l0", None) == "Vntersuchung der fische"
+    assert [normalized(ln.id, t.text_of(ln)) for ln in t.lines] == [
+        None if ln.reading is None else normalize(ln.reading.text) for ln in t.lines]
+    assert [ln.reading for ln in t.lines] == [ln.reading for ln in before.lines]      # as written stays
+    assert [normalized(p.id, p.text) for p in t.paragraphs] == [normalize(p.text) for p in t.paragraphs]
+    assert normalized(t.paragraphs[0].id, None) == "Vntersuchung der fische"
+    assert t.paragraphs[0].text == "Vnterſuchung der ﬁſche"
+    assert {e.target for e in t.edits if e.kind == "normalized"} == {"l0", t.paragraphs[0].id}   # only what changed
+    m = t.annotators[-1]
     assert (m.step, m.engine, m.name) == ("normalization", "normalization.latin-historic.v1",
                                           "normalization.latin-historic.v1")
-    assert m.measurements["changed"] == 2
+    assert m.measurements["changed"] == 2 and all(e.annotator == len(t.annotators) - 1 for e in t.edits)
 
 
 def test_image_is_the_working_webp():
@@ -190,18 +205,17 @@ def test_composition_from_lines_and_from_paragraphs():
     """Without paragraphs a text region is one item, its rows as laid out; with them one item per paragraph, one
     provenance entry per row."""
     from conftest import recomposed
-    from linecaster.engines import DoclingCompositionEngine
+    from linecaster.formats.docling import build_docling, docling_dict
 
-    lines = DoclingCompositionEngine()(sample_transcription(), name="p1")
-    flowed = DoclingCompositionEngine()(recomposed(sample_transcription()), name="p1")
-    body = lambda t: [x for x in t.docling["texts"] if x["label"] == "text"]       # noqa: E731
+    lines = docling_dict(build_docling(sample_transcription(), name="p1"))
+    flowed = docling_dict(build_docling(recomposed(sample_transcription()), name="p1"))
+    body = lambda d: [x for x in d["texts"] if x["label"] == "text"]       # noqa: E731
     assert body(lines)[0]["text"] == ("The species described here were col-\nlected in the summer of 1887 by the "
                                       "author.\n\n") and len(body(lines)[0]["prov"]) == 1    # two rows without text
     assert body(flowed)[0]["text"] == "The species described here were collected in the summer of 1887 by the author."
     assert [p["charspan"] for p in body(flowed)[0]["prov"]] == [[0, 35], [35, 78]]      # the mark removed
-    assert flowed.steps[-1].engine == "composition.docling.v1" and flowed.steps[-1].settings == {"sections": False}
-    sections = DoclingCompositionEngine(sections=True)(recomposed(sample_transcription()), name="p1")
-    assert [g["name"] for g in sections.docling["groups"]] == ["Flora of the Northern Hills"]
+    sections = docling_dict(build_docling(recomposed(sample_transcription()), name="p1", sections=True))
+    assert [g["name"] for g in sections["groups"]] == ["Flora of the Northern Hills"]
 
 
 def test_pages_of_an_item_share_the_lexicon():
@@ -221,5 +235,6 @@ def test_pages_of_an_item_share_the_lexicon():
     assert [p.paragraphs[0].text[:12] for p in pages] == ["Die Nord-see"] * 2
     alone = UnicodeRecompositionEngine()([second.model_copy(deep=True)])
     assert alone[0].paragraphs[0].text.startswith("Die Nordsee")
-    assert all(len(p.steps) == 1 for p in pages)
+    assert all(len(p.annotators) == 2 and p.annotators[-1].step == "recomposition" for p in pages)
+    assert all(q.annotator == 1 for p in pages for q in p.paragraphs)
     assert Transcription.model_validate_json(pages[1].model_dump_json()) == pages[1]

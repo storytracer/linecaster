@@ -5,9 +5,10 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Decision, Line, Paragraph, ParagraphRef, ParagraphRow, Transcription
-from ..formats.docling import TEXT_LABELS, region_rows
+from ..data.transcription import Decision, Line, Link, Paragraph, ParagraphRow, Transcription
+from ..formats.docling import TEXT_LABELS
 from ..text import recomposition as R
+from ..text.typography import hidden
 from .base import RuleEngine, ScriptDispatch, Strategy
 
 #: the (Docling) labels whose regions are recomposed into one paragraph: headings
@@ -19,17 +20,18 @@ RUNNING_LABEL = "text"
 def geometric(lines: list[Line]) -> bool:
     """Whether every line has a box or a polygon (else the transcription is text-only: a delivered plain text, a
     VLM's page)."""
-    return all(ln.polygon or ln.bbox for ln in lines)
+    return all(ln.polygon or ln.box for ln in lines)
 
 
-def rows_of(lines: list[Line]) -> tuple[list[R.Row], list[list[str]]]:
-    """A region's visual rows and the ids of the lines on each: with geometry ``linecaster.formats.docling.
-    region_rows`` (the lines of one ``Line.row`` side by side), without each line a row of its own, in reading
+def rows_of(t: Transcription, lines: list[Line]) -> tuple[list[R.Row], list[list[str]]]:
+    """A region's visual rows and the ids of the lines on each: with geometry ``linecaster.text.recomposition.
+    region_rows`` (the lines of one visual row side by side), without each line a row of its own, in reading
     order."""
     if geometric(lines):
-        return region_rows(lines), [[ln.id for ln in lines if ln.row == k] for k in sorted({ln.row for ln in lines})]
-    ordered = sorted(lines, key=lambda ln: ln.reading_order)
-    return [R.Row(ln.text or "", None, i) for i, ln in enumerate(ordered)], [[ln.id] for ln in ordered]
+        return R.region_rows(t, lines), R.row_lines(t, lines)
+    ranks = t.line_ranks()
+    ordered = sorted(lines, key=lambda ln: ranks[ln.id])
+    return [R.Row(t.text_of(ln, R.AS_WRITTEN) or "", None, i) for i, ln in enumerate(ordered)], [[ln.id] for ln in ordered]
 
 
 def digits_only(made: list[R.Paragraph]) -> bool:
@@ -42,8 +44,8 @@ class _Open:
     """A paragraph that may run on: the last paragraph of its chain (``Paragraph``), on which page, and the chain's
     text so far with its open end (``R.Paragraph``: what the next decision reads)."""
 
-    def __init__(self, paragraph: Paragraph, page: int, chain: R.Paragraph):
-        self.paragraph, self.page, self.chain = paragraph, page, chain
+    def __init__(self, paragraph: Paragraph, page: int, chain: R.Paragraph, t: Transcription):
+        self.paragraph, self.page, self.chain, self.t = paragraph, page, chain, t
 
 
 class UnicodeRecompositionEngine(RuleEngine):
@@ -58,8 +60,11 @@ class UnicodeRecompositionEngine(RuleEngine):
     geometry (a text-only transcription) a region is one paragraph, decided by the character rules alone. Covers
     every script whose text runs in horizontal lines.
 
-    Each decision is recorded on its paragraph (``Paragraph.decisions``); a continuation links the two paragraphs
-    (``continues``, ``continues_from``) and removes the division mark it decided on from the first one's text.
+    Each page's paragraphs are ranges (``Paragraph``, ids ``<region id>_p<n>``, ``p<n>`` on a page without regions)
+    by the call's annotator of that page, made anew by each call; each decision is recorded on its paragraph
+    (``Paragraph.decisions``); a continuation links the two paragraphs (``runs_into`` on the first, ``continues`` on
+    the second, ``<page id>#<id>`` across pages) and removes the division mark it decided on from the first one's
+    text. Regions a status puts nowhere (removed, suppressed, duplicate) are left out.
 
     Args:
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
@@ -111,15 +116,15 @@ class UnicodeRecompositionEngine(RuleEngine):
     def __call__(self, pages: list[Transcription], page_ids: list[str] | None = None,
                  **options) -> list[Transcription]:
         """The paragraphs of every page of one item, in order (a page alone is an item of one page). ``page_ids``
-        name the pages in the references across pages (``ParagraphRef.page_id``; without them ``#1``, ``#2``,
-        ...)."""
+        name the pages in the references across pages (``<page id>#<id>``; without them ``#1``, ``#2``, ...)."""
         o = self.configured(options)
         return self.recompose(pages, self, o, page_ids)
 
-    def recompose(self, pages: list[Transcription], rules, o: BaseModel,
-                  page_ids: list[str] | None = None) -> list[Transcription]:
+    def recompose(self, pages: list[Transcription], rules, o: BaseModel, page_ids: list[str] | None = None,
+                  record: BaseModel | None = None) -> list[Transcription]:
         """The paragraphs of every page, the decisions made by ``rules`` (this engine, or a by-script engine that
-        routes them), the geometry read with ``o``'s thresholds."""
+        routes them), the geometry read with ``o``'s thresholds; each page's annotator is ``rules``' with
+        ``record`` as its settings (``o`` by default)."""
         th = self.thresholds(o)
         lexicon = R.Lexicon(th.marks)
         # without ids, pages are named by their position (#1, #2, ...), as the DocumentBuilder names them
@@ -128,57 +133,58 @@ class UnicodeRecompositionEngine(RuleEngine):
             raise ValueError(f"{len(pages)} pages, {len(ids)} page ids")
         open_: _Open | None = None
         for k, t in enumerate(pages):
+            a = t.add_annotator(rules.annotator(record if record is not None else o))
             stats = R.Stats()
             by_region: dict[str | None, list[Line]] = {}
             for ln in t.lines:
-                by_region.setdefault(ln.region_id, []).append(ln)
-            regions = sorted(t.regions, key=lambda r: r.reading_order if r.reading_order is not None else 1 << 30)
-            units = [(r.id, r.label, r.extra.get("formula") is not None or r.extra.get("table") is not None,
+                by_region.setdefault(t.region_of(ln), []).append(ln)
+            regions = [r for r in t.ordered_regions() if not hidden(t, r.id)]
+            units = [(r.id, t.label(r.id), t.formula(r.id) is not None or t.table(r.id) is not None,
                       by_region.get(r.id, [])) for r in regions]
-            if not regions and t.lines and not geometric(t.lines):
+            if not t.regions and t.lines and not geometric(t.lines):
                 units = [(None, "text", False, list(t.lines))]          # a text-only page: one region
             for _rid, _label, _x, lines in units:
-                lexicon.add("\n".join(row.text for row in rows_of(lines)[0]))
-            paragraphs: list[Paragraph] = []
+                lexicon.add("\n".join(row.text for row in rows_of(t, lines)[0]))
             for rid, label, structured, lines in units:
                 if structured or label not in TEXT_LABELS:
                     open_ = None              # a table, formula or picture ends the running text
                     continue
                 label = TEXT_LABELS[label]
-                rows, on_row = rows_of(lines)
+                rows, on_row = rows_of(t, lines)
                 made = R.reflow_rows(rows, o.rtl, lexicon, label in SINGLE_LABELS, stats, rules, th)
                 if not made:
                     continue
-                own = [Paragraph(id=f"{rid}_p{n}" if rid is not None else f"p{n}", region_id=rid, text=p.text,
-                                 rows=[ParagraphRow(lines=on_row[s.row], start=s.start, end=s.end) for s in p.spans],
+                own = [Paragraph(annotator=a, id=f"{rid}_p{n}" if rid is not None else f"p{n}",
+                                 parts=[rid] if rid is not None else [], text=p.text,
+                                 rows=[ParagraphRow(lines=on_row[s.row], charspan=[s.start, s.end]) for s in p.spans],
                                  decisions=list(p.decisions))
                        for n, p in enumerate(made)]
-                paragraphs += own
+                t.ranges.extend(own)
                 if digits_only(made):
                     continue
                 nonempty = [row for row in rows if row.text.strip()]
                 m = R.Margins.of(nonempty, o.rtl, th) if all(row.bbox is not None for row in nonempty) else None
                 if (open_ is not None and label == RUNNING_LABEL
                         and R.continues(open_.chain, rows[made[0].spans[0].row], m, o.rtl, th)):
-                    self._continue(open_, k, own[0], made[0], ids, lexicon, stats, rules, th)
+                    self._continue(open_, k, t, own[0], made[0], ids, lexicon, stats, rules, th)
                     if len(made) == 1 and made[0].open_end:
-                        open_.paragraph, open_.page = own[0], k
+                        open_.paragraph, open_.page, open_.t = own[0], k, t
                         continue
                 open_ = None
                 for p, para in zip(own, made):
                     if para.open_end and label == RUNNING_LABEL:
-                        open_ = _Open(p, k, R.Paragraph(para.text, open_end=True))
-            t.paragraphs = paragraphs
-            t.steps.append(self.step_info(o, measurements={
+                        open_ = _Open(p, k, R.Paragraph(para.text, open_end=True), t)
+            t.annotators[a].measurements.update({
                 "paragraphs": stats.paragraphs, "continuations": stats.continuations,
-                "marks_removed": stats.marks_removed, "marks_kept": stats.marks_kept}))
+                "marks_removed": stats.marks_removed, "marks_kept": stats.marks_kept})
         return pages
 
     @staticmethod
-    def _continue(open_: _Open, page: int, nxt: Paragraph, made: R.Paragraph, ids: list, lexicon, stats, rules,
-                  th: R.Thresholds) -> None:
-        """``open_``'s paragraph runs on into ``nxt`` (on page ``page``): the decision on its division mark (the
-        mark gone from its text when removed), the continuation with its separator, the references both ways."""
+    def _continue(open_: _Open, page: int, t: Transcription, nxt: Paragraph, made: R.Paragraph, ids: list, lexicon,
+                  stats, rules, th: R.Thresholds) -> None:
+        """``open_``'s paragraph runs on into ``nxt`` (on page ``page``, transcription ``t``): the decision on its
+        division mark (the mark gone from its text when removed), the continuation with its separator, the links
+        both ways."""
         prev = open_.paragraph
         last = len(prev.rows) - 1
         reason = "division_mark" if R.ends_with_mark(open_.chain.text, th.marks) else "end_margin"
@@ -187,11 +193,13 @@ class UnicodeRecompositionEngine(RuleEngine):
             prev.decisions.append(decision.model_copy(update={"row": last}))
             if decision.kind == "mark_removed":
                 prev.text = prev.text[:-1]
-                prev.rows[-1].end -= 1
+                prev.rows[-1].charspan[1] -= 1
         prev.decisions.append(Decision(kind="continuation", reason=reason, row=last, separator=sep))
         same_page = open_.page == page
-        prev.continues = ParagraphRef(id=nxt.id, page_id=None if same_page else ids[page])
-        nxt.continues_from = ParagraphRef(id=prev.id, page_id=None if same_page else ids[open_.page])
+        open_.t.links.append(Link(annotator=prev.annotator, kind="runs_into", source=prev.id,
+                                  target=R.ref(None if same_page else ids[page], nxt.id)))
+        t.links.append(Link(annotator=nxt.annotator, kind="continues", source=nxt.id,
+                            target=R.ref(None if same_page else ids[open_.page], prev.id)))
         open_.chain = R.Paragraph(joined, open_end=made.open_end)
         stats.continuations += 1
         stats.paragraphs -= 1
@@ -237,7 +245,5 @@ class ByScriptRecompositionEngine(RuleEngine):
                  **options) -> list[Transcription]:
         o = self.configured(options)
         default = self.dispatch.default
-        default.recompose(pages, self, default.options, page_ids)
-        for t in pages:
-            t.steps[-1] = self.step_info(o, t.steps[-1].measurements)
+        default.recompose(pages, self, default.options, page_ids, record=o)
         return pages

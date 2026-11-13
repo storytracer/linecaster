@@ -4,13 +4,16 @@ linecaster's text is NFC (CLAUDE.md). Recognizers do not all deliver it: kraken'
 ``ä`` as ``a`` + U+0308 (decomposed). The ``UnicodeNormalizer`` block (``linecaster.blocks.text.unicode``) runs
 this right after recognition. It is a separate step, not part of a backend, so that an engine's raw
 output stays what the engine produced (and testable against the engine itself), and the step is
-recorded: ``StepInfo(step="unicode", name="unicodedata", settings={"form", "unicode_version"})``.
+recorded: an ``Annotator(kind="rule", step="unicode", name="unicodedata", settings={"form", "unicode_version"})``.
 Parity with a reference that did not normalize is then "byte-exact after NFC on both sides".
 
-Normalized: ``Line.text``, ``Line.alternatives``, ``Word.text``, ``Word.alternatives``. Boxes,
-confidences and ids are unchanged (a word's box covers the same glyphs whatever the code points).
-NFC is a canonical equivalence: it never changes what is written, only how it is encoded; NFKC (which
-would fold ligatures, long s and superscripts) is refused here, those are the readable variants' job.
+The readings stay as the recognizer gave them: where a line's text or a word's text is not NFC, the step adds an
+``Edit(kind="nfc")`` with the NFC text, targeting the line (its id) or the word (``<line>/<n>``); where it is NFC
+already, nothing. ``Transcription.text_of(line)`` reads a line's text with its edit applied. Boxes, confidences and
+ids are untouched (a word's box covers the same glyphs whatever the code points); alternatives keep their code
+points (a reference names no alternative). NFC is a canonical equivalence: it never changes what is written, only
+how it is encoded; a compatibility form (NFKC, which would fold ligatures, long s and superscripts) is refused here,
+those are the readable variants' job.
 """
 from __future__ import annotations
 
@@ -18,35 +21,37 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 
-from ..data.transcription import StepInfo, Transcription
+from ..data.refs import word
+from ..data.transcription import Annotator, Edit, Transcription
 
-FORMS = ("NFC", "NFD")
+#: the forms the step writes: NFC (its edits are ``nfc`` edits)
+FORMS = ("NFC",)
 
 
 def normalize_transcription(t: Transcription, form: str = "NFC") -> int:
-    """Normalize the transcription's line and word texts in place; returns how many strings changed."""
+    """Adds an ``nfc`` edit for every line and word text that is not NFC (one annotator, step ``unicode``); returns
+    how many it added."""
     if form not in FORMS:
         raise ValueError(f"form {form!r}: linecaster keeps canonical equivalence only ({', '.join(FORMS)}); "
                          "compatibility folding belongs to the readable text variants")
     start, began = time.perf_counter(), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    a = t.add_annotator(Annotator(kind="rule", step="unicode", name="unicodedata",
+                                  settings={"form": form, "unicode_version": unicodedata.unidata_version}))
     changed = 0
 
-    def norm(s):
+    def edit(target: str, text: str) -> None:
         nonlocal changed
-        if s is None:
-            return s
-        n = unicodedata.normalize(form, s)
-        changed += n != s
-        return n
+        n = unicodedata.normalize(form, text)
+        if n != text:
+            t.edits.append(Edit(annotator=a, target=target, kind="nfc", text=n))
+            changed += 1
 
     for ln in t.lines:
-        ln.text = norm(ln.text)
-        ln.alternatives = [norm(a) for a in ln.alternatives]
-        for w in ln.words:
-            w.text = norm(w.text)
-            w.alternatives = [norm(a) for a in w.alternatives]
-    t.steps.append(StepInfo(step="unicode", name="unicodedata",
-                            settings={"form": form, "unicode_version": unicodedata.unidata_version},
-                            measurements={"changed": changed, "seconds": round(time.perf_counter() - start, 4),
-                                          "datetime": began}))
+        if ln.reading is None:
+            continue
+        edit(ln.id, ln.reading.text)
+        for k, w in enumerate(ln.reading.words):
+            edit(word(ln.id, k), w.text)
+    t.annotators[a].measurements.update({"changed": changed, "seconds": round(time.perf_counter() - start, 4),
+                                         "datetime": began})
     return changed

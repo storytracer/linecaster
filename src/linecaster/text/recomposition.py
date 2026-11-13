@@ -38,6 +38,12 @@ Each decision is recorded on the paragraph it concerns (``linecaster.data.Decisi
 kept, a paragraph break, with its reason). Rows without geometry (a text-only transcription) are recomposed by the
 character rules alone: no paragraph breaks, a region is one paragraph, and only a division mark leaves it open.
 
+On a ``Transcription`` (``region_rows``, ``paragraphs``, ``continuation``): a region's rows are its lines on each
+visual row (``Transcription.rows``), their texts as written (the ``nfc`` and ``joined`` edits applied); the
+paragraphs of a page are those of its latest recomposition (a later one makes them anew), and a paragraph's
+continuation is a link by the same annotator: ``runs_into`` the paragraph it runs on into, ``continues`` the one it
+continues, each a reference ``<id>`` on the same page or ``<page id>#<id>`` on another (``ref``, ``split_ref``).
+
 Out of scope, by design: glyph normalization (long s, ligatures), spelling modernization, emphasis
 from letter-spacing, Korean's unmarked in-word breaks, vertical writing.
 """
@@ -53,7 +59,9 @@ from uniseg.sentencebreak import SB, sentence_break
 from uniseg.wordbreak import words
 
 from ..data.geometry import BBox
-from ..data.transcription import Decision
+from ..data.transcription import Decision, Line, Transcription
+from ..data.transcription import Paragraph as ParagraphRange
+from .typography import AS_WRITTEN, line_bbox, union
 
 #: Marks by convention, unknown to Unicode as hyphens: the not sign, which some transcription
 #: conventions (and kraken models trained on them) write for a line-end hyphen.
@@ -124,6 +132,55 @@ class Row:
     text: str
     bbox: BBox | None
     index: int = 0        # position in the region's rows
+
+
+def region_rows(t: Transcription, lines: list[Line], kinds: tuple[str, ...] = AS_WRITTEN) -> list[Row]:
+    """A region's visual rows: the texts of its ``lines`` on each row (``Transcription.rows``, in the order given)
+    joined with a space, with ``kinds`` edits applied, the row's box the union of their boxes, in row order."""
+    rows = t.rows()
+    grouped: dict[int, list[Line]] = {}
+    for ln in lines:
+        grouped.setdefault(rows.get(ln.id, 0), []).append(ln)
+    out = []
+    for i, k in enumerate(sorted(grouped)):
+        b = union([line_bbox(ln) for ln in grouped[k]])
+        out.append(Row(" ".join(x for ln in grouped[k] if (x := t.text_of(ln, kinds))), b, i))
+    return out
+
+
+def row_lines(t: Transcription, lines: list[Line]) -> list[list[str]]:
+    """The ids of ``lines`` on each visual row, in row order (``region_rows``' rows)."""
+    rows = t.rows()
+    grouped: dict[int, list[str]] = {}
+    for ln in lines:
+        grouped.setdefault(rows.get(ln.id, 0), []).append(ln.id)
+    return [grouped[k] for k in sorted(grouped)]
+
+
+def paragraphs(t: Transcription) -> list[ParagraphRange]:
+    """The paragraphs of the page's latest recomposition (the latest annotator that made any)."""
+    found = t.paragraphs
+    if not found:
+        return []
+    latest = max(p.annotator for p in found)
+    return [p for p in found if p.annotator == latest]
+
+
+def continuation(t: Transcription, p: ParagraphRange, kind: str) -> str | None:
+    """The reference a paragraph's ``kind`` link (``runs_into``, ``continues``) by its own annotator names."""
+    return next((ln.target for ln in reversed(t.links)
+                 if ln.source == p.id and ln.kind == kind and ln.annotator == p.annotator), None)
+
+
+def ref(page_id: str | None, range_id: str) -> str:
+    """The reference to a range piece: ``<id>`` on the same page (``page_id`` ``None``), else ``<page id>#<id>``."""
+    return range_id if page_id is None else f"{page_id}#{range_id}"
+
+
+def split_ref(value: str) -> tuple[str | None, str]:
+    """(page id or ``None``, id) of a reference to a range piece (``ref``)."""
+    page, _, rid = value.rpartition("#")
+    return page or None, rid
 
 
 @dataclass

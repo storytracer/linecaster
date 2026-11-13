@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from linecaster.data.geometry import bbox_of
 from linecaster.data.transcription import Line, Region, Transcription
-from linecaster.formats.docling import TEXT_LABELS, _box, _layer, _prov, _table_data, region_rows, region_text
+from legacy_docling import TEXT_LABELS, _box, _layer, _prov, _table_data, region_rows, region_text
 from legacy_recomposition import ends_with_mark, resolve_mark, separator
 
 TEXT_MODES = ("lines", "reflow")

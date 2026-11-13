@@ -50,6 +50,9 @@ def _refs(aset: dict):
     for a in aset.get("links", []):
         yield a["source"]
         yield a["target"]
+    for o in aset.get("orders", []):
+        yield from o.get("regions", [])
+        yield from o.get("lines", [])
     for z in aset.get("regions", []) + aset.get("lines", []):
         if z.get("parent"):
             yield z["parent"]
@@ -73,9 +76,22 @@ def test_every_reference_resolves(page_id):
             _resolve(page, name, ref)
 
 
-def test_a_paragraph_continued_onto_the_next_page_is_one_range():
-    pieces = [r for p in PAGES.values() for r in p["transcriptions"]["ground_truth"]["ranges"] if r["id"] == "s12.r2.p1"]
-    assert len(pieces) == 2
-    for r in pieces:
-        for row in r["rows"]:
-            assert 0 <= row["charspan"][0] < row["charspan"][1] <= len(r["text"])
+def test_a_paragraph_continued_onto_the_next_page_is_linked_both_ways():
+    from linecaster.data import Page
+
+    pages = {pid: Page.model_validate(p) for pid, p in PAGES.items()}
+    first, second = (pages[f"library.test_item1_{n:04d}"].transcriptions["ground_truth"] for n in (12, 13))
+    assert first.link("r2_p0", "runs_into") == "library.test_item1_0013#r2_p0"
+    assert second.link("r2_p0", "continues") == "library.test_item1_0012#r2_p0"
+    for t in (first, second):
+        for p in t.paragraphs:
+            for row in p.rows:
+                assert 0 <= row.charspan[0] < row.charspan[1] <= len(p.text)
+
+
+@pytest.mark.parametrize("page_id", sorted(PAGES))
+def test_the_fixtures_are_valid_page_records(page_id):
+    from linecaster.data import Page
+
+    page = Page.model_validate(PAGES[page_id])
+    assert page.record() == Page.model_validate(page.record()).record()

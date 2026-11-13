@@ -1,7 +1,6 @@
-"""``CharacterNormalizer``: character fidelity *as written* -> *normalized*, on ``Line.normalized``,
-``Paragraph.normalized`` and the table cells' ``normalized`` (``normalization.*`` engines;
-``normalization.latin-historic.v1`` is the mapping table of ``linecaster.text.variants``). The as-written texts are
-never touched."""
+"""``CharacterNormalizer``: character fidelity *as written* -> *normalized*, as ``normalized`` edits of lines,
+paragraphs and table cells (``normalization.*`` engines; ``normalization.latin-historic.v1`` is the mapping table of
+``linecaster.text.variants``). The as-written texts are never touched."""
 from __future__ import annotations
 
 from typing import Any
@@ -18,9 +17,10 @@ class CharacterNormalizer(RuleBlock):
     """Normalizes the texts of every line, paragraph and table cell by a normalization engine, next to the text as
     written.
 
-    Character fidelity *as written* -> *normalized*: each gets its ``normalized`` (``Line.normalized``,
-    ``Paragraph.normalized``, the table cells' ``normalized``); the as-written texts are never touched. After a
-    ``Recomposer`` the paragraphs are normalized too. Reads ``text``; adds ``normalized``; stat ``changed``.
+    Character fidelity *as written* -> *normalized*: each whose normalized text differs gets an ``Edit`` of kind
+    ``normalized`` (a line by its id, a paragraph by its id, a table cell as ``<region>/r<row>c<col>``); the
+    as-written texts are never touched. After a ``Recomposer`` the paragraphs are normalized too. Reads ``text``;
+    adds ``normalized``; stat ``changed``.
     ``unit="page"``: each page; ``unit="item"``: each page of an item record (``linecaster.blocks.base.item``),
     after an item-level ``Recomposer``.
 
@@ -51,7 +51,7 @@ class CharacterNormalizer(RuleBlock):
 
     def apply(self, page, t) -> None:
         self.engine(t)
-        self.count(t.steps[-1].measurements, ("changed",))
+        self.count(t.annotators[-1].measurements, ("changed",))
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         if self.unit == "page":

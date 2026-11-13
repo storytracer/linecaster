@@ -83,7 +83,7 @@
      {
       "annotator": 0,
       "kind": "paragraph",
-      "id": "s12.r2.p1",
+      "id": "r2_p0",
       "parts": [
        "r2"
       ],
@@ -101,12 +101,28 @@
       ]
      }
     ],
+    "links": [
+     {
+      "annotator": 0,
+      "kind": "continues",
+      "source": "r2_p0",
+      "target": "library.test_item1_0012#r2_p0"
+     }
+    ],
     "orders": [
      {
       "annotator": 0,
       "regions": [
        "r2",
        "r1"
+      ],
+      "lines": [
+       "l1",
+       "l2"
+      ],
+      "rows": [
+       0,
+       0
       ]
      }
     ]

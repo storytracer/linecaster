@@ -7,7 +7,7 @@ import pytest
 
 from linecaster.catalog import registry
 from linecaster.catalog.registry import Catalog, engine_spec, write_entry
-from linecaster.data import Line, Region, Transcription
+from linecaster.data import Annotator, Transcription
 from linecaster.engines import ByScriptNormalizationEngine, ByScriptRecompositionEngine, ScriptDispatch
 from linecaster.engines.base import RuleEngine
 from linecaster.engines.normalization import TextNormalization
@@ -106,23 +106,28 @@ def test_normalization_by_script_routes_each_run():
     e = ByScriptNormalizationEngine(strategies={"Hebr": spec(FakeHebrewNormalizationEngine), "Latn": LATIN,
                                                 "*": spec(FakeIdentityNormalizationEngine)})
     assert e.normalize("Vnterſuchung: שָׁלוֹם, ﬁſche ὅτι ſ") == "Vntersuchung: שלום, fische ὅτι s"
-    t = Transcription(lines=[Line(id="l0", text="ſ שָׁ"), Line(id="l1")])
+    t = Transcription()
+    a = t.add_annotator(Annotator(step="recognition", name="test"))
+    t.add_line(a, "l0", text="ſ שָׁ")
+    t.add_line(a, "l1")
     e(t)
-    assert [ln.normalized for ln in t.lines] == ["s ש", None]
-    m = t.steps[-1]
+    assert [t.edit(ln.id, ("normalized",)) for ln in t.lines] == ["s ש", None]
+    m = t.annotators[-1]
     assert (m.engine, m.measurements) == ("normalization.by-script.v1", {"changed": 1})
     assert set(m.settings["strategies"]) == {"Hebr", "Latn", "*"}
 
 
-def _region(rid, order, texts, x0=100.0):
-    lines = [Line(id=f"{rid}_l{i}", region_id=rid, reading_order=10 * order + i, row=i,
-                  bbox=[x0, 100.0 + 40 * i, 800.0, 30.0],
-                  polygon=[[x0, 100.0 + 40 * i], [x0 + 800, 100.0 + 40 * i], [x0 + 800, 130.0 + 40 * i],
-                           [x0, 130.0 + 40 * i]], text=text) for i, text in enumerate(texts)]
-    region = Region(id=rid, label="text", reading_order=order, bbox=[x0 - 10, 90.0, 820.0, 40.0 * len(texts) + 20],
-                    polygon=[[x0 - 10, 90.0], [x0 + 810, 90.0], [x0 + 810, 110.0 + 40 * len(texts)],
-                             [x0 - 10, 110.0 + 40 * len(texts)]])
-    return region, lines
+def _region(t, a, rid, order, texts, x0=100.0):
+    """A text region of ``texts`` by annotator ``a`` of ``t``: one line per row, 30 high every 40; returns its line
+    ids."""
+    t.add_region(a, rid, [x0 - 10, 90.0, 820.0, 40.0 * len(texts) + 20],
+                 [[x0 - 10, 90.0], [x0 + 810, 90.0], [x0 + 810, 110.0 + 40 * len(texts)],
+                  [x0 - 10, 110.0 + 40 * len(texts)]], label="text", role="text")
+    for i, text in enumerate(texts):
+        y = 100.0 + 40 * i
+        t.add_line(a, f"{rid}_l{i}", [x0, y, 800.0, 30.0], [[x0, y], [x0 + 800, y], [x0 + 800, y + 30], [x0, y + 30]],
+                   region=rid, text=text)
+    return [f"{rid}_l{i}" for i in range(len(texts))]
 
 
 def test_recomposition_by_script_routes_each_decision():
@@ -131,9 +136,12 @@ def test_recomposition_by_script_routes_each_decision():
     step."""
     from linecaster.engines import UnicodeRecompositionEngine
 
-    latin, latin_lines = _region("latin", 0, ["Die Untersuchung der Ab-", "lagerungen ist alt."])
-    hebrew, hebrew_lines = _region("hebrew", 1, ["שָׁלוֹם עֲלֵי-", "כֶם וּבְרָכָה", "וְשָׁלוֹם"])
-    page = Transcription(regions=[latin, hebrew], lines=latin_lines + hebrew_lines)
+    page = Transcription()
+    a = page.add_annotator(Annotator(step="layout", name="test"))
+    latin = _region(page, a, "latin", 0, ["Die Untersuchung der Ab-", "lagerungen ist alt."])
+    hebrew = _region(page, a, "hebrew", 1, ["שָׁלוֹם עֲלֵי-", "כֶם וּבְרָכָה", "וְשָׁלוֹם"])
+    lines = latin + hebrew
+    page.add_order(a, ["latin", "hebrew"], lines, [0, 1, 0, 1, 2])
     FakeHebrewRecompositionEngine.calls = []
     e = ByScriptRecompositionEngine(strategies={"Hebr": spec(FakeHebrewRecompositionEngine), "*": UNICODE})
     (t,) = e([page.model_copy(deep=True)])
@@ -143,10 +151,10 @@ def test_recomposition_by_script_routes_each_decision():
                                               "שָׁלוֹם עֲלֵי-כֶם וּבְרָכָה | וְשָׁלוֹם"]
     assert [c[0] for c in FakeHebrewRecompositionEngine.calls] == ["mark", "separator"]
     hebrew_text = t.paragraphs[1].text
-    assert [hebrew_text[r.start:r.end] for r in t.paragraphs[1].rows] == ["שָׁלוֹם עֲלֵי-", "כֶם וּבְרָכָה", "וְשָׁלוֹם"]
+    assert [hebrew_text[slice(*r.charspan)] for r in t.paragraphs[1].rows] == ["שָׁלוֹם עֲלֵי-", "כֶם וּבְרָכָה", "וְשָׁלוֹם"]
     assert [r.lines for r in t.paragraphs[1].rows] == [["hebrew_l0"], ["hebrew_l1"], ["hebrew_l2"]]
-    m = t.steps[-1]
-    assert (m.step, m.engine, m.measurements["marks_removed"], m.measurements["marks_kept"]) == (
+    m = t.annotators[-1]
+    assert len(t.annotators) == 2 and (m.step, m.engine, m.measurements["marks_removed"], m.measurements["marks_kept"]) == (
         "recomposition", "recomposition.by-script.v1", 1, 1)
     assert m.settings["strategies"]["Hebr"]["engine"] == f"{HERE}:FakeHebrewRecompositionEngine"
     # with the Unicode rules for every script the Hebrew mark follows a Hebrew letter, and the next row is Hebrew too:

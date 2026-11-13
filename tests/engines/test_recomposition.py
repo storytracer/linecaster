@@ -4,7 +4,7 @@ text-only fallback."""
 import pytest
 
 from conftest import line, page_with, region
-from linecaster.data import Line, Region, Transcription
+from linecaster.data import Annotator, Transcription
 from linecaster.engines import UnicodeRecompositionEngine
 
 
@@ -32,6 +32,10 @@ def decisions(p):
     return [(d.kind, d.reason, d.row) for d in p.decisions]
 
 
+def spans(p):
+    return [tuple(r.charspan) for r in p.rows]
+
+
 # --------------------------------------------------------------------------------------------- decisions
 
 def test_division_marks_removed_and_kept_with_their_reasons():
@@ -45,8 +49,9 @@ def test_division_marks_removed_and_kept_with_their_reasons():
                             ("hyphen_kept", "attested", 7), ("mark_removed", "letter_follows", 8)]
     assert p.text.startswith("Die Untersuchung der Ablagerungen zeigt den Nord-Ostsee-Raum in den Jahren um-1914")
     assert "der Nord-see und der Nord-See zusammen." in p.text          # the document has Nord-See, not Nordsee
-    m = t.steps[-1].measurements
+    m = t.annotators[-1].measurements
     assert (m["marks_removed"], m["marks_kept"], m["paragraphs"], m["continuations"]) == (2, 6, 1, 0)
+    assert (p.annotator, p.parts, p.region) == (len(t.annotators) - 1, ["text_0"], "text_0")
 
 
 def test_a_hebrew_mark_before_latin_is_a_script_change():
@@ -71,12 +76,12 @@ def test_a_paragraph_continues_into_the_next_region():
     t = recompose(a, b)
     first, second = t.paragraphs
     assert first.text == "The nest is built of dead grasses and bents, and the lin"      # the mark is gone
-    assert first.rows[-1].end == len(first.text)
+    assert first.rows[-1].charspan[1] == len(first.text)
     assert decisions(first) == [("mark_removed", "letter_follows", 1), ("continuation", "division_mark", 1)]
     assert first.decisions[-1].separator == "" and second.text == "ing of finer stuff. A new sentence."
-    assert first.continues.model_dump() == {"id": "text_1_p0", "page_id": None}
-    assert second.continues_from.model_dump() == {"id": "text_0_p0", "page_id": None}
-    m = t.steps[-1].measurements
+    assert t.link("text_0_p0", "runs_into") == "text_1_p0" and t.link("text_1_p0", "continues") == "text_0_p0"
+    assert t.link("text_0_p0", "continues") is None and t.link("text_1_p0", "runs_into") is None
+    m = t.annotators[-1].measurements
     assert (m["paragraphs"], m["continuations"], m["marks_removed"]) == (1, 1, 1)
     # reaching the end margin without a mark: a space joins them
     t = recompose(column("text_0", ["The nest is built of dead", "grasses and bents, and the"]),
@@ -88,14 +93,14 @@ def test_a_paragraph_continues_into_the_next_region():
 def test_what_ends_the_running_text():
     """A sentence end, an indented first row, a heading or a picture between: no continuation."""
     a = ["The nest is built of dead", "grasses and bents, and the"]
-    assert all(p.continues is None for p in recompose(column("text_0", [*a[:1], "grasses and bents."]),
-                                                      column("text_1", ["lining"], order=1, y=400)).paragraphs)
+    assert not recompose(column("text_0", [*a[:1], "grasses and bents."]),
+                         column("text_1", ["lining"], order=1, y=400)).links
     indented = column("text_1", ["lining of finer", "stuff."], order=1, y=400, indents={0})
-    assert recompose(column("text_0", a), indented).paragraphs[0].continues is None
+    assert not recompose(column("text_0", a), indented).links
     for between in (column("title_1", ["A HEADING"], order=1, y=300, label="section_header"),
                     (region("picture_1", "picture", 100, 300, 800, 50, 1), [])):
         t = recompose(column("text_0", a), between, column("text_2", ["lining of finer stuff."], order=2, y=400))
-        assert all(p.continues is None and p.continues_from is None for p in t.paragraphs)
+        assert not t.links
 
 
 # ---------------------------------------------------------------------------------------- across pages
@@ -117,18 +122,18 @@ def test_a_page_number_between_two_pages_does_not_close_the_paragraph():
     second = page(["the north, where the ice waited."], number="13")
     a, b = item(first, second)
     (end, number), (start, _) = a.paragraphs, b.paragraphs
-    assert number.text == "12" and number.continues is None and number.continues_from is None
-    assert end.continues.model_dump() == {"id": "text_0_p0", "page_id": "b_0002"}
-    assert start.continues_from.model_dump() == {"id": "text_0_p0", "page_id": "b_0001"}
-    assert (a.steps[-1].measurements["continuations"], b.steps[-1].measurements["continuations"]) == (0, 1)
+    assert number.text == "12" and a.link(number.id, "runs_into") is None and a.link(number.id, "continues") is None
+    assert a.link(end.id, "runs_into") == "b_0002#text_0_p0" and b.link(start.id, "continues") == "b_0001#text_0_p0"
+    assert [ln.annotator for ln in a.links + b.links] == [1, 1]           # each page's link by its own annotator
+    assert (a.annotators[-1].measurements["continuations"], b.annotators[-1].measurements["continuations"]) == (0, 1)
     # a page number with a letter in it is text: it closes the paragraph
-    a, b = item(page(first.lines[0].text.split("\n") + ["the ship left the harbour and turned to"], number="p. 12"),
+    a, b = item(page([first.lines[0].reading.text, "the ship left the harbour and turned to"], number="p. 12"),
                 second)
-    assert all(p.continues is None for p in a.paragraphs)
+    assert not a.links
     # each page alone: no continuation across the break
     for t in (page(["It was a dark and stormy night when", "the ship left the harbour and turned to"], number="12"),):
         (alone,) = UnicodeRecompositionEngine()([t])
-        assert all(p.continues is None for p in alone.paragraphs)
+        assert not alone.links
 
 
 def test_a_continuation_over_three_pages_decides_on_the_whole_text():
@@ -137,7 +142,8 @@ def test_a_continuation_over_three_pages_decides_on_the_whole_text():
              page(["text goes on here and ends in Nord-"]),
              page(["see, where Nord-See is the other form."])]
     a, b, c = item(*pages)
-    assert a.paragraphs[0].continues.page_id == "b_0002" and b.paragraphs[0].continues.page_id == "b_0003"
+    assert a.link(a.paragraphs[0].id, "runs_into") == "b_0002#text_0_p0"
+    assert b.link(b.paragraphs[0].id, "runs_into") == "b_0003#text_0_p0"
     assert decisions(b.paragraphs[0])[-2:] == [("hyphen_kept", "attested", 0), ("continuation", "division_mark", 0)]
     assert b.paragraphs[0].decisions[-1].separator == ""                 # attested: no space after the hyphen
 
@@ -160,10 +166,10 @@ def test_every_recomposition_threshold_is_an_option():
     # a paragraph that reaches the end margin runs on; with a tighter margin it does not
     a, b = column("text_0", ["The nest is built of dead", "grasses and bents, and the"]), \
         column("text_1", ["lining of finer stuff."], order=1, y=400)
-    assert recompose(a, b).paragraphs[0].continues is not None
+    assert recompose(a, b).link("text_0_p0", "runs_into") is not None
     a2 = column("text_0", ["The nest is built of dead", "grasses and bents, and the"], short={1})
-    assert recompose(a2, b).paragraphs[0].continues is None
-    assert recompose(a2, b, end_margin=20.0).paragraphs[0].continues is not None
+    assert recompose(a2, b).link("text_0_p0", "runs_into") is None
+    assert recompose(a2, b, end_margin=20.0).link("text_0_p0", "runs_into") is not None
     # convention marks
     marks = column("text_0", ["Die Untersuchung der Ab¬", "lagerungen ist alt; die Ab=", "lagerungen"])
     assert recompose(marks).paragraphs[0].text == "Die Untersuchung der Ablagerungen ist alt; die Ab= lagerungen"
@@ -185,22 +191,44 @@ def test_every_recomposition_threshold_is_an_option():
 def test_text_only_transcriptions_make_one_paragraph_per_region():
     """Without geometry: a region (or a page without regions) is one paragraph, division marks by the Unicode
     rules and the lexicon, no geometric paragraph breaks; only a mark leaves it open."""
-    lines = [Line(id=f"l{i}", reading_order=i, text=s) for i, s in
-             enumerate(["Die Untersuchung der Ab-", "lagerungen zeigt den Nord-", "Ostsee-Raum.", "", "Ein Absatz."])]
-    (t,) = UnicodeRecompositionEngine()([Transcription(lines=lines)])
+    t = Transcription()
+    a = t.add_annotator(Annotator(kind="file", step="transcription", name="text"))
+    for i, s in enumerate(["Die Untersuchung der Ab-", "lagerungen zeigt den Nord-", "Ostsee-Raum.", "", "Ein Absatz."]):
+        t.add_line(a, f"l{i}", text=s)
+    t.add_order(a, lines=[ln.id for ln in t.lines])
+    (t,) = UnicodeRecompositionEngine()([t])
     (p,) = t.paragraphs
     assert p.text == "Die Untersuchung der Ablagerungen zeigt den Nord-Ostsee-Raum. Ein Absatz."
-    assert p.region_id is None and [r.lines for r in p.rows] == [["l0"], ["l1"], ["l2"], ["l4"]]
+    assert p.region is None and p.id == "p0" and [r.lines for r in p.rows] == [["l0"], ["l1"], ["l2"], ["l4"]]
     assert decisions(p) == [("mark_removed", "letter_follows", 0), ("hyphen_kept", "capital_follows", 1)]
     # regions without geometry in their lines: one paragraph each, continued by a division mark only
-    box = [[0, 0], [10, 0], [10, 10], [0, 10]]
-    regions = [Region(id="r0", label="text", polygon=box, bbox=[0, 0, 10, 10], reading_order=0),
-               Region(id="r1", label="text", polygon=box, bbox=[0, 0, 10, 10], reading_order=1)]
-    lines = [Line(id="a", region_id="r0", text="Die Unter-"), Line(id="b", region_id="r1", text="suchung ist alt.")]
-    (t,) = UnicodeRecompositionEngine()([Transcription(regions=regions, lines=lines)])
+    t = Transcription()
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    for rid in ("r0", "r1"):
+        t.add_region(a, rid, [0, 0, 10, 10], [[0, 0], [10, 0], [10, 10], [0, 10]], label="text", role="text")
+    t.add_line(a, "a", region="r0", text="Die Unter-")
+    t.add_line(a, "b", region="r1", text="suchung ist alt.")
+    t.add_order(a, ["r0", "r1"])
+    (t,) = UnicodeRecompositionEngine()([t])
     first, second = t.paragraphs
-    assert first.continues.id == "r1_p0" and first.text + second.text == "Die Untersuchung ist alt."
+    assert t.link(first.id, "runs_into") == "r1_p0" and first.text + second.text == "Die Untersuchung ist alt."
     from linecaster.formats.docling import build_docling
 
     doc = build_docling(t)
     assert [x.text for x in doc.texts] == ["Die Untersuchung ist alt."]
+
+
+def test_removed_regions_are_left_out_and_a_later_recomposition_makes_the_paragraphs_anew():
+    """A region a status puts nowhere is not there for the recomposition; a second call adds its own paragraphs (the
+    page's latest), the first call's stay."""
+    from linecaster.text.recomposition import paragraphs
+
+    a = column("text_0", ["The nest is built of dead", "grasses and bents, and the"])
+    b = column("text_2", ["lining of finer stuff."], order=2, y=400)
+    t = page_with([a[0], region("picture_1", "picture", 100, 300, 800, 50, 1), b[0]], a[1] + b[1])
+    t.classify(0, "picture_1", "status", "removed")
+    (t,) = UnicodeRecompositionEngine()([t])
+    assert t.link("text_0_p0", "runs_into") == "text_2_p0"              # the picture no longer ends the text
+    (t,) = UnicodeRecompositionEngine()([t])
+    assert sum(r.kind == "paragraph" for r in t.ranges) == 4 and [p.annotator for p in paragraphs(t)] == [2, 2]
+    assert [p.text for p in paragraphs(t)] == [p.text for p in t.paragraphs[:2]]

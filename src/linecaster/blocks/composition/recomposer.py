@@ -17,10 +17,11 @@ COUNTED = ("paragraphs", "continuations", "marks_removed", "marks_kept")
 class Recomposer(RuleBlock):
     """Recomposes the running text of a page or an item into paragraphs by a recomposition engine.
 
-    The rows of each text region become ``paragraphs``, each with its decisions; paragraphs that already exist are
-    made anew. Reads ``regions`` and ``lines``; adds ``paragraphs`` and declares them replaced (an item-level
-    recomposition after a page-level one). Stats: ``paragraphs``, ``continuations``, ``marks_removed``,
-    ``marks_kept`` (and ``items``).
+    The rows of each text region become ``paragraphs`` (ranges by the call's annotator), each with its decisions and
+    its continuation links; a later recomposition makes them anew (its paragraphs are the page's from then on, the
+    earlier ones stay in the record). Reads ``regions`` and ``lines``; adds ``paragraphs`` and declares them
+    replaced (an item-level recomposition after a page-level one). Stats: ``paragraphs``, ``continuations``,
+    ``marks_removed``, ``marks_kept`` (and ``items``).
 
     ``unit="page"``: each page by itself (a paragraph continues into the next text region of the page).
     ``unit="item"``: the pages of an item record together, in order (``linecaster.blocks.base.item``): the lexicon
@@ -56,7 +57,7 @@ class Recomposer(RuleBlock):
 
     def apply(self, page, t) -> None:
         self.engine([t], page_ids=[page.page_id])
-        self.count(t.steps[-1].measurements, COUNTED)
+        self.count(t.annotators[-1].measurements, COUNTED)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         if self.unit == "page":
@@ -68,11 +69,11 @@ class Recomposer(RuleBlock):
                 pages = item_pages(doc)
                 ts = [p.transcription(self.transcription) for p in pages]
                 start, began = now()
-                n = [len(t.steps) for t in ts]
+                n = [len(t.annotators) for t in ts]
                 self.engine(ts, page_ids=[p.page_id for p in pages])
                 for t, k in zip(ts, n):
-                    for info in t.steps[k:]:
+                    for info in t.annotators[k:]:
                         stamp(info, self.backend, start, began)
-                    self.count(t.steps[-1].measurements, COUNTED)
+                    self.count(t.annotators[-1].measurements, COUNTED)
                 set_item_pages(doc, pages)
             yield doc

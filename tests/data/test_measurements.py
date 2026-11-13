@@ -1,12 +1,12 @@
 """The measurements vocabulary (``linecaster.data.MEASUREMENTS``): every key linecaster code writes into
-``StepInfo.measurements`` is in it. The code of the core and of the engine packages is read (``ast``) for every
-place that writes measurements: ``measurements={...}`` (with ``**`` of a dict built in the same function),
-``.measurements[key] = ...``, ``.measurements.setdefault(key, ...)`` and ``.update({...})``; a place whose keys the
-scan cannot see is listed in ``COMPUTED`` and checked by running it."""
+``Annotator.measurements`` is in it. The code of the core and of the engine packages is read (``ast``) for every
+place that writes measurements: ``measurements={...}`` (with ``**`` of a dict built in the same function; either
+branch of a conditional), ``.measurements = {...}``, ``.measurements[key] = ...``, ``.measurements.setdefault(key, ...)`` and
+``.update({...})``; a place whose keys the scan cannot see is listed in ``COMPUTED`` and checked by running it."""
 import ast
 from pathlib import Path
 
-from linecaster.data import FINISH_REASONS, MEASUREMENTS, StepInfo
+from linecaster.data import FINISH_REASONS, MEASUREMENTS, Annotator
 from linecaster.data.measurements import unknown_measurements
 
 REPO = Path(__file__).resolve().parents[2]
@@ -77,6 +77,8 @@ def written_keys() -> tuple[dict[str, set[str]], set[tuple[str, str]]]:
                                 found([node.args[0].value])
                             elif func.attr == "update":
                                 value = node.args[0]
+                    elif isinstance(node, ast.Assign) and any(_is_measurements(x) for x in node.targets):
+                        value = node.value
                     elif isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Store) \
                             and _is_measurements(node.value):
                         assert isinstance(node.slice, ast.Constant), f"{rel}: {ast.unparse(node)}"
@@ -85,16 +87,17 @@ def written_keys() -> tuple[dict[str, set[str]], set[tuple[str, str]]]:
                         continue
                     if isinstance(value, ast.BoolOp):              # measurements or {}
                         value = value.values[0]
-                    if isinstance(value, ast.Name) and value.id in params:
-                        continue                                    # passed through from the caller
-                    if isinstance(value, ast.Name) and isinstance(local.get(value.id), ast.Dict):
-                        value = local[value.id]
-                    if isinstance(value, ast.Dict):
-                        names, bad = _dict_keys(value, local)
-                        found(names)
-                        computed |= {(rel, b) for b in bad}
-                    else:
-                        computed.add((rel, ast.unparse(value)))
+                    for v in (value.body, value.orelse) if isinstance(value, ast.IfExp) else (value,):
+                        if isinstance(v, ast.Name) and v.id in params:
+                            continue                                # passed through from the caller
+                        if isinstance(v, ast.Name) and isinstance(local.get(v.id), ast.Dict):
+                            v = local[v.id]
+                        if isinstance(v, ast.Dict):
+                            names, bad = _dict_keys(v, local)
+                            found(names)
+                            computed |= {(rel, b) for b in bad}
+                        else:
+                            computed.add((rel, ast.unparse(v)))
     return keys, computed
 
 
@@ -120,4 +123,4 @@ def test_unknown_measurements():
     assert unknown_measurements({"secs": 1, "finish_reason": "eos"}) == ["secs", "finish_reason='eos'"]
     assert "length" in FINISH_REASONS and all(MEASUREMENTS.values())
     # measurements are not validated on the model: page records of other producers read as they are
-    assert StepInfo(step="x", name="y", measurements={"other": 1}).measurements == {"other": 1}
+    assert Annotator(step="x", name="y", measurements={"other": 1}).measurements == {"other": 1}

@@ -15,9 +15,11 @@ class RatiosTypographyEngine(RuleEngine):
 
     The rules of ``linecaster.text.typography``. Heading levels from the type size, section headers in body
     type made text, headlines split off the text region they were merged into, drop capitals joined to their line,
-    uncertain page numbers removed. The rules cover every script that is set in lines of type sizes. Every threshold is
-    an option, the ``ratios`` preset's values the defaults. The step records its counts (``leveled``, ``demoted``, ``split``,
-    ``drop_capitals``, ``numbers_dropped``).
+    uncertain page numbers removed; each decision an annotation by the call's annotator (role and heading-level
+    classifications, a headline region with ``part_of`` links, a ``joined`` edit, ``status`` ``removed``, a new
+    reading order), nothing that was there changed. The rules cover every script that is set in lines of type sizes.
+    Every threshold is an option, the ``ratios`` preset's values the defaults. The annotator records the counts
+    (``leveled``, ``demoted``, ``split``, ``drop_capitals``, ``numbers_dropped``).
 
     Args:
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
@@ -51,6 +53,7 @@ class RatiosTypographyEngine(RuleEngine):
 
     def __call__(self, t: Transcription, **options) -> Transcription:
         o = self.configured(options)
-        stats = T.retype(t, ratios=self.ratios(o))
-        t.steps.append(self.step_info(o, measurements=stats.counts()))
+        a = self.annotate(t, o)
+        stats = T.retype(t, ratios=self.ratios(o), annotator=a)
+        t.annotators[a].measurements.update(stats.counts())
         return t

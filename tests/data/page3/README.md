@@ -11,5 +11,5 @@ Two pages of a fake item (`library.test_item1`), written by hand to the data mod
 | an illegible character | page 12: U+FFFD in `l4`, `status` `illegible` |
 | a footnote without a box, and its mark in the text | page 12: `r3` (role `footnote`), the `note_of` link to the mark's span |
 | a word divided across lines, and across pages | page 12: the `joined` edits on `l4` and `l5` (the second names `library.test_item1_0013#l1[0:3]`) |
-| a paragraph continued on the next page | range `s12.r2.p1` on both pages |
+| a paragraph continued on the next page | paragraph `r2_p0` on both pages, linked (`runs_into`, `continues`) |
 | a model's output for the same page: raw output, boxes, roles from its labels, a figure's description | page 12: `ocr_new` |

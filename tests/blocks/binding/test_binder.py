@@ -18,7 +18,7 @@ def _docs(item="b1", count=True):
     docs = [page_doc(page_id=f"{item}-{n}", item=item, t=t, seq=n) for n, t in enumerate(pages, start=1)]
     for d in docs:
         if count:
-            d.metadata["page"]["metadata"]["item_page_count"] = 2
+            d.metadata["page"].setdefault("metadata", {})["item_page_count"] = 2
     return docs
 
 
@@ -40,9 +40,10 @@ def test_the_splitter_passes_on_the_pages_with_what_the_item_added():
     pages = list(Splitter().run(iter([item])))
     assert [d.id for d in pages] == ["b1-1", "b1-2"]
     first, second = (page_of(d).transcriptions["ocr_new"] for d in pages)
-    body = next(p for p in first.paragraphs if p.region_id == "text_1")
-    assert body.continues.page_id == "b1-2" and second.paragraphs[0].continues_from.page_id == "b1-1"
-    assert pages[0].text == first.text and first.steps[-1].step == "recomposition"
+    body = next(p for p in first.paragraphs if p.region == "text_1")
+    assert first.link(body.id, "runs_into") == "b1-2#text_1_p0"
+    assert second.link(second.paragraphs[0].id, "continues") == f"b1-1#{body.id}"
+    assert pages[0].text == first.text and first.annotators[-1].step == "recomposition"
 
 
 def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):

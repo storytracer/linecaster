@@ -1,5 +1,5 @@
-"""``UnicodeNormalizer``: the as-written layer in one Unicode normalization form (default NFC), right after
-recognition (see ``linecaster.text.unicode`` for why it is a step of its own)."""
+"""``UnicodeNormalizer``: the as-written layer in Unicode NFC, right after recognition, as ``nfc`` edits (see
+``linecaster.text.unicode`` for why it is a step of its own)."""
 from __future__ import annotations
 
 from ...data.page import Page
@@ -9,22 +9,21 @@ from ..base.page import PageBlock
 
 
 class UnicodeNormalizer(PageBlock):
-    """Normalizes the as-written text of every line and word to one Unicode normalization form, NFC by default.
+    """Gives the as-written text of every line and word its Unicode NFC form, as an ``nfc`` edit where it differs.
 
     Right after recognition (``linecaster.text.unicode`` says why it is a step of its own): canonical equivalence
-    only, never a compatibility form (NFKC folding belongs to the readable text variants). Reads ``text``; adds
-    ``nfc``; replaces ``text`` (in place). A page without the transcription passes unchanged; stat
-    ``strings_changed`` counts the strings that changed.
+    only, never a compatibility form (NFKC folding belongs to the readable text variants). The readings stay as the
+    recognizer gave them; ``Transcription.text_of`` and the page's text read the edits. Reads ``text``; adds
+    ``nfc``. A page without the transcription passes unchanged; stat ``strings_changed`` counts the edits.
 
     Args:
         transcription: the transcription to normalize; also the datatrove document's ``text``.
-        form: ``NFC`` or ``NFD``; any other form is refused (``PipelineConfigError``).
+        form: ``NFC``; any other form is refused (``PipelineConfigError``).
     """
 
     name = "unicode normalizer"
     parts_read = ("text",)
     parts_added = ("nfc",)
-    parts_replaced = ("text",)
 
     def __init__(self, transcription: str = "ocr_new", form: str = "NFC"):
         if form not in FORMS:

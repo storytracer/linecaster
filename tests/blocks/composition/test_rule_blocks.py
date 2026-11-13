@@ -1,5 +1,5 @@
 """The blocks of the rule-based steps on their engines: a preset or an engine spec with options over it, in-process
-only, a step record per call (engine, preset edition and hash, seconds, datetime), the page and the item unit."""
+only, an annotator per call (engine, preset edition and hash, seconds, datetime), the page and the item unit."""
 from __future__ import annotations
 
 import pytest
@@ -14,6 +14,8 @@ from linecaster.blocks.text import CharacterNormalizer
 from linecaster.blocks.writers import ItemDocumentWriter
 from linecaster.catalog.registry import catalog
 from linecaster.errors import PipelineConfigError
+from linecaster.text.recomposition import paragraphs
+from linecaster.text.variants import normalize
 
 
 def run(blocks, docs):
@@ -47,14 +49,15 @@ def test_each_block_records_its_step():
     (doc,) = run([Typographer("ratios@1"), Recomposer("unicode-recomposition@1"),
                   CharacterNormalizer("latin-historic@1"), Composer("docling-composition@1")], [page_doc()])
     t = page_of(doc).transcriptions["ocr_new"]
-    steps = [(s.step, s.engine, s.preset) for s in t.steps]
-    assert steps == [("typography", "typography.ratios.v1", "ratios@1"),
-                     ("recomposition", "recomposition.unicode.v1", "unicode-recomposition@1"),
-                     ("normalization", "normalization.latin-historic.v1", "latin-historic@1"),
-                     ("composition", "composition.docling.v1", "docling-composition@1")]
-    assert all({"seconds", "datetime"} <= set(s.measurements) and s.preset_sha256 for s in t.steps)
-    assert t.paragraphs and all(p.normalized is not None for p in t.paragraphs)
-    assert t.docling["name"] == "p1"
+    added = t.annotators[1:]                        # after the page's own (the layout's)
+    steps = [(s.kind, s.step, s.engine, s.preset) for s in added]
+    assert steps == [("rule", "typography", "typography.ratios.v1", "ratios@1"),
+                     ("rule", "recomposition", "recomposition.unicode.v1", "unicode-recomposition@1"),
+                     ("rule", "normalization", "normalization.latin-historic.v1", "latin-historic@1")]   # composing adds none
+    assert all({"seconds", "datetime"} <= set(s.measurements) and s.preset_sha256 for s in added)
+    assert t.paragraphs and all(p.annotator == 2 for p in t.paragraphs)
+    assert all(e.annotator == 3 and e.kind == "normalized" for e in t.edits)
+    assert doc.metadata["docling"]["name"] == "p1"
 
 
 def _item_docs():
@@ -62,7 +65,7 @@ def _item_docs():
              page_t(2, ["the north, where the ice waited.", "Nobody spoke."])]
     docs = [page_doc(page_id=f"b1-{n}", item="b1", t=t, seq=n) for n, t in enumerate(pages, start=1)]
     for d in docs:
-        d.metadata["page"]["metadata"]["item_page_count"] = 2
+        d.metadata["page"].setdefault("metadata", {})["item_page_count"] = 2
     return docs
 
 
@@ -80,11 +83,12 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
     assert bool(item.metadata["docling"]["groups"]) is sections
     pages = item_pages(item)
     assert [p.page_id for p in pages] == ["b1-1", "b1-2"] and item.metadata[ITEM_KEY]["item_id"] == "b1"
-    steps = [[s.step for s in p.transcriptions["ocr_new"].steps] for p in pages]
-    assert steps == [(["recomposition"] if recomposed else []) + ["composition"]] * 2
+    steps = [[s.step for s in p.transcriptions["ocr_new"].annotators[1:]] for p in pages]
+    assert steps == [(["recomposition"] if recomposed else [])] * 2          # composing adds none
     if recomposed:
         first, second = (p.transcriptions["ocr_new"] for p in pages)
-        assert first.paragraphs[1].continues.page_id == "b1-2" and second.paragraphs[0].continues_from.page_id == "b1-1"
+        assert first.link(first.paragraphs[1].id, "runs_into") == f"b1-2#{second.paragraphs[0].id}"
+        assert second.link(second.paragraphs[0].id, "continues") == f"b1-1#{first.paragraphs[1].id}"
     list(ItemDocumentWriter(str(tmp_path), formats=("md", "json"), by_format=True).run(iter([item])))
     assert (tmp_path / "md" / "b1.md").read_text().startswith("#") and (tmp_path / "json" / "b1.json").exists()
 
@@ -98,7 +102,9 @@ def test_the_item_recomposition_makes_the_paragraphs_anew():
     (flowed,) = run(item, docs)
     (fresh,) = run(item, _item_docs())
     assert flowed.metadata["docling"] == fresh.metadata["docling"] and "turned to the north" in flowed.text
-    assert all(page_of(d).transcriptions["ocr_new"].steps[-1].step == "recomposition" for d in docs)   # untouched
+    pages = [p.transcriptions["ocr_new"] for p in item_pages(flowed)]
+    assert [sum(r.kind == "paragraph" for r in t.ranges) for t in pages] == [2 * len(paragraphs(t)) for t in pages]   # the earlier ones stay
+    assert all(page_of(d).transcriptions["ocr_new"].annotators[-1].step == "recomposition" for d in docs)   # untouched
 
 
 def test_the_normalizer_on_item_records():
@@ -106,6 +112,7 @@ def test_the_normalizer_on_item_records():
                    CharacterNormalizer("latin-historic@1", unit="item")], _item_docs())
     for p in item_pages(item):
         t = p.transcriptions["ocr_new"]
-        assert t.steps[-1].preset == "latin-historic@1" and all(x.normalized is not None for x in t.paragraphs)
+        assert t.annotators[-1].preset == "latin-historic@1"
+        assert paragraphs(t) and all((t.edit(x.id, ("normalized",)) or x.text) == normalize(x.text) for x in paragraphs(t))
     with pytest.raises(PipelineConfigError):
         CharacterNormalizer("latin-historic@1", unit="book")

@@ -15,7 +15,7 @@ class Splitter(Contracted, PipelineStep):
 
     Each page is a page document again (``doc.id`` the page id, ``doc.metadata["page"]``, ``doc.text`` the text of
     ``primary``) carrying what the item-level blocks added to it: the paragraphs of an item-level ``Recomposer``
-    (continued across pages, the references naming the other page), the normalized texts, the step records. It
+    (continued across pages, the links naming the other page), the normalized texts, the annotators. It
     changes the stream's unit from items to pages. The item's own parts (its ``document``) stay with the item; the
     pages carry no image bytes (``PageRecordReader`` fetches them again by URI). A stream entry that is no item
     record is counted (``no_item``) and not passed on.
