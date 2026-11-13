@@ -376,7 +376,7 @@ def main(argv: list[str] | None = None) -> None:
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas"])
-    c.add_argument("ref", nargs="?", help="preset or recipe id[@edition] (show, release; show also takes an "
+    c.add_argument("ref", nargs="?", help="preset, recipe or rendering policy id[@edition] (show: a preset or recipe; release; show also takes an "
                                           "edition's sha256, today's or from before a migration) or model id (pin)")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")

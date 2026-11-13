@@ -2470,29 +2470,18 @@ recipes:
     pipeline_sha256: sha256:b0d7535a1a081c7f0519a1d55e93e308b009aff876ffaba876fbf8fa97faa299
 policies:
   page-layers@1:
-    sha256: sha256:6b0716fa4bf1f238169eb18fbb15f67c5e16bf1e7d37ce0de7ab7de9e1c3fadd
+    sha256: sha256:681c4c720182dedf99fc1b698b539b6ce74219e8eac0e1a8c0e7ec02e6f99ae4
     released: '2026-11-13'
-    linecaster: be932b80aac8e9f7a30b76503c649d17b1a497c0
+    linecaster: c71534eb887a029c1bbf78fdc28fa9aed13586d0
     resolved:
       id: page-layers
-      edition: 1
       rules:
-      - role: null
-        production: null
-        status: suppressed
-        motivation: null
+      - status: suppressed
         to: none
-      - role: null
-        production: null
-        status: duplicate
-        motivation: null
+      - status: duplicate
         to: none
-      - role: null
-        production: null
-        status: removed
-        motivation: null
+      - status: removed
         to: none
-      precedence: {}
       edits:
         verbatim_txt:
         - nfc

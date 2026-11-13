@@ -267,7 +267,7 @@ def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: i
 
     Regions become ``ocr_carea`` (or their label's class), lines ``ocr_line`` with their words as ``ocrx_word``
     (boxes, ``x_wconf``, baselines), the model and rule annotators ``linecaster-step-<n>`` metas; regions the
-    default rendering policy puts nowhere are left out with their lines. With
+    rendering policy (``policy``) puts nowhere are left out with their lines. With
     ``extensions`` what hOCR cannot hold goes into a linecaster data attribute, so ``from_hocr`` reads it back.
 
     Args:

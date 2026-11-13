@@ -139,7 +139,7 @@ One measurement per file, kept by the evaluation:
 | `date`, `notes` | |
 
 `linecaster.evidence/1` records stay readable; `linecaster evidence check` validates a file of either edition, and
-`linecaster scores compare` puts evidence records side by side, only those with the same benchmark edition, policy,
+`linecaster evidence compare` puts evidence records side by side, only those with the same benchmark edition, policy,
 lanes and scorer.
 
 ## Run records

@@ -64,8 +64,10 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
             continue
         add("classifying", _body(t.role(r.id) or "paragraph", "classifying"), _target(canvas, r.box), r.annotator)
     if isinstance(t, Transcription):
-        for ln in t.ordered_lines():
-            if ln.reading is None or t.region_of(ln) in hidden:
+        hidden_lines = {c.target for c in t.classifications if c.scheme == "status"
+                        and policy.layer(None, status=c.value) == "none"}
+        for ln in t.ordered_lines(hidden=True):
+            if ln.reading is None or t.region_of(ln) in hidden or ln.id in hidden_lines:
                 continue
             line_ids[ln.id] = add("supplementing", _body(t.text_of(ln), language=language),
                                   _target(canvas, ln.box or (t.region(t.region_of(ln)).box

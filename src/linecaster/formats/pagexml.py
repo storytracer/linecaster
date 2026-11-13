@@ -256,7 +256,7 @@ def to_page(t: Transcription, *, image_width: int | None = None, image_height: i
     Regions become ``TextRegion``s (``ImageRegion``, ``ChartRegion``, ``TableRegion``, ``MathsRegion`` for
     picture, chart, table and formula regions without lines), lines ``TextLine``s with their words, the reading
     order an ``OrderedGroup``, the model and rule annotators ``MetadataItem``s (the mapping:
-    ``docs/reference/serialization.md``); regions the default rendering policy puts nowhere are left out with
+    ``docs/reference/serialization.md``); regions the rendering policy (``policy``) puts nowhere are left out with
     their lines. With ``extensions`` what PAGE cannot hold goes into a ``UserDefined``
     extension, so ``from_page`` reads it back.
 

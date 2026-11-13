@@ -56,8 +56,8 @@ master), `decoder`, `extra`.
 
 ### A page in a pipeline
 
-A page is one datatrove `Document`: `id` is the page id, `text` the primary transcription's text rendered under the
-run's policy, `media[0]` the image bytes, `metadata["page"]` the page record.
+A page is one datatrove `Document`: `id` is the page id, `text` the primary transcription's text
+(`Transcription.text`, under the default policy), `media[0]` the image bytes, `metadata["page"]` the page record.
 
 **A page's time in the run** is on its record, `Page.measurements`: `seconds`, the wall time from when the reader
 handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
@@ -172,7 +172,7 @@ confidence:
 | `output` | the index of the raw output it was parsed from, if any |
 | `derived_from` | [references](#references) to what it was made from (PROV's `wasDerivedFrom`): a paragraph's lines, an edit's source, a classification's evidence |
 | `confidence` | the annotator's confidence, 0 to 1, if it gave one |
-| `<ns>__<field>` | extension fields, namespaced (`lighton__continuation`); linecaster's own code writes none |
+| `<ns>__<field>` | extension fields, namespaced: an adapter's or a step's own (`lighton__continuation`, `typography__reason`), never shared vocabulary |
 
 | Class | Motivation | Target | Is |
 |---|---|---|---|
@@ -258,7 +258,7 @@ data per engine (each engine's label map), applied by the annotator that made th
 ### Descriptions
 
 A `Description` is text an annotator wrote about a zone that is not printed on the page (a VLM's description of a
-figure, an editor's note): `target`, `kind` (`description`, `note`), `text`, `format` (`text`, `markdown`, `html`).
+figure, chart data it read off, an editor's note): `target`, `kind` (`description`, `data`, `note`), `text`, `format` (`text`, `markdown`, `html`).
 docling-core's `DescriptionMetaField`.
 
 ### Edits
@@ -374,8 +374,8 @@ The `role` scheme's vocabulary, the **content roles**, is PAGE-XML's region type
 | `page_number` | `page-number` | `page_header`, `page_footer` | furniture |
 | `catch_word` | `catch-word` | `page_footer` | furniture |
 | `signature_mark` | `signature-mark` | `page_footer` | furniture |
-| `separator` | `SeparatorRegion` | none | none |
-| `noise` | `NoiseRegion` | none | none |
+| `separator` | `SeparatorRegion` | `picture` | none |
+| `noise` | `NoiseRegion` | `picture` | none |
 | `other` | `other` | `text` | body |
 
 A content role says what the content is, not where it is rendered: the layers in the last column are the default
@@ -398,7 +398,9 @@ metadata) and `none`.
 | `edits` | which edits a text variant applies, by variant (`readable_txt: [nfc, joined, normalized]`) |
 
 The default policy, `page-layers@1`, gives every role its default layer, `status` `suppressed`, `duplicate` and
-`removed` → `none`, descriptions → `metadata`, and prefers typography's roles over the layout's. A run names its
+`removed` → `none`, descriptions → `metadata`; without `precedence` the latest annotator's classifications count
+(typography's over the layout's). Its `verbatim_txt` applies `nfc` and `joined` (a drop capital joined to its line),
+the readable variants also `normalized`. A run names its
 policy (`--policy`); without one it uses the default, and the run record says which.
 
 Renderings are made from a set under a policy and are not stored: the Docling document (`linecaster.formats.docling`,
@@ -411,7 +413,7 @@ Three variants per item, each a choice of layers and edits from the policy:
 
 | Variant | Layers | Edits | Flow |
 |---|---|---|---|
-| `verbatim_txt` | body, furniture | `nfc` | as laid out: each page's readings in reading order, tables as Markdown or HTML, pages joined with a form feed |
+| `verbatim_txt` | body, furniture | `nfc`, `joined` | as laid out: each page's readings in reading order, tables as Markdown or HTML, pages joined with a form feed |
 | `readable_txt` | body | `nfc`, `joined`, `normalized` | flowed: the item's paragraphs, a paragraph's pieces joined with their separator, tables one row per line with tab-separated cells, a formula's LaTeX |
 | `readable_md` | body | as `readable_txt` | the same as Markdown: `#` title, `##` heading (by heading level), `- ` list item, tables as pipe tables (HTML when a cell spans) |
 

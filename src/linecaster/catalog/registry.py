@@ -201,11 +201,13 @@ class Catalog:
         entry = d.lock.policies.get(f"{pid}@{edition}")
         if entry is None:
             raise CatalogError(f"rendering policy {pid}@{edition} is not released")
-        return RenderingPolicy(**entry.resolved)
+        return RenderingPolicy(**{**entry.resolved, "edition": edition})
 
     @staticmethod
     def policy_functional(doc: PolicyDoc) -> dict:
-        return doc.policy().model_dump(mode="json")
+        """A policy's functional content: what its YAML states (defaults left out), so that a new optional field
+        keeps the released editions' hashes."""
+        return doc.policy().model_dump(mode="json", exclude_defaults=True)
 
     def model(self, mid: str) -> ModelDoc:
         try:

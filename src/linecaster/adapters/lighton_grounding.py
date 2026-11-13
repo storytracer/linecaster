@@ -11,9 +11,8 @@ all by the step's annotator and naming the output they were parsed from:
 
 * **Labels** (``LABELS``): the model's label is the region's ``label``, verbatim; its content role
   (``linecaster.data.policy.ROLES``) a ``role`` classification: ``header`` and ``footer`` are ``header`` and
-  ``footer`` (page furniture); ``page_number`` is ``page_number``, whose Docling label is ``page_header`` in the top
-  half of the page and ``page_footer`` below (``linecaster.data.policy.docling_label``; 0.7.4 put the line at the top
-  15 %); ``aside_text`` is ``marginalia`` (body text, as PP-DocLayout's ``aside_text``); ``title`` (document,
+  ``footer`` (page furniture); ``page_number`` is ``page_number``, whose Docling label is ``page_header`` when its
+  centre lies in the top 15 % of the page and ``page_footer`` below (``linecaster.data.policy.docling_label``); ``aside_text`` is ``marginalia`` (body text, as PP-DocLayout's ``aside_text``); ``title`` (document,
   section and paragraph headings) is ``heading`` with a ``heading_level`` classification, the number of ``#`` it
   starts with (the ``#`` taken off the text). A label the card does not name is kept as the region's label,
   classified ``other`` and counted (``unknown``).

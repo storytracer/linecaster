@@ -257,8 +257,8 @@ def to_alto(t: Transcription, *, image_width: int | None = None, image_height: i
 
     Regions become ``TextBlock``s (an ``Illustration`` for a picture or chart region without lines), lines
     ``TextLine``s with their words as ``String``s, the reading order an ``OrderedGroup``, the model and rule
-    annotators ``Processing`` entries (the mapping: ``docs/reference/serialization.md``); regions the default
-    rendering policy puts nowhere are left out with their lines. With ``extensions``
+    annotators ``Processing`` entries (the mapping: ``docs/reference/serialization.md``); regions the rendering
+    policy (``policy``) puts nowhere are left out with their lines. With ``extensions``
     what ALTO has no place for (line confidence, detection scores, heading level, ...) goes into linecaster's
     per-element extension where a reader would infer something else, so ``from_alto`` reads it back.
 

@@ -512,8 +512,10 @@ def from_docling(source, page_no: int | None = None, ground_truth: bool = False,
         box = None
         if prov:
             b = prov[0].bbox
-            if b.coord_origin != CoordOrigin.TOPLEFT and height:
-                b = b.to_top_left_origin(height)
+            page = doc.pages.get(prov[0].page_no)
+            h = page.size.height if page is not None else height
+            if b.coord_origin != CoordOrigin.TOPLEFT and h:
+                b = b.to_top_left_origin(h)
             if b.coord_origin == CoordOrigin.TOPLEFT:
                 box = [b.l, b.t, b.r - b.l, b.b - b.t]
         label = str(getattr(item.label, "value", item.label))
@@ -522,7 +524,9 @@ def from_docling(source, page_no: int | None = None, ground_truth: bool = False,
                      heading_level=item.level if isinstance(item, SectionHeaderItem) else None)
         order.append(rid)
         if isinstance(item, TableItem):
-            t.tables.append(from_table_data(item.data, a, rid, page_height=height))
+            page = doc.pages.get(prov[0].page_no) if prov else None
+            t.tables.append(from_table_data(item.data, a, rid,
+                                            page_height=page.size.height if page is not None else height))
             text = " ".join(c.text for c in item.data.table_cells if c.text)
             texts = [text] if text else []
         else:

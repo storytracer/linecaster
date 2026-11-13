@@ -325,6 +325,12 @@ written, the run record naming `squiddle@1` and its hash.
 
 ## Open items
 
+- **Content roles in the page files** (2026-11-13): ALTO, PAGE-XML and hOCR write a region's Docling label, so a role
+  without one of its own comes back as the role of its label (marginalia as paragraph, page_number as header,
+  endnote as footnote). PAGE-XML has region types for marginalia, page-number, endnote and others: writing the PAGE
+  type of the role (`ROLES`) and reading it back would keep them. The page files also resolve labels, levels and
+  orders by the latest annotator, not by a policy's `precedence`.
+
 - **Ray Serve is the model server of choice for the future (decided 2026-11-12, not to be built yet).** Today each
   task starts its own server (`ModelServer`, `ChatModelServer`) and holds a GPU for its whole duration, also while it
   works on the CPU. Ray Serve would make a cluster's GPUs one pool of model replicas that the tasks call, so GPUs that
