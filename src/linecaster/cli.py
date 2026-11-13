@@ -138,6 +138,64 @@ def _broker_action(a) -> None:
     _report_removed(a, result, broker.CLEANED)
 
 
+def _score(a) -> None:
+    """``linecaster score``: a run's page records against a ground truth's, by a benchmark: score records
+    (Parquet) and one evidence record."""
+    from pathlib import Path
+
+    from .catalog import yamlio
+    from .catalog.registry import rendering_policy
+    from .scoring.benchmark import Benchmark
+    from .scoring.evidence import evidence, write_evidence
+    from .scoring.run import score_run, write_scores
+
+    bench = Benchmark.model_validate(yamlio.read(a.benchmark))
+    pages = Path(a.run) / "pages" if (Path(a.run) / "pages").is_dir() else Path(a.run)
+    result = score_run(pages, a.truth, bench, transcription=a.transcription, policy=rendering_policy(bench.policy))
+    out = Path(a.out) if a.out else Path(a.run) / "scores"
+    write_scores(result["records"], out / "scores.parquet")
+    ev = evidence(result, bench, a.run, preset=a.preset, context=a.context)
+    write_evidence(ev, out / "evidence.yaml")
+    for name, m in sorted(result["rates"].items()):
+        lo, hi = m.get("lo"), m.get("hi")
+        interval = f" [{lo:.4f}, {hi:.4f}]" if lo is not None else ""
+        print(f"{name:32s} {m['value']:.4f}{interval}" if m["value"] is not None else f"{name:32s} -")
+    print(f"pages {result['pages_scored']}, missing {result['missing']}, failed {result['failed']}; "
+          f"{'eligible' if result['eligible'] else 'NOT eligible'}; {out}")
+
+
+def _evidence(a) -> None:
+    """``linecaster evidence check|compare``: evidence records validated, or put side by side."""
+    from .catalog import yamlio
+    from .catalog.schema import Evidence2, read_evidence
+
+    records = []
+    for path in a.files:
+        try:
+            records.append((path, read_evidence(yamlio.read(path))))
+        except Exception as e:  # noqa: BLE001 - name the file
+            sys.exit(f"{path}: {e}")
+    if a.action == "check":
+        for path, ev in records:
+            print(f"{path}: {ev.schema_} {ev.subject} OK")
+        return
+    new = [(p, e) for p, e in records if isinstance(e, Evidence2)]
+    if len(new) != len(records):
+        sys.exit("compare: only linecaster.evidence/2 records say how they were scored")
+    base = new[0][1]
+    apart = [p for p, e in new[1:] if not base.comparable(e)]
+    if apart:
+        sys.exit(f"not scored like {new[0][0]} (benchmark, policy, lanes or scorer differ): {', '.join(apart)}")
+    names = sorted({k for _, e in new for k in e.metrics})
+    print("metric".ljust(32) + "".join(e.subject[:24].rjust(26) for _, e in new))
+    for k in names:
+        row = []
+        for _, e in new:
+            m = e.metrics.get(k)
+            row.append(("-" if m is None or m.value is None else f"{m.value:.4f}").rjust(26))
+        print(k.ljust(32) + "".join(row))
+
+
 def _images(a) -> None:
     """``linecaster images compare``: a GPU decode against Pillow's, per image (JSON lines) and in sum."""
     import json as _json
@@ -350,6 +408,19 @@ def main(argv: list[str] | None = None) -> None:
                    help="group the time per page by block, preset edition or task")
     t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
     t.add_argument("--json", action="store_true", help="the report as JSON")
+    sc = sub.add_parser("score", help="score a run's page records against a ground truth's, by a benchmark: score "
+                                      "records and an evidence record (docs/reference/evaluation.md)")
+    sc.add_argument("run", help="the run folder (OUT) or its pages/")
+    sc.add_argument("truth", help="the ground truth's page records")
+    sc.add_argument("--benchmark", required=True, help="the benchmark definition (linecaster.benchmark/1 YAML)")
+    sc.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
+    sc.add_argument("--preset", help="the preset edition measured (id@edition), when the run follows no recipe")
+    sc.add_argument("--context", help="for a preset measured inside a pipeline: the rest of it")
+    sc.add_argument("--out", help="where scores.parquet and evidence.yaml go; default RUN/scores")
+    ev = sub.add_parser("evidence", help="evidence records: check (validate) or compare (side by side, only those "
+                                         "scored the same way)")
+    ev.add_argument("action", choices=["check", "compare"])
+    ev.add_argument("files", nargs="+", help="evidence record files (YAML)")
     i = sub.add_parser("images", help="image codecs: how a GPU decode compares with Pillow's (compare)")
     isub = i.add_subparsers(dest="action", required=True)
     ic = isub.add_parser("compare", help="decode each image on the GPU and with Pillow, the same colour handling after "
@@ -404,6 +475,10 @@ def main(argv: list[str] | None = None) -> None:
             _broker(a)
         elif a.command == "images":
             _images(a)
+        elif a.command == "score":
+            _score(a)
+        elif a.command == "evidence":
+            _evidence(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))

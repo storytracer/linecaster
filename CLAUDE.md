@@ -47,10 +47,10 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **datatrove and saturate are the integration and required dependencies**: `datatrove[io,s3]>=0.10.1,<0.11` (it has
   `JobsPipelineExecutor`; its `s3` extra is s3fs, so `s3://` paths need no extra of linecaster's) and `saturate==0.3.0` (0.x changes without deprecation). linecaster adds only what they
   lack.
-- **The data model, the formats, the text transforms, the image helpers and the built-in engines**
-  (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`) **import
-  neither datatrove nor saturate, nor linecaster's blocks or runtime** (`tests/test_import_rule.py`). Derivatives
-  use them without the pipeline machinery.
+- **The data model, the formats, the text transforms, the image helpers, the built-in engines and the scorer**
+  (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
+  `linecaster.scoring`) **import neither datatrove nor saturate, nor linecaster's blocks or runtime**
+  (`tests/test_import_rule.py`). Derivatives and evaluations use them without the pipeline machinery.
 - **A light core**: no kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as an extra, and no
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,
   `-exporter-otlp-proto-http`, with protobuf), required because tracing is always on. Engines bring their own

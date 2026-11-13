@@ -1,6 +1,6 @@
 """The import rules. The data model, the formats, the text transforms, the image helpers and the built-in rule-based
-engines (every module of ``linecaster.data``, ``linecaster.formats``, ``linecaster.text``, ``linecaster.images`` and
-``linecaster.engines``) load neither datatrove nor saturate, nor linecaster's blocks or runtime; checked in a fresh
+engines and the scorer (every module of ``linecaster.data``, ``linecaster.formats``, ``linecaster.text``,
+``linecaster.images``, ``linecaster.engines`` and ``linecaster.scoring``) load neither datatrove nor saturate, nor linecaster's blocks or runtime; checked in a fresh
 interpreter, so nothing another test imported counts. The engine packages (``engines/*``) import from linecaster
 only the data model and the engine API (``linecaster.engines.api``), read with ``ast``."""
 import ast
@@ -9,7 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.images", "linecaster.engines")
+LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.images", "linecaster.engines",
+         "linecaster.scoring")
 HEAVY = ("datatrove", "saturate", "linecaster.blocks", "linecaster.runtime")
 
 CHECK = f"""

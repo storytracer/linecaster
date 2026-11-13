@@ -17,6 +17,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..data.policy import RenderingPolicy
+from ..scoring.benchmark import Benchmark
 from ..errors import CatalogError
 from ..runtime.record import RunRecord
 
@@ -354,6 +355,95 @@ class Evidence(_Doc):
         return self.preset or self.recipe
 
 
+class EvidenceRun(_Doc):
+    """The run an evidence record measured: where its run folder is, and the hashes that name what ran."""
+
+    uri: str | None = Field(None, description="the run folder (OUT)")
+    run_id: str | None = Field(None, description="the run record's run_id, stamped on every annotator it added")
+    pipeline_sha256: str | None = Field(None, description="the run record's pipeline_sha256")
+    record_sha256: str | None = Field(None, description="sha256 of the run record file (run.yaml)")
+
+
+class EvidenceBenchmark(_Doc):
+    ref: str = Field(description="the benchmark edition: id@edition")
+    sha256: str = Field(description="the benchmark's hash (linecaster.scoring.benchmark.Benchmark.sha256)")
+
+
+class EvidenceScoring(_Doc):
+    """How the run was scored: two records are comparable when these and the benchmark are the same."""
+
+    policy: str = Field(description="the rendering policy edition both sides were rendered with")
+    lanes: list[str] = Field(description="the lane editions")
+    scorer: str = Field(description="linecaster's scorer edition (linecaster.scoring.SCORER)")
+    linecaster: str | None = Field(None, description="the linecaster version and commit that scored")
+
+
+class Metric(_Doc):
+    value: float | None
+    lo: float | None = None
+    hi: float | None = None
+    n: int | None = Field(None, description="the pages it was computed over")
+
+
+class EvidenceHardware(_Doc):
+    gpu: list[str] = Field(default_factory=list)
+    gpu_count: int | None = None
+    driver: str | None = None
+    cuda: str | None = None
+    cpu: str | None = None
+    machine: str | None = None
+
+
+class Evidence2(_Doc):
+    """One measurement of a preset or recipe edition (``linecaster.evidence/2``): ``evidence/1`` with the run, the
+    benchmark and the scoring named structurally, metrics with their intervals, the hardware as fields. Kept by an
+    evaluation, never in linecaster's catalog."""
+
+    schema_: Literal["linecaster.evidence/2"] = Field(alias="schema")
+    preset: str | None = Field(None, description="the preset edition measured: id@edition")
+    recipe: str | None = Field(None, description="or the recipe edition measured: id@edition")
+    context: str | None = Field(None, description="for a preset measured inside a pipeline: the rest of it")
+    source: Literal["own-run", "card-claim", "vendor-benchmark"]
+    run: EvidenceRun | None = None
+    benchmark: EvidenceBenchmark | None = Field(None, description="the benchmark it was scored by (own runs)")
+    dataset: str | None = Field(None, description="for claims without a benchmark: repo@revision or a description")
+    scoring: EvidenceScoring | None = None
+    metrics: dict[str, Metric]
+    counts: dict[str, int] = Field(default_factory=dict, description="pages scored, missing, failed, ...")
+    date: dt.date
+    hardware: EvidenceHardware | None = None
+    software: dict[str, str] = Field(default_factory=dict)
+    notes: str | None = None
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    _ref = field_validator("preset", "recipe")(Evidence._ref.__func__)
+
+    @model_validator(mode="after")
+    def _one(self):
+        if (self.preset is None) == (self.recipe is None):
+            raise ValueError("evidence measures one preset or one recipe edition")
+        if self.source == "own-run" and (self.benchmark is None or self.scoring is None):
+            raise ValueError("an own run's evidence names its benchmark and its scoring")
+        return self
+
+    @property
+    def subject(self) -> str:
+        return self.preset or self.recipe
+
+    def comparable(self, other: "Evidence2") -> bool:
+        """Scored the same way: the same benchmark (hash), policy, lanes and scorer."""
+        return (self.benchmark is not None and other.benchmark is not None
+                and self.benchmark.sha256 == other.benchmark.sha256 and self.scoring is not None
+                and other.scoring is not None and (self.scoring.policy, self.scoring.lanes, self.scoring.scorer)
+                == (other.scoring.policy, other.scoring.lanes, other.scoring.scorer))
+
+
+def read_evidence(data: dict) -> Evidence | Evidence2:
+    """An evidence record of either edition, by its ``schema``."""
+    return (Evidence2 if data.get("schema") == "linecaster.evidence/2" else Evidence).model_validate(data)
+
+
 # ------------------------------------------------------------------------------------------------- lock
 
 class LockEntry(_Doc):
@@ -396,6 +486,8 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.recipe/1": RecipeDoc,
     "linecaster.policy/1": PolicyDoc,
     "linecaster.evidence/1": Evidence,
+    "linecaster.evidence/2": Evidence2,
+    "linecaster.benchmark/1": Benchmark,
     "linecaster.lock/2": Lock,
     "linecaster.run-record/1": RunRecord,
 }

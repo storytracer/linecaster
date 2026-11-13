@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bootstrap": {
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "resamples": {
+          "default": 1000,
+          "minimum": 0,
+          "title": "Resamples",
+          "type": "integer"
+        },
+        "level": {
+          "default": 0.95,
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "title": "Level",
+          "type": "number"
+        },
+        "over": {
+          "const": "items",
+          "default": "items",
+          "title": "Over",
+          "type": "string"
+        }
+      },
+      "title": "Bootstrap",
+      "type": "object"
+    },
+    "Dataset": {
+      "additionalProperties": false,
+      "description": "The ground truth: where it is and how it is read.",
+      "properties": {
+        "repo": {
+          "description": "the dataset, repo@revision (a revision always)",
+          "title": "Repo",
+          "type": "string"
+        },
+        "transcription": {
+          "default": "ground_truth",
+          "description": "the name of its transcription in the page records",
+          "title": "Transcription",
+          "type": "string"
+        },
+        "importer": {
+          "description": "what made the page records from the dataset: a linecaster reader (alto, page, hocr, docling, text, markdown) or the evaluation's own (module:function)",
+          "title": "Importer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "importer"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    },
+    "PageSet": {
+      "additionalProperties": false,
+      "description": "The pages scored: a sample rule (``linecaster.data.sample``) or an explicit list, with its hash.",
+      "properties": {
+        "rule": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a sample rule: seed, items, per_item, pages",
+          "title": "Rule"
+        },
+        "ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the page ids, when the set is a list",
+          "title": "Ids"
+        },
+        "sha256": {
+          "description": "sha256:<hex> of the page ids, sorted, one per line (data.sample.listing_sha256)",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha256"
+      ],
+      "title": "PageSet",
+      "type": "object"
+    },
+    "Supports": {
+      "additionalProperties": false,
+      "description": "What the ground truth has, so that metrics needing what it lacks are not computed.",
+      "properties": {
+        "roles": {
+          "description": "the content roles it marks",
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "boxes": {
+          "default": false,
+          "description": "its regions have boxes",
+          "title": "Boxes",
+          "type": "boolean"
+        },
+        "reading_order": {
+          "default": false,
+          "description": "it orders its blocks",
+          "title": "Reading Order",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": false,
+          "description": "it marks notes",
+          "title": "Notes",
+          "type": "boolean"
+        },
+        "continuations": {
+          "default": false,
+          "description": "it marks paragraphs continued across pages",
+          "title": "Continuations",
+          "type": "boolean"
+        }
+      },
+      "title": "Supports",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A benchmark definition (``linecaster.benchmark/1``).",
+  "properties": {
+    "schema": {
+      "const": "linecaster.benchmark/1",
+      "default": "linecaster.benchmark/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "edition": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Edition",
+      "type": "integer"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "dataset": {
+      "$ref": "#/$defs/Dataset"
+    },
+    "pages": {
+      "$ref": "#/$defs/PageSet"
+    },
+    "supports": {
+      "$ref": "#/$defs/Supports"
+    },
+    "policy": {
+      "default": "page-layers@1",
+      "description": "the rendering policy edition both sides are rendered with",
+      "title": "Policy",
+      "type": "string"
+    },
+    "texts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Texts",
+      "type": "array"
+    },
+    "lanes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Lanes",
+      "type": "array"
+    },
+    "metrics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Metrics",
+      "type": "array"
+    },
+    "bootstrap": {
+      "$ref": "#/$defs/Bootstrap"
+    },
+    "strata": {
+      "description": "page or item fields to report rates by",
+      "items": {
+        "type": "string"
+      },
+      "title": "Strata",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "dataset",
+    "pages"
+  ],
+  "title": "Benchmark",
+  "type": "object"
+}
