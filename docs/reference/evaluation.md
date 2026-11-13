@@ -12,6 +12,9 @@ ground truth ──import──► transcription (source.kind ground_truth) ─�
 run's page records ─────► transcription (ocr_new) ─────────────────┘
 ```
 
+Scoring is `linecaster.scoring` (import-light, like `linecaster.data`); its alignment needs the extra
+`linecaster[rapidfuzz]`.
+
 ## Ground truth
 
 A ground truth is a transcription like any other, stored in the page record under its name (`ground_truth`, or

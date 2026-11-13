@@ -50,6 +50,8 @@ ray = ["ray[default]>=2.40"]
 nvimgcodec = ["nvidia-nvimgcodec-cu13[nvjpeg,nvjpeg2k,nvtiff]>=0.10,<0.11"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
+# scoring against ground truths (linecaster.scoring): the codepoint alignment's edit operations
+rapidfuzz = ["rapidfuzz>=3.9"]
 
 [project.scripts]
 linecaster = "linecaster.cli:main"
