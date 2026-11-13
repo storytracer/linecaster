@@ -27,8 +27,9 @@ def _falcon(body):
 def test_falcon_conformance_and_request():
     with fake_service({"GET /health": lambda b: {}, "POST /falconocr/parse": _falcon}) as svc:
         out = check_engine(FalconRecognitionEngine, options={"endpoint": svc.url})
-        assert out.text == "# page\n800x400" and out.extra["raw"] == out.text
-        assert out.extra["regions_json"] == [{"label": "text"}] and out.steps[0].measurements["completion_tokens"] == 7
+        assert out.text == "# page\n800x400" and out.outputs[0].content == out.text
+        assert out.falcon__regions_json == [{"label": "text"}] and out.falcon__processing_ms == 12
+        assert out.annotators[0].measurements["completion_tokens"] == 7 == out.outputs[0].completion_tokens
         _, path, body = svc.requests[-1]
         assert path == "/falconocr/parse" and body["skip_layout"] is False
         engine = FalconRecognitionEngine(endpoint=svc.url)
@@ -54,7 +55,8 @@ def _oxr(form):
 def test_oxr_conformance_and_request():
     with fake_service({"GET /docs": lambda b: {}, "POST /v1/parse/sync": _oxr}) as svc:
         out = check_engine(OxrRecognitionEngine, options={"endpoint": svc.url})
-        assert out.text == "page 800x400\n![](imgs/a.png)" and out.extra["blocks_json"] == [{"type": "text"}]
+        assert out.text == "page 800x400\n![](imgs/a.png)" and out.oxr__blocks_json == [{"type": "text"}]
+        assert out.outputs[0].content == out.text and out.oxr__warnings == [] and out.oxr__processing_ms == 5
         _, path, form = svc.requests[-1]
         assert path == "/v1/parse/sync" and form["api_key"] == "dummy"
         assert form["output_formats"] == ["markdown", "json"]                 # one field per format

@@ -57,11 +57,11 @@ def test_serve_args_match_the_card():
 
 def test_parse_keeps_doctags_verbatim_and_converts_with_docling_core():
     t = chat_model("smoldocling-256m-preview").parse(completion(DOCTAGS), backend="served x")
-    assert t.extra["raw"] == DOCTAGS and t.text == DOCTAGS
+    assert t.outputs[0].content == DOCTAGS and t.text == DOCTAGS
     # furniture (running head, page number) kept, picture placeholder empty
-    assert t.extra["markdown"] == "APPENDIX\n\n205\n\nA female Orphean Warbler was shot."
+    assert t.smoldocling__markdown == "APPENDIX\n\n205\n\nA female Orphean Warbler was shot."
     assert to_markdown("  \n") == ""
-    m = t.steps[0]
+    m = t.annotators[0]
     assert (m.name, m.revision, m.measurements["finish_reason"]) == (MODEL, chat_model("smoldocling-256m-preview").revision, "stop")
 
 
@@ -73,5 +73,5 @@ def test_parse_keeps_the_page_when_conversion_fails(monkeypatch):
 
     monkeypatch.setattr(mod, "to_markdown", boom)
     t = chat_model("smoldocling-256m-preview").parse(completion("<doctag><text>x"))
-    assert t.extra["raw"] == "<doctag><text>x" and t.extra["markdown"] is None
-    assert t.extra["markdown_error"] == "ValueError: bad doctags"
+    assert t.outputs[0].content == "<doctag><text>x" and t.smoldocling__markdown is None
+    assert t.smoldocling__markdown_error == "ValueError: bad doctags"

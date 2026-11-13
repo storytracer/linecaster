@@ -15,11 +15,11 @@ whose boxes the block places on the page image at its full size (``ChatAdapter.p
     PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
     PageRecognizer("lightonocr-2-1b")             # a preset by name: Chat on the task's ChatModelServer
 
-Every result's ``StepInfo`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the
+Every result's ``Annotator`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the
 settings.
 
-The completion is kept verbatim (``Transcription.extra["raw"]``, and ``text`` equals it); its
-``finish_reason`` and token counts go to ``extra`` and ``StepInfo.measurements``. A completion cut
+The completion is kept verbatim (the transcription's ``RawOutput``, and ``text`` equals it for a text-only parse); its
+``finish_reason`` and token counts go to the raw output and the annotator's measurements. A completion cut
 off at ``max_tokens`` (``finish_reason == "length"``) is stored like any other and counted in the block's stats
 (``finish_length``). It may be a repetition loop, or a page that needs more tokens than ``max_tokens`` (a dense
 table) and finishes with more room; deciding what it means is for whoever scores or post-processes the text. With the
@@ -40,7 +40,7 @@ from loguru import logger
 
 from ...adapters import ENGINE
 from ...backends import Chat, InProcess, Served
-from ...data.transcription import StepInfo, Transcription
+from ...data.transcription import Line, RawOutput, Reading, Transcription
 from ...errors import CatalogError, PageError, PipelineConfigError, ServerError
 from ..base.contract import Contract, parts
 from ..base.model import ModelBlock, Passed, preset_backend, produces
@@ -79,26 +79,67 @@ def page_backend(backend, block: str) -> Chat | InProcess | Served:
     return backend
 
 
-def chat_step(t: Transcription | None) -> StepInfo | None:
-    """The last step of ``t`` a chat VLM recognized it in (engine ``chat.v1``), or ``None``."""
-    for step in reversed(t.steps if t is not None else []):
-        if step.step == "recognition" and step.engine == ENGINE:
-            return step
+def chat_annotator(t: Transcription | None) -> int | None:
+    """The index of the last annotator of ``t`` that is a chat VLM's recognition (engine ``chat.v1``), or ``None``."""
+    for i in range(len(t.annotators) - 1 if t is not None else -1, -1, -1):
+        a = t.annotators[i]
+        if a.step == "recognition" and a.engine == ENGINE:
+            return i
     return None
 
 
+def chat_outputs(t: Transcription, annotator: int | None) -> list[int]:
+    """The indexes of the raw outputs of ``annotator`` in ``t``: the page's requests, by their pass."""
+    found = [i for i, o in enumerate(t.outputs) if annotator is not None and o.annotator == annotator]
+    return sorted(found, key=lambda i: t.outputs[i].pass_)
+
+
+#: what a request was sent with, as a raw output's ``settings`` records it
+SENT = ("max_tokens", "temperature", "top_p", "preset")
+
+
 def pass_entry(t: Transcription, request: dict | None = None) -> dict:
-    """One request of a page as ``extra["passes"]`` records it: the completion verbatim (``raw``), ``finish_reason``,
-    ``prompt_tokens``, ``completion_tokens``, the ``max_tokens``, ``temperature`` and ``top_p`` it was sent with, and
-    the preset edition. ``t`` is the completion parsed; ``request`` the body sent (``None``: the sampling ``t``'s step
-    records, for a page record written earlier)."""
-    step = chat_step(t)
-    m = step.measurements if step is not None else {}
-    sent = request if request is not None else ((step.settings.get("sampling") if step is not None else None) or {})
-    return {"raw": t.extra.get("raw"), "finish_reason": t.extra.get("finish_reason"),
-            "prompt_tokens": m.get("prompt_tokens"), "completion_tokens": m.get("completion_tokens"),
+    """One request of a page, from the chat annotator's kept raw output in ``t``: the completion verbatim (``raw``),
+    ``finish_reason``, ``prompt_tokens``, ``completion_tokens``, the ``max_tokens``, ``temperature`` and ``top_p`` it
+    was sent with, the preset edition, and the raw output's ``index``. ``t`` is the completion parsed; ``request`` the
+    body sent (``None``: what the raw output and the annotator record, for a page record written earlier)."""
+    ai = chat_annotator(t)
+    a = t.annotators[ai] if ai is not None else None
+    found = chat_outputs(t, ai)
+    index = next((i for i in found if t.outputs[i].kept), found[-1] if found else None)
+    o = t.outputs[index] if index is not None else None
+    m = a.measurements if a is not None else {}
+    recorded = {**((a.settings.get("sampling") if a is not None else None) or {}), **(o.settings if o else {})}
+    sent = request if request is not None else recorded
+
+    def counted(key):                  # the raw output's own count, else the annotator's (a page/2 record's)
+        value = getattr(o, key) if o is not None else None
+        return value if value is not None else m.get(key)
+
+    return {"raw": o.content if o is not None else None, "finish_reason": o.finish_reason if o is not None else None,
+            "prompt_tokens": counted("prompt_tokens"), "completion_tokens": counted("completion_tokens"),
             "max_tokens": sent.get("max_tokens"), "temperature": sent.get("temperature"), "top_p": sent.get("top_p"),
-            "preset": step.preset if step is not None else None}
+            "preset": recorded.get("preset") or (a.preset if a is not None else None), "index": index}
+
+
+def finish_of(t: Transcription) -> str | None:
+    """The finish reason of the chat annotator's kept raw output in ``t``."""
+    return pass_entry(t)["finish_reason"]
+
+
+def _output(p: dict, annotator: int, number: int, kept: bool) -> RawOutput:
+    """A request of a page (``pass_entry``) as its raw output: pass ``number``, with what it was sent with."""
+    return RawOutput(annotator=annotator, content=p["raw"] if p["raw"] is not None else "", pass_=number, kept=kept,
+                     settings={k: p[k] for k in SENT if p.get(k) is not None}, finish_reason=p["finish_reason"],
+                     prompt_tokens=p["prompt_tokens"], completion_tokens=p["completion_tokens"])
+
+
+def _annotations(t: Transcription):
+    """Every annotation of ``t`` (readings included)."""
+    for group in (t.regions, t.lines, t.ranges, t.classifications, t.descriptions, t.links, t.orders, t.tables,
+                  t.formulas, t.edits):
+        yield from group
+    yield from (ln.reading for ln in t.lines if ln.reading is not None)
 
 
 def _total(values) -> int | None:
@@ -110,9 +151,10 @@ class PageRecognizer(ModelBlock):
     """Recognizes every page with a chat VLM or a page engine, whose output becomes the page's transcription.
 
     On the ``Chat`` backend (served only) a stream transform: one request per page, built by the preset's adapter
-    from the page image, the completion parsed into a text-only transcription that replaces ``transcription``. The
-    completion is kept verbatim (``extra["raw"]``); its ``finish_reason`` and token counts go to ``extra`` and the
-    step's measurements, and a completion cut off at ``max_tokens`` is counted (stat ``finish_length``).
+    from the page image, the completion parsed into a new transcription (``ChatAdapter.parse``: its annotator, the
+    completion verbatim as its raw output, and what was parsed from it) that replaces ``transcription``. The
+    completion's ``finish_reason`` and token counts go to its raw output and the annotator's measurements, and a
+    completion cut off at ``max_tokens`` is counted (stat ``finish_length``).
 
     **The repair passes** (the chat option ``repair_max_tokens``: a cap, or a list of rising caps, one per pass;
     ``linecaster.adapters.ChatAdapter``): a page whose completion stopped at ``max_tokens`` waits in the block while its
@@ -122,27 +164,30 @@ class PageRecognizer(ModelBlock):
     ``max_tokens`` is its cap, at most the served context minus the page's prompt tokens (the context from the
     server's ``/models`` ``max_model_len``, else the preset's ``--max-model-len``); where that is not above the cap
     before it, no more repairs are sent (none at all: stat ``repair_skipped``). The page keeps the first completion
-    that finished (``"stop"``), its first one otherwise; ``extra["passes"]`` records every request (``pass_entry``:
-    the completion verbatim, finish reason, tokens, ``max_tokens`` as sent, temperature, ``top_p``, preset),
-    ``extra["kept"]`` which one the transcription holds (from 1), and ``extra["raw"]`` and ``extra["finish_reason"]``
-    stay the kept one's. The step's measurements sum the tokens of every request and list them per request
-    (``pass_prompt_tokens``, ``pass_completion_tokens``); its settings add ``repair``. Pages that stopped otherwise are
-    recorded as without repairs. A repair request that fails ends the repairs, and the page keeps what the passes
-    before it give (stat ``repair_errors``), not an error of the page. A page record is written only after its
-    repairs, so an interrupted task sends every request again. Stats:
+    that finished (``"stop"``), its first one otherwise: every request is one of the transcription's raw outputs (the
+    completion verbatim, finish reason, tokens, ``pass`` 1, 2, ... and in ``settings`` the ``max_tokens`` as sent,
+    temperature, ``top_p`` and preset), ``kept`` on the one the transcription's annotations were parsed from. The
+    annotator's measurements sum the tokens of every request and list them per request (``pass_prompt_tokens``,
+    ``pass_completion_tokens``), its ``finish_reason`` is the kept one's; its settings add ``repair``. Pages that
+    stopped otherwise are recorded as without repairs (one raw output, no ``settings``). A repair request that fails
+    ends the repairs, and the page keeps what the passes before it give (stat ``repair_errors``), not an error of the
+    page. A page record is written only after its repairs, so an interrupted task sends every request again. Stats:
     ``finish_length`` (first requests), ``repair_sent`` (repair requests), ``repair_stop``, ``repair_length`` (their
     finish reasons), ``repair_kept`` (pages that keep a repair), ``repair_skipped``, ``repair_errors``.
 
     With ``repair_only`` it reads page records written earlier (``PageRecordReader``) and sends only the repair
     requests, by the same rules and recorded the same way: for the pages whose transcription's first completion
-    stopped at ``max_tokens`` and has no repair yet (``extra["passes"]`` with one entry, or a record without
-    ``passes``, as linecaster wrote before the repair pass). Every other page passes through unchanged, without a
-    request (stat ``repair_not_needed``). The first request's prompt tokens and sampling come from the record.
+    stopped at ``max_tokens`` and has no repair yet (one raw output of the chat annotator, as linecaster writes a page
+    without the repair pass or without room for it). Every other page passes through unchanged, without a request
+    (stat ``repair_not_needed``). The first request's prompt tokens and sampling come from the record. Where a repair
+    is kept, the transcription is its parse, with the record's annotators (the chat annotator's place taken by the
+    repair's) and every raw output; where none is, the record's transcription stays, with the repairs' raw outputs
+    added.
 
     On the ``InProcess`` or ``Served`` backend it runs a page engine (an engine of the recognition step whose unit is the
     page: a vendor package, or a client of a vendor's service) as every model block runs its engine: the engine
     gets the page image and returns the page's transcription. Either way it reads the page image and adds
-    ``text`` and what the preset produces (``lines``, ``markdown``, ``html``, ...); the ``StepInfo`` records the
+    ``text`` and what the preset produces (``lines``, ``markdown``, ``html``, ...); the ``Annotator`` records the
     preset edition and its hash. A failed request or call is the page's error.
 
     Args:
@@ -283,7 +328,7 @@ class PageRecognizer(ModelBlock):
         ``grounding_missing``, ``grounding_truncated``)."""
         if not self.chat:
             return
-        g = t.extra.get("grounding")
+        g = self.adapter.grounding(t)
         if g is not None:
             image = page_of(doc).image
             width, height = (image.width, image.height) if image is not None else (None, None)
@@ -314,14 +359,13 @@ class PageRecognizer(ModelBlock):
         """The first request of a stored transcription that needs a repair (``pass_entry``), else ``None``."""
         if t is None:
             return None
-        passes = t.extra.get("passes")
-        if passes:
-            return dict(passes[0]) if len(passes) == 1 and passes[0].get("finish_reason") == "length" else None
-        step = chat_step(t)
-        if t.extra.get("finish_reason") != "length" or step is None:
+        ai = chat_annotator(t)
+        found = chat_outputs(t, ai)
+        if len(found) != 1 or t.outputs[found[0]].finish_reason != "length":
             return None
-        if step.name != self.adapter.model:
-            raise PipelineConfigError(f"{type(self).__name__}: the page records were transcribed by {step.name}, the "
+        name = t.annotators[ai].name
+        if name != self.adapter.model:
+            raise PipelineConfigError(f"{type(self).__name__}: the page records were transcribed by {name}, the "
                                       f"repair pass would ask {self.adapter.model}")
         return pass_entry(t)
 
@@ -346,7 +390,7 @@ class PageRecognizer(ModelBlock):
             cap, room = self._cap(first)
             if not room:                       # the context leaves no more room than the first request had
                 page.transcriptions[self.transcription] = self._record(page.transcriptions[self.transcription],
-                                                                       first, [])
+                                                                       first, [])[0]
                 set_page(doc, page, self.primary)
                 results.put(Passed(doc, "repair_skipped"))
                 continue
@@ -365,7 +409,7 @@ class PageRecognizer(ModelBlock):
             return self._next_request(done)
         body = done.row.pop("request", None)
         t = done.out["transcription"]
-        if t.extra.get("finish_reason") != "length":
+        if finish_of(t) != "length":
             return None
         first = done.out["first"] = pass_entry(t, body)
         done.out["first_request"], done.out["repairs"] = body, []
@@ -399,7 +443,7 @@ class PageRecognizer(ModelBlock):
         if last.get("error") is not None:
             return None
         if "transcription" in last:
-            finish = last["transcription"].extra.get("finish_reason")
+            finish = finish_of(last["transcription"])
         elif last.get("body") is not None:
             try:
                 finish = self.adapter.content(last["body"])[1]
@@ -416,11 +460,11 @@ class PageRecognizer(ModelBlock):
         base = done.out.get("first_request") or last["request"]
         return self._send_repair(done, self.adapter.repair_request(base, cap), cap)
 
-    def _record(self, first: Transcription, p1: dict, repairs: list[dict]) -> Transcription:
-        """The page's transcription after the repair passes: the first repair's that finished (``"stop"``), else
-        ``first``; with ``extra["passes"]`` (the first request and each repair) and ``extra["kept"]`` (the kept
-        pass, from 1), the tokens of every request in the step's measurements and the repair settings in its
-        settings."""
+    def _record(self, first: Transcription, p1: dict, repairs: list[dict]) -> tuple[Transcription, list[dict], int]:
+        """The page's transcription after the repair passes, with its passes (``pass_entry``) and the kept one's
+        number (from 1): the first repair's parse that finished (``"stop"``), else ``first``; every request one of its
+        raw outputs (pass 1 the first's own, ``p1``; the repairs after the outputs it had), ``kept`` on the kept one;
+        the tokens of every request in the chat annotator's measurements and the repair settings in its settings."""
         a = self.adapter
         passes, t, kept = [p1], first, 1
         for r in repairs:
@@ -429,21 +473,33 @@ class PageRecognizer(ModelBlock):
                 break
             passes.append(pass_entry(second, r.get("request")))
             if kept == 1 and passes[-1]["finish_reason"] == "stop":
-                old, new = chat_step(first), chat_step(second)
-                second.steps = ([new if s is old else s for s in first.steps] if old is not None
-                                else [*first.steps, new])
                 t, kept = second, len(passes)
-        step = chat_step(t)
-        if step is not None:
-            step.settings = {**step.settings, "repair": {"max_tokens": list(a.repair_caps),
-                                                         "temperature": a.repair_temperature}}
-            step.measurements.update({
-                "prompt_tokens": _total(p["prompt_tokens"] for p in passes),
-                "completion_tokens": _total(p["completion_tokens"] for p in passes),
-                "pass_prompt_tokens": [p["prompt_tokens"] for p in passes],
-                "pass_completion_tokens": [p["completion_tokens"] for p in passes]})
-        t.extra["passes"], t.extra["kept"] = passes, kept
-        return t
+        ci = chat_annotator(first)
+        if ci is None:                       # nothing a chat VLM made to record the passes on
+            return t, passes, kept
+        outputs = list(first.outputs)
+        index = p1["index"] if p1.get("index") is not None else len(outputs)
+        first_output = _output(p1, ci, 1, kept == 1)
+        if index < len(outputs):
+            outputs[index] = first_output
+        else:
+            outputs.append(first_output)
+        repaired = len(outputs)
+        outputs += [_output(p, ci, n, kept == n) for n, p in enumerate(passes[1:], start=2)]
+        if t is not first:                   # the kept repair's parse, in the place of the first's annotator
+            for x in _annotations(t):
+                x.annotator, x.output = ci, (repaired + kept - 2 if x.output == 0 else x.output)
+            t.annotators = [*first.annotators[:ci], t.annotators[0], *first.annotators[ci + 1:]]
+        t.outputs = outputs
+        an = t.annotators[ci]
+        an.settings = {**an.settings, "repair": {"max_tokens": list(a.repair_caps),
+                                                 "temperature": a.repair_temperature}}
+        an.measurements.update({
+            "prompt_tokens": _total(p["prompt_tokens"] for p in passes),
+            "completion_tokens": _total(p["completion_tokens"] for p in passes),
+            "pass_prompt_tokens": [p["prompt_tokens"] for p in passes],
+            "pass_completion_tokens": [p["completion_tokens"] for p in passes]})
+        return t, passes, kept
 
     def _done(self, item, budget: ErrorBudget):
         """A page's result; with the repair passes, a page that needed them completes with them here."""
@@ -480,22 +536,22 @@ class PageRecognizer(ModelBlock):
                                page_id=doc.id, error=error)
                 r.pop("transcription", None)
                 break
-        t = self._record(first_t, p1, repairs)
+        t, passes, kept = self._record(first_t, p1, repairs)
         self._record_decoder(t, item.row.get("decoded"))
         self._placed(t, doc)
         self._record_request(t, item.row)
-        sent = [p1, *t.extra["passes"][1:]] if not self.repair_only else t.extra["passes"][1:]
+        sent = passes if not self.repair_only else passes[1:]
         for key in ("prompt_tokens", "completion_tokens"):
             value = _total(p[key] for p in sent)
             if value is not None:
                 self.stat_update(key, value=value, unit="doc")
-        for p in t.extra["passes"][1:]:
+        for p in passes[1:]:
             self.stat_update(f"repair_{p['finish_reason']}")
-        if t.extra["kept"] > 1:
+        if kept > 1:
             self.stat_update("repair_kept")
         page.transcriptions[self.transcription] = t
         set_page(doc, page, self.primary)
-        last = t.extra["passes"][-1]
+        last = passes[-1]
         self.notify(doc, "done", error=error, **{k: last[k] for k in ("prompt_tokens", "completion_tokens",
                                                                        "finish_reason") if last[k] is not None})
         yield doc
@@ -518,18 +574,19 @@ class RegionRecognizer(PageRecognizer):
     Crops are cut at the scale the model expects for a whole page (the adapter's ``page_longest``: the page is
     scaled so its longest side has that length, and the region is cut from it, ``pad`` px around the region's box
     at that scale), so a small region is not blown up; the adapter decides which regions it reads. Every read
-    region gets one line: the region's box and polygon, the completion as its text (verbatim; ``extra`` keeps
-    ``raw`` and ``finish_reason``), in reading order; the transcription's earlier lines are replaced. The
-    ``StepInfo`` records the preset edition, the settings with ``pad``, ``page_scale`` and ``labels``, and the
-    token counts, ``regions`` and ``failed``. A page whose regions all failed is the page's error, and so is a page
-    without image bytes (stat ``errors``); a page without readable regions passes through unchanged (stat
-    ``pages_without_regions``).
+    region gets one line: the region's box and polygon, the completion as its reading (verbatim; the completion, its
+    ``finish_reason`` and tokens are a raw output of the step, which the line and its reading name), in reading
+    order; the transcription's earlier lines are replaced. The step's ``Annotator`` records the preset edition, the
+    settings with ``pad``, ``page_scale`` and ``labels``, and the token counts, ``regions`` and ``failed``. A page
+    whose regions all failed is the page's error, and so is a page without image bytes (stat ``errors``); a page
+    without readable regions passes through unchanged (stat ``pages_without_regions``).
 
     Args:
         backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
             one on the task's ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
         transcription: the transcription it reads the regions of and adds the lines to.
-        labels: the region labels it reads (default: text-like regions and tables, no pictures or formulas).
+        labels: the regions' Docling labels it reads (``Transcription.label``; default: text-like regions and
+            tables, no pictures or formulas).
         pad: pixels around each region's box at the page scale; ``None``: the adapter's ``region_pad``, else 8.
         primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
             ``transcription``.
@@ -572,7 +629,7 @@ class RegionRecognizer(PageRecognizer):
 
         state, region = row["state"], row["region"]
         crop = self.adapter.crop_region(state["image"], region, state["scale"], self.pad)
-        return self.adapter.request_region(png_encode(crop), region)
+        return self.adapter.request_region(png_encode(crop), region, state["t"])
 
     def _parse(self, body: dict) -> dict:
         raw, finish = self.adapter.content(body)
@@ -586,8 +643,7 @@ class RegionRecognizer(PageRecognizer):
         for doc in self._passing(data, results):
             page = page_of(doc)
             t = page.transcription(self.transcription)
-            regions = sorted((r for r in t.regions if self.adapter.reads_region(r, self.labels)),
-                             key=lambda r: (r.reading_order is None, r.reading_order or 0))
+            regions = [r for r in t.ordered_regions() if self.adapter.reads_region(r, self.labels, t)]
             if not regions:
                 results.put(Passed(doc, "pages_without_regions"))
                 continue
@@ -606,41 +662,40 @@ class RegionRecognizer(PageRecognizer):
             scale = longest / max(img.size) if longest else 1.0
             if scale != 1.0:
                 img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), Image.LANCZOS)
-            state = {"doc": doc, "page": page, "image": img, "remaining": len(regions), "out": {}, "scale": scale,
-                     "decoded": px}
+            state = {"doc": doc, "page": page, "t": t, "image": img, "remaining": len(regions), "out": {},
+                     "scale": scale, "decoded": px}
             for r in regions:
                 yield f"{doc.id}|{r.id}", {"doc": doc, "state": state, "region": r}
 
     def _finish(self, state, budget: ErrorBudget) -> object:
-        from ...data.transcription import Line
-
         doc, page = state["doc"], state["page"]
         t = page.transcription(self.transcription)
+        a = self.adapter
+        ai = t.add_annotator(a.annotator(self.backend.describe(), settings={
+            **a.settings(), "pad": self.pad, "page_scale": round(state["scale"], 6), "labels": sorted(self.labels)}))
         lines, failed, tokens = [], [], {"prompt_tokens": 0, "completion_tokens": 0}
-        regions = sorted((r for r in t.regions if r.id in state["out"]),
-                         key=lambda r: (r.reading_order is None, r.reading_order or 0))
-        for k, r in enumerate(regions):
+        regions = [r for r in t.ordered_regions() if r.id in state["out"]]
+        for r in regions:
             res = state["out"][r.id]
             if "error" in res:
                 failed.append({"region": r.id, "error": res["error"]})
                 continue
+            usage = res["usage"] or {}
             for key in tokens:
-                tokens[key] += int((res["usage"] or {}).get(key) or 0)
-            lines.append(Line(id=f"{r.id}_l0", region_id=r.id, reading_order=k, bbox=r.bbox, polygon=r.polygon,
-                              text=res["raw"], extra={"raw": res["raw"], "finish_reason": res["finish_reason"]}))
+                tokens[key] += int(usage.get(key) or 0)
+            o = t.add_output(RawOutput(annotator=ai, content=res["raw"], finish_reason=res["finish_reason"],
+                                       prompt_tokens=usage.get("prompt_tokens"),
+                                       completion_tokens=usage.get("completion_tokens")))
+            lines.append(Line(annotator=ai, output=o, id=f"{r.id}_l0", region=r.id, box=r.box, polygon=r.polygon,
+                              reading=Reading(annotator=ai, output=o, text=res["raw"])))
             if res["finish_reason"] not in (None, "stop"):
                 self.stat_update(f"finish_{res['finish_reason']}")
-        t.lines = lines
-        a = self.adapter
+        t.lines = lines                            # the contract's replaces: the earlier lines go
+        t.add_order(ai, lines=[ln.id for ln in lines])
         measured = {**tokens, "regions": len(regions), "failed": len(failed), "decoder": state["decoded"].decoder}
         if "built" in state:                       # the page's requests: from the first built to the last answer
             measured["request_seconds"] = round(time.perf_counter() - state["built"], 4)
-        t.steps.append(StepInfo(step=self.step, name=a.model, engine=ENGINE, revision=a.revision,
-                                preset=a.preset, preset_sha256=a.preset_sha256,
-                                backend=self.backend.describe(), settings={**a.settings(), "pad": self.pad,
-                                                                           "page_scale": round(state["scale"], 6),
-                                                                           "labels": sorted(self.labels)},
-                                measurements=measured))
+        t.annotators[ai].measurements = measured
         set_page(doc, page, self.primary)
         self.stat_update("regions", value=len(regions))
         entry = None

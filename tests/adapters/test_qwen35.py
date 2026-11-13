@@ -76,7 +76,7 @@ def test_prompt_hash_is_recorded():
 def test_parse_keeps_raw_and_unwrap_fence_removes_the_fence():
     raw = "```markdown\nTHE BIRDS\n\nof Ceylon.\n```"
     t = chat_model("qwen3.5-9b").parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
-    assert t.extra["raw"] == raw and t.text == raw and t.steps[0].name == MODEL
+    assert t.outputs[0].content == raw and t.text == raw and t.annotators[0].name == MODEL
     assert unwrap_fence(raw) == "THE BIRDS\n\nof Ceylon."
     assert unwrap_fence("```\nplain\n```") == "plain"
     assert unwrap_fence("a ``` b ``` c") == "a ``` b ``` c"

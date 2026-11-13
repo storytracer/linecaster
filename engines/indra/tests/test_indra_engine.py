@@ -12,7 +12,7 @@ from linecaster_indra import IndraRecognitionEngine
 @pytest.mark.network
 def test_conformance():
     out = check_engine(IndraRecognitionEngine, options={"weights": weights_of("indra-ocr")})
-    assert "species" in out.text and out.extra["raw"] == out.text and out.steps[0].revision == \
+    assert "species" in out.text and out.outputs[0].content == out.text and out.annotators[0].revision == \
         weights_of("indra-ocr")["revision"]
 
 
@@ -42,7 +42,8 @@ def test_the_page_s_file_goes_through_a_temporary_file():
     engine = _engine(page)
     image = sample_png(fmt="WEBP")
     out = engine(image, None)
-    assert out.text == "# Title\nbody" and out.extra["blocks"][0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
+    assert out.text == "# Title\nbody" and out.indra__blocks[0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
+    assert out.outputs[0].content == out.text and (out.indra__source, out.indra__rotation) == ("ocr", 0)
     assert engine.converter.size == (800, 400) and engine.converter.paths[0].endswith(".webp")   # the file as given
     import os
 

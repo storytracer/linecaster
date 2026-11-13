@@ -56,5 +56,5 @@ def test_parse_keeps_raw_verbatim():
     raw = "\n# THE BIRDS\n\nof Ceylon.\n"
     t = chat_model("qianfan-ocr").parse({"choices": [{"message": {"content": raw}, "finish_reason": "length"}],
                             "usage": {"prompt_tokens": 3400, "completion_tokens": 8192}})
-    assert t.extra["raw"] == raw and t.text == raw and t.extra["finish_reason"] == "length"
-    assert t.steps[0].revision == chat_model("qianfan-ocr").revision and t.steps[0].measurements["completion_tokens"] == 8192
+    assert t.outputs[0].content == raw and t.text == raw and t.outputs[0].finish_reason == "length"
+    assert t.annotators[0].revision == chat_model("qianfan-ocr").revision and t.annotators[0].measurements["completion_tokens"] == 8192

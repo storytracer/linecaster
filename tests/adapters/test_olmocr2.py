@@ -76,10 +76,10 @@ RAW = ("---\nprimary_language: en\nis_rotation_valid: True\nrotation_correction:
 
 def test_parse_keeps_raw_verbatim_and_reads_front_matter():
     t = chat_model("olmocr-2-7b-1025-fp8").parse(completion(RAW), backend="served x")
-    assert t.extra["raw"] == RAW and t.text == RAW and t.extra["finish_reason"] == "stop"
-    assert t.extra["front_matter"] == {"primary_language": "en", "is_rotation_valid": True,
+    assert t.outputs[0].content == RAW and t.text == RAW and t.outputs[0].finish_reason == "stop"
+    assert t.olmocr__front_matter == {"primary_language": "en", "is_rotation_valid": True,
                                        "rotation_correction": 0, "is_table": False, "is_diagram": False}
-    m = t.steps[0]
+    m = t.annotators[0]
     assert (m.step, m.name, m.revision, m.backend) == ("recognition", MODEL, "40bd7202494b8264ee17ada08b401b5aab7a9ce1",
                                                        "served x")
     assert m.measurements["completion_tokens"] == 40
@@ -93,4 +93,4 @@ def test_body_splits_off_the_front_matter():
     # no front matter: the stripped text unchanged
     assert split_front_matter("\n plain text \n") == (None, "plain text")
     t = chat_model("olmocr-2-7b-1025-fp8").parse(completion(None, usage={}))
-    assert t.extra["raw"] == "" and t.extra["front_matter"] is None
+    assert t.outputs[0].content == "" and t.olmocr__front_matter is None

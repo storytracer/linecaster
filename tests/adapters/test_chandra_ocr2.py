@@ -93,8 +93,8 @@ def test_parse_keeps_the_html_verbatim():
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 6700, "completion_tokens": 80}}
     t = chat_model("chandra-ocr-2").parse(body, backend="served x")
-    assert t.text == raw and t.extra["raw"] == raw                     # HTML -> Markdown is left to the consumer
-    m = t.steps[0]
+    assert t.text == raw and t.outputs[0].content == raw                     # HTML -> Markdown is left to the consumer
+    m = t.annotators[0]
     assert (m.step, m.name, m.revision) == ("recognition", "datalab-to/chandra-ocr-2", REVISION)
     assert m.measurements == {"prompt_tokens": 6700, "completion_tokens": 80, "finish_reason": "stop"}
     assert m.settings["attempts"] == 1

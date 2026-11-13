@@ -14,13 +14,14 @@ temperature is opt-in "for benchmarking"). The package reads its settings when i
 sets them in the environment before it imports it; one engine per process.
 
 The page's result (the blocks in reading order: label, the model's raw label, reading order, HTML ("" for figures,
-which the package does not read), skipped and error flags, confidence, box) is kept verbatim as JSON in
-``extra["raw"]``; the text is the blocks' HTML in reading order, one
-block per line group. From a wrapper around the package's ``generate``: the full-page completion before parsing, its
-finish reason and tokens, the full-page rounds, whether the page fell back to block mode and how many block requests
-were capped or failed (``extra``). ``finish_reason`` is ``length`` when the page keeps a capped block's
-partial HTML (the package never keeps a capped full-page answer), else ``stop``. A failed block request is the page's
-error.
+which the package does not read), skipped and error flags, confidence, box) is kept verbatim as JSON, the
+transcription's first raw output (``outputs[0]``, the one its lines were read from); the text is the blocks' HTML in
+reading order, one block per line group. From a wrapper around the package's ``generate``: the full-page completion
+before parsing, with its finish reason and tokens (a second raw output, not kept), and the full-page rounds, whether
+the page fell back to block mode, the requests and how many block requests were capped (the extension fields
+``surya__fullpage_rounds``, ``surya__fallback``, ``surya__requests``, ``surya__capped_blocks``). ``finish_reason`` is
+``length`` when the page keeps a capped block's partial HTML (the package never keeps a capped full-page answer),
+else ``stop``. A failed block request is the page's error.
 """
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import Line, Source, StepInfo, Transcription
+from linecaster.data import Annotator, RawOutput, Source, Transcription
 
 #: the package's model name, which the server must serve the pin under
 MODEL = "datalab-to/surya-ocr-2.5"
@@ -63,7 +64,7 @@ class SuryaRecognitionEngine:
     """linecaster engine for the recognition step: Surya OCR 2.5 on the whole page through the ``surya-ocr`` package
     (full-page mode with its block-mode fallback), attached to a vLLM server that serves the pinned checkpoint
     (``ServiceServer`` starts it). Returns the page's HTML blocks as a text-only transcription, the package's result
-    verbatim as JSON next to it."""
+    verbatim as JSON its raw output."""
 
     engine_id: ClassVar[str] = "surya.recognition.v1"
     step = "recognition"
@@ -146,28 +147,41 @@ class SuryaRecognitionEngine:
         failed = sum(1 for c in other if c["error"])
         if failed:
             raise RuntimeError(f"surya-ocr: {failed} block request(s) failed")
-        return self.transcription(blocks_of(page), full, other)
+        return self.transcription(blocks_of(page), full, other, transcription)
 
-    def transcription(self, blocks: list[dict], full: list[dict], other: list[dict]) -> Transcription:
-        """The page's transcription from its blocks and the requests that made them (full-page and block mode)."""
+    def transcription(self, blocks: list[dict], full: list[dict], other: list[dict],
+                      given: Transcription | None = None) -> Transcription:
+        """The page's transcription from its blocks and the requests that made them (full-page and block mode), made
+        anew for ``given`` (the one the engine was called with, whose source it keeps)."""
         first = full[0] if full else {}
         capped = any(b["error"] and b["html"] for b in blocks)
         finish = "length" if capped else "stop"
-        raw = json.dumps(blocks, ensure_ascii=False)
         text = "\n".join(b["html"] for b in blocks if b["html"])
         tokens = sum(int(c.get("tokens") or 0) for c in [*full, *other])
         o = self.options
-        step = StepInfo(step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
-                        backend=f"surya-ocr {getattr(self, 'version', None)} (vLLM {o.endpoint})",
-                        settings={"mode": "full_page", "gpu_type": o.gpu_type, "fullpage_regen": o.fullpage_regen},
-                        measurements={"completion_tokens": tokens, "finish_reason": finish})
-        lines = [Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(text.split("\n"))]
-        return Transcription(lines=lines, steps=[step], source=Source(kind="produced", format="text"),
-                             extra={"raw": raw, "finish_reason": finish, "fullpage_raw": first.get("raw"),
-                                    "fullpage_finish_reason": first.get("finish_reason"),
-                                    "fullpage_tokens": first.get("tokens"), "fullpage_rounds": len(full),
-                                    "fallback": bool(other), "requests": len(full) + len(other),
-                                    "capped_blocks": sum(1 for c in other if c["finish_reason"] == "length")})
+        source = given.source.model_copy(deep=True) if given is not None else Source()
+        source.format = source.format or "text"
+        t = Transcription(source=source, surya__fullpage_rounds=len(full),
+                          surya__fallback=bool(other), surya__requests=len(full) + len(other),
+                          surya__capped_blocks=sum(1 for c in other if c["finish_reason"] == "length"))
+        a = t.add_annotator(Annotator(kind="model", step=self.step, name=self.name, engine=self.engine_id,
+                                      revision=self.revision,
+                                      backend=f"surya-ocr {getattr(self, 'version', None)} (vLLM {o.endpoint})",
+                                      settings={"mode": "full_page", "gpu_type": o.gpu_type,
+                                                "fullpage_regen": o.fullpage_regen},
+                                      measurements={"completion_tokens": tokens, "finish_reason": finish}))
+        out = t.add_output(RawOutput(annotator=a, content=blocks, format="json", finish_reason=finish,
+                                     completion_tokens=tokens))
+        if full:                                       # the full-page completion before the package parsed it
+            t.add_output(RawOutput(annotator=a, content=first.get("raw") or "", kept=False,
+                                   finish_reason=first.get("finish_reason"), completion_tokens=first.get("tokens")))
+        ids = []
+        for i, line_text in enumerate(text.split("\n")):
+            line = t.add_line(a, f"l{i}", output=out)
+            t.read(a, line, line_text, output=out)
+            ids.append(line.id)
+        t.add_order(a, lines=ids)
+        return t
 
 
 def _version(dist: str) -> str | None:

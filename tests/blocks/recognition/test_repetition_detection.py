@@ -127,7 +127,7 @@ def test_the_setting_is_in_the_fingerprint_and_the_step_record():
 
     a = chat_model(PRESET)
     assert a.to_dict()["repetition_detection"] == DEFAULTS and "overrides" not in a.to_dict()
-    assert a.step_info().settings["sampling"]["repetition_detection"] == DEFAULTS
+    assert a.annotator().settings["sampling"]["repetition_detection"] == DEFAULTS
     off = chat_model(PRESET).apply_overrides({"repetition_detection": False})
     assert "repetition_detection" not in off.to_dict()
     on_block, off_block = (PageRecognizer(Chat(x, "http://127.0.0.1:8000/v1")) for x in (a, off))
@@ -145,14 +145,14 @@ def test_a_loop_vllm_ended_is_stored_counted_and_never_repaired():
     assert widths.count(LOOPS) == 1 and widths.count(LONG) == 2 and widths.count(STOPS) == 1
     assert all(b["repetition_detection"] == DEFAULTS for b in server.requests)
     loops = out["loops"]
-    assert loops.extra["finish_reason"] == "repetition" and loops.text.startswith("Plate 4\n| row |")
-    assert loops.steps[0].measurements["finish_reason"] == "repetition" and "passes" not in loops.extra
-    assert out["long"].extra["kept"] == 2
+    assert loops.outputs[0].finish_reason == "repetition" and loops.text.startswith("Plate 4\n| row |")
+    assert loops.annotators[0].measurements["finish_reason"] == "repetition" and len(loops.outputs) == 1
+    assert [o.pass_ for o in out["long"].outputs if o.kept] == [2]
     assert step.stats["finish_repetition"].total == 1 and step.stats["finish_length"].total == 1
     with fake_chat_server(answer) as server:
         step, out = recognize(server, repetition_detection=False)
     assert [sent_width(b) for b in server.requests].count(LOOPS) == 3      # off: the first request and both repairs
-    assert out["loops"].extra["finish_reason"] == "length" and "repetition_detection" not in server.requests[0]
+    assert out["loops"].outputs[0].finish_reason == "length" and "repetition_detection" not in server.requests[0]
 
 
 def test_transcribe_vlm_turns_it_off_with_a_flag_and_takes_fields(tmp_path: Path):

@@ -5,8 +5,10 @@ Falcon-OCR is a crop model by design: the pipeline detects the layout, reads eac
 assembles the page's Markdown. The engine sends the page as RGB, scaled down so its
 longest side is at most ``longest_edge`` (LANCZOS), JPEG at ``jpeg_quality``, as a data URI to
 ``POST /falconocr/parse`` with ``skip_layout`` (``false``: the vendor's full-page path). The answer's
-``markdown_result`` is the page's text, verbatim; its layout regions (``json_result``) are kept next to it. The
-service reports no finish reason; its output tokens are the step's ``completion_tokens``.
+``markdown_result`` is the page's text, verbatim (the transcription's raw output); its layout regions
+(``json_result``) and processing time are kept next to it (the extension fields ``falcon__regions_json``,
+``falcon__processing_ms``). The service reports no finish reason; its output tokens are the step's
+``completion_tokens``.
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription
+from linecaster.data import Annotator, Transcription
 
 from . import http
 from .page import jpeg, rgb, text_transcription
@@ -64,22 +66,24 @@ class FalconRecognitionEngine:
         b64 = base64.b64encode(jpeg(rgb(image), o.longest_edge, o.jpeg_quality)).decode()
         return {"images": [f"data:image/jpeg;base64,{b64}"], "skip_layout": o.skip_layout}
 
-    def parse(self, body: dict) -> Transcription:
-        """The service's answer as the page's transcription: ``markdown_result`` verbatim; none is an error."""
+    def parse(self, body: dict, given: Transcription | None = None) -> Transcription:
+        """The service's answer as the page's transcription, made anew for ``given`` (the one the engine was called
+        with, whose source it keeps): ``markdown_result`` verbatim; none is an error."""
         raw = body.get("markdown_result")
         if not isinstance(raw, str):
             raise http.ServiceError(f"Falcon-OCR answered without markdown_result: {sorted(body)}")
         o = self.options
         tokens = body.get("total_output_tokens")
-        step = StepInfo(step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
-                        backend=f"Falcon-OCR pipeline service ({o.endpoint})",
-                        settings={"route": self.route, "skip_layout": o.skip_layout, "longest_edge": o.longest_edge,
-                                  "jpeg_quality": o.jpeg_quality},
-                        measurements={"completion_tokens": tokens if isinstance(tokens, int) else None})
-        return text_transcription(raw, step, regions_json=body.get("json_result"),
-                                  processing_ms=body.get("processing_time_ms"))
+        tokens = tokens if isinstance(tokens, int) else None
+        a = Annotator(kind="model", step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
+                      backend=f"Falcon-OCR pipeline service ({o.endpoint})",
+                      settings={"route": self.route, "skip_layout": o.skip_layout, "longest_edge": o.longest_edge,
+                                "jpeg_quality": o.jpeg_quality},
+                      measurements={"completion_tokens": tokens})
+        return text_transcription(raw, a, tokens, given, falcon__regions_json=body.get("json_result"),
+                                  falcon__processing_ms=body.get("processing_time_ms"))
 
     def __call__(self, image, transcription: Transcription, **params) -> Transcription:
         o = self.options
         body = http.post_json(f"{o.endpoint.rstrip('/')}{self.route}", self.request(image), o.timeout)
-        return self.parse(body)
+        return self.parse(body, transcription)

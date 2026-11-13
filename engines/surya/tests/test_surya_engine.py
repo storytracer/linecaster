@@ -28,14 +28,18 @@ def test_the_transcription_keeps_the_blocks_verbatim():
     blocks = [_block("<h1>Title</h1>", label="SectionHeader"), _block("", label="Figure"), _block("<p>a</p>")]
     full = [{"prompt_type": "full", "raw": "<raw>", "finish_reason": "stop", "tokens": 30, "error": False}]
     t = engine.transcription(blocks, full, [])
-    assert json.loads(t.extra["raw"]) == blocks and t.text == "<h1>Title</h1>\n<p>a</p>"
-    assert t.steps[0].measurements == {"completion_tokens": 30, "finish_reason": "stop"}
-    assert t.extra["fallback"] is False and t.extra["fullpage_raw"] == "<raw>"
+    blocks_output, fullpage = t.outputs
+    assert blocks_output.content == blocks and blocks_output.format == "json" and blocks_output.kept
+    assert json.loads(json.dumps(blocks_output.content)) == blocks and t.text == "<h1>Title</h1>\n<p>a</p>"
+    assert all(ln.reading.output == 0 for ln in t.lines)
+    assert t.annotators[0].measurements == {"completion_tokens": 30, "finish_reason": "stop"}
+    assert t.surya__fallback is False and (fullpage.content, fullpage.kept, fullpage.completion_tokens) == (
+        "<raw>", False, 30)
     capped = engine.transcription([_block("<p>cut", error=True)], full,
                                   [{"prompt_type": "block", "raw": "", "finish_reason": "length", "tokens": 5,
                                     "error": False}])
-    assert capped.extra["finish_reason"] == "length" and capped.extra["fallback"] is True
-    assert capped.extra["capped_blocks"] == 1
+    assert capped.outputs[0].finish_reason == "length" and capped.surya__fallback is True
+    assert capped.surya__capped_blocks == 1 and capped.surya__requests == 2
 
 
 def test_the_settings_go_to_the_package_by_environment():

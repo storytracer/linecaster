@@ -9,14 +9,20 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.minicpm_ocr import region_blocks, sdk_label
-from linecaster.data.transcription import Line, Region, Transcription
+from linecaster.data.transcription import Annotator, Transcription
 
 
-def reg(rid, label, raw, poly=None, order=0):
+def add(t, rid, label, raw, poly=None):
+    """Adds a region to ``t``: its own label ``raw``, its content role from the Docling label ``label``."""
     poly = poly or [[10, 10], [110, 10], [110, 60], [10, 60]]
     xs, ys = [p[0] for p in poly], [p[1] for p in poly]
-    return Region(id=rid, label=label, raw_label=raw, polygon=poly, bbox=[min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)],
-                  reading_order=order)
+    return t.add_region(0, rid, [min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)], poly, label=raw, role=label)
+
+
+def reg(rid, label, raw, poly=None):
+    """A region of a transcription of its own, and that transcription."""
+    t = Transcription(annotators=[Annotator(step="layout", name="test")])
+    return add(t, rid, label, raw, poly), t
 
 
 def png(w=50, h=20):
@@ -40,7 +46,7 @@ def png(w=50, h=20):
     ("weird", "", "Text Recognition:", 8192),             # unknown altogether: the SDK default
 ])
 def test_request_per_region_type(label, raw, prompt, cap):
-    body = chat_model("minicpm-ocr-1.0").request_region(png(), reg("r", label, raw))
+    body = chat_model("minicpm-ocr-1.0").request_region(png(), *reg("r", label, raw))
     content = body["messages"][0]["content"]
     assert content[0]["type"] == "image_url" and content[0]["image_url"]["url"].startswith("data:image/png;base64,")
     assert content[1] == {"type": "text", "text": prompt}          # image first, then the prompt
@@ -53,20 +59,24 @@ def test_request_per_region_type(label, raw, prompt, cap):
 
 def test_regions_read_and_skipped():
     spec = chat_model("openbmb/MiniCPM-OCR-1.0")
-    assert spec.reads_region(reg("a", "page_footer", "number"), frozenset())
-    assert spec.reads_region(reg("b", "formula", "display_formula"), frozenset())
-    assert spec.reads_region(reg("c", "picture", "chart"), frozenset())
+    def reads(adapter, rid, label, raw, labels):
+        r, t = reg(rid, label, raw)
+        return adapter.reads_region(r, labels, t)
+
+    assert reads(spec, "a", "page_footer", "number", frozenset())
+    assert reads(spec, "b", "formula", "display_formula", frozenset())
+    assert reads(spec, "c", "picture", "chart", frozenset())
     for raw in ("image", "header_image", "footer_image"):
-        assert not spec.reads_region(reg("d", "picture", raw), frozenset())
-    # LightOn keeps the label rule
-    assert chat_model("lightonocr-2-1b").reads_region(reg("e", "text", "text"), frozenset({"text"}))
-    assert not chat_model("lightonocr-2-1b").reads_region(reg("f", "picture", "image"), frozenset({"text"}))
+        assert not reads(spec, "d", "picture", raw, frozenset())
+    # LightOn keeps the label rule: the region's Docling label
+    assert reads(chat_model("lightonocr-2-1b"), "e", "text", "text", frozenset({"text"}))
+    assert not reads(chat_model("lightonocr-2-1b"), "f", "picture", "image", frozenset({"text"}))
 
 
 def test_crop_is_full_resolution_int_box_with_polygon_mask():
     img = Image.new("RGB", (200, 100), (0, 0, 0))
     tri = [[10.7, 10.2], [110.9, 10.2], [10.7, 60.8]]           # a triangle: the corner opposite is masked white
-    crop = chat_model("minicpm-ocr-1.0").crop_region(img, reg("r", "text", "text", tri))
+    crop = chat_model("minicpm-ocr-1.0").crop_region(img, reg("r", "text", "text", tri)[0])
     assert crop.size == (100, 50)                                # int() truncation of 10.7..110.9 x 10.2..60.8
     assert crop.getpixel((1, 1)) == (0, 0, 0) and crop.getpixel((98, 48)) == (255, 255, 255)
     assert chat_model("minicpm-ocr-1.0").page_longest is None and chat_model("minicpm-ocr-1.0").region_pad == 0
@@ -84,11 +94,16 @@ def test_serve_args_follow_the_sdk_tutorial():
 
 
 def page(texts: dict[str, str]):
-    regions = [reg("doc_title_0", "title", "doc_title", order=0), reg("text_1", "text", "text", order=1),
-               reg("number_2", "page_footer", "number", order=2), reg("image_3", "picture", "image", order=3),
-               reg("footnote_4", "footnote", "footnote", order=4), reg("text_5", "text", "text", order=5)]
-    lines = [Line(id=f"{rid}_l0", region_id=rid, text=t) for rid, t in texts.items()]
-    return Transcription(regions=regions, lines=lines)
+    t = Transcription(annotators=[Annotator(step="layout", name="test"),
+                                  Annotator(step="recognition", name="minicpm")])
+    for rid, label, raw in [("doc_title_0", "title", "doc_title"), ("text_1", "text", "text"),
+                            ("number_2", "page_footer", "number"), ("image_3", "picture", "image"),
+                            ("footnote_4", "footnote", "footnote"), ("text_5", "text", "text")]:
+        add(t, rid, label, raw)
+    t.add_order(0, [r.id for r in t.regions])
+    for rid, text in texts.items():
+        t.add_line(1, f"{rid}_l0", region=rid, text=text)
+    return t
 
 
 def test_region_blocks_keep_order_images_and_skip_unread():
@@ -111,6 +126,6 @@ def test_assemble_markdown_with_the_sdk():
 
 
 def test_sdk_label_mapping():
-    assert sdk_label(reg("a", "page_header", "header")) == "header"
-    assert sdk_label(reg("b", "page_header", "")) == "header"
-    assert sdk_label(reg("c", "caption", "")) == "figure_title"
+    assert sdk_label(*reg("a", "page_header", "header")) == "header"
+    assert sdk_label(*reg("b", "page_header", "")) == "header"
+    assert sdk_label(*reg("c", "caption", "")) == "figure_title"

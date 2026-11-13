@@ -7,9 +7,9 @@
   already at that page scale and sent as it is.
 
 The model answers with YAML front matter (primary_language, is_rotation_valid, rotation_correction,
-is_table, is_diagram) above the page text. The completion is stored verbatim (``extra["raw"]``, the lines);
-the front matter is also parsed into ``extra["front_matter"]`` as page metadata. ``body`` gives the page text
-without it, for consumers that want the text alone.
+is_table, is_diagram) above the page text. The completion is stored verbatim (the transcription's raw output, and
+its lines); the front matter is also parsed into the transcription's extension field ``olmocr__front_matter`` as
+page metadata. ``body`` gives the page text without it, for consumers that want the text alone.
 """
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ class OlmOCRAdapter(ChatAdapter):
         b64, _ = png_longest(image, self.target_longest)
         return self._body(b64)
 
-    def request_region(self, crop: bytes, region=None) -> dict:
+    def request_region(self, crop: bytes, region=None, t=None) -> dict:
         """A region crop, already at the page's scale: PNG as it is, no further resize."""
         return self._body(base64.b64encode(crop).decode())
 
@@ -88,7 +88,7 @@ class OlmOCRAdapter(ChatAdapter):
 
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
         t = super().parse(body, backend=backend)
-        t.extra["front_matter"] = split_front_matter(t.extra["raw"])[0]
+        t.olmocr__front_matter = split_front_matter(t.outputs[0].content)[0]
         return t
 
     def settings(self) -> dict[str, Any]:

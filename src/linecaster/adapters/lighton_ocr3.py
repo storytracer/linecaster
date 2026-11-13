@@ -53,7 +53,7 @@ class LightOnOCR3Adapter(ChatAdapter):
         b64, _ = png_thumbnail(image, self.target_longest)
         return self._body(b64)
 
-    def request_region(self, crop: bytes, region=None) -> dict:
+    def request_region(self, crop: bytes, region=None, t=None) -> dict:
         """A region crop, already at the page's scale: PNG as it is, no further resize."""
         return self._body(base64.b64encode(crop).decode())
 

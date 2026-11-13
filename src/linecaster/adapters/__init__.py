@@ -5,8 +5,9 @@ Everything about a model that is data lives in its preset (``linecaster/catalog/
 ``engine: chat.v1``): the model pin, the served name, sampling, prompts, page size, region padding, the
 server (vLLM or SGLang), its version, flags, environment and packages, the HF Jobs image it was validated
 with. What stays code is the **adapter** the preset names (``options.adapter``): how a page image
-becomes a ``/chat/completions`` request, how the completion becomes a text-only ``Transcription``, which
-regions are read and how they are cut, and helpers such as an answer format's Markdown conversion. Models
+becomes a ``/chat/completions`` request, how the completion becomes a ``Transcription`` (its annotator, the
+completion as its raw output, and what was parsed from it: text-only lines for most), which regions are read and
+how they are cut, and helpers such as an answer format's Markdown conversion. Models
 that share that code share an adapter (both DeepSeek-OCRs, both LightOnOCR-3s, both dots, both Ovis).
 
 ``chat_model(ref)`` is the one way in: a preset ref (``dots-ocr``, ``dots-ocr@1``) or, for compatibility, the
@@ -26,7 +27,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, model_validator
 
-from ..data.transcription import Line, Source, StepInfo, Transcription
+from ..data.transcription import Annotator, RawOutput, Source, Transcription
 from ..errors import CatalogError, PipelineConfigError, ServerError
 
 #: the engine of chat presets
@@ -331,15 +332,17 @@ class ChatAdapter:
         """The ``/chat/completions`` body for one page image (the image file's bytes)."""
         raise NotImplementedError
 
-    def request_region(self, crop: bytes, region=None) -> dict:
+    def request_region(self, crop: bytes, region=None, t: Transcription | None = None) -> dict:
         """The body for a crop of one region (``RegionRecognizer``), already scaled by the block to the page
         scale the model expects (``page_longest``): sent as it is. ``region`` is the ``Region`` it was cut
-        from (an adapter may choose its prompt by the region's type). Default: ``request(crop)``."""
+        from, of transcription ``t`` (an adapter may choose its prompt by the region's type). Default:
+        ``request(crop)``."""
         return self.request(crop)
 
-    def reads_region(self, region, labels) -> bool:
-        """Whether ``RegionRecognizer`` sends this region to the model. Default: its label is in ``labels``."""
-        return region.label in labels
+    def reads_region(self, region, labels, t: Transcription) -> bool:
+        """Whether ``RegionRecognizer`` sends this region of ``t`` to the model. Default: its Docling label
+        (``Transcription.label``) is in ``labels``."""
+        return t.label(region.id) in labels
 
     def crop_region(self, image, region, scale: float = 1.0, pad: int = 0):
         """The crop of ``region`` from the page ``image`` (already scaled by ``scale``): the region's box at
@@ -371,7 +374,7 @@ class ChatAdapter:
         return out
 
     def settings(self) -> dict[str, Any]:
-        """Everything that decides the output, recorded in ``StepInfo.settings`` (next to the preset edition
+        """Everything that decides the output, recorded in ``Annotator.settings`` (next to the preset edition
         and its hash)."""
         return {"sampling": dict(self.sampling), "serve_args": list(self.serve_args)}
 
@@ -411,17 +414,36 @@ class ChatAdapter:
             raise ServerError(f"no choices in response: {body!r}"[:500])
         return choices[0]["message"].get("content") or "", choices[0].get("finish_reason")
 
-    def step_info(self, backend: str | None = None, settings: dict | None = None,
-                   measurements: dict | None = None) -> StepInfo:
-        """The ``StepInfo`` of one result: model, engine, revision, preset edition and its hash, settings (with the
-        repair pass's, ``repair``, when it is on)."""
+    def annotator(self, backend: str | None = None, settings: dict | None = None,
+                  measurements: dict | None = None) -> Annotator:
+        """The ``Annotator`` of one result: model, engine, revision, preset edition and its hash, settings (with the
+        repair pass's, ``repair``, when it is on), ``measurements`` (``linecaster.data.MEASUREMENTS``)."""
         if settings is None:
             settings = self.settings()
             if self.repair_max_tokens:
                 settings["repair"] = {"max_tokens": self.repair_max_tokens, "temperature": self.repair_temperature}
-        return StepInfo(step=self.step, name=self.model, engine=ENGINE, revision=self.revision, preset=self.preset,
-                        preset_sha256=self.preset_sha256, backend=backend, settings=settings,
-                        measurements=measurements or {})
+        return Annotator(kind="model", step=self.step, name=self.model, engine=ENGINE, revision=self.revision,
+                         preset=self.preset, preset_sha256=self.preset_sha256, backend=backend, settings=settings,
+                         measurements=measurements or {})
+
+    def begin(self, body: dict, backend: str | None = None) -> Transcription:
+        """The transcription of one completion before anything is parsed from it: its annotator (index 0, with the
+        request's token counts and finish reason as measurements) and the completion verbatim as its raw output
+        (index 0, with the same counts). ``parse`` adds what it reads from the completion."""
+        raw, finish = self.content(body)
+        usage = body.get("usage") or {}
+        prompt, completion = usage.get("prompt_tokens"), usage.get("completion_tokens")
+        t = Transcription(source=Source(kind="produced", format="text"))
+        a = t.add_annotator(self.annotator(backend, measurements={
+            "prompt_tokens": prompt, "completion_tokens": completion, "finish_reason": finish}))
+        t.add_output(RawOutput(annotator=a, content=raw, finish_reason=finish, prompt_tokens=prompt,
+                               completion_tokens=completion))
+        return t
+
+    def grounding(self, t: Transcription) -> dict | None:
+        """What a grounding parse counted on ``t`` (blocks, malformed placeholders, ...), for the block's stats
+        ``grounding_*``; ``None`` for an adapter without grounding (the default)."""
+        return None
 
     def place(self, t: Transcription, width: int, height: int) -> Transcription:
         """The parsed transcription placed on the page image the block read (``width`` x ``height`` px): for an
@@ -429,24 +451,37 @@ class ChatAdapter:
         return t
 
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
-        """A text-only transcription: one line per text line of the completion, no geometry. The raw
-        completion is kept verbatim in ``extra["raw"]`` (``Transcription.text`` equals it, since lines
-        are split on ``\\n`` and joined back), so post-processing can be decided later."""
-        raw, finish = self.content(body)
-        usage = body.get("usage") or {}
-        return text_transcription(raw, self.step_info(backend, measurements={
-            "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
-            "finish_reason": finish}), finish_reason=finish)
+        """A text-only transcription: one line per text line of the completion, no geometry, each read as it is.
+        The completion is kept verbatim as the transcription's raw output (``outputs[0]``; ``Transcription.text``
+        equals it, since lines are split on ``\\n`` and joined back), so post-processing can be decided later."""
+        t = self.begin(body, backend)
+        return text_lines(t, 0, 0)
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__} {self.preset} ({self.model}@{(self.revision or '')[:8]})>"
 
 
-def text_transcription(raw: str, model: StepInfo | None = None, finish_reason: str | None = None) -> Transcription:
-    lines = [Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(raw.split("\n"))]
-    return Transcription(lines=lines, steps=[model] if model else [],
-                         source=Source(kind="produced", format="text"),
-                         extra={"raw": raw, "finish_reason": finish_reason})
+def text_lines(t: Transcription, annotator: int, output: int) -> Transcription:
+    """``t`` with one line per text line of its raw output ``output`` (``l<i>``, no geometry), each read as it is by
+    ``annotator`` and in that order."""
+    raw = t.outputs[output].content
+    ids = []
+    for i, text in enumerate(raw.split("\n")):
+        line = t.add_line(annotator, f"l{i}", output=output)
+        t.read(annotator, line, text, output=output)
+        ids.append(line.id)
+    t.add_order(annotator, lines=ids)
+    return t
+
+
+def text_transcription(raw: str, annotator: Annotator | None = None,
+                       finish_reason: str | None = None) -> Transcription:
+    """A text-only transcription of ``raw`` (``text_lines``) by ``annotator`` (default: an unnamed recognition step),
+    ``raw`` its raw output."""
+    t = Transcription(source=Source(kind="produced", format="text"))
+    a = t.add_annotator(annotator or Annotator(kind="model", step="recognition", name="text"))
+    t.add_output(RawOutput(annotator=a, content=raw, finish_reason=finish_reason))
+    return text_lines(t, a, 0)
 
 
 def data_url(mime: str, b64: str) -> dict:
@@ -577,4 +612,4 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
 
 
 __all__ = ["ADAPTERS", "ChatAdapter", "ChatPreset", "ENGINE", "REPAIR_DEFAULTS", "adapter", "adapters", "chat_model", "chat_presets",
-           "png_longest", "preset_ref", "text_transcription"]
+           "png_longest", "preset_ref", "text_lines", "text_transcription"]

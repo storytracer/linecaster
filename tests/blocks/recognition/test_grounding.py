@@ -38,10 +38,12 @@ def test_regions_are_placed_on_the_page_and_a_cut_off_page_is_repaired():
         (out,) = list(step.run(iter([new_page_document("p", image(1000, 2000))])))
     assert len(server.requests) == 2 and server.requests[0]["messages"][0]["content"][1]["text"] == "grounding"
     t = page_of(out).transcriptions["ocr_new"]
-    assert t.extra["kept"] == 2 and t.extra["finish_reason"] == "stop"        # the repair finished: kept
-    assert [(r.label, r.raw_label) for r in t.regions] == [("page_header", "header"), ("text", "text"),
-                                                          ("picture", "image"), ("page_footer", "page_number")]
-    assert t.regions[1].bbox == [100.0, 200.0, 800.0, 1600.0]                # 0-1000 -> the 1000 x 2000 page
+    (kept,) = [o for o in t.outputs if o.kept]
+    assert kept.pass_ == 2 and kept.finish_reason == "stop"                 # the repair finished: kept
+    assert all(x.output == t.outputs.index(kept) for x in [*t.regions, *t.lines])
+    assert [(t.label(r.id), r.label) for r in t.regions] == [("page_header", "header"), ("text", "text"),
+                                                            ("picture", "image"), ("page_footer", "page_number")]
+    assert t.regions[1].box == [100.0, 200.0, 800.0, 1600.0]                 # 0-1000 -> the 1000 x 2000 page
     assert (t.source.image_width, t.source.image_height) == (1000, 2000)
     assert out.text == "RUNNING HEAD\nBody text.\n7"
     stats = {k: step.stats[k].total for k in ("grounding_blocks", "grounding_generated", "finish_length")}

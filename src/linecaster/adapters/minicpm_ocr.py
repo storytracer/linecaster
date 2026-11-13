@@ -6,11 +6,12 @@ prompt for its region type; it assembles the page as Markdown (tables HTML, form
 comes from linecaster's layout step and ``RegionRecognizer`` sends the crops. The preset holds the SDK's data
 (``configs/minicpmvocr.yaml``, ``prompts.DEFAULT_PROMPT_MAP``, ``backends/dialects.build_vllm_payload``): the
 prompt and token cap per region type (``settings.elements``, looked up by the layout model's own label,
-``Region.raw_label`` = PP-DocLayoutV3's class name, the SDK's vocabulary; ``settings.default_element`` for
+``Region.label`` = PP-DocLayoutV3's class name, the SDK's vocabulary; ``settings.default_element`` for
 unknown types), the region types not read (``settings.skip_labels``), sampling, ``mm_processor_kwargs``,
 the DSpark draft. This adapter holds the code:
 
-* **Labels**: a region without a PP-DocLayoutV3 label is mapped from its Docling label (``FROM_DOCLING``).
+* **Labels**: a region without a PP-DocLayoutV3 label is mapped from its Docling label (``FROM_DOCLING``; the
+  label of its content role, ``Transcription.label``).
 * **Request**: the crop, then the prompt as a text part; the token cap clamped to max-model-len -
   ``settings.prompt_reserve`` as the SDK does; ``mm_processor_kwargs`` with the element's slice count;
   thinking off; PNG.
@@ -56,11 +57,14 @@ class MiniCPMOCRAdapter(ChatAdapter):
     def max_model_len(self) -> int:
         return int(self.flag("--max-model-len"))
 
-    def sdk_label(self, region) -> str:
-        raw = region.raw_label or ""
+    def sdk_label(self, region, t=None) -> str:
+        """The SDK's region type of ``region`` (of transcription ``t``): its own label where the SDK knows it, else
+        its Docling label mapped (``FROM_DOCLING``); without ``t`` no Docling label (the SDK's default)."""
+        raw = region.label or ""
         if raw in self.config["elements"] or raw in self.skip_labels:
             return raw
-        return FROM_DOCLING.get(region.label, region.label)
+        docling = t.label(region.id) if t is not None else ""
+        return FROM_DOCLING.get(docling, docling)
 
     def element(self, label: str) -> dict:
         e = self.config["elements"].get(label) or self.config["default_element"]
@@ -76,8 +80,8 @@ class MiniCPMOCRAdapter(ChatAdapter):
         return ["--speculative-config", json.dumps(config)]
 
     # ---------------------------------------------------------------- regions
-    def reads_region(self, region, labels=None) -> bool:
-        return self.sdk_label(region) not in self.skip_labels
+    def reads_region(self, region, labels=None, t=None) -> bool:
+        return self.sdk_label(region, t) not in self.skip_labels
 
     def crop_region(self, image, region, scale: float = 1.0, pad: int = 0):
         """PaddleX ``CropByBoxes`` with ``layout_shape_mode="auto"``: the box truncated to ints, outside
@@ -99,8 +103,8 @@ class MiniCPMOCRAdapter(ChatAdapter):
             crop = Image.composite(crop, white, mask)
         return crop
 
-    def request_region(self, crop: bytes, region=None) -> dict:
-        label = self.sdk_label(region) if region is not None else "text"
+    def request_region(self, crop: bytes, region=None, t=None) -> dict:
+        label = self.sdk_label(region, t) if region is not None else "text"
         elem = self.element(label)
         max_tokens = min(int(elem["max_new_tokens"]), max(256, self.max_model_len - int(self.config["prompt_reserve"])))
         return {
@@ -132,11 +136,10 @@ class MiniCPMOCRAdapter(ChatAdapter):
     def region_blocks(self, t) -> list[dict]:
         """The SDK's result blocks from a transcription made by ``RegionRecognizer`` with this adapter: one per
         region (read or image), in reading order, ``content`` = the raw completion."""
-        text_of = {ln.region_id: ln.text or "" for ln in t.lines}
-        regions = sorted(t.regions, key=lambda r: (r.reading_order is None, r.reading_order or 0))
+        text_of = {t.region_of(ln): t.text_of(ln) or "" for ln in t.lines}
         blocks = []
-        for order, r in enumerate(regions):
-            label = self.sdk_label(r)
+        for order, r in enumerate(t.ordered_regions()):
+            label = self.sdk_label(r, t)
             if label not in self.skip_labels and r.id not in text_of:
                 continue                                   # not read (a failed request, or another step's region)
             blocks.append({"label": label, "order": order, "raw": text_of.get(r.id, "")})
@@ -175,9 +178,10 @@ def _spec(spec):
     return spec
 
 
-def sdk_label(region, spec: MiniCPMOCRAdapter | None = None) -> str:
-    """The SDK's region type of ``region`` (``spec`` default: the ``minicpm-ocr-1.0`` preset)."""
-    return _spec(spec).sdk_label(region)
+def sdk_label(region, t=None, spec: MiniCPMOCRAdapter | None = None) -> str:
+    """The SDK's region type of ``region`` of transcription ``t`` (``spec`` default: the ``minicpm-ocr-1.0``
+    preset)."""
+    return _spec(spec).sdk_label(region, t)
 
 
 def region_blocks(t, spec: MiniCPMOCRAdapter | None = None) -> list[dict]:

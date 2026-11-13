@@ -10,9 +10,11 @@ are ``indra_ocr.load()``'s: ``mode``, ``furniture`` (page headers and footers in
 single-threaded worker per core). The models are the catalog's pin of ``datalab-to/indra-ocr`` (the model set
 ``v1.1.0`` that ``indra-ocr`` 1.1.2 is built against), every file checked.
 
-The page's Markdown (``page.markdown``) is its text, verbatim (``extra["raw"]``); the package's layout blocks (label,
-box in pixels, text), its rotation and skew are kept next to it. A page the package reports as failed
-(``source == "error"``) is the page's error. An empty Markdown (a blank leaf) is a transcription without text.
+The page's Markdown (``page.markdown``) is its text, verbatim (the transcription's raw output); the package's
+source and note, its layout blocks (label, box in pixels, text), its rotation and skew are kept next to it (the
+extension fields ``indra__source``, ``indra__note``, ``indra__blocks``, ``indra__rotation``, ``indra__skew``). A
+page the package reports as failed (``source == "error"``) is the page's error. An empty Markdown (a blank leaf) is a
+transcription without text. The transcription is made anew; it keeps the source of the one the engine was given.
 """
 from __future__ import annotations
 
@@ -24,7 +26,7 @@ from typing import ClassVar, Literal
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import Line, Source, StepInfo, Transcription
+from linecaster.data import Annotator, RawOutput, Source, Transcription
 from linecaster.engines.api import drop_damaged_png_chunks, hf_snapshot
 
 
@@ -93,12 +95,21 @@ class IndraRecognitionEngine:
             raise RuntimeError(f"indra-ocr failed on the page: {page.note}")
         raw = page.markdown or ""
         o = self.options
-        lines = [Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(raw.split("\n"))]
-        step = StepInfo(step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
-                        backend=f"indra-ocr {self.version} (ONNX Runtime, cpu)",
-                        settings=o.model_dump(mode="json"), measurements={"device": "cpu"})
         blocks = [{"label": b.get("label"), "bbox": [round(float(v), 1) for v in b.get("bbox") or []],
                    "text": b.get("text")} for b in (page.blocks or [])]
-        return Transcription(lines=lines, steps=[step], source=Source(kind="produced", format="text"),
-                             extra={"raw": raw, "source": page.source, "note": page.note, "blocks": blocks,
-                                    "rotation": page.rotation, "skew": page.skew})
+        source = transcription.source.model_copy(deep=True) if transcription is not None else Source()
+        source.format = source.format or "text"                 # the given source kept: its image
+        t = Transcription(source=source, indra__source=page.source,
+                          indra__note=page.note, indra__blocks=blocks, indra__rotation=page.rotation,
+                          indra__skew=page.skew)
+        a = t.add_annotator(Annotator(kind="model", step=self.step, name=self.name, engine=self.engine_id,
+                                      revision=self.revision, backend=f"indra-ocr {self.version} (ONNX Runtime, cpu)",
+                                      settings=o.model_dump(mode="json"), measurements={"device": "cpu"}))
+        out = t.add_output(RawOutput(annotator=a, content=raw))
+        ids = []
+        for i, text in enumerate(raw.split("\n")):
+            line = t.add_line(a, f"l{i}", output=out)
+            t.read(a, line, text, output=out)
+            ids.append(line.id)
+        t.add_order(a, lines=ids)
+        return t

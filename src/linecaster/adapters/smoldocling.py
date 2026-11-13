@@ -7,10 +7,11 @@
 * ``skip_special_tokens`` false (in the preset's sampling): DocTags' ``<doctag>`` and ``<loc_*>`` are added
   special tokens, which vLLM's default strips.
 
-The completion is stored verbatim (``extra["raw"]``, the lines). ``parse`` also converts it
-into ``extra["markdown"]`` (docling-core's ``DocTagsDocument`` -> ``DoclingDocument.load_from_doctags`` ->
-``export_to_markdown`` with the furniture layer and no image placeholder); a conversion that raises leaves
-``extra["markdown"]`` ``None`` with ``extra["markdown_error"]``, so the raw completion is never lost.
+The completion is stored verbatim (the transcription's raw output, and its lines). ``parse`` also converts it
+into the extension field ``smoldocling__markdown`` (docling-core's ``DocTagsDocument`` ->
+``DoclingDocument.load_from_doctags`` -> ``export_to_markdown`` with the furniture layer and no image placeholder); a
+conversion that raises leaves ``smoldocling__markdown`` ``None`` with ``smoldocling__markdown_error``, so the raw
+completion is never lost.
 """
 from __future__ import annotations
 
@@ -74,9 +75,9 @@ class SmolDoclingAdapter(ChatAdapter):
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
         t = super().parse(body, backend=backend)
         try:
-            t.extra["markdown"] = to_markdown(t.extra["raw"])
+            t.smoldocling__markdown = to_markdown(t.outputs[0].content)
         except Exception as e:  # noqa: BLE001 - keep the page and its raw DocTags; record why
-            t.extra["markdown"], t.extra["markdown_error"] = None, f"{type(e).__name__}: {e}"
+            t.smoldocling__markdown, t.smoldocling__markdown_error = None, f"{type(e).__name__}: {e}"
         return t
 
     def settings(self) -> dict[str, Any]:

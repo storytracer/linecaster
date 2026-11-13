@@ -82,13 +82,16 @@ def completion(content, finish="stop", usage=None):
 def test_parse_keeps_the_completion_verbatim():
     raw = "\n48\n\n# THE HAWFINCH\n\nnest itself  \n"
     t = chat_model("lightonocr-2-1b").parse(completion(raw), backend="served x")
-    assert t.extra["raw"] == raw and t.text == raw            # not even a strip
-    assert [ln.text for ln in t.lines] == raw.split("\n")
-    assert all(ln.bbox is None and ln.polygon is None for ln in t.lines)
-    assert [ln.reading_order for ln in t.lines] == list(range(len(t.lines)))
+    (o,) = t.outputs
+    assert o.content == raw and t.text == raw                 # not even a strip
+    assert (o.finish_reason, o.prompt_tokens, o.completion_tokens, o.pass_, o.kept) == ("stop", 2322, 7, 1, True)
+    assert [ln.reading.text for ln in t.lines] == raw.split("\n")
+    assert all(ln.box is None and ln.polygon is None for ln in t.lines)
+    assert [ln.id for ln in t.ordered_lines()] == [f"l{i}" for i in range(len(t.lines))]
+    assert all(ln.output == ln.reading.output == 0 and ln.reading.annotator == 0 for ln in t.lines)
     assert t.source.kind == "produced" and t.source.format == "text"
-    m = t.steps[0]
-    assert (m.step, m.name, m.revision, m.backend) == ("recognition", "lightonai/LightOnOCR-2-1B",
+    (m,) = t.annotators
+    assert (m.kind, m.step, m.name, m.revision, m.backend) == ("model", "recognition", "lightonai/LightOnOCR-2-1B",
                                                        "c97bd377f04481830395218fa8951df9deaba756", "served x")
     assert m.measurements == {"prompt_tokens": 2322, "completion_tokens": 7, "finish_reason": "stop"}
     assert m.settings["sampling"]["temperature"] == 0.2 and m.settings["image"]["longest_side_px"] == 1540
@@ -97,10 +100,10 @@ def test_parse_keeps_the_completion_verbatim():
 
 def test_parse_truncated_and_empty():
     t = chat_model("lightonocr-2-1b").parse(completion("a\na\na", finish="length"))
-    assert t.extra["finish_reason"] == "length" and t.steps[0].measurements["finish_reason"] == "length"
+    assert t.outputs[0].finish_reason == "length" and t.annotators[0].measurements["finish_reason"] == "length"
     empty = chat_model("lightonocr-2-1b").parse(completion(None, usage={}))
-    assert empty.text == "" and empty.extra["raw"] == "" and len(empty.lines) == 1
-    assert empty.steps[0].measurements["prompt_tokens"] is None
+    assert empty.text == "" and empty.outputs[0].content == "" and len(empty.lines) == 1
+    assert empty.annotators[0].measurements["prompt_tokens"] is None
 
 
 def test_parse_without_choices_raises():
@@ -155,8 +158,8 @@ def test_chat_page_step_end_to_end(chat):
         d = out[str(i)]
         t = page_of(d).transcriptions["ocr_new"]
         w = round((1000 + 100 * i) * 1540 / 2000)
-        assert t.extra["raw"] == f"\npage {w}x1540\n" and d.text == t.extra["raw"]
-        assert t.steps[0].measurements["completion_tokens"] == 3
+        assert t.outputs[0].content == f"\npage {w}x1540\n" and d.text == t.outputs[0].content
+        assert t.annotators[0].measurements["completion_tokens"] == 3
         assert "errors" not in d.metadata
     assert "ocr_new" not in page_of(out["bad"]).transcriptions      # bypassed: an earlier step failed on it
 
@@ -164,14 +167,17 @@ def test_chat_page_step_end_to_end(chat):
 def test_chat_region_step_end_to_end(chat):
     from linecaster.blocks.base.page import set_page
     from linecaster.blocks.recognition.chat import RegionRecognizer
-    from linecaster.data.transcription import Region
+    from linecaster.data.transcription import Annotator
 
     def with_regions(page_id, regions):
         d = new_page_document(page_id, image(2000, 3000))
         page = page_of(d)
-        page.transcriptions["ocr_new"] = Transcription(regions=[
-            Region(id=rid, label=label, polygon=[[x, y], [x + w, y], [x + w, y + h], [x, y + h]], bbox=[x, y, w, h],
-                   reading_order=k) for k, (rid, label, (x, y, w, h)) in enumerate(regions)])
+        t = Transcription(annotators=[Annotator(step="layout", name="test")])
+        for rid, label, (x, y, w, h) in regions:
+            t.add_region(0, rid, [x, y, w, h], [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], label=label,
+                         role=label)
+        t.add_order(0, [r.id for r in t.regions])
+        page.transcriptions["ocr_new"] = t
         set_page(d, page)
         return d
 
@@ -182,10 +188,14 @@ def test_chat_region_step_end_to_end(chat):
     out = {d.id: d for d in step.run(iter(docs))}
     assert set(out) == {"a", "none"} and len(seen(chat)) == 2          # the picture is not read
     t = page_of(out["a"]).transcriptions["ocr_new"]
-    assert [ln.region_id for ln in t.lines] == ["r1", "r2"] and all(ln.text.startswith("\npage ") for ln in t.lines)
-    m = t.steps[-1]
+    assert [ln.region for ln in t.lines] == ["r1", "r2"]
+    assert all(ln.reading.text.startswith("\npage ") for ln in t.lines)
+    assert [ln.reading.output for ln in t.lines] == [0, 1] and [o.content for o in t.outputs] == [
+        ln.reading.text for ln in t.lines]                               # one raw output per request
+    m = t.annotators[-1]
     assert (m.preset, m.measurements["regions"], m.measurements["prompt_tokens"]) == (
         "lightonocr-2-1b-regions@1", 2, 20)
+    assert all(ln.annotator == ln.reading.annotator == len(t.annotators) - 1 for ln in t.lines)
     assert page_of(out["none"]).transcriptions["ocr_new"].lines == []     # passed through unchanged
 
 

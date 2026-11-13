@@ -69,9 +69,9 @@ def test_parse_keeps_the_completion_verbatim():
            "Hab. Near Bristol, under stones; rare.\n\n"
            "Shell 6 mm. × 2·5 mm.; whorls 5½.\n")
     t = chat_model("dots-mocr").parse(completion(raw), backend="served vllm")
-    assert t.text == raw and t.extra["raw"] == raw                    # no strip, no empty check
-    assert [ln.text for ln in t.lines][1] == "PROCEEDINGS OF THE ZOOLOGICAL SOCIETY"
-    m = t.steps[0]
+    assert t.text == raw and t.outputs[0].content == raw                    # no strip, no empty check
+    assert [ln.reading.text for ln in t.lines][1] == "PROCEEDINGS OF THE ZOOLOGICAL SOCIETY"
+    m = t.annotators[0]
     assert (m.step, m.name, m.revision) == ("recognition", "rednote-hilab/dots.mocr", "e539fbb52280393adc081b289ec597430a0f9031")
     assert m.measurements == {"prompt_tokens": 7012, "completion_tokens": 431, "finish_reason": "stop"}
     assert m.settings["prompt"] == "Extract the text content from this image."

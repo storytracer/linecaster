@@ -69,6 +69,26 @@ def by_width(server) -> dict[int, list[dict]]:
     return out
 
 
+def passes(t) -> list[dict]:
+    """The page's requests as its raw outputs record them, by pass: the completion (``raw``), finish reason, tokens and
+    what each was sent with."""
+    return [{"raw": o.content, "finish_reason": o.finish_reason, "prompt_tokens": o.prompt_tokens,
+             "completion_tokens": o.completion_tokens, **o.settings} for o in sorted(t.outputs, key=lambda o: o.pass_)]
+
+
+def kept(t):
+    """The raw output the transcription's annotations were parsed from."""
+    (o,) = [o for o in t.outputs if o.kept]
+    return o
+
+
+def stored(record: dict):
+    """A stored page record's transcription."""
+    from linecaster.data import Transcription
+
+    return Transcription.model_validate(record["page"]["transcriptions"]["ocr_new"])
+
+
 def stats(step) -> dict[str, float]:
     return {k: step.stats[k].total for k in ("finish_length", "repair_sent", "repair_stop", "repair_length",
                                               "repair_kept", "repair_skipped", "repair_errors", "repair_not_needed")
@@ -90,16 +110,17 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
         assert (second["max_tokens"], second["temperature"], second["top_p"]) == (8192, 0.1, 0.9)
 
     long, loops, stops = t["long"], t["loops"], t["stops"]
-    assert long.extra["kept"] == 2 and long.text == "| long | table |\n" * 3          # the repair finished: kept
-    assert (long.extra["raw"], long.extra["finish_reason"]) == (long.text, "stop")
-    assert [p["finish_reason"] for p in long.extra["passes"]] == ["length", "stop"]
-    assert long.extra["passes"][0] == {"raw": "| row |\n| row |\n", "finish_reason": "length",
-                                       "prompt_tokens": PROMPT_TOKENS, "completion_tokens": 4096, "max_tokens": 4096,
-                                       "temperature": 0.2, "top_p": 0.9, "preset": PRESET}
-    assert long.extra["passes"][1] == {"raw": long.text, "finish_reason": "stop", "prompt_tokens": PROMPT_TOKENS,
-                                       "completion_tokens": 5000, "max_tokens": 8192, "temperature": 0.1,
-                                       "top_p": 0.9, "preset": PRESET}
-    (m,) = long.steps
+    assert kept(long).pass_ == 2 and long.text == "| long | table |\n" * 3          # the repair finished: kept
+    assert (kept(long).content, kept(long).finish_reason) == (long.text, "stop")
+    assert [p["finish_reason"] for p in passes(long)] == ["length", "stop"]
+    assert passes(long)[0] == {"raw": "| row |\n| row |\n", "finish_reason": "length",
+                               "prompt_tokens": PROMPT_TOKENS, "completion_tokens": 4096, "max_tokens": 4096,
+                               "temperature": 0.2, "top_p": 0.9, "preset": PRESET}
+    assert passes(long)[1] == {"raw": long.text, "finish_reason": "stop", "prompt_tokens": PROMPT_TOKENS,
+                               "completion_tokens": 5000, "max_tokens": 8192, "temperature": 0.1,
+                               "top_p": 0.9, "preset": PRESET}
+    assert all(x.output == long.outputs.index(kept(long)) for x in long.lines)   # parsed from the kept repair
+    (m,) = long.annotators
     assert m.measurements == {"prompt_tokens": 2 * PROMPT_TOKENS, "completion_tokens": 9096, "finish_reason": "stop",
                               "pass_prompt_tokens": [PROMPT_TOKENS, PROMPT_TOKENS],
                               "pass_completion_tokens": [4096, 5000], "decoder": m.measurements["decoder"],
@@ -110,18 +131,17 @@ def test_a_page_that_stopped_at_max_tokens_is_sent_once_more_and_keeps_a_finishe
                                       "repetition_detection": {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}}
 
     # the repair stopped at its cap too: the first completion stays, even though the repair's is longer
-    assert loops.extra["kept"] == 1 and loops.text == "| row |\n| row |\n"
-    assert (loops.extra["raw"], loops.extra["finish_reason"]) == (loops.text, "length")
-    assert [(p["finish_reason"], p["max_tokens"]) for p in loops.extra["passes"]] == [("length", 4096),
-                                                                                       ("length", 8192)]
-    assert loops.extra["passes"][1]["raw"] == "| row |\n" * 4
-    assert loops.steps[0].measurements["pass_completion_tokens"] == [4096, 8192]
+    assert kept(loops).pass_ == 1 and loops.text == "| row |\n| row |\n"
+    assert (kept(loops).content, kept(loops).finish_reason) == (loops.text, "length")
+    assert [(p["finish_reason"], p["max_tokens"]) for p in passes(loops)] == [("length", 4096), ("length", 8192)]
+    assert passes(loops)[1]["raw"] == "| row |\n" * 4
+    assert loops.annotators[0].measurements["pass_completion_tokens"] == [4096, 8192]
 
     # a page that stopped by itself is recorded as without the repair pass
-    assert "passes" not in stops.extra and "kept" not in stops.extra
-    assert stops.steps[0].measurements == {"prompt_tokens": PROMPT_TOKENS, "completion_tokens": 50,
-                                           "finish_reason": "stop", "decoder": m.measurements["decoder"],
-                                           "request_seconds": stops.steps[0].measurements["request_seconds"]}
+    assert len(stops.outputs) == 1 and stops.outputs[0].settings == {} and stops.outputs[0].pass_ == 1
+    assert stops.annotators[0].measurements == {
+        "prompt_tokens": PROMPT_TOKENS, "completion_tokens": 50, "finish_reason": "stop",
+        "decoder": m.measurements["decoder"], "request_seconds": stops.annotators[0].measurements["request_seconds"]}
     assert stats(step) == {"finish_length": 2, "repair_sent": 2, "repair_stop": 1, "repair_length": 1,
                            "repair_kept": 1}
     assert step.stats["completion_tokens"].total == 50 + 4096 + 5000 + 4096 + 8192
@@ -132,14 +152,14 @@ def test_the_repair_cap_is_what_the_served_context_leaves_and_none_is_sent_witho
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 11000}]) as server:
         step, t = recognize(server, repair_max_tokens=8192)
     assert [b["max_tokens"] for b in by_width(server)[LONG]] == [4096, 8000]
-    assert t["long"].extra["passes"][1]["max_tokens"] == 8000              # the cap actually used
+    assert passes(t["long"])[1]["max_tokens"] == 8000                      # the cap actually used
     # 7000 - 3000 = 4000, not above the first request's 4096: no repair, the page keeps its first completion
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 7000}]) as server:
         step, t = recognize(server, repair_max_tokens=8192)
     assert len(server.requests) == 3
     assert stats(step) == {"finish_length": 2, "repair_skipped": 2}
-    assert t["long"].extra["kept"] == 1 and len(t["long"].extra["passes"]) == 1
-    assert t["long"].steps[0].measurements["pass_completion_tokens"] == [4096]
+    assert kept(t["long"]).pass_ == 1 and len(passes(t["long"])) == 1
+    assert t["long"].annotators[0].measurements["pass_completion_tokens"] == [4096]
     # without /models the preset's --max-model-len (18000) is the context
     with fake_chat_server(answer) as server:
         recognize(server, repair_max_tokens=12288)
@@ -154,8 +174,8 @@ def test_a_failed_repair_leaves_the_first_completion():
 
     with fake_chat_server(fails_second) as server:
         step, t = recognize(server, repair_max_tokens=8192)
-    assert t["long"].extra["kept"] == 1 and t["long"].extra["finish_reason"] == "length"
-    assert len(t["long"].extra["passes"]) == 1                              # a later --repair-only tries again
+    assert kept(t["long"]).pass_ == 1 and kept(t["long"]).finish_reason == "length"
+    assert len(passes(t["long"])) == 1                                      # a later --repair-only tries again
     assert stats(step) == {"finish_length": 2, "repair_sent": 2, "repair_errors": 2}
 
 
@@ -164,8 +184,9 @@ def test_the_repair_pass_is_off_by_default():
         step, t = recognize(server)
     assert len(server.requests) == 3                                        # one request per page
     for page in t.values():
-        assert set(page.extra) == {"raw", "finish_reason"}
-        (m,) = page.steps
+        (o,) = page.outputs
+        assert o.settings == {} and page.extensions == {}
+        (m,) = page.annotators
         assert set(m.measurements) == {"prompt_tokens", "completion_tokens", "finish_reason", "decoder",
                                        "request_seconds"}
         assert "repair" not in m.settings
@@ -265,9 +286,9 @@ def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
     rec, block = _stage_block(out, "PageRecognizer")
     assert block["params"]["backend"]["overrides"] == {"repair_max_tokens": 8192}
     records = _records(out)
-    long = records["long"]["page"]["transcriptions"]["ocr_new"]
-    assert long["extra"]["kept"] == 2 and long["steps"][0]["settings"]["repair"]["max_tokens"] == [8192]
-    assert records["loops"]["page"]["transcriptions"]["ocr_new"]["extra"]["kept"] == 1
+    long = stored(records["long"])
+    assert kept(long).pass_ == 2 and long.annotators[0].settings["repair"]["max_tokens"] == [8192]
+    assert kept(stored(records["loops"])).pass_ == 1
     assert len(server.requests) == 5
 
     def hash_of(*sets):
@@ -300,7 +321,7 @@ def test_repair_only_over_page_records(tmp_path: Path):
     with fake_chat_server(answer) as server:          # an earlier run without the repair pass (or linecaster 0.5)
         _run(images, first, "--recognition", PRESET, "--recognition-endpoint", server.url)
     before = _records(first)
-    assert "passes" not in before["long"]["page"]["transcriptions"]["ocr_new"]["extra"]
+    assert len(stored(before["long"]).outputs) == 1
 
     repaired = str(tmp_path / "repaired")
     with fake_chat_server(answer) as server:
@@ -311,19 +332,19 @@ def test_repair_only_over_page_records(tmp_path: Path):
         (LONG, 8192, 0.1, 0.9), (LOOPS, 8192, 0.1, 0.9)]
     after = _records(repaired)
     assert after["stops"] == before["stops"]                                   # passed through: the same record
-    long = after["long"]["page"]["transcriptions"]["ocr_new"]
-    assert long["extra"]["kept"] == 2 and long["extra"]["finish_reason"] == "stop"
-    first_pass = before["long"]["page"]["transcriptions"]["ocr_new"]
-    assert long["extra"]["passes"][0] == {"raw": first_pass["extra"]["raw"], "finish_reason": "length",
-                                          "prompt_tokens": PROMPT_TOKENS, "completion_tokens": 4096,
-                                          "max_tokens": 4096, "temperature": 0.2, "top_p": 0.9, "preset": PRESET}
-    assert long["extra"]["passes"][1]["max_tokens"] == 8192
-    assert long["steps"][0]["measurements"]["pass_completion_tokens"] == [4096, 5000]
-    assert after["long"]["text"] == long["extra"]["raw"]
-    loops = after["loops"]["page"]["transcriptions"]["ocr_new"]
-    assert loops["extra"]["kept"] == 1
-    assert loops["extra"]["raw"] == before["loops"]["page"]["transcriptions"]["ocr_new"]["extra"]["raw"]
-    assert [p["finish_reason"] for p in loops["extra"]["passes"]] == ["length", "length"]
+    long = stored(after["long"])
+    assert kept(long).pass_ == 2 and kept(long).finish_reason == "stop"
+    first_pass = stored(before["long"])
+    assert passes(long)[0] == {"raw": first_pass.outputs[0].content, "finish_reason": "length",
+                               "prompt_tokens": PROMPT_TOKENS, "completion_tokens": 4096,
+                               "max_tokens": 4096, "temperature": 0.2, "top_p": 0.9, "preset": PRESET}
+    assert passes(long)[1]["max_tokens"] == 8192
+    assert long.annotators[0].measurements["pass_completion_tokens"] == [4096, 5000]
+    assert after["long"]["text"] == kept(long).content
+    loops = stored(after["loops"])
+    assert kept(loops).pass_ == 1
+    assert kept(loops).content == stored(before["loops"]).outputs[0].content
+    assert [p["finish_reason"] for p in passes(loops)] == ["length", "length"]
     rec, block = _stage_block(repaired, "PageRecognizer")
     assert block["params"]["repair_only"] is True
 
@@ -342,26 +363,27 @@ def test_repair_only_takes_a_page_with_one_pass_and_records_the_inline_way(tmp_p
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 7000}]) as server:
         _run(images, first, "--recognition", PRESET, "--recognition-endpoint", server.url,
              "--set", "recognition.repair_max_tokens=8192")
-    assert len(_records(first)["long"]["page"]["transcriptions"]["ocr_new"]["extra"]["passes"]) == 1
+    assert len(passes(stored(_records(first)["long"]))) == 1
     later = str(tmp_path / "later")
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 18000}]) as server:
         _run(later, "--pages", f"{first}/pages", "--repair-only", "--recognition", PRESET,
              "--recognition-endpoint", server.url, "--set", "recognition.repair_max_tokens=8192")
     assert len(server.requests) == 2
-    long = _records(later)["long"]["page"]["transcriptions"]["ocr_new"]
-    assert long["extra"]["kept"] == 2 and len(long["extra"]["passes"]) == 2
+    long = stored(_records(later)["long"])
+    assert kept(long).pass_ == 2 and len(passes(long)) == 2
 
 
 # ----------------------------------------------------------------------------------- RegionRecognizer
 def test_the_region_recognizer_is_unchanged():
     from linecaster.blocks.base.page import set_page
-    from linecaster.data.transcription import Region, Transcription
+    from linecaster.data.transcription import Annotator, Transcription
 
     d = new_page_document("a", image(2000, 3000))
     page = page_of(d)
-    page.transcriptions["ocr_new"] = Transcription(regions=[
-        Region(id="r1", label="text", polygon=[[0, 0], [800, 0], [800, 400], [0, 400]], bbox=[0, 0, 800, 400],
-               reading_order=0)])
+    t = Transcription(annotators=[Annotator(step="layout", name="test")])
+    t.add_region(0, "r1", [0, 0, 800, 400], [[0, 0], [800, 0], [800, 400], [0, 400]], label="text", role="text")
+    t.add_order(0, ["r1"])
+    page.transcriptions["ocr_new"] = t
     set_page(d, page)
     with fake_chat_server(lambda body: completion("x x x", finish="length")) as server:
         step = RegionRecognizer(Chat("lightonocr-2-1b-regions", server.url, max_window=2))
@@ -369,8 +391,9 @@ def test_the_region_recognizer_is_unchanged():
     assert len(server.requests) == 1 and step.stats["finish_length"].total == 1
     t = page_of(out).transcriptions["ocr_new"]
     (line,) = t.lines
-    assert line.extra == {"raw": "x x x", "finish_reason": "length"}
-    assert t.steps[-1].measurements["request_seconds"] >= 0          # the page's requests, first built to last answer
+    (o,) = t.outputs
+    assert (o.content, o.finish_reason, line.reading.text, line.reading.output) == ("x x x", "length", "x x x", 0)
+    assert t.annotators[-1].measurements["request_seconds"] >= 0          # the page's requests, first built to last answer
     assert set(provenance.functional_block(step)["params"]) == {"backend", "transcription", "labels", "pad",
                                                                 "primary", "skip_on_error"}
 
@@ -402,14 +425,14 @@ def test_repairs_escalate_while_a_page_stops_at_its_cap_and_keep_the_first_that_
     assert caps == {STOPS: [4096], LONG: [4096, 8192], LOOPS: [4096, 8192, 12288], LONGER: [4096, 8192, 12288]}
     assert all(b["temperature"] == 0.1 for w in (LONG, LOOPS, LONGER) for b in sent[w][1:])
     longer, loops, long = out["longer"], out["loops"], out["long"]
-    assert [p["finish_reason"] for p in longer.extra["passes"]] == ["length", "length", "stop"]
-    assert longer.extra["kept"] == 3 and longer.text == "| longer | table |\n" * 5
-    assert [p["max_tokens"] for p in longer.extra["passes"]] == [4096, 8192, 12288]
-    assert [p["finish_reason"] for p in loops.extra["passes"]] == ["length"] * 3 and loops.extra["kept"] == 1
+    assert [p["finish_reason"] for p in passes(longer)] == ["length", "length", "stop"]
+    assert kept(longer).pass_ == 3 and longer.text == "| longer | table |\n" * 5
+    assert [p["max_tokens"] for p in passes(longer)] == [4096, 8192, 12288]
+    assert [p["finish_reason"] for p in passes(loops)] == ["length"] * 3 and kept(loops).pass_ == 1
     assert loops.text == "| row |\n" * 2                                   # its first completion stays
-    assert long.extra["kept"] == 2 and len(long.extra["passes"]) == 2
-    assert longer.steps[0].settings["repair"] == {"max_tokens": [8192, 12288], "temperature": 0.1}
-    assert longer.steps[0].measurements["pass_completion_tokens"] == [4096, 8192, 9000]
+    assert kept(long).pass_ == 2 and len(passes(long)) == 2
+    assert longer.annotators[0].settings["repair"] == {"max_tokens": [8192, 12288], "temperature": 0.1}
+    assert longer.annotators[0].measurements["pass_completion_tokens"] == [4096, 8192, 9000]
     assert stats(step) == {"finish_length": 3, "repair_sent": 5, "repair_stop": 2, "repair_length": 3,
                            "repair_kept": 2}
 
@@ -424,7 +447,7 @@ def test_a_later_repair_the_context_leaves_no_room_for_is_not_sent():
             "longer", image(LONGER))]))}
         sent = by_width(server)
     assert [b["max_tokens"] for b in sent[LONGER]] == [4096, 8192]          # 12288 cut to 8192: no room above
-    assert out["longer"].extra["kept"] == 1 and len(out["longer"].extra["passes"]) == 2
+    assert kept(out["longer"]).pass_ == 1 and len(passes(out["longer"])) == 2
 
 
 def test_repair_only_continues_with_the_later_caps():
@@ -438,8 +461,8 @@ def test_repair_only_continues_with_the_later_caps():
                                repair_only=True)
         out = {d.id: page_of(d).transcriptions["ocr_new"] for d in again.run(iter(records))}
     longer = out["longer"]
-    assert [p["max_tokens"] for p in longer.extra["passes"]] == [4096, 8192, 12288] and longer.extra["kept"] == 3
-    assert "passes" not in out["stops"].extra                              # not needed: unchanged
+    assert [p["max_tokens"] for p in passes(longer)] == [4096, 8192, 12288] and kept(longer).pass_ == 3
+    assert len(out["stops"].outputs) == 1 and out["stops"].outputs[0].settings == {}   # not needed: unchanged
 
 
 def test_lightonocr_3_0_8b_edition_3_escalates_to_twice_and_three_times_its_cap():

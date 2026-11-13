@@ -76,7 +76,7 @@ RAW = ("<|ref|>title<|/ref|><|det|>[[120, 80, 880, 130]]<|/det|>\n# THE BIRDS\n\
 
 def test_parse_keeps_grounding_verbatim_and_strip_removes_it():
     t = chat_model("deepseek-ocr").parse({"choices": [{"message": {"content": RAW}, "finish_reason": "stop"}], "usage": {}})
-    assert t.extra["raw"] == RAW and t.text == RAW
+    assert t.outputs[0].content == RAW and t.text == RAW
     assert strip_grounding(RAW) == "# THE BIRDS\n\nof Ceylon."
     with pytest.raises(ValueError, match="grounding markup"):
         strip_grounding("text <|det|>[[1, 2, 3, 4]]")

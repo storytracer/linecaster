@@ -73,8 +73,8 @@ def test_parse_keeps_the_block_stream_verbatim():
     raw = "<x_0.1><y_0.1>_Corvus corax_ L.<x_0.9><y_0.2><class_Text>"
     body = {"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}}
     t = chat_model("nemotron-3.5-parse").parse(body)
-    assert t.extra["raw"] == raw and t.text == raw
-    assert t.steps[0].settings["sampling"]["repetition_penalty"] == 1.1
+    assert t.outputs[0].content == raw and t.text == raw
+    assert t.annotators[0].settings["sampling"]["repetition_penalty"] == 1.1
 
 
 def test_strip_underscore_emphasis():

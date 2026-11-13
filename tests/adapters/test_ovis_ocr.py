@@ -110,8 +110,8 @@ def test_parse_keeps_bbox_placeholders_verbatim():
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 8200, "completion_tokens": 40}}
     t = chat_model("ovisocr3").parse(body, backend="served x")
-    assert t.text == raw and t.extra["raw"] == raw                     # bbox blocks kept
-    m = t.steps[0]
+    assert t.text == raw and t.outputs[0].content == raw                     # bbox blocks kept
+    m = t.annotators[0]
     assert (m.name, m.revision) == ("ATH-MaaS/OvisOCR3", REVISIONS["ATH-MaaS/OvisOCR3"])
     assert m.measurements == {"prompt_tokens": 8200, "completion_tokens": 40, "finish_reason": "stop"}
     assert m.settings["chat_template_kwargs"] == {"enable_thinking": False}

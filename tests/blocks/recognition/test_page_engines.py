@@ -22,7 +22,7 @@ FAKE = "linecaster.testing:FakePageEngine"
 
 def test_the_fake_page_engine_is_an_engine():
     out = check_engine(FakePageEngine)
-    assert out.text == "# page\n800x400" and out.extra["raw"] == out.text and out.regions == []
+    assert out.text == "# page\n800x400" and out.outputs[0].content == out.text and out.regions == []
 
 
 def test_page_recognition_runs_a_page_engine_in_process():
@@ -32,8 +32,8 @@ def test_page_recognition_runs_a_page_engine_in_process():
     assert {p.name for p in c.reads} == {"image"} and {p.name for p in c.adds} == {"lines", "text", "markdown"}
     docs = list(block.run(iter(sample_documents(2))))
     t = page_of(docs[0]).transcriptions["ocr_new"]
-    assert docs[0].text == "800" and t.regions == [] and t.steps[-1].engine == "fake.recognition.page.v1"
-    assert "seconds" in t.steps[-1].measurements
+    assert docs[0].text == "800" and t.regions == [] and t.annotators[-1].engine == "fake.recognition.page.v1"
+    assert "seconds" in t.annotators[-1].measurements
 
 
 def test_where_an_engine_service_is_does_not_count():

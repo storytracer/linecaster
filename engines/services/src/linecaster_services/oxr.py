@@ -7,8 +7,9 @@ resizes as it needs), as the file of a multipart ``POST /v1/parse/sync`` with ``
 ``output_formats`` field per format (markdown and json, as the vendor's README asks; httpx's encoding of a list).
 No ``feature_config`` or ``element_formats`` are sent, so the vendor's defaults apply (page headers and footers
 dropped). The API answers 200 with a non-zero ``code`` when the pipeline fails: that is the page's error. The
-answer's Markdown is the page's text, verbatim; its blocks (JSON: type, box, content, format) and warnings are kept
-next to it. The service reports no finish reason and no token counts.
+answer's Markdown is the page's text, verbatim (the transcription's raw output); its blocks (JSON: type, box,
+content, format), warnings and processing time are kept next to it (the extension fields ``oxr__blocks_json``,
+``oxr__warnings``, ``oxr__processing_ms``). The service reports no finish reason and no token counts.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data import StepInfo, Transcription
+from linecaster.data import Annotator, Transcription
 
 from . import http
 from .page import png, rgb, text_transcription
@@ -60,8 +61,9 @@ class OxrRecognitionEngine:
         fields = {"api_key": "dummy", "output_formats": list(self.options.output_formats)}
         return fields, {"file": ("page.png", png(rgb(image)), "image/png")}
 
-    def parse(self, body: dict) -> Transcription:
-        """The API's answer as the page's transcription; a failed pipeline (``code`` not 0, or an ``error``) and an
+    def parse(self, body: dict, given: Transcription | None = None) -> Transcription:
+        """The API's answer as the page's transcription, made anew for ``given`` (the one the engine was called with,
+        whose source it keeps); a failed pipeline (``code`` not 0, or an ``error``) and an
         answer without Markdown are errors."""
         data = body.get("data") or {}
         if body.get("code") != 0 or data.get("error"):
@@ -72,13 +74,15 @@ class OxrRecognitionEngine:
         if not isinstance(raw, str):
             raise http.ServiceError(f"OXR answered without markdown: {sorted(outputs)}")
         o = self.options
-        step = StepInfo(step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
-                        backend=f"OXR all-in-one service ({o.endpoint})",
-                        settings={"route": self.route, "output_formats": list(o.output_formats)})
-        return text_transcription(raw, step, blocks_json=outputs.get("json"), warnings=body.get("warnings") or [],
-                                  processing_ms=(data.get("metadata") or {}).get("processing_time_ms"))
+        a = Annotator(kind="model", step=self.step, name=self.name, engine=self.engine_id, revision=self.revision,
+                      backend=f"OXR all-in-one service ({o.endpoint})",
+                      settings={"route": self.route, "output_formats": list(o.output_formats)})
+        return text_transcription(raw, a, None, given, oxr__blocks_json=outputs.get("json"),
+                                  oxr__warnings=body.get("warnings") or [],
+                                  oxr__processing_ms=(data.get("metadata") or {}).get("processing_time_ms"))
 
     def __call__(self, image, transcription: Transcription, **params) -> Transcription:
         o = self.options
         fields, files = self.request(image)
-        return self.parse(http.post_form(f"{o.endpoint.rstrip('/')}{self.route}", fields, files, o.timeout))
+        return self.parse(http.post_form(f"{o.endpoint.rstrip('/')}{self.route}", fields, files, o.timeout),
+                          transcription)
