@@ -1162,7 +1162,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.7.3"
+version = "0.7.4"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
