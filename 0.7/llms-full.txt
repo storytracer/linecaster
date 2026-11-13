@@ -306,7 +306,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.7.2`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.7.3`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -456,6 +456,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
 | **repair pass** | A further request for a page whose VLM completion stopped at its cap (`finish_reason` `length`): the same request with a larger cap and the repair temperature. `repair_max_tokens` gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a **pass**, recorded in the transcription's `extra["passes"]`; `extra["kept"]` says which one it holds. | not a retry of a failed request |
+| **grounding** | A VLM's mode that labels and locates every block of the page as it transcribes it (LightOnOCR-3's `grounding` prompt: a placeholder with label and box before each block). linecaster makes one region per block, with page furniture as `page_header`/`page_footer`; what the model writes about a figure is kept apart from the text. | not a layout step: one completion holds the layout and the text |
 | **repetition detection** | vLLM's guard against a completion that loops (`repetition_detection` of a request, vLLM 0.17.0 and later): the server ends a completion whose last tokens repeat a pattern of `min_pattern_size` to `max_pattern_size` tokens `min_count` times in a row, with `finish_reason` `repetition`. Such a page is not sent to a [repair pass](glossary.md). On by default for presets served by vLLM 0.17.0 or later; linecaster's defaults: 8 to 100 tokens, 16 times (a run of one token is stopped after 128). | not a repetition penalty or an n-gram logits processor, which change sampling on every page |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
 | **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/1`), kept by an evaluation in its own repository. | not a catalog entry |
@@ -470,7 +471,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 
 | Term | Meaning | Not |
 |---|---|---|
-| **item** | Any multi-page unit: a book, an issue, a manuscript, a file. Key `item_id`. | not "book" in generic code, flags or docs |
+| **item** | Any multi-page unit as it is catalogued and scanned: a book, an issue, a manuscript, a file. Key `item_id`. The physical carrier, not its content: one item can hold several works (a bound volume, the articles of an issue) and one work can span items. | not "book" in generic code, flags or docs; never "document": in datatrove and in the data-processing pipelines that filter and deduplicate text datasets a document is one record of the stream (in linecaster a page, or an item after the `Binder`) |
 | **page** | One page of an item, with its image and its named transcriptions. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
 | **page record** | A page with its image reference, its transcriptions and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
 | **item record** | An item with its pages in order, as the `Binder` passes it on (`doc.metadata["item"]`, `linecaster.blocks.base.item`); the item-unit `Recomposer`, `CharacterNormalizer` and `Composer` read it, the item writers write from it, the `Splitter` turns it back into pages. | |
@@ -486,7 +487,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
 | **paragraph** | Running text recomposed from a region's rows, with the decisions that made it. Added by the `Recomposer`. | |
-| **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry |
+| **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry, not the item |
 | **step info** | One entry per step that worked on a transcription (`StepInfo`): step, engine, preset edition, backend, settings, measurements. | |
 | **measurements** | Numbers a step records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
 | **text variant** | A named point on the three text dimensions, written per item: `verbatim_txt`, `readable_txt`, `readable_md`. | not a "version" |
@@ -3274,7 +3275,9 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`indra-ocr`](presets/recognition/indra-ocr.md) | `indra.recognition.v1` | AI Pubs Open RAIL-M License (Modified) |
 | [`lightonocr-2-1b`](presets/recognition/lightonocr-2-1b.md) | `chat.v1` | Apache-2.0 |
 | [`lightonocr-3-0.8b`](presets/recognition/lightonocr-3-0.8b.md) | `chat.v1` | Apache-2.0 |
+| [`lightonocr-3-0.8b-grounding`](presets/recognition/lightonocr-3-0.8b-grounding.md) | `chat.v1` | Apache-2.0 |
 | [`lightonocr-3-4b`](presets/recognition/lightonocr-3-4b.md) | `chat.v1` | Apache-2.0 |
+| [`lightonocr-3-4b-grounding`](presets/recognition/lightonocr-3-4b-grounding.md) | `chat.v1` | Apache-2.0 |
 | [`nemotron-3.5-parse`](presets/recognition/nemotron-3.5-parse.md) | `chat.v1` | OpenMDW-1.1 |
 | [`olmocr-2-7b-1025-fp8`](presets/recognition/olmocr-2-7b-1025-fp8.md) | `chat.v1` | Apache-2.0 |
 | [`ovisocr2`](presets/recognition/ovisocr2.md) | `chat.v1` | Apache-2.0 |

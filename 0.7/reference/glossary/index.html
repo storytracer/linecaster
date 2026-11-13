@@ -1421,6 +1421,11 @@ term is added here before it is used.</p>
 <td>not a retry of a failed request</td>
 </tr>
 <tr>
+<td><strong>grounding</strong></td>
+<td>A VLM's mode that labels and locates every block of the page as it transcribes it (LightOnOCR-3's <code>grounding</code> prompt: a placeholder with label and box before each block). linecaster makes one region per block, with page furniture as <code>page_header</code>/<code>page_footer</code>; what the model writes about a figure is kept apart from the text.</td>
+<td>not a layout step: one completion holds the layout and the text</td>
+</tr>
+<tr>
 <td><strong>repetition detection</strong></td>
 <td>vLLM's guard against a completion that loops (<code>repetition_detection</code> of a request, vLLM 0.17.0 and later): the server ends a completion whose last tokens repeat a pattern of <code>min_pattern_size</code> to <code>max_pattern_size</code> tokens <code>min_count</code> times in a row, with <code>finish_reason</code> <code>repetition</code>. Such a page is not sent to a <a href="./">repair pass</a>. On by default for presets served by vLLM 0.17.0 or later; linecaster's defaults: 8 to 100 tokens, 16 times (a run of one token is stopped after 128).</td>
 <td>not a repetition penalty or an n-gram logits processor, which change sampling on every page</td>
@@ -1479,8 +1484,8 @@ term is added here before it is used.</p>
 <tbody>
 <tr>
 <td><strong>item</strong></td>
-<td>Any multi-page unit: a book, an issue, a manuscript, a file. Key <code>item_id</code>.</td>
-<td>not "book" in generic code, flags or docs</td>
+<td>Any multi-page unit as it is catalogued and scanned: a book, an issue, a manuscript, a file. Key <code>item_id</code>. The physical carrier, not its content: one item can hold several works (a bound volume, the articles of an issue) and one work can span items.</td>
+<td>not "book" in generic code, flags or docs; never "document": in datatrove and in the data-processing pipelines that filter and deduplicate text datasets a document is one record of the stream (in linecaster a page, or an item after the <code>Binder</code>)</td>
 </tr>
 <tr>
 <td><strong>page</strong></td>
@@ -1560,7 +1565,7 @@ term is added here before it is used.</p>
 <tr>
 <td><strong>document</strong></td>
 <td>A DoclingDocument: the composed structure of a page or an item. Added by the <code>Composer</code>.</td>
-<td>not a datatrove <code>Document</code> (say "datatrove document"), not a catalog entry</td>
+<td>not a datatrove <code>Document</code> (say "datatrove document"), not a catalog entry, not the item</td>
 </tr>
 <tr>
 <td><strong>step info</strong></td>
