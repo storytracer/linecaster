@@ -5,7 +5,7 @@ A rule block takes its engine like a model block: a catalog preset (``"ratios@1"
 is its latest edition) or an engine spec, ``InProcess("module:Class", **options)``; ``options`` go over either (they
 are recorded as the backend's ``overrides``, as ``--set`` records them for model steps). There is no backend
 choice: rules are cheaper than a request, so a ``Served`` backend is refused. Each call of the engine adds one
-``StepInfo`` to the transcription; the block stamps it with the preset edition and its hash, ``seconds`` and
+``Annotator`` to the transcription; the block stamps it with the preset edition and its hash, ``seconds`` and
 ``datetime``, as ``ModelBlock`` does for model steps.
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, ClassVar
 
 from ...backends import InProcess
-from ...data.transcription import StepInfo
+from ...data.transcription import Annotator
 from ...errors import CatalogError, PipelineConfigError
 from .page import PageBlock
 
@@ -66,7 +66,7 @@ def check_engine(backend: InProcess, step: str) -> None:
             raise PipelineConfigError(f"{step}: {backend.spec}: {e}") from None
 
 
-def stamp(info: StepInfo, backend: InProcess, start: float, began: str) -> StepInfo:
+def stamp(info: Annotator, backend: InProcess, start: float, began: str) -> Annotator:
     """``info`` with the preset edition it ran as, and ``seconds`` and ``datetime`` (unless the engine set them)."""
     info.measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
     info.measurements.setdefault("datetime", began)
@@ -85,7 +85,7 @@ class RuleBlock(PageBlock):
     blocks.
 
     Subclasses state their catalog ``step`` and implement ``apply(page, t)`` (the engine is ``self.engine``); the
-    base stamps every ``StepInfo`` the call added with the preset edition and its hash, ``seconds`` and
+    base stamps every ``Annotator`` the call added with the preset edition and its hash, ``seconds`` and
     ``datetime``. A page without the transcription passes unchanged (stat ``no_transcription``). There is no
     backend choice: a ``Served`` backend is refused.
 
@@ -124,9 +124,9 @@ class RuleBlock(PageBlock):
             self.stat_update("no_transcription")
             return page
         start, began = now()
-        n = len(t.steps)
+        n = len(t.annotators)
         self.apply(page, t)
-        for info in t.steps[n:]:
+        for info in t.annotators[n:]:
             stamp(info, self.backend, start, began)
         return page
 

@@ -9,7 +9,8 @@ import pytest
 from PIL import Image
 
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.data import Line, Region, Transcription
+from linecaster.data import Transcription
+from linecaster.data.upgrade import upgrade_transcription
 from linecaster.testing import box, sample_transcription
 from linecaster.testing.markers import pytest_collection_modifyitems, pytest_configure  # noqa: F401 - the hooks
 
@@ -51,14 +52,16 @@ def transcription() -> Transcription:
 
 
 # ------------------------------------------------------------------ regions, lines and pages by their boxes
+# Regions and lines are written as page/2 dicts (label, reading order and row on them) and become a transcription
+# through the upgrade (``page_with``): one annotator, a role per label, one reading order.
 def region(rid, label, x, y, w, h, order, raw=None, **kw):
-    return Region(id=rid, label=label, raw_label=raw or label, polygon=box(x, y, w, h), bbox=[x, y, w, h],
-                  score=0.9, reading_order=order, **kw)
+    return {"id": rid, "label": label, "raw_label": raw or label, "polygon": box(x, y, w, h), "bbox": [x, y, w, h],
+            "score": 0.9, "reading_order": order, **kw}
 
 
 def line(rid, k, x, y, w, h, text, row=None, conf=0.99):
-    return Line(id=f"{rid}_l{k}", region_id=rid, row=k if row is None else row, polygon=box(x, y, w, h),
-                bbox=[x, y, w, h], text=text, confidence=conf)
+    return {"id": f"{rid}_l{k}", "region_id": rid, "row": k if row is None else row, "polygon": box(x, y, w, h),
+            "bbox": [x, y, w, h], "text": text, "confidence": conf}
 
 
 def body_region(rid, order, y0, n=6, h=20, x=100, prefix="body"):
@@ -66,8 +69,10 @@ def body_region(rid, order, y0, n=6, h=20, x=100, prefix="body"):
     return r, [line(rid, k, x, y0 + k * (h + 10), 800, h, f"{prefix} {k}") for k in range(n)]
 
 
-def page_with(regions, lines):
-    return Transcription(regions=regions, lines=lines)
+def page_with(regions, lines, **fields) -> Transcription:
+    """A transcription of page/2-style regions and lines (``region``, ``line``), by one annotator (step ``layout``)."""
+    return upgrade_transcription({"regions": regions, "lines": lines, "steps": [{"step": "layout", "name": "test"}],
+                                  **fields})
 
 
 def page_to_compose():
@@ -102,7 +107,7 @@ def page_t(n: int, body: list[str], heading: str | None = None):
     lines += [line(rid, k, 100, 100 + 30 * k, 800, 20, s) for k, s in enumerate(body)]
     regions.append(region("number_2", "page_footer", 450, 900, 40, 20, 2, raw="number"))
     lines.append(line("number_2", 0, 450, 900, 40, 20, str(n)))
-    return Transcription(regions=regions, lines=lines)
+    return page_with(regions, lines)
 
 
 def page_doc(page_id="p1", item="book1", t: Transcription | None = None, seq=1):

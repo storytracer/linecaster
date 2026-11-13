@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
-from ..data import Line, Region, Source, Transcription, Word
+from ..data import Annotator, Source, Transcription, Word
 
 #: the lines a sample page prints by default
 SAMPLE_LINES = ("The species described here", "were collected in the summer", "of 1887 by the author.",
@@ -79,8 +79,9 @@ def sample_layout(width: int = 800, height: int = 400, lines: int | Sequence[str
     """Returns the transcription of a sample page's layout: one text region around its lines, the lines at their
     boxes.
 
-    The region is ``text_0``; the lines are ``text_0_l<k>`` with their box, polygon, baseline, row and reading
-    order; with ``text`` also their text and a confidence, and their words.
+    The region is ``text_0`` (role ``paragraph``); the lines are ``text_0_l<k>`` with their box, polygon and
+    baseline, and a reading order with their rows; with ``text`` also their readings (text, confidence, words), all
+    by one annotator.
 
     Args:
         width, height, lines: as ``sample_page``.
@@ -89,23 +90,25 @@ def sample_layout(width: int = 800, height: int = 400, lines: int | Sequence[str
     texts, boxes = _texts(lines), sample_boxes(width, height, lines)
     x0, y0 = boxes[0][0], boxes[0][1]
     x1, y1 = boxes[-1][0] + boxes[-1][2], boxes[-1][1] + boxes[-1][3]
-    region = Region(id="text_0", label="text", raw_label="text", polygon=box(x0, y0, x1 - x0, y1 - y0),
-                    bbox=[x0, y0, x1 - x0, y1 - y0], score=1.0, reading_order=0)
-    out = []
-    for k, (t, (x, y, w, h)) in enumerate(zip(texts, boxes)):
-        line = Line(id=f"text_0_l{k}", region_id="text_0", reading_order=k, row=k, bbox=[x, y, w, h],
-                    polygon=box(x, y, w, h), baseline=[[x, y + 0.8 * h], [x + w, y + 0.8 * h]])
+    t = Transcription(source=Source(image_width=width, image_height=height))
+    a = t.add_annotator(Annotator(step="layout", name="sample"))
+    t.add_region(a, "text_0", [x0, y0, x1 - x0, y1 - y0], box(x0, y0, x1 - x0, y1 - y0), label="text", role="text",
+                 confidence=1.0)
+    ids = []
+    for k, (txt, (x, y, w, h)) in enumerate(zip(texts, boxes)):
+        line = t.add_line(a, f"text_0_l{k}", [x, y, w, h], box(x, y, w, h), region="text_0",
+                          baseline=[[x, y + 0.8 * h], [x + w, y + 0.8 * h]])
+        ids.append(line.id)
         if text:
-            line.text, line.confidence = t, 0.99
-            step = w / max(len(t), 1)
-            pos = 0
-            for j, word in enumerate(t.split()):
-                start = t.index(word, pos)
+            step = w / max(len(txt), 1)
+            pos, words = 0, []
+            for word in txt.split():
+                start = txt.index(word, pos)
                 pos = start + len(word)
-                line.words.append(Word(id=f"{line.id}_w{j}", text=word, confidence=0.99,
-                                       bbox=[x + start * step, y, len(word) * step, h]))
-        out.append(line)
-    return Transcription(regions=[region], lines=out, source=Source(image_width=width, image_height=height))
+                words.append(Word(text=word, confidence=0.99, box=[x + start * step, y, len(word) * step, h]))
+            t.read(a, line, txt, confidence=0.99, words=words)
+    t.add_order(a, ["text_0"], ids, range(len(ids)))
+    return t
 
 
 def sample_document(page_id: str = "item1_0001", width: int = 800, height: int = 400,
@@ -159,70 +162,62 @@ def sample_transcription() -> Transcription:
     with polygons and baselines or boxes only, recognized, empty, not yet recognized, a line without a region, words
     with confidences, a hyphen and alternatives; a 1600 x 2400 page.
     """
-    regions = [
-        Region(id="page_header_0", label="page_header", raw_label="header", reading_order=0,
-               polygon=[[120.0, 80.0], [1480.0, 80.0], [1480.0, 140.0], [120.0, 140.0]],
-               bbox=[120.0, 80.0, 1360.0, 60.0], score=0.91),
-        Region(id="doc_title_1", label="title", raw_label="doc_title", reading_order=1,
-               polygon=[[300.4, 200.2], [1300.7, 198.9], [1302.1, 330.5], [298.0, 331.6]],
-               bbox=[298.0, 198.9, 1004.1, 132.7], score=0.873, heading_level=1),
-        Region(id="text_2", label="text", raw_label="text", reading_order=2,
-               polygon=[[118.0, 400.0], [1490.5, 400.0], [1490.5, 700.25], [118.0, 700.25]],
-               bbox=[118.0, 400.0, 1372.5, 300.25], score=0.95),
-        Region(id="image_3", label="picture", raw_label="image", reading_order=3,
-               polygon=[[200.0, 760.0], [1400.0, 760.0], [1400.0, 1500.0], [200.0, 1500.0]],
-               bbox=[200.0, 760.0, 1200.0, 740.0], score=0.88),
-        Region(id="footnote_4", label="footnote", raw_label="footnote", reading_order=4,
-               polygon=[[120.0, 1900.0], [1480.0, 1900.0], [1480.0, 2000.0], [120.0, 2000.0]],
-               bbox=[120.0, 1900.0, 1360.0, 100.0]),
-    ]
-    lines = [
-        Line(id="l0", region_id="page_header_0", reading_order=0, row=0, bbox=[130.0, 85.0, 400.0, 50.0],
-             baseline=[[130.0, 125.0], [530.0, 126.0]], text="12 THE BOTANIST", confidence=0.97,
-             words=[Word(id="l0_w0", text="12", bbox=[130.0, 86.0, 40.0, 40.0], confidence=0.99),
-                    Word(id="l0_w1", text="THE", bbox=[190.0, 86.0, 90.0, 40.0], confidence=0.96),
-                    Word(id="l0_w2", text="BOTANIST", bbox=[300.0, 86.0, 230.0, 40.0], confidence=0.95)]),
-        Line(id="l1", region_id="doc_title_1", reading_order=1, row=0, bbox=[310.25, 210.5, 980.5, 110.75],
-             polygon=[[310.25, 210.5], [1290.75, 209.0], [1290.75, 321.25], [310.25, 322.0]],
-             baseline=[[312.5, 300.25], [800.0, 301.5], [1288.0, 302.75]], score=0.8125,
-             text="Flora of the Northern Hills", confidence=0.884,
-             words=[Word(id="l1_w0", text="Flora", bbox=[312.0, 215.0, 200.0, 100.0], confidence=0.9),
-                    Word(id="l1_w1", text="of", bbox=[530.0, 215.0, 70.0, 100.0], confidence=0.8),
-                    Word(id="l1_w2", text="the", bbox=[620.0, 215.0, 120.0, 100.0], confidence=0.85),
-                    Word(id="l1_w3", text="Northern", bbox=[760.0, 215.0, 300.0, 100.0], confidence=0.9),
-                    Word(id="l1_w4", text="Hills", bbox=[1080.0, 215.0, 200.0, 100.0], confidence=0.88,
-                         alternatives=["Hilis"])]),
-        Line(id="l2", region_id="text_2", reading_order=2, row=0, bbox=[120.0, 405.0, 1360.0, 60.0],
-             polygon=[[120.0, 405.0], [1480.0, 405.0], [1480.0, 465.0], [120.0, 465.0]],
-             baseline=[[120.0, 455.0], [1480.0, 455.0]],
-             text="The species described here were col-", confidence=0.93,
-             words=[Word(id="l2_w0", text="The", bbox=[120.0, 410.0, 80.0, 50.0], confidence=0.99),
-                    Word(id="l2_w1", text="species", bbox=[215.0, 410.0, 170.0, 50.0], confidence=0.97),
-                    Word(id="l2_w2", text="described", bbox=[400.0, 410.0, 220.0, 50.0], confidence=0.95),
-                    Word(id="l2_w3", text="here", bbox=[635.0, 410.0, 100.0, 50.0], confidence=0.9),
-                    Word(id="l2_w4", text="were", bbox=[750.0, 410.0, 110.0, 50.0], confidence=0.92),
-                    Word(id="l2_w5", text="col-", bbox=[875.0, 410.0, 90.0, 50.0], confidence=0.71,
-                         hyphen=True)]),
-        # boxes only, recognized: no polygon, no baseline, no words
-        Line(id="l3", region_id="text_2", reading_order=3, row=1, bbox=[120.0, 475.0, 1300.0, 60.0],
-             text="lected in the summer of 1887 by the author.", confidence=0.9),
-        # empty text line (recognized as empty)
-        Line(id="l4", region_id="text_2", reading_order=4, row=2, bbox=[120.0, 545.0, 1300.0, 60.0],
-             baseline=[[120.0, 595.0], [1420.0, 595.0]], text="", confidence=0.5),
-        # not recognized yet (text None)
-        Line(id="l5", region_id="text_2", reading_order=5, row=3, bbox=[120.0, 615.0, 1300.0, 60.0],
-             polygon=[[120.0, 615.0], [1420.0, 615.0], [1420.0, 675.0], [120.0, 675.0]]),
-        # a line without a region (an orphan row from the line step)
-        Line(id="orphan_0", region_id=None, reading_order=6, row=0, bbox=[1500.0, 1600.0, 80.0, 300.0],
-             baseline=[[1540.0, 1600.0], [1540.0, 1900.0]], text="Plate IV", confidence=0.66,
-             words=[Word(id="orphan_0_w0", text="Plate", bbox=[1500.0, 1600.0, 80.0, 180.0], confidence=0.7),
-                    Word(id="orphan_0_w1", text="IV", bbox=[1500.0, 1800.0, 80.0, 100.0], confidence=0.6)]),
-        Line(id="l7", region_id="footnote_4", reading_order=7, row=0, bbox=[130.0, 1910.0, 1000.0, 40.0],
-             baseline=[[130.0, 1945.0], [1130.0, 1945.0]], text="1 See  Gray, Manual.", confidence=0.8,
-             words=[Word(id="l7_w0", text="1", bbox=[130.0, 1912.0, 20.0, 36.0]),
-                    Word(id="l7_w1", text="See", bbox=[160.0, 1912.0, 70.0, 36.0], confidence=0.85),
-                    Word(id="l7_w2", text="Gray,", bbox=[250.0, 1912.0, 110.0, 36.0], confidence=0.83),
-                    Word(id="l7_w3", text="Manual.", bbox=[375.0, 1912.0, 160.0, 36.0], confidence=0.77)]),
-    ]
-    return Transcription(regions=regions, lines=lines,
-                         source=Source(image_width=1600, image_height=2400, uri="page_0001.webp"))
+    t = Transcription(source=Source(image_width=1600, image_height=2400, uri="page_0001.webp"))
+    a = t.add_annotator(Annotator(step="layout", name="sample"))
+    for rid, label, raw, poly, bb, score, level in [
+        ("page_header_0", "page_header", "header", [[120.0, 80.0], [1480.0, 80.0], [1480.0, 140.0], [120.0, 140.0]],
+         [120.0, 80.0, 1360.0, 60.0], 0.91, None),
+        ("doc_title_1", "title", "doc_title", [[300.4, 200.2], [1300.7, 198.9], [1302.1, 330.5], [298.0, 331.6]],
+         [298.0, 198.9, 1004.1, 132.7], 0.873, 1),
+        ("text_2", "text", "text", [[118.0, 400.0], [1490.5, 400.0], [1490.5, 700.25], [118.0, 700.25]],
+         [118.0, 400.0, 1372.5, 300.25], 0.95, None),
+        ("image_3", "picture", "image", [[200.0, 760.0], [1400.0, 760.0], [1400.0, 1500.0], [200.0, 1500.0]],
+         [200.0, 760.0, 1200.0, 740.0], 0.88, None),
+        ("footnote_4", "footnote", "footnote", [[120.0, 1900.0], [1480.0, 1900.0], [1480.0, 2000.0], [120.0, 2000.0]],
+         [120.0, 1900.0, 1360.0, 100.0], None, None)]:
+        t.add_region(a, rid, bb, poly, label=raw, role=label, heading_level=level, confidence=score)
+
+    def words(*ws):
+        return [Word(text=w[0], box=w[1], confidence=w[2] if len(w) > 2 else None,
+                     **({"alternatives": w[3]} if len(w) > 3 and w[3] else {}),
+                     **({"hyphen": True} if len(w) > 4 else {})) for w in ws]
+
+    t.add_line(a, "l0", [130.0, 85.0, 400.0, 50.0], region="page_header_0",
+               baseline=[[130.0, 125.0], [530.0, 126.0]])
+    t.read(a, "l0", "12 THE BOTANIST", 0.97, words(("12", [130.0, 86.0, 40.0, 40.0], 0.99),
+                                                  ("THE", [190.0, 86.0, 90.0, 40.0], 0.96),
+                                                  ("BOTANIST", [300.0, 86.0, 230.0, 40.0], 0.95)))
+    t.add_line(a, "l1", [310.25, 210.5, 980.5, 110.75],
+               [[310.25, 210.5], [1290.75, 209.0], [1290.75, 321.25], [310.25, 322.0]], region="doc_title_1",
+               baseline=[[312.5, 300.25], [800.0, 301.5], [1288.0, 302.75]], confidence=0.8125)
+    t.read(a, "l1", "Flora of the Northern Hills", 0.884, words(
+        ("Flora", [312.0, 215.0, 200.0, 100.0], 0.9), ("of", [530.0, 215.0, 70.0, 100.0], 0.8),
+        ("the", [620.0, 215.0, 120.0, 100.0], 0.85), ("Northern", [760.0, 215.0, 300.0, 100.0], 0.9),
+        ("Hills", [1080.0, 215.0, 200.0, 100.0], 0.88, ["Hilis"])))
+    t.add_line(a, "l2", [120.0, 405.0, 1360.0, 60.0],
+               [[120.0, 405.0], [1480.0, 405.0], [1480.0, 465.0], [120.0, 465.0]], region="text_2",
+               baseline=[[120.0, 455.0], [1480.0, 455.0]])
+    t.read(a, "l2", "The species described here were col-", 0.93, words(
+        ("The", [120.0, 410.0, 80.0, 50.0], 0.99), ("species", [215.0, 410.0, 170.0, 50.0], 0.97),
+        ("described", [400.0, 410.0, 220.0, 50.0], 0.95), ("here", [635.0, 410.0, 100.0, 50.0], 0.9),
+        ("were", [750.0, 410.0, 110.0, 50.0], 0.92), ("col-", [875.0, 410.0, 90.0, 50.0], 0.71, None, True)))
+    # boxes only, recognized: no polygon, no baseline, no words
+    t.add_line(a, "l3", [120.0, 475.0, 1300.0, 60.0], region="text_2")
+    t.read(a, "l3", "lected in the summer of 1887 by the author.", 0.9)
+    # empty text line (recognized as empty)
+    t.add_line(a, "l4", [120.0, 545.0, 1300.0, 60.0], region="text_2", baseline=[[120.0, 595.0], [1420.0, 595.0]])
+    t.read(a, "l4", "", 0.5)
+    # not recognized yet (no reading)
+    t.add_line(a, "l5", [120.0, 615.0, 1300.0, 60.0],
+               [[120.0, 615.0], [1420.0, 615.0], [1420.0, 675.0], [120.0, 675.0]], region="text_2")
+    # a line without a region (an orphan row from the line step)
+    t.add_line(a, "orphan_0", [1500.0, 1600.0, 80.0, 300.0], baseline=[[1540.0, 1600.0], [1540.0, 1900.0]])
+    t.read(a, "orphan_0", "Plate IV", 0.66, words(("Plate", [1500.0, 1600.0, 80.0, 180.0], 0.7),
+                                                ("IV", [1500.0, 1800.0, 80.0, 100.0], 0.6)))
+    t.add_line(a, "l7", [130.0, 1910.0, 1000.0, 40.0], region="footnote_4",
+               baseline=[[130.0, 1945.0], [1130.0, 1945.0]])
+    t.read(a, "l7", "1 See  Gray, Manual.", 0.8, words(
+        ("1", [130.0, 1912.0, 20.0, 36.0]), ("See", [160.0, 1912.0, 70.0, 36.0], 0.85),
+        ("Gray,", [250.0, 1912.0, 110.0, 36.0], 0.83), ("Manual.", [375.0, 1912.0, 160.0, 36.0], 0.77)))
+    t.add_order(a, [r.id for r in t.regions], [ln.id for ln in t.lines], [0, 0, 0, 1, 2, 3, 0, 0])
+    return t

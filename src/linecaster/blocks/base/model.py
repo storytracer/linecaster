@@ -118,7 +118,7 @@ class ModelBlock(PageBlock):
 
     Contract: reads the page image (recognition also ``lines``, tables and formulas ``regions``) and adds what its
     preset's ``capabilities.produces`` names, else its engine's declared capabilities, else the step's default
-    (``STEP_PRODUCES``). The engine's ``StepInfo`` gets the engine id, ``seconds``, ``datetime`` and, from a
+    (``STEP_PRODUCES``). The engine's ``Annotator`` gets the engine id, ``seconds``, ``datetime`` and, from a
     preset, the edition and its hash. A page an earlier block failed on passes through at once (stat
     ``skipped_after_error``); a failed request is the page's error (type ``ServerError``), counted against the
     error budget. Served stats: ``pages``, ``model_seconds``, token counts, ``finish_<reason>``,
@@ -205,17 +205,17 @@ class ModelBlock(PageBlock):
     @staticmethod
     def _record_request(t: Transcription, row: dict) -> None:
         """A served step's time from its request being built to its (last) answer (measurement ``request_seconds``)."""
-        if t.steps and "built" in row:
-            t.steps[-1].measurements["request_seconds"] = round(time.perf_counter() - row["built"], 4)
+        if t.annotators and "built" in row:
+            t.annotators[-1].measurements["request_seconds"] = round(time.perf_counter() - row["built"], 4)
 
     @staticmethod
     def _record_decoder(t: Transcription, px) -> None:
         """The decoder of the pixels the step read, on its step record (measurement ``decoder``)."""
-        if px is not None and t.steps:
-            t.steps[-1].measurements.setdefault("decoder", px.decoder)
+        if px is not None and t.annotators:
+            t.annotators[-1].measurements.setdefault("decoder", px.decoder)
 
     def needs_image(self, t: Transcription) -> bool:
-        return self.region_label is None or any(r.label == self.region_label for r in t.regions)
+        return self.region_label is None or any(t.label(r.id) == self.region_label for r in t.regions)
 
     # ------------------------------------------------------------- in-process
     def process_page(self, doc, page: Page) -> Page:
@@ -235,12 +235,13 @@ class ModelBlock(PageBlock):
                 self._decoded(*last_decode())
         out = engine(image, t, **self.params)
         self._record_decoder(out, px)
-        if out.steps:
-            out.steps[-1].engine = out.steps[-1].engine or getattr(engine, "engine_id", None)
-            out.steps[-1].measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
-            out.steps[-1].measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
+        if out.annotators:
+            a = out.annotators[-1]
+            a.engine = a.engine or getattr(engine, "engine_id", None)
+            a.measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
+            a.measurements.setdefault("datetime", began)     # ALTO processingDateTime, PAGE date
             if getattr(self.backend, "preset", None):        # built from a catalog preset
-                out.steps[-1].preset, out.steps[-1].preset_sha256 = self.backend.preset, self.backend.preset_sha256
+                a.preset, a.preset_sha256 = self.backend.preset, self.backend.preset_sha256
         page.transcriptions[self.transcription] = out
         return page
 
@@ -284,7 +285,7 @@ class ModelBlock(PageBlock):
         return {"model": self.backend.model, "page_id": doc.id,
                 "image": base64.b64encode(image_bytes(doc)).decode("ascii") if image else None,
                 **({"image_decode": self.image_decode} if image else {}),
-                "transcription": t.model_dump(mode="json"), "params": self.params}
+                "transcription": t.model_dump(mode="json", by_alias=True, exclude_defaults=True), "params": self.params}
 
     @staticmethod
     def _parse(body: dict) -> dict:
@@ -307,12 +308,12 @@ class ModelBlock(PageBlock):
         self._record_decoder(out, item.row.get("decoded"))
         self._placed(out, doc)
         self._record_request(out, item.row)
-        decoder = out.steps[-1].measurements.get("decoder") if out.steps and "decoded" not in item.row else None
+        decoder = out.annotators[-1].measurements.get("decoder") if out.annotators and "decoded" not in item.row else None
         if decoder:                                # decoded by the server
             self.stat_update("gpu_decoded" if "(GPU" in decoder else "cpu_decoded")
         page.transcriptions[self.transcription] = out
         set_page(doc, page, self.primary)
-        measured = out.steps[-1].measurements if out.steps else {}
+        measured = out.annotators[-1].measurements if out.annotators else {}
         if "seconds" in measured:
             self.stat_update("model_seconds", value=measured["seconds"], unit="doc")
         for key in ("prompt_tokens", "completion_tokens"):

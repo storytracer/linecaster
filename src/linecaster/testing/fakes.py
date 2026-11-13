@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data import Line, Region, StepInfo, Transcription
+from ..data import Annotator, Cell, Formula, RawOutput, Table, Transcription
 from .samples import box
 
 
@@ -30,18 +30,17 @@ class _Fake:
         """Nothing to load; records that it was called."""
         self.loaded = True
 
-    def _done(self, t: Transcription, counted: dict | None = None) -> Transcription:
-        """``t`` with the step's record; ``counted``: the table or formula count (``tables``, ``formulas``)."""
-        info = StepInfo(step=self.step, name=f"fake-{self.step}", engine=self.engine_id, backend="fake (cpu)",
-                        settings=self.options.model_dump(mode="json"))
-        if counted is not None:
-            info.measurements = {"tables": counted["tables"]} if "tables" in counted else {
-                "formulas": counted["formulas"]}
-        t.steps.append(info)
-        return t
+    def _start(self, t: Transcription) -> int:
+        """Appends the call's annotator to ``t``; returns its index."""
+        return t.add_annotator(Annotator(step=self.step, name=f"fake-{self.step}", engine=self.engine_id,
+                                         backend="fake (cpu)", settings=self.options.model_dump(mode="json")))
 
-    def __repr__(self) -> str:
-        return f"<{type(self).__name__} {self.engine_id}>"
+    def _done(self, t: Transcription, counted: dict | None = None) -> Transcription:
+        """``t`` with the table or formula count (``tables``, ``formulas``) in the call's measurements."""
+        if counted is not None:
+            t.annotators[-1].measurements = {"tables": counted["tables"]} if "tables" in counted else {
+                "formulas": counted["formulas"]}
+        return t
 
 
 def _size(image, t: Transcription) -> tuple[int, int]:
@@ -72,10 +71,11 @@ class FakeLayoutEngine(_Fake):
         w, h = _size(image, transcription)
         o = self.options
         cw, rh = w / o.cols, h / o.rows
-        transcription.regions = [
-            Region(id=f"{o.label}_{k}", label=o.label, raw_label=o.label, score=1.0, reading_order=k,
-                   polygon=box(c * cw, r * rh, cw, rh), bbox=[c * cw, r * rh, cw, rh])
-            for k, (r, c) in enumerate((r, c) for r in range(o.rows) for c in range(o.cols))]
+        a = self._start(transcription)
+        for k, (r, c) in enumerate((r, c) for r in range(o.rows) for c in range(o.cols)):
+            transcription.add_region(a, f"{o.label}_{k}", [c * cw, r * rh, cw, rh], box(c * cw, r * rh, cw, rh),
+                                     label=o.label, role=o.label, confidence=1.0)
+        transcription.add_order(a, [r.id for r in transcription.regions[-o.rows * o.cols:]])
         return self._done(transcription)
 
 
@@ -102,21 +102,24 @@ class FakeLineEngine(_Fake):
 
     def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
         o = self.options
+        a = self._start(transcription)
+        t = transcription
         if o.boxes is not None:
-            transcription.lines = [Line(id=f"l{k}", reading_order=k, row=k, bbox=list(b), polygon=box(*b))
-                                   for k, b in enumerate(o.boxes)]
-            return self._done(transcription)
-        w, h = _size(image, transcription)
-        areas = [(r.id, r.bbox) for r in transcription.regions] or [(None, [0, 0, w, h])]
-        lines = []
+            for k, b in enumerate(o.boxes):
+                t.add_line(a, f"l{k}", list(b), box(*b))
+            t.add_order(a, lines=[f"l{k}" for k in range(len(o.boxes))], rows=range(len(o.boxes)))
+            return self._done(t)
+        w, h = _size(image, t)
+        areas = [(r.id, r.box) for r in t.ordered_regions()] or [(None, [0, 0, w, h])]
+        ids, rows = [], []
         for rid, (x, y, bw, bh) in areas:
             step = int(bh) // o.split
             for k in range(o.split):
                 b = [x, y + k * step, bw, step]
-                lines.append(Line(id=f"{rid}_l{k}" if rid else f"l{k}", region_id=rid, reading_order=len(lines),
-                                  row=k, bbox=b, polygon=box(*b)))
-        transcription.lines = lines
-        return self._done(transcription)
+                ids.append(t.add_line(a, f"{rid}_l{k}" if rid else f"l{k}", b, box(*b), region=rid).id)
+                rows.append(k)
+        t.add_order(a, lines=ids, rows=rows)
+        return self._done(t)
 
 
 class FakeRecognitionEngine(_Fake):
@@ -138,15 +141,16 @@ class FakeRecognitionEngine(_Fake):
 
     def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
         w, h = _size(image, transcription)
+        a = self._start(transcription)
         for i, ln in enumerate(transcription.lines):
-            ln.text = self.options.template.format(line=ln.id, index=i, width=w, height=h)
-            ln.confidence = self.options.confidence
+            transcription.read(a, ln, self.options.template.format(line=ln.id, index=i, width=w, height=h),
+                               self.options.confidence)
         return self._done(transcription)
 
 
 class FakePageEngine(_Fake):
     """Reads the whole page as a text-only transcription: one line per line of a text made from the page's size
-    (``template``), no geometry, the text kept as ``extra["raw"]``, as a page engine returns it.
+    (``template``), no geometry, the text kept as its raw output, as a page engine returns it.
 
     Args:
         **options: the fields of its ``Options`` (``template``)."""
@@ -164,8 +168,12 @@ class FakePageEngine(_Fake):
     def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
         w, h = _size(image, transcription)
         raw = self.options.template.format(width=w, height=h)
-        out = Transcription(lines=[Line(id=f"l{i}", reading_order=i, text=t) for i, t in enumerate(raw.split("\n"))],
-                            extra={"raw": raw})
+        out = Transcription(source=transcription.source.model_copy())
+        a = self._start(out)
+        o = out.add_output(RawOutput(annotator=a, content=raw))
+        for i, text in enumerate(raw.split("\n")):
+            out.read(a, out.add_line(a, f"l{i}", output=o), text, output=o)
+        out.add_order(a, lines=[ln.id for ln in out.lines])
         return self._done(out)
 
 
@@ -186,11 +194,13 @@ class FakeTableEngine(_Fake):
 
     def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
         n = 0
+        a = self._start(transcription)
         for r in transcription.regions:
-            if r.label == self.options.label:
-                r.extra["table"] = {"num_rows": 1, "num_cols": 1, "html": f"<table><tr><td>{r.id}</td></tr></table>",
-                                    "cells": [{"text": r.id, "row": 0, "col": 0, "row_span": 1, "col_span": 1,
-                                               "bbox": list(r.bbox), "header": False}]}
+            if transcription.label(r.id) == self.options.label:
+                transcription.tables.append(Table(annotator=a, target=r.id, num_rows=1, num_cols=1,
+                                                  html=f"<table><tr><td>{r.id}</td></tr></table>",
+                                                  cells=[Cell(text=r.id, start_row=0, end_row=1, start_col=0,
+                                                              end_col=1, box=list(r.box))]))
                 n += 1
         return self._done(transcription, {"tables": n})
 
@@ -212,9 +222,11 @@ class FakeFormulaEngine(_Fake):
 
     def __call__(self, image, transcription: Transcription, **params: Any) -> Transcription:
         n = 0
+        a = self._start(transcription)
         for r in transcription.regions:
-            if r.label == self.options.label:
-                r.extra["formula"] = f"x_{{{r.id.replace('_', '')}}}"
+            if transcription.label(r.id) == self.options.label:
+                transcription.formulas.append(Formula(annotator=a, target=r.id,
+                                                      latex=f"x_{{{r.id.replace('_', '')}}}"))
                 n += 1
         return self._done(transcription, {"formulas": n})
 

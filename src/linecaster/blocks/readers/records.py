@@ -7,6 +7,7 @@ from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
 from ...data.page import PAGE_KEY, PAGE_SCHEMA
+from ...data.upgrade import OLD, page_2_to_3
 from ...errors import PageError, PipelineConfigError
 from ..base.block import reported_file
 from ..base.contract import Contract, Contracted, Part
@@ -38,7 +39,8 @@ def _from_page_1(row: dict) -> dict:
 
 #: a stored row's ``schema`` (``None``: none, the rows before phase 1) -> the function that brings it to the next
 #: version, and that version
-UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, PAGE_SCHEMA)}
+UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, OLD),
+            OLD: (page_2_to_3, PAGE_SCHEMA)}
 
 
 def upgrade(row: dict) -> dict:
@@ -68,7 +70,8 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
 
     Rows of an earlier format are read as today's (``upgrade``, by the row's ``schema``): rows without ``schema``
     name linecaster's transcription ``ocr`` (read as ``ocr_new``), ``linecaster.page/1`` rows a transcription's
-    steps ``model`` (read as ``steps``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
+    steps ``model`` (read as ``steps``), ``linecaster.page/2`` rows in the annotation model
+    (``linecaster.data.upgrade.page_2_to_3``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
     (the folder's earlier name) is read from there.
 
     Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards

@@ -11,7 +11,8 @@ A rule-based engine (a **strategy**) is a class like a model engine, without wei
   ``__call__(pages: list[Transcription], **options) -> list[Transcription]``, the transcriptions of one item's pages
   in order (a page is an item of one page). The image step's engines take the page image's bytes instead:
   ``__call__(data: bytes, **options) -> (bytes, info)``. Options given to a call override the engine's own for that
-  call. The engine records what it did as a ``StepInfo`` on each transcription (``step_info``).
+  call. The engine records itself as an ``Annotator`` of each transcription it adds to (``annotate``), and its
+  annotations name it.
 
 They run in the pipeline's process only (``linecaster.catalog.registry.IN_PROCESS_ONLY``): rules are cheaper than a
 request.
@@ -30,7 +31,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import StepInfo
+from ..data.transcription import Annotator
 from . import scripts as S
 
 
@@ -57,13 +58,18 @@ class RuleEngine:
         """The engine's options with those of one call over them, validated."""
         return self.Options(**{**self.options.model_dump(), **options}) if options else self.options
 
-    def step_info(self, options: BaseModel | None = None, measurements: dict | None = None,
-                  name: str | None = None) -> StepInfo:
-        """The ``StepInfo`` of one call: the step, the engine (also the name, when no library is named), the
+    def annotator(self, options: BaseModel | None = None, measurements: dict | None = None,
+                  name: str | None = None) -> Annotator:
+        """The ``Annotator`` of one call: a rule, the step, the engine (also the name, when no library is named), the
         options as settings, ``measurements`` (``linecaster.data.MEASUREMENTS``)."""
         o = options if options is not None else self.options
-        return StepInfo(step=self.step, name=name or self.engine_id, engine=self.engine_id,
-                        settings=o.model_dump(mode="json"), measurements=measurements or {})
+        return Annotator(kind="rule", step=self.step, name=name or self.engine_id, engine=self.engine_id,
+                         settings=o.model_dump(mode="json"), measurements=measurements or {})
+
+    def annotate(self, t, options: BaseModel | None = None, name: str | None = None) -> int:
+        """Appends the call's ``Annotator`` to ``t``; returns its index, which the call's annotations name (its
+        measurements are filled in afterwards: ``t.annotators[i].measurements``)."""
+        return t.add_annotator(self.annotator(options, name=name))
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__} {self.engine_id}>"

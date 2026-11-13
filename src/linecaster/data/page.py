@@ -1,8 +1,8 @@
 """Items, pages, page images and texts: the page records linecaster's pipelines read and write.
 
-An ``Item`` is any multi-page unit (a book, an issue, a manuscript, a file); a ``Page`` is one of its
-pages with its image and any number of named transcriptions (``ocr_original`` from a delivery,
-``ocr_new`` from a linecaster run, ``ground_truth``, ...). ``page_id`` is ``item_id`` plus the
+An ``Item`` is a named, ordered container of one or more pages; a ``Page`` is one of its pages with its image
+and any number of named transcriptions (``ocr_original`` from a delivery, ``ocr_new`` from a linecaster run,
+``ground_truth``, ...) and annotation sets without text (``annotations``). ``page_id`` is ``item_id`` plus the
 page's sequence unless the source has its own stable page ids.
 
 In a datatrove pipeline a page travels as one ``Document``: ``id`` = ``page_id``, ``text`` = the text
@@ -17,11 +17,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .transcription import Transcription
+from .transcription import SCHEMA, AnnotationSet, Transcription
 
 PAGE_KEY = "page"
 #: the format of a stored page record (its row's ``schema``); ``PageRecordReader`` reads earlier ones as this one
-PAGE_SCHEMA = "linecaster.page/2"
+PAGE_SCHEMA = SCHEMA
 
 
 class PageImage(BaseModel):
@@ -55,10 +55,15 @@ class Page(BaseModel):
     sequence: int | None = None
     image: PageImage | None = None
     transcriptions: dict[str, Transcription] = Field(default_factory=dict)
+    annotations: dict[str, AnnotationSet] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     # the page's time in the runs that worked on the record (MEASUREMENTS: seconds, summed over the runs; datetime, when
     # the first started it; ``PageTiming``); each step's own time is on its step record
     measurements: dict[str, Any] = Field(default_factory=dict)
+
+    def record(self) -> dict:
+        """The page record as stored: JSON-compatible, defaults left out."""
+        return self.model_dump(mode="json", by_alias=True, exclude_defaults=True)
 
     def transcription(self, name: str) -> Transcription:
         """The named transcription, created empty when missing."""

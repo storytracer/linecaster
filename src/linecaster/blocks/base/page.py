@@ -27,7 +27,7 @@ def page_of(doc: Document) -> Page:
 
 
 def set_page(doc: Document, page: Page, primary: str | None = None) -> None:
-    doc.metadata[PAGE_KEY] = page.model_dump(mode="json")
+    doc.metadata[PAGE_KEY] = page.record()
     if primary and primary in page.transcriptions:
         doc.text = page.transcriptions[primary].text
 

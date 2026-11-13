@@ -43,7 +43,7 @@ def item_pages(doc: Document) -> list[Page]:
 def set_item_pages(doc: Document, pages: list[Page], item_id: str | None = None) -> None:
     record = doc.metadata.get(ITEM_KEY) or {}
     doc.metadata[ITEM_KEY] = {"item_id": item_id or record.get("item_id") or doc.id,
-                              "pages": [p.model_dump(mode="json") for p in pages]}
+                              "pages": [p.record() for p in pages]}
 
 
 def gather(data: Iterable[Document], block, count_key: str = "item_page_count") -> Iterator[tuple[str, list[Page]]]:
