@@ -1,0 +1,950 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Page",
+  "$defs": {
+    "Decision": {
+      "additionalProperties": false,
+      "description": "One decision of a recomposition, at one row of a paragraph (``row``: the index into\n``Paragraph.rows``): a mark removed or a hyphen kept at that row's end, a paragraph break before it (row\n0), a continuation after the paragraph's last row. ``kind`` and ``reason`` are ``DECISIONS``'.\n``separator`` is, for a continuation, what joins this paragraph's text to the text of the paragraph it\nruns on into (``\"\"`` or a space; a removed mark is already gone from ``Paragraph.text``).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "mark_removed",
+            "hyphen_kept",
+            "paragraph_break",
+            "continuation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "row": {
+          "default": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "separator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Separator"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "Line": {
+      "additionalProperties": false,
+      "description": "A text line: geometry from a line step, text from a recognition step.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "reading_order": {
+          "default": 0,
+          "title": "Reading Order",
+          "type": "integer"
+        },
+        "row": {
+          "default": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bbox"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "normalized": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Normalized"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "alternatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "words": {
+          "items": {
+            "$ref": "#/$defs/Word"
+          },
+          "title": "Words",
+          "type": "array"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Line",
+      "type": "object"
+    },
+    "PageImage": {
+      "additionalProperties": false,
+      "description": "The image a page's coordinates refer to. Bytes travel next to the row (``Document.media``),\nnever inside it.",
+      "properties": {
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "pixels_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pixels Sha256"
+        },
+        "source_width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Width"
+        },
+        "source_height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Height"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale"
+        },
+        "decoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decoder"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "title": "PageImage",
+      "type": "object"
+    },
+    "Paragraph": {
+      "additionalProperties": false,
+      "description": "Running text recomposed from the rows of one region, with the decisions that made it.\n\nThe rows say exactly where each part of the text was printed, which is what a document's provenance needs:\na ``ParagraphRow`` names the lines on the row (all of them, as ``Line.row`` groups a region's lines), and its\nbox is the union of their boxes as algorithms derive them (``geometry.bbox_of`` of each polygon, else the\nbbox); ``start``/``end`` are the row's character range in ``text``, so a document item made from the paragraph\nhas one provenance entry per row with that box and that ``charspan`` (shifted by the length of the text\nbefore it when the item continues a paragraph of an earlier region or page). Rows without text belong to no\nparagraph. A text-only transcription (lines without geometry) has rows too, without boxes.\n\n``text`` is as written, flowed: the rows joined, the division marks the recomposition removed are gone\n(``decisions``). ``normalized`` is the same text normalized (``CharacterNormalizer``). ``continues`` names\nthe paragraph this one runs on into, ``continues_from`` the one it continues (in the next or previous text\nregion, or, from an item-level recomposition, on the next or previous page).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/ParagraphRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "normalized": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Normalized"
+        },
+        "continues_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParagraphRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "continues": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParagraphRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decisions": {
+          "items": {
+            "$ref": "#/$defs/Decision"
+          },
+          "title": "Decisions",
+          "type": "array"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Paragraph",
+      "type": "object"
+    },
+    "ParagraphRef": {
+      "additionalProperties": false,
+      "description": "A paragraph elsewhere: its id, on this page (``page_id`` None) or on another page of the item.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "page_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "ParagraphRef",
+      "type": "object"
+    },
+    "ParagraphRow": {
+      "additionalProperties": false,
+      "description": "One visual row of a paragraph: every line on the row (``Line.row``; empty ones too), and where the row's\ntext is in the paragraph's text.",
+      "properties": {
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "lines",
+        "start",
+        "end"
+      ],
+      "title": "ParagraphRow",
+      "type": "object"
+    },
+    "Region": {
+      "additionalProperties": false,
+      "description": "A layout region. ``label`` uses Docling's vocabulary (text, section_header, page_header, ...);\n``raw_label`` is the producing model's own label.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "raw_label": {
+          "default": "",
+          "title": "Raw Label",
+          "type": "string"
+        },
+        "polygon": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Polygon",
+          "type": "array"
+        },
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "reading_order": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reading Order"
+        },
+        "heading_level": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heading Level"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "polygon",
+        "bbox"
+      ],
+      "title": "Region",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where the transcription comes from: produced here, or converted from a delivered file.",
+      "properties": {
+        "kind": {
+          "default": "produced",
+          "title": "Kind",
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "image_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Sha256"
+        },
+        "image_width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Width"
+        },
+        "image_height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Height"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "title": "Source",
+      "type": "object"
+    },
+    "StepInfo": {
+      "additionalProperties": false,
+      "description": "One step that worked on the transcription, in the order the steps ran: a model step (layout, lines,\nrecognition, tables, formulas) or a rule-based one (unicode, typography, recomposition, normalization,\ncomposition). ``measurements`` keys come from the fixed vocabulary ``linecaster.data.MEASUREMENTS``.",
+      "properties": {
+        "step": {
+          "title": "Step",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "preset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preset"
+        },
+        "preset_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preset Sha256"
+        },
+        "recipe": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recipe"
+        },
+        "recipe_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recipe Sha256"
+        },
+        "backend": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backend"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "title": "Settings",
+          "type": "object"
+        },
+        "measurements": {
+          "additionalProperties": true,
+          "title": "Measurements",
+          "type": "object"
+        }
+      },
+      "required": [
+        "step",
+        "name"
+      ],
+      "title": "StepInfo",
+      "type": "object"
+    },
+    "Transcription": {
+      "additionalProperties": false,
+      "description": "OCR, HTR or ground truth of one page.",
+      "properties": {
+        "regions": {
+          "items": {
+            "$ref": "#/$defs/Region"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/Line"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/Paragraph"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        },
+        "docling": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docling"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/StepInfo"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "title": "Transcription",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": false,
+      "description": "A word of a recognized line.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bbox"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "hyphen": {
+          "default": false,
+          "title": "Hyphen",
+          "type": "boolean"
+        },
+        "alternatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "page_id": {
+      "title": "Page Id",
+      "type": "string"
+    },
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Item Id"
+    },
+    "sequence": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sequence"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PageImage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "transcriptions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Transcription"
+      },
+      "title": "Transcriptions",
+      "type": "object"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "measurements": {
+      "additionalProperties": true,
+      "title": "Measurements",
+      "type": "object"
+    }
+  },
+  "required": [
+    "page_id"
+  ],
+  "type": "object"
+}
