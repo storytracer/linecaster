@@ -65,8 +65,10 @@ DOCLING_ROLES: dict[str, str] = {
     "page_footer": "footer", "handwritten_text": "paragraph",
 }
 
-#: roles whose Docling label depends on where the zone is: page_header in the top half of the page, else page_footer
+#: roles whose Docling label depends on where the zone is: page_header when the box's centre lies in the top
+#: ``HEADER_ZONE`` of the page (as PP-DocLayout's ``number`` is placed), else page_footer
 _PLACED = frozenset({"page_number"})
+HEADER_ZONE = 0.15
 
 
 def role_of_label(label: str) -> tuple[str, str | None]:
@@ -89,14 +91,14 @@ def classify_label(t, annotator: int, target: str, label: str, **fields) -> str:
 
 def docling_label(t, target: str, role: str | None = None) -> str:
     """The Docling label of ``target`` (a region id) from its content role (``role``, or its resolved one): a
-    page number is ``page_header`` in the top half of the page (or without a box), else ``page_footer``; a role
-    without a Docling label of its own is written as it is."""
+    page number is ``page_header`` when its centre lies in the top ``HEADER_ZONE`` of the page (or without a box),
+    else ``page_footer``; a role without a Docling label of its own is written as it is."""
     role = role if role is not None else (t.role(target) or "paragraph")
     if role in _PLACED:
         r = t.region(target)
         height = t.source.image_height
         if r is not None and r.box is not None and height:
-            return "page_header" if r.box[1] + r.box[3] / 2 < height / 2 else "page_footer"
+            return "page_header" if r.box[1] + r.box[3] / 2 < HEADER_ZONE * height else "page_footer"
         return "page_header"
     return ROLES[role][1] if role in ROLES else role
 
@@ -169,7 +171,7 @@ class RenderingPolicy(BaseModel):
 DEFAULT_POLICY = RenderingPolicy(
     id="page-layers", edition=1,
     rules=[RenderingRule(status=s, to="none") for s in ("suppressed", "duplicate", "removed")],
-    edits={"verbatim_txt": ["nfc"], "readable_txt": ["nfc", "joined", "normalized"],
+    edits={"verbatim_txt": ["nfc", "joined"], "readable_txt": ["nfc", "joined", "normalized"],
            "readable_md": ["nfc", "joined", "normalized"]})
 
 

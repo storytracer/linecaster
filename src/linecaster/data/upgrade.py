@@ -162,8 +162,7 @@ def upgrade_transcription(d: dict, page_id: str | None = None) -> Transcription:
     ordered = sorted(enumerate(lines), key=lambda il: (il[1].get("reading_order", 0), il[0]))
     if regions or lines:
         t.orders.append(ReadingOrder(annotator=order_by,
-                                     regions=[_id(r["id"]) for _, r in regions if r.get("reading_order") is not None]
-                                     or [_id(r["id"]) for _, r in regions],
+                                     regions=[_id(r["id"]) for _, r in regions if r.get("reading_order") is not None],
                                      lines=[_id(ln["id"]) for _, ln in ordered],
                                      rows=[ln.get("row", 0) for _, ln in ordered]))
 

@@ -268,6 +268,8 @@ class Description(Annotation):
 
 #: edit kinds, in the order a text's forms are made
 EDITS = ("nfc", "joined", "corrected", "normalized", "expanded", "regularized")
+#: the edits of the as-written text: NFC, and a drop capital joined to its line
+AS_WRITTEN = ("nfc", "joined")
 
 
 class Edit(Annotation):
@@ -279,8 +281,9 @@ class Edit(Annotation):
 
 
 #: link kinds: ``source`` is ``target``'s caption, note; continues it (a paragraph or footnote from an earlier
-#: column or page); runs on into it; refers to it
-LINKS = ("caption_of", "note_of", "continues", "runs_into", "refers_to")
+#: column or page); runs on into it; refers to it; is part of it (a line moved into another region by a later
+#: step: the line's region is the latest ``part_of`` target, else ``Line.region``)
+LINKS = ("caption_of", "note_of", "continues", "runs_into", "refers_to", "part_of")
 
 
 class Link(Annotation):
@@ -493,7 +496,12 @@ class AnnotationSet(_Extensible):
 
     @property
     def paragraphs(self) -> list[Paragraph]:
-        return [r for r in self.ranges if isinstance(r, Paragraph)]
+        """The paragraphs of the latest annotator that made any (a second recomposition's replace the first's)."""
+        found = [r for r in self.ranges if isinstance(r, Paragraph)]
+        if not found:
+            return []
+        latest = max(p.annotator for p in found)
+        return [p for p in found if p.annotator == latest]
 
     def link(self, source: Ref, kind: str) -> Ref | None:
         """The target of the latest link of ``kind`` from ``source``."""
@@ -591,13 +599,28 @@ class Transcription(AnnotationSet):
         o = self.order("lines")
         return dict(zip(o.lines, o.rows)) if o is not None else {}
 
-    def ordered_lines(self) -> list[Line]:
+    def hidden_lines(self) -> set[str]:
+        """The ids of lines whose own status puts them nowhere under the default policy (``duplicate``,
+        ``removed``, ``suppressed``)."""
+        from .policy import DEFAULT_POLICY
+        return {c.target for c in self.classifications
+                if c.scheme == "status" and DEFAULT_POLICY.layer(None, status=c.value) == "none"
+                and self.line(c.target) is not None}
+
+    def ordered_lines(self, hidden: bool = False) -> list[Line]:
+        """The lines in reading order; without ``hidden``, lines whose status puts them nowhere left out."""
         ranks = self.line_ranks()
-        return sorted(self.lines, key=lambda ln: ranks[ln.id])
+        skip = set() if hidden else self.hidden_lines()
+        return sorted((ln for ln in self.lines if ln.id not in skip), key=lambda ln: ranks[ln.id])
+
+    def region_of(self, line: Line | str) -> str | None:
+        """The region a line belongs to: the latest ``part_of`` link's target, else the one it was assigned."""
+        ln = self.line(line) if isinstance(line, str) else line
+        return self.link(ln.id, "part_of") or ln.region
 
     def lines_of(self, region_id: str | None) -> list[Line]:
-        """The lines assigned to a region (``None``: to none), in reading order."""
-        return [ln for ln in self.ordered_lines() if ln.region == region_id]
+        """The lines that belong to a region (``None``: to none; ``region_of``), in reading order."""
+        return [ln for ln in self.ordered_lines() if self.region_of(ln) == region_id]
 
     def table(self, target: Ref) -> Table | None:
         return next((tb for tb in reversed(self.tables) if tb.target == target), None)
@@ -616,8 +639,10 @@ class Transcription(AnnotationSet):
                     best = e
         return best.text if best is not None else None
 
-    def text_of(self, line: Line, kinds: Iterable[str] = ("nfc",)) -> str | None:
-        """A line's text with the latest of ``kinds`` edits applied; ``None`` until it was read."""
+    def text_of(self, line: Line, kinds: Iterable[str] = AS_WRITTEN) -> str | None:
+        """A line's text with the latest of ``kinds`` edits of the whole line applied (by default the as-written
+        forms: NFC, a drop capital joined to its line); ``None`` until it was read. Edits of a span of the line (a
+        ground truth's word joined across lines) are not applied."""
         if line.reading is None:
             return None
         edited = self.edit(line.id, kinds)
@@ -634,12 +659,13 @@ class Transcription(AnnotationSet):
         hidden = {r.id for r in self.regions if DEFAULT_POLICY.layer_of(self, r.id) == "none"}
         out, done = [], set()
         for ln in self.ordered_lines():
-            if ln.region in hidden:
+            region = self.region_of(ln)
+            if region in hidden:
                 continue
-            if ln.region in tables:
-                if ln.region not in done:
-                    done.add(ln.region)
-                    out.append(render_table(tables[ln.region]))
+            if region in tables:
+                if region not in done:
+                    done.add(region)
+                    out.append(render_table(tables[region]))
             else:
                 text = self.text_of(ln)
                 if text is not None:
