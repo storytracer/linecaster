@@ -14,9 +14,9 @@ working or starts to mean something else:
 | backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for blocks | a new argument with a default that keeps the old behavior |
 | commands and flags | a `linecaster` command or a pipeline script's option renamed, removed, or given another meaning or default | a new command or option |
 | pipeline ids and slots | a pipeline id or a slot renamed or removed, a slot's step changed | a new pipeline script; a new slot that can stay empty |
-| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/2`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
+| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/3`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
 | the run layout | a folder or file name under `OUT` (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) or its format changed | a new file or folder |
-| the catalog | a catalog id (model, preset, recipe) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
+| the catalog | a catalog id (model, preset, recipe, policy) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
 | engines | an engine id removed; an option renamed or removed, or a default changed (a new code id, `.v2`, instead) | a new engine; a new option whose default keeps the old behavior (the same id) |
 | the Python API | a public name renamed, removed or given another meaning in `linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines.api`, `linecaster.pipelines` (the shapes), `linecaster.runtime.run` (`main`, `recipe`, the helpers the shapes use) or `linecaster.testing` (its checks and markers) | a new name |
 | the output files' contents | a change of structure in the files a pipeline writes (ALTO, PAGE-XML, hOCR, Markdown, HTML, DocLang, JSON) that breaks a reader of the old ones: other elements, attributes or fields | better text; a new optional element or field |
@@ -46,7 +46,7 @@ from 1.0 on. What a change bumps follows from the table above:
 | breaking (any surface above; it needs an upgrade note) | minor, collected (0.4.0 → 0.5.0) | major |
 
 A release bumps by its largest change; patches are the rule. Ranges such as the engine packages'
-`linecaster>=0.1,<0.8` then hold: every release inside them keeps what worked.
+`linecaster>=0.8,<0.9` then hold: every release inside them keeps what worked.
 
 - **Breaking changes are collected, not released one by one.** They are made on a branch and released together as
   one minor, proposed when the branch's work is finished. `main` carries only

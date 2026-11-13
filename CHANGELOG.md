@@ -4,6 +4,86 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.8.0 (2026-11-13)
+
+### Upgrade notes
+
+- **Page records are `linecaster.page/3`, the annotation model** ([data model](docs/reference/data-model.md)).
+  `PageRecordReader` reads `linecaster.page/2` records and upgrades them (`linecaster.data.upgrade.page_2_to_3`; every
+  page/2 field has its place, the rest is kept as extension fields `page2__<key>`); what page/2 had already lost
+  cannot come back (text before the `unicode` step, labels before typography). Code that reads or builds
+  transcriptions changes:
+  - `StepInfo` is `Annotator` (with `kind`: `model`, `rule`, `file`, `human`, and `run`); `Transcription.steps` is
+    `annotators`. An engine call appends one annotator first and its annotations name it by index
+    (`t.add_annotator`; rule engines `RuleEngine.annotate`, `step_info()` is `annotator()`).
+  - `Region.label` is the annotator's own label (page/2's `raw_label`); the Docling label is `t.label(region_id)`,
+    resolved from the region's `role` classification (content roles: [data model](docs/reference/data-model.md#content-roles);
+    `linecaster.data.policy.classify_label` reads a Docling label as a role). `score` is `confidence`, `bbox` is `box`.
+  - `Line.region_id` is `Line.region` (set once; read with `t.region_of(line)`); `Line.text`, `confidence`, `words`,
+    `alternatives` are on `Line.reading` (`t.read(...)`); the as-written text is `t.text_of(line)` (NFC and a drop
+    capital joined, as edits); `Line.normalized` and `Paragraph.normalized` are `normalized` edits
+    (`t.edit(target, ("normalized",))`); the reading order and rows are `ReadingOrder` annotations
+    (`t.ordered_regions()`, `t.ordered_lines()`, `t.rows()`).
+  - A region's table, formula and generated description are `Table` (docling-core's cell model, lean), `Formula` and
+    `Description` annotations; other `extra` keys are namespaced extension fields (`lighton__continuation`,
+    `olmocr__front_matter`, `smoldocling__markdown`, `falcon__*`, `oxr__*`, `indra__*`, `surya__*`, `source.ocr__file`).
+  - A VLM's completions are raw outputs (`t.outputs`: one per request, `pass`, `kept`, its settings, finish reason
+    and tokens), no longer `extra["raw"]`, `["passes"]`, `["kept"]`.
+  - Paragraphs are `Paragraph` ranges (`t.paragraphs`: the latest recomposition's), their rows' `start`/`end` a
+    `charspan`; `continues`/`continues_from` are links (`runs_into`, `continues`; `t.link(id, kind)`).
+  - Typography no longer changes or drops regions: it adds classifications (roles, heading levels, `status`
+    `removed`), a `joined` edit for a drop capital, `part_of` links for a split headline, a reading order.
+  - The line assigner sets a line's region only where it has none, classifies duplicates (`status` `duplicate`)
+    instead of dropping them, and keeps the lines' ids.
+  - `Transcription.docling` is gone: the `Composer` puts its document on the datatrove document
+    (`doc.metadata["docling"]`, transient) and adds no annotator; writers render one when none was composed. Page
+    files (ALTO, PAGE-XML, hOCR) therefore no longer list composition as a processing step; their content is
+    unchanged.
+  - Engines skip lines that already have a reading and add regions and lines next to existing ones instead of
+    replacing them.
+- **Engine packages require `linecaster>=0.8,<0.9`** (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-indra`, `-surya`,
+  `-services` 0.2.0), since their engines build the new model.
+- **`linecaster serve` speaks protocol `linecaster.page/3`**: `/health` reports it, and a client refuses a server that
+  reports another or none (an older server): restart servers with this release.
+- The run record has a `run_id` (stamped on every annotator the run adds, by the page record writers) and
+  `hardware`; `run-record-1.json` gained both.
+- LightOnOCR-3's grounding mode records content roles: `aside_text` is `marginalia` (rendered as body text by the
+  default policy, so the texts are unchanged), `page_number` is `page_number`, `title` is `heading` with its level.
+- The recipes `squiddle@1` and `item-texts@1` have their expanded pipelines recorded anew (a catalog migration:
+  their rendering blocks take a `policy` parameter, default `page-layers@1`, which renders as before).
+
+### Added
+
+- **The annotation data model** (`linecaster.data`): annotation sets and transcriptions with annotators and raw
+  outputs; zones (regions, lines), readings with words and glyphs, tables, formulas, classifications, descriptions,
+  edits, links, reading orders, ranges (document ranges, paragraphs); references (`linecaster.data.refs`); namespaced
+  extension fields; `Page.annotations` for sets without text; content roles from PAGE-XML's region types. Nothing is
+  overwritten: `linecaster.testing.check_engine` and `check_block` refuse an engine or block that changes an
+  annotation that was there.
+- **Rendering policies**: a catalog kind `policy` (`policies/<id>.yaml`, `linecaster.policy/1`), released like
+  presets; `page-layers@1`, the default, renders as 0.7.4 did. The `Composer`, `PageFileWriter` and `ItemTextWriter`
+  take `policy`, and `pipelines/transcribe_modular.py` and `bind.py` take `--policy`.
+- **Evaluation** ([evaluation](docs/reference/evaluation.md)): `linecaster.scoring` (import-light; the extra
+  `linecaster[rapidfuzz]`): texts rendered under a policy (`full`, `body`), versioned lanes (`diplomatic@1`,
+  `reading@1`, `alnum@1`, `ascii-alnum@1`), codepoint edit counts with U+FFFD as an illegible character, word
+  recall and over-extraction, words per content role, a role confusion of regions matched by IoU, corpus rates with
+  a percentile bootstrap over items; score records (`linecaster.score/1`, Parquet); the benchmark format
+  (`linecaster.benchmark/1`); evidence records `linecaster.evidence/2` (the run, the benchmark, the scoring, metrics
+  with intervals, structured hardware; `evidence/1` still read); `linecaster score` and `linecaster evidence
+  check|compare` (only records scored the same way side by side). Checked against two existing evaluations: the same
+  counts on every page (NOTES.md).
+- **Ground truth import**: `from_alto`, `from_page` and `from_hocr` take `ground_truth=True` (`source.kind`
+  `ground_truth`, people as annotator); `TranscriptionConverter(ground_truth=True)`; `formats.docling.from_docling`
+  reads a DoclingDocument; `Source` has `sha256`, `dataset` and `record`.
+- `formats.iiif.to_annotation_page`: a transcription as an IIIF Presentation 3 annotation page (validated against the
+  IIIF JSON Schema in the tests); `formats.docling.table_data` and `from_table_data` (lossless).
+- `to_alto`, `to_page` and `to_hocr` take a `policy`: regions it puts nowhere are left out.
+
+### Changed
+
+- Page records are smaller: 39 % as JSON and 17 % as Parquet for a page of the `squiddle` recipe (the Docling document
+  is no longer stored, defaults are left out; NOTES.md).
+
 ## 0.7.4 (2026-11-13)
 
 ### Upgrade notes

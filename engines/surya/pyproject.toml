@@ -1,12 +1,12 @@
 [project]
 name = "linecaster-surya"
-version = "0.1.6"
+version = "0.2.0"
 description = "Surya OCR engines for linecaster: Datalab's surya-ocr package (full-page OCR) attached to a vLLM server"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
-    "linecaster>=0.1,<0.8",
+    "linecaster>=0.8,<0.9",
     # the release that shipped with Surya OCR 2.5; it declares pillow<11, which
     # linecaster's Pillow>=11 overrides in the pipeline scripts (NOTES.md)
     "surya-ocr==0.23.0",

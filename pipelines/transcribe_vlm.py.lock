@@ -982,7 +982,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.7.4"
+version = "0.8.0"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
@@ -1027,6 +1027,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
+    { name = "rapidfuzz", marker = "extra == 'rapidfuzz'", specifier = ">=3.9" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
@@ -1034,7 +1035,7 @@ requires-dist = [
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2", "rapidfuzz"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1049,7 +1050,7 @@ docs = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.1.6"
+version = "0.2.0"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1071,7 +1072,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.1,<0.8" },
+    { name = "linecaster", specifier = ">=0.8,<0.9" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
