@@ -6,6 +6,7 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
+from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
 from ...errors import PipelineConfigError
 from ..base.contract import Contract, Contracted, parts
 
@@ -67,6 +68,8 @@ class PageFileWriter(Contracted, PipelineStep):
             ``False`` writes them only from a document (the block then reads ``document``).
         skip_failed: write no files for a page that carries errors (``doc.metadata["errors"]``); the default writes
             them as for any page.
+        policy: the rendering policy (a catalog ``policy`` edition) of every file it writes: the layers of a
+            rendered document, the regions left out of the page files, the edits of the text fallback.
     """
 
     type = "💽 - WRITER"
@@ -76,8 +79,10 @@ class PageFileWriter(Contracted, PipelineStep):
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
-                 detail: str = "word", dividers: bool = False, text_fallback: bool = True, skip_failed: bool = False):
+                 detail: str = "word", dividers: bool = False, text_fallback: bool = True, skip_failed: bool = False,
+                 policy: str = DEFAULT_POLICY_REF):
         super().__init__()
+        rendering_policy(policy)                      # an unknown policy fails at construction
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
             raise PipelineConfigError(f"unknown formats {sorted(unknown)}; choose from {sorted(PAGE_FILE_EXTENSIONS)}")
@@ -86,7 +91,7 @@ class PageFileWriter(Contracted, PipelineStep):
         self.output_folder, self.formats, self.transcription = output_folder, tuple(formats), transcription
         self.suffix, self.furniture, self.bucket_by_item = suffix, furniture, bucket_by_item
         self.detail, self.dividers, self.text_fallback = detail, dividers, text_fallback
-        self.skip_failed = skip_failed
+        self.skip_failed, self.policy = skip_failed, policy
 
     def contract(self) -> Contract:
         """It reads what its formats are written from (``FORMAT_PARTS``)."""
@@ -118,7 +123,7 @@ class PageFileWriter(Contracted, PipelineStep):
         if not (t.regions or t.paragraphs):
             return None, None
         w, h = (page.image.width, page.image.height) if page.image else (None, None)
-        document, region_of = compose(t, name=page.page_id, width=w, height=h)
+        document, region_of = compose(t, name=page.page_id, width=w, height=h, policy=rendering_policy(self.policy))
         return docling_dict(document), region_of
 
     def render(self, page, t, fmt: str, data=None, document=None, region_of=None, doc=None) -> str | bytes | None:
@@ -128,7 +133,8 @@ class PageFileWriter(Contracted, PipelineStep):
             uri = page.image.uri.rsplit("/", 1)[-1] if page.image and page.image.uri else None
             size = dict(image_width=page.image.width, image_height=page.image.height, image_uri=uri)
             src = self.wordless(t) if self.detail == "line" else t
-            return {"hocr": to_hocr, "alto": to_alto, "page": to_page}[fmt](src, **size)
+            return {"hocr": to_hocr, "alto": to_alto, "page": to_page}[fmt](src, **size,
+                                                                             policy=rendering_policy(self.policy))
         if fmt == "transcription":
             return t.model_dump_json(indent=1, by_alias=True, exclude_defaults=True)
         if fmt == "plot":
@@ -144,7 +150,11 @@ class PageFileWriter(Contracted, PipelineStep):
             from ...formats.docling import export
 
             return export(document, fmt, self.furniture, region_of if self.dividers else None)
-        return t.text if fmt in ("md", "txt") and self.text_fallback else None
+        if fmt in ("md", "txt") and self.text_fallback:
+            from ...text.variants import page_text
+
+            return page_text(t, rendering_policy(self.policy))
+        return None
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder

@@ -28,6 +28,7 @@ from typing import Any
 
 from lxml import etree
 
+from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
@@ -107,11 +108,11 @@ def _baseline_from_std(qbox, slope: float, offset: float) -> list[list[float]]:
 
 
 class _Writer:
-    def __init__(self, t: Transcription, extensions: bool):
+    def __init__(self, t: Transcription, extensions: bool, policy: RenderingPolicy = DEFAULT_POLICY):
         self.t = t
         self.qz = X.Quantizer(0)
         self.extensions = extensions
-        self.regions, self.lines = X.file_layout(t)
+        self.regions, self.lines = X.file_layout(t, policy)
         self.used = {r.id for r in self.regions} | {ln.id for ln in self.lines} | {
             w.id for ln in self.lines for w in ln.words}
         self.capabilities: set[str] = {"ocr_page"}   # what the file contains (``ocr-capabilities``)
@@ -260,7 +261,8 @@ class _Writer:
 
 
 def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
-            image_uri: str | None = None, extensions: bool = True) -> bytes:
+            image_uri: str | None = None, extensions: bool = True,
+           policy: RenderingPolicy = DEFAULT_POLICY) -> bytes:
     """Serializes a transcription as hOCR 1.2 (XHTML, UTF-8).
 
     Regions become ``ocr_carea`` (or their label's class), lines ``ocr_line`` with their words as ``ocrx_word``
@@ -273,6 +275,7 @@ def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: i
         image_width, image_height: the page image's size in pixels; default ``t.source``'s. Without either, a
             ``ValueError``.
         image_uri: the image named in the page's ``title``; default ``t.source.uri``.
+        policy: the rendering policy: regions it puts nowhere are left out.
         extensions: ``False`` leaves out the linecaster data attributes (the file then only round-trips what hOCR
             itself holds).
 
@@ -287,7 +290,7 @@ def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: i
     if width is None or height is None:
         raise ValueError("to_hocr needs the image size (image_width/image_height or t.source)")
     uri = image_uri if image_uri is not None else t.source.uri
-    return _Writer(t, extensions).write(int(width), int(height), uri, t.classification("", "language"))
+    return _Writer(t, extensions, policy).write(int(width), int(height), uri, t.classification("", "language"))
 
 
 # ================================================================ reading

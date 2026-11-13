@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../../schemas/policy-1.json
+schema: linecaster.policy/1
+id: page-layers
+edition: 1
+description: >-
+  Every content role in its default layer: body, furniture for running heads, running feet, page numbers,
+  catchwords and signature marks, nowhere for separators and noise. What is suppressed, duplicate or removed goes
+  nowhere; what an annotator wrote about a figure goes to the metadata. The as-written texts apply NFC and drop
+  capitals joined to their lines, the readable ones also the normalization.
+rules:
+- status: suppressed
+  to: none
+- status: duplicate
+  to: none
+- status: removed
+  to: none
+edits:
+  verbatim_txt: [nfc, joined]
+  readable_txt: [nfc, joined, normalized]
+  readable_md: [nfc, joined, normalized]

@@ -16,6 +16,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..data.policy import RenderingPolicy
 from ..errors import CatalogError
 from ..runtime.record import RunRecord
 
@@ -252,6 +253,22 @@ class PresetDoc(_Doc):
         return self.step == "recognition" and self.capabilities.unit == "page"
 
 
+# ------------------------------------------------------------------------------------------------ policies
+
+class PolicyDoc(RenderingPolicy):
+    """A rendering policy as a catalog entry (``policies/<id>.yaml``): which annotations go into which layer of a
+    rendering, and whose count where several annotators gave one (``linecaster.data.policy.RenderingPolicy``).
+    Its functional content is everything but ``description``."""
+
+    schema_: Literal["linecaster.policy/1"] = Field(alias="schema")
+    description: str = Field("", description="what the policy is for (not part of its functional content)")
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    def policy(self) -> RenderingPolicy:
+        return RenderingPolicy(**self.model_dump(exclude={"schema_", "description"}))
+
+
 # ------------------------------------------------------------------------------------------------ recipes
 
 class RecipeDoc(_Doc):
@@ -363,6 +380,7 @@ class Lock(_Doc):
     schema_: Literal["linecaster.lock/2"] = Field("linecaster.lock/2", alias="schema")
     presets: dict[str, LockEntry] = Field(default_factory=dict)
     recipes: dict[str, LockEntry] = Field(default_factory=dict)
+    policies: dict[str, LockEntry] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -376,6 +394,7 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.model/1": ModelDoc,
     "linecaster.preset/1": PresetDoc,
     "linecaster.recipe/1": RecipeDoc,
+    "linecaster.policy/1": PolicyDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.lock/2": Lock,
     "linecaster.run-record/1": RunRecord,

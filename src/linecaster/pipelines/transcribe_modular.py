@@ -71,6 +71,9 @@ def options(ap):
                     help="--files: added to each file's stem, before the extension (e.g. .paddle: <page>.paddle.md)")
     ap.add_argument("--furniture", action="store_true",
                     help="--files: keep page headers and footers in md, txt and html (by default they are left out)")
+    ap.add_argument("--policy", default="page-layers@1", metavar="ID@EDITION",
+                    help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
+                         "under: which content roles are body, furniture, notes or nowhere")
     ap.add_argument("--item-texts", metavar="DIR",
                     help="per-item texts: <variant>/<item>.txt|.md and <variant>/<rank>.jsonl.gz (needs "
                          "--recomposition and --normalization)")
@@ -127,17 +130,18 @@ def pipeline(a, script: str) -> list:
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
         *([Typographer(a.typography, options=over.get("typography"))] if a.typography else []),
         *([Recomposer(a.recomposition, options=over.get("recomposition"))] if a.recomposition else []),
-        *([Composer(a.composition, options=over.get("composition"))] if a.composition else []),
+        *([Composer(a.composition, options=over.get("composition"), policy=a.policy)] if a.composition else []),
         # no files for a page a block failed on: OUT/rejects lists it, the page records keep it with its errors
         *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, suffix=a.suffix,
-                          **NAMING[a.naming])]
+                          policy=a.policy, **NAMING[a.naming])]
           if a.files else []),
         run.pages(a),
         # after the page writers, the item stage: the Binder gathers each item's pages into an item record; with
         # several tasks the builder cuts here (the pages in item shards, then a stage over whole items)
         *([Binder(), Recomposer(a.recomposition, unit="item", options=over.get("recomposition")),
            CharacterNormalizer(a.normalization, unit="item", options=over.get("normalization")),
-           ItemTextWriter(a.item_texts, format="files"), ItemTextWriter(a.item_texts)] if a.item_texts else []),
+           ItemTextWriter(a.item_texts, format="files", policy=a.policy),
+           ItemTextWriter(a.item_texts, policy=a.policy)] if a.item_texts else []),
         *servers,                                 # last: lives until every page is written
     ]
 

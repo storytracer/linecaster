@@ -26,6 +26,7 @@ from typing import Any
 
 from lxml import etree
 
+from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
@@ -46,11 +47,11 @@ def _e(parent, tag: str, **attrs) -> etree._Element:
 
 
 class _Writer:
-    def __init__(self, t: Transcription, precision: int | None, extensions: bool):
+    def __init__(self, t: Transcription, precision: int | None, extensions: bool, policy: RenderingPolicy = DEFAULT_POLICY):
         self.t = t
         self.qz = X.Quantizer(precision)
         self.extensions = extensions
-        self.regions, self.lines = X.file_layout(t)
+        self.regions, self.lines = X.file_layout(t, policy)
         self.used: set[str] = {r.id for r in self.regions} | {ln.id for ln in self.lines} | {
             w.id for ln in self.lines for w in ln.words}
         self.tags: list[tuple[str, str, str, str, str | None]] = []   # (element, id, type, label, description)
@@ -250,7 +251,8 @@ class _Writer:
 
 
 def to_alto(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
-            image_uri: str | None = None, precision: int | None = None, extensions: bool = True) -> bytes:
+            image_uri: str | None = None, precision: int | None = None, extensions: bool = True,
+           policy: RenderingPolicy = DEFAULT_POLICY) -> bytes:
     """Serializes a transcription as ALTO 4.4 in pixel units.
 
     Regions become ``TextBlock``s (an ``Illustration`` for a picture or chart region without lines), lines
@@ -267,6 +269,7 @@ def to_alto(t: Transcription, *, image_width: int | None = None, image_height: i
         image_uri: the image's file name in ``sourceImageInformation``; default ``t.source.uri``.
         precision: ``None`` writes coordinates exactly as stored (ALTO coordinates are floats), ``0`` writes
             integers (rounded half up; boxes by their corners).
+        policy: the rendering policy: regions it puts nowhere are left out.
         extensions: ``False`` leaves out the linecaster extension tags (the file then only round-trips what ALTO
             itself holds).
 
@@ -282,7 +285,7 @@ def to_alto(t: Transcription, *, image_width: int | None = None, image_height: i
     if width is None or height is None:
         raise ValueError("to_alto needs the image size (image_width/image_height or t.source)")
     uri = image_uri if image_uri is not None else t.source.uri
-    return _Writer(t, precision, extensions).write(int(width), int(height), uri)
+    return _Writer(t, precision, extensions, policy).write(int(width), int(height), uri)
 
 
 # ================================================================ reading

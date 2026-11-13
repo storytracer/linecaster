@@ -47,6 +47,9 @@ def options(ap):
                     help="item documents: keep page headers and footers in md, txt and html")
     ap.add_argument("--dividers", action="store_true",
                     help="item documents: --- between the items of consecutive layout regions in md")
+    ap.add_argument("--policy", default="page-layers@1", metavar="ID@EDITION",
+                    help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
+                         "under: which content roles are body, furniture, notes or nowhere")
     ap.add_argument("--no-documents", action="store_true", help="no item documents")
 
 
@@ -73,10 +76,11 @@ def pipeline(a, script: str) -> list:
         *([Recomposer(a.recomposition, unit="item", options=over.get("recomposition"))] if a.recomposition else []),
         *([CharacterNormalizer(a.normalization, unit="item", options=over.get("normalization"))]
           if a.normalization else []),
-        *([Composer(a.composition, unit="item", options=over.get("composition"))]
+        *([Composer(a.composition, unit="item", options=over.get("composition"), policy=a.policy)]
           if a.composition and not a.no_documents else []),
-        *([ItemTextWriter(f"{out}/texts", format="files", variants=variants)] if variants and a.files else []),
-        *([ItemTextWriter(f"{out}/texts", variants=variants)] if variants else []),
+        *([ItemTextWriter(f"{out}/texts", format="files", variants=variants, policy=a.policy)]
+          if variants and a.files else []),
+        *([ItemTextWriter(f"{out}/texts", variants=variants, policy=a.policy)] if variants else []),
         *([ItemDocumentWriter(f"{out}/documents", formats=tuple(a.formats.split(",")), furniture=a.furniture,
                               dividers=a.dividers, by_format=True)] if not a.no_documents else []),
     ], {"engines": False}

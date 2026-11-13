@@ -38,26 +38,28 @@ class DoclingCompositionEngine(RuleEngine):
         sections: bool = Field(False, description="every heading opens a section group up to the next heading")
 
     def __call__(self, t: Transcription, name: str = "page", width: int | None = None, height: int | None = None,
-                 **options) -> tuple[Any, dict[str, str]]:
+                 policy=None, **options) -> tuple[Any, dict[str, str]]:
         """The page's document, named ``name`` (the page id), and the map of its items to
         ``"<page_no>:<region id>"``; ``width`` and ``height``: the page image's size (else the transcription's
-        source's)."""
+        source's); ``policy``: the rendering policy (default: the default policy)."""
+        from ..data.policy import DEFAULT_POLICY
         from ..formats.docling import compose
 
         o = self.configured(options)
-        return compose(t, name, width, height, sections=o.sections)
+        return compose(t, name, width, height, sections=o.sections, policy=policy or DEFAULT_POLICY)
 
     def item_document(self, pages: list[Transcription], name: str, page_ids: list[str] | None = None,
-                      sizes: list[tuple[int | None, int | None]] | None = None,
+                      sizes: list[tuple[int | None, int | None]] | None = None, policy=None,
                       **options) -> tuple[Any, dict[str, str]]:
         """One item's document from its pages in order (page ``n`` = the ``n``-th), named ``name`` (the item id):
         the DoclingDocument and the map of its items to ``"<page_no>:<region id>"``. ``page_ids`` are
         the pages' ids, as the recomposition's references to other pages name them (``<page_id>#<id>``),
         ``sizes`` their images' (width, height)."""
+        from ..data.policy import DEFAULT_POLICY
         from ..formats.docling import DocumentBuilder
 
         o = self.configured(options)
-        b = DocumentBuilder(name, sections=o.sections)
+        b = DocumentBuilder(name, sections=o.sections, policy=policy or DEFAULT_POLICY)
         for k, t in enumerate(pages):
             w, h = sizes[k] if sizes else (None, None)
             b.add_page(t, w, h, page_id=page_ids[k] if page_ids else None)

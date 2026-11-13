@@ -198,19 +198,42 @@ def render(blocks: list[Block], markdown: bool = False, normalized: bool = True)
     return nfc("\n\n".join(p for p in parts if p))
 
 
-def verbatim(pages: list[Transcription]) -> str:
-    """As written, as laid out, full page: each page's text (``Transcription.text``: lines in reading
-    order with their ``nfc`` edits, tables as Markdown/HTML tables, regions the default policy puts nowhere left
-    out), pages joined with a form feed (split on ``\\f`` to get the pages back; an empty page stays an empty
-    string); NFC."""
-    return "\f".join(nfc(t.text) for t in pages)
+def page_text(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> str:
+    """One page as written, as laid out, full page under ``policy``: the read lines in reading order with the
+    policy's ``verbatim_txt`` edits, a table region as its table (Markdown, HTML when a cell spans), regions and
+    lines the policy puts nowhere left out (``Transcription.text`` under the default policy)."""
+    kinds = policy.kinds("verbatim_txt")
+    tables = {tb.target: tb for tb in t.tables if tb.cells}
+    hidden = {r.id for r in t.regions if policy.layer_of(t, r.id) == "none"}
+    out, done = [], set()
+    for ln in t.ordered_lines():
+        region = t.region_of(ln)
+        if region in hidden:
+            continue
+        if region in tables:
+            if region not in done:
+                done.add(region)
+                out.append(render_table(tables[region]))
+            continue
+        text = t.text_of(ln, kinds)
+        if text is not None:
+            out.append(text)
+    return "\n".join(out)
 
 
-def variants(pages: list[Transcription], page_ids: list[str] | None = None) -> dict[str, str]:
-    """The three named variants of consecutive pages (an item) under the default policy: ``verbatim_txt`` from the
-    lines as laid out, the readable ones from the recomposition's paragraphs, normalized (``body_blocks``;
-    ``page_ids`` as there)."""
-    txt = body_blocks(pages, page_ids, variant="readable_txt")
-    same = DEFAULT_POLICY.kinds("readable_md") == DEFAULT_POLICY.kinds("readable_txt")
-    md = txt if same else body_blocks(pages, page_ids, variant="readable_md")
-    return {"verbatim_txt": verbatim(pages), "readable_txt": render(txt), "readable_md": render(md, markdown=True)}
+def verbatim(pages: list[Transcription], policy: RenderingPolicy = DEFAULT_POLICY) -> str:
+    """As written, as laid out, full page: each page's text (``page_text``), pages joined with a form feed (split
+    on ``\\f`` to get the pages back; an empty page stays an empty string); NFC."""
+    return "\f".join(nfc(page_text(t, policy)) for t in pages)
+
+
+def variants(pages: list[Transcription], page_ids: list[str] | None = None,
+             policy: RenderingPolicy = DEFAULT_POLICY) -> dict[str, str]:
+    """The three named variants of consecutive pages (an item) under ``policy`` (default: the default policy):
+    ``verbatim_txt`` from the lines as laid out, the readable ones from the recomposition's paragraphs, normalized
+    (``body_blocks``; ``page_ids`` as there)."""
+    txt = body_blocks(pages, page_ids, policy, variant="readable_txt")
+    same = policy.kinds("readable_md") == policy.kinds("readable_txt")
+    md = txt if same else body_blocks(pages, page_ids, policy, variant="readable_md")
+    return {"verbatim_txt": verbatim(pages, policy), "readable_txt": render(txt),
+            "readable_md": render(md, markdown=True)}

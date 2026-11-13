@@ -10,6 +10,8 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
+from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
+from ...data.policy import DEFAULT_POLICY
 from ...errors import PipelineConfigError
 from ...formats.docling import DOCUMENT_KEY, EXPORT_FORMATS, REGION_MAP_KEY, export
 from ...text.variants import VARIANTS, variants
@@ -82,14 +84,14 @@ def item_text_row(self, doc) -> dict:
 
 
 def item_texts(doc: Document, variants_: tuple[str, ...] = tuple(VARIANTS), transcription: str = "ocr_new",
-               token_counter=None) -> list[Document]:
+               token_counter=None, policy=None) -> list[Document]:
     """One datatrove document per text variant of the item record ``doc``: ``text`` the variant, the metadata the
     columns ``ItemTextWriter`` writes (item id, variant, its dimensions and format, page ids, page count, and the
     token count with a ``token_counter``). For a derivative writing the texts in a format of its own."""
     pages = item_pages(doc)
     item = doc.metadata[ITEM_KEY]["item_id"]
     ids = [p.page_id for p in pages]
-    texts = variants([p.transcription(transcription) for p in pages], ids)
+    texts = variants([p.transcription(transcription) for p in pages], ids, policy or DEFAULT_POLICY)
     out = []
     for variant in variants_:
         fidelity, flow, scope, fmt = VARIANTS[variant]
@@ -120,6 +122,7 @@ class ItemTextWriter(Contracted, JsonlWriter):
         transcription: the transcription the texts are made from.
         token_counter: counts a text's tokens for ``token_count`` (e.g. the length of a tiktoken encoding's
             ``encode``); default: no count.
+        policy: the rendering policy (a catalog ``policy`` edition) the texts are rendered under.
         output_filename: the JSON Lines file name (``jsonl``), datatrove's template.
         **kwargs: datatrove's ``JsonlWriter`` arguments (``compression``, ``max_file_size``, ...).
     """
@@ -136,7 +139,7 @@ class ItemTextWriter(Contracted, JsonlWriter):
     def __init__(self, output_folder: DataFolderLike, format: str = "jsonl",
                  variants: tuple[str, ...] = tuple(VARIANTS), transcription: str = "ocr_new",
                  token_counter: Callable[[str], int] | None = None,
-                 output_filename: str = "${variant}/${rank}.jsonl.gz", **kwargs):
+                 output_filename: str = "${variant}/${rank}.jsonl.gz", policy: str = DEFAULT_POLICY_REF, **kwargs):
         if format not in ITEM_TEXT_FORMATS:
             raise PipelineConfigError(f"unknown format {format!r}; choose from {', '.join(ITEM_TEXT_FORMATS)}")
         unknown = set(variants) - set(VARIANTS)
@@ -146,10 +149,12 @@ class ItemTextWriter(Contracted, JsonlWriter):
         super().__init__(output_folder, output_filename, adapter=item_text_row, **kwargs)
         self.format, self.variants, self.transcription, self.token_counter = \
             format, tuple(variants), transcription, token_counter
+        self.policy = policy
+        rendering_policy(policy)                      # an unknown policy fails at construction
 
     def texts(self, doc: Document) -> list[Document]:
         """One datatrove document per variant of the item record ``doc`` (``item_texts``)."""
-        return item_texts(doc, self.variants, self.transcription, self.token_counter)
+        return item_texts(doc, self.variants, self.transcription, self.token_counter, rendering_policy(self.policy))
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         with self:

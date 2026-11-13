@@ -2140,6 +2140,7 @@ recipes:
         transcription: ocr_new
         unit: item
         options: null
+        policy: page-layers@1
     - block: RecipeStamper
       class: linecaster.blocks.validation.recipe:RecipeStamper
       params:
@@ -2155,6 +2156,7 @@ recipes:
         - readable_md
         transcription: ocr_new
         token_counter: null
+        policy: page-layers@1
     - block: ItemDocumentWriter
       class: linecaster.blocks.writers.items:ItemDocumentWriter
       params:
@@ -2165,7 +2167,7 @@ recipes:
         furniture: false
         dividers: false
         by_format: true
-    pipeline_sha256: sha256:45b8969911f5622e8f662603c383a9f08a27cf4689a82789dbd1d88deff88fc4
+    pipeline_sha256: sha256:be2476e822cd86291bd6ba7151d4e19a9ee283d740c97e58ca2530568a03144f
   squiddle@1:
     sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
     previous_sha256:
@@ -2453,6 +2455,7 @@ recipes:
         transcription: ocr_new
         unit: page
         options: null
+        policy: page-layers@1
     - block: RecipeStamper
       class: linecaster.blocks.validation.recipe:RecipeStamper
       params:
@@ -2464,4 +2467,41 @@ recipes:
       class: linecaster.blocks.writers.records:PageJsonlWriter
       params:
         item_shards: null
-    pipeline_sha256: sha256:9ffdb240e2c40d49d4d6a60ff06364fcd2178497d3ab43eb4ec396d008a53d31
+    pipeline_sha256: sha256:b0d7535a1a081c7f0519a1d55e93e308b009aff876ffaba876fbf8fa97faa299
+policies:
+  page-layers@1:
+    sha256: sha256:6b0716fa4bf1f238169eb18fbb15f67c5e16bf1e7d37ce0de7ab7de9e1c3fadd
+    released: '2026-11-13'
+    linecaster: be932b80aac8e9f7a30b76503c649d17b1a497c0
+    resolved:
+      id: page-layers
+      edition: 1
+      rules:
+      - role: null
+        production: null
+        status: suppressed
+        motivation: null
+        to: none
+      - role: null
+        production: null
+        status: duplicate
+        motivation: null
+        to: none
+      - role: null
+        production: null
+        status: removed
+        motivation: null
+        to: none
+      precedence: {}
+      edits:
+        verbatim_txt:
+        - nfc
+        - joined
+        readable_txt:
+        - nfc
+        - joined
+        - normalized
+        readable_md:
+        - nfc
+        - joined
+        - normalized

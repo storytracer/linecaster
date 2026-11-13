@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
 from ...errors import PipelineConfigError
 from ...formats.docling import COMPOSED_KEY, DOCUMENT_KEY, REGION_MAP_KEY, docling_dict, to_text
 from ..base.contract import Contract, Part, parts
@@ -40,6 +41,7 @@ class Composer(RuleBlock):
         transcription: the transcription to compose.
         unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``Binder``).
         options: engine options over the preset's, e.g. ``{"sections": True}``; ``None``: the preset's.
+        policy: the rendering policy (a catalog ``policy`` edition) that puts each region into its layer.
 
     Example:
         Composer("docling-composition@1")
@@ -52,11 +54,12 @@ class Composer(RuleBlock):
     docs_args = {"preset": "docling-composition@1"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
-                 options: dict[str, Any] | None = None):
+                 options: dict[str, Any] | None = None, policy: str = DEFAULT_POLICY_REF):
         if unit not in UNITS:
             raise PipelineConfigError(f"composer: unit {unit!r}; choose {', '.join(UNITS)}")
-        self.unit = unit
+        self.unit, self.policy = unit, policy
         super().__init__(preset, transcription, options)
+        rendering_policy(policy)                      # an unknown policy fails at construction
 
     def contract(self) -> Contract:
         """It reads the regions and lines (and the paragraphs when there are: they are optional, so not named)."""
@@ -71,7 +74,8 @@ class Composer(RuleBlock):
             return page
         w = page.image.width if page.image else None
         h = page.image.height if page.image else None
-        document, region_of = self.engine(t, name=page.page_id, width=w, height=h)
+        document, region_of = self.engine(t, name=page.page_id, width=w, height=h,
+                                          policy=rendering_policy(self.policy))
         doc.metadata.update({DOCUMENT_KEY: docling_dict(document), REGION_MAP_KEY: region_of,
                              COMPOSED_KEY: self.transcription})
         self.stat_update("documents")
@@ -88,7 +92,8 @@ class Composer(RuleBlock):
                 ts = [p.transcription(self.transcription) for p in pages]
                 document, region_of = self.engine.item_document(
                     ts, item, page_ids=[p.page_id for p in pages],
-                    sizes=[(p.image.width, p.image.height) if p.image else (None, None) for p in pages])
+                    sizes=[(p.image.width, p.image.height) if p.image else (None, None) for p in pages],
+                    policy=rendering_policy(self.policy))
                 doc.metadata.update({"item_id": item, DOCUMENT_KEY: docling_dict(document),
                                      REGION_MAP_KEY: region_of})
                 doc.text = to_text(document, furniture=True)

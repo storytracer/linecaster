@@ -111,6 +111,13 @@
       },
       "title": "Recipes",
       "type": "object"
+    },
+    "policies": {
+      "additionalProperties": {
+        "$ref": "#/$defs/LockEntry"
+      },
+      "title": "Policies",
+      "type": "object"
     }
   },
   "title": "Lock",

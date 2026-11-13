@@ -29,6 +29,7 @@ from typing import Any
 
 from lxml import etree
 
+from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
@@ -92,9 +93,9 @@ def _conf(v: float | None) -> str | None:
 
 
 class _Writer:
-    def __init__(self, t: Transcription, extensions: bool):
+    def __init__(self, t: Transcription, extensions: bool, policy: RenderingPolicy = DEFAULT_POLICY):
         self.t = t
-        self.regions, self.lines = X.file_layout(t)
+        self.regions, self.lines = X.file_layout(t, policy)
         self.qz = X.Quantizer(0, clamp=True)
         self.extensions = extensions
 
@@ -248,7 +249,8 @@ class _Writer:
 
 
 def to_page(t: Transcription, *, image_width: int | None = None, image_height: int | None = None,
-            image_uri: str | None = None, created: str = DEFAULT_CREATED, extensions: bool = True) -> bytes:
+            image_uri: str | None = None, created: str = DEFAULT_CREATED, extensions: bool = True,
+           policy: RenderingPolicy = DEFAULT_POLICY) -> bytes:
     """Serializes a transcription as PAGE-XML 2019-07-15.
 
     Regions become ``TextRegion``s (``ImageRegion``, ``ChartRegion``, ``TableRegion``, ``MathsRegion`` for
@@ -265,6 +267,7 @@ def to_page(t: Transcription, *, image_width: int | None = None, image_height: i
         image_uri: the ``Page``'s ``imageFilename``; default ``t.source.uri``.
         created: fills ``Metadata/Created`` and ``LastChange``; the default is a fixed timestamp so the output is
             byte-reproducible (pass the run's UTC time if wanted).
+        policy: the rendering policy: regions it puts nowhere are left out.
         extensions: ``False`` leaves out the ``UserDefined`` extension (the file then only round-trips what PAGE
             itself holds).
 
@@ -279,7 +282,7 @@ def to_page(t: Transcription, *, image_width: int | None = None, image_height: i
     if width is None or height is None:
         raise ValueError("to_page needs the image size (image_width/image_height or t.source)")
     uri = image_uri if image_uri is not None else t.source.uri
-    return _Writer(t, extensions).write(int(width), int(height), uri, created)
+    return _Writer(t, extensions, policy).write(int(width), int(height), uri, created)
 
 
 # ================================================================ reading

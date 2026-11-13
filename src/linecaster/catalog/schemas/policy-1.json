@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "RenderingRule": {
+      "additionalProperties": false,
+      "description": "One rule of a policy: what it matches (``None``: anything) and the layer it puts it in.",
+      "properties": {
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the content role it matches",
+          "title": "Role"
+        },
+        "production": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the production it matches",
+          "title": "Production"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the status it matches",
+          "title": "Status"
+        },
+        "motivation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the motivation it matches: transcribing, describing, ...",
+          "title": "Motivation"
+        },
+        "to": {
+          "description": "the layer",
+          "enum": [
+            "body",
+            "furniture",
+            "background",
+            "invisible",
+            "notes",
+            "metadata",
+            "none"
+          ],
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "title": "RenderingRule",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A rendering policy as a catalog entry (``policies/<id>.yaml``): which annotations go into which layer of a\nrendering, and whose count where several annotators gave one (``linecaster.data.policy.RenderingPolicy``).\nIts functional content is everything but ``description``.",
+  "properties": {
+    "id": {
+      "description": "the policy's name",
+      "title": "Id",
+      "type": "string"
+    },
+    "edition": {
+      "default": 1,
+      "description": "its edition",
+      "title": "Edition",
+      "type": "integer"
+    },
+    "rules": {
+      "description": "the rules, first match wins",
+      "items": {
+        "$ref": "#/$defs/RenderingRule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "precedence": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "description": "per scheme (role, heading_level, ...) or `order`: the steps or annotator names whose annotations count first; the latest annotator otherwise",
+      "title": "Precedence",
+      "type": "object"
+    },
+    "edits": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "description": "per text variant: the edit kinds it applies",
+      "title": "Edits",
+      "type": "object"
+    },
+    "schema": {
+      "const": "linecaster.policy/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "description": "what the policy is for (not part of its functional content)",
+      "title": "Description",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "schema"
+  ],
+  "title": "PolicyDoc",
+  "type": "object"
+}
