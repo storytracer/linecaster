@@ -113,7 +113,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 
 | Term | Meaning | Not |
 |---|---|---|
-| **item** | Any multi-page unit: a book, an issue, a manuscript, a file. Key `item_id`. | not "book" in generic code, flags or docs |
+| **item** | Any multi-page unit as it is catalogued and scanned: a book, an issue, a manuscript, a file. Key `item_id`. The physical carrier, not its content: one item can hold several works (a bound volume, the articles of an issue) and one work can span items. | not "book" in generic code, flags or docs; never "document": in datatrove and in the data-processing pipelines that filter and deduplicate text datasets a document is one record of the stream (in linecaster a page, or an item after the `Binder`) |
 | **page** | One page of an item, with its image and its named transcriptions. `page_id` is `<item_id>_<sequence:04d>` unless the source has stable ids of its own. | not the step `page` (there is none) |
 | **page record** | A page with its image reference, its transcriptions and its metadata (`Page`): what a block reads and adds to while the page passes, and what is stored in `OUT/pages/` as JSONL or Parquet (everything but the image bytes). | not a "page row" |
 | **item record** | An item with its pages in order, as the `Binder` passes it on (`doc.metadata["item"]`, `linecaster.blocks.base.item`); the item-unit `Recomposer`, `CharacterNormalizer` and `Composer` read it, the item writers write from it, the `Splitter` turns it back into pages. | |
@@ -129,7 +129,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | The finest unit: its text, box and confidence. linecaster has no glyph level. | |
 | **paragraph** | Running text recomposed from a region's rows, with the decisions that made it. Added by the `Recomposer`. | |
-| **document** | A DoclingDocument: the composed structure of a page or an item. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry |
+| **document** | A DoclingDocument: the composed structure of a page or an item, a rendering of its transcription. Added by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a catalog entry, not the item |
 | **step info** | One entry per step that worked on a transcription (`StepInfo`): step, engine, preset edition, backend, settings, measurements. | |
 | **measurements** | Numbers a step records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
 | **text variant** | A named point on the three text dimensions, written per item: `verbatim_txt`, `readable_txt`, `readable_md`. | not a "version" |
