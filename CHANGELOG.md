@@ -4,6 +4,26 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- LightOnOCR-3's grounding mode: presets `lightonocr-3-0.8b-grounding@1` and `lightonocr-3-4b-grounding@1` (otherwise
+  `lightonocr-3-0.8b@3` and `lightonocr-3-4b@1`: revision, image, sampling at the card's 4096 tokens, repairs, serve
+  flags), adapter `lighton-ocr-3-grounding` (`linecaster.adapters.lighton_grounding`). The request is the card's
+  grounding call (the image, then the text `grounding`); each block of the completion (`![label](x1,y1,x2,y2)`, boxes in
+  0-1000) becomes a region in the order emitted, its box scaled to the page image's full size by `PageRecognizer`
+  (`ChatAdapter.place`). Labels map to Docling's: `header`/`footer` -> `page_header`/`page_footer`, `page_number` ->
+  either by position (the top 15 %: `page_header`, as PP-DocLayout's page numbers), `aside_text` -> `text` (body),
+  `title` -> `section_header` at its `#` level; the model's label stays `raw_label`. A `+` block is linked to the one
+  it continues (`extra["continues"]`). So `verbatim_txt` keeps the furniture and `readable_txt`/`readable_md` leave it
+  out, as for the `squiddle` recipe's layout. Image descriptions and chart data, which the model writes, are kept on
+  the region (`extra["generated"]`, `printed: false`) and in no text. Lines get the block's box split into rows
+  (`extra["box"] = "estimated"`). Faults are kept and counted, never guessed: unknown labels, malformed placeholders,
+  text before the first placeholder, a completion without placeholders, a block cut off at `max_tokens` (stats
+  `grounding_*`; the repair passes apply). Not measured on a GPU yet. A model's Hugging Face id still names its
+  transcription preset.
+
 ## 0.7.2 (2026-11-13)
 
 ### Fixed

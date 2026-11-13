@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: lightonocr-3-0.8b-grounding
+edition: 1
+step: recognition
+model:
+  id: lightonocr-3-0.8b
+  revision: 36d8636925327c671bd8e479c517a004f7566bd9
+engine: chat.v1
+options:
+  adapter: lighton-ocr-3-grounding
+settings:
+  prompt: grounding
+  sampling:
+    max_tokens: 4096
+    temperature: 0.2
+    top_p: 0.9
+  repair:
+    max_tokens:
+    - 8192
+    - 12288
+    temperature: 0.1
+  chat_template_kwargs:
+    enable_thinking: false
+  image:
+    longest_side_px: 2048
+  page_longest: 2048
+serve:
+  server: vllm
+  version: 0.30.0
+  image: vllm/vllm-openai:v0.30.0
+  flags:
+  - --max-model-len
+  - '18000'
+  - --default-chat-template-kwargs
+  - '{"enable_thinking": false}'
+  - --limit-mm-per-prompt
+  - '{"image": 1, "video": 0}'
+  - --mm-processor-cache-gb
+  - '0'
+  - --no-enable-prefix-caching
+capabilities:
+  unit: page
+  produces:
+  - regions
+  - reading_order
+  - text
+  - markdown
+provenance:
+  derived_from:
+  - lightonai/LightOnOCR-3-0.8B@36d8636925327c671bd8e479c517a004f7566bd9:README.md
+  - github.com/lightonai/LightOnOCR@36755d461be079737860a5f03ae0c803501269e9:README.md (--max-model-len 18000)
+  - huggingface.co/datasets/uv-scripts/ocr@e2b0aa514f433998f1e7ad00d0c37df0796574e4:lighton-ocr3-saturate.py (SERVING
+    context 18000 and repair_temperature 0.1)
+  created: 2026-11-13
+support: experimental

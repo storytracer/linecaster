@@ -198,6 +198,10 @@ class ModelBlock(PageBlock):
             if px.fallback:
                 self.stat_update("gpu_decode_refused" if px.fallback == "refused" else "gpu_decode_errors")
 
+    def _placed(self, t: Transcription, doc) -> None:
+        """A served result's transcription, finished for its page before it is stored (``PageRecognizer``: an
+        adapter's boxes placed on the page image); default nothing."""
+
     @staticmethod
     def _record_request(t: Transcription, row: dict) -> None:
         """A served step's time from its request being built to its (last) answer (measurement ``request_seconds``)."""
@@ -301,6 +305,7 @@ class ModelBlock(PageBlock):
         page = page_of(doc)
         out = item.out["transcription"]
         self._record_decoder(out, item.row.get("decoded"))
+        self._placed(out, doc)
         self._record_request(out, item.row)
         decoder = out.steps[-1].measurements.get("decoder") if out.steps and "decoded" not in item.row else None
         if decoder:                                # decoded by the server

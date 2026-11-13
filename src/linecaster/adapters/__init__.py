@@ -423,6 +423,11 @@ class ChatAdapter:
                         preset_sha256=self.preset_sha256, backend=backend, settings=settings,
                         measurements=measurements or {})
 
+    def place(self, t: Transcription, width: int, height: int) -> Transcription:
+        """The parsed transcription placed on the page image the block read (``width`` x ``height`` px): for an
+        adapter whose model answers in its own coordinates (``lighton-ocr-3-grounding``: 0-1000); default as it is."""
+        return t
+
     def parse(self, body: dict, backend: str | None = None) -> Transcription:
         """A text-only transcription: one line per text line of the completion, no geometry. The raw
         completion is kept verbatim in ``extra["raw"]`` (``Transcription.text`` equals it, since lines
@@ -490,6 +495,7 @@ ADAPTERS = {
     "glm-ocr": "glm_ocr:GLMOCRAdapter",
     "lighton-ocr-2": "lighton_ocr2:LightOnOCR2Adapter",
     "lighton-ocr-3": "lighton_ocr3:LightOnOCR3Adapter",
+    "lighton-ocr-3-grounding": "lighton_grounding:LightOnOCR3GroundingAdapter",
     "minicpm-ocr": "minicpm_ocr:MiniCPMOCRAdapter",
     "nemotron-parse": "nemotron_parse35:NemotronParseAdapter",
     "olmocr": "olmocr2:OlmOCRAdapter",

@@ -17,8 +17,9 @@ PRESETS = sorted(chat_presets())
 
 
 def test_there_are_the_chat_presets():
-    assert len(PRESETS) == 21
-    assert {"dots-ocr", "lightonocr-2-1b", "lightonocr-2-1b-regions", "minicpm-ocr-1.0", "unlimited-ocr-2"} <= set(PRESETS)
+    assert len(PRESETS) == 23
+    assert {"dots-ocr", "lightonocr-2-1b", "lightonocr-2-1b-regions", "minicpm-ocr-1.0", "unlimited-ocr-2",
+            "lightonocr-3-0.8b-grounding", "lightonocr-3-4b-grounding"} <= set(PRESETS)
 
 
 @pytest.mark.parametrize("pid", PRESETS)

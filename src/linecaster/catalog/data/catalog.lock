@@ -511,6 +511,52 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
+  lightonocr-3-0.8b-grounding@1:
+    sha256: sha256:07c39f81b7cc4332fbfcbecb11d4aa57fb616b95f9f592c38ea6ceae5be14ad2
+    released: '2026-11-13'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: lightonocr-3-0.8b
+        revision: 36d8636925327c671bd8e479c517a004f7566bd9
+        files:
+          lightonocr3_logo.png: sha256:768eee79d378518cfea9ed8d81ba3a53a0cff17ccf4b12c22a9e5ebedde32bcf
+          model.safetensors: sha256:ae46aa6fd7136d57297ac006ed9ec345b7a2083feb2e99501bedcb014ca3efdf
+          tokenizer.json: sha256:06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-3-grounding
+      settings:
+        prompt: grounding
+        sampling:
+          max_tokens: 4096
+          temperature: 0.2
+          top_p: 0.9
+        repair:
+          max_tokens:
+          - 8192
+          - 12288
+          temperature: 0.1
+        chat_template_kwargs:
+          enable_thinking: false
+        image:
+          longest_side_px: 2048
+        page_longest: 2048
+      serve:
+        server: vllm
+        version: 0.30.0
+        image: vllm/vllm-openai:v0.30.0
+        flags:
+        - --max-model-len
+        - '18000'
+        - --default-chat-template-kwargs
+        - '{"enable_thinking": false}'
+        - --limit-mm-per-prompt
+        - '{"image": 1, "video": 0}'
+        - --mm-processor-cache-gb
+        - '0'
+        - --no-enable-prefix-caching
   lightonocr-3-0.8b@1:
     sha256: sha256:029611886515c722f6d14b0a5bbf2ae1876af2a4c6a399246fbf0bb6c4fc5457
     previous_sha256: sha256:88f074fbdfe0c5ae366d58ddd7bb94fa856b2a393fa0592993800686ca24c3a8
@@ -633,6 +679,47 @@ presets:
         flags:
         - --max-model-len
         - '18000'
+        - --default-chat-template-kwargs
+        - '{"enable_thinking": false}'
+        - --limit-mm-per-prompt
+        - '{"image": 1, "video": 0}'
+        - --mm-processor-cache-gb
+        - '0'
+        - --no-enable-prefix-caching
+  lightonocr-3-4b-grounding@1:
+    sha256: sha256:56aeb36a45234c3df5585118990950b9b8b49d7505b8326b30d18bd17d361d98
+    released: '2026-11-13'
+    linecaster: null
+    resolved:
+      step: recognition
+      model:
+        id: lightonocr-3-4b
+        revision: b71010f095dc3735de7ee6b9969bff8f8f50b39a
+        files:
+          lightonocr3_logo.png: sha256:768eee79d378518cfea9ed8d81ba3a53a0cff17ccf4b12c22a9e5ebedde32bcf
+          model.safetensors: sha256:6b0dab74a2dab02d5b10ca56322255024ed8dca35c02746b42e9f296aaeb4e67
+          tokenizer.json: sha256:87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4
+      engine: chat.v1
+      options:
+        adapter: lighton-ocr-3-grounding
+      settings:
+        prompt: grounding
+        sampling:
+          max_tokens: 4096
+          temperature: 0.2
+          top_p: 0.9
+        chat_template_kwargs:
+          enable_thinking: false
+        image:
+          longest_side_px: 2048
+        page_longest: 2048
+      serve:
+        server: vllm
+        version: 0.30.0
+        image: vllm/vllm-openai:v0.30.0
+        flags:
+        - --max-model-len
+        - '16384'
         - --default-chat-template-kwargs
         - '{"enable_thinking": false}'
         - --limit-mm-per-prompt

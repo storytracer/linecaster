@@ -7,7 +7,8 @@ backend.
 server's queue gauges, 429s and delivered tokens; results passed on as they finish; a failed request the page's
 error) on the route ``/chat/completions``. What is specific to chat is here: the backend's adapter
 (``linecaster.adapters``) builds the request from the page image (or a region's crop) and parses the completion
-into a text-only ``Transcription``.
+into a ``Transcription``: text only for most, labelled regions for a grounding mode (``lighton-ocr-3-grounding``),
+whose boxes the block places on the page image at its full size (``ChatAdapter.place``).
 
     from linecaster.backends import Chat
 
@@ -275,6 +276,33 @@ class PageRecognizer(ModelBlock):
             row["request"] = body
         return body
 
+    def _placed(self, t: Transcription, doc) -> None:
+        """The adapter's boxes placed on the page image (``ChatAdapter.place``, at the page's full size: the image's
+        record, else its header), and a grounded transcription's blocks counted (stats ``grounding_blocks``,
+        ``grounding_generated``, ``grounding_unknown``, ``grounding_malformed``, ``grounding_unplaced``,
+        ``grounding_missing``, ``grounding_truncated``)."""
+        if not self.chat:
+            return
+        g = t.extra.get("grounding")
+        if g is not None:
+            image = page_of(doc).image
+            width, height = (image.width, image.height) if image is not None else (None, None)
+            if not (width and height):
+                from ...images import open_image
+
+                with open_image(image_bytes(doc)) as im:
+                    width, height = im.size
+            self.adapter.place(t, width, height)
+            for key in ("blocks", "generated", "unplaced"):
+                if g.get(key):
+                    self.stat_update(f"grounding_{key}", value=g[key])
+            for key in ("unknown", "malformed"):
+                if g.get(key):
+                    self.stat_update(f"grounding_{key}", value=len(g[key]))
+            for key in ("missing", "truncated"):
+                if g.get(key):
+                    self.stat_update(f"grounding_{key}")
+
     def _parse(self, body: dict) -> dict:
         if not self.chat:
             return ModelBlock._parse(body)
@@ -454,6 +482,7 @@ class PageRecognizer(ModelBlock):
                 break
         t = self._record(first_t, p1, repairs)
         self._record_decoder(t, item.row.get("decoded"))
+        self._placed(t, doc)
         self._record_request(t, item.row)
         sent = [p1, *t.extra["passes"][1:]] if not self.repair_only else t.extra["passes"][1:]
         for key in ("prompt_tokens", "completion_tokens"):

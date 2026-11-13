@@ -2,6 +2,15 @@
 
 Measurements, decisions and open questions, newest first.
 
+## LightOnOCR-3's grounding mode (2026-11-13)
+
+Presets `lightonocr-3-0.8b-grounding@1` and `lightonocr-3-4b-grounding@1` (the maintainer's decisions: separate
+presets; `page_number` placed by position as PP-DocLayout's; `aside_text` body text; the card's 4096 tokens). Tested
+on fixed completions only. Not measured yet, on a GPU: output tokens per page against transcription mode (the card:
+about 25 % more), pages that reach the cap and their repairs, the parse's faults on real output (missing, malformed,
+unknown labels), and vLLM's repetition detection on grounding completions with the model's tokenizer (placeholder
+lines differ by their boxes, so they should not form a run; not checked).
+
 ## Repetition loops and vLLM's repetition detection (2026-11-12, x86_64 machine with 8 RTX A6000)
 
 A VLM that loops writes the same few tokens until `max_tokens`, and the repair passes send it again at larger caps,
