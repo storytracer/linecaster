@@ -11,5 +11,6 @@ is now `docling-project/SmolDocling-256M-preview`; linecaster pins the id it was
   `<loc_*>` are added special tokens; vLLM's default strips them).
 - Serve flags: `--max-model-len 8192` (`max_position_embeddings`, not raisable), no prefix caching, no
   multimodal processor cache, one image per prompt; no `--trust-remote-code` (Idefics3 is registered in vLLM).
-- The model answers in DocTags. The completion is stored verbatim; `parse` also converts it with docling-core
-  (body + furniture, no image placeholder) into `extra["markdown"]`.
+- The model answers in DocTags. The completion is stored verbatim (the transcription's raw output); `parse` also
+  converts it with docling-core (body + furniture, no image placeholder) into the transcription's extension field
+  `smoldocling__markdown`.

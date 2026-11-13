@@ -29,7 +29,7 @@ class Contract:
 - **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image`, `metadata` and `transcription_file` (a
   library's own transcription delivered with the page, as a document media) (page-level), what presets produce (`PRODUCES`: `regions`, `reading_order`, `lines`, `baselines`, `text`, `words`, `word_confidences`,
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
-  `line_regions`, `hierarchy`, `nfc`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
+  `line_regions`, `hierarchy`, `nfc`, `paragraphs`, `normalized`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
 - **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
   `parts_removed`) that
@@ -67,7 +67,7 @@ class Contract:
 | `CharacterNormalizer` | `text` | `normalized` | |
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
 | `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
-| `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` | |
+| `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` (rendered, not stored; no annotator) | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`; without it removes `image`) |
 | `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
@@ -93,7 +93,8 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
 - `InProcess("pkg:Class", **options)` (or `InProcess.from_preset(ref)`; a model block given a preset ref,
   `LayoutDetector("single-region@1")`, builds one): the engine loads in the worker;
 - `Served(endpoint, model=name, ...)`: `linecaster serve` (or a server speaking its routes) hosts it, reached through
-  saturate on `/v1/linecaster/{step}`;
+  saturate on `/v1/linecaster/{step}`; `warm_up()` refuses a server whose `/health` names another transcription
+  format than `linecaster.page/3`, or none;
 - `Chat(preset, endpoint=None, served_name=None, max_window=32, initial_window=4, read_timeout=600.0, api_key=None,
   headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
@@ -105,7 +106,8 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   where the preset's vLLM takes it); the ones that differ from the preset's are recorded with the adapter
   (`overrides`) and count in `pipeline_sha256`. With `repair_max_tokens` set, `PageRecognizer` runs the
   [repair passes](glossary.md): a page whose completion stopped at `max_tokens` waits while its repair requests go
-  into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded; `PageRecognizer(..., repair_only=True)` sends only
+  into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded as a
+  raw output (`pass`, `kept`: the one its annotations were parsed from); `PageRecognizer(..., repair_only=True)` sends only
   the repair requests, for page records read with `PageRecordReader` (`--pages ... --repair-only`). The streaming
   loop of `ModelBlock` offers this to every served block: a finished request may ask for a second one
   (`_second_request`), whose response comes back with it (`_second_done`), and that one for another
@@ -588,11 +590,23 @@ the paragraphs of the item recomposition.
 
 ## Page records
 
-Stored page records are rows `{"schema": "linecaster.page/2", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
-`PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`). `PageRecordReader` brings older rows to today's format
-(`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/1` row names a transcription's
-steps `model` (read as `steps`); a row without `schema` (the oldest format) names its transcription `ocr`, read as
-`ocr_new`; a `.../pages` folder without records is read from its sibling `rows/` (the folder's earlier name).
+Stored page records are rows `{"schema": "linecaster.page/3", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+`PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`): `page` is the page record of the
+[data model](data-model.md), its annotation sets with their annotators, raw outputs and annotations. Renderings
+(the Composer's Docling document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
+today's format (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/2` row through
+`linecaster.data.upgrade.page_2_to_3` (field by field in the [data model](data-model.md#from-linecasterpage2)); a
+`linecaster.page/1` row, whose transcriptions name their steps `model`, to page/2 first; a row without `schema` (the
+oldest format) names its transcription `ocr`, read as `ocr_new`; a `.../pages` folder without records is read from
+its sibling `rows/` (the folder's earlier name).
+
+## Rendering policy
+
+The blocks that render (`Composer`, `PageFileWriter`, `ItemTextWriter`) take `policy`, a catalog policy edition
+(`id@edition`, default `page-layers@1`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
+each region in the documents, files and texts they write ([data model](data-model.md#rendering)).
+`pipelines/transcribe_modular.py` and `pipelines/bind.py` set it with `--policy`; it is a functional parameter, so the
+run record names it and `pipeline_sha256` covers it.
 
 ## HF Jobs helpers
 

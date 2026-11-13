@@ -15,8 +15,9 @@ full_page=True)`), with the package's parser, blank-region filter and block-mode
 - The package and vLLM need separate environments (surya-ocr pins OpenCV 4.11, vLLM needs 4.13 or later): vLLM is
   the image's, surya-ocr the pipeline script's. surya-ocr declares `pillow<11`; the pipeline script overrides it with
   linecaster's Pillow pin (12.3.0).
-- Kept verbatim: the page's blocks as JSON (`extra["raw"]`: label, raw label, reading order, HTML, skipped, error,
-  confidence, box). Rendering them to Markdown (with chandra's HTML converter, page headers and footers kept) is
+- Kept verbatim: the page's blocks as JSON (the raw output the lines were read from: label, raw label, reading
+  order, HTML, skipped, error, confidence, box), and the full-page completion before the package parsed it (a second
+  raw output, not kept). Rendering them to Markdown (with chandra's HTML converter, page headers and footers kept) is
   left to whoever reads the output. `finish_reason` is `length` when the page keeps a capped block's partial HTML; a
   failed block request is the page's error.
 

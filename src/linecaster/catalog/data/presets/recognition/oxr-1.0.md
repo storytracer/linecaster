@@ -12,7 +12,8 @@ engine (`oxr.recognition.v1`, package `linecaster-services`) is its client in th
   `output_formats` field each for markdown and json (httpx's encoding of a list). No `feature_config` or
   `element_formats`: the vendor's defaults (page headers and footers dropped, the overlap clean-up
   `full_overlap_dedupe` off).
-- Kept verbatim: the API's Markdown (`extra["raw"]`, the text), its blocks (JSON) and warnings. An answer with a
+- Kept verbatim: the API's Markdown (the raw output, the text), its blocks (JSON) and warnings (the extension
+  fields `oxr__blocks_json`, `oxr__warnings`). An answer with a
   non-zero `code` is the page's error. The service reports no finish reason or token counts (its per-region cap is
   8,192 tokens in the vendor's configuration). The Markdown links the figure crops as images; removing the links is
   left to whoever reads the output.

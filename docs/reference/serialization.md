@@ -1,8 +1,10 @@
 # Serialization and working images
 
-`linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml;
-`linecaster.images.convert` turns any page image into the working image. Neither imports datatrove,
-saturate or an engine.
+`linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml,
+`linecaster.formats.iiif` writes an annotation set as an IIIF annotation page and `linecaster.formats.docling` reads
+a DoclingDocument; `linecaster.images.convert` turns any page image into the working image. None of them imports
+datatrove, saturate or an engine. Each writer renders an annotation set under a [rendering
+policy](data-model.md#rendering); what it writes is a rendering, not stored in the page record.
 
 ## Common rules for ALTO, PAGE and hOCR
 
@@ -15,57 +17,96 @@ saturate or an engine.
    PAGE: usually only `{"polygon": null}` for box-only lines). `extensions=False` writes pure
    files; they then round-trip only what the format holds natively. Foreign files have no
    extensions and readers fall back to the inferred values.
-2. **Semantic round trip** (`from_x(to_x(t))`): regions, lines and words with their ids, text,
-   geometry, confidences, alternatives, the `hyphen` flag, region label, raw label, score and
-   heading level, line score, `reading_order` and `row`. Not serialized: `docling` (export only),
-   `paragraphs`, `Line.normalized`, `extra` dicts, the steps' `measurements` other than `datetime`, `source` (readers set
-   `kind="converted"`, `format`, `uri`, image size). Readers return regions and lines in document
-   order, which may differ from the original list order; tests compare by id.
-   **Provenance** round-trips: every `StepInfo` (step, name, engine, revision, preset, preset hash, recipe,
-   recipe hash, backend, settings; `datetime` as ALTO `processingDateTime` and PAGE `MetadataItem/@date`) is written as ALTO
-   `Processing`, PAGE `MetadataItem type="processingStep"` with `Labels`, and hOCR `linecaster-step-<n>`
-   metas next to `ocr-system` and `ocr-capabilities` (computed from what the file contains). Other tools'
-   provenance is read too (ALTO `OCRProcessing`, OCR-D PAGE steps, hOCR `ocr-system`). METS agents per
-   step: `linecaster.runtime.provenance.mets_agents`.
-3. **Writing order.** Regions are written by `reading_order` (regions without one after the others,
-   in list order), each region's lines by `reading_order`. A line without a region goes before
+2. **What is written** (`linecaster.formats._xml.file_layout`): of the transcription `t`, under the policy
+   `policy` (`to_alto`, `to_page`, `to_hocr`; default `page-layers@1`, `linecaster.data.DEFAULT_POLICY`):
+   - **regions**: id, polygon and box, detection confidence (the region's *score*), the annotator's own label
+     (`Region.label`, the **raw label**) and the region's **Docling label**, from its content role (`t.label`;
+     `handwritten_text` for running text classified as handwritten), and its heading level (its `heading_level`
+     classification, unless a later annotator classified its role anew);
+   - **lines**: id, region (`t.region_of`: the latest `part_of` link, else `Line.region`), box, polygon, baseline,
+     detection confidence (the line's *score*) and its reading: the text as written (`t.text_of`: the reading's
+     text with the line's `nfc` and `joined` edits applied), confidence, alternatives, and the words with their ids,
+     text, box, confidence, alternatives and `hyphen` flag; a line not read has no reading;
+   - **the reading order** that counts (`t.order`): each region's rank in it, each line's rank on the page and row
+     in its region;
+   - the page's `language` classification (hOCR only).
+
+   Regions the policy puts in layer `none` (a `status` of removed, suppressed or duplicate under `page-layers@1`;
+   the roles separator and noise) are left out with their lines, and so are lines whose own `status` the policy puts
+   there (a line assignment's duplicates); ranks are counted among what is written. **Not serialized**: the other
+   classifications (production apart from handwritten running text, status, script, picture class, code language;
+   language in ALTO and PAGE), edits other than the as-written text (`normalized`, `corrected`, `expanded`, ...),
+   descriptions, links, ranges and paragraphs, tables and formulas, raw outputs, glyphs and formatting, annotations'
+   `annotator`, `output`, `derived_from` and extension fields, annotators of kind `file` and `human`, annotators'
+   `measurements` other than `datetime`, and the source.
+3. **Reading** (`linecaster.formats._xml.transcription`): a reader makes one transcription of the file: its
+   regions (the raw label as `Region.label`, a `role` classification of the Docling label they read as,
+   `linecaster.data.policy.classify_label`, and a `heading_level` one), its lines with their readings, and one
+   reading order (the regions with a rank, the lines by rank, with their rows); hOCR's `lang` becomes the page's
+   `language` classification. A content role comes back as the role of its Docling label: roles that share one
+   (marginalia, credit, floating and drop capitals read as paragraphs; endnotes and continued footnotes as footnotes;
+   a page number as a header or footer) come back as that label's role. The **annotators** are the steps the file
+   names (provenance, below); without any, the file is the one annotator (kind `file`, step `transcription`, named
+   after its format). What each annotator made: regions by
+   the latest layout step (else recognition, else lines), roles and heading levels by the latest typography step
+   (else layout, else recognition), lines by the line step (else recognition, else layout), readings by recognition
+   (else lines), the reading order by the latest of typography, assignment, ordering, lines, layout and recognition,
+   and by the first annotator where none of these ran. The **source** is `kind="converted"`, `format`, `uri` and
+   the image size, with ALTO's scale factors (`scale`) and the extension fields `alto__namespace` (the file's
+   namespace), `alto__measurement_unit` (when not `pixel`) and `page__namespace`. **`ground_truth=True`** (every
+   reader) makes the source a ground truth (`kind="ground_truth"`) and the file's own annotator people (kind
+   `human`); steps the file names stay what they are. Readers return regions and lines in document order, which
+   may differ from the original list order; tests compare by id.
+
+   **Provenance** round-trips: every annotator of kind `model` or `rule`, as a step record (step, name, engine,
+   revision, preset, preset hash, recipe, recipe hash, backend, settings; `datetime` as ALTO `processingDateTime`
+   and PAGE `MetadataItem/@date`), is written as ALTO `Processing`, PAGE `MetadataItem type="processingStep"` with
+   `Labels`, and hOCR `linecaster-step-<n>` metas next to `ocr-system` and `ocr-capabilities` (computed from what
+   the file contains); readers turn each back into an annotator, of kind `rule` for the rule-based steps
+   (`RULE_STEPS`), else `model`. Annotators of kind `file` and `human` are the set's source, not steps, and are not
+   written. Other tools' provenance is read too (ALTO `Processing` and `OCRProcessing`: the description as the step,
+   the software's name and version as model and revision, other settings as `raw`; OCR-D PAGE steps: `name` as the
+   step, `value` as the model, their parameters as settings; hOCR `ocr-system`: one recognition step). METS agents
+   per step: `linecaster.runtime.provenance.mets_agents`.
+4. **Writing order.** Regions are written by their rank in the reading order (regions it leaves out after the
+   others, in list order), each region's lines by rank. A line without a region goes before
    the first region whose first line comes after it; consecutive ones share one block. Readers
-   assign line `reading_order` = position in document order and `row` = position in its block, and
-   region `reading_order` = rank in the format's reading order; the writers record the original
-   value in the extension whenever that differs (gaps, a running head read last, a region without
-   an order), so irregular orders survive too.
-4. **Lines without a region.** ALTO and PAGE need a block around every line: they get a synthetic
+   rank the lines by their position in document order and give each the row of its position in its block, and rank
+   the regions by the format's reading order; the writers record the original rank or row in the extension
+   whenever that differs (gaps, a running head read last, a region outside the order), so irregular orders survive
+   too.
+5. **Lines without a region.** ALTO and PAGE need a block around every line: they get a synthetic
    `TextBlock`/`TextRegion` (`id` `lc_block_<n>`, extension `{"synthetic": true}`) that the reader
    drops again (with `extensions=False` it comes back as a `text` region). In hOCR such lines sit
    directly in the `ocr_page`. The synthetic blocks are part of the format's reading order, so
    consumers that follow it do not lose those lines.
-5. **Rounding.** ALTO coordinates are floats in the schema: `to_alto` writes them exactly (shortest
+6. **Rounding.** ALTO coordinates are floats in the schema: `to_alto` writes them exactly (shortest
    repr) by default, `precision=0` writes integers. PAGE and hOCR hold integers only: points are
    rounded half up (`floor(v + 0.5)`, deterministic); boxes are rounded by their corners
    (`x0 = r(x)`, `x1 = r(x + w)`, `w = x1 - x0`) so edges agree with the rounded polygons; PAGE
    clamps negative values at 0 (its schema forbids them). Rounding happens once: a second round
    trip is the identity (tested).
-6. **Confidences.** ALTO `WC` and PAGE `TextEquiv/@conf` / `Coords/@conf` are floats in 0..1 and
+7. **Confidences.** ALTO `WC` and PAGE `TextEquiv/@conf` / `Coords/@conf` are floats in 0..1 and
    written exactly. hOCR `x_wconf` is an integer percentage: confidences come back to 0.01. ALTO
    has no line confidence: a reader derives it as the length-weighted mean of the words' `WC`
    (as for foreign files); the writer stores the real line confidence in the extension when it
    differs from that mean.
-7. **Line text vs. words.** Words are joined with one space; when a line's `text` is not that join
+8. **Line text vs. words.** Words are joined with one space; when a line's text as written is not that join
    (double spaces, `None` with words), the text goes into the extension. A line without words is
    written as a single ALTO `String` carrying the line text and confidence (extension
    `{"wordless": true}`), as a PAGE `TextLine` with only a line `TextEquiv`, as an hOCR line with
    the text directly in the span. `text=None` (not recognized) and `text=""` (recognized as empty)
    stay distinct in all three.
-8. **Output is deterministic**: same input, same bytes (PAGE `Created`/`LastChange` default to
+9. **Output is deterministic**: same input, same bytes (PAGE `Created`/`LastChange` default to
    `1970-01-01T00:00:00`; pass `created=` for a real timestamp).
-9. **Ids are written as they are.** Schema-valid output needs ids that are XML NCNames (letters,
+10. **Ids are written as they are.** Schema-valid output needs ids that are XML NCNames (letters,
    digits, `_ - .`, not starting with a digit); the producers' ids (`text_2`, `orphan_0`, ...)
    are. Ids the writers make up themselves (synthetic blocks, tags, the page) avoid every existing
    id.
-10. **Known limits.** Characters XML cannot carry (C0 controls other than tab/newline) make the
+11. **Known limits.** Characters XML cannot carry (C0 controls other than tab/newline) make the
     writers raise lxml's `ValueError`; text is not silently altered. Language is written to hOCR
     `lang` only.
-11. **Tests** cover the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
+12. **Tests** cover the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
     empty and unrecognized lines, a region-less line, hyphenation, alternatives), irregular orders,
     300 seeded random transcriptions per format (every tenth also validated against the XSD),
     and foreign files (ALTO v2 mm10, v3 without namespace, eScriptorium v4; PAGE 2010 and
@@ -73,19 +114,21 @@ saturate or an engine.
 
 ## ALTO (writes 4.4, reads v1 to v4)
 
-| Transcription | ALTO |
+| What is written | ALTO |
 |---|---|
 | region | `TextBlock` (`Illustration TYPE=<label>` for picture/chart regions without lines); `Shape/Polygon` only when the polygon is not the box |
-| region label | `LayoutTag TYPE="label" LABEL=<docling label>`, one per distinct label, in `TAGREFS` |
-| raw label | `LayoutTag TYPE="raw_label" LABEL=<raw>` |
-| region order | `ReadingOrder/OrderedGroup/ElementRef` (regions with an order + synthetic blocks); without `ReadingOrder` readers use document order (ALTO's implicit order) |
+| Docling label | `LayoutTag TYPE="label" LABEL=<docling label>`, one per distinct label, in `TAGREFS` |
+| raw label (`Region.label`, when set) | `LayoutTag TYPE="raw_label" LABEL=<raw>` |
+| region order | `ReadingOrder/OrderedGroup/ElementRef` (regions with a rank + synthetic blocks); without `ReadingOrder` readers use document order (ALTO's implicit order) |
 | line | `TextLine` with `BASELINE="x,y x,y ..."` (4.2+ points syntax), `Shape/Polygon` |
 | word | `String` (`WC`, `ALTERNATIVE`), `SP` between words; a `hyphen` word that ends in `- ¬ ⸗ ‐ soft hyphen =` is split into `String` + `HYP` (reader re-joins: word text and line text unchanged) |
-| score, heading level, line confidence | extension |
+| region and line score (detection confidence), heading level, line confidence | extension |
+| model and rule annotators | `Description/Processing` (category, date when recorded, the step as `processingStepDescription`, the step record as JSON in `processingStepSettings`, linecaster as `softwareCreator` with the model and its revision), all referenced from `Page/@PROCESSINGREFS` |
 
 Reading foreign ALTO: namespaces v1–v4 or none; blocks anywhere under `Page` (margins,
 `PrintSpace`, nested `ComposedBlock`s, which are transparent); raw label = the `LABEL` of the first
-referenced tag (Transkribus `StructureTag`, eScriptorium `OtherTag`), Docling label mapped from it;
+referenced tag (Transkribus `StructureTag`, eScriptorium `OtherTag`), the Docling label (and so the role) mapped
+from it;
 `BASELINE` as a single number (ALTO < 4.2) becomes a horizontal line across the line box;
 `SUBS_TYPE`/`SUBS_CONTENT` are ignored (the word keeps its `CONTENT`); missing ids are generated
 (`line_<rank>`, `<line>_w<k>`, `block_<n>`); `GraphicalElement`s are not read. **Units**: `pixel`
@@ -96,15 +139,17 @@ scaled to the image (also corrects pixel ALTO made on a master of another size);
 
 ## PAGE (writes 2019-07-15, reads 2009–2019)
 
-| Transcription | PAGE |
+| What is written | PAGE |
 |---|---|
-| region | `TextRegion` with `@type` from the label (below); `ImageRegion`, `ChartRegion`, `TableRegion`, `MathsRegion` for picture, chart, table, formula regions **without lines** (PAGE does not allow lines in them) |
-| raw label | `@custom="structure {type:<raw>;}"` (Transkribus convention; `; { } \` escaped as `\uXXXX`) |
-| region score / line score | `Coords/@conf` |
+| region | `TextRegion` with `@type` from the Docling label (below); `ImageRegion`, `ChartRegion`, `TableRegion`, `MathsRegion` for picture, chart, table, formula regions **without lines** (PAGE does not allow lines in them) |
+| raw label (`Region.label`, when set) | `@custom="structure {type:<raw>;}"` (Transkribus convention; `; { } \` escaped as `\uXXXX`) |
+| region and line score (detection confidence) | `Coords/@conf` |
 | region order | `ReadingOrder/OrderedGroup/RegionRefIndexed` (nested groups read recursively, `index` sorted) |
 | line | `TextLine`: `Coords` = polygon (the box when there is none, extension `{"polygon": null}`), `Baseline`, `TextEquiv/@conf`; alternatives as `TextEquiv/@index` 2.. (primary 1) |
 | word | `Word`: `Coords` = box, `TextEquiv` |
-| bbox | not in PAGE: readers take the bounds of `Coords`; the writer stores the box when it differs |
+| box | not in PAGE: readers take the bounds of `Coords`; the writer stores the box when it differs |
+| heading level | extension |
+| model and rule annotators | `Metadata/MetadataItem type="processingStep"` (as OCR-D records its processors): `name` the step, `value` the preset edition or the model, `date` when recorded, `Labels externalModel="linecaster"` with `externalId="model"` (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and `externalId="settings"` (one label per setting); a summary in `Comments` |
 
 Label mapping, Docling → `TextRegion/@type`: text, paragraph, list_item, handwritten_text,
 reference → `paragraph`; title, section_header → `heading`; page_header → `header`; page_footer →
@@ -121,18 +166,62 @@ joined into the word.
 
 ## hOCR 1.2
 
-| Transcription | hOCR |
+| What is written | hOCR |
 |---|---|
 | region | `div` of class `ocr_carea` (page_header → `ocr_header`, page_footer → `ocr_footer`, picture/chart → `ocr_photo`, table → `ocr_table`, formula → `ocr_math`) with one `p.ocr_par`; `bbox`, `poly` when not the box |
 | line | `span.ocr_line`: `bbox`, `baseline slope offset` (hOCR's straight line from the box's bottom-left), `poly`, `x_wconf` |
 | baseline that `baseline` cannot express (polyline, vertical) | also `x_bline x1 y1 x2 y2 ...` (custom property) |
 | word | `span.ocrx_word`: `bbox`, `x_wconf` |
-| raw label, region score, heading level, hyphen, alternatives | extension |
+| raw label, region and line score, heading level, hyphen, alternatives | extension |
+| model and rule annotators | `meta name="linecaster-step-<n>"`, the step record as JSON; `ocr-system` is linecaster with its release, `ocr-capabilities` what the file contains |
+| the page's `language` classification | `html/@lang` and `xml:lang`; `ocr-langs` for an ISO 639-1 code |
 
 Reading foreign hOCR: XHTML or tag-soup HTML (lxml.html fallback); regions are the top-level
 float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `ocr_header`/
 `ocr_footer` spans inside a region (Tesseract's line classes); word text includes nested
 `<strong>`/`<em>`; `image "..."` may contain `;`.
+
+## IIIF annotation page (`linecaster.formats.iiif`)
+
+`to_annotation_page(t, canvas, id, policy=DEFAULT_POLICY)` writes an annotation set as one IIIF Presentation 3
+`AnnotationPage` (W3C Web Annotations on the page's canvas `canvas`), its annotations numbered `<id>/<n>`, with the
+IIIF Presentation and text granularity contexts:
+
+| Annotation set | Annotation |
+|---|---|
+| region, in reading order | motivation `classifying`, the content role as a `TextualBody` (purpose `classifying`) |
+| line with a reading, in reading order | `supplementing` (IIIF's motivation for a transcription), `textGranularity` `line`, the text as written, the page's `language` classification as the body's `language` |
+| word | `supplementing`, `textGranularity` `word` |
+| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose, targeting the line's annotation |
+| description of a region | `describing`, its text with its kind as the purpose |
+
+Targets are the canvas with a media fragment (`#xywh=`, rounded) where the annotation has a box (a line without
+one: its region's), the canvas itself where it has none. Each annotation names its annotator as `generator`
+(`Software`), or as `creator` (`Person`) for people, with the annotator's name. Regions the policy puts in layer
+`none` are left out with their lines and descriptions, and so are lines whose own `status` puts them nowhere. The
+output is validated against the IIIF Presentation 3 JSON Schema in the tests.
+
+## Docling (`linecaster.formats.docling`)
+
+The Docling document is a rendering ([data model](data-model.md#rendering)): `build_docling(t, ..., policy)` makes
+one page's, `DocumentBuilder` an item's, and `export` writes it as Markdown, text, HTML, DocLang or JSON with
+docling-core's serializers. The `Composer` puts it into `doc.metadata["docling"]` for the writers; it is not stored.
+
+`from_docling(source, page_no=None, ground_truth=False, name="docling", dataset=None, record=None)` reads a
+DoclingDocument (a document, its dict or its JSON) into a transcription:
+
+- one region per item of the body, furniture and notes layers (on page `page_no`, or on every page), in the
+  document's order, which is also the transcription's one reading order: id `<label>_<k>`, the Docling label as
+  the region's `label` and, read as a content role, its `role` classification; the box of the item's first
+  provenance entry (in top-left coordinates; `None` without one); a section header's level as a `heading_level`
+  classification;
+- a text item's text as one line per text line (`<region>_l<j>`, without geometry), each read with its text;
+- a table as a `Table` of its region, with one line holding its cells' text, so it renders; a picture as a region
+  without lines.
+
+One annotator made all of it: people (kind `human`) with `ground_truth`, which also makes the source a ground truth,
+else the file (kind `file`), named `name`, step `transcription`. The source has `format` `docling`, `dataset` and
+`record` as given, and the image size of the page.
 
 ## Working images (`linecaster.images.convert`)
 

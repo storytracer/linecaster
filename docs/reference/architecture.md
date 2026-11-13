@@ -18,8 +18,8 @@ evaluations and project pipelines (derivatives) are built on top of it.
 
 | Package | Holds |
 |---|---|
-| `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, `Transcription`, `Text`, `StepInfo`, the measurements vocabulary |
-| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; the DoclingDocument exports |
+| `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
+| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; the DoclingDocument exports and importer; the IIIF annotation page |
 | `linecaster.text` | the text transforms: Unicode, typography, recomposition, the text variants |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
@@ -73,8 +73,11 @@ number of tasks or the backend.
 - **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per model (several
   replicas per model were measured at +7–10 % and removed; NOTES.md), each with a bounded queue (`--max-queue`; a
   full queue answers 429 with `Retry-After`). Routes: `POST /v1/linecaster/{step}` (the image and the transcription
-  so far in, the transcription with its part added out), `GET /v1/models`, `/health` and vLLM-shaped `/metrics`
-  (the gauges saturate reads). Built-in engines are not served: they run in the pipeline's process.
+  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/3`
+  annotation sets), `GET /v1/models`, `/health` (`status` and `protocol`, the transcription format:
+  `linecaster.page/3`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
+  already answers for its `protocol` when it warms up and refuses one that names another format or none
+  (`ServerError`): both sides run the same linecaster version. Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
   `RegionRecognizer` on the `Chat` backend, on `/v1/chat/completions`, served only. `PageRecognizer` also runs a
   **page engine** (an engine whose unit is the page) on the `InProcess` or `Served` backend: a vendor's package in

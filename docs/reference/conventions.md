@@ -47,8 +47,9 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
   labels, serving), read from the YAML. The Markdown prose and descriptive fields (support, provenance) are not
   part of it, so they can be corrected without a new edition; git keeps their history.
 
-Schemas: `preset`, `recipe`, `model`, `evidence`, `run-record`, `lock`. Stored page records name their format in a
-`schema` field of their row (`linecaster.page/2`).
+Schemas: `preset`, `recipe`, `model`, `policy`, `benchmark`, `evidence` (`evidence-2`, and `evidence-1` for older
+records), `run-record`, `lock`. Stored page records name their format in a `schema` field of their row
+(`linecaster.page/3`).
 
 ## Docstrings
 
@@ -59,7 +60,7 @@ public name of `linecaster.engines.api` and `linecaster.testing`:
 - **Summary line**: what the block or function does, in the present tense, starting with a verb, one sentence:
   "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The block
   index and the README's block table show it.
-- **Body**: the contract in words (what it reads, adds and replaces), edge cases, what it records (step infos,
+- **Body**: the contract in words (what it reads, adds and replaces), edge cases, what it records (annotators,
   stats, errors on the page).
 - **`Args:`** names every parameter of the signature (a class documents its constructor's), and no other: one entry
   each, `name: meaning, the effect of the default, constraints.`, continuation lines indented. Several parameters

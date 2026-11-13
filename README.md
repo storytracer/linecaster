@@ -261,8 +261,9 @@ backends, partial runs (`--until`, `--after`) and the builder.
 
 ## 🧩 How it works
 
-1. **One record per page.** Every step reads the page's `Transcription` and adds its part: regions, lines, text,
-   tables, a document. Steps share the data model and nothing else.
+1. **One record per page.** Every step reads the page's `Transcription` and adds its annotations under its own
+   annotator: regions, lines, readings, tables, classifications, edits. Nothing is overwritten, and documents, files
+   and texts are rendered from the record under a rendering policy. Steps share the data model and nothing else.
 2. **Contracts.** Each block declares what it reads, adds, replaces or removes; the builder checks the pipeline
    and draws its graph from them.
 3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
@@ -292,9 +293,10 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
 | [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
 | [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
-| [data model](docs/reference/data-model.md) | what a page's transcription holds: `Item`, `Page`, `Transcription`, regions, lines, words, text variants |
-| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR |
-| [catalog](docs/reference/catalog.md) | models, presets, recipes and editions, and where measurements live |
+| [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, text variants |
+| [evaluation](docs/reference/evaluation.md) | scoring transcriptions against ground truths: benchmarks, lanes, score records, evidence |
+| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and Docling import |
+| [catalog](docs/reference/catalog.md) | models, presets, recipes, policies and editions, and where measurements live |
 | [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
 | [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a trace sample of pages |
@@ -304,7 +306,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.7.4`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.8.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The

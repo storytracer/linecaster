@@ -11,7 +11,8 @@ grayscale, orientation, deskew, detection, recognition, layout and reading order
 - The page goes to the package as its file's bytes, as the reader brought them (the engine's `image_input` is
   `bytes`), as the `indra-ocr` command reads a file; the package decodes it in grayscale with OpenCV. The pipeline
   script resolves OpenCV 4.11 (surya-ocr's pin, in the same environment).
-- Kept verbatim: the package's Markdown (`extra["raw"]`, the text), with its layout blocks, rotation and skew. A page
+- Kept verbatim: the package's Markdown (the raw output, the text), with its layout blocks, rotation and skew (the
+  extension fields `indra__blocks`, `indra__rotation`, `indra__skew`). A page
   the package reports as failed is the page's error; an empty Markdown (a blank leaf) is a transcription without
   text.
 

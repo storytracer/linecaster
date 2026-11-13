@@ -79,14 +79,14 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |
 | `paragraphs` | The running text recomposed from the rows, with its decisions (the `Recomposer`). |
 | `normalized` | The normalized texts of lines and paragraphs (the `CharacterNormalizer`). |
-| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`Composer(unit="item")`). |
+| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`Composer(unit="item")`): a rendering that travels with the datatrove document (`doc.metadata["docling"]`), not stored in the page record. |
 
 ## The catalog
 
 | Term | Meaning | Not |
 |---|---|---|
-| **catalog** | linecaster's register of models, engines, presets and recipes, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
-| **catalog entry** | One registered thing: a model, a preset or a recipe; a YAML file, with a Markdown sidecar for its prose. | not a "component", not a "document" |
+| **catalog** | linecaster's register of models, engines, presets, recipes and rendering policies, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
+| **catalog entry** | One registered thing: a model, a preset, a recipe or a rendering policy; a YAML file, with a Markdown sidecar for its prose. | not a "component", not a "document" |
 | **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `normalization`, `typography`, `recomposition`, `composition`. A preset belongs to one step. | not a block |
 | **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit. Built-in engines live in the core; engine packages (`linecaster-kraken`, ...) add more. | not saturate's `Engine` class (its server launcher) |
 | **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image). A strategy declares the scripts it covers. | |
@@ -97,14 +97,14 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **page engine** | An engine of the recognition step whose unit is the page: it reads the whole page and returns its transcription, in the pipeline's process or behind a server (`indra.recognition.v1`, `surya.recognition.v1`, and the clients of a vendor's service, `falcon.recognition.v1`, `oxr.recognition.v1`). `PageRecognizer` runs it. | not a chat preset (`chat.v1`) |
 | **recipe** | A tested combination: a pipeline id, a preset edition per slot, and options. | |
 | **slot** | A place in a pipeline script that a preset fills; its name is the step's (`--layout`, `--lines`, `--recognition`, ...). | |
-| **repair pass** | A further request for a page whose VLM completion stopped at its cap (`finish_reason` `length`): the same request with a larger cap and the repair temperature. `repair_max_tokens` gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a **pass**, recorded in the transcription's `extra["passes"]`; `extra["kept"]` says which one it holds. | not a retry of a failed request |
-| **grounding** | A VLM's mode that labels and locates every block of the page as it transcribes it (LightOnOCR-3's `grounding` prompt: a placeholder with label and box before each block). linecaster makes one region per block, with page furniture as `page_header`/`page_footer`; what the model writes about a figure is kept apart from the text. | not a layout step: one completion holds the layout and the text |
+| **repair pass** | A further request for a page whose VLM completion stopped at its cap (`finish_reason` `length`): the same request with a larger cap and the repair temperature. `repair_max_tokens` gives the caps, one per pass, rising (a number: one pass); a pass is sent only while the one before stopped at its cap. The page keeps the first completion that finished, else its first. Each request of a page is a **pass**, recorded as a raw output of the transcription with its number (`pass`); `kept` says which one the annotations were parsed from. | not a retry of a failed request |
+| **grounding** | A VLM's mode that labels and locates every block of the page as it transcribes it (LightOnOCR-3's `grounding` prompt: a placeholder with label and box before each block). linecaster makes one region per block, with page furniture classified as header, footer or page number; what the model writes about a figure is a description, kept apart from the text. | not a layout step: one completion holds the layout and the text |
 | **repetition detection** | vLLM's guard against a completion that loops (`repetition_detection` of a request, vLLM 0.17.0 and later): the server ends a completion whose last tokens repeat a pattern of `min_pattern_size` to `max_pattern_size` tokens `min_count` times in a row, with `finish_reason` `repetition`. Such a page is not sent to a [repair pass](glossary.md). On by default for presets served by vLLM 0.17.0 or later; linecaster's defaults: 8 to 100 tokens, 16 times (a run of one token is stopped after 128). | not a repetition penalty or an n-gram logits processor, which change sampling on every page |
 | **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request, its prompt handling, its parsing (`linecaster.adapters`). | not an engine package |
 | **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/2`) that names the run, the benchmark, the policy and the scoring it measured with; kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
 | **revision** | The exact upstream commit a model is pinned to. | |
-| **edition** | linecaster's release number of a preset or recipe: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its YAML. | not a version |
+| **edition** | linecaster's release number of a preset, recipe or rendering policy: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its YAML. | not a version |
 | **code id** | The versioned id of an engine or a pipeline: `<name>.v<n>`. An option added later keeps the id if its default keeps the old behavior. | |
 | **schema id** | The format of a YAML file: `linecaster.preset/1`. | |
 | **lock** | `catalog.lock`: the hash of every released edition, and the expanded pipeline of every recipe edition. | |
@@ -142,11 +142,11 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **rendering policy** | A catalog entry (`policy`, with editions) that decides which annotations go into which layer of a rendering, and whose annotations count where several annotators gave one. | |
 | **layer** | Where a rendering puts content: docling-core's content layers (`body`, `furniture`, `background`, `invisible`, `notes`), `metadata`, or `none`. | |
 | **rendering** | A Docling document, DocLang, ALTO, PAGE-XML, hOCR, an IIIF annotation page or a text made from an annotation set under a policy; written out, never stored in the page record. | |
-| **reading order** | The rank in which a page's regions are read (`Region.reading_order`), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster. | not the order of `Transcription.lines`, which is the processing order |
+| **reading order** | The order in which a page's regions and lines are read (`ReadingOrder` annotations, one per annotator that ordered the page; the latest counts unless the policy's `precedence` says otherwise), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster. | not the order of `Transcription.lines`, which is the processing order |
 | **XY-cut**, **XY-Cut++** | The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (`linecaster.data.geometry`, the layout option `reading_order`). | |
 | **cross-layout region** | A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting. | not a region label |
 | **line** | One printed or written line (`Line`): a zone, and once recognized its reading. | |
-| **row** | The lines of one region that sit side by side at the same height (`Line.row`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
+| **row** | The lines of one region that sit side by side at the same height (a line's row is in the reading order's `rows`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | A word of a reading: its text, box, confidence and glyphs. | |
 | **paragraph** | The bottom range: running text recomposed from rows of lines, with the decisions that made it (`Paragraph`). Added by the `Recomposer`. | |
 | **Docling document** | A DoclingDocument: a rendering of a page or an item as docling-core's structure, made by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a document range |

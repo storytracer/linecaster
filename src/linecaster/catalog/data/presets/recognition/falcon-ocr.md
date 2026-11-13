@@ -10,7 +10,8 @@ pipeline's process.
 - The request: the page as RGB, scaled down (LANCZOS) so its longest side is at most 2,048 px, JPEG quality 95, as a
   data URI (linecaster's choice of payload), with `skip_layout` false (the vendor's full-page path; the direct VLM
   path is off-label).
-- Kept verbatim: `markdown_result` (`extra["raw"]`, the text) and the layout regions (`json_result`). The service
+- Kept verbatim: `markdown_result` (the raw output, the text) and the layout regions (`json_result`, the extension
+  field `falcon__regions_json`). The service
   reports no finish reason, so no loop can be counted; its output tokens are the step's `completion_tokens`. The
   Markdown can contain leaked `>>UNUSED_N<<` vocabulary tokens; removing them is left to whoever reads the output.
 - The image has Python 3.10 and no uv: on HF Jobs the pipeline cannot run inside it as it is (not tried).
