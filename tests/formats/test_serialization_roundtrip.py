@@ -7,8 +7,9 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from linecaster.data import Line, Region, StepInfo, Transcription, Word
-from linecaster.formats import _xml as X, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
+from linecaster.data import Annotator, Source, Transcription
+from linecaster.data.transcription import RULE_STEPS
+from linecaster.formats import _provenance as P, _xml as X, from_alto, from_hocr, from_page, to_alto, to_hocr, to_page
 from linecaster.formats.hocr import quantize_confidence
 
 from conftest import sample_transcription
@@ -35,16 +36,17 @@ def expected(t: Transcription, fmt: str) -> Transcription:
     qz = X.Quantizer(0, clamp=(fmt == "page"))
     for r in e.regions:
         r.polygon = qz.points(r.polygon)
-        r.bbox = qz.box(r.bbox)
+        r.box = qz.box(r.box)
     for ln in e.lines:
-        ln.bbox = qz.box(ln.bbox)
+        ln.box = qz.box(ln.box)
         ln.polygon = qz.points(ln.polygon)
         ln.baseline = qz.points(ln.baseline)
-        for w in ln.words:
-            w.bbox = qz.box(w.bbox) if w.bbox is not None else None
-        if fmt == "hocr":
-            ln.confidence = quantize_confidence(ln.confidence)
-            for w in ln.words:
+        words = ln.reading.words if ln.reading is not None else []
+        for w in words:
+            w.box = qz.box(w.box) if w.box is not None else None
+        if fmt == "hocr" and ln.reading is not None:
+            ln.reading.confidence = quantize_confidence(ln.reading.confidence)
+            for w in words:
                 w.confidence = quantize_confidence(w.confidence)
     return e
 
@@ -64,20 +66,29 @@ def roundtrip(t: Transcription, fmt: str) -> Transcription:
 
 def assert_same(got: Transcription, want: Transcription) -> None:
     """Equal as sets of regions and lines (readers return them in document order, which can differ
-    from the list order of the original; reading order is in the fields)."""
+    from the list order of the original), with the same labels, heading levels and reading order."""
     assert sorted(r.id for r in got.regions) == sorted(r.id for r in want.regions)
     assert sorted(ln.id for ln in got.lines) == sorted(ln.id for ln in want.lines)
     got_r = {r.id: r for r in got.regions}
     for w in want.regions:
         assert got_r[w.id] == w, f"region {w.id}"
+        assert (got.label(w.id), got.role(w.id), got.heading_level(w.id)) == \
+            (want.label(w.id), want.role(w.id), want.heading_level(w.id)), f"region {w.id}"
+        assert X.file_label(got, w.id) == X.file_label(want, w.id), f"region {w.id}"
     got_l = {ln.id: ln for ln in got.lines}
     for w in want.lines:
         assert got_l[w.id] == w, f"line {w.id}"
+    assert [r.id for r in got.ordered_regions() if r.id in got.region_ranks()] == \
+        [r.id for r in want.ordered_regions() if r.id in want.region_ranks()]
+    assert [ln.id for ln in got.ordered_lines()] == [ln.id for ln in want.ordered_lines()]
+    assert got.rows() == want.rows()
     assert got.text == want.text
-    assert [steps(m) for m in got.steps] == [steps(m) for m in want.steps]
+    assert [steps(m) for m in P.written(got.annotators)] == [steps(m) for m in P.written(want.annotators)]
+    if not P.written(want.annotators):           # the file is the one annotator
+        assert [(a.kind, a.step) for a in got.annotators] == [("file", "transcription")]
 
 
-def steps(m: StepInfo) -> dict:
+def steps(m: Annotator) -> dict:
     """What a page file keeps of a step: everything but the measurements."""
     return m.model_dump(exclude={"measurements"})
 
@@ -86,11 +97,23 @@ def _expected_for(t, fmt):
     if fmt == "alto0":
         e = expected(t, "hocr")       # integer geometry, unclamped
         for ln, o in zip(e.lines, t.lines):
-            ln.confidence = o.confidence
-            for w, ow in zip(ln.words, o.words):
-                w.confidence = ow.confidence
+            if ln.reading is not None:
+                ln.reading.confidence = o.reading.confidence
+                for w, ow in zip(ln.reading.words, o.reading.words):
+                    w.confidence = ow.confidence
         return e
     return expected(t, fmt)
+
+
+def _layout(t: Transcription) -> tuple[list[X.FileRegion], list[X.FileLine]]:
+    """``t`` as a page file holds it, to change it and build it again (``_rebuilt``)."""
+    return X.file_layout(t)
+
+
+def _rebuilt(t: Transcription, regions, lines) -> Transcription:
+    """A transcription of ``regions`` and ``lines`` (``X.FileRegion``, ``X.FileLine``) by ``t``'s annotators, as a
+    reader makes it."""
+    return X.transcription(regions, lines, [a.model_copy() for a in t.annotators], t.source.model_copy())
 
 
 @pytest.mark.parametrize("fmt", list(FORMATS))
@@ -113,12 +136,11 @@ def test_roundtrip_is_stable(transcription, fmt):
 def test_lines_only_page(fmt):
     """A line step's output without any layout regions: every line is region-less."""
     t = sample_transcription()
-    t.regions = []
-    for ln in t.lines:
-        ln.region_id = None
-    t.lines.sort(key=lambda ln: ln.reading_order)
-    for i, ln in enumerate(t.lines):
-        ln.row = i
+    _, lines = _layout(t)
+    lines.sort(key=lambda ln: ln.reading_order)
+    for i, ln in enumerate(lines):
+        ln.region_id, ln.row = None, i
+    t = _rebuilt(t, [], lines)
     got = roundtrip(t, fmt)
     assert got.regions == []
     assert_same(got, _expected_for(t, fmt))
@@ -129,10 +151,12 @@ def test_irregular_order_survives(fmt):
     """Orders the nesting cannot express (region without order, line ranks not following the
     regions, rows that are not positions) still come back."""
     t = sample_transcription()
-    t.regions[3].reading_order = None          # the picture has no order
-    t.regions[4].reading_order = 7             # gaps in the region order
-    t.lines[3].row = 5                         # row is not the position in the region
-    t.lines[0].reading_order = 20              # running head read last
+    regions, lines = _layout(t)
+    regions[3].reading_order = None            # the picture has no order
+    regions[4].reading_order = 7               # after a gap in the region order
+    lines[3].row = 5                           # row is not the position in the region
+    lines[0].reading_order = 20                # running head read last
+    t = _rebuilt(t, regions, lines)
     got = roundtrip(t, fmt)
     assert_same(got, _expected_for(t, fmt))
 
@@ -140,11 +164,11 @@ def test_irregular_order_survives(fmt):
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_words_edge_cases(fmt):
     t = sample_transcription()
-    ln = t.lines[2]
-    ln.words[1].hyphen = True                  # a hyphen flag mid-line
-    ln.words[2].bbox = None                    # a word without a box
-    ln.words[3].confidence = None
-    ln.text = None if fmt != "page" else ln.text
+    words = t.lines[2].reading.words
+    words[1].hyphen = True                     # a hyphen flag mid-line
+    words[2].box = None                        # a word without a box
+    words[3].confidence = None
+    t.lines[6].reading.text = "Plate  IV"      # a text that is not its words joined
     got = roundtrip(t, fmt)
     assert_same(got, _expected_for(t, fmt))
 
@@ -152,10 +176,12 @@ def test_words_edge_cases(fmt):
 @pytest.mark.parametrize("fmt", list(FORMATS))
 def test_unknown_label_and_raw_label(fmt):
     t = sample_transcription()
-    t.regions[2].label = "handwritten_text"
-    t.regions[2].raw_label = "aside text; {odd}"
-    t.regions[4].raw_label = ""
-    t.regions[3].label = "chart"
+    regions, lines = _layout(t)
+    regions[2].label = "handwritten_text"      # a role and a production
+    regions[2].raw_label = "aside text; {odd}"
+    regions[4].raw_label = ""
+    regions[3].label = "chart"
+    t = _rebuilt(t, regions, lines)
     got = roundtrip(t, fmt)
     assert_same(got, _expected_for(t, fmt))
 
@@ -180,10 +206,11 @@ def test_alto_and_page_validate(transcription):
 
 def test_irregular_output_validates():
     t = sample_transcription()
-    t.regions = []
-    for ln in t.lines:
+    _, lines = _layout(t)
+    for ln in lines:
         ln.region_id = None
-    t.lines[0].reading_order = 30
+    lines[0].reading_order = 30
+    t = _rebuilt(t, [], lines)
     alto = _schema("alto-4-4.xsd")
     page = _schema("pagecontent-2019-07-15.xsd")
     assert alto.validate(etree.fromstring(to_alto(t))), alto.error_log
@@ -202,11 +229,12 @@ def test_without_extensions_keeps_the_native_parts(transcription, fmt):
         want.insert(4, "lc_block_0")
     assert [r.id for r in got.regions] == want
     ids = [ln.id for ln in got.lines]
-    assert ids == [ln.id for ln in sorted(transcription.lines, key=lambda ln: ln.reading_order)]
+    assert ids == [ln.id for ln in transcription.ordered_lines()]
     by_id = {ln.id: ln for ln in got.lines}
-    assert by_id["l0"].text == "12 THE BOTANIST"
-    assert [w.id for w in by_id["l2"].words] == [f"l2_w{i}" for i in range(6)]
-    assert by_id["l2"].words[-1].text == "col-"
+    assert got.text_of(by_id["l0"]) == "12 THE BOTANIST"
+    assert [by_id["l2"].word_id(i) for i in range(6)] == [f"l2_w{i}" for i in range(6)]
+    assert all(w.id is None for w in by_id["l2"].reading.words)
+    assert by_id["l2"].reading.words[-1].text == "col-"
 
 
 def test_alto_structure(transcription):
@@ -279,6 +307,8 @@ def test_transcription_import_stays_light():
 
 
 def _random_transcription(seed: int) -> Transcription:
+    """A random page as a reader makes one (``X.transcription``): regions of every label, with and without a
+    rank, lines read and unread, with and without words, steps with every kind of setting."""
     import random
     rnd = random.Random(seed)
 
@@ -301,10 +331,9 @@ def _random_transcription(seed: int) -> Transcription:
     order = list(range(rnd.randint(0, 5)))
     rnd.shuffle(order)
     for i, ro in enumerate(order):
-        regions.append(Region(id=f"r{i}", label=rnd.choice(labels), raw_label=rnd.choice(["", "x_y", "heading"]),
-                              polygon=pts(rnd.randint(3, 6)), bbox=box(), score=conf(),
-                              reading_order=rnd.choice([ro, ro * 3, None]),
-                              heading_level=rnd.choice([None, 1, 2])))
+        regions.append(X.FileRegion(f"r{i}", rnd.choice(labels), rnd.choice(["", "x_y", "heading"]),
+                                    pts(rnd.randint(3, 6)), box(), conf(), rnd.choice([None, 1, 2]),
+                                    rnd.choice([ro, ro * 3, None])))
     lines = []
     n = rnd.randint(0, 10)
     ranks = list(range(n))
@@ -312,22 +341,23 @@ def _random_transcription(seed: int) -> Transcription:
     for i in range(n):
         words = []
         for k in range(rnd.choice([0, 0, 1, 3])):
-            words.append(Word(id=f"l{i}_w{k}", text=rnd.choice(["a", "bc-", "Déjà", "x y", ""]),
-                              bbox=rnd.choice([None, box()]), confidence=conf(),
-                              hyphen=rnd.random() < 0.2,
-                              alternatives=rnd.choice([[], ["alt"]])))
+            words.append(X.FileWord(f"l{i}_w{k}", rnd.choice(["a", "bc-", "Déjà", "x y", ""]),
+                                    rnd.choice([None, box()]), conf(), rnd.choice([[], ["alt"]]),
+                                    rnd.random() < 0.2))
         text = rnd.choice([None, "", " ".join(w.text for w in words), "free  text"])
-        lines.append(Line(id=f"l{i}", region_id=rnd.choice([None] + [r.id for r in regions]),
-                          reading_order=ranks[i], row=rnd.randint(0, 3), bbox=box(),
-                          polygon=rnd.choice([None, pts(4)]), baseline=rnd.choice([None, pts(2), pts(3)]),
-                          score=conf(), text=text, confidence=conf(), words=words,
-                          alternatives=rnd.choice([[], ["other"]])))
+        confidence, alternatives = conf(), rnd.choice([[], ["other"]])
+        if text is None:                       # not read: nothing of a reading
+            words, confidence, alternatives = [], None, []
+        lines.append(X.FileLine(f"l{i}", rnd.choice([None] + [r.id for r in regions]), ranks[i], rnd.randint(0, 3),
+                                box(), rnd.choice([None, pts(4)]), rnd.choice([None, pts(2), pts(3)]), conf(), text,
+                                confidence, alternatives, words))
     values = [None, True, False, 0, 16, 0.1, -2.5, "", "16", "true", "null", "medium", "a;b {c}", ' "x" ',
               "line\nbreak", "Déjà vu", [1, "2"], {"nested": {"k": [None]}}]
     steps = []
     for i in range(rnd.choice([0, 1, 3])):
-        steps.append(StepInfo(
-            step=rnd.choice(["layout", "lines", "recognition", "unicode", "typography", "page"]),
+        step = rnd.choice(["layout", "lines", "recognition", "unicode", "typography", "page"])
+        steps.append(Annotator(
+            kind="rule" if step in RULE_STEPS else "model", step=step,
             name=rnd.choice(["kraken-ppocrv6-medium", "PP-DocLayoutV3", "Qwen/Qwen3-VL 8B", "naïve name"]),
             engine=rnd.choice([None, "kraken.recognition.v1", "typography.ratios.v1"]),
             revision=rnd.choice([None, "0123abcd", "10.5281/zenodo.1"]),
@@ -337,8 +367,7 @@ def _random_transcription(seed: int) -> Transcription:
             settings={f"k{j}": rnd.choice(values) for j in range(rnd.choice([0, 1, 4]))},
             measurements=rnd.choice([{}, {"seconds": 0.5}, {"seconds": 1, "datetime": "2026-11-03T12:00:00Z"}]),
         ))
-    return Transcription(regions=regions, lines=lines, steps=steps, source=Transcription().source.model_copy(
-        update={"image_width": 3000, "image_height": 3000}))
+    return X.transcription(regions, lines, steps, Source(image_width=3000, image_height=3000))
 
 
 @pytest.mark.parametrize("fmt", list(FORMATS))
@@ -359,3 +388,49 @@ def _cached_schema(name):
     if name not in _SCHEMA_CACHE:
         _SCHEMA_CACHE[name] = _schema(name)
     return _SCHEMA_CACHE[name]
+
+
+@pytest.mark.parametrize("fmt", list(FORMATS))
+def test_regions_the_policy_puts_nowhere_are_not_written(fmt):
+    """A region classified removed (as typography drops one) is left out with its lines, and the order of what is
+    written has no gap: the file is the one of a page without that region."""
+    t = sample_transcription()
+    a = t.add_annotator(Annotator(kind="rule", step="typography", name="ratios"))
+    t.classify(a, "doc_title_1", "status", "removed")
+    to, _ = FORMATS[fmt]
+    regions, lines = _layout(t)
+    assert "doc_title_1" not in {r.id for r in regions} and "l1" not in {ln.id for ln in lines}
+    data = to(t)
+    assert b"doc_title_1" not in data and b'"l1"' not in data and b"&quot;reading_order&quot;" not in data
+    without = sample_transcription()
+    without.annotators.append(t.annotators[a])
+    without.regions = [r for r in without.regions if r.id != "doc_title_1"]
+    without.lines = [ln for ln in without.lines if ln.id != "l1"]
+    o = without.orders[0]
+    keep = [i for i, lid in enumerate(o.lines) if lid != "l1"]
+    o.regions.remove("doc_title_1")
+    o.lines, o.rows = [o.lines[i] for i in keep], [o.rows[i] for i in keep]
+    assert data == to(without)
+
+
+def test_hocr_writes_the_page_language():
+    t = sample_transcription()
+    t.classify(0, "", "language", "de")
+    got = from_hocr(to_hocr(t))
+    assert got.classification("", "language") == "de"
+    assert b'<meta name="ocr-langs" content="de"/>' in to_hocr(t)
+
+
+def test_readers_name_the_file_or_its_steps(transcription):
+    """A file linecaster wrote names its steps (the model and rule annotators); a file or people, not being steps,
+    are not written, and a file without steps is its own annotator."""
+    got = from_page(to_page(transcription))
+    assert [(a.kind, a.step, a.name) for a in got.annotators] == [("model", "layout", "sample")]
+    plain = from_alto(to_alto(from_alto(to_alto(transcription, extensions=False))))
+    assert [a.step for a in plain.annotators] == ["layout"]
+    t = Transcription(source=Source(image_width=100, image_height=100))
+    f = t.add_annotator(Annotator(kind="file", step="transcription", name="alto"))
+    t.add_region(f, "r", [0, 0, 10, 10], label="text", role="text")
+    data = to_alto(t)
+    assert b"<Processing" not in data
+    assert [(a.kind, a.step, a.name) for a in from_alto(data).annotators] == [("file", "transcription", "alto")]

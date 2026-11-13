@@ -11,9 +11,12 @@ Mapping (see ``docs/reference/serialization.md``):
   ``TextEquiv`` with ``@conf``; alternatives as further ``TextEquiv`` with ``@index``);
 * word -> ``Word`` (``Coords`` = box, ``TextEquiv``);
 * lines without a region go into a synthetic ``TextRegion`` the reader drops again;
-* each step of ``steps`` -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step, ``value``
-  the preset edition or model, ``Labels`` of the ``linecaster`` model for the rest), read back into
-  ``steps`` (foreign files: OCR-D's processing steps with their parameters).
+* each model and rule annotator -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step,
+  ``value`` the preset edition or model, ``Labels`` of the ``linecaster`` model for the rest), read back as
+  annotators (foreign files: OCR-D's processing steps with their parameters; without any, the file is the one
+  annotator).
+
+Regions the rendering policy puts nowhere (removed, suppressed, duplicate) are not written.
 
 PAGE coordinates are non-negative integers: geometry is rounded half up (boxes by their corners)
 and clamped at 0. What PAGE has no place for goes into ``UserDefined/UserAttribute[@name=
@@ -26,7 +29,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
+from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
 NS = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"
@@ -91,6 +94,7 @@ def _conf(v: float | None) -> str | None:
 class _Writer:
     def __init__(self, t: Transcription, extensions: bool):
         self.t = t
+        self.regions, self.lines = X.file_layout(t)
         self.qz = X.Quantizer(0, clamp=True)
         self.extensions = extensions
 
@@ -114,7 +118,7 @@ class _Writer:
             te = _e(parent, "TextEquiv", index=str(i))
             _e(te, "Unicode").text = alt
 
-    def region(self, page, r: Region, lines: list[Line], predicted_ro, pos) -> None:
+    def region(self, page, r: X.FileRegion, lines: list[X.FileLine], predicted_ro, pos) -> None:
         element = "TextRegion"
         if not lines and r.label in X.DOCLING_TO_PAGE_ELEMENT:
             element = X.DOCLING_TO_PAGE_ELEMENT[r.label]
@@ -142,14 +146,14 @@ class _Writer:
         for ln in lines:
             self.line(el, ln, pos)
 
-    def synthetic(self, page, block_id: str, lines: list[Line], pos) -> None:
+    def synthetic(self, page, block_id: str, lines: list[X.FileLine], pos) -> None:
         el = _e(page, "TextRegion", id=block_id)
         self.coords(el, X.rect(X.unit_bbox(lines)))
         self.ext(el, {"synthetic": True})
         for ln in lines:
             self.line(el, ln, pos)
 
-    def line(self, region_el, ln: Line, pos) -> None:
+    def line(self, region_el, ln: X.FileLine, pos) -> None:
         el = _e(region_el, "TextLine", id=ln.id)
         ext = X.line_order_ext(ln, pos)
         want = self.qz.box(ln.bbox)
@@ -173,16 +177,10 @@ class _Writer:
                 hyphen.append(w.id)
         if hyphen:
             ext["hyphen"] = hyphen
-        self.text_equivs(el, ln.text, ln.confidence, ln.alternatives)
-        if ln.text is None and ln.confidence is not None:
-            ext["confidence"] = ln.confidence
-        if ln.text is None and ln.words:
-            ext["text"] = None
-        if ln.text is None and ln.alternatives:
-            ext["alternatives"] = ln.alternatives
+        self.text_equivs(el, ln.text, ln.confidence, ln.alternatives)     # an unread line has none of them
         self.ext(el, ext)
 
-    def word(self, line_el, w: Word, ln: Line) -> None:
+    def word(self, line_el, w: X.FileWord, ln: X.FileLine) -> None:
         el = _e(line_el, "Word", id=w.id)
         ext: dict[str, Any] = {}
         if w.bbox is not None:
@@ -193,7 +191,7 @@ class _Writer:
         self.text_equivs(el, w.text, w.confidence, w.alternatives)
         self.ext(el, ext)
 
-    def processing_step(self, md, m: StepInfo) -> None:
+    def processing_step(self, md, m: Annotator) -> None:
         """``MetadataItem type="processingStep"`` (as OCR-D records its processors): ``name`` = the step,
         ``value`` = the preset edition or the model; ``Labels`` of the ``linecaster`` model with the model
         (``externalId="model"``: name, engine, revision, preset, preset hash, backend, software) and the settings
@@ -214,7 +212,7 @@ class _Writer:
 
     def write(self, width: int, height: int, uri: str | None, created: str) -> bytes:
         t = self.t
-        units = X.units_in_order(t)
+        units = X.units_in_order(self.regions, self.lines)
         in_group = [u for u in units if u.synthetic or u.region.reading_order is not None]
         ranks = X.region_ranks(units) if in_group else {u.region.id: i for i, u in enumerate(units)}
         pos = X.line_positions(units)
@@ -225,14 +223,15 @@ class _Writer:
         _e(md, "Creator").text = P.software()
         _e(md, "Created").text = created
         _e(md, "LastChange").text = created
-        if t.steps:
-            _e(md, "Comments").text = "; ".join(P.summary(m) for m in t.steps)
-        for m in t.steps:
+        steps = P.written(t.annotators)
+        if steps:
+            _e(md, "Comments").text = "; ".join(P.summary(m) for m in steps)
+        for m in steps:
             self.processing_step(md, m)
         page = _e(root, "Page", imageFilename=uri or "", imageWidth=str(width), imageHeight=str(height))
         if in_group:
             ro = _e(page, "ReadingOrder")
-            used = {r.id for r in t.regions} | {u.block_id for u in units}
+            used = {r.id for r in self.regions} | {u.block_id for u in units}
             gid, k = "lc_reading_order", 0
             while gid in used:
                 k += 1
@@ -254,8 +253,9 @@ def to_page(t: Transcription, *, image_width: int | None = None, image_height: i
 
     Regions become ``TextRegion``s (``ImageRegion``, ``ChartRegion``, ``TableRegion``, ``MathsRegion`` for
     picture, chart, table and formula regions without lines), lines ``TextLine``s with their words, the reading
-    order an ``OrderedGroup``, the steps that made the transcription ``MetadataItem``s (the mapping:
-    ``docs/reference/serialization.md``). With ``extensions`` what PAGE cannot hold goes into a ``UserDefined``
+    order an ``OrderedGroup``, the model and rule annotators ``MetadataItem``s (the mapping:
+    ``docs/reference/serialization.md``); regions the default rendering policy puts nowhere are left out with
+    their lines. With ``extensions`` what PAGE cannot hold goes into a ``UserDefined``
     extension, so ``from_page`` reads it back.
 
     Args:
@@ -365,8 +365,8 @@ def _ro_refs(ro) -> list[str]:
     return refs
 
 
-def _metadata_steps(md) -> list[StepInfo]:
-    """``MetadataItem type="processingStep"`` -> ``StepInfo``: linecaster's from their ``Labels``; foreign
+def _metadata_steps(md) -> list[Annotator]:
+    """``MetadataItem type="processingStep"`` -> ``Annotator``: linecaster's from their ``Labels``; foreign
     ones (OCR-D) with ``name`` as the step, ``value`` as the model, ``Label``s of other ``Labels`` (OCR-D's
     ``parameters``) as settings."""
     steps = []
@@ -397,34 +397,42 @@ def _metadata_steps(md) -> list[StepInfo]:
     return steps
 
 
-def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
+def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool = False) -> Transcription:
     """Reads PAGE-XML (the 2009 to 2019 namespaces, ``points`` attributes or ``Point`` children) into a transcription.
 
     The ``Page``'s size gives ``source.image_width``/``image_height`` (coordinates stay as written); linecaster's
     ``MetadataItem``s and ``UserDefined`` extension, where present, restore the steps and what PAGE cannot hold. A
     file without ``Page`` reads as an empty transcription.
 
+    The steps the file names become the transcription's annotators; without any, the file is its one annotator
+    (kind ``file``). Regions are classified by the Docling label they read as (``page_label``).
+
     Args:
         data: the PAGE-XML file's content.
         uri: the transcription's ``source.uri``; default the ``Page``'s ``imageFilename``.
+        ground_truth: the file is a ground truth: ``source.kind`` ``ground_truth``, and without named steps its
+            annotator is people (kind ``human``).
 
     Example:
         from linecaster.formats import from_page
 
         with open("0001.page.xml", "rb") as f:
             t = from_page(f.read())
-        print([r.label for r in t.regions])
+        print([t.label(r.id) for r in t.regions])
     """
     root, ns = X.parse_xml(data)
     page = X.child(root, "Page")
     md = X.child(root, "Metadata")
-    t = Transcription(steps=_metadata_steps(md) if md is not None else [])
+    annotators = _metadata_steps(md) if md is not None else []
+    namespace = {"page__namespace": ns} if ns else {}
     if page is None:
-        t.source = Source(kind="converted", format="page", uri=uri, extra={"namespace": ns} if ns else {})
-        return t
+        return X.transcription([], [], annotators, Source(kind="converted", format="page", uri=uri, **namespace),
+                               ground_truth)
     ro_el = X.child(page, "ReadingOrder")
     ro_refs = _ro_refs(ro_el) if ro_el is not None else None
 
+    regions: list[X.FileRegion] = []
+    lines: list[X.FileLine] = []
     real_ids: list[str] = []
     region_ro_ext: dict[str, Any] = {}
     line_no = 0
@@ -439,25 +447,22 @@ def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
             rid = f"region_{gen}"
         synthetic = bool(ext.get("synthetic"))
         polygon = _points(el)
-        lines = X.children(el, "TextLine") if el.tag == "TextRegion" else []
+        text_lines = X.children(el, "TextLine") if el.tag == "TextRegion" else []
         parsed = []
-        for row, tl in enumerate(lines):
+        for row, tl in enumerate(text_lines):
             parsed.append(_line(tl, row, line_no, None if synthetic else rid))
             line_no += 1
-        t.lines.extend(parsed)
+        lines.extend(parsed)
         if not polygon:     # a region without Coords: the box around its lines
             polygon = X.rect(X.unit_bbox(parsed) if parsed else [0.0, 0.0, 0.0, 0.0])
         if synthetic:
             continue
         type_attr = el.get("type")
         structure = structure_type(el.get("custom"))
-        t.regions.append(Region(
-            id=rid,
-            label=ext.get("label", page_label(el.tag, type_attr, structure)),
-            raw_label=ext.get("raw_label", page_raw_label(el.tag, type_attr, structure)),
-            polygon=polygon, bbox=ext.get("bbox", X.bounds(polygon)), score=_coords_conf(el),
-            heading_level=ext.get("heading_level"),
-        ))
+        regions.append(X.FileRegion(
+            rid, ext.get("label", page_label(el.tag, type_attr, structure)),
+            ext.get("raw_label", page_raw_label(el.tag, type_attr, structure)), polygon,
+            ext.get("bbox", X.bounds(polygon)), _coords_conf(el), ext.get("heading_level")))
         real_ids.append(rid)
         if "reading_order" in ext:
             region_ro_ext[rid] = ext["reading_order"]
@@ -465,18 +470,17 @@ def from_page(data: bytes | str, *, uri: str | None = None) -> Transcription:
     real = set(real_ids)
     seq = [r for r in dict.fromkeys(ro_refs) if r in real] if ro_refs is not None else real_ids
     rank = {rid: i for i, rid in enumerate(seq)}
-    for r in t.regions:
+    for r in regions:
         r.reading_order = region_ro_ext[r.id] if r.id in region_ro_ext else rank.get(r.id)
 
     w = X.parse_num(page.get("imageWidth"))
     h = X.parse_num(page.get("imageHeight"))
-    t.source = Source(kind="converted", format="page", uri=uri or page.get("imageFilename") or None,
-                      image_width=int(w) if w else None, image_height=int(h) if h else None,
-                      extra={"namespace": ns} if ns else {})
-    return t
+    source = Source(kind="converted", format="page", uri=uri or page.get("imageFilename") or None,
+                    image_width=int(w) if w else None, image_height=int(h) if h else None, **namespace)
+    return X.transcription(regions, lines, annotators, source, ground_truth)
 
 
-def _line(tl, row: int, rank: int, region_id: str | None) -> Line:
+def _line(tl, row: int, rank: int, region_id: str | None) -> X.FileLine:
     ext = _ext(tl)
     lid = tl.get("id") or f"line_{rank}"
     polygon = _points(tl)
@@ -487,9 +491,8 @@ def _line(tl, row: int, rank: int, region_id: str | None) -> Line:
         text, conf, alts = _text_equivs(we)
         if text is None:     # PAGE allows text on glyphs only
             text = "".join((_text_equivs(g)[0] or "") for g in X.children(we, "Glyph"))
-        words.append(Word(id=we.get("id") or f"{lid}_w{k}", text=text,
-                          bbox=wext["bbox"] if "bbox" in wext else (X.bounds(wpts) if wpts else None),
-                          confidence=conf, alternatives=alts))
+        words.append(X.FileWord(we.get("id") or f"{lid}_w{k}", text,
+                                wext["bbox"] if "bbox" in wext else (X.bounds(wpts) if wpts else None), conf, alts))
     for wid in ext.get("hyphen", []):
         for w in words:
             if w.id == wid:
@@ -505,11 +508,10 @@ def _line(tl, row: int, rank: int, region_id: str | None) -> Line:
         bbox = X.bounds(polygon)
     else:
         bbox = [0.0, 0.0, 0.0, 0.0]
-    return Line(
-        id=lid, region_id=region_id, reading_order=ext.get("reading_order", rank), row=ext.get("row", row),
-        bbox=bbox, polygon=ext["polygon"] if "polygon" in ext else polygon,
-        baseline=ext["baseline"] if "baseline" in ext else _baseline(tl),
-        score=_coords_conf(tl), text=text, confidence=ext.get("confidence", conf),
-        alternatives=ext.get("alternatives", alts),
-        words=words,
-    )
+    confidence, alternatives = ext.get("confidence", conf), ext.get("alternatives", alts)
+    if text is None:                # not read: no reading
+        confidence, alternatives, words = None, [], []
+    return X.FileLine(lid, region_id, ext.get("reading_order", rank), ext.get("row", row), bbox,
+                      ext["polygon"] if "polygon" in ext else polygon,
+                      ext["baseline"] if "baseline" in ext else _baseline(tl), _coords_conf(tl), text, confidence,
+                      alternatives, words)

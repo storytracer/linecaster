@@ -11,7 +11,7 @@ from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
 from ...errors import PipelineConfigError
-from ...formats.docling import EXPORT_FORMATS, export
+from ...formats.docling import DOCUMENT_KEY, EXPORT_FORMATS, REGION_MAP_KEY, export
 from ...text.variants import VARIANTS, variants
 from ..base.contract import Contract, Contracted, Part, parts
 from ..base.item import ITEM_KEY, item_pages
@@ -20,9 +20,9 @@ from ..base.item import ITEM_KEY, item_pages
 class ItemDocumentWriter(Contracted, PipelineStep):
     """Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON.
 
-    It reads the item's ``document`` (an item-level ``Composer``'s) and writes ``<item id><suffix>.<ext>``
-    (``linecaster.formats.docling.export``); an item record without a document is counted (``no_document``). Item
-    records pass through.
+    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["docling"]``) and writes
+    ``<item id><suffix>.<ext>`` (``linecaster.formats.docling.export``); an item record without a document is
+    counted (``no_document``). Item records pass through.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the documents go to.
@@ -56,15 +56,15 @@ class ItemDocumentWriter(Contracted, PipelineStep):
 
         for doc in data:
             meta = doc.metadata
-            if "docling" not in meta:
+            if DOCUMENT_KEY not in meta:
                 self.stat_update("no_document")
                 yield doc
                 continue
             with self.track_time():
-                d = DoclingDocument.model_validate(meta["docling"])
-                region_of = meta.get("region_of") if self.dividers else None
+                d = DoclingDocument.model_validate(meta[DOCUMENT_KEY])
+                region_of = meta.get(REGION_MAP_KEY) if self.dividers else None
                 for fmt in self.formats:
-                    content = meta["docling"] if fmt == "json" else d
+                    content = meta[DOCUMENT_KEY] if fmt == "json" else d
                     name = f"{meta['item_id']}{self.suffix}.{EXPORT_FORMATS[fmt]}"
                     with self.folder.open(f"{fmt}/{name}" if self.by_format else name, "wt", encoding="utf-8") as f:
                         f.write(export(content, fmt, self.furniture, region_of))

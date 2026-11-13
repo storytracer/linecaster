@@ -9,8 +9,11 @@ Mapping (see ``docs/reference/serialization.md``):
   sit directly in the ``ocr_page``;
 * word -> ``span.ocrx_word`` (``bbox``, ``x_wconf``), separated by spaces;
 * reading order is document order;
-* ``ocr-system`` is linecaster with its release, ``ocr-capabilities`` what the file contains, each step of
-  ``steps`` a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back into ``steps``.
+* ``ocr-system`` is linecaster with its release, ``ocr-capabilities`` what the file contains, each model and rule
+  annotator a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back as annotators;
+* the page's ``language`` classification -> ``lang`` (and ``ocr-langs`` for an ISO 639-1 code).
+
+Regions the rendering policy puts nowhere (removed, suppressed, duplicate) are not written.
 
 hOCR coordinates are integers (rounded half up, boxes by their corners) and ``x_wconf`` is an
 integer percentage, so confidences round-trip to 0.01. hOCR's ``baseline`` is a straight line
@@ -25,7 +28,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
+from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
 XHTML = "http://www.w3.org/1999/xhtml"
@@ -108,8 +111,9 @@ class _Writer:
         self.t = t
         self.qz = X.Quantizer(0)
         self.extensions = extensions
-        self.used = {r.id for r in t.regions} | {ln.id for ln in t.lines} | {
-            w.id for ln in t.lines for w in ln.words}
+        self.regions, self.lines = X.file_layout(t)
+        self.used = {r.id for r in self.regions} | {ln.id for ln in self.lines} | {
+            w.id for ln in self.lines for w in ln.words}
         self.capabilities: set[str] = {"ocr_page"}   # what the file contains (``ocr-capabilities``)
 
     def new_id(self, base: str) -> str:
@@ -138,7 +142,7 @@ class _Writer:
         if data and self.extensions:
             e.set(EXT_ATTR, X.ext_dumps(data))
 
-    def region(self, page, r: Region, lines: list[Line], predicted_ro: int) -> etree._Element:
+    def region(self, page, r: X.FileRegion, lines: list[X.FileLine], predicted_ro: int) -> etree._Element:
         cls = LABEL_TO_CLASS.get(r.label, "ocr_carea")
         qbox = self.qz.box(r.bbox)
         props = [_bbox_prop(qbox)]
@@ -161,7 +165,7 @@ class _Writer:
         par = self.el(div, "p", "ocr_par", self.new_id(f"{r.id}_par"), [_bbox_prop(qbox)])
         return par
 
-    def line(self, parent, ln: Line, pos) -> None:
+    def line(self, parent, ln: X.FileLine, pos) -> None:
         qbox = self.qz.box(ln.bbox)
         props = [_bbox_prop(qbox)]
         ext = X.line_order_ext(ln, pos)
@@ -210,7 +214,7 @@ class _Writer:
 
     def write(self, width: int, height: int, uri: str | None, language: str | None) -> bytes:
         t = self.t
-        units = X.units_in_order(t)
+        units = X.units_in_order(self.regions, self.lines)
         pos = X.line_positions(units)
         real = [u.region for u in units if not u.synthetic]
         ranks = {r.id: i for i, r in enumerate(real)}
@@ -233,7 +237,7 @@ class _Writer:
         meta("ocr-number-of-pages", "1")
         if language and re.fullmatch(r"[a-z]{2}", language):     # hOCR names ISO 639-1 codes
             meta("ocr-langs", language)
-        for i, m in enumerate(t.steps):
+        for i, m in enumerate(P.written(t.annotators)):
             meta(f"{STEP_META}{i}", P.dumps(P.record(m)))
         if language:
             self.capabilities.add("ocrp_lang")
@@ -260,7 +264,8 @@ def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: i
     """Serializes a transcription as hOCR 1.2 (XHTML, UTF-8).
 
     Regions become ``ocr_carea`` (or their label's class), lines ``ocr_line`` with their words as ``ocrx_word``
-    (boxes, ``x_wconf``, baselines), the steps that made the transcription ``linecaster-step-<n>`` metas. With
+    (boxes, ``x_wconf``, baselines), the model and rule annotators ``linecaster-step-<n>`` metas; regions the
+    default rendering policy puts nowhere are left out with their lines. With
     ``extensions`` what hOCR cannot hold goes into a linecaster data attribute, so ``from_hocr`` reads it back.
 
     Args:
@@ -282,7 +287,7 @@ def to_hocr(t: Transcription, *, image_width: int | None = None, image_height: i
     if width is None or height is None:
         raise ValueError("to_hocr needs the image size (image_width/image_height or t.source)")
     uri = image_uri if image_uri is not None else t.source.uri
-    return _Writer(t, extensions).write(int(width), int(height), uri, t.language)
+    return _Writer(t, extensions).write(int(width), int(height), uri, t.classification("", "language"))
 
 
 # ================================================================ reading
@@ -337,17 +342,24 @@ def _parse(data: bytes | str):
         return X.parse_xml(root)
 
 
-def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0) -> Transcription:
+def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0,
+              ground_truth: bool = False) -> Transcription:
     """Reads hOCR (XHTML or tag-soup HTML: Tesseract, OCRopus, kraken, ...) into a transcription.
 
     The page's box gives ``source.image_width``/``image_height`` (coordinates stay as written); linecaster's
     ``linecaster-step-<n>`` metas and data attributes, where present, restore the steps and what hOCR cannot hold.
     A file without ``ocr_page`` reads as an empty transcription.
 
+    The steps the file names become the transcription's annotators (a foreign file: the software ``ocr-system``
+    names, as a recognition step); without any, the file is its one annotator (kind ``file``). Regions are
+    classified by the Docling label their class reads as; ``lang`` becomes the page's ``language`` classification.
+
     Args:
         data: the hOCR file's content.
         uri: the transcription's ``source.uri``; default the image the page's ``title`` names.
         page: which ``ocr_page`` of a multi-page file to read, from 0.
+        ground_truth: the file is a ground truth: ``source.kind`` ``ground_truth``, and without named steps its
+            annotator is people (kind ``human``).
 
     Example:
         from linecaster.formats import from_hocr
@@ -358,27 +370,32 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0) -> Tr
     """
     root, _ = _parse(data)
     pages = [el for el in root.iter() if isinstance(el.tag, str) and "ocr_page" in _classes(el)]
-    t = Transcription()
     if not pages:
-        t.source = Source(kind="converted", format="hocr", uri=uri)
-        return t
+        return X.transcription([], [], [], Source(kind="converted", format="hocr", uri=uri), ground_truth)
     pg = pages[page]
     pprops = parse_title(pg.get("title"))
     state = {"line": 0, "region": 0, "orphan_row": 0, "gen": 0}
-    _walk(pg, t, state, None)
+    found = _Found()
+    _walk(pg, found, state, None)
     pbox = _bbox(pprops)
     image = pprops.get("image", "").strip().strip('"') or None
-    t.language = root.get("lang") or None
-    t.steps = _steps(root)
-    t.source = Source(kind="converted", format="hocr", uri=uri or image,
-                      image_width=int(pbox[2]) if pbox else None,
-                      image_height=int(pbox[3]) if pbox else None)
-    return t
+    source = Source(kind="converted", format="hocr", uri=uri or image,
+                    image_width=int(pbox[2]) if pbox else None, image_height=int(pbox[3]) if pbox else None)
+    return X.transcription(found.regions, found.lines, _steps(root), source, ground_truth,
+                           language=root.get("lang") or None)
 
 
-def _steps(root) -> list[StepInfo]:
+class _Found:
+    """The regions and lines read so far, in document order."""
+
+    def __init__(self):
+        self.regions: list[X.FileRegion] = []
+        self.lines: list[X.FileLine] = []
+
+
+def _steps(root) -> list[Annotator]:
     """linecaster's step records from the ``linecaster-step-<n>`` metas, in ``n`` order; for a foreign file,
-    the software named by ``ocr-system`` as one ``page`` step."""
+    the software named by ``ocr-system`` as one ``recognition`` step."""
     metas = {}
     for m in root.iter("meta"):
         name, content = m.get("name") or "", m.get("content")
@@ -390,7 +407,7 @@ def _steps(root) -> list[StepInfo]:
         return [P.from_record(X.ext_loads(v)) for _, v in steps]
     system = (metas.get("ocr-system") or "").strip()
     if system and not system.startswith(P.SOFTWARE):
-        return [StepInfo(step="recognition", name=system)]
+        return [Annotator(kind="model", step="recognition", name=system)]
     return []
 
 
@@ -401,7 +418,7 @@ def _has_line_descendant(el) -> bool:
     return False
 
 
-def _walk(el, t: Transcription, state, region: Region | None) -> None:
+def _walk(el, t: _Found, state, region: X.FileRegion | None) -> None:
     for c in el:
         if not isinstance(c.tag, str):
             continue
@@ -424,7 +441,7 @@ def _ext(el) -> dict[str, Any]:
     return X.ext_loads(el.get(EXT_ATTR))
 
 
-def _region(el, cls: set[str], t: Transcription, state) -> Region:
+def _region(el, cls: set[str], t: _Found, state) -> X.FileRegion:
     props = parse_title(el.get("title"))
     ext = _ext(el)
     primary = next((c for c in el.get("class", "").split() if c in REGION_CLASSES), "ocr_carea")
@@ -434,16 +451,15 @@ def _region(el, cls: set[str], t: Transcription, state) -> Region:
         rid = f"block_{state['gen']}"
     poly = _pairs(props.get("poly"))
     bbox = _bbox(props) or (X.bounds(poly) if poly else [0.0, 0.0, 0.0, 0.0])
-    r = Region(id=rid, label=ext.get("label", CLASS_TO_LABEL.get(primary, "text")),
-               raw_label=ext.get("raw_label", primary), polygon=poly or X.rect(bbox), bbox=bbox,
-               score=ext.get("score"), heading_level=ext.get("heading_level"),
-               reading_order=ext.get("reading_order", state["region"]))
+    r = X.FileRegion(rid, ext.get("label", CLASS_TO_LABEL.get(primary, "text")), ext.get("raw_label", primary),
+                     poly or X.rect(bbox), bbox, ext.get("score"), ext.get("heading_level"),
+                     ext.get("reading_order", state["region"]))
     state["region"] += 1
     t.regions.append(r)
     return r
 
 
-def _line(el, t: Transcription, state, region: Region | None) -> None:
+def _line(el, t: _Found, state, region: X.FileRegion | None) -> None:
     props = parse_title(el.get("title"))
     ext = _ext(el)
     rank = state["line"]
@@ -455,14 +471,14 @@ def _line(el, t: Transcription, state, region: Region | None) -> None:
         row = state.get("region_row", 0)
         state["region_row"] = row + 1
     lid = el.get("id") or f"line_{rank}"
-    words: list[Word] = []
+    words: list[X.FileWord] = []
     for k, we in enumerate(d for d in el.iter() if isinstance(d.tag, str) and "ocrx_word" in _classes(d)):
         wp = parse_title(we.get("title"))
         wext = _ext(we)
         conf = wp.get("x_wconf")
-        words.append(Word(id=we.get("id") or f"{lid}_w{k}", text="".join(we.itertext()), bbox=_bbox(wp),
-                          confidence=float(conf) / 100 if conf and _nums(conf) else None,
-                          hyphen=bool(wext.get("hyphen")), alternatives=wext.get("alternatives", [])))
+        words.append(X.FileWord(we.get("id") or f"{lid}_w{k}", "".join(we.itertext()), _bbox(wp),
+                                float(conf) / 100 if conf and _nums(conf) else None, wext.get("alternatives", []),
+                                bool(wext.get("hyphen"))))
     poly = _pairs(props.get("poly"))
     bbox = _bbox(props) or (X.bounds(poly) if poly else [0.0, 0.0, 0.0, 0.0])
     baseline = _pairs(props.get("x_bline"))
@@ -477,10 +493,10 @@ def _line(el, t: Transcription, state, region: Region | None) -> None:
     if "text" in ext:
         text = ext["text"]
     conf = props.get("x_wconf")
-    t.lines.append(Line(
-        id=lid, region_id=region.id if region is not None else None,
-        reading_order=ext.get("reading_order", rank), row=ext.get("row", row), bbox=bbox, polygon=poly,
-        baseline=baseline, score=ext.get("score"), text=text,
-        confidence=float(conf) / 100 if conf and _nums(conf) else None,
-        alternatives=ext.get("alternatives", []), words=words,
-    ))
+    confidence = float(conf) / 100 if conf and _nums(conf) else None
+    alternatives = ext.get("alternatives", [])
+    if text is None:                # not read: no reading
+        confidence, alternatives, words = None, [], []
+    t.lines.append(X.FileLine(lid, region.id if region is not None else None, ext.get("reading_order", rank),
+                              ext.get("row", row), bbox, poly, baseline, ext.get("score"), text, confidence,
+                              alternatives, words))

@@ -28,8 +28,9 @@ class ImageFilesWriter(Contracted, PipelineStep):
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
         ocr_folder: where a library's own OCR that came with the page (a document media, as ``ManifestReader``'s
             ``existing_ocr`` adds it) is written the same way, ``<ocr_folder>/<item_id>/<page_id>.xml`` (ALTO) or
-            ``.html`` (hOCR), when the page has its ``ocr_original`` transcription; that transcription's
-            ``source.extra["file"]`` then names the copy. Default: not written.
+            ``.html`` (hOCR), when the page has its ``ocr_original`` transcription; that transcription's source
+            then names the copy (``source.ocr__file``, an extension field; ``source.uri`` stays where it came
+            from). Default: not written.
     """
 
     type = "💽 - WRITER"
@@ -80,7 +81,7 @@ class ImageFilesWriter(Contracted, PipelineStep):
                 ocr_path = self._path(page, OCR_EXTENSIONS.get(t.source.format or "", "xml"))
                 with ocr_out.open(ocr_path, "wb") as f:
                     f.write(ocr.media_bytes)
-                t.source.extra["file"] = ocr_out.resolve_paths(ocr_path)
+                t.source = t.source.model_copy(update={"ocr__file": ocr_out.resolve_paths(ocr_path)})
                 self.stat_update("ocr_files")
             set_page(doc, page)
             yield doc

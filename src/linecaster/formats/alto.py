@@ -9,10 +9,12 @@ Mapping (see ``docs/reference/serialization.md``):
 * word -> ``String`` (``WC`` 0..1, ``ALTERNATIVE``), ``SP`` between words, a line-end hyphen as
   ``HYP``; a line without words is written as one ``String`` carrying the line's text;
 * lines without a region go into a synthetic ``TextBlock`` the reader drops again;
-* each step of ``steps`` -> ``Description/Processing`` (category, date if recorded, the step, the step
+* each model and rule annotator -> ``Description/Processing`` (category, date if recorded, the step, the step
   record as JSON in ``processingStepSettings``, linecaster as ``softwareCreator`` with the model and its
-  revision), all referenced from ``Page/@PROCESSINGREFS``; read back into ``steps`` (foreign files: their
-  ``Processing`` or ``OCRProcessing`` steps).
+  revision), all referenced from ``Page/@PROCESSINGREFS``; read back as annotators (foreign files: their
+  ``Processing`` or ``OCRProcessing`` steps; without any, the file is the one annotator).
+
+Regions the rendering policy puts nowhere (removed, suppressed, duplicate) are not written.
 
 What ALTO has no place for (line confidence, detection scores, heading level, ...) goes into a
 per-element extension, only when a reader would infer something else (see ``_xml``).
@@ -24,7 +26,7 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Line, Region, Source, StepInfo, Transcription, Word
+from ..data.transcription import Annotator, Source, Transcription
 from . import _provenance as P, _xml as X
 
 NS = "http://www.loc.gov/standards/alto/ns-v4#"
@@ -48,8 +50,9 @@ class _Writer:
         self.t = t
         self.qz = X.Quantizer(precision)
         self.extensions = extensions
-        self.used: set[str] = {r.id for r in t.regions} | {ln.id for ln in t.lines} | {
-            w.id for ln in t.lines for w in ln.words}
+        self.regions, self.lines = X.file_layout(t)
+        self.used: set[str] = {r.id for r in self.regions} | {ln.id for ln in self.lines} | {
+            w.id for ln in self.lines for w in ln.words}
         self.tags: list[tuple[str, str, str, str, str | None]] = []   # (element, id, type, label, description)
         self.tag_ids: dict[tuple[str, str], str] = {}
 
@@ -90,7 +93,8 @@ class _Writer:
         _e(sh, "Polygon", POINTS=self.qz.fmt_points(points))
 
     # ------------------------------------------------------------ blocks
-    def region_block(self, parent, r: Region, lines: list[Line], predicted_ro: int | None) -> etree._Element:
+    def region_block(self, parent, r: X.FileRegion, lines: list[X.FileLine],
+                     predicted_ro: int | None) -> etree._Element:
         tag = "Illustration" if (not lines and r.label in ILLUSTRATION_LABELS) else "TextBlock"
         el = _e(parent, tag, ID=r.id)
         if tag == "Illustration":
@@ -112,7 +116,7 @@ class _Writer:
         self.ext(el, r.id, ext)
         return el
 
-    def text_line(self, block, ln: Line, pos) -> None:
+    def text_line(self, block, ln: X.FileLine, pos) -> None:
         el = _e(block, "TextLine", ID=ln.id)
         self.box(el, ln.bbox)
         if ln.baseline:
@@ -157,7 +161,7 @@ class _Writer:
             ext["alternatives"] = ln.alternatives
         self.ext(el, ln.id, ext)
 
-    def string(self, line_el, w: Word, text: str) -> None:
+    def string(self, line_el, w: X.FileWord, text: str) -> None:
         s = _e(line_el, "String", ID=w.id, CONTENT=text)
         if w.bbox is not None:
             self.box(s, w.bbox)
@@ -168,7 +172,7 @@ class _Writer:
             a.text = alt
 
     # ------------------------------------------------------------ provenance
-    def processing(self, desc, i: int, m: StepInfo) -> str:
+    def processing(self, desc, i: int, m: Annotator) -> str:
         """One ``Processing`` per step (ALTO 4.4 order: category, date, description, settings, software).
         ``processingStepSettings`` is the step record as JSON (engine, revision, preset, preset hash, backend,
         settings); ``processingSoftware`` names linecaster as creator and the model with its revision."""
@@ -197,7 +201,7 @@ class _Writer:
     # ------------------------------------------------------------ document
     def write(self, width: int, height: int, uri: str | None) -> bytes:
         t = self.t
-        units = X.units_in_order(t)
+        units = X.units_in_order(self.regions, self.lines)
         for u in units:
             self.used.add(u.block_id)
         in_group = [u for u in units if u.synthetic or u.region.reading_order is not None]
@@ -215,7 +219,7 @@ class _Writer:
         if uri:
             sii = _e(desc, "sourceImageInformation")
             _e(sii, "fileName").text = uri
-        processing_ids = [self.processing(desc, i, m) for i, m in enumerate(t.steps)]
+        processing_ids = [self.processing(desc, i, m) for i, m in enumerate(P.written(t.annotators))]
 
         layout = etree.Element(f"{{{NS}}}Layout")
         page = _e(layout, "Page", ID=self.new_id("page_1"), PHYSICAL_IMG_NR="1",
@@ -250,8 +254,9 @@ def to_alto(t: Transcription, *, image_width: int | None = None, image_height: i
     """Serializes a transcription as ALTO 4.4 in pixel units.
 
     Regions become ``TextBlock``s (an ``Illustration`` for a picture or chart region without lines), lines
-    ``TextLine``s with their words as ``String``s, the reading order an ``OrderedGroup``, the steps that made the
-    transcription ``Processing`` entries (the mapping: ``docs/reference/serialization.md``). With ``extensions``
+    ``TextLine``s with their words as ``String``s, the reading order an ``OrderedGroup``, the model and rule
+    annotators ``Processing`` entries (the mapping: ``docs/reference/serialization.md``); regions the default
+    rendering policy puts nowhere are left out with their lines. With ``extensions``
     what ALTO has no place for (line confidence, detection scores, heading level, ...) goes into linecaster's
     per-element extension where a reader would infer something else, so ``from_alto`` reads it back.
 
@@ -327,7 +332,7 @@ def _reading_order_refs(ro) -> list[str]:
 
 
 def from_alto(data: bytes | str, *, image_width: int | None = None, image_height: int | None = None,
-              dpi: float | None = None, uri: str | None = None) -> Transcription:
+              dpi: float | None = None, uri: str | None = None, ground_truth: bool = False) -> Transcription:
     """Reads ALTO (v1 to v4, any namespace or none) into a transcription in pixel coordinates.
 
     Coordinates are scaled to the image when ``image_width``/``image_height`` are given and the ``Page`` has
@@ -335,11 +340,17 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     size, ``pixel`` files are read as they are and ``mm10`` / ``inch1200`` files need ``dpi``; otherwise a
     ``ValueError`` is raised. linecaster's extension tags, where present, restore what ALTO cannot hold.
 
+    The steps the file names (``Processing``, ``OCRProcessing``) become the transcription's annotators; without
+    any, the file is its one annotator (kind ``file``). Regions are classified by the Docling label they read as
+    (their ``label`` tag, else their producer's label or ``TYPE``).
+
     Args:
         data: the ALTO file's content.
         image_width, image_height: the page image's size in pixels, to scale the file's coordinates to.
         dpi: the scan resolution, for ``mm10`` and ``inch1200`` files read without the image size.
         uri: the transcription's ``source.uri``; default the file's ``sourceImageInformation/fileName``.
+        ground_truth: the file is a ground truth: ``source.kind`` ``ground_truth``, and without named steps its
+            annotator is people (kind ``human``).
 
     Example:
         from linecaster.formats import from_alto
@@ -375,7 +386,9 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     ro_el = X.child(root, "ReadingOrder")
     ro_refs = _reading_order_refs(ro_el) if ro_el is not None else None
 
-    t = Transcription(steps=_processing(desc) if desc is not None else [])
+    annotators = _processing(desc) if desc is not None else []
+    regions: list[X.FileRegion] = []
+    lines: list[X.FileLine] = []
     region_ro_ext: dict[str, Any] = {}
     real_ids_in_doc: list[str] = []
     line_no = 0
@@ -405,9 +418,9 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
             bbox = sc.box(el)
             shape = el.find("Shape/Polygon")
             polygon = sc.points(X.parse_points(shape.get("POINTS"))) if shape is not None else None
-            lines = [] if el.tag == "Illustration" else X.children(el, "TextLine")
+            text_lines = [] if el.tag == "Illustration" else X.children(el, "TextLine")
             parsed = []
-            for row, tl in enumerate(lines):
+            for row, tl in enumerate(text_lines):
                 parsed.append(_line(tl, row, line_no, None if synthetic else bid, sc, tags))
                 line_no += 1
             if bbox is None:
@@ -417,7 +430,7 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
                     bbox = X.unit_bbox(parsed)
                 else:
                     bbox = [0.0, 0.0, 0.0, 0.0]
-            t.lines.extend(parsed)
+            lines.extend(parsed)
             if synthetic:
                 continue
             if el.tag == "Illustration":
@@ -426,10 +439,8 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
                 label = label or X.docling_from_raw(el.get("TYPE"), "picture")
             else:
                 label = label or X.docling_from_raw(raw)
-            t.regions.append(Region(
-                id=bid, label=label, raw_label=raw or "", polygon=polygon or X.rect(bbox), bbox=bbox,
-                score=ext.get("score"), heading_level=ext.get("heading_level"),
-            ))
+            regions.append(X.FileRegion(bid, label, raw or "", polygon or X.rect(bbox), bbox, ext.get("score"),
+                                        ext.get("heading_level")))
             real_ids_in_doc.append(bid)
             if "reading_order" in ext:
                 region_ro_ext[bid] = ext["reading_order"]
@@ -442,17 +453,18 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     else:
         seq = real_ids_in_doc
     rank = {rid: i for i, rid in enumerate(seq)}
-    for r in t.regions:
+    for r in regions:
         r.reading_order = region_ro_ext[r.id] if r.id in region_ro_ext else rank.get(r.id)
 
-    t.source = Source(
+    source = Source(
         kind="converted", format="alto", uri=uri or file_name,
         image_width=image_width or (round(page_w * sc.sx) if page_w else None),
         image_height=image_height or (round(page_h * sc.sy) if page_h else None),
-        extra={k: v for k, v in {"namespace": ns, "measurement_unit": unit if unit != "pixel" else None,
-                                  "scale": None if sc.identity else [sc.sx, sc.sy]}.items() if v},
+        scale=None if sc.identity else [sc.sx, sc.sy],
+        **{k: v for k, v in {"alto__namespace": ns,
+                             "alto__measurement_unit": unit if unit != "pixel" else None}.items() if v},
     )
-    return t
+    return X.transcription(regions, lines, annotators, source, ground_truth)
 
 
 def _text(el, name: str, strip: bool = True) -> str | None:
@@ -462,8 +474,8 @@ def _text(el, name: str, strip: bool = True) -> str | None:
     return c.text.strip() if strip else c.text
 
 
-def _step(p) -> StepInfo:
-    """A ``StepInfo`` from a ``Processing`` (or an ``OCRProcessing`` step) element: linecaster's own carry
+def _step(p) -> Annotator:
+    """An ``Annotator`` from a ``Processing`` (or an ``OCRProcessing`` step) element: linecaster's own carry
     the step record as JSON in ``processingStepSettings``; for foreign ones the description is the step, the
     software name and version are the model and its revision, other settings are kept as ``raw`` text."""
     sw = X.child(p, "processingSoftware")
@@ -489,7 +501,7 @@ def _step(p) -> StepInfo:
     return m
 
 
-def _processing(desc) -> list[StepInfo]:
+def _processing(desc) -> list[Annotator]:
     """The steps recorded in ``Description``: ``Processing`` (ALTO 4), else the deprecated ``OCRProcessing``
     with its pre-, OCR and post-processing steps (ALTO 1-3)."""
     steps = [_step(p) for p in X.children(desc, "Processing")]
@@ -499,7 +511,7 @@ def _processing(desc) -> list[StepInfo]:
     return steps
 
 
-def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> Line:
+def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> X.FileLine:
     ext: dict[str, Any] = {}
     for ref in (tl.get("TAGREFS") or "").split():
         tg = tags.get(ref)
@@ -510,7 +522,7 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> L
     shape = tl.find("Shape/Polygon")
     polygon = sc.points(X.parse_points(shape.get("POINTS"))) if shape is not None else None
 
-    words: list[Word] = []
+    words: list[X.FileWord] = []
     strings = []
     hyp = None
     for c in tl:
@@ -521,8 +533,8 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> L
     for k, s in enumerate(strings):
         wb = sc.box(s)
         alts = [a.text or "" for a in X.children(s, "ALTERNATIVE")]
-        words.append(Word(id=s.get("ID") or f"{lid}_w{k}", text=s.get("CONTENT") or "", bbox=wb,
-                          confidence=X.parse_num(s.get("WC")), alternatives=alts))
+        words.append(X.FileWord(s.get("ID") or f"{lid}_w{k}", s.get("CONTENT") or "", wb, X.parse_num(s.get("WC")),
+                                alts))
     if hyp is not None and words:
         words[-1].text += hyp
         words[-1].hyphen = True
@@ -567,8 +579,7 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> L
         text = ext["text"]
     if "confidence" in ext:
         confidence = ext["confidence"]
-    return Line(
-        id=lid, region_id=region_id, reading_order=ext.get("reading_order", rank), row=ext.get("row", row),
-        bbox=bbox, polygon=polygon, baseline=baseline, score=ext.get("score"), text=text,
-        confidence=confidence, alternatives=ext.get("alternatives", []), words=words,
-    )
+    if text is None:                # not read: no reading
+        confidence, words = None, []
+    return X.FileLine(lid, region_id, ext.get("reading_order", rank), ext.get("row", row), bbox, polygon, baseline,
+                      ext.get("score"), text, confidence, ext.get("alternatives", []), words)

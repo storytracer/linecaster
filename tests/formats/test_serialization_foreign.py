@@ -110,29 +110,35 @@ def test_alto_v2_mm10_scaled_to_the_image():
     t = from_alto(ALTO_V2_MM10, image_width=2480, image_height=3508)
     sx, sy = 2480 / 2100, 3508 / 2970
     assert [r.id for r in t.regions] == ["TB0", "TB1", "IL1"]       # ComposedBlock is transparent
-    assert [r.label for r in t.regions] == ["text", "text", "picture"]
-    assert [r.reading_order for r in t.regions] == [0, 1, 2]          # implicit document order
+    assert [t.label(r.id) for r in t.regions] == ["text", "text", "picture"]
+    assert t.region_ranks() == {"TB0": 0, "TB1": 1, "IL1": 2}       # implicit document order
     ln = t.lines[1]
-    assert ln.id == "TL1" and ln.region_id == "TB1"
-    assert ln.bbox == pytest.approx([100 * sx, 200 * sy, 1900 * sx, 50 * sy])
+    assert ln.id == "TL1" and t.region_of(ln) == "TB1"
+    assert ln.box == pytest.approx([100 * sx, 200 * sy, 1900 * sx, 50 * sy])
     assert [v for p in ln.baseline for v in p] == pytest.approx([100 * sx, 245 * sy, 2000 * sx, 245 * sy])
-    assert ln.text == "It was consider-"
-    assert ln.words[-1].text == "consider-" and ln.words[-1].hyphen
-    assert [w.id for w in ln.words] == ["S1", "S2", "S3"]
-    assert ln.confidence == pytest.approx((0.99 * 2 + 0.98 * 3 + 0.7 * 9) / 14)
-    # strings without IDs get generated ones; lines without IDs too
+    assert t.text_of(ln) == "It was consider-"
+    words = ln.reading.words
+    assert words[-1].text == "consider-" and words[-1].hyphen
+    assert [ln.word_id(k) for k in range(3)] == ["S1", "S2", "S3"]
+    assert ln.reading.confidence == pytest.approx((0.99 * 2 + 0.98 * 3 + 0.7 * 9) / 14)
+    # strings without IDs get generated ones (kept as the default, no id of their own); lines without IDs too
     first = t.lines[0]
-    assert first.id == "line_0" and [w.id for w in first.words] == ["line_0_w0", "line_0_w1"]
-    assert t.lines[2].text == "able" and t.lines[2].confidence is None
-    assert [ln.reading_order for ln in t.lines] == [0, 1, 2]
+    assert first.id == "line_0" and [first.word_id(k) for k in range(2)] == ["line_0_w0", "line_0_w1"]
+    assert [w.id for w in first.reading.words] == [None, None]
+    assert t.text_of(t.lines[2]) == "able" and t.lines[2].reading.confidence is None
+    assert [ln.id for ln in t.ordered_lines()] == ["line_0", "TL1", "TL2"]
     assert t.source.uri == "0001.jp2" and t.source.image_width == 2480
-    assert t.source.extra["measurement_unit"] == "mm10"
+    assert t.source.alto__measurement_unit == "mm10"
+    assert t.source.alto__namespace == "http://www.loc.gov/standards/alto/ns-v2#"
+    # no steps named: the file is the one annotator, everything is its
+    assert [(a.kind, a.step, a.name) for a in t.annotators] == [("file", "transcription", "alto")]
+    assert t.source.kind == "converted"
 
 
 def test_alto_mm10_with_dpi_and_without():
     t = from_alto(ALTO_V2_MM10, dpi=300)
     f = 300 / 254
-    assert t.lines[1].bbox == pytest.approx([100 * f, 200 * f, 1900 * f, 50 * f])
+    assert t.lines[1].box == pytest.approx([100 * f, 200 * f, 1900 * f, 50 * f])
     assert t.source.image_width == round(2100 * f)
     with pytest.raises(ValueError, match="mm10"):
         from_alto(ALTO_V2_MM10)
@@ -141,33 +147,33 @@ def test_alto_mm10_with_dpi_and_without():
 def test_alto_inch1200_with_dpi():
     data = ALTO_V2_MM10.replace(b"mm10", b"inch1200")
     t = from_alto(data, dpi=400)
-    assert t.lines[1].bbox[0] == pytest.approx(100 * 400 / 1200)
+    assert t.lines[1].box[0] == pytest.approx(100 * 400 / 1200)
 
 
 def test_alto_pixel_scaled_when_image_differs():
     t = from_alto(ALTO_V3_NO_NS, image_width=500, image_height=750)
-    assert t.regions[0].bbox == [5.0, 5.0, 250.0, 20.0]
-    assert t.source.extra["scale"] == [0.5, 0.5]
+    assert t.regions[0].box == [5.0, 5.0, 250.0, 20.0]
+    assert t.source.scale == [0.5, 0.5]
 
 
 def test_alto_v3_without_namespace_and_tags():
     t = from_alto(ALTO_V3_NO_NS)
-    assert [(r.id, r.label, r.raw_label) for r in t.regions] == [
-        ("b1", "section_header", "heading"), ("b2", "text", "paragraph")]
+    assert [(r.id, t.label(r.id), t.role(r.id), r.label) for r in t.regions] == [
+        ("b1", "section_header", "heading", "heading"), ("b2", "text", "paragraph", "paragraph")]
     assert t.regions[0].polygon == [[10.0, 10.0], [510.0, 10.0], [510.0, 50.0], [10.0, 50.0]]
-    assert t.lines[0].confidence is None and t.lines[1].confidence == 0.5
+    assert t.lines[0].reading.confidence is None and t.lines[1].reading.confidence == 0.5
     assert t.text == "Introduction\nText"
 
 
 def test_alto_v4_escriptorium():
     t = from_alto(ALTO_V4_ESCRIPTORIUM)
     r = {x.id: x for x in t.regions}
-    assert r["eSc_tb_1"].raw_label == "MainZone" and r["eSc_tb_1"].label == "text"
-    assert r["eSc_tb_2"].reading_order == 0 and r["eSc_tb_1"].reading_order == 1
+    assert r["eSc_tb_1"].label == "MainZone" and t.label("eSc_tb_1") == "text"
+    assert t.region_ranks() == {"eSc_tb_2": 0, "eSc_tb_1": 1}
     ln = t.lines[0]
     assert ln.baseline == [[110.0, 180.0], [890.0, 185.0]]
     assert ln.polygon == [[110.0, 120.0], [890.0, 120.0], [890.0, 190.0], [110.0, 190.0]]
-    assert ln.text == "Lorem ipsum"
+    assert t.text_of(ln) == "Lorem ipsum"
     assert t.lines[1].baseline == [[1010.0, 180.0], [1790.0, 180.0]]
 
 
@@ -237,24 +243,26 @@ PAGE_2013_TRANSKRIBUS = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes
 def test_page_2010_point_children_and_reading_order():
     t = from_page(PAGE_2010_POINTS)
     r = {x.id: x for x in t.regions}
-    assert r["r2"].reading_order == 0 and r["r1"].reading_order == 1 and r["t1"].reading_order is None
-    assert r["r2"].label == "section_header" and r["r2"].raw_label == "heading"
-    assert r["t1"].label == "table" and r["t1"].raw_label == "TableRegion"
-    assert r["r1"].bbox == [10.0, 300.0, 890.0, 100.0]
+    assert t.region_ranks() == {"r2": 0, "r1": 1}                 # t1 is not in the order
+    assert t.label("r2") == "section_header" and r["r2"].label == "heading"
+    assert t.label("t1") == "table" and r["t1"].label == "TableRegion"
+    assert r["r1"].box == [10.0, 300.0, 890.0, 100.0]
     body = t.lines[0]
-    assert body.text == "Body text"          # no line TextEquiv: joined from the words
-    assert body.words[0].confidence == 0.9 and body.words[1].confidence is None
-    assert body.words[1].bbox == [120.0, 300.0, 80.0, 50.0]
+    assert t.text_of(body) == "Body text"          # no line TextEquiv: joined from the words
+    words = body.reading.words
+    assert words[0].confidence == 0.9 and words[1].confidence is None
+    assert words[1].box == [120.0, 300.0, 80.0, 50.0]
+    assert [body.word_id(k) for k in range(2)] == ["r1l1w1", "r1l1w2"]
     assert t.source.uri == "00000001.tif" and t.source.image_height == 1400
 
 
 def test_page_2013_transkribus_custom():
     t = from_page(PAGE_2013_TRANSKRIBUS)
-    assert [(r.id, r.label, r.raw_label) for r in t.regions] == [
+    assert [(r.id, t.label(r.id), r.label) for r in t.regions] == [
         ("tr_1", "text", "marginalia"), ("tr_2", "page_footer", "page-number")]
-    assert [r.reading_order for r in t.regions] == [0, 1]       # no ReadingOrder: document order
+    assert t.region_ranks() == {"tr_1": 0, "tr_2": 1}       # no ReadingOrder: document order
     assert t.lines[0].baseline == [[1500.0, 150.0], [1700.0, 152.0], [1900.0, 149.0]]
-    assert t.lines[1].text == ""
+    assert t.text_of(t.lines[1]) == ""
     assert t.lines[0].polygon == [[1500.0, 100.0], [1900.0, 100.0], [1900.0, 160.0], [1500.0, 160.0]]
 
 
@@ -304,25 +312,27 @@ HOCR_TAG_SOUP = b"""<html><head><meta charset=utf-8><title>x</title></head><body
 
 def test_hocr_tesseract():
     t = from_hocr(HOCR_TESSERACT)
-    assert [(r.id, r.label) for r in t.regions] == [
+    assert [(r.id, t.label(r.id)) for r in t.regions] == [
         ("block_1_1", "text"), ("block_1_2", "text"), ("block_1_3", "picture")]
-    assert [r.reading_order for r in t.regions] == [0, 1, 2]
+    assert t.region_ranks() == {"block_1_1": 0, "block_1_2": 1, "block_1_3": 2}
     assert [ln.id for ln in t.lines] == ["line_1_1", "line_1_2", "line_1_3"]
-    assert [ln.row for ln in t.lines] == [0, 0, 1]
-    assert t.lines[0].text == "PREFACE" and t.lines[0].words[0].confidence == 0.96
+    assert t.rows() == {"line_1_1": 0, "line_1_2": 0, "line_1_3": 1}
+    assert t.text_of(t.lines[0]) == "PREFACE" and t.lines[0].reading.words[0].confidence == 0.96
     assert t.lines[1].baseline == [[100.0, 242.0], [1100.0, 252.0]]
-    assert t.lines[2].text == "Fig. 1" and t.lines[2].region_id == "block_1_2"
+    assert t.text_of(t.lines[2]) == "Fig. 1" and t.region_of(t.lines[2]) == "block_1_2"
     assert t.source.uri == "scan; 01.png" and t.source.image_width == 1200
-    assert t.language == "en"
+    assert t.classification("", "language") == "en"
+    # the software ocr-system names is the one step, and everything is its
+    assert [(a.kind, a.step, a.name) for a in t.annotators] == [("model", "recognition", "tesseract 5.3.0")]
 
 
 def test_hocr_tag_soup_html():
     t = from_hocr(HOCR_TAG_SOUP)
     assert t.regions == []
-    assert len(t.lines) == 1 and t.lines[0].region_id is None
-    assert t.lines[0].text == "loose line"
-    assert t.lines[0].words[0].id == "line_0_w0"
-    assert t.lines[0].words[1].confidence is None
+    assert len(t.lines) == 1 and t.region_of(t.lines[0]) is None
+    assert t.text_of(t.lines[0]) == "loose line"
+    assert t.lines[0].word_id(0) == "line_0_w0"
+    assert t.lines[0].reading.words[1].confidence is None
 
 
 def test_page_region_without_coords_keeps_its_lines():
@@ -333,5 +343,18 @@ def test_page_region_without_coords_keeps_its_lines():
         </TextRegion>
       </Page></PcGts>"""
     t = from_page(data)
-    assert t.regions[0].bbox == [10.0, 10.0, 40.0, 10.0]
-    assert t.lines[0].region_id == "r" and t.text == "hi"
+    assert t.regions[0].box == [10.0, 10.0, 40.0, 10.0]
+    assert t.region_of(t.lines[0]) == "r" and t.text == "hi"
+
+
+@pytest.mark.parametrize("fmt", ["alto", "page", "hocr"])
+def test_a_ground_truth_file_is_read_as_people_s(fmt):
+    """``ground_truth``: the source is a ground truth and the file's annotator people, unless it names its steps."""
+    data, read = {"alto": (ALTO_V3_NO_NS, from_alto), "page": (PAGE_2010_POINTS, from_page),
+                  "hocr": (HOCR_TAG_SOUP, from_hocr)}[fmt]
+    t = read(data, ground_truth=True)
+    assert t.source.kind == "ground_truth" and t.source.format == fmt
+    assert [(a.kind, a.step, a.name) for a in t.annotators] == [("human", "transcription", fmt)]
+    assert {ln.annotator for ln in t.lines} == {0} and t.text
+    tess = from_hocr(HOCR_TESSERACT, ground_truth=True)
+    assert tess.source.kind == "ground_truth" and [a.kind for a in tess.annotators] == ["model"]

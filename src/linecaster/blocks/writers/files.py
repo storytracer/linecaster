@@ -18,8 +18,8 @@ PAGE_FILE_EXTENSIONS = {
     "md": "md",                           # the DoclingDocument's Markdown export, else the page text
     "html": "html",                       # the DoclingDocument's HTML export
     "doclang": "doclang.xml",             # the DoclingDocument's DocLang export
-    "json": "json",                       # the DoclingDocument (from Composer)
-    "transcription": "transcription.json",  # the Transcription as linecaster JSON
+    "json": "json",                       # the DoclingDocument
+    "transcription": "transcription.json",  # the Transcription as linecaster JSON (as page records hold it)
     "plot": "layout.jpg",                 # the page image with regions and lines drawn in (linecaster.images.plots)
 }
 #: depth of hocr/alto/page: ``word`` (lines and words; linecaster has no glyph level) or ``line`` (text per line)
@@ -44,8 +44,10 @@ class PageFileWriter(Contracted, PipelineStep):
     * ``hocr``, ``alto``, ``page``: linecaster's serializers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
     * ``md``, ``txt``, ``html``, ``doclang``, ``json``: the DoclingDocument's exports
-      (``linecaster.formats.docling.export``) when the transcription has one (``Composer``); without one, md and
-      txt fall back to ``Transcription.text`` (lines in reading order, tables as Markdown/HTML; counted as
+      (``linecaster.formats.docling.export``): the document a ``Composer`` composed for the page
+      (``doc.metadata["docling"]``), else the transcription rendered with the default options
+      (``linecaster.formats.docling.compose``) when it has regions or paragraphs; for a page of lines only, md
+      and txt fall back to ``Transcription.text`` (lines in reading order, tables as Markdown/HTML; counted as
       ``<format>_from_page_text``) and the others are skipped (counted as ``no_document``);
     * ``transcription``: the ``Transcription`` itself as JSON;
     * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.images.plots``).
@@ -61,8 +63,8 @@ class PageFileWriter(Contracted, PipelineStep):
             Pages without ``item_id`` are always written flat.
         detail: ``word`` (lines and words) or ``line`` (text per line) for hOCR, ALTO and PAGE.
         dividers: put ``---`` between layout regions in md.
-        text_fallback: a page without a document still gets md and txt from ``Transcription.text``; ``False`` writes
-            them only from a document (the block then reads ``document``).
+        text_fallback: a page without a document (lines only) still gets md and txt from ``Transcription.text``;
+            ``False`` writes them only from a document (the block then reads ``document``).
         skip_failed: write no files for a page that carries errors (``doc.metadata["errors"]``); the default writes
             them as for any page.
     """
@@ -99,10 +101,27 @@ class PageFileWriter(Contracted, PipelineStep):
 
     @staticmethod
     def wordless(t):
-        """A copy of ``t`` without words (``detail="line"``)."""
-        return t.model_copy(update={"lines": [ln.model_copy(update={"words": []}) for ln in t.lines]})
+        """A copy of ``t`` whose readings have no words (``detail="line"``)."""
+        return t.model_copy(update={"lines": [
+            ln if ln.reading is None else ln.model_copy(update={"reading": ln.reading.model_copy(update={"words": []})})
+            for ln in t.lines]})
 
-    def render(self, page, t, fmt: str, document=None, doc=None) -> str | bytes | None:
+    def composed(self, doc, page, t) -> tuple[dict | None, dict[str, str] | None]:
+        """The page's document (as a dict) and its region map: the ``Composer``'s for this transcription, else
+        ``t`` rendered (``compose``, default options) when it has regions or paragraphs; ``(None, None)`` for a page
+        of lines only."""
+        from ...formats.docling import COMPOSED_KEY, DOCUMENT_KEY, REGION_MAP_KEY, compose, docling_dict
+
+        meta = doc.metadata
+        if meta.get(COMPOSED_KEY) == self.transcription and meta.get(DOCUMENT_KEY) is not None:
+            return meta[DOCUMENT_KEY], meta.get(REGION_MAP_KEY) or {}
+        if not (t.regions or t.paragraphs):
+            return None, None
+        w, h = (page.image.width, page.image.height) if page.image else (None, None)
+        document, region_of = compose(t, name=page.page_id, width=w, height=h)
+        return docling_dict(document), region_of
+
+    def render(self, page, t, fmt: str, data=None, document=None, region_of=None, doc=None) -> str | bytes | None:
         from ...formats import to_alto, to_hocr, to_page
 
         if fmt in ("hocr", "alto", "page"):
@@ -111,7 +130,7 @@ class PageFileWriter(Contracted, PipelineStep):
             src = self.wordless(t) if self.detail == "line" else t
             return {"hocr": to_hocr, "alto": to_alto, "page": to_page}[fmt](src, **size)
         if fmt == "transcription":
-            return t.model_dump_json(indent=1)
+            return t.model_dump_json(indent=1, by_alias=True, exclude_defaults=True)
         if fmt == "plot":
             from ...images.plots import plot_layout
             from ..base.page import decode_rgb, image_bytes
@@ -120,12 +139,11 @@ class PageFileWriter(Contracted, PipelineStep):
         if fmt == "json":
             from ...formats.docling import to_json
 
-            return to_json(t.docling) if t.docling is not None else None
+            return to_json(data) if data is not None else None
         if document is not None:
-            from ...formats.docling import REGION_MAP_KEY, export
+            from ...formats.docling import export
 
-            region_of = t.extra.get(REGION_MAP_KEY) if self.dividers else None
-            return export(document, fmt, self.furniture, region_of)
+            return export(document, fmt, self.furniture, region_of if self.dividers else None)
         return t.text if fmt in ("md", "txt") and self.text_fallback else None
 
     def run(self, data, rank: int = 0, world_size: int = 1):
@@ -145,15 +163,17 @@ class PageFileWriter(Contracted, PipelineStep):
                 self.stat_update("no_transcription")
                 yield doc
                 continue
-            document = None
-            if t.docling is not None and {"md", "txt", "html", "doclang"} & set(self.formats):
+            data = document = region_of = None
+            if set(DOCUMENT_FORMATS) & set(self.formats):
+                data, region_of = self.composed(doc, page, t)
+            if data is not None and {"md", "txt", "html", "doclang"} & set(self.formats):
                 from ...formats.docling import load_docling
 
-                document = load_docling(t)
+                document = load_docling(data)
             stem = self.path(page)
             for fmt in self.formats:
                 with self.track_time(fmt):
-                    content = self.render(page, t, fmt, document, doc)
+                    content = self.render(page, t, fmt, data, document, region_of, doc)
                 if content is None:
                     self.stat_update("no_document")
                     continue

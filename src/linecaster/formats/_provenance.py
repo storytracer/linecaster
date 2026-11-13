@@ -1,10 +1,12 @@
 """Provenance shared by the serializers: which software wrote a file, and one record per step.
 
-A step record is the part of a ``StepInfo`` that identifies what ran: ``step``, ``name``, ``engine``,
+A step record is the part of an ``Annotator`` that identifies what ran: ``step``, ``name``, ``engine``,
 ``revision``, ``preset``, ``preset_sha256``, ``recipe``, ``recipe_sha256``, ``backend`` and ``settings``.
 ``measurements`` (seconds, tokens, ...) vary from run to run and stay in the page records. Every writer puts the
-record into its format's own provenance vocabulary (ALTO ``Processing``, PAGE ``MetadataItem``, hOCR ``meta``) and
-its reader turns it back into a ``StepInfo``. lxml-free and import-light on purpose.
+record of each model and rule annotator (``written``) into its format's own provenance vocabulary (ALTO
+``Processing``, PAGE ``MetadataItem``, hOCR ``meta``) and its reader turns it back into an ``Annotator`` (its
+``kind`` from the step). A file or people (annotators of kind ``file`` and ``human``) are the set's ``Source``, not a
+step, and are not written. lxml-free and import-light on purpose.
 """
 from __future__ import annotations
 
@@ -13,10 +15,10 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from ..data.transcription import StepInfo
+from ..data.transcription import RULE_STEPS, Annotator
 
 SOFTWARE = "linecaster"
-#: the ``StepInfo`` fields a page file carries, in this order
+#: the ``Annotator`` fields a page file carries, in this order
 RECORD_KEYS = ("step", "name", "engine", "revision", "preset", "preset_sha256", "recipe", "recipe_sha256", "backend",
                "settings")
 #: steps that put content into a transcription (the rest modify what is there: unicode, typography, ...)
@@ -45,7 +47,12 @@ def software() -> str:
     return f"{SOFTWARE} {version()}"
 
 
-def record(m: StepInfo) -> dict[str, Any]:
+def written(annotators: list[Annotator]) -> list[Annotator]:
+    """The annotators a page file records as steps: the models and rules, in order."""
+    return [a for a in annotators if a.kind in ("model", "rule")]
+
+
+def record(m: Annotator) -> dict[str, Any]:
     """The step record of ``m``: the identifying fields that are set, in ``RECORD_KEYS`` order."""
     out: dict[str, Any] = {}
     for k in RECORD_KEYS:
@@ -56,34 +63,35 @@ def record(m: StepInfo) -> dict[str, Any]:
     return out
 
 
-def from_record(d: dict[str, Any]) -> StepInfo:
-    """A ``StepInfo`` from a step record (unknown keys are ignored; ``step``/``name`` default to ``unknown``)."""
+def from_record(d: dict[str, Any]) -> Annotator:
+    """An ``Annotator`` from a step record (unknown keys are ignored; ``step``/``name`` default to ``unknown``): a
+    rule for the rule-based steps (``RULE_STEPS``), else a model."""
     kw: dict[str, Any] = {k: str(d[k]) for k in RECORD_KEYS if k != "settings" and d.get(k) is not None}
     kw.setdefault("step", "unknown")
     kw.setdefault("name", "unknown")
     settings = d.get("settings")
     if settings is not None:
         kw["settings"] = settings if isinstance(settings, dict) else {"value": settings}
-    return StepInfo(**kw)
+    return Annotator(kind="rule" if kw["step"] in RULE_STEPS else "model", **kw)
 
 
-def label(m: StepInfo) -> str:
+def label(m: Annotator) -> str:
     """What ran, in one word: the preset edition when it ran as one, else the model's name."""
     return m.preset or m.name
 
 
-def summary(m: StepInfo) -> str:
+def summary(m: Annotator) -> str:
     """``step: name@revision`` for people (PAGE ``Comments``), with the preset edition when it ran as one."""
     out = f"{m.step}: {m.name}" + (f"@{m.revision}" if m.revision else "")
     return out + (f" (preset {m.preset})" if m.preset else "")
 
 
-def category(m: StepInfo) -> str:
+def category(m: Annotator) -> str:
     """ALTO's ``processingCategory``."""
     return "contentGeneration" if m.step in GENERATING_STEPS else "contentModification"
 
 
-def processed_at(m: StepInfo) -> str | None:
+def processed_at(m: Annotator) -> str | None:
     """When the step ran, if the step recorded it (``measurements["datetime"]``, ISO 8601), else None."""
     v = m.measurements.get("datetime")
     if isinstance(v, str) and (_DATETIME.match(v) or _DATE.match(v)):
