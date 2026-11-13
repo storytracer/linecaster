@@ -3,9 +3,10 @@
 
 The request is the transcription call's (``lighton-ocr-3``: the page thumbnailed to 2048 px, PNG, the same sampling)
 with the text part ``grounding`` after the image, as the card's vLLM example sends it. The model then puts a
-placeholder line before every block, ``![label](x1,y1,x2,y2)`` with the block's box in page coordinates normalised
-to 0-1000, followed by the block's content (Markdown; tables as HTML). ``ground`` turns the completion into a
-transcription with one region per block, in the order emitted:
+placeholder before every block, ``![label](x1,y1,x2,y2)`` with the block's box in page coordinates normalised to
+0-1000, followed by the block's content (Markdown; tables as HTML): on the same line after a space for nearly every
+block (the card's example puts it on the next line, which a list block also does), then on the lines after it.
+``ground`` turns the completion into a transcription with one region per block, in the order emitted:
 
 * **Labels** (``LABELS``): the model's label is ``raw_label`` (and ``extra["label"]``), ``label`` its Docling label:
   ``header`` and ``footer`` are ``page_header`` and ``page_footer`` (page furniture); ``page_number`` is one of them by
@@ -27,7 +28,8 @@ transcription with one region per block, in the order emitted:
   in ``extra["generated"]`` (``{"kind": "description" | "data", "content": ...}``, ``extra["printed"] = False``) and
   the region gets no lines: no text derived from the page contains it.
 * **Faults, kept and counted** (``extra["grounding"]``, the block's stats ``grounding_*``): a placeholder line that
-  does not parse (``malformed``: its content becomes lines without a region, the line itself is listed); text before
+  does not parse (``malformed``: the line itself is listed; what follows its closing parenthesis and the lines after
+  it become lines without a region); text before
   the first placeholder (``unplaced`` lines, without a region); a completion without any placeholder (``missing``:
   its text as lines without regions, nothing guessed); the last block of a completion cut off at ``max_tokens``
   (``truncated``, ``extra["truncated"]``; the repair pass applies as in transcription mode).
@@ -61,10 +63,12 @@ LABELS = {"text": "text", "title": "section_header", "list": "list_item", "heade
           "header_image": "picture", "footer_image": "picture", "aside_text": "text"}
 #: the labels whose content the model generates about a figure, never printed text: label -> what it is
 GENERATED = {"image": "description", "header_image": "description", "footer_image": "description", "chart": "data"}
-#: a placeholder line: ``![label](x1,y1,x2,y2)``, ``label+`` for a continuation
-PLACEHOLDER = re.compile(r"^!\[(?P<label>[a-z_]+)(?P<plus>\+?)\]\((?P<box>[^()]*)\)\s*$")
-#: a line that starts like a placeholder (one that does not match ``PLACEHOLDER`` is malformed)
-LOOKS_LIKE = re.compile(r"^!\[[a-z_+]*\]?\(?")
+#: a placeholder at the start of a line: ``![label](x1,y1,x2,y2)``, ``label+`` for a continuation, then the block's
+#: first content line on the same line (as the model writes nearly every block) or nothing (its content on the next)
+PLACEHOLDER = re.compile(r"^!\[(?P<label>[a-z_]+)(?P<plus>\+?)\]\((?P<box>[^()]*)\)[ \t]?(?P<rest>.*)$")
+#: a line that starts like a placeholder (one that does not match ``PLACEHOLDER`` with a valid box is malformed);
+#: ``rest`` is what follows its closing parenthesis, kept as text
+LOOKS_LIKE = re.compile(r"^!\[[a-z_+]*\]?(?:\([^()]*\)[ \t]?(?P<rest>.*))?")
 _HEADING = re.compile(r"^(#{1,6})\s+")
 
 
@@ -88,11 +92,14 @@ def ground(raw: str, finish_reason: str | None = None) -> Transcription:
     for text in raw.split("\n"):
         m = PLACEHOLDER.match(text)
         if m and (box := _box(m.group("box"))) is not None:
-            current = {"raw": m.group("label"), "continuation": bool(m.group("plus")), "box": box, "lines": []}
+            rest = m.group("rest")
+            current = {"raw": m.group("label"), "continuation": bool(m.group("plus")), "box": box,
+                       "lines": [rest] if rest.strip() else []}
             blocks.append(current)
-        elif LOOKS_LIKE.match(text):
+        elif lm := LOOKS_LIKE.match(text):
             malformed.append(text)
-            current = {"raw": None, "lines": []}                # its content: lines without a region
+            rest = lm.group("rest") or ""
+            current = {"raw": None, "lines": [rest] if rest.strip() else []}   # lines without a region
             blocks.append(current)
         elif current is None:
             unplaced.append(text)
@@ -167,6 +174,19 @@ def _trim(texts: list[str]) -> list[str]:
     while hi > lo and not texts[hi - 1].strip():
         hi -= 1
     return texts[lo:hi]
+
+
+def reground(t: Transcription, width: int, height: int) -> Transcription:
+    """A grounding transcription parsed again from its raw completion (``extra["raw"]``) and placed on a ``width`` x
+    ``height`` page image, keeping its steps and its repair passes: for records written by linecaster 0.7.3, whose
+    parser took a placeholder only alone on its line and so left most pages without text."""
+    raw = t.extra.get("raw")
+    if raw is None:
+        return t
+    new = place(ground(raw, t.extra.get("finish_reason")), width, height)
+    new.steps = list(t.steps)
+    new.extra = {**{k: v for k, v in t.extra.items() if k not in ("grounding",)}, **new.extra}
+    return new
 
 
 def place(t: Transcription, width: int, height: int) -> Transcription:

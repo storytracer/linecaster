@@ -175,3 +175,58 @@ def test_placeholders_out_of_range_or_reversed_are_malformed():
     for box in ("0,0,1001,10", "500,0,400,10", "a,b,c,d", "1,2,3,4,5"):
         t = ground(f"![text]({box})\nX", "stop")
         assert t.regions == [] and t.extra["grounding"]["malformed"] == [f"![text]({box})"], box
+
+
+#: a page as the model writes it in practice: each block's first content line after its placeholder, on the same
+#: line; a list block's items on the lines after it (the run report of 141,461 completions: 97.5 % on the same line)
+INLINE = """![header](100,30,800,60) A STUDY OF SUCCESS.
+![page_number](880,30,920,60) 249
+![title](349,206,594,227) # CHAPTER I.
+![text](63,246,880,385) THAT was a terrible night, and the
+storm went on until the morning.
+![list](63,400,880,500)
+- the first
+- the second
+![image](100,520,900,700) A ship in a storm.
+![text+](63,720,880,900) It ended at dawn.
+"""
+
+
+def test_content_on_the_placeholders_line_is_the_blocks_first_line():
+    t = ground(INLINE, "stop")
+    assert [(r.id, r.label) for r in t.regions] == [
+        ("header_0", "page_header"), ("page_number_1", "page_header"), ("title_2", "section_header"),
+        ("text_3", "text"), ("list_4", "list_item"), ("image_5", "picture"), ("text_6", "text")]
+    by = {r.id: [ln.text for ln in t.lines if ln.region_id == r.id] for r in t.regions}
+    assert by["header_0"] == ["A STUDY OF SUCCESS."] and by["page_number_1"] == ["249"]
+    assert by["title_2"] == ["CHAPTER I."] and t.regions[2].heading_level == 1
+    assert by["text_3"] == ["THAT was a terrible night, and the", "storm went on until the morning."]
+    assert by["list_4"] == ["- the first", "- the second"] and by["image_5"] == []
+    assert t.regions[5].extra["generated"]["content"] == "A ship in a storm."
+    assert t.regions[6].extra["continues"] == "text_3"
+    assert t.text.startswith("A STUDY OF SUCCESS.\n249\nCHAPTER I.\nTHAT was") and "A ship" not in t.text
+    g = t.extra["grounding"]
+    assert (g["blocks"], g["malformed"], g["generated"]) == (7, [], 1)
+
+
+def test_a_malformed_placeholder_keeps_the_text_after_it():
+    t = ground("![text](0,0,1000) Broken box, kept.\nNext line.\n![image](image_1.png)\n"
+               "![text](0,500,1000,1000) Good.", "stop")
+    assert [(ln.text, ln.region_id) for ln in t.lines] == [("Broken box, kept.", None), ("Next line.", None),
+                                                          ("Good.", "text_2")]
+    assert t.extra["grounding"]["malformed"] == ["![text](0,0,1000) Broken box, kept.", "![image](image_1.png)"]
+
+
+def test_records_written_by_0_7_3_are_parsed_again_from_their_raw_completion():
+    """0.7.3 took a placeholder only alone on its line: such a record has its raw completion and no text."""
+    from linecaster.adapters.lighton_grounding import reground
+    from linecaster.data.transcription import StepInfo, Transcription
+
+    old = Transcription(steps=[StepInfo(step="recognition", name="m")],
+                        extra={"raw": INLINE, "finish_reason": "stop", "passes": [{"finish_reason": "stop"}],
+                               "grounding": {"blocks": 1, "malformed": ["..."]}})
+    new = reground(old, 1000, 2000)
+    assert new.text.startswith("A STUDY OF SUCCESS.") and len(new.regions) == 7
+    assert new.regions[3].bbox == [63.0, 492.0, 817.0, 278.0]           # placed on the 1000 x 2000 page
+    assert new.steps == old.steps and new.extra["passes"] == old.extra["passes"]
+    assert new.extra["grounding"]["malformed"] == [] and new.extra["grounding"]["coordinates"] == "page"

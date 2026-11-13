@@ -4,6 +4,22 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- Grounding records written by 0.7.3 (`lightonocr-3-*-grounding@1`) have no text on most pages: re-parse them from
+  their raw completion with `linecaster.adapters.lighton_grounding.reground(transcription, width, height)` (the page
+  image's size), which keeps their steps and repair passes, or run the pages again.
+
+### Fixed
+
+- The grounding parser takes a block's content on the same line as its placeholder (`![title](349,206,594,227) #
+  CHAPTER I.`), as LightOnOCR-3 writes nearly every block (97.5 % of 951,891 blocks in an evaluation of 141,461
+  pages), not only on the line after it as the model card shows. 0.7.3 took such lines for malformed placeholders and
+  wrote no text for 128,509 of those pages (the raw completions were complete). A malformed placeholder's line keeps
+  what follows its closing parenthesis, as a line without a region.
+
 ## 0.7.3 (2026-11-13)
 
 ### Added

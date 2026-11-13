@@ -5,11 +5,34 @@ Measurements, decisions and open questions, newest first.
 ## LightOnOCR-3's grounding mode (2026-11-13)
 
 Presets `lightonocr-3-0.8b-grounding@1` and `lightonocr-3-4b-grounding@1` (the maintainer's decisions: separate
-presets; `page_number` placed by position as PP-DocLayout's; `aside_text` body text; the card's 4096 tokens). Tested
-on fixed completions only. Not measured yet, on a GPU: output tokens per page against transcription mode (the card:
-about 25 % more), pages that reach the cap and their repairs, the parse's faults on real output (missing, malformed,
-unknown labels), and vLLM's repetition detection on grounding completions with the model's tokenizer (placeholder
-lines differ by their boxes, so they should not form a run; not checked).
+presets; `page_number` placed by position as PP-DocLayout's; `aside_text` body text; the card's 4096 tokens).
+
+Measured in an evaluation outside linecaster (141,461 proofread pages of 680 printed books, page images as lossy
+WebP, 64 A40, linecaster 0.7.3, vLLM 0.30.0; its evidence records hold the numbers), against
+`lightonocr-3-0.8b@3` and the `squiddle` recipe on the same pages:
+
+- **The parser's fault in 0.7.3:** the model writes a block's content on the placeholder's line for 927,909 of
+  951,891 blocks (only list blocks start their items on the next line); 0.7.3 took a placeholder only alone on its
+  line, so 128,509 page records had no text. Fixed after 0.7.3; the measurements below parse the raw completions
+  again.
+- Completion tokens: +25.8 % against transcription mode (mean 598 against 475; per page median +24.4 %), as the card
+  says. First requests ending at the cap (4096): 102 (transcription mode 68); the repair at 8192 kept 92, 10 still
+  capped: the card's cap stands.
+- vLLM's repetition detection (simulated with the model's tokenizer after every token, placeholder lines included):
+  of 141,341 finished grounding completions the defaults (8-100 tokens, 16 times) would stop none (the largest repeat
+  count of a finished one 14.9); 4-100 x 10 or 8-100 x 8 would stop 40 each. Of 113 stopped completions, 53 are dot
+  leaders running on (a contents page with about 17 printed dots where the model writes about 120): the stop is
+  right, the rest of the page is lost (open: a repair pass for `repetition` with other sampling, to be measured).
+- Parse on real output: 0 unknown labels, 151 malformed placeholder lines, 406 pages without placeholders (377 empty
+  completions, 29 on blank or plate pages), 29 pages with text before the first placeholder.
+- `page_number` by position: of 43,652 numbers found in the ground truth's running head or foot, 80 placed as a
+  footer that the head holds.
+- Character error rate (letters and digits, lowercase): full page 0.79 % (transcription mode 1.09 %, squiddle 1.09 %;
+  figure descriptions are out of the text), body 1.13 % (transcription 2.23 %, squiddle 1.11 %). Running heads and
+  feet against the ground truth's: recall 69.3 %, precision 91.7 % (squiddle 94.2 %, 91.3 %): the 0.8B labels 35,093
+  running heads `title`.
+- Page records, mean per page: grounding 17.0 KB JSONL (1.8 KB in Parquet with zstd), transcription 11.4 KB,
+  squiddle 90.1 KB (words with boxes, paragraphs, the DoclingDocument, ten steps).
 
 ## Repetition loops and vLLM's repetition detection (2026-11-12, x86_64 machine with 8 RTX A6000)
 
