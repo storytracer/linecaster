@@ -4,6 +4,17 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- A pipeline whose tasks start a VLM's server (`ChatModelServer`: `pipelines/transcribe_vlm.py` with a page preset,
+  which lists no engines) counts as one that runs models when `--tasks` and `--workers` are left open: on Ray one task
+  per GPU of the cluster, all at once, instead of the reader's task count with at most one task per CPU of the
+  launching machine at once (with `ray job submit`, the head's: 4 GPUs busy on a cluster of more), each task starting
+  vLLM again; locally one task, since two servers would take the same port (`run.starts_vlm_server`). Pipelines with
+  engines keep 4 tasks per GPU on Ray.
+
 ## 0.7.1 (2026-11-13)
 
 ### Changed

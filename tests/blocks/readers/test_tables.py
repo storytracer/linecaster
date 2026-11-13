@@ -307,3 +307,29 @@ def test_a_pipeline_with_engines_on_ray_gets_several_tasks_per_gpu(monkeypatch, 
                        "page": None})()
     run.allocate(a, [Reader()])
     assert a.tasks == 1                                              # no GPUs to read: as before
+
+
+def test_a_pipeline_that_starts_a_vlm_server_gets_one_task_per_gpu(monkeypatch):
+    """A VLM page pipeline lists no engines (its model is the server each task starts), yet runs models: on Ray one task
+    per GPU and all at once, not a task per input file capped by the launching machine's CPUs; locally one task (two
+    servers would take the same port)."""
+    from linecaster.blocks.servers.serve import ChatModelServer
+    from linecaster.runtime import run
+
+    monkeypatch.setattr(run, "ray_gpus", lambda a: 6)
+    monkeypatch.setattr(run, "available_cpus", lambda: 4)
+    server = ChatModelServer.__new__(ChatModelServer)
+
+    class Reader:
+        def auto_tasks(self):
+            return 100
+
+    for on, want in (("ray", 6), ("local", 1)):
+        a = type("A", (), {"tasks": None, "workers": None, "on": on, "has_engines": False, "address": "auto",
+                           "page": None})()
+        run.allocate(a, [Reader(), server])
+        assert (a.tasks, a.workers) == (want, want), on
+    a = type("A", (), {"tasks": None, "workers": None, "on": "ray", "has_engines": False, "address": "auto",
+                       "page": None})()
+    run.allocate(a, [Reader()])                                       # without a server: the reader's tasks, as before
+    assert a.tasks == 100 and a.workers == 4

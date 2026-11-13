@@ -199,7 +199,7 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 | `--on` | Executor |
 |---|---|
 | `local` | datatrove's `LocalPipelineExecutor` |
-| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (one task per GPU), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task |
+| `ray` | `RayGPUExecutor` for stages with servers and single-stage pipelines with engines (each task holds one GPU; without `--tasks`, 4 tasks per GPU of the cluster, and one per GPU where each task starts a VLM's server, which takes minutes), `RayExecutor` (datatrove's `RayPipelineExecutor`) otherwise, on CPUs (an item stage, a harvest; extra `[ray]`); both stop the run at an error that is not the pages', fail a launch that left tasks unfinished, and check first that a live node can run a task |
 | `hf-jobs` | `JobsExecutor`: datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors |
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the

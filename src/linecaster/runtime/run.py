@@ -570,22 +570,26 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,
     ``linecaster.net.http.prefetched``); one per CPU otherwise. A pipeline with engines: one task, every task at once;
     on Ray ``RAY_TASKS_PER_GPU`` tasks per GPU of the cluster (at most the reader's ``auto_tasks``), so a task that
-    holds slow pages does not hold the run up: a worker that is done takes the next one. ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
+    holds slow pages does not hold the run up: a worker that is done takes the next one. A pipeline whose tasks start
+    a VLM's server (``starts_vlm_server``) counts as one with engines, with one task per GPU on Ray (the server takes
+    minutes to start, once a task). ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
     count is never derived from a proxy list."""
     if getattr(a, "page", None):
         a.tasks, a.workers = 1, 1
         return
+    vlm = starts_vlm_server(pipeline)
+    engines = has_engines(a) or vlm
     if a.tasks is None:
         reader = next((b for b in pipeline if hasattr(b, "auto_tasks")), None)
-        if has_engines(a) and getattr(a, "on", "local") == "ray":
+        if engines and getattr(a, "on", "local") == "ray":
             gpus = ray_gpus(a)
-            a.tasks = max(1, RAY_TASKS_PER_GPU * gpus) if gpus else 1
+            a.tasks = max(1, (1 if vlm else RAY_TASKS_PER_GPU) * gpus) if gpus else 1
             if reader is not None and a.tasks > 1:
                 a.tasks = max(1, min(a.tasks, reader.auto_tasks()))
         else:
-            a.tasks = reader.auto_tasks() if reader is not None and not has_engines(a) else 1
+            a.tasks = reader.auto_tasks() if reader is not None and not engines else 1
     if a.workers is None:
-        if has_engines(a):
+        if engines:
             a.workers = a.tasks
             return
         direct, lists = _proxy_plan(a)
@@ -600,6 +604,13 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
 
 #: a pipeline with engines on Ray: tasks per GPU of the cluster, so the work is spread evenly however its pages differ
 RAY_TASKS_PER_GPU = 4
+
+
+def starts_vlm_server(pipeline: list) -> bool:
+    """Whether each task of the pipeline starts a VLM's server (``ChatModelServer``: vLLM or SGLang, minutes to
+    start): such a pipeline runs models, as one with engines, and on Ray gets one task per GPU, not
+    ``RAY_TASKS_PER_GPU``, so a GPU starts its server once."""
+    return any(type(b).__name__ == "ChatModelServer" for b in pipeline)
 
 
 def ray_gpus(a: argparse.Namespace) -> int:
