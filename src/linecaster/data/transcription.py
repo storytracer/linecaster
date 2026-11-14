@@ -59,7 +59,7 @@ class _Extensible(_Model):
 # ---------------------------------------------------------------------------------------------- provenance
 #: the steps whose annotators are rules (no model), for annotators upgraded from page/2 and for ``Annotator.kind``
 RULE_STEPS = frozenset({"unicode", "typography", "recomposition", "normalization", "composition", "assignment",
-                        "ordering", "image"})
+                        "ordering", "image", "import"})
 
 
 class Annotator(_Model):

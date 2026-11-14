@@ -2,7 +2,7 @@
 from lxml import html
 
 from linecaster.data import Annotator, Source, Transcription
-from linecaster.formats.html import HtmlImporter
+from linecaster.formats.html import HtmlConverter
 from linecaster.markup import ConventionsDoc, resolve
 
 PAGE = """<html><head><style>.caps { text-transform: uppercase }</style></head><body>
@@ -34,7 +34,7 @@ def read(page=PAGE, conventions=None):
     t = Transcription(source=Source(kind="ground_truth", format="html"))
     people = t.add_annotator(Annotator(kind="human", step="transcription", name="editors"))
     rules = t.add_annotator(Annotator(kind="rule", step="import", name="html", engine="import.html.v1"))
-    return HtmlImporter(conventions).read(html.fromstring(page), t, people, rules)
+    return HtmlConverter(conventions).read(html.fromstring(page), t, people, rules)
 
 
 def test_html_semantics_and_conventions():

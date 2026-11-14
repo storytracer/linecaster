@@ -40,6 +40,8 @@ MEASUREMENTS: dict[str, str] = {
     "rules_matched": "an importer's conventions: rule id -> the nodes it matched on the page",
     "unmapped": "an importer's conventions: features of nodes no rule matched (an element's classes) -> how many",
     "anchored": "an importer: lines anchored in the source text, of all lines",
+    "ends_paragraph": "an importer: the page's last paragraph ends on the page (true) or runs on onto the next",
+    "unexpanded": "an importer of a template language: the template calls it could not expand, by name",
     # tables and formulas
     "tables": "table regions given a structure",
     "formulas": "formula regions read",

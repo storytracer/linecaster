@@ -12,7 +12,9 @@ from linecaster.data.measurements import unknown_measurements
 REPO = Path(__file__).resolve().parents[2]
 SOURCES = [REPO / "src" / "linecaster", *sorted((REPO / "engines").glob("*/src"))]
 #: places whose keys are computed (file relative to the repository, the expression), each checked below
-COMPUTED = {("src/linecaster/engines/typography.py", "stats.counts()")}
+COMPUTED = {("src/linecaster/engines/typography.py", "stats.counts()"),
+            ("src/linecaster/engines/importers.py", "reading.coverage.measurements()"),
+            ("engines/mediawiki/src/linecaster_mediawiki/reader.py", "reading.coverage.measurements()")}
 
 
 def _dict_keys(node: ast.Dict, local: dict[str, ast.AST]) -> tuple[set[str], list[str]]:
@@ -112,9 +114,11 @@ def test_linecaster_writes_only_known_measurements():
 
 
 def test_computed_measurements_are_known():
+    from linecaster.markup import Coverage
     from linecaster.text.typography import RetypeStats
 
     assert unknown_measurements(RetypeStats().counts()) == []
+    assert unknown_measurements(Coverage().measurements()) == []
 
 
 def test_unknown_measurements():

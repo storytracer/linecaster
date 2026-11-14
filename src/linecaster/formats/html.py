@@ -1,4 +1,4 @@
-"""HTML -> transcription: ``HtmlImporter`` reads an HTML tree (lxml) into regions, lines, formatting, tables,
+"""HTML -> transcription: ``HtmlConverter`` reads an HTML tree (lxml) into regions, lines, formatting, tables,
 formulas and notes, by HTML's own semantics and, where given, a source's conventions (``linecaster.markup``).
 
 **HTML's semantics** (no conventions needed):
@@ -11,14 +11,16 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
 - tables (``table``, ``tr``, ``td``/``th`` with ``rowspan``/``colspan``, ``caption``); pictures (``img`` with its
   ``src``, ``figure``, ``figcaption``); formulas (MathML ``math`` with ``alttext``, its LaTeX normalized by
   ``linecaster.text.formulas``);
-- DPUB-ARIA roles: ``doc-pageheader`` and ``doc-pagefooter`` are the page's furniture (header, footer),
-  ``doc-footnote`` a note, ``doc-noteref`` a note's mark (not text);
-- CSS: inline ``display: none`` is removed (``hidden``), ``visibility: hidden`` printed as nothing (a space, a block
-  break for a block); ``text-transform`` from the page's ``<style>`` sheets and inline styles, cascaded as a browser
-  cascades it, sets the letters' case; ``style``, ``script``, ``head`` and the like are removed (``metadata``).
+- ARIA and DPUB-ARIA roles: ``heading`` (with ``aria-level``) a heading, ``doc-pageheader`` and
+  ``doc-pagefooter`` the page's furniture (header, footer), ``doc-footnote`` a note, ``doc-noteref`` a note's mark
+  (not text); the ``lang`` attribute the language of the text inside;
+- CSS, from the page's ``<style>`` sheets and inline styles, cascaded as a browser cascades it: ``display: none`` is
+  removed (``hidden``), ``visibility: hidden`` printed as nothing (a space, a block break for a block),
+  ``text-transform`` sets the letters' case; ``style``, ``script``, ``head`` and the like are removed
+  (``metadata``).
 
 **Conventions** decide what a source's own markup means (``linecaster.markup.decisions``): a rule's decision on an
-element replaces HTML's meaning of it. ``HtmlImporter.DECISIONS`` are the decisions it applies.
+element replaces HTML's meaning of it. ``HtmlConverter.DECISIONS`` are the decisions it applies.
 
 Every region and line is read by the people who wrote the source (``people``) unless the rule that made it says
 ``by: rule`` (then by the importer's annotator). What conventions removed with ``keep_text`` is a region with status
@@ -48,8 +50,6 @@ REMOVED_TAGS = frozenset({"style", "script", "head", "meta", "link", "title", "n
 FORMATS = {"i": "italic", "em": "italic", "cite": "italic", "var": "italic", "b": "bold", "strong": "bold",
            "u": "underline", "ins": "underline", "s": "strikethrough", "strike": "strikethrough",
            "del": "strikethrough", "sup": "super", "sub": "sub"}
-HIDDEN = re.compile(r"display\s*:\s*none", re.I)
-INVISIBLE = re.compile(r"visibility\s*:\s*hidden", re.I)
 #: characters that print nothing (zero-width spaces and joiners, soft hyphens, bidirectional marks)
 SILENT = re.compile("[­​-‏⁠-⁤⁦-⁩﻿]")
 PARTS = ("header", "body", "footer")
@@ -90,27 +90,34 @@ class HtmlReading:
     ends_paragraph: bool
 
 
-class _CaseCascade:
-    """The page's CSS ``text-transform``: its style sheets' rules (outside @-blocks, without pseudo-elements) and
-    inline styles, cascaded by importance, specificity and order; inherited."""
+class _Cascade:
+    """The page's CSS as a browser cascades it, for the three properties that decide what is read: ``display``
+    (``none``: not there), ``visibility`` (``hidden``: there but printed as nothing; inherited) and ``text-transform``
+    (the letters' case; inherited). The page's style sheets' rules (outside @-blocks, without pseudo-elements) and
+    inline styles, by importance, then origin (an inline style above the sheets), specificity and order."""
 
-    PROPERTY = re.compile(r"text-transform\s*:\s*([a-z-]+)\s*(!\s*important)?", re.I)
-    VALUES = frozenset({"uppercase", "lowercase", "capitalize", "none"})
+    PROPERTY = re.compile(r"(text-transform|display|visibility)\s*:\s*([a-z-]+)\s*(!\s*important)?", re.I)
 
     def __init__(self, root):
         from cssselect import HTMLTranslator, SelectorError, parse
 
-        best: dict = {}
+        best: dict[str, dict] = {"text-transform": {}, "display": {}, "visibility": {}}
         order = 0
+
+        def declare(el, decls: str, origin: int, spec):
+            nonlocal order
+            for m in self.PROPERTY.finditer(decls):
+                prop, value, important = m.group(1).lower(), m.group(2).lower(), bool(m.group(3))
+                order += 1
+                key = (important, origin, spec, order)
+                if el not in best[prop] or best[prop][el][0] < key:
+                    best[prop][el] = (key, value)
+
         tr = HTMLTranslator()
         for st in root.iter("style"):
             for selectors, decls in self._rules(st.text or ""):
-                m = None
-                for m in self.PROPERTY.finditer(decls):
-                    pass
-                if m is None or m.group(1).lower() not in self.VALUES:
+                if not self.PROPERTY.search(decls):
                     continue
-                value, important = m.group(1).lower(), bool(m.group(2))
                 for sel in selectors.split(","):
                     try:
                         parsed = parse(sel.strip())
@@ -118,25 +125,25 @@ class _CaseCascade:
                         continue
                     if len(parsed) != 1 or parsed[0].pseudo_element is not None:
                         continue
-                    order += 1
-                    key = (important, 0, parsed[0].specificity(), order)
                     for el in root.xpath(tr.selector_to_xpath(parsed[0])):
-                        if el not in best or best[el][0] < key:
-                            best[el] = (key, value)
+                        declare(el, decls, 0, parsed[0].specificity())
         for el in root.iter():
             style = el.get("style") if isinstance(el.tag, str) else None
-            if not style or "text-transform" not in style:
-                continue
-            m = None
-            for m in self.PROPERTY.finditer(style):
-                pass
-            if m is None or m.group(1).lower() not in self.VALUES:
-                continue
-            order += 1
-            key = (bool(m.group(2)), 1, (0, 0, 0), order)
-            if el not in best or best[el][0] < key:
-                best[el] = (key, m.group(1).lower())
-        self.declared = {el: v for el, (_, v) in best.items()}
+            if style and self.PROPERTY.search(style):
+                declare(el, style, 1, (0, 0, 0))
+        self.declared = {prop: {el: v for el, (_, v) in found.items()} for prop, found in best.items()}
+
+    def value(self, el, inherited: str | None) -> str | None:
+        """The element's text-transform, given its parent's."""
+        return self.declared["text-transform"].get(el, inherited)
+
+    def hidden(self, el) -> bool:
+        """``display: none``."""
+        return self.declared["display"].get(el) == "none"
+
+    def visibility(self, el, inherited: str | None) -> str | None:
+        """The element's visibility, given its parent's."""
+        return self.declared["visibility"].get(el, inherited)
 
     @staticmethod
     def _rules(css: str):
@@ -155,9 +162,6 @@ class _CaseCascade:
                 yield head, css[j + 1:k - 1]
             i = k
 
-    def value(self, el, inherited: str | None) -> str | None:
-        return self.declared.get(el, inherited)
-
     @staticmethod
     def apply(text: str, value: str | None, prev: str) -> str:
         if not text or value in (None, "none"):
@@ -173,7 +177,7 @@ class _CaseCascade:
         return "".join(out)
 
 
-class HtmlImporter:
+class HtmlConverter:
     """Reads an HTML tree into a transcription, by HTML's semantics and a source's resolved conventions."""
 
     DECISIONS = frozenset({"remove", "invisible", "unwrap", "block", "cell", "picture", "caption", "note", "edit",
@@ -192,7 +196,7 @@ class HtmlImporter:
         """Reads ``root`` into ``transcription`` (its source and annotators already set): ``people`` and ``rules``
         are the annotators' indices."""
         decided, coverage = self.conventions.decide(root) if self.conventions else ({}, Coverage())
-        walk = _Walk(decided, _CaseCascade(root))
+        walk = _Walk(decided, _Cascade(root))
         walk.element(root, frozenset(), None, "body")
         walk.flush()
         ends = walk.ends_paragraph()
@@ -203,7 +207,7 @@ class HtmlImporter:
 class _Walk:
     """One walk over the tree: blocks in reading order, notes, and the state of the block being read."""
 
-    def __init__(self, decided: dict, case: _CaseCascade):
+    def __init__(self, decided: dict, case: _Cascade):
         self.decided = decided
         self.case = case
         self.blocks: list[TextBlock] = []
@@ -253,12 +257,11 @@ class _Walk:
         if rule is not None:
             if self.decision(el, rule[0], rule[1], fmt, case, part, attrs):
                 return
-        style = el.get("style") or ""
         role = (el.get("role") or "").lower()
-        if tag in REMOVED_TAGS or HIDDEN.search(style):
+        if tag in REMOVED_TAGS or self.case.hidden(el):
             self.removed["metadata" if tag in REMOVED_TAGS else "hidden"] += 1
             return
-        if INVISIBLE.search(style):
+        if self.case.visibility(el, None) in ("hidden", "collapse"):
             self.invisible(tag, fmt, part, case)
             return
         if role in ("doc-pageheader", "doc-pagefooter"):
@@ -271,6 +274,13 @@ class _Walk:
             return
         if role == "doc-noteref":
             return
+        if role == "heading":
+            level = el.get("aria-level")
+            self.as_block(el, Block(role="heading", heading_level=int(level) if level and level.isdigit()
+                                    and int(level) > 0 else 2), fmt, case, part, attrs)
+            return
+        if el.get("lang") and el.get("lang") != attrs.get("language"):
+            attrs = {**attrs, "language": el.get("lang")}
         if tag == "br":
             self.emit("\n", fmt, part, None, **attrs)
             self.prev = " "
@@ -346,20 +356,20 @@ class _Walk:
                 self.as_block(el, d, fmt, case, part, attrs, by_rule=False)
             case Cell(role=role):                     # the cells under one parent: one row of cells
                 self.flush()
-                cell = self.block(part, role=role, group=id(el.getparent()))
-                self.children(el, fmt, case, part, attrs)
-                self.cur = None
-                self.blocks.append(cell)
-                self.notes += cell.notes
-                cell.notes = []
+                self.blocks.append(TextBlock(role=role or ("footer" if part == "footer" else "header"),
+                                             runs=self.content(el, fmt, case, part), part=part,
+                                             group=id(el.getparent())))
             case Picture():
                 self.picture(el, d, part)
             case Caption():
                 self.as_block(el, Block(role="caption"), fmt, case, part, attrs)
             case Note():
                 self.note(el, d, fmt, case, part)
-            case Edit(kind=kind, attr=attr):
+            case Edit(kind=kind, attr=attr, extract=extract):
                 other = el.get(attr)
+                if other and extract:
+                    m = re.search(extract, other)
+                    other = m.group(1) if m else None
                 self.children(el, fmt, case, part, {**attrs, "edit": (kind, other)} if other else attrs)
             case Language(attr=attr):
                 lang = el.get(attr)
@@ -369,35 +379,43 @@ class _Walk:
                 if d.script != "baseline":
                     f.add(d.script)
                 self.children(el, fmt | f, case, part, attrs)
-            case Break(run_on=run_on):
+            case Break(run_on=run_on):                  # in the body or the footer after it: the page's end
                 self.flush()
-                if part == "body":
+                if part in ("body", "footer"):
                     self.last_break = not run_on
-            case Describe(kind=kind, attr=attr):
+            case Describe(kind=kind, attr=attr):         # from an attribute: the element's own text is printed
                 text = el.get(attr) if attr else " ".join("".join(el.itertext()).split())
                 if text:
                     self.block(part).descriptions.append((kind, text))
+                if attr:
+                    self.children(el, fmt, case, part, attrs)
             case _:
                 return False
         return True
 
-    def note(self, el, d: Note, fmt, case, part):
-        host = self.block(part)
-        saved, self.cur = self.cur, None
+    def content(self, el, fmt, case, part) -> list[Run]:
+        """An element's content read whole, as runs: its blocks one after another, a line break between them; the
+        notes inside it go to the page's notes, its pictures to the blocks."""
         sub = _Walk(self.decided, self.case)
-        sub.block(part, role="footnote_continued" if d.continued else "footnote")
-        sub.children(el, fmt, case, part, {})
+        sub.children(el, fmt, self.case.value(el, case), part, {})
         sub.flush()
         runs: list[Run] = []
         for b in sub.blocks:
-            if runs and b.runs:
+            if b.file is not None:
+                self.blocks.append(b)
+                continue
+            if runs and (b.runs or b.rows):
                 runs.append(Run("\n"))
-            runs += b.runs
-        if "".join(r.text for r in runs).strip():
-            host.notes.append(TextBlock(role="footnote_continued" if d.continued else "footnote", runs=runs,
-                                        part=part))
+            runs += b.runs if b.rows is None else [Run(_block_text(b))]
+            self.notes += b.notes
         self.notes += sub.notes
-        self.cur = saved
+        return runs
+
+    def note(self, el, d: Note, fmt, case, part):
+        role = "footnote_continued" if d.continued and d.role == "footnote" else d.role
+        runs = self.content(el, fmt, case, part)
+        if "".join(r.text for r in runs).strip():
+            self.block(part).notes.append(TextBlock(role=role, runs=runs, part=part))
 
     def picture(self, el, d: Picture, part):
         src = el.get(d.attr) or next((e.get(d.attr) for e in el.iterdescendants() if isinstance(e.tag, str)
@@ -434,15 +452,8 @@ class _Walk:
                 cells = []
                 for c in x:
                     if isinstance(c.tag, str) and c.tag.lower() in ("td", "th"):
-                        sub = _Walk(self.decided, self.case)
-                        sub.children(c, frozenset(), self.case.value(c, case), part, {})
-                        sub.flush()
-                        self.notes += sub.notes + [n for b in sub.blocks for n in b.notes]
-                        text = "\n".join(_block_text(b) for b in sub.blocks if b.file is None)
+                        text = "\n".join(t for t, _ in _lines(self.content(c, frozenset(), case, part)))
                         cells.append((text, _span(c.get("rowspan")), _span(c.get("colspan"))))
-                        for b in sub.blocks:
-                            if b.file is not None:
-                                self.blocks.append(b)
                 rows.append(cells)
         if caption is not None:
             self.as_block(caption, Block(role="caption"), frozenset(), case, part, {})
@@ -523,7 +534,9 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                     t.formulas.append(Formula(annotator=who, target=f"{lid}[{a}:{e}]", latex=text[a + 1:e - 1]))
                     continue
                 f = {k: True for k in ("italic", "bold", "underline", "strikethrough") if k in r.fmt}
-                f.update({"script": s} for s in ("super", "sub") if s in r.fmt)
+                for s in ("super", "sub"):
+                    if s in r.fmt:
+                        f["script"] = s
                 if f:
                     fmts.append(Formatting(charspan=[a, e], **f))
                 if r.edit is not None:

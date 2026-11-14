@@ -76,15 +76,16 @@ class Block(Decision):
 
 class Cell(Decision):
     """A cell of a row of cells printed as one line (a running head: left, centre, right): the cells under one
-    parent make one region of ``role``, each cell a region of its own inside it."""
+    parent make one region of ``role``, each cell a region of its own inside it. Without a role: the furniture role
+    of the part it stands in (``header`` in the page's header, ``footer`` in its footer, else ``header``)."""
 
     name: ClassVar[str] = "cell"
-    role: str = "header"
+    role: str | None = None
 
     @field_validator("role")
     @classmethod
-    def _role(cls, v: str) -> str:
-        return _check_role(v)
+    def _role(cls, v: str | None) -> str | None:
+        return _check_role(v) if v is not None else v
 
 
 class Picture(Decision):
@@ -101,19 +102,23 @@ class Caption(Decision):
 
 
 class Note(Decision):
-    """A note: its text is a region of its own (``footnote``, or ``footnote_continued`` for a note continued from an
-    earlier page) linked to the region where it stands (``note_of``); where it stands, nothing is printed."""
+    """A note: its text is a region of its own (``role``: a footnote, a sidenote's ``marginalia``, an ``endnote``;
+    ``continued``: a footnote continued from an earlier page, ``footnote_continued``) linked to the region where it
+    stands (``note_of``); where it stands, nothing is printed."""
 
     name: ClassVar[str] = "note"
+    role: Literal["footnote", "marginalia", "endnote"] = "footnote"
     continued: bool = False
 
 
 class Edit(Decision):
-    """Printed as it is, with another reading of it in an attribute (``corrected``, ``expanded``, ...)."""
+    """Printed as it is, with another reading of it in an attribute (``corrected``, ``expanded``, ...); ``extract``:
+    a regular expression whose first group is the reading within the attribute's value (no match: no edit)."""
 
     name: ClassVar[str] = "edit"
     kind: Literal["corrected", "normalized", "expanded", "regularized"]
     attr: str = "title"
+    extract: str | None = None
 
     @field_validator("kind")
     @classmethod
