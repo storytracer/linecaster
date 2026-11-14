@@ -10,7 +10,7 @@ wheels/
 .venv
 .claude/
 
-# the docs site (mkdocs build)
+# the docs site (zensical build)
 site/
 
 # the generated docs (`linecaster docs`, run before the site is built)

@@ -507,7 +507,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Region.id` | `Region.id` |
 | `Region.label` | a `role` classification (Docling label → role), by the layout annotator; by typography where its step changed it |
 | `Region.raw_label` | `Region.label` |
-| `Region.polygon` | `Region.polygon`, flattened |
+| `Region.polygon` | `Region.polygon` |
 | `Region.bbox` | `Region.box` |
 | `Region.score` | `Region.confidence` |
 | `Region.reading_order` | the layout annotator's `ReadingOrder` |
@@ -520,7 +520,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Line.id` | `Line.id` |
 | `Line.region_id` | `Line.region` |
 | `Line.reading_order`, `Line.row` | the `ReadingOrder`'s `lines` and `rows` |
-| `Line.bbox`, `polygon`, `baseline` | `Line.box`, `polygon`, `baseline` (flattened) |
+| `Line.bbox`, `polygon`, `baseline` | `Line.box`, `polygon`, `baseline` |
 | `Line.score` | `Line.confidence` |
 | `Line.text`, `confidence`, `alternatives`, `words` | `Line.reading`: `text`, `confidence`, `alternatives`, `words` |
 | `Line.normalized` | a `normalized` edit |

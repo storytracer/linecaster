@@ -31,6 +31,10 @@ theme:
         icon: material/weather-sunny
         name: Light mode
 
+# the page grid at full width instead of the theme's 61rem
+extra_css:
+  - stylesheets/layout.css
+
 markdown_extensions:
   - admonition
   - attr_list

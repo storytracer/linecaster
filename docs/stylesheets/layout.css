@@ -1,0 +1,4 @@
+/* The page grid at the window's full width (the theme caps it at 61rem): wide tables and code need the room. */
+.md-grid {
+  max-width: none;
+}

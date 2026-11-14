@@ -4,6 +4,13 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- The docs site uses the window's full width (`docs/stylesheets/layout.css`); the theme capped its page grid at
+  61rem, which squeezed the wide tables of the reference.
+
 ## 0.8.2 (2026-11-14)
 
 ### Changed
