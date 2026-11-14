@@ -988,7 +988,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "../" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
@@ -1049,9 +1049,8 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.6" },
 ]
 docs = [
-    { name = "mike", specifier = ">=2.1,<3" },
-    { name = "mkdocs", specifier = ">=1.6,<2" },
-    { name = "mkdocs-material", specifier = ">=9.6,<10" },
+    { name = "mike", git = "https://github.com/squidfunk/mike.git?tag=2.2.0%2Bzensical-0.1.0" },
+    { name = "zensical", specifier = "==0.1.1" },
 ]
 
 [[package]]
