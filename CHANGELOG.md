@@ -4,6 +4,20 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- The docs site is built by Zensical (`zensical==0.1.1`, reading `mkdocs.yml`) instead of Material for MkDocs, which
+  reaches its end of life in May 2027; versions are published with Zensical's fork of mike, as before one folder per
+  release on `gh-pages`. The `docs` dependency group changes accordingly; preview with `uv run --group docs zensical
+  serve`.
+
+### Fixed
+
+- A `|` inside code in a generated table (a type such as `dict[str, Any] | None` on a block's page) no longer shows
+  its escaping backslash.
+
 ## 0.8.1 (2026-11-14)
 
 ### Upgrade notes
