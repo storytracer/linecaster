@@ -1,4 +1,4 @@
-# The catalog: models, presets, recipes, policies
+# The catalog: models, presets, recipes, policies, conventions
 
 The catalog describes every model Linecaster can run, how it runs it, and the tested combinations. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
@@ -9,14 +9,17 @@ src/linecaster/catalog/data/
   presets/<step>/<id>.yaml, <id>.md       # one folder per step (STEPS)
   recipes/<id>.yaml, <id>.md
   policies/<id>.yaml
+  conventions/<format>/<id>.yaml, <id>.md # one folder per format; the prose is required
   catalog.lock
 src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic models
 ```
 
 ## What the catalog holds
 
-The catalog and its docs are organized by six kinds: engines and pipelines (code, by versioned id) and
-four kinds of catalog entry (models, presets, recipes, policies; a YAML file each).
+The catalog and its docs are organized by seven kinds: engines and pipelines (code, by versioned id) and
+five kinds of catalog entry (models, presets, recipes, policies, conventions; a YAML file each). The kinds of entry
+are one table in the code (`linecaster.catalog.registry.KINDS`: each kind's files, format, id rule, lock table and
+prose rule), so loading, the lock and the checks of prose are the same for all.
 
 | Kind | Is | Named | Lives in |
 |---|---|---|---|
@@ -26,6 +29,7 @@ four kinds of catalog entry (models, presets, recipes, policies; a YAML file eac
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
 | recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
 | policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug, with an edition: `page-layers@1` | `policies/<id>.yaml` |
+| conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug, with an edition: `example@1` | `conventions/<format>/<id>.yaml` |
 
 Besides these: the **lock** (released editions) and the **run record** (`OUT/run.yaml`, and per page each
 `Annotator` of the page record: what a run resolved).
@@ -235,12 +239,48 @@ the option `text: reflow`) is a migration too: the pipeline it expands to is the
 parameters, so the edition keeps its number, and `catalog release --migrate-pipeline` records the expanded pipeline
 again (the recipe stamp carries the new hash).
 
+### Conventions (`conventions/<format>/<id>.yaml`)
+
+What one public source's markup or export means (a wiki's templates and classes, a TEI customization, a
+repository's PAGE-XML profile), declaratively, in the format `linecaster.conventions/1` (`linecaster.markup`). Its
+Markdown sidecar is required, with the headings `## Source`, `## How the markup works`, `## Not in the rules` and
+`## Open questions`: what the rules cannot say neatly.
+
+| Field | Meaning |
+|---|---|
+| `id`, `edition` | |
+| `format` | the format whose importer applies it (`html`, `xml`, `json`, `text`, ...); its folder |
+| `extends` | the parent entry, pinned (`base@1`): the entry starts from the parent's resolved rules |
+| `description`, `source` | what it is for and what it was written against (prose, not functional) |
+| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `block` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
+| `disable` | a parent's rule id → why this source does not use it |
+
+**Layering.** A child's rule with a parent's id replaces it where it stands (or moves it, with `before`/`after`), a
+new id is added at the end (or before/after a rule), `disable` removes the parent's; every entry of a chain has the
+same format. `Catalog.conventions(ref)` resolves the chain into a `ResolvedConventions`: the rules in order, the
+chain (`base@1>source@3`) and the hash of what the rules do (format, matches, decisions, fields, who; not the
+documentation). An importer records both in its annotator (`conventions`, `conventions_sha256`): two readings applied
+the same rules when the hashes are equal.
+
+**Released** like a policy: the functional content (format, parent, the disabled ids, each rule's id, match,
+decision, fields, who and place) is hashed into the lock; a child is released only on a released parent. An older
+edition is read back from the lock without its documentation.
+
+**Checks** (`linecaster catalog verify`): released and unchanged; resolvable; every decision applied by its format's
+importer; its prose and headings; across the children of one parent: a rule all of them repeat belongs in the
+parent (promotion), an override equal to what it replaces is redundant, a child on an older edition of its parent is
+lagging.
+
+Conventions are the one kind of entry that names a source: they are declarative, opt-in (nothing applies them
+unless a run or ground truth names the edition), say what a source's markup means rather than what one dataset
+counts, hold no copied pages (tests use fixtures written for them), and keep the source's name inside the entry.
+
 ## Steps, capabilities, labels
 
 Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose engines run models, and the
 rule-based steps (`RULE_STEPS`) `image` (the working image), `normalization` (character fidelity: as written →
-normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs)
-and `composition` (the document). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
+normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs),
+`composition` (the document) and `import` (a source document read into a transcription: the importers). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
 Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
 `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:

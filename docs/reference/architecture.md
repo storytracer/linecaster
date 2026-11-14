@@ -9,17 +9,21 @@ builder, failures and the run record are in [pipelines](pipelines.md), models, p
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
 combines layout, line, text, table and formula recognizers with post-processing (dehyphenation, recomposition,
 normalization) into reproducible datatrove pipelines that turn page images into text: the text as written, readable
-variants next to it, ALTO, PAGE-XML and hOCR on request. It is a generalist tool: built on protocols (HTTP,
-S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, Parquet, JSON Lines) and standards (METS/MODS, Unicode),
-it depends on no collection, site, institution or project. Everything that produces text from images lives here;
-evaluations and project pipelines (derivatives) are built on top of it.
+variants next to it, ALTO, PAGE-XML and hOCR on request. It also reads ground truth in any format into the same
+data model, writes it as page records and scores runs against it. It is a generalist tool: built on protocols (HTTP,
+S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, HTML, Parquet, JSON Lines) and standards (METS/MODS,
+Unicode, CSS selectors, JSONPath), its code depends on no collection, site, institution or project; what a public
+source's markup means is declarative data in its catalog (conventions). Everything that produces text from images,
+and that reads, prepares and scores ground truth, lives here; evaluations and project pipelines (derivatives) are
+built on top of it.
 
 ## Packages
 
 | Package | Holds |
 |---|---|
 | `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
-| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; the DoclingDocument exports and importer; the IIIF annotation page |
+| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; the DoclingDocument exports and importer; the IIIF annotation page |
+| `linecaster.markup` | conventions: their format (`linecaster.conventions/1`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
 | `linecaster.text` | the text transforms: Unicode, typography, recomposition, the text variants |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
@@ -73,9 +77,9 @@ number of tasks or the backend.
 - **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per model (several
   replicas per model were measured at +7–10 % and removed; NOTES.md), each with a bounded queue (`--max-queue`; a
   full queue answers 429 with `Retry-After`). Routes: `POST /v1/linecaster/{step}` (the image and the transcription
-  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/3`
+  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/4`
   annotation sets), `GET /v1/models`, `/health` (`status` and `protocol`, the transcription format:
-  `linecaster.page/3`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
+  `linecaster.page/4`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
   already answers for its `protocol` when it warms up and refuses one that names another format or none
   (`ServerError`): both sides run the same linecaster version. Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
@@ -98,18 +102,20 @@ number of tasks or the backend.
 ## Engines
 
 An engine is a class with a versioned id ([catalog](catalog.md#engines)). Engine packages live in
-`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`, and the
+`engines/<engine>/`, each its own package: `linecaster-kraken`, `linecaster-paddlex`, `linecaster-tesseract`, the
 page engines' `linecaster-indra`, `linecaster-surya` and `linecaster-services` (the clients of Falcon-OCR's and OXR's
-services). An
+services), and the importer `linecaster-mediawiki` (MediaWiki wikitext through wikitextprocessor). An
 engine class (`<Provider><Step>Engine`) has `engine_id` (the entry point's name in `linecaster.engines`), `step`,
 `capabilities` (unit, produces), an `Options` model (its keyword arguments; a preset's `weights` besides), `load()`
 and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array, or the image file's
-bytes for an engine whose `image_input` is `"bytes"`, and the transcription so far, returned with its part added). Engines with weights load exactly the pin (`weights`,
+bytes for an engine whose `image_input` is `"bytes"`, and the transcription so far, returned with its part added);
+an importer (step `import`) is called with a source document (`SourceDocument`) and returns a new transcription. Engines with weights load exactly the pin (`weights`,
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in
 linecaster's catalog. They import from linecaster only `linecaster.data` and the engine API
-(`linecaster.engines.api`: the `Engine` protocol, `Capabilities`, the weight helpers), have versions of their own
+(`linecaster.engines.api`: the `Engine` protocol, `Capabilities`, the weight helpers, and for importers `Importer`,
+`conventions`, `HtmlConverter`, `SourceMap`), have versions of their own
 with a range of linecaster releases, and their tests in `engines/<engine>/tests/` ([catalog](catalog.md#engines)).
 
 ## Tests

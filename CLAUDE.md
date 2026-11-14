@@ -16,8 +16,28 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   collection, institution or machine is named in the repository (code, docs, catalog, tests, NOTES.md,
   CHANGELOG.md); examples use `example.org`, tests `library.test` and `example.org`. A project's choices would
   otherwise become everyone's defaults.
-- **Everything that produces text from images lives here**; evaluations and project pipelines (derivatives) build
-  on linecaster, never the other way round. One direction of dependency keeps linecaster usable by all of them.
+- **The one exception: declarative conventions of public sources, as catalog entries.** What a public source's
+  markup or export means (a wiki's templates and classes, a TEI customization, a repository's PAGE-XML profile) may
+  live in the catalog (`catalog/data/conventions/<format>/<source>.yaml`), written only in linecaster's formats
+  (`linecaster.conventions/1`) and validated against their schemas. The conditions keep linecaster generic:
+  - **declarative only**: no code names a source or branches on one; what needs computation is a decision of the
+    format's generic vocabulary or of an engine package, never a source's own code;
+  - **opt-in, never a default**: nothing applies a source's conventions unless a run or ground truth names the
+    edition, which its annotator records;
+  - **meaning, not a project's choices**: an entry says what the source's markup means, each rule with its `why` and
+    `decided`, its Markdown sidecar what the rules cannot say; what one dataset counts as its ground truth stays in
+    that derivative, as its own policy;
+  - **no data**: tests use fixtures written for them, not copied pages; regression runs on real pages, and their
+    records, live with the evaluations or datasets that run them;
+  - **names stay inside the entries**: a source is named only in its conventions entry and that entry's generated
+    docs; code, other docs and tests keep `example.org`;
+  - **layered and released like every entry**: an entry extends at most one other at a pinned edition (shared
+    conventions once, each source only what differs); released editions are immutable.
+  Conventions are facts about a source that every reader of it needs once; kept in derivatives, each would decide
+  them again, differently.
+- **Everything that produces text from images, and that reads, prepares and scores ground truth, lives here**;
+  evaluations and project pipelines (derivatives) build on linecaster, never the other way round. One direction of
+  dependency keeps linecaster usable by all of them.
 - **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout, the job helpers
   and pipeline-building helpers; example pipelines only as pipeline scripts (`pipelines/`), recipes as catalog
   entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a derivative may be named after it, and its

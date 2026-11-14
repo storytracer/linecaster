@@ -1,7 +1,7 @@
 # The data model
 
 `linecaster.data` holds what is read from a page and how it is rendered; `linecaster.data.page` the page record it
-travels in. A stored page record names its format in its row's `schema`: `linecaster.page/3`. Importing
+travels in. A stored page record names its format in its row's `schema`: `linecaster.page/4`. Importing
 `linecaster.data` needs neither datatrove nor saturate nor an engine.
 
 ## Principles
@@ -103,6 +103,7 @@ adds a classification next to the first, and the policy's `precedence` says whos
 | `format` | for converted sets and ground truth: `alto`, `page`, `hocr`, `docling`, `text`, `markdown`, or an evaluation's own name |
 | `uri`, `sha256` | the delivered file and its hash |
 | `dataset`, `record` | for ground truth and converted sets from a dataset: `repo@revision`, and the row or file the set was read from |
+| `revision` | the revision of the source text that the zones' anchors refer to (a wiki page's revision id, a commit) |
 | `image_sha256`, `image_width`, `image_height` | the image the set's coordinates refer to |
 | `scale` | the factors (`[sx, sy]`) a set was scaled by onto this image (`AnnotationSet.scaled`) |
 
@@ -118,6 +119,7 @@ or people. Annotations name it by its index in `annotators`.
 | `name` | the model (`kraken-ppocrv6-medium`); for a rule, what ran (`unicodedata`, the engine's id); for people, the group (`proofreaders`) |
 | `engine`, `revision` | the engine's code id, the model's revision |
 | `preset`, `preset_sha256`, `recipe`, `recipe_sha256` | the preset and recipe editions it ran as, and their hashes |
+| `conventions`, `conventions_sha256` | an importer's: the conventions it applied, resolved (the chain, `base@1>source@3`), and the hash of what their rules do |
 | `backend` | in-process, or served with the server's address |
 | `run` | the run that produced the annotator's work (its run id, `RunRecord.run_id`); `None` for files and people |
 | `settings` | what decided the output besides the preset: the engine's options, a VLM's prompt and sampling; for people, their review: `review` (`transcribed`, `proofread`, `validated`, or the source's own word) |
@@ -203,6 +205,7 @@ an annotator of its own (a word, a glyph, a cell) is a **shape** (`Shape`).
 | `polygon` | `[[x, y], ...]` as the annotator gave it, or `None` | `Shape` |
 | `id` | unique within the page and set (`r3`, `l17`); never contains `#`, `/` or `[` | `Zone` |
 | `parent` | the zone it lies in (a running head's title and page number inside the running head) | `Zone` |
+| `anchor` | where its text comes from in the source text it was read from: `{start, end}`, characters of the source at `Source.revision`; set by importers, `None` for zones found on the image | `Zone` |
 | `label` | the annotator's own label (PP-DocLayout's `aside_text`, LightOn's `page_number`), verbatim | `Region` |
 | `region` | the region the line belongs to: set once, by the step that assigned it | `Line` |
 | `baseline` | `[[x, y], ...]` | `Line` |
@@ -248,12 +251,20 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 | `heading_level` | `1`, `2`, ... (docling-core's `SectionHeaderItem.level`) | typography |
 | `language` | a BCP 47 tag, on the page (`""`), a zone or a span | recognition, a ground truth |
 | `script` | an ISO 15924 code | recognition |
-| `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed` | a ground truth, typography |
+| `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, typography, an importer |
 | `picture_class` | docling-core's `PictureClassificationLabel` (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
 | `code_language` | docling-core's `CodeLanguageLabel` | a VLM |
 
 The annotator's own label is the region's `label`, not a classification; the mapping from it to a role is catalog
 data per engine (each engine's label map), applied by the annotator that made the region.
+
+A `status` classification's `reason` says why something present in a source is no text of the page
+(`linecaster.data.REASONS`): `hidden` (not seen and taking no space), `invisible` (not seen but taking its space),
+`generated` (the source's software or markup draws it), `editorial` (the source's editors wrote it), `error` (a
+message of the source's software), `metadata` (markup that is no content), `apparatus` (the source's notation for
+something the page prints differently), `elsewhere` (printed text that belongs to another page or place), `layout`
+(markup that only arranges the page). An importer keeps such text, where its conventions say so, as a region with
+status `removed` and its reason, which no rendering takes.
 
 ### Descriptions
 

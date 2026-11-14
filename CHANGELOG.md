@@ -6,8 +6,68 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+Ground truth from any source: importers (a new step), conventions of public sources in the catalog, an HTML importer,
+and anchors into the source text. The plan and its decisions are in NOTES.md (2026-11-14).
+
+### Upgrade notes
+
+- **Page records are `linecaster.page/4`.** page/4 only adds fields (`Zone.anchor`, `Source.revision`,
+  `Classification.reason`, `Annotator.conventions` and `conventions_sha256`); `PageRecordReader` and
+  `linecaster score` read page/3 rows as they are. A server and its clients must run the same version.
+- **`TranscriptionConverter` is `TranscriptionImporter`**, and takes an importer: a preset of the new step `import`
+  (`auto-import@1`, `alto-import@1`, `page-xml-import@1`, `hocr-import@1`, `text-import@1`, `docling-import@1`,
+  `html-import@1`) or an engine spec. `format=...` becomes the preset; `ground_truth=True` becomes the option
+  `ground_truth`, which is now the default (`options={"ground_truth": False}` for a library's own OCR); the default
+  transcription is `ground_truth`. The builder and `pipelines/harvest.py` insert
+  `TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})`. The stat
+  `pages_without_file` is `pages_without_document`.
+- `sniff` and `from_text` moved from `linecaster.blocks.conversion.transcriptions` to `linecaster.formats.text`.
+- The upgrade of stored rows is one chain in `linecaster.data.upgrade` (`upgrade(row)`); `page_2_to_3` takes only
+  page/2 rows.
+
+### Added
+
+- **The `import` step and its engines, the importers** (`linecaster.engines.importers`): a source document
+  (`linecaster.data.SourceDocument`: content, format, URI, record, revision, dataset, the page image's size, context)
+  in, a transcription out, a ground truth by default. Built in: `import.alto.v1`, `import.page.v1`, `import.hocr.v1`,
+  `import.text.v1`, `import.docling.v1`, `import.html.v1`, `import.auto.v1`, with a preset each. The engine check
+  (`check_engine`, `source=`) covers importers.
+- **Conventions** (`linecaster.markup`, the catalog kind `conventions`, `linecaster.conventions/1`): what a public
+  source's markup means, declaratively: rules of a match (`tree`: a CSS selector with text, style and ancestor
+  conditions; `json`: a JSONPath, RFC 9535, extra `jsonpath-rfc9535`; `text`: a regular expression) and a decision
+  in the data model's vocabulary (`remove` with a reason, `invisible`, `unwrap`, `block`, `cell`, `picture`,
+  `caption`, `note`, `edit`, `language`, `format`, `break`, `describe`; engine packages may add more through the
+  entry points `linecaster.decisions`). An entry extends at most one other at a pinned edition (replace by rule id,
+  `disable`, `before`/`after`); `Catalog.conventions(ref)` resolves the chain with its hash. Released like policies;
+  `verify` checks them (resolvable, decisions applied by their importer, prose and its headings, and across a
+  parent's children: promotion, redundant overrides, lagging editions). The catalog's first entries: `mediawiki` and
+  `enwikisource` (format `html`). Docs pages for conventions entries and for rendering policies.
+- **`linecaster.formats.html.HtmlConverter`**: HTML into a transcription by HTML's semantics (blocks, headings,
+  lists, tables with spans, figures, MathML formulas with their LaTeX, formatting, `lang`), ARIA and DPUB-ARIA roles
+  (`heading`, `doc-pageheader`, `doc-pagefooter`, `doc-footnote`, `doc-noteref`), the page's CSS cascaded
+  (`display: none`, `visibility: hidden`, `text-transform`, from style sheets and inline styles), and a source's
+  conventions; its coverage (what no rule matched) and whether the page's last paragraph runs on.
+- **Anchors**: `Zone.anchor` (characters `[start, end)` of the source text at `Source.revision`) and
+  `linecaster.markup.anchors.SourceMap`, which anchors an importer's lines by aligning them with what its processor
+  saw (verbatim pieces and opaque calls).
+- **Status reasons** (`linecaster.data.REASONS`): why something present in a source is no text of the page, on a
+  `status` classification (`hidden`, `invisible`, `generated`, `editorial`, `error`, `metadata`, `apparatus`,
+  `elsewhere`, `layout`).
+- `linecaster.text.formulas`: LaTeX without its presentation commands (a formula's content), for importers.
+- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `unexpanded`.
+- **`linecaster-mediawiki`** (`engines/mediawiki`, 0.1.0): `import.mediawiki.v1` reads a ProofreadPage `Page:` page's
+  wikitext through wikitextprocessor (pinned to a commit) in the wiki's own context (its templates, Lua modules and
+  style sheets, taken in from a dump by `linecaster-mediawiki intake`), builds HTML by MediaWiki's rules (Cite's
+  notes, Math, Poem, Gallery, TemplateStyles, the page's header and footer as DPUB-ARIA furniture) and reads it with
+  the HTML converter under the wiki's conventions; every line and region anchored in the revision.
+
 ### Changed
 
+- The catalog's kinds of entry are one table (`linecaster.catalog.registry.KINDS`): loading, ids, the lock tables and
+  the prose rule are the same code for every kind; `Directory.entries`/`bodies`/`paths` by kind, `Catalog.index`.
+- The steps are defined once (`STEPS`); a preset's `step` is derived from them.
+- linecaster's scope (CLAUDE.md) includes reading, preparing and scoring ground truth; declarative conventions of
+  public sources are the one kind of entry that names a source.
 - The docs site uses the window's full width (`docs/stylesheets/layout.css`); the theme capped its page grid at
   61rem, which squeezed the wide tables of the reference.
 

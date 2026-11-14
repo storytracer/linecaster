@@ -14,7 +14,7 @@ working or starts to mean something else:
 | backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for blocks | a new argument with a default that keeps the old behavior |
 | commands and flags | a `linecaster` command or a pipeline script's option renamed, removed, or given another meaning or default | a new command or option |
 | pipeline ids and slots | a pipeline id or a slot renamed or removed, a slot's step changed | a new pipeline script; a new slot that can stay empty |
-| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/3`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
+| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/4`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
 | the run layout | a folder or file name under `OUT` (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) or its format changed | a new file or folder |
 | the catalog | a catalog id (model, preset, recipe, policy) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
 | engines | an engine id removed; an option renamed or removed, or a default changed (a new code id, `.v2`, instead) | a new engine; a new option whose default keeps the old behavior (the same id) |

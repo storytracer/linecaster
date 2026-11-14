@@ -24,10 +24,15 @@ review in `settings.review`: `transcribed`, `proofread`, `validated`, or the sou
 delivered file whose making is unknown). It holds what its source has and no more: roles, boxes, reading order,
 notes, continuations, corrections, illegible spans, each as the [data model](data-model.md) defines them.
 
-Importers in linecaster are generic: ALTO, PAGE-XML and hOCR (`linecaster.formats`, `ground_truth=True`), Docling
-JSON (`from_docling`), and text or Markdown with optional header and footer fields. A source with conventions of its
-own (a wiki's templates, a project's markup) is imported by the evaluation's own code, which builds the annotations
-through `linecaster.data`.
+Ground truth is read by **importers**, the engines of the `import` step, which `TranscriptionImporter` runs and
+`pipelines/import_transcriptions.py` runs over a source's documents into page records: ALTO, PAGE-XML, hOCR, plain
+text, DoclingDocuments and HTML in linecaster (`import.*.v1`, presets `alto-import@1`, ...), and formats that need
+more in engine packages (MediaWiki wikitext: `linecaster-mediawiki`). A source with conventions of its own (a wiki's
+templates and classes, a project's markup) is read with its **conventions**, a catalog entry its importer applies:
+each rule a match in the format's standard and a decision in the data model's vocabulary (what is text, what is a
+role, a note, an edit, what is removed and why). The importer records the conventions' chain and hash, the coverage
+(what no rule handled) and, for a source text, where every line comes from (`Zone.anchor`). No source needs code of
+an evaluation's own any more.
 
 **What a ground truth supports** is recorded in its benchmark (below): which roles it marks, whether it has boxes,
 a reading order of blocks, notes, continuations across pages. A metric that needs what it lacks is not computed.

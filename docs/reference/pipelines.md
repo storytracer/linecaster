@@ -94,7 +94,7 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   `LayoutDetector("single-region@1")`, builds one): the engine loads in the worker;
 - `Served(endpoint, model=name, ...)`: `linecaster serve` (or a server speaking its routes) hosts it, reached through
   saturate on `/v1/linecaster/{step}`; `warm_up()` refuses a server whose `/health` names another transcription
-  format than `linecaster.page/3`, or none;
+  format than `linecaster.page/4`, or none;
 - `Chat(preset, endpoint=None, served_name=None, max_window=32, initial_window=4, read_timeout=600.0, api_key=None,
   headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
@@ -590,7 +590,7 @@ the paragraphs of the item recomposition.
 
 ## Page records
 
-Stored page records are rows `{"schema": "linecaster.page/3", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+Stored page records are rows `{"schema": "linecaster.page/4", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`): `page` is the page record of the
 [data model](data-model.md), its annotation sets with their annotators, raw outputs and annotations. Renderings
 (the Composer's Docling document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to

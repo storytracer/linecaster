@@ -47,9 +47,9 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
   labels, serving), read from the YAML. The Markdown prose and descriptive fields (support, provenance) are not
   part of it, so they can be corrected without a new edition; git keeps their history.
 
-Schemas: `preset`, `recipe`, `model`, `policy`, `benchmark`, `evidence` (`evidence-2`, and `evidence-1` for older
+Schemas: `preset`, `recipe`, `model`, `policy`, `conventions`, `benchmark`, `evidence` (`evidence-2`, and `evidence-1` for older
 records), `run-record`, `lock`. Stored page records name their format in a `schema` field of their row
-(`linecaster.page/3`).
+(`linecaster.page/4`).
 
 ## Docstrings
 

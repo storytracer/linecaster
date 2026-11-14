@@ -85,11 +85,16 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 
 | Term | Meaning | Not |
 |---|---|---|
-| **catalog** | linecaster's register of models, engines, presets, recipes and rendering policies, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
-| **catalog entry** | One registered thing: a model, a preset, a recipe or a rendering policy; a YAML file, with a Markdown sidecar for its prose. | not a "component", not a "document" |
-| **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `normalization`, `typography`, `recomposition`, `composition`. A preset belongs to one step. | not a block |
-| **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit. Built-in engines live in the core; engine packages (`linecaster-kraken`, ...) add more. | not saturate's `Engine` class (its server launcher) |
-| **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image). A strategy declares the scripts it covers. | |
+| **catalog** | linecaster's register of models, engines, presets, recipes, rendering policies and conventions, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
+| **catalog entry** | One registered thing: a model, a preset, a recipe, a rendering policy or a conventions entry; a YAML file, with a Markdown sidecar for its prose (required for conventions). | not a "component", not a "document" |
+| **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `normalization`, `typography`, `recomposition`, `composition`, `import`. A preset belongs to one step. | not a block |
+| **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`, `import.alto.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit (an image and a transcription, a transcription, or, for an importer, a source document). Built-in engines live in the core; engine packages (`linecaster-kraken`, `linecaster-mediawiki`, ...) add more. | not saturate's `Engine` class (its server launcher) |
+| **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image, import). A strategy declares the scripts it covers. | |
+| **importer** | An engine of the `import` step: it reads a source document (`SourceDocument`: a file, a record, a wiki page's wikitext) into a transcription, a ground truth by default. `TranscriptionImporter` runs it. | not a reader block, which brings pages into a pipeline |
+| **conventions** | A catalog entry (`conventions/<format>/<id>.yaml`, `linecaster.conventions/1`) that says what one public source's markup means, as rules an importer applies: each a match and a decision. An entry may extend one other at a pinned edition; its Markdown sidecar is required. | not code: a source's own code never lives in linecaster |
+| **match** | Where a convention's rule points, by its format family's standard (its **match kind**): a CSS selector on an HTML or XML tree (`tree`), a JSONPath on JSON (`json`), a regular expression on text (`text`). | |
+| **decision** | What a convention's rule says the matched thing is, format-neutral and in the data model's vocabulary (`remove` with a reason, `block` of a role, `note`, `edit`, `cell`, ...); each importer applies the decisions it understands. | not a recomposition `Decision` (a paragraph's join) |
+| **coverage** | What an importer's conventions handled on a page: matches per rule, and what no rule matched (an element's classes), in the importer annotator's measurements. | |
 | **script** | A writing system, named by its ISO 15924 code (`Latn`, `Hebr`, `Arab`): Unicode's `Script` property. A by-script engine routes each decision to the strategy for the script around it; `*` stands for every script. | not a pipeline script |
 | **model** | An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim. | not an engine, not a preset, not a VLM adapter |
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to as `id@edition`. | |
@@ -104,7 +109,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/2`) that names the run, the benchmark, the policy and the scoring it measured with; kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
 | **revision** | The exact upstream commit a model is pinned to. | |
-| **edition** | linecaster's release number of a preset, recipe or rendering policy: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its YAML. | not a version |
+| **edition** | linecaster's release number of a preset, recipe, rendering policy or conventions entry: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its functional content. | not a version |
 | **code id** | The versioned id of an engine or a pipeline: `<name>.v<n>`. An option added later keeps the id if its default keeps the old behavior. | |
 | **schema id** | The format of a YAML file: `linecaster.preset/1`. | |
 | **lock** | `catalog.lock`: the hash of every released edition, and the expanded pipeline of every recipe edition. | |
@@ -165,6 +170,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | Term | Meaning | Not |
 |---|---|---|
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
+| **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
 | **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`, `alnum@2`, the default), a catalog entry. | not a text variant |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
