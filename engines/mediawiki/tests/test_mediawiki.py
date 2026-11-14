@@ -121,3 +121,19 @@ def test_parts_and_top_level_calls():
     assert ps.quality == 3
     text = "a {{x|{{y}}}} b {{{p|{{z}}}}} {{#if:1|c}} <!-- {{no}} --> <nowiki>{{no}}</nowiki>"
     assert [text[a:b] for a, b in top_level_calls(text)] == ["{{x|{{y}}}}", "{{z}}", "{{#if:1|c}}"]
+
+
+def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
+    from linecaster_mediawiki import PageReader, link_pages
+    from linecaster.text.variants import body_blocks, render
+
+    reader = PageReader(site)
+    first = "<noinclude></noinclude>A paragraph that runs<noinclude></noinclude>"
+    second = "<noinclude></noinclude>on to the next page.\n\nAnother one.{{End}}<noinclude></noinclude>"
+    pages = [(f"p{i}", reader.read(w, f"Page:Example.djvu/{i}").transcription) for i, w in enumerate((first, second))]
+    assert link_pages(pages) == 1
+    t0, t1 = pages[0][1], pages[1][1]
+    assert [(x.kind, x.target) for x in t0.links] == [("runs_into", "p1#paragraph_0")]
+    assert [(x.kind, x.target) for x in t1.links] == [("continues", "p0#paragraph_0")]
+    text = render(body_blocks([t0, t1], ["p0", "p1"]))
+    assert "A paragraph that runs on to the next page." in text and "Another one." in text
