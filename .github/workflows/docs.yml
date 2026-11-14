@@ -1,7 +1,7 @@
 # linecaster's docs workflow: the generated pages are written (linecaster docs), then the site is built and published
-# with mike on the gh-pages branch, which GitHub Pages serves. A release tag (v<major>.<minor>.<patch>) publishes
+# with mike (Zensical's fork) on the gh-pages branch, which GitHub Pages serves. A release tag (v<major>.<minor>.<patch>) publishes
 # version <major>.<minor> and moves "latest" to it. Only releases are published: main is read in a checkout
-# (`linecaster docs`, then `mkdocs serve`). No secrets.
+# (`linecaster docs`, then `zensical serve`). No secrets.
 name: Docs
 
 on:

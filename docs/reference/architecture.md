@@ -121,7 +121,7 @@ group) runs them on every core. Tests marked `gpu` or `network` (`linecaster.tes
 --all-extras` (the extras' readers are tested and documented too), `uv run pytest -n auto -m "not gpu and not
 network"`, `linecaster catalog verify`, `linecaster docs` and the site's strict build (the generated
 pages are not in git, so CI writes them and a broken reference in them fails the build). The docs workflow
-(`.github/workflows/docs.yml`) writes them too and publishes the site with mike on the `gh-pages` branch, which GitHub Pages serves
+(`.github/workflows/docs.yml`) writes them too and publishes the site, built by Zensical, with mike (Zensical's fork) on the `gh-pages` branch, which GitHub Pages serves
 (`https://storytracer.github.io/linecaster/`): a release tag `v<major>.<minor>.<patch>` as version `<major>.<minor>`,
 with `latest` (the site's default) moved to it; nothing else is published. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
@@ -151,7 +151,7 @@ squiddle`). A run from the URL resolves the header afresh, and its run record na
 relocked. Their HF Jobs need no `--commit`: `jobs.dependencies` installs
 linecaster from `main` with the lock's versions as constraints. With `--endpoint` the served engines need not be
 installed in the client's environment. To preview the site from a checkout: `uv run linecaster docs`, then `uv run --group docs
-mkdocs serve`.
+zensical serve`.
 
 ## Pipeline scripts
 

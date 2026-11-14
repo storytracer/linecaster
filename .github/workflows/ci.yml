@@ -32,4 +32,4 @@ jobs:
       - run: uv run linecaster catalog verify
       # the generated pages are not in git: written here, so a broken reference in them fails the strict build
       - run: uv run linecaster docs
-      - run: uv run --group docs mkdocs build --strict
+      - run: uv run --group docs zensical build --strict

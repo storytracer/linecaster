@@ -153,7 +153,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 
 - **Generated docs are written by `linecaster docs` at build time, never by hand and never committed**: the
   catalog's and the blocks' pages, `docs/index.md`, `docs/changelog.md` and `docs/llms*.txt` (git ignores them; CI
-  and the docs workflow run it before building the site). Run `linecaster docs` before `mkdocs serve` to preview.
+  and the docs workflow run it before building the site). Run `linecaster docs` before `zensical serve` to preview.
   Committed files outside `docs/` link to generated pages on the site (`latest`), never by relative path. The
   reference then cannot drift from the code, and no commit carries a regenerated page.
 - **Reference docs (`docs/reference/`) describe what is, without history**; history belongs in `CHANGELOG.md` (with

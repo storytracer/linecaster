@@ -311,7 +311,7 @@ While the version is 0.x, a breaking release raises the minor version (0.3 → 0
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
 [docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest.
-For `main`, run `uv run linecaster docs` and then `uv run --group docs mkdocs serve` in a checkout.
+For `main`, run `uv run linecaster docs` and then `uv run --group docs zensical serve` in a checkout.
 
 ## 📄 License
 
