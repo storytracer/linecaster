@@ -119,7 +119,7 @@ def test_page_records_carry_their_format(tmp_path):
     with PageJsonlWriter(str(tmp_path / "jsonl")) as w:
         w.write(doc, 0)
     (row,) = [json.loads(x) for x in gzip.open(tmp_path / "jsonl" / "00000.jsonl.gz", "rt")]
-    assert PAGE_SCHEMA == "linecaster.page/3" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
+    assert PAGE_SCHEMA == "linecaster.page/4" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
     with PageParquetWriter(str(tmp_path / "parquet")) as w:
         w.write(doc, 0)
     for folder in ("jsonl", "parquet"):
@@ -153,7 +153,7 @@ def test_page_records_of_format_1(tmp_path):
         ("layout", "PP-DocLayoutV3", "pp-doclayoutv3@1"), ("recognition", "kraken-ppocrv6-medium", "kraken-ppocrv6-medium@1")]
     assert new.annotators[0].measurements == {"seconds": 0.12, "datetime": "2026-11-04T10:00:00Z"}
     assert [m.name for m in original.annotators] == ["ABBYY FineReader"] and new.paragraphs == []
-    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/3"
+    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/4"
 
 
 def test_parquet_page_records_keep_errors_after_a_page_without(tmp_path):

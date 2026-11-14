@@ -1,9 +1,10 @@
-"""The upgrade of stored page records from ``linecaster.page/2`` to ``linecaster.page/3``.
+"""The upgrade of stored page records, from any earlier format to today's (``SCHEMA``): ``upgrade(row)``.
 
-``page_2_to_3(row)`` takes a stored row (``{"schema", "id", "text", "page", ...}``) and returns it in page/3.
-Everything page/2 held is kept: what has a place in page/3 goes there (``docs/reference/data-model.md``, "From
-``linecaster.page/2``"), the rest as extension fields ``page2__<key>``. What page/2 had already lost (text before the
-unicode step, labels before typography) cannot come back. Upgrading a page/3 row changes nothing.
+``UPGRADES`` maps a stored row's ``schema`` (``None``: rows written before phase 1, which had none) to the function
+that brings it one version on, and that version. ``page_2_to_3`` is the one that rebuilds a page: everything page/2
+held is kept, what has a place in page/3 goes there (``docs/reference/data-model.md``, "From ``linecaster.page/2``"),
+the rest as extension fields ``page2__<key>``; what page/2 had already lost (text before the unicode step, labels
+before typography) cannot come back. page/3 to page/4 only adds fields, so a page/3 row is read as it is.
 """
 from __future__ import annotations
 
@@ -16,6 +17,8 @@ from .transcription import (
 )
 
 OLD = "linecaster.page/2"
+PAGE_3 = "linecaster.page/3"
+PAGE_KEY = "page"
 
 
 def _ext(extra: dict | None, skip=()) -> dict[str, Any]:
@@ -193,12 +196,49 @@ def upgrade_transcription(d: dict, page_id: str | None = None) -> Transcription:
 
 
 def page_2_to_3(row: dict) -> dict:
-    """A stored page/2 row in page/3; a page/3 row unchanged."""
-    if row.get("schema") == SCHEMA:
-        return row
-    if row.get("schema") not in (None, OLD):
-        raise ValueError(f"cannot upgrade a page record of schema {row.get('schema')!r}")
-    page = dict(row.get("page") or {})
+    """A stored page/2 row in page/3."""
+    page = dict(row.get(PAGE_KEY) or {})
     page["transcriptions"] = {name: upgrade_transcription(t, page.get("page_id")).model_dump(
         mode="json", by_alias=True, exclude_defaults=True) for name, t in (page.get("transcriptions") or {}).items()}
-    return {**row, "schema": SCHEMA, "page": page}
+    return {**row, PAGE_KEY: page}
+
+
+def _from_before_phase_1(row: dict) -> dict:
+    """A row written before phase 1 (no ``schema``): linecaster's transcription was ``ocr``, today ``ocr_new``."""
+    transcriptions = (row.get(PAGE_KEY) or {}).get("transcriptions") or {}
+    if "ocr" in transcriptions and "ocr_new" not in transcriptions:
+        transcriptions["ocr_new"] = transcriptions.pop("ocr")
+    return row
+
+
+def _from_page_1(row: dict) -> dict:
+    """A ``linecaster.page/1`` row: a transcription's steps were ``model`` (one ``ModelInfo`` each), today
+    ``steps`` (``StepInfo``, the same fields plus ``engine``)."""
+    for t in ((row.get(PAGE_KEY) or {}).get("transcriptions") or {}).values():
+        if "model" in t and "steps" not in t:
+            t["steps"] = t.pop("model")
+    return row
+
+
+def _same(row: dict) -> dict:
+    """A format that only added fields: the row as it is."""
+    return row
+
+
+#: a stored row's ``schema`` -> the function that brings it to the next version, and that version
+UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, OLD),
+            OLD: (page_2_to_3, PAGE_3), PAGE_3: (_same, SCHEMA)}
+
+
+def upgrade(row: dict) -> dict:
+    """``row`` in today's format (``SCHEMA``), through ``UPGRADES``; an unknown format is a ``ValueError``."""
+    seen = set()
+    while row.get("schema") != SCHEMA:
+        version = row.get("schema")
+        if version not in UPGRADES or version in seen:
+            raise ValueError(f"page record {row.get('id')}: unknown format {version!r} (this linecaster reads "
+                             f"{SCHEMA} and earlier)")
+        seen.add(version)
+        fn, to = UPGRADES[version]
+        row = {**fn(row), "schema": to}
+    return row

@@ -16,7 +16,7 @@ from typing import Any
 from ..data.page import Page
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.sample import listing_sha256
-from ..data.upgrade import page_2_to_3
+from ..data.upgrade import upgrade
 from .aggregate import rates, role_rates
 from .benchmark import Benchmark
 from .metrics import score_page
@@ -33,7 +33,7 @@ def read_records(folder: str | Path) -> Iterator[dict]:
             with opener(f, "rt", encoding="utf-8") as fh:
                 for line in fh:
                     if line.strip():
-                        yield page_2_to_3(json.loads(line))
+                        yield upgrade(json.loads(line))
         elif f.suffix == ".parquet":
             import pyarrow.parquet as pq
 
@@ -41,7 +41,7 @@ def read_records(folder: str | Path) -> Iterator[dict]:
                 for key in ("page", "errors"):
                     if isinstance(row.get(key), str):
                         row[key] = json.loads(row[key])
-                yield page_2_to_3(row)
+                yield upgrade(row)
 
 
 def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcription: str = "ocr_new",

@@ -70,7 +70,7 @@ class _Flushed:
 class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     """Writes the page records as JSON Lines, one file per task, or into item shards for a later stage.
 
-    A row per page: ``schema`` (``linecaster.page/3``), ``id``, ``text``, ``page`` (the page record without the
+    A row per page: ``schema`` (``linecaster.page/4``), ``id``, ``text``, ``page`` (the page record without the
     image bytes) and ``errors`` when a block failed on the page. In a run, every annotator the run added names it
     (``Annotator.run``: the builder gives the writer the run's ``run_id``; ``stamp_run``). It reads no part in particular (the whole page
     record). The files' flush is reported to the observers. Pages pass through.

@@ -7,11 +7,11 @@ server keeps nothing between requests. Routes:
   "image_decode" (``auto``, ``gpu``, ``cpu``: how the server decodes it, ``linecaster.images.pixels``; default
   ``auto``), "transcription", "params", "page_id"}``
   -> ``{"transcription", "usage", "timing"}``; 429 when the model's queue is full, 404 for an unknown
-  model, 422 for a request the model cannot use. Both transcriptions are ``linecaster.page/3`` annotation sets
+  model, 422 for a request the model cannot use. Both transcriptions are ``linecaster.page/4`` annotation sets
   (``model_dump(mode="json", by_alias=True, exclude_defaults=True)``); the one returned has the call's
   ``Annotator`` appended, stamped with the engine, the preset and the server's times.
 * ``GET /health`` — ``{"status", "protocol"}``: 200 once every model is loaded (saturate's ``Engine`` waits for
-  it), 503 while they load; ``protocol`` is the transcription format (``PROTOCOL``, ``linecaster.page/3``), which a
+  it), 503 while they load; ``protocol`` is the transcription format (``PROTOCOL``, ``linecaster.page/4``), which a
   ``Served`` client checks when it warms up.
 * ``GET /metrics`` — vLLM-shaped gauges per model (``vllm:num_requests_waiting``,
   ``vllm:num_requests_running``), which saturate's window controller reads.

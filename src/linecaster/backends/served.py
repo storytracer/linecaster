@@ -80,7 +80,7 @@ class Served:
     The block streams its pages to ``POST <endpoint>/linecaster/{step}``: a window of requests in flight, adapted
     to the server's queue gauges and 429s, results passed on as they finish. Secrets are read in the task, when the
     block's client opens (``warm_up()`` reads them first, so a missing one fails the task before its first page);
-    a key given as text is refused (``PipelineConfigError``). Requests and responses carry ``linecaster.page/3``
+    a key given as text is refused (``PipelineConfigError``). Requests and responses carry ``linecaster.page/4``
     transcriptions: ``warm_up()`` asks a server that already answers for its protocol (``/health``) and refuses one
     that speaks another (``ServerError``).
 

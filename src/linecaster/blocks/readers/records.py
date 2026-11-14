@@ -1,5 +1,5 @@
 """``PageRecordReader``: page records written by an earlier linecaster pipeline (JSONL or Parquet), of any format
-version: each row's ``schema`` says which, and ``UPGRADES`` brings an older row to today's on read."""
+version: each row's ``schema`` says which, and ``linecaster.data.upgrade`` brings an older row to today's on read."""
 from __future__ import annotations
 
 from datatrove.io import DataFolder, DataFolderLike, get_datafolder
@@ -7,7 +7,7 @@ from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
 from ...data.page import PAGE_KEY, PAGE_SCHEMA
-from ...data.upgrade import OLD, page_2_to_3
+from ...data.upgrade import upgrade as _upgrade
 from ...errors import PageError, PipelineConfigError
 from ..base.block import reported_file
 from ..base.contract import Contract, Contracted, Part
@@ -20,41 +20,12 @@ from .sampling import Sampled
 OLD_FOLDER = "rows"
 
 
-def _from_before_phase_1(row: dict) -> dict:
-    """A row written before phase 1 (no ``schema``): linecaster's transcription was ``ocr``, today ``ocr_new``."""
-    transcriptions = (row.get(PAGE_KEY) or {}).get("transcriptions") or {}
-    if "ocr" in transcriptions and "ocr_new" not in transcriptions:
-        transcriptions["ocr_new"] = transcriptions.pop("ocr")
-    return row
-
-
-def _from_page_1(row: dict) -> dict:
-    """A ``linecaster.page/1`` row: a transcription's steps were ``model`` (one ``ModelInfo`` each), today
-    ``steps`` (``StepInfo``, the same fields plus ``engine``)."""
-    for t in ((row.get(PAGE_KEY) or {}).get("transcriptions") or {}).values():
-        if "model" in t and "steps" not in t:
-            t["steps"] = t.pop("model")
-    return row
-
-
-#: a stored row's ``schema`` (``None``: none, the rows before phase 1) -> the function that brings it to the next
-#: version, and that version
-UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, OLD),
-            OLD: (page_2_to_3, PAGE_SCHEMA)}
-
-
 def upgrade(row: dict) -> dict:
-    """``row`` in today's format (``PAGE_SCHEMA``), through ``UPGRADES``; an unknown format is an error."""
-    seen = set()
-    while row.get("schema") != PAGE_SCHEMA:
-        version = row.get("schema")
-        if version not in UPGRADES or version in seen:
-            raise PipelineConfigError(f"page record {row.get('id')}: unknown format {version!r} (this linecaster reads "
-                                      f"{PAGE_SCHEMA} and earlier)")
-        seen.add(version)
-        fn, to = UPGRADES[version]
-        row = {**fn(row), "schema": to}
-    return row
+    """``row`` in today's format (``linecaster.data.upgrade.upgrade``); an unknown format is a pipeline error."""
+    try:
+        return _upgrade(row)
+    except ValueError as e:
+        raise PipelineConfigError(str(e)) from e
 
 
 class PageRecordReader(Sampled, Contracted, PipelineStep):
@@ -71,7 +42,7 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
     Rows of an earlier format are read as today's (``upgrade``, by the row's ``schema``): rows without ``schema``
     name linecaster's transcription ``ocr`` (read as ``ocr_new``), ``linecaster.page/1`` rows a transcription's
     steps ``model`` (read as ``steps``), ``linecaster.page/2`` rows in the annotation model
-    (``linecaster.data.upgrade.page_2_to_3``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
+    (``linecaster.data.upgrade.upgrade``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
     (the folder's earlier name) is read from there.
 
     Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards

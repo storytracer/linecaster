@@ -25,7 +25,7 @@ Box = list[float]               # [x, y, width, height]
 Ref = str                       # a reference (linecaster.data.refs)
 
 #: the format of a stored page record
-SCHEMA = "linecaster.page/3"
+SCHEMA = "linecaster.page/4"
 
 _EXTENSION = re.compile(r"^[a-z][a-z0-9_]*__[a-z0-9_]+$")
 
@@ -73,6 +73,8 @@ class Annotator(_Model):
     revision: str | None = None
     preset: str | None = None                # the catalog preset edition it ran as: id@edition
     preset_sha256: str | None = None
+    conventions: str | None = None           # an importer's conventions, resolved: their chain, a>b>c@edition each
+    conventions_sha256: str | None = None    # the resolved conventions' content
     recipe: str | None = None                # the recipe edition the run followed: id@edition
     recipe_sha256: str | None = None
     backend: str | None = None               # in-process or served (with the server's address)
@@ -106,6 +108,7 @@ class Source(_Extensible):
     sha256: str | None = None                # of the delivered file
     dataset: str | None = None               # repo@revision
     record: str | None = None                # the row or file the set was read from
+    revision: str | None = None              # the revision of the source text that anchors refer to
     image_sha256: str | None = None          # the image the coordinates refer to
     image_width: int | None = None
     image_height: int | None = None
@@ -177,13 +180,29 @@ class Reading(Annotation):
     formatting: list[Formatting] = Field(default_factory=list)
 
 
+class Anchor(_Model):
+    """Where a zone's text comes from in the source the set was read from: characters ``[start, end)`` of the source
+    text (``Source.uri`` / ``Source.record`` at ``Source.revision``)."""
+
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _ordered(self):
+        if self.end < self.start:
+            raise ValueError(f"anchor ends before it starts: [{self.start}, {self.end})")
+        return self
+
+
 class Zone(Annotation):
-    """A place on the page image an annotator found. ``id`` never contains ``#``, ``/`` or ``[``."""
+    """A place on the page image an annotator found, or, read from a source text, a block or line of it (then
+    ``anchor`` says where in the source it comes from). ``id`` never contains ``#``, ``/`` or ``[``."""
 
     id: str
     box: Box | None = None
     polygon: list[Point] | None = None
     parent: str | None = None                # the zone it lies in
+    anchor: Anchor | None = None
 
 
 class Region(Zone):
@@ -247,14 +266,33 @@ class Formula(Annotation):
 #: classification schemes
 SCHEMES = ("role", "production", "heading_level", "language", "script", "status", "picture_class", "code_language")
 STATUSES = ("illegible", "gap", "suppressed", "duplicate", "removed")
+#: why something present in a source is not text of the page (a ``status`` classification's ``reason``)
+REASONS: dict[str, str] = {
+    "hidden": "a reader does not see it and it takes no space",
+    "invisible": "a reader does not see it but it takes its space; a space or line break stays",
+    "generated": "the source's software or markup draws it; the page does not print it",
+    "editorial": "the source's editors wrote it; the page does not print it",
+    "error": "a message of the source's software",
+    "metadata": "markup that is not content: style sheets, scripts, metadata elements",
+    "apparatus": "the source's notation for something the page prints differently, such as a footnote mark",
+    "elsewhere": "printed text that belongs to another page or place",
+    "layout": "markup that only arranges the page, such as an empty table row",
+}
 
 
 class Classification(Annotation):
-    """One value of one scheme for one target."""
+    """One value of one scheme for one target; a ``status`` may say why (``reason``, one of ``REASONS``)."""
 
     target: Ref
     scheme: str
     value: str
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def _reason(self):
+        if self.reason is not None and (self.scheme != "status" or self.reason not in REASONS):
+            raise ValueError(f"reason {self.reason!r}: only a status has one, from {sorted(REASONS)}")
+        return self
 
 
 class Description(Annotation):
