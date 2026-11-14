@@ -118,6 +118,13 @@
       },
       "title": "Policies",
       "type": "object"
+    },
+    "conventions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/LockEntry"
+      },
+      "title": "Conventions",
+      "type": "object"
     }
   },
   "title": "Lock",

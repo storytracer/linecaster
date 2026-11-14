@@ -17,16 +17,18 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..data.policy import RenderingPolicy
+from ..markup.model import ConventionsDoc
 from ..scoring.benchmark import Benchmark
 from ..errors import CatalogError
 from ..runtime.record import RunRecord
 
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
-#: the others rules (their engines are built in, ``linecaster.engines``)
+#: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
+#: reads a source document (a transcription file, a source's markup) into a transcription
 STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "normalization", "typography",
-         "recomposition", "composition")
+         "recomposition", "composition", "import")
 #: the steps whose engines are rules (strategies), in the pipeline's process only
-RULE_STEPS = ("image", "normalization", "typography", "recomposition", "composition")
+RULE_STEPS = ("image", "normalization", "typography", "recomposition", "composition", "import")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
 #: post-processing (``linecaster.runtime.provenance.OCRD_FALLBACK_STEP``)
 OCRD_STEPS = {
@@ -194,8 +196,7 @@ class PresetDoc(_Doc):
     schema_: Literal["linecaster.preset/1"] = Field(alias="schema")
     id: str
     edition: int = Field(ge=1)
-    step: Literal["layout", "lines", "recognition", "tables", "formulas", "image", "normalization", "typography",
-                  "recomposition", "composition"]
+    step: Literal[STEPS]
     model: ModelRef | None = Field(None, description="None for engines without weights (rules)")
     submodels: dict[str, ModelRef] = Field(default_factory=dict,
                                            description="further models of a multi-model engine, by role")
@@ -471,6 +472,7 @@ class Lock(_Doc):
     presets: dict[str, LockEntry] = Field(default_factory=dict)
     recipes: dict[str, LockEntry] = Field(default_factory=dict)
     policies: dict[str, LockEntry] = Field(default_factory=dict)
+    conventions: dict[str, LockEntry] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -485,6 +487,7 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.preset/1": PresetDoc,
     "linecaster.recipe/1": RecipeDoc,
     "linecaster.policy/1": PolicyDoc,
+    "linecaster.conventions/1": ConventionsDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.evidence/2": Evidence2,
     "linecaster.benchmark/1": Benchmark,

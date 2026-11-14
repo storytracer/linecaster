@@ -79,10 +79,21 @@ def _class_value(cls: ast.ClassDef, name: str):
     return None
 
 
-def _options(cls: ast.ClassDef) -> list[Option]:
-    """The fields of the nested ``Options`` model: ``name: type = Field(default, description=...)``."""
+def _options(cls: ast.ClassDef, classes: dict | None = None) -> list[Option]:
+    """The fields of the nested ``Options`` model: ``name: type = Field(default, description=...)``; with ``classes``
+    (name -> (file, class)), also those it inherits: an ``Options(Base.Options)``, or a class without an ``Options`` of
+    its own whose base is a known class, has its base's fields first."""
+    classes = classes or {}
     opts = next((n for n in cls.body if isinstance(n, ast.ClassDef) and n.name == "Options"), None)
-    out = []
+    inherited: list[Option] = []
+    if opts is None:
+        base = next((b.id for b in cls.bases if isinstance(b, ast.Name) and b.id in classes), None)
+        return _options(classes[base][1], classes) if base else []
+    for b in opts.bases:
+        if isinstance(b, ast.Attribute) and b.attr == "Options" and isinstance(b.value, ast.Name) \
+                and b.value.id in classes:
+            inherited = _options(classes[b.value.id][1], classes)
+    out = list(inherited)
     for node in opts.body if opts else []:
         if not (isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)):
             continue
@@ -115,20 +126,20 @@ def engines(repo: Path = REPO) -> dict[str, Engine]:
                 e.adapters[adapter] = src
         found[e.id] = e
     builtin = repo / "src" / "linecaster" / "engines"
-    if builtin.exists():
-        for name, (f, cls) in sorted(_classes(builtin).items()):
-            eid = _class_value(cls, "engine_id")
-            if isinstance(eid, str):
-                found[eid] = Engine(eid, f"linecaster.engines:{name}", "linecaster", f, _doc(cls),
-                                    _class_value(cls, "step"), _class_value(cls, "capabilities") or {}, _options(cls),
-                                    scripts=list(_class_value(cls, "scripts") or []))
+    core_classes = _classes(builtin) if builtin.exists() else {}
+    for name, (f, cls) in sorted(core_classes.items()):
+        eid = _class_value(cls, "engine_id")
+        if isinstance(eid, str):
+            found[eid] = Engine(eid, f"linecaster.engines:{name}", "linecaster", f, _doc(cls),
+                                _class_value(cls, "step"), _class_value(cls, "capabilities") or {},
+                                _options(cls, core_classes), scripts=list(_class_value(cls, "scripts") or []))
     for pyproject in sorted(repo.glob("engines/*/pyproject.toml")):
         meta = tomllib.loads(pyproject.read_text(encoding="utf-8"))
         classes = _classes(pyproject.parent / "src")
         for eid, target in meta["project"].get("entry-points", {}).get("linecaster.engines", {}).items():
             f, cls = classes[target.partition(":")[2]]
             found[eid] = Engine(eid, target, meta["project"]["name"], f, _doc(cls), _class_value(cls, "step"),
-                                _class_value(cls, "capabilities") or {}, _options(cls))
+                                _class_value(cls, "capabilities") or {}, _options(cls, {**core_classes, **classes}))
     return found
 
 

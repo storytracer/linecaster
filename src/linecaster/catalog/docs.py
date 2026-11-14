@@ -17,10 +17,11 @@ from .schema import STEPS
 
 STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
                "formulas": "➗ Formulas", "image": "🖼️ Image", "normalization": "🔤 Normalization",
-               "typography": "🔠 Typography", "recomposition": "📝 Recomposition", "composition": "📄 Composition"}
+               "typography": "🔠 Typography", "recomposition": "📝 Recomposition", "composition": "📄 Composition",
+               "import": "📥 Import"}
 #: the preset sections of the index: one per step, page presets (VLMs reading whole pages) last
 SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language models, whole pages", "recognition", True))
-KINDS = ("engines", "models", "presets", "pipelines", "recipes")
+KINDS = ("engines", "models", "presets", "pipelines", "recipes", "policies", "conventions")
 
 
 def preset_path(c: Catalog, pid: str) -> str:
@@ -50,7 +51,7 @@ def _model_url(c: Catalog, p) -> str | None:
 
 def preset_page(c: Catalog, pid: str) -> str:
     d, p = c.presets[pid]
-    body = d.preset_bodies[pid].strip()
+    body = d.bodies["preset"][pid].strip()
     lines = [f"# {pid}", "", f"*Preset · edition {p.edition} · {p.step} · {p.support}*", ""]
     if body:
         lines += [body, ""]
@@ -89,7 +90,7 @@ def preset_page(c: Catalog, pid: str) -> str:
 def model_page(c: Catalog, mid: str, out: Path, links: Links) -> str:
     d, m = c.models[mid]
     lines = [f"# {mid}", "", f"*Model · {m.version or mid} · {m.license}*", ""]
-    body = d.model_bodies[mid].strip()
+    body = d.bodies["model"][mid].strip()
     if body:
         lines += [body, ""]
     url = {"hf": f"https://huggingface.co/{m.source.ref}", "zenodo": f"https://doi.org/{m.source.ref}"}.get(
@@ -159,7 +160,7 @@ def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path, links: Links) -> str
 
 def recipe_page(c: Catalog, rid: str) -> str:
     d, rc = c.recipes[rid]
-    body = d.recipe_bodies[rid].strip()
+    body = d.bodies["recipe"][rid].strip()
     lines = [f"# {rid}", "", f"*Recipe · edition {rc.edition} · pipeline [`{rc.pipeline}`](../pipelines/"
                              f"{rc.pipeline}.md) · {rc.support}*", ""]
     if body:
@@ -175,6 +176,38 @@ def recipe_page(c: Catalog, rid: str) -> str:
         lines += _table(("Option", "Value"), [(k, f"`{v}`") for k, v in rc.options.items()])
     if rc.provenance.derived_from:
         lines += ["## Provenance", "", *[f"- {x}" for x in rc.provenance.derived_from], ""]
+    return "\n".join(lines)
+
+
+def conventions_page(c: Catalog, cid: str) -> str:
+    """A conventions entry: what it is, its parent, its prose, and its rules (match, decision, why)."""
+    d, doc = c.conventions_entries[cid]
+    resolved = c.conventions(doc.ref)
+    parent = f" · extends [`{doc.extends}`]({doc.extends.split('@')[0]}.md)" if doc.extends else ""
+    lines = [f"# {cid}", "", f"*Conventions · edition {doc.edition} · format `{doc.format}`{parent}*", "",
+             _md(doc.description), "", f"Resolved: `{resolved.ref}`, {len(resolved.rules)} rules.", ""]
+    if doc.source:
+        lines += _table(("Written against", ""), [(k, _md(v)) for k, v in doc.source.items()])
+    body = d.bodies["conventions"][cid].strip()
+    if body:
+        lines += [body, ""]
+    lines += ["## Rules", "", *_table(("Rule", "Match", "Decision", "Why"), [
+        (f"`{r.id}`", f"`{r.match.model_dump(exclude={'kind'}, exclude_none=True)}`",
+         f"`{r.decision}`" + (f" `{r.params}`" if r.params else ""), _md(r.why)) for r in doc.rules])]
+    if doc.disable:
+        lines += ["## Disabled", "", *_table(("Rule", "Why"), [(f"`{k}`", _md(v)) for k, v in doc.disable.items()])]
+    return "\n".join(lines)
+
+
+def policy_page(c: Catalog, pid: str) -> str:
+    """A rendering policy: its rules (what goes into which layer), precedence and edits per text."""
+    _, doc = c.policies[pid]
+    lines = [f"# {pid}", "", f"*Rendering policy · edition {doc.edition}*", "", _md(doc.description), ""]
+    lines += ["## Rules", "", *_table(("Role", "Production", "Status", "Layer"), [
+        (r.role or "any", r.production or "any", r.status or "any", f"`{r.to}`") for r in doc.rules])]
+    if doc.edits:
+        lines += ["## Edits", "", *_table(("Text", "Edits applied"), [
+            (f"`{k}`", ", ".join(v)) for k, v in doc.edits.items()])]
     return "\n".join(lines)
 
 
@@ -198,6 +231,13 @@ def index_page(c: Catalog, engines: dict, pipelines: dict) -> str:
         rows = [(f"[`{pid}`]({preset_path(c, pid)})", f"`{c.preset(pid).engine}`",
                  c.model(c.preset(pid).model.id).license if c.preset(pid).model else "-") for pid in ps]
         lines += [f"### {title}", "", *_table(("Preset", "Engine", "License"), rows)]
+    if c.conventions_entries:
+        lines += ["## 🧭 Conventions", "", *_table(("Conventions", "Format", "Extends"), [
+            (f"[`{cid}`](conventions/{cid}.md)", f"`{doc.format}`", f"`{doc.extends}`" if doc.extends else "-")
+            for cid, (_, doc) in sorted(c.conventions_entries.items())])]
+    if c.policies:
+        lines += ["## 🗂️ Rendering policies", "", *_table(("Policy", "Edition"), [
+            (f"[`{pid}`](policies/{pid}.md)", str(doc.edition)) for pid, (_, doc) in sorted(c.policies.items())])]
     lines += ["## 📦 Models", "", *_table(("Model", "Upstream", "License"), [
         (f"[`{mid}`](models/{mid}.md)", m.version or "", m.license) for mid, (_, m) in sorted(c.models.items())])]
     return "\n".join(lines)
@@ -218,6 +258,10 @@ def pages(c: Catalog, out: str | Path, links: Links | None = None, repo: Path | 
         found[f"models/{mid}.md"] = model_page(c, mid, out, links)
     for rid in c.recipes:
         found[f"recipes/{rid}.md"] = recipe_page(c, rid)
+    for cid in c.conventions_entries:
+        found[f"conventions/{cid}.md"] = conventions_page(c, cid)
+    for pid in c.policies:
+        found[f"policies/{pid}.md"] = policy_page(c, pid)
     for eid, e in engines.items():
         found[f"engines/{eid}.md"] = engine_page(c, e, out, links)
     for pid, pl in pipelines.items():

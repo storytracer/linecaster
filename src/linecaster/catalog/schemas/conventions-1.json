@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "JsonMatch": {
+      "additionalProperties": false,
+      "description": "Values of a JSON document: a JSONPath (RFC 9535), and optionally a regular expression their text must\nmatch.",
+      "properties": {
+        "kind": {
+          "const": "json",
+          "default": "json",
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "description": "a JSONPath query (RFC 9535)",
+          "title": "Path",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a regular expression a matched string value must match (search)",
+          "title": "Text"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "JsonMatch",
+      "type": "object"
+    },
+    "Match": {
+      "discriminator": {
+        "mapping": {
+          "json": "#/$defs/JsonMatch",
+          "text": "#/$defs/TextMatch",
+          "tree": "#/$defs/TreeMatch"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TreeMatch"
+        },
+        {
+          "$ref": "#/$defs/JsonMatch"
+        },
+        {
+          "$ref": "#/$defs/TextMatch"
+        }
+      ]
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "description": "One convention: what it matches, the decision about it, and why.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/$defs/Match"
+        },
+        "decision": {
+          "description": "a decision's name (linecaster.markup.decisions.DECISIONS, or a package's)",
+          "title": "Decision",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "description": "the decision's fields",
+          "title": "Params",
+          "type": "object"
+        },
+        "by": {
+          "default": "people",
+          "description": "who made what the decision records: the source's people (they marked it) or a rule (the conventions infer it)",
+          "enum": [
+            "people",
+            "rule"
+          ],
+          "title": "By",
+          "type": "string"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "placed before this rule (where order matters)",
+          "title": "Before"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "placed after this rule (where order matters)",
+          "title": "After"
+        },
+        "why": {
+          "minLength": 1,
+          "title": "Why",
+          "type": "string"
+        },
+        "decided": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "when, and by whom",
+          "title": "Decided"
+        },
+        "open": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "what is not settled",
+          "title": "Open"
+        }
+      },
+      "required": [
+        "id",
+        "match",
+        "decision",
+        "why"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "TextMatch": {
+      "additionalProperties": false,
+      "description": "Spans of a plain text: a regular expression (Python's ``re``, multiline); a group named ``text``, where the\npattern has one, is the span the decision is about, else the whole match.",
+      "properties": {
+        "kind": {
+          "const": "text",
+          "default": "text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pattern": {
+          "description": "a regular expression, searched with re.MULTILINE",
+          "title": "Pattern",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "title": "TextMatch",
+      "type": "object"
+    },
+    "TreeMatch": {
+      "additionalProperties": false,
+      "description": "Elements of an HTML or XML tree: a CSS selector, and optionally conditions on their text, inline style and\nancestors. Every condition given must hold.",
+      "properties": {
+        "kind": {
+          "const": "tree",
+          "default": "tree",
+          "title": "Kind",
+          "type": "string"
+        },
+        "css": {
+          "description": "a CSS selector (Selectors Level 3, as cssselect reads it)",
+          "title": "Css",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a regular expression the element's text must match (search)",
+          "title": "Text"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a regular expression the element's style attribute must match",
+          "title": "Style"
+        },
+        "inside": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a CSS selector one of the element's ancestors must match",
+          "title": "Inside"
+        },
+        "not_inside": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a CSS selector none of the element's ancestors may match",
+          "title": "Not Inside"
+        }
+      },
+      "required": [
+        "css"
+      ],
+      "title": "TreeMatch",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A conventions entry (``linecaster.conventions/1``).",
+  "properties": {
+    "schema": {
+      "const": "linecaster.conventions/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "edition": {
+      "minimum": 1,
+      "title": "Edition",
+      "type": "integer"
+    },
+    "format": {
+      "description": "the format whose importer applies the entry: html, xml, json, text, ...",
+      "title": "Format",
+      "type": "string"
+    },
+    "extends": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the parent entry, id@edition",
+      "title": "Extends"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "what the entry was written against: the source, its software and versions, the dump or export",
+      "title": "Source",
+      "type": "object"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "disable": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "a parent's rule id -> why it does not apply",
+      "title": "Disable",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "edition",
+    "format",
+    "description"
+  ],
+  "title": "ConventionsDoc",
+  "type": "object"
+}

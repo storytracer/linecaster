@@ -23,6 +23,9 @@ from typing import Any
 
 from ..errors import CatalogError
 from . import yamlio
+from ..engines.importers import IMPORTERS
+from ..markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
+from ..markup.resolve import ConventionsError, ResolvedConventions, resolve
 from .schema import (SCHEMA_DIR, Lock, LockEntry, ModelDoc, PolicyDoc, PresetDoc, RecipeDoc, json_schemas,
                      schema_file)
 
@@ -84,47 +87,92 @@ def _prose(path: Path) -> str:
     return md.read_text(encoding="utf-8") if md.exists() else ""
 
 
+@dataclass(frozen=True)
+class EntryKind:
+    """One kind of catalog entry: where its files are, its format, how its id is checked against its path, its
+    table in the lock (``None``: not released, as models), and whether its Markdown prose is required."""
+
+    name: str
+    pattern: str
+    model: type
+    id_of: Any                                   # path -> the id the file must have
+    folder_check: Any = None                     # (path, doc) -> a problem, or None
+    lock_table: str | None = None
+    prose_required: Any = lambda doc: False      # doc -> whether its prose must exist
+
+
+def _preset_folder(path: Path, doc) -> str | None:
+    return None if doc.step == path.parent.name else f"step {doc.step!r} differs from its folder {path.parent.name!r}"
+
+
+def _conventions_folder(path: Path, doc) -> str | None:
+    return None if doc.format == path.parent.name else \
+        f"format {doc.format!r} differs from its folder {path.parent.name!r}"
+
+
+#: the kinds of catalog entry, in loading order
+KINDS: tuple[EntryKind, ...] = (
+    EntryKind("model", "models/*/model.yaml", ModelDoc, lambda path: path.parent.name),
+    EntryKind("preset", "presets/*/*.yaml", PresetDoc, lambda path: path.stem, _preset_folder, "presets",
+              lambda doc: doc.support in PROSE_REQUIRED),
+    EntryKind("recipe", "recipes/*.yaml", RecipeDoc, lambda path: path.stem, None, "recipes",
+              lambda doc: doc.support in PROSE_REQUIRED),
+    EntryKind("policy", "policies/*.yaml", PolicyDoc, lambda path: path.stem, None, "policies"),
+    EntryKind("conventions", "conventions/*/*.yaml", ConventionsDoc, lambda path: path.stem, _conventions_folder,
+              "conventions", lambda doc: True),
+)
+KIND = {k.name: k for k in KINDS}
+#: the headings every conventions entry's prose has
+CONVENTIONS_HEADINGS = ("## Source", "## How the markup works", "## Not in the rules", "## Open questions")
+
+
 @dataclass
 class Directory:
-    """One catalog directory and the entries it holds."""
+    """One catalog directory and the entries it holds, by kind (``entries``), with their Markdown prose
+    (``bodies``) and their paths (``paths``)."""
 
     root: Path
-    models: dict[str, ModelDoc] = field(default_factory=dict)
-    model_bodies: dict[str, str] = field(default_factory=dict)
-    presets: dict[str, PresetDoc] = field(default_factory=dict)
-    preset_bodies: dict[str, str] = field(default_factory=dict)
-    recipes: dict[str, RecipeDoc] = field(default_factory=dict)
-    recipe_bodies: dict[str, str] = field(default_factory=dict)
-    policies: dict[str, PolicyDoc] = field(default_factory=dict)
+    entries: dict[str, dict[str, Any]] = field(default_factory=lambda: {k.name: {} for k in KINDS})
+    bodies: dict[str, dict[str, str]] = field(default_factory=lambda: {k.name: {} for k in KINDS})
+    paths: dict[str, dict[str, Path]] = field(default_factory=lambda: {k.name: {} for k in KINDS})
     lock: Lock = field(default_factory=Lock)
     #: every YAML file read, with its schema id
     files: dict[Path, str] = field(default_factory=dict)
 
+    @property
+    def models(self) -> dict[str, ModelDoc]:
+        return self.entries["model"]
+
+    @property
+    def presets(self) -> dict[str, PresetDoc]:
+        return self.entries["preset"]
+
+    @property
+    def recipes(self) -> dict[str, RecipeDoc]:
+        return self.entries["recipe"]
+
+    @property
+    def policies(self) -> dict[str, PolicyDoc]:
+        return self.entries["policy"]
+
+    @property
+    def conventions(self) -> dict[str, ConventionsDoc]:
+        return self.entries["conventions"]
+
     @classmethod
     def load(cls, root: str | Path) -> "Directory":
         d = cls(Path(root))
-        for p in sorted(d.root.glob("models/*/model.yaml")):
-            m = d._read(ModelDoc, p)
-            if m.id != p.parent.name:
-                raise CatalogError(f"{p}: id {m.id!r} differs from its folder {p.parent.name!r}")
-            d.models[m.id], d.model_bodies[m.id] = m, _prose(p)
-        for p in sorted(d.root.glob("presets/*/*.yaml")):          # presets/<step>/<id>.yaml
-            pr = d._read(PresetDoc, p)
-            if pr.id != p.stem:
-                raise CatalogError(f"{p}: id {pr.id!r} differs from its file name {p.stem!r}")
-            if pr.step != p.parent.name:
-                raise CatalogError(f"{p}: step {pr.step!r} differs from its folder {p.parent.name!r}")
-            d.presets[pr.id], d.preset_bodies[pr.id] = pr, _prose(p)
-        for p in sorted(d.root.glob("recipes/*.yaml")):
-            rc = d._read(RecipeDoc, p)
-            if rc.id != p.stem:
-                raise CatalogError(f"{p}: id {rc.id!r} differs from its file name {p.stem!r}")
-            d.recipes[rc.id], d.recipe_bodies[rc.id] = rc, _prose(p)
-        for p in sorted(d.root.glob("policies/*.yaml")):
-            po = d._read(PolicyDoc, p)
-            if po.id != p.stem:
-                raise CatalogError(f"{p}: id {po.id!r} differs from its file name {p.stem!r}")
-            d.policies[po.id] = po
+        for kind in KINDS:
+            for p in sorted(d.root.glob(kind.pattern)):
+                doc = d._read(kind.model, p)
+                if doc.id != kind.id_of(p):
+                    raise CatalogError(f"{p}: id {doc.id!r} differs from its path ({kind.id_of(p)!r})")
+                problem = kind.folder_check(p, doc) if kind.folder_check else None
+                if problem:
+                    raise CatalogError(f"{p}: {problem}")
+                d.entries[kind.name][doc.id] = doc
+                d.bodies[kind.name][doc.id] = _prose(p)
+                d.paths[kind.name][doc.id] = p
         lock = d.root / LOCK
         if lock.exists():
             d.lock = d._read(Lock, lock)
@@ -142,10 +190,11 @@ class Directory:
     def save_lock(self) -> None:
         """Write the lock; an existing file keeps its comments."""
         data = self.lock.model_dump(mode="json", by_alias=True)
-        for table in ("presets", "recipes", "policies"):
+        tables = [k.lock_table for k in KINDS if k.lock_table]
+        for table in tables:
             data[table] = {k: {f: v for f, v in e.items() if not (f in OPTIONAL_LOCK_FIELDS and v is None)}
                            for k, e in sorted(data[table].items())}
-        for table in ("recipes", "policies"):
+        for table in tables[1:]:                  # empty tables are left out, but the presets'
             if not data[table]:
                 data.pop(table)
         path = self.root / LOCK
@@ -169,22 +218,75 @@ class Catalog:
 
     def __init__(self, dirs: list[str | Path] | None = None):
         self.dirs = [Directory.load(d) for d in (dirs if dirs is not None else [CORE])]
-        self.models: dict[str, tuple[Directory, ModelDoc]] = {}
-        self.presets: dict[str, tuple[Directory, PresetDoc]] = {}
-        self.recipes: dict[str, tuple[Directory, RecipeDoc]] = {}
-        self.policies: dict[str, tuple[Directory, PolicyDoc]] = {}
+        #: kind -> id -> (the directory it is in, the entry)
+        self.index: dict[str, dict[str, tuple[Directory, Any]]] = {k.name: {} for k in KINDS}
         for d in self.dirs:
-            for kind, src, dst in (("model", d.models, self.models), ("preset", d.presets, self.presets),
-                                   ("recipe", d.recipes, self.recipes), ("policy", d.policies, self.policies)):
-                for k, v in src.items():
+            for kind in KINDS:
+                dst = self.index[kind.name]
+                for k, v in d.entries[kind.name].items():
                     if k in dst:
-                        raise CatalogError(f"{kind} {k!r} in both {dst[k][0].root} and {d.root}")
+                        raise CatalogError(f"{kind.name} {k!r} in both {dst[k][0].root} and {d.root}")
                     dst[k] = (d, v)
         both = set(self.presets) & set(self.recipes)
         if both:
             raise CatalogError(f"ids used for a preset and a recipe: {sorted(both)}")
 
+    @property
+    def models(self) -> dict[str, tuple[Directory, ModelDoc]]:
+        return self.index["model"]
+
+    @property
+    def presets(self) -> dict[str, tuple[Directory, PresetDoc]]:
+        return self.index["preset"]
+
+    @property
+    def recipes(self) -> dict[str, tuple[Directory, RecipeDoc]]:
+        return self.index["recipe"]
+
+    @property
+    def policies(self) -> dict[str, tuple[Directory, PolicyDoc]]:
+        return self.index["policy"]
+
+    @property
+    def conventions_entries(self) -> dict[str, tuple[Directory, ConventionsDoc]]:
+        return self.index["conventions"]
+
     # -------------------------------------------------------------------------------------------- lookups
+
+    def conventions_doc(self, ref: str) -> ConventionsDoc:
+        """The conventions entry ``ref`` (``id@edition``; ``id`` alone: its current edition): the file when its
+        edition matches, else the released edition from the lock (its rules without their documentation)."""
+        cid, edition = split_ref(ref)
+        if cid not in self.conventions_entries:
+            raise CatalogError(f"unknown conventions {cid!r}; known: {sorted(self.conventions_entries)}")
+        d, doc = self.conventions_entries[cid]
+        if edition is None or edition == doc.edition:
+            return doc
+        entry = d.lock.conventions.get(f"{cid}@{edition}")
+        if entry is None:
+            raise CatalogError(f"conventions {cid}@{edition} is neither the current edition ({doc.edition}) nor "
+                               f"released")
+        r = entry.resolved
+        return ConventionsDoc.model_validate({
+            "schema": SCHEMA_CONVENTIONS, "id": cid, "edition": edition, "format": r["format"],
+            "extends": r.get("extends"), "description": f"{cid}@{edition} as released",
+            "disable": {k: "as released" for k in r.get("disable", [])},
+            "rules": [{**rule, "why": "as released"} for rule in r["rules"]]})
+
+    def conventions(self, ref: str) -> ResolvedConventions:
+        """The conventions entry ``ref`` with its chain resolved (``linecaster.markup.resolve``)."""
+        try:
+            return resolve(ref if "@" in ref else f"{ref}@{self.conventions_doc(ref).edition}", self.conventions_doc)
+        except ConventionsError as e:
+            raise CatalogError(str(e)) from None
+
+    @staticmethod
+    def conventions_functional(doc: ConventionsDoc) -> dict:
+        """A conventions entry's functional content: what its rules do (format, parent, the parent's rules it
+        disables, each rule's match, decision, fields, who and place), not their documentation."""
+        return {"format": doc.format, "extends": doc.extends, "disable": sorted(doc.disable),
+                "rules": [r.model_dump(mode="json", include={"id", "match", "decision", "params", "by", "before",
+                                                              "after"}, exclude_none=True) for r in doc.rules]}
 
     def policy(self, ref: str):
         """The rendering policy ``ref`` (``id@edition``; ``id`` alone: its current edition), as a
@@ -257,7 +359,7 @@ class Catalog:
 
     def body(self, pid: str) -> str:
         """The Markdown body of preset ``pid`` (the reasons, limitations, changes)."""
-        return self.presets[pid][0].preset_bodies[pid]
+        return self.presets[pid][0].bodies["preset"][pid]
 
     def functional(self, p: PresetDoc) -> dict:
         """The preset's functional content, with the model pin resolved to revision and files."""
@@ -348,13 +450,22 @@ class Catalog:
 
     def release(self, pid: str, commit: str | None = None, today: dt.date | None = None,
                 migrate_pipeline: bool = False) -> LockEntry:
-        """Freeze the current edition of preset or recipe ``pid`` in its catalog's ``catalog.lock``. A recipe
+        """Freeze the current edition of preset, recipe, policy or conventions ``pid`` in its catalog's
+        ``catalog.lock``; conventions only on a released parent. A recipe
         is released only on released preset editions, with its expanded pipeline (``recipe_pipeline``). A released
         recipe edition without its pipeline in the lock gets it (a catalog migration); one whose pipeline drifted is
         refused unless ``migrate_pipeline`` records it anew (for a change of the pipeline's code that keeps
         behavior)."""
         pipeline = None
-        if pid in self.policies:
+        if pid in self.conventions_entries:
+            d, doc = self.conventions_entries[pid]
+            if doc.extends and not self.conventions_entries.get(split_ref(doc.extends)[0], (None, None))[0] \
+                    or doc.extends and doc.extends not in self.conventions_entries[split_ref(doc.extends)[0]][0] \
+                    .lock.conventions:
+                raise CatalogError(f"conventions {doc.ref}: release its parent {doc.extends} first")
+            self.conventions(doc.ref)                       # resolvable, or the error says why not
+            table, content, kind = d.lock.conventions, self.conventions_functional(doc), "conventions"
+        elif pid in self.policies:
             d, doc = self.policies[pid]
             table, content, kind = d.lock.policies, self.policy_functional(doc), "policy"
         elif pid in self.recipes:
@@ -408,6 +519,59 @@ class Catalog:
         return [f"recipe {key}: its expanded pipeline drifted from the lock ({entry.pipeline_sha256} -> "
                 f"{now['pipeline_sha256']}; differs in {', '.join(differ)}): give the recipe a new edition, or "
                 f"`linecaster catalog release {split_ref(key)[0]} --migrate-pipeline` if behavior is unchanged"]
+
+    def _conventions_problems(self, d: Directory) -> list[str]:
+        """Conventions entries: released and unchanged, resolvable, their decisions applied by their format's
+        importer; across a parent's children: a rule all of them repeat (it belongs in the parent), an override
+        equal to what it replaces, a child on an older edition of its parent."""
+        from ..formats.html import HtmlConverter
+
+        applied = {"html": HtmlConverter.DECISIONS}
+        problems: list[str] = []
+        children: dict[str, list[ConventionsDoc]] = {}
+        for cid, doc in d.conventions.items():
+            entry = d.lock.conventions.get(doc.ref)
+            if entry is None:
+                problems.append(f"conventions {doc.ref} is not released (`linecaster catalog release {cid}`)")
+            elif entry.sha256 != canonical_sha256(self.conventions_functional(doc)):
+                problems.append(f"conventions {doc.ref} is released, but its functional content changed: give it "
+                                f"edition {doc.edition + 1}")
+            try:
+                resolved = self.conventions(doc.ref)
+            except CatalogError as e:
+                problems.append(f"conventions {cid}: {e}")
+                continue
+            known = applied.get(doc.format)
+            if known is not None:
+                unknown = sorted({r.decision for r in resolved.rules} - known)
+                if unknown:
+                    problems.append(f"conventions {cid}: decisions the {doc.format} importer does not apply: "
+                                    f"{unknown}")
+            if doc.extends:
+                pid, edition = split_ref(doc.extends)
+                children.setdefault(pid, []).append(doc)
+                parent = self.conventions_entries.get(pid)
+                if parent is not None and parent[1].edition > edition:
+                    problems.append(f"conventions {cid}: extends {doc.extends}; {pid} is at edition "
+                                    f"{parent[1].edition} (lagging)")
+                if parent is not None:
+                    try:
+                        inherited = {r.id: r for r in self.conventions(doc.extends).rules}
+                    except CatalogError:
+                        inherited = {}
+                    for r in doc.rules:
+                        old = inherited.get(r.id)
+                        if old is not None and _function(old) == _function(r) and not (r.before or r.after):
+                            problems.append(f"conventions {cid}: rule {r.id} equals the one it replaces in "
+                                            f"{doc.extends} (redundant)")
+        for pid, kids in children.items():
+            if len(kids) < 2:
+                continue
+            shared = set.intersection(*({json.dumps(_function(r), sort_keys=True) for r in k.rules} for k in kids))
+            for f in sorted(shared):
+                problems.append(f"conventions {', '.join(sorted(k.id for k in kids))}: rule {json.loads(f)['id']} "
+                                f"is the same in every child of {pid}; it belongs in {pid} (promotion)")
+        return problems
 
     def verify(self, files: bool = True, pipelines: bool = True) -> list[str]:
         """Every problem in the catalog, as messages (empty: all good). ``pipelines``: rebuild every released recipe
@@ -475,13 +639,20 @@ class Catalog:
                 elif entry.sha256 != canonical_sha256(self.policy_functional(po)):
                     problems.append(f"policy {po.ref} is released, but its functional content changed: "
                                     f"give it edition {po.edition + 1}")
-            for key, entry in [*d.lock.presets.items(), *d.lock.recipes.items(), *d.lock.policies.items()]:
+            problems += self._conventions_problems(d)
+            for key, entry in [*d.lock.presets.items(), *d.lock.recipes.items(), *d.lock.policies.items(),
+                               *d.lock.conventions.items()]:
                 if canonical_sha256(entry.resolved) != entry.sha256:
                     problems.append(f"lock {key}: its resolved content does not match its sha256")
             if pipelines:
                 for key, entry in d.lock.recipes.items():
                     problems += self._pipeline_problems(key, entry)
         return problems
+
+
+def _function(rule) -> dict:
+    """What a conventions rule does (not why)."""
+    return rule.model_dump(mode="json", include={"id", "match", "decision", "params", "by"}, exclude_none=True)
 
 
 #: the support levels whose presets and recipes must explain themselves in a Markdown file
@@ -510,7 +681,8 @@ def file_problems(d: Directory) -> list[str]:
                             f"({modeline(path, sid)})")
         elif (path.parent / named).resolve() != want:
             problems.append(f"{path.relative_to(d.root)}: names schema {named}, not {schema_file(sid)}")
-    for md in sorted([*d.root.glob("presets/*/*.md"), *d.root.glob("recipes/*.md"), *d.root.glob("models/*/*.md")]):
+    for md in sorted([*d.root.glob("presets/*/*.md"), *d.root.glob("recipes/*.md"), *d.root.glob("models/*/*.md"),
+                      *d.root.glob("conventions/*/*.md")]):
         rel = md.relative_to(d.root)
         if not md.with_suffix(".yaml").exists():
             problems.append(f"{rel}: Markdown without its YAML file ({md.with_suffix('.yaml').name})")
@@ -519,12 +691,17 @@ def file_problems(d: Directory) -> list[str]:
     for f in sorted([*d.root.glob("presets/*/*"), *d.root.glob("recipes/*")]):
         if f.is_file() and f.suffix not in (".yaml", ".md") and f.name != ".gitkeep":
             problems.append(f"{f.relative_to(d.root)}: neither YAML nor Markdown")
-    for kind, docs, bodies, folder in (("preset", d.presets, d.preset_bodies, None),
-                                       ("recipe", d.recipes, d.recipe_bodies, "recipes")):
-        for eid, doc in docs.items():
-            if doc.support in PROSE_REQUIRED and not bodies[eid].strip():
-                where = f"recipes/{eid}.md" if folder else f"presets/{doc.step}/{eid}.md"
-                problems.append(f"{kind} {eid} ({doc.support}): its prose is missing ({where})")
+    for kind in KINDS:
+        for eid, doc in d.entries[kind.name].items():
+            body = d.bodies[kind.name][eid]
+            where = d.paths[kind.name][eid].with_suffix(".md").relative_to(d.root)
+            if kind.prose_required(doc) and not body.strip():
+                level = f" ({doc.support})" if hasattr(doc, "support") else ""
+                problems.append(f"{kind.name} {eid}{level}: its prose is missing ({where})")
+            elif kind.name == "conventions":
+                missing = [h for h in CONVENTIONS_HEADINGS if h not in body.splitlines()]
+                if missing:
+                    problems.append(f"conventions {eid}: its prose lacks the headings {missing} ({where})")
     return problems
 
 
@@ -608,6 +785,7 @@ BUILTIN_ENGINES = {
     "recomposition.unicode.v1": "linecaster.engines:UnicodeRecompositionEngine",
     "recomposition.by-script.v1": "linecaster.engines:ByScriptRecompositionEngine",
     "composition.docling.v1": "linecaster.engines:DoclingCompositionEngine",
+    **{eid: f"linecaster.engines:{cls.__name__}" for eid, cls in IMPORTERS.items()},
 }
 SERVED_ONLY = {"chat.v1"}
 #: engines registered in this process, not installed (``linecaster.testing.register_fakes``: the fake engines)

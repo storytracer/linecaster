@@ -244,7 +244,8 @@
         "normalization",
         "typography",
         "recomposition",
-        "composition"
+        "composition",
+        "import"
       ],
       "title": "Step",
       "type": "string"

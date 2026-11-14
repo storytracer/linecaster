@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../schemas/conventions-1.json
+schema: linecaster.conventions/1
+id: mediawiki
+edition: 1
+format: html
+description: >-
+  What MediaWiki and its extensions write on every wiki, as the MediaWiki importer's HTML has it: the software's
+  error messages, Cite's continued notes and its note groups that are no part of the page.
+source:
+  software: MediaWiki 1.48 (wmf.4) with Cite, Scribunto, ProofreadPage, TemplateStyles, Math
+  importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.0, wikitextprocessor 6f96ddf)
+rules:
+- id: software-messages
+  match: {kind: tree, css: .error, not_inside: math}
+  decision: remove
+  params: {reason: error, keep_text: true}
+  by: rule
+  why: >-
+    Messages of the software (a Lua error, a missing template, "Cite error ..."), not of the page; kept as a removed
+    region so a reading can be checked for them.
+  decided: 2026-11-12
+- id: continued-notes
+  match: {kind: tree, css: aside.mw-ref-follow}
+  decision: note
+  params: {continued: true}
+  why: >-
+    Cite's <ref follow=...>: the rest of a note that began on an earlier page; on the page it is a footnote that
+    continues, not a new one.
+  decided: 2026-11-13

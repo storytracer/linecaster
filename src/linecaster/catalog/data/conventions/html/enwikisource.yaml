@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=../../../schemas/conventions-1.json
+schema: linecaster.conventions/1
+id: enwikisource
+edition: 1
+format: html
+extends: mediawiki@1
+description: >-
+  English Wikisource's templates, as the classes and attributes their output carries: running heads, the end of a
+  page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures and editors' errata.
+source:
+  wiki: English Wikisource (en.wikisource.org)
+  dump: enwikisource-20261101-pages-articles (Template, Module and Index namespaces)
+  importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.0, wikitextprocessor 6f96ddf)
+rules:
+- id: running-head-cells
+  match: {kind: tree, css: .wst-rh-cell}
+  decision: cell
+  why: >-
+    {{RunningHeader}} ({{rh}}, {{rvh}} and their variants) prints the running head's left, centre and right as one
+    line: its cells are one region of the page's furniture, each cell a region of its own.
+  decided: 2026-11-13
+- id: no-run-on
+  match: {kind: tree, css: .wst-nop}
+  decision: break
+  why: >-
+    {{nop}} ends the paragraph: at the end of a page it says that the page's last paragraph does not run on onto the
+    next page.
+  decided: 2026-11-13
+- id: corrections
+  match: {kind: tree, css: ".wst-tooltip[title^='[sic]']"}
+  decision: edit
+  params: {kind: corrected, attr: title, extract: "^\\[sic\\]\\s*'(.*)'$"}
+  why: >-
+    {{SIC}} shows the text as printed and the editors' correction in its tooltip ("[sic] 'the'"): the printed text
+    is the page's, the correction an edit of it.
+  decided: 2026-11-13
+- id: tooltips
+  match: {kind: tree, css: .wst-tooltip}
+  decision: describe
+  params: {kind: note, attr: title}
+  why: "{{tooltip}} shows a note of the editors when the pointer rests on the text; the note is not printed."
+  decided: 2026-11-13
+- id: sidenotes
+  match: {kind: tree, css: .wst-sidenote}
+  decision: note
+  params: {role: marginalia}
+  why: >-
+    {{left sidenote}} and {{right sidenote}} print a note in the margin beside the paragraph where they stand: a
+    region of its own (marginalia), not part of the paragraph's text.
+  decided: 2026-11-13
+- id: ditto-hidden
+  match: {kind: tree, css: .__ditto_hidden}
+  decision: invisible
+  why: >-
+    {{ditto}} prints a ditto mark where a word is repeated; the word itself is kept, invisible, to give the mark its
+    width.
+  decided: 2026-11-12
+- id: dot-leaders
+  match: {kind: tree, css: .ws-noexport}
+  decision: remove
+  params: {reason: generated}
+  by: rule
+  why: >-
+    Elements of class ws-noexport (dot leaders of tables of contents, navigation) are drawn by the templates and
+    left out of exports by WS Export; the page prints leaders, not text.
+  decided: 2026-11-12
+  open: A list of illustrations may set its credits inside the leader element; their letters are lost with it.
+- id: figure-captions
+  match: {kind: tree, css: .wst-freedimg-caption}
+  decision: caption
+  why: "{{FreedImg}} prints a figure's caption under or over it."
+  decided: 2026-11-14
+- id: figure-boxes
+  match: {kind: tree, css: span.wst-freedimg}
+  decision: block
+  params: {role: picture}
+  why: "{{FreedImg/span}} sets a figure in spans; its box is a block of its own, as the figure is on the page."
+  decided: 2026-11-14
+- id: errata-notes
+  match: {kind: tree, css: "aside[data-group=errata]"}
+  decision: remove
+  params: {reason: editorial, keep_text: true}
+  why: >-
+    {{Errata}} shows the printed text and adds the editors' correction as a note of the group errata; the note is
+    the editors', not the page's.
+  decided: 2026-11-14
