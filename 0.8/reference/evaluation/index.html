@@ -1133,7 +1133,8 @@ model writes about a figure (descriptions) is in neither. A ground truth's <code
 output is compared with what is printed. Its <code>illegible</code> spans become U+FFFD, one per character.</p>
 <h2 id="lanes">Lanes<a class="headerlink" href="#lanes" title="Permanent link">&para;</a></h2>
 <p>A <strong>lane</strong> is a versioned normalization of a rendered text before it is counted, a catalog entry <code>lane</code> with
-editions (its functional content: the steps, in order). Both sides go through the same lane.</p>
+editions (its functional content: the steps, in order). Both sides go through the same lane. A benchmark that names
+no lanes is scored in <code>alnum@2</code>, letters and digits of any script (<code>DEFAULT_LANE</code>).</p>
 <table>
 <thead>
 <tr>
@@ -1153,6 +1154,10 @@ editions (its functional content: the steps, in order). Both sides go through th
 <tr>
 <td><code>alnum@1</code></td>
 <td>NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed</td>
+</tr>
+<tr>
+<td><code>alnum@2</code> (default)</td>
+<td><code>reading@1</code>'s markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded (ß to ss) and NFKC again; only letters, combining marks and digits of any script (Unicode categories L, M and N) kept, each run of anything else one space; trimmed</td>
 </tr>
 <tr>
 <td><code>ascii-alnum@1</code></td>

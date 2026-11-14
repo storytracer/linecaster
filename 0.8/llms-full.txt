@@ -308,7 +308,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.8.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.8.1`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -526,7 +526,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 |---|---|---|
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
-| **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`), a catalog entry. | not a text variant |
+| **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`, `alnum@2`, the default), a catalog entry. | not a text variant |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
 | **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |
 
@@ -3339,13 +3339,15 @@ output is compared with what is printed. Its `illegible` spans become U+FFFD, on
 ## Lanes
 
 A **lane** is a versioned normalization of a rendered text before it is counted, a catalog entry `lane` with
-editions (its functional content: the steps, in order). Both sides go through the same lane.
+editions (its functional content: the steps, in order). Both sides go through the same lane. A benchmark that names
+no lanes is scored in `alnum@2`, letters and digits of any script (`DEFAULT_LANE`).
 
 | Lane | Steps |
 |---|---|
 | `diplomatic@1` | NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
 | `reading@1` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute accent to `'`, curly double quotes to `"`, the dashes U+2010 to U+2015 to `-`; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed |
 | `alnum@1` | NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed |
+| `alnum@2` (default) | `reading@1`'s markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded (ß to ss) and NFKC again; only letters, combining marks and digits of any script (Unicode categories L, M and N) kept, each run of anything else one space; trimmed |
 | `ascii-alnum@1` | HTML tags removed; lowercased; only the ASCII letters and digits kept, their runs joined by single spaces (accented letters, ſ and ligatures separate words) |
 
 NFKC appears only in a lane, never in a text variant: a lane makes two texts comparable, it is not a reading text.
