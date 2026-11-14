@@ -53,13 +53,19 @@ class PageSource:
 
     def parsed(self) -> tuple[str, list[int]]:
         """The text MediaWiki parses, the markers ``HEAD_END`` and ``FOOT_START`` at the parts' boundaries, and per
-        character its position in the revision (a marker and the inserted separator map to where they stand)."""
+        character its position in the revision (a marker and the inserted separators map to where they stand).
+
+        ProofreadPage keeps the header, the body and the footer apart and parses each from the start of a line: each
+        marker stands on a line of its own, so a part's last line ends before it (a header line that starts with a
+        space is preformatted, and its ``<pre>`` would otherwise hold the marker and the body after it) and the next
+        part starts a line."""
         w, h, f = self.wikitext, self.header_end, self.footer_start
-        pieces = [(w[:h], 0), (HEAD_END + "\n\n", h), (w[h:f], h), (FOOT_START, f), (w[f:], f)]
+        pieces = [(w[:h], 0, False), ("\n" + HEAD_END + "\n\n", h, True), (w[h:f], h, False),
+                  ("\n" + FOOT_START + "\n", f, True), (w[f:], f, False)]
         out: list[str] = []
         pos: list[int] = []
-        for text, base in pieces:
-            if text.startswith(HEAD_END) or text == FOOT_START:
+        for text, base, marker in pieces:
+            if marker:
                 out.append(text)
                 pos += [base] * len(text)
                 continue

@@ -192,6 +192,20 @@ def test_texvcjs_as_installed(tmp_path):
     assert t.check(r"\undefinedcommand") is None
 
 
+def test_each_part_starts_a_line(site):
+    """A header or footer line that starts with a space is preformatted; the part after it starts a line of its own
+    (ProofreadPage parses the parts apart), so the body is the body."""
+    from linecaster_mediawiki import PageReader
+    from linecaster_mediawiki.proofread import FOOT_START, HEAD_END
+
+    t = PageReader(site).read("<noinclude><pagequality level=\"3\" user=\"x\" />\n {{Head|12|The title}}</noinclude>"
+                              "Body text that runs on.\n\nA second paragraph.<noinclude> 13</noinclude>",
+                              "Page:Example.djvu/6").transcription
+    texts = [(t.role(ln.region), ln.reading.text) for ln in t.lines]
+    assert ("paragraph", "Body text that runs on.") in texts and ("paragraph", "A second paragraph.") in texts
+    assert not any(HEAD_END in x or FOOT_START in x for _, x in texts)
+
+
 def test_parts_and_top_level_calls():
     from linecaster_mediawiki import PageSource, top_level_calls
 
