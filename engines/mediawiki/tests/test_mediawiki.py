@@ -206,6 +206,19 @@ def test_each_part_starts_a_line(site):
     assert not any(HEAD_END in x or FOOT_START in x for _, x in texts)
 
 
+def test_a_table_across_parts_is_the_bodys(site):
+    """A header that opens a table the page continues, and a footer that closes it: the table is the body's, and so
+    is the text after it (the parser drops what stands between a table's start and its first row)."""
+    from linecaster_mediawiki import PageReader
+
+    t = PageReader(site).read("<noinclude><pagequality level=\"3\" user=\"x\" />{{Head|12|The title}}\n{| class=\"k\""
+                              "</noinclude>\n|-\n|a cell||b cell\n|}\n\nA body paragraph.\n\n{|\n|-\n|c cell"
+                              "<noinclude>\n|}</noinclude>", "Page:Example.djvu/7").transcription
+    roles = {ln.reading.text: t.role(ln.region) for ln in t.lines}
+    assert roles["A body paragraph."] == "paragraph" and roles["12"] == "header"
+    assert all(t.role(tb.target) == "table" for tb in t.tables) and len(t.tables) == 2
+
+
 def test_parts_and_top_level_calls():
     from linecaster_mediawiki import PageSource, top_level_calls
 
