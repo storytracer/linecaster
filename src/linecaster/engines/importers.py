@@ -4,8 +4,10 @@ in the pipeline's process.
 An importer (``Importer``) is a rule-based engine of step ``import``: ``__call__(source, **options)`` for its unit
 ``page`` (an item-unit importer takes the item's documents and returns a transcription per page). The base does
 what every importer shares: the options (``ground_truth``: the source is a ground truth, read by people), the
-source's fields on the transcription (record, revision, dataset, URI), and the fit to the page image (a
-transcription whose coordinates refer to an image of another size is scaled to the page's). The formats themselves
+source's fields on the transcription (record, revision, dataset, URI), the importer's own annotator (kind ``rule``,
+step ``import``: who read the file, with its options; the people or file that made the content are annotators of
+their own), and the fit to the page image (a transcription whose coordinates refer to an image of another size is
+scaled to the page's). The formats themselves
 are ``linecaster.formats``; the importers are thin.
 
 Built in: ``import.alto.v1``, ``import.page.v1``, ``import.hocr.v1``, ``import.text.v1``, ``import.docling.v1``,
@@ -42,6 +44,8 @@ class Importer(RuleEngine):
     def __call__(self, source: SourceDocument, **options) -> Transcription:
         o = self.configured(options)
         t = self.read(source, o)
+        if not any(a.kind == "rule" and a.step == "import" for a in t.annotators):
+            t.add_annotator(self.annotator(o))            # who read the file: the importer, with its options
         s = t.source
         s.kind = "ground_truth" if o.ground_truth else "converted"
         s.format = s.format or self.format

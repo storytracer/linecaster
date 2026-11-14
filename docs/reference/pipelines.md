@@ -550,8 +550,8 @@ a key given as text is refused. A missing variable fails the block's warm-up.
 
 ## Pipeline shapes
 
-A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest`, `transcribe_modular`,
-`transcribe_vlm`, `transcribe_page`, `bind`): its docstring (the help text), `options(ap)`, `models(a)`,
+A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest`, `convert`, `transcribe_modular`,
+`transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`): its docstring (the help text), `options(ap)`, `models(a)`,
 `pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.pipelines.shapes()` lists them by
 pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
 block, a docstring and the call that runs the shape:
@@ -569,6 +569,15 @@ may lay its own defaults over the shape's options: an `options` that calls the s
 then `ap.set_defaults(...)` (`--recipe` too, which `run` adds before the script's options), and a `pipeline` that
 fills a default depending on other options before it calls the shape's. Its run records name its script; its
 `pipeline_sha256` is the shape's for the same options.
+
+## Importing ground truth
+
+`pipelines/import_transcriptions.py` (`import_transcriptions.v1`) reads a source's documents into page records with
+one importer (step `import`, slot `import`): a Parquet table's column holding each document (`--data-key`: a wiki
+page's wikitext), a column naming a file (`--uri-key`), or the file delivered with the page; `--context-key` columns
+are the document's context, `record`, `revision` and `dataset` its source's fields. Its pages are named, not read
+(`ImageParquetReader(read_images=False)`, or no `--image-key`): importing needs no image. Its page records are what
+`linecaster score` reads as a ground truth, and what a dataset is assembled from.
 
 ## The item stage
 

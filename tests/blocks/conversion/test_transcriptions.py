@@ -58,7 +58,8 @@ def test_plain_text_a_uri_metadata_and_pages_without_a_document(tmp_path):
     [doc] = run(TranscriptionImporter("text-import@1", options={"ground_truth": False}), page("ein\nzwei\n".encode()))
     t = page_of(doc).transcriptions["ground_truth"]
     assert [ln.reading.text for ln in t.lines] == ["ein", "zwei"] and t.lines[0].box is None
-    assert (t.source.kind, t.source.format, [a.kind for a in t.annotators]) == ("converted", "text", ["file"])
+    assert (t.source.kind, t.source.format, [a.kind for a in t.annotators]) == ("converted", "text", ["file", "rule"])
+    assert (t.annotators[1].engine, t.annotators[1].preset) == ("import.text.v1", "text-import@1")
     (tmp_path / "p1.xml").write_bytes(to_alto(sample_transcription(), image_width=W, image_height=H))
     by_uri = TranscriptionImporter("auto-import@1", source="uri", uri_key="library.ocr", **LIBRARY)
     [doc] = run(by_uri, page(metadata={"library": {"ocr": str(tmp_path / "p1.xml")}}))
@@ -89,7 +90,7 @@ def test_a_ground_truth(preset, write):
     assert t.source.kind == "ground_truth" and "errors" not in doc.metadata
     if write is None:
         assert [(ln.reading.text, ln.box, ln.polygon) for ln in t.lines] == [("ein", None, None), ("zwei", None, None)]
-        assert [(a.kind, a.step) for a in t.annotators] == [("human", "transcription")]
+        assert [(a.kind, a.step) for a in t.annotators] == [("human", "transcription"), ("rule", "import")]
 
 
 def test_an_engine_spec_and_html():

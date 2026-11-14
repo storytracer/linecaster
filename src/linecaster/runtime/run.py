@@ -694,7 +694,8 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
                                   reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None),
-                                  sample=sample, reuse_index=reuse_index)
+                                  sample=sample, reuse_index=reuse_index, read_images=read_images,
+                                  read_metadata=not read_images)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file, sample=sample,

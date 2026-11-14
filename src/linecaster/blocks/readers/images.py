@@ -314,12 +314,15 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
         batch_size: the rows read at once from a file.
         id_key: the column with the page id. A table without it names its pages ``<item>_<0001>`` from ``item_key``
             and ``sequence_key``, which it then needs.
-        image_key: the column with the image.
+        image_key: the column with the image; ``None``: the table has none (pages without image, as a source's
+            documents may be).
         item_key: the column with the page's ``item_id``; default: pages without item.
         sequence_key: the column with the page's position in its item (``Page.sequence``).
         image_folder: the folder relative image paths are read from; default ``data_folder``.
         read_metadata: the other columns go into the page's metadata; without it only the named columns are read.
         default_metadata: goes into every page's metadata.
+        read_images: read each row's image (its bytes, size and format); without it a page names its image (a path
+            column's value) and is read without it, as importing a source's documents needs.
         http: ``linecaster.net.http.HTTPConfig`` fields (rate limits, retries) for ``http(s)://`` image paths. Their images are
             requested ahead of the page being given on, as many as keep the rate limits busy
             (``linecaster.net.http.prefetched``), and pages go on as their images arrive: a slow request (one being
@@ -369,7 +372,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                  default_metadata: dict | None = None, shuffle_files: bool = False, http: dict | None = None,
                  max_pages: int | None = None, task_per_item: bool = False,
                  reuse_folder: DataFolderLike | None = None, http_policy: str | None = None, sample=None,
-                 reuse_index: str | None = None):
+                 reuse_index: str | None = None, read_images: bool = True):
         super().__init__(data_folder, paths_file, limit, skip, batch_size, read_metadata, file_progress,
                          doc_progress, None, "text", id_key, default_metadata, recursive, glob_pattern, shuffle_files)
         if max_pages is not None and max_pages < 1:
@@ -384,7 +387,8 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
         self.reuse_index = reuse_index
         self._earlier = EarlierImages(reuse_index) if reuse_index else None
         self._starts = None
-        self.image_key, self.item_key, self.sequence_key = image_key, item_key, sequence_key
+        self.image_key, self.item_key, self.sequence_key = image_key or None, item_key, sequence_key
+        self.read_images = read_images and bool(image_key)
         self.image_folder = get_datafolder(image_folder) if image_folder is not None else self.data_folder
         self._opener = _Opener(http, http_policy)
         self._layout: list | None = None
@@ -557,9 +561,20 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                     item = row.pop(self.item_key) if self.item_key else None
                     sequence = row.pop(self.sequence_key) if self.sequence_key else None
                     page_id = (f"{item}_{int(sequence):04d}" if derive else str(row.pop(self.id_key)))
-                    yield page_id, item, sequence, row.pop(self.image_key), row
+                    yield page_id, item, sequence, row.pop(self.image_key) if self.image_key else None, row
 
     def _read_file(self, filepath: str, slices: list | None):
+        if not self.read_images:                    # the rows' records, the image named but not read
+            for page_id, item, sequence, value, row in self._rows(filepath, slices):
+                metadata = {**(self.default_metadata or {}),
+                            **{k: v for k, v in row.items() if not isinstance(v, bytes | dict)}}
+                uri = self._source(value, filepath, page_id) if isinstance(value, str) else None
+                doc = _unread_page(page_id, uri, None if item is None else str(item),
+                                   None if sequence is None else int(sequence), metadata)
+                self.stat_update("pages")
+                yield doc
+            return
+
         def submit(entry):
             page_id, item = entry[0], entry[1]
             copy = (self._existing.get(None if item is None else str(item), page_id, self.stat_update)
