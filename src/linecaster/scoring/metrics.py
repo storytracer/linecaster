@@ -9,7 +9,7 @@ from typing import Any
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Transcription
 from .counts import edit_counts
-from .lanes import REPLACEMENT, normalize
+from .lanes import DEFAULT_LANE, REPLACEMENT, normalize
 from .render import TEXTS, text
 
 _PUNCT = re.compile(rf"[^\w\s{REPLACEMENT}]")
@@ -73,7 +73,7 @@ def confusion(truth: Transcription, output: Transcription, threshold: float = 0.
     return [{"role_true": a, "role_output": b, "count": n} for (a, b), n in sorted(counts.items())]
 
 
-def score_page(truth: Transcription, output: Transcription | None, texts=tuple(TEXTS), lanes=("diplomatic@1",),
+def score_page(truth: Transcription, output: Transcription | None, texts=tuple(TEXTS), lanes=(DEFAULT_LANE,),
                policy: RenderingPolicy = DEFAULT_POLICY, boxes: bool = True) -> dict[str, Any]:
     """One page's counts: ``rows`` (one per text and lane: ``s``, ``d``, ``i``, ``h``, ``n``, and the word counts
     ``words_true``, ``words_output``, ``words_both``), ``roles`` (role -> true, output, both word counts) and, with

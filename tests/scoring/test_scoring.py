@@ -21,9 +21,26 @@ from linecaster.scoring import (confusion, edit_counts, normalize, rates, role_r
     ("alnum@1", "Hello, World! 3rd—ed.", "hello world 3rd ed"),
     ("alnum@1", "a\ufffdc!", "a\ufffdc"),
     ("ascii-alnum@1", "The <b>Café</b>, 3rd—ſhip", "the caf 3rd hip"),
+    ("alnum@2", "The <b>Café</b>, 3rd—ſhip", "the café 3rd ship"),
+    ("alnum@2", "\ufb01ne Stra\u00dfe", "fine strasse"),
+    ("alnum@2", "cafe\u0301 na\u0131\u0308ve", "café naı\u0308ve"),
+    ("alnum@2", "\u1f08\u03b8\u1fc6\u03bd\u03b1\u03b9, x\u00b2", "\u1f00\u03b8\u1fc6\u03bd\u03b1\u03b9 x2"),
+    ("alnum@2", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e"),
+    ("alnum@2", "a\ufffdc! $\\frac{a}{b}$ <br/>x", "a\ufffdc a b x"),
+    ("alnum@2", "co\u00adop\u200bera", "coopera"),
+    ("alnum", "x", "x"),
 ])
 def test_lanes(lane, raw, want):
     assert normalize(raw, lane) == want
+
+
+def test_alnum1_splits_words_at_combining_marks():
+    assert normalize("\u0939\u093f\u0928\u094d\u0926\u0940", "alnum@1") != "\u0939\u093f\u0928\u094d\u0926\u0940"
+
+
+def test_the_default_lane():
+    from linecaster.scoring import DEFAULT_LANE, lane
+    assert DEFAULT_LANE == "alnum@2" == lane("alnum")
 
 
 def test_an_unknown_lane_is_refused():

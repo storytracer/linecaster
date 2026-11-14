@@ -4,6 +4,22 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Upgrade notes
+
+- **The default lane is `alnum@2`** (`DEFAULT_LANE`): a benchmark that names no `lanes`, and `score_page` called
+  without them, now score `alnum@2` instead of `diplomatic@1`. Evidence of such a benchmark from 0.8.0 is not scored
+  like the new one (the lanes differ); name `lanes: [diplomatic@1]` to keep the old scoring.
+
+### Added
+
+- **Lane `alnum@2`**, letters and digits of any script: `reading@1`'s markup removed, NFKC, invisible characters
+  removed, casefolded and NFKC again, letters, combining marks and digits (Unicode L, M, N) kept. Unlike `alnum@1`
+  a combining mark stays in its word (Devanagari vowel signs, decomposed accents), a long s or a ligature matches
+  its plain letters, and HTML tags and LaTeX macros are not counted as words. `alnum@1` and `ascii-alnum@1` are
+  unchanged.
+
 ## 0.8.0 (2026-11-13)
 
 ### Upgrade notes

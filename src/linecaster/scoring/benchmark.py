@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..data.sample import listing_sha256
-from .lanes import LANES
+from .lanes import DEFAULT_LANE, LANES
 from .render import TEXTS
 
 SCHEMA = "linecaster.benchmark/1"
@@ -82,7 +82,7 @@ class Benchmark(_Model):
     supports: Supports = Field(default_factory=Supports)
     policy: str = Field("page-layers@1", description="the rendering policy edition both sides are rendered with")
     texts: list[str] = Field(default_factory=lambda: list(TEXTS))
-    lanes: list[str] = Field(default_factory=lambda: ["diplomatic@1"])
+    lanes: list[str] = Field(default_factory=lambda: [DEFAULT_LANE])
     metrics: list[str] = Field(default_factory=lambda: ["cer", "token_recall", "over_extraction"])
     bootstrap: Bootstrap = Field(default_factory=Bootstrap)
     strata: list[str] = Field(default_factory=list, description="page or item fields to report rates by")

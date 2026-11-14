@@ -166,7 +166,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 |---|---|---|
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
-| **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`), a catalog entry. | not a text variant |
+| **lane** | A versioned normalization both sides of a comparison go through before counting (`diplomatic@1`, `reading@1`, `alnum@1`, `alnum@2`, the default), a catalog entry. | not a text variant |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
 | **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |
 

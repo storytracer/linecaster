@@ -49,13 +49,15 @@ output is compared with what is printed. Its `illegible` spans become U+FFFD, on
 ## Lanes
 
 A **lane** is a versioned normalization of a rendered text before it is counted, a catalog entry `lane` with
-editions (its functional content: the steps, in order). Both sides go through the same lane.
+editions (its functional content: the steps, in order). Both sides go through the same lane. A benchmark that names
+no lanes is scored in `alnum@2`, letters and digits of any script (`DEFAULT_LANE`).
 
 | Lane | Steps |
 |---|---|
 | `diplomatic@1` | NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
 | `reading@1` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute accent to `'`, curly double quotes to `"`, the dashes U+2010 to U+2015 to `-`; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed |
 | `alnum@1` | NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed |
+| `alnum@2` (default) | `reading@1`'s markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded (ß to ss) and NFKC again; only letters, combining marks and digits of any script (Unicode categories L, M and N) kept, each run of anything else one space; trimmed |
 | `ascii-alnum@1` | HTML tags removed; lowercased; only the ASCII letters and digits kept, their runs joined by single spaces (accented letters, ſ and ligatures separate words) |
 
 NFKC appears only in a lane, never in a text variant: a lane makes two texts comparable, it is not a reading text.

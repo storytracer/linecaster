@@ -9,6 +9,13 @@ comparison. A lane is named ``<id>@<edition>``; a released edition never changes
   to the next line; casefolded; whitespace runs to one space; trimmed.
 * ``alnum@1``: NFC; casefolded; only letters and digits (Unicode categories L and N) kept, every run of anything
   else one space; trimmed.
+* ``alnum@2`` (the default lane): ``reading@1``'s markup removed (special tokens, box arrays, HTML tags of its fixed
+  list, Markdown marks, LaTeX macros); NFKC (ſ to s, ligatures split, superscript digits to digits, full-width forms
+  to their plain ones); invisible format characters removed; casefolded (ß to ss) and NFKC again (folding can
+  decompose: ῆ); only letters, combining marks and
+  digits of any script (Unicode categories L, M and N) kept, every run of anything else one space; trimmed. Unlike
+  ``alnum@1``, a combining mark stays in its word (Devanagari vowel signs, a decomposed accent) and a long s or a
+  ligature matches its plain letters.
 * ``ascii-alnum@1``: HTML tags removed; lowercased; only the ASCII letters and digits kept (``[a-z0-9]+``), the
   runs joined by single spaces: what is not ASCII (accented letters, ſ, ligatures) separates words.
 
@@ -43,6 +50,9 @@ _MARKUP = [re.compile(r"<\|/?[A-Za-z0-9_]+\|>"), re.compile(r"\[\[\s*\d[\d,\s]*\
            re.compile(r"^[ \t]*#{1,6}[ \t]+", re.M), re.compile(r"^[ \t]*[-*+][ \t]+", re.M),
            re.compile(r"^[ \t]*[-=_*]{3,}[ \t]*$", re.M), re.compile(r"\\[a-zA-Z]+\*?"),
            re.compile(r"[`*|~{}$\\]")]
+#: the markup ``reading@1`` and ``alnum@2`` remove, public for callers that must keep positions (replace each
+#: match by as many spaces, then normalize the pieces)
+MARKUP = tuple(_MARKUP)
 
 
 def _reading(t: str) -> str:
@@ -66,9 +76,19 @@ def _alnum(t: str) -> str:
     return _WS.sub(" ", kept).strip()
 
 
+def _alnum2(t: str) -> str:
+    for rx in _MARKUP:
+        t = rx.sub(" ", t)
+    t = unicodedata.normalize("NFKC", unicodedata.normalize("NFKC", t).translate(_INVISIBLE).casefold())
+    kept = "".join(c if c == REPLACEMENT or unicodedata.category(c)[0] in "LMN" else " " for c in t)
+    return _WS.sub(" ", kept).strip()
+
+
 #: lane edition -> its normalization
 LANES: dict[str, Callable[[str], str]] = {"diplomatic@1": _diplomatic, "reading@1": _reading, "alnum@1": _alnum,
-                                          "ascii-alnum@1": _ascii_alnum}
+                                          "alnum@2": _alnum2, "ascii-alnum@1": _ascii_alnum}
+#: the lane scored when a benchmark or a call names none
+DEFAULT_LANE = "alnum@2"
 
 
 def lane(name: str) -> str:
