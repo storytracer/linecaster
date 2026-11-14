@@ -270,6 +270,31 @@ def test_paragraphs_continue_by_their_links():
     assert joined == ["The first page ends with a long sen-tence that ends here."]
 
 
+def test_regions_continue_by_their_links():
+    """Without a recomposition (a transcription whose regions are its paragraphs, as an imported ground truth), a text
+    region that continues another is that one's item: a division mark before a lowercase letter removed, else a
+    space; the item's provenance has an entry per page."""
+    from linecaster.data.transcription import Link
+    from linecaster.formats.docling import DocumentBuilder
+
+    def item(first, second, linked=True):
+        pages = [page_t(1, [first]), page_t(2, [second])]
+        if linked:
+            pages[0].links.append(Link(annotator=0, kind="runs_into", source="text_1", target="p2#text_1"))
+            pages[1].links.append(Link(annotator=0, kind="continues", source="text_1", target="p1#text_1"))
+        b = DocumentBuilder("item")
+        for k, t in enumerate(pages):
+            b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
+        return [x for x in b.build().texts if x.label.value == "text"]
+
+    assert [x.text for x in item("A long sen-", "tence ends.", linked=False)] == ["A long sen-", "tence ends."]
+    joined = item("A long sen-", "tence ends.")
+    assert [x.text for x in joined] == ["A long sentence ends."]
+    assert [(p.page_no, p.charspan) for p in joined[0].prov] == [(1, (0, 11)), (2, (10, 21))]
+    assert [x.text for x in item("runs on to the", "next page.")] == ["runs on to the next page."]
+    assert [x.text for x in item("the well-", "Known name")] == ["the well-Known name"]
+
+
 def test_the_composer_adds_nothing_to_the_transcription():
     before = page_of(Typographer("ratios@1").run(iter([page_doc()])).__next__()).transcriptions["ocr_new"]
     docs = _composed_doc()

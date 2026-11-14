@@ -43,7 +43,8 @@ from ..data.geometry import BBox
 from ..data.policy import DEFAULT_POLICY, MarkdownRules, RenderingPolicy
 from ..data.refs import parse
 from ..data.transcription import Cell, Line, Region, Table, Transcription
-from ..text.recomposition import continuation, paragraphs as paragraphs_of, region_rows
+from ..text.recomposition import continuation, ends_with_mark, paragraphs as paragraphs_of, region_rows, \
+    resolve_mark, separator
 from ..text.typography import line_bbox, zone_bbox
 from ._xml import heading_level, hidden_line
 
@@ -142,8 +143,11 @@ class DocumentBuilder:
     A page's text regions are composed from its **paragraphs** when it has them (a recomposition ran: its latest
     recomposition's, ``linecaster.text.recomposition.paragraphs``): one item per paragraph with a provenance entry
     per row (its box and character span), a paragraph that continues another (its ``continues`` link by the same
-    annotator, in an earlier region or on an earlier page) appended to that one's item. Without paragraphs (diplomatic composition) one
-    item per region, its text one visual row per line, one provenance entry with the region's box.
+    annotator, in an earlier region or on an earlier page) appended to that one's item. Without paragraphs (diplomatic
+    composition) one item per region, its text one visual row per line, one provenance entry with the region's box;
+    a text region that continues another (its own ``continues`` link: a transcription whose regions are its paragraphs,
+    such as an imported ground truth) appended to that one's item, joined as recomposition joins rows (a division mark
+    before a lowercase letter removed, ``resolve_mark``; a space unless UAX #14 joins the words, ``separator``).
 
     ``policy`` (the rendering policy) puts each region in its content layer; regions it puts in ``none`` or
     ``metadata`` are left out.
@@ -269,13 +273,36 @@ class DocumentBuilder:
             return
         elif label in TEXT_LABELS:
             if content.strip():
-                self._add_text(DocItemLabel(TEXT_LABELS[label]), content, _prov(b, content, page_no), layer)
+                self._add_region_text(page, r, DocItemLabel(TEXT_LABELS[label]), content, b, layer)
         else:
             pic = self.doc.add_picture(prov=_prov(b, "", page_no), parent=self._section, content_layer=layer)
             if content.strip():
                 self.doc.add_text(label=DocItemLabel.TEXT, text=content, prov=_prov(b, content, page_no), parent=pic,
                                   content_layer=layer)
         self._last_table = None                 # anything but a table ends the run a one-row table may join
+
+    def _add_region_text(self, page: "_PageContext", r: Region, label, content: str, b, layer) -> None:
+        """A text region's item, or its text appended to the item of the region it continues; a region that runs
+        on leaves its item for the region it runs into."""
+        t = page.t
+        continued = self._items.get((page.key, r.id)) if _region_link(t, r.id, "continues") else None
+        if continued is not None:
+            item, _ = continued
+            head = item.text
+            if ends_with_mark(head) and resolve_mark(head, content)[0]:
+                head, sep = head.rstrip()[:-1], ""
+            else:
+                sep = separator(head, content)
+            item.text = item.orig = head + sep + content
+            prov = _prov(b, content, page.page_no)
+            prov.charspan = (len(head) + len(sep), len(item.text))
+            item.prov.append(prov)
+        else:
+            item = self._add_text(label, content, _prov(b, content, page.page_no), layer)
+        runs_into = _region_link(t, r.id, "runs_into")
+        if runs_into is not None:
+            ref = parse(runs_into)
+            self._items[(ref.page or page.key, ref.id)] = (item, None)
 
     def _open_section(self, text: str) -> None:
         from docling_core.types.doc import GroupLabel
@@ -350,6 +377,11 @@ class DocumentBuilder:
             b = zone_bbox(r)
             out.append(ProvenanceItem(page_no=page.page_no, bbox=_box(b), charspan=(offset, offset + len(p.text))))
         return out
+
+
+def _region_link(t: Transcription, region: str, kind: str) -> str | None:
+    """The reference a region's latest ``kind`` link (``runs_into``, ``continues``) names."""
+    return next((ln.target for ln in reversed(t.links) if ln.source == region and ln.kind == kind), None)
 
 
 class _PageContext:
