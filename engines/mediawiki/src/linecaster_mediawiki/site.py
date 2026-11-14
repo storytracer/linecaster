@@ -51,7 +51,7 @@ CANONICAL = {-2: "Media", -1: "Special", 0: "Main", 1: "Talk", 2: "User", 3: "Us
              11: "Template talk", 12: "Help", 13: "Help talk", 14: "Category", 15: "Category talk", 828: "Module",
              829: "Module talk"}
 FILE_STUB = "file = ns.id == 6 and {exists = true, width = 1000, height = 1000} or nil,"
-_CONTEXTS: dict[Path, object] = {}
+_CONTEXTS: dict[object, object] = {}
 
 
 @dataclass(frozen=True)
@@ -94,6 +94,17 @@ class Site:
         key = Path(self.folder).resolve()
         if key not in _CONTEXTS:
             _CONTEXTS[key] = open_context(key, self.lang)
+        return _CONTEXTS[key]
+
+    def texvc(self):
+        """MediaWiki's TeX checker for this wiki (``linecaster_mediawiki.texvc``), one per process; None where the
+        site was taken in without it."""
+        from .texvc import Texvc
+
+        key = ("texvc", Path(self.folder).resolve())
+        if key not in _CONTEXTS:
+            t = Texvc(key[1])
+            _CONTEXTS[key] = t if t.installed else None
         return _CONTEXTS[key]
 
 

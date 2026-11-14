@@ -10,7 +10,7 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
   ``s``/``strike``/``del`` strikethrough, ``sup``/``sub`` script;
 - tables (``table``, ``tr``, ``td``/``th`` with ``rowspan``/``colspan``, ``caption``); pictures (``img`` with its
   ``src``, ``figure``, ``figcaption``); formulas (MathML ``math`` with ``alttext``, its LaTeX normalized by
-  ``linecaster.text.formulas``);
+  ``linecaster.text.formulas``; a TeX ``annotation`` that differs is the formula's ``source``);
 - ARIA and DPUB-ARIA roles: ``heading`` (with ``aria-level``) a heading, ``doc-pageheader`` and
   ``doc-pagefooter`` the page's furniture (header, footer), ``doc-footnote`` a note, ``doc-noteref`` a note's mark
   (not text); the ``lang`` attribute the language of the text inside;
@@ -61,6 +61,7 @@ class Run:
     fmt: frozenset = frozenset()
     edit: tuple[str, str] | None = None      # (kind, other reading)
     language: str | None = None
+    source: str | None = None                # a formula's LaTeX as the source wrote it
 
 
 @dataclass
@@ -427,6 +428,9 @@ class _Walk:
         tex = clean_formula(el.get("alttext") or "")
         if not tex:
             return
+        source = next((a.text for a in el.iter("{*}annotation", "annotation")
+                       if a.get("encoding") == "application/x-tex" and a.text), None)
+        source = source if source is not None and source.strip() != tex else None
         brace = layout_brace(tex)
         if brace:
             self.emit(brace, fmt, part, None, **attrs)
@@ -434,7 +438,7 @@ class _Walk:
         block = (el.get("display") or "").lower() == "block"
         if block:
             self.flush()
-        self.emit(f"${tex}$", fmt | {"formula"}, part, None, **attrs)
+        self.emit(f"${tex}$", fmt | {"formula"}, part, None, **attrs, source=source)
         if block:
             self.flush()
 
@@ -492,7 +496,7 @@ def _lines(runs: list[Run]) -> list[tuple[str, list[tuple[int, int, Run]]]]:
                 lines.append(cur)
                 cur = []
             if part:
-                cur.append(Run(part, r.fmt, r.edit, r.language))
+                cur.append(Run(part, r.fmt, r.edit, r.language, r.source))
     lines.append(cur)
     out = []
     for runs_ in lines:
@@ -531,7 +535,8 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                 if e <= a:
                     continue
                 if "formula" in r.fmt:
-                    t.formulas.append(Formula(annotator=who, target=f"{lid}[{a}:{e}]", latex=text[a + 1:e - 1]))
+                    t.formulas.append(Formula(annotator=who, target=f"{lid}[{a}:{e}]", latex=text[a + 1:e - 1],
+                                              source=r.source))
                     continue
                 f = {k: True for k in ("italic", "bold", "underline", "strikethrough") if k in r.fmt}
                 for s in ("super", "sub"):

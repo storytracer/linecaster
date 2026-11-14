@@ -76,7 +76,7 @@ def site(tmp_path_factory, no_network):
     folder = tmp_path_factory.mktemp("site")
     dump = folder / "dump.xml.bz2"                          # wikitextprocessor reads bzip2 dumps
     dump.write_bytes(bz2.compress(DUMP.encode("utf-8")))
-    return Site(intake(folder / "site", [dump]))
+    return Site(intake(folder / "site", [dump], texvc=False))     # texvc: its own tests
 
 
 @pytest.fixture(scope="module")
@@ -151,6 +151,45 @@ def test_a_formula_is_no_wikitext_inside_a_template(site):
     t = PageReader(site).read(f"<noinclude></noinclude>A {{{{Box|<math>{tex}</math>}}}} and <math>{tex}</math>."
                               "<noinclude></noinclude>", "Page:Example.djvu/4").transcription
     assert [f.latex for f in t.formulas] == [tex, tex]
+
+
+class FakeTexvc:
+    r"""texvc as the reader asks it: \Mu is \mathrm {M}, \bad is rejected, the rest as written."""
+
+    def check(self, tex):
+        return None if r"\bad" in tex else tex.replace(r"\Mu", r"\mathrm {M}")
+
+
+def test_formulas_as_texvc_writes_them(site):
+    """A formula's LaTeX is texvc's, the TeX as written its source; what texvc rejects stays as written, recorded."""
+    from linecaster_mediawiki import PageReader
+    from linecaster_mediawiki import site as site_module
+
+    key = ("texvc", site.folder.resolve())
+    site_module._CONTEXTS[key] = FakeTexvc()
+    try:
+        t = PageReader(site).read(r"<noinclude></noinclude>A <math>\Mu + x</math>, <math>y</math> and "
+                                  r"<math>\bad</math>.<noinclude></noinclude>", "Page:Example.djvu/5").transcription
+    finally:
+        del site_module._CONTEXTS[key]
+    assert [(f.latex, f.source) for f in t.formulas] == [(r"\mathrm {M} + x", r"\Mu + x"), ("y", None),
+                                                         (r"\bad", None)]
+    assert [ln.reading.text for ln in t.lines] == [r"A $\mathrm {M} + x$, $y$ and $\bad$."]
+    rules = t.annotators[1]
+    assert rules.measurements["texvc_rejected"] == [r"\bad"] and rules.settings["texvc"].startswith("mathoid-texvcjs")
+
+
+@pytest.mark.network
+def test_texvcjs_as_installed(tmp_path):
+    """The pinned texvcjs, installed from the package registry as intake installs it."""
+    from linecaster_mediawiki.texvc import Texvc, install
+
+    install(tmp_path)
+    t = Texvc(tmp_path)
+    assert t.installed
+    assert t.check(r"\overline\frac{a}{b} + \Mu") == r"{\overline {\frac {a}{b}}}+\mathrm {M} "
+    assert t.check(r"\begin{align} a&=b \end{align}") == r"{\begin{aligned}a&=b\end{aligned}}"
+    assert t.check(r"\undefinedcommand") is None
 
 
 def test_parts_and_top_level_calls():

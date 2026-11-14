@@ -261,6 +261,8 @@ class Table(Annotation):
 class Formula(Annotation):
     target: Ref
     latex: str
+    source: str | None = Field(None, description="the LaTeX as the source wrote it, where the reading's differs "
+                                                 "(a wiki's formula as its software normalizes it)")
 
 
 #: classification schemes

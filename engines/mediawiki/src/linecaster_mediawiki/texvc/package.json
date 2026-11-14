@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "MediaWiki's TeX checker for linecaster-mediawiki: texvcjs (Wikimedia, GPL-2.0), run by texvc.py",
+  "dependencies": {
+    "mathoid-texvcjs": "0.6.0"
+  }
+}

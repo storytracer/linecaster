@@ -237,7 +237,8 @@ fields: `start_row`, `end_row`, `start_col`, `end_col` (docling-core's `*_offset
 `linecaster.formats.docling.table_data` and `from_table_data` convert to and from docling-core's `TableData`
 losslessly. A chart's data, when a model gives it, is a `Table` too, on the chart's region.
 
-A `Formula` transcribes a region as `latex`.
+A `Formula` transcribes a region as `latex`; `source` is the LaTeX as the source wrote it, where the reading's
+differs (a wiki's formula as its software normalizes it).
 
 ### Classifications
 

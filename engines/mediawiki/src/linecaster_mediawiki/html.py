@@ -10,10 +10,11 @@ caption where it is framed: ``thumb``, ``frame``); ``[url label]`` its label. En
 MediaWiki's extensions, written as standard HTML the importer knows: Cite's ``<ref>`` is a DPUB-ARIA
 ``doc-footnote`` where its mark stands (a ``follow=`` note has the class ``mw-ref-follow``, a reuse of a named note
 is nothing); ``<references>`` prints nothing (the notes are where their marks are); Math's ``<math>`` and Chem's
-``<chem>``/``<ce>`` are MathML ``math`` elements with the TeX in ``alttext``; Poem's ``<poem>`` a ``div`` with a line
-break per line and a paragraph per stanza; Gallery's files pictures with their captions; TemplateStyles' style
-sheets ``<style>`` elements (from the wiki's pages, their ``.mw-parser-output`` scope removed); ProofreadPage's header
-and footer ``doc-pageheader`` and ``doc-pagefooter``.
+``<chem>``/``<ce>`` are MathML ``math`` elements with the TeX in ``alttext`` as MediaWiki's TeX checker writes it
+(``linecaster_mediawiki.texvc``) and the TeX as written in an ``annotation`` where it differs; Poem's ``<poem>`` a
+``div`` with a line break per line and a paragraph per stanza; Gallery's files pictures with their captions;
+TemplateStyles' style sheets ``<style>`` elements (from the wiki's pages, their ``.mw-parser-output`` scope removed);
+ProofreadPage's header and footer ``doc-pageheader`` and ``doc-pagefooter``.
 
 Blocks are given to the part of the page their source lies in (the parsed text's markers): a block wholly in the
 header is the header's, wholly in the footer the footer's, any other the body's; a paragraph that runs on from the
@@ -49,6 +50,7 @@ class Built:
 
     root: etree._Element
     unexpanded: list[str] = field(default_factory=list)
+    texvc_rejected: list[str] = field(default_factory=list)
 
 
 class HtmlBuilder:
@@ -58,11 +60,12 @@ class HtmlBuilder:
     def __init__(self, site, styles=None):
         self.site = site
         self.styles = styles or (lambda title: None)
+        self.texvc = site.texvc() if hasattr(site, "texvc") else None
 
     def build(self, root) -> Built:
         w = _Writer(self)
         w.nodes(root.children)
-        return Built(w.finish(), w.unexpanded)
+        return Built(w.finish(), w.unexpanded, w.texvc_rejected)
 
 
 class _Writer:
@@ -77,6 +80,7 @@ class _Writer:
         self.cursor: etree._Element | None = None
         self.part = "header"
         self.unexpanded: list[str] = []
+        self.texvc_rejected: list[str] = []
         self.pre = 0
         self.styles_seen: set[str] = set()
 
@@ -251,11 +255,17 @@ class _Writer:
             tex = _unquote(_flat(n.children))
             if tag != "math":
                 tex = rf"\ce{{{tex}}}"
-            el_attrs = {"alttext": tex}
+            checked = self.b.texvc.check(tex) if self.b.texvc is not None and tex.strip() else None
+            if self.b.texvc is not None and tex.strip() and checked is None:
+                self.texvc_rejected.append(tex)
+            el_attrs = {"alttext": checked or tex}
             if attrs.get("display") == "block":
                 el_attrs["display"] = "block"
             self.ensure_p()
             el = etree.SubElement(self.cursor, "math", el_attrs)
+            if checked is not None and checked != tex:      # as MediaWiki: alttext texvc's, the TeX as written beside
+                semantics = etree.SubElement(el, "semantics")
+                etree.SubElement(semantics, "annotation", encoding="application/x-tex").text = tex
             el.tail = ""
         elif tag == "poem":
             self.poem(n, attrs)

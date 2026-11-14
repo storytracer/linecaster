@@ -12,7 +12,7 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
 ### Upgrade notes
 
 - **Page records are `linecaster.page/4`.** page/4 only adds fields (`Zone.anchor`, `Source.revision`,
-  `Classification.reason`, `Annotator.conventions` and `conventions_sha256`); `PageRecordReader` and
+  `Classification.reason`, `Annotator.conventions` and `conventions_sha256`, `Formula.source`); `PageRecordReader` and
   `linecaster score` read page/3 rows as they are. A server and its clients must run the same version.
 - **`TranscriptionConverter` is `TranscriptionImporter`**, and takes an importer: a preset of the new step `import`
   (`auto-import@1`, `alto-import@1`, `page-xml-import@1`, `hocr-import@1`, `text-import@1`, `docling-import@1`,
@@ -62,7 +62,9 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
   the HTML converter under the wiki's conventions; every line and region anchored in the revision. It reads no
   network: the interwiki map is the siteinfo's, and Wikidata is never asked (a well-formed id exists, nothing about
   it is known), so a Wikidata link prints only the text its call brings; the ids asked about are recorded
-  (measurement `wikidata`).
+  (measurement `wikidata`). Formulas are LaTeX as MediaWiki's TeX checker writes it (texvcjs, pinned, installed
+  by `intake` into the site folder and run in Node: MediaWiki's own commands as standard LaTeX, every argument in
+  braces), the TeX as written their `source`; what texvc rejects stays as written (measurement `texvc_rejected`).
 
 ### Changed
 

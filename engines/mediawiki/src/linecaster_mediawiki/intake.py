@@ -79,8 +79,10 @@ def wtp_namespaces(siteinfo: dict) -> dict:
     return out
 
 
-def intake(folder: Path, dumps: list[Path], siteinfo: Path | None = None, namespaces: tuple[int, ...] = ()) -> Path:
-    """Writes the site folder ``folder`` from ``dumps``; returns it."""
+def intake(folder: Path, dumps: list[Path], siteinfo: Path | None = None, namespaces: tuple[int, ...] = (),
+           texvc: bool = True) -> Path:
+    """Writes the site folder ``folder`` from ``dumps``, with MediaWiki's TeX checker unless not ``texvc``
+    (``linecaster_mediawiki.texvc``: Node and npm); returns it."""
     import wikitextprocessor
     from wikitextprocessor.dumpparser import process_dump
 
@@ -99,6 +101,10 @@ def intake(folder: Path, dumps: list[Path], siteinfo: Path | None = None, namesp
         process_dump(w, str(dump), {TEMPLATE, MODULE, *namespaces})
         style_sheets(w, dump, {TEMPLATE, *namespaces})
     w.close_db_conn()
+    if texvc:
+        from .texvc import install
+
+        install(folder)
     return folder
 
 
@@ -129,9 +135,16 @@ def main(argv: list[str] | None = None) -> None:
     it.add_argument("--siteinfo", type=Path, help="the API's siteinfo JSON (with namespace aliases)")
     it.add_argument("--namespace", type=int, action="append", default=[],
                     help="a further namespace to read (a ProofreadPage Index namespace: its style sheets)")
+    it.add_argument("--no-texvc", action="store_true", help="without MediaWiki's TeX checker (formulas as written)")
+    tv = sub.add_parser("texvc", help="MediaWiki's TeX checker into an existing site folder")
+    tv.add_argument("site", type=Path)
     a = ap.parse_args(argv)
     if a.cmd == "intake":
-        print(intake(a.site, a.dumps, a.siteinfo, tuple(a.namespace)))
+        print(intake(a.site, a.dumps, a.siteinfo, tuple(a.namespace), texvc=not a.no_texvc))
+    elif a.cmd == "texvc":
+        from .texvc import install
+
+        print(install(a.site))
 
 
 if __name__ == "__main__":

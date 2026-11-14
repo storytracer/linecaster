@@ -17,6 +17,7 @@ from linecaster.engines.api import HtmlConverter, ResolvedConventions, SourceMap
 from .html import HtmlBuilder
 from .proofread import FOOT_START, HEAD_END, PageSource, top_level_calls
 from .site import Site
+from .texvc import VERSION as TEXVC
 
 ENGINE = "import.mediawiki.v1"
 #: ProofreadPage's levels as the review the people's annotator records
@@ -70,13 +71,16 @@ class PageReader:
         c = self.conventions
         rules = t.add_annotator(Annotator(kind="rule", step="import", name="mediawiki", engine=ENGINE,
                                           conventions=c.ref if c else None,
-                                          conventions_sha256=c.sha256 if c else None))
+                                          conventions_sha256=c.sha256 if c else None,
+                                          settings={"texvc": TEXVC} if self.site.texvc() is not None else {}))
         reading = self.importer.read(built.root, t, people, rules)
         anchored = self.anchor(t, text, pos, title)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
                                                  "ends_paragraph": reading.ends_paragraph})
         if built.unexpanded:
             t.annotators[rules].measurements["unexpanded"] = sorted(set(built.unexpanded))
+        if built.texvc_rejected:
+            t.annotators[rules].measurements["texvc_rejected"] = sorted(set(built.texvc_rejected))
         if wikidata:                                    # ids a module asked Wikidata about, unanswered
             t.annotators[rules].measurements["wikidata"] = wikidata
         return PageReading(t, reading.ends_paragraph, built.unexpanded, wikidata)
