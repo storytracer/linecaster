@@ -97,6 +97,9 @@ class Site:
         return _CONTEXTS[key]
 
 
+#: Extension tags whose content is not wikitext (TeX, chemistry, music, code, timelines), with that content
+OPAQUE = re.compile(r"(?si)(<(math|chem|ce|score|syntaxhighlight|source|timeline)\b[^>]*(?<!/)>)(.*?)(</\2\s*>)")
+
 #: How ``mw.wikibase`` answers without Wikidata: wikitextprocessor's Lua module, changed so that a well-formed id
 #: exists (wikitextprocessor says no entity exists, so a module stops before the text its call brings) and a missing
 #: entity is nil (as in Wikibase; wikitextprocessor fails on it).
@@ -177,6 +180,13 @@ def open_context(folder: Path, lang: str):
     class SiteWtp(Wtp):
         def init_data_folder(self) -> None:
             self.data_folder = folder
+
+        def preprocess_text(self, text: str) -> str:
+            """As MediaWiki's preprocessor: the content of a tag that is not wikitext (``OPAQUE``) is the tag's own,
+            even inside a template call (a ``}}`` or ``|`` in a formula is no part of the call, ``''`` no italics).
+            wikitextprocessor does this only for ``<nowiki>``; the content is quoted the same way, and the HTML
+            builder reads it back unquoted."""
+            return super().preprocess_text(OPAQUE.sub(r"\1<nowiki>\3</nowiki>\4", text))
 
     return SiteWtp(db_path=folder / "pages.db", lang_code=lang, project="wikisource", quiet=True,
                    extension_tags=EXTENSION_TAGS)

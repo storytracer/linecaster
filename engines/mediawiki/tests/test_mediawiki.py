@@ -32,6 +32,7 @@ function p.link(frame)
   return '[' .. site .. ' ' .. label .. ']'
 end
 return p</text></revision></page>
+<page><title>Template:Box</title><ns>10</ns><id>8</id><revision><id>18</id><model>wikitext</model><text>&lt;div class="x-box"&gt;{{{{{{1}}}}}}&lt;/div&gt;</text></revision></page>
 <page><title>Template:Wdl</title><ns>10</ns><id>7</id><revision><id>17</id><model>wikitext</model><text>{{{{#invoke:Wikidata link|link|wikidata={{{{{{1|}}}}}}|label={{{{{{2|}}}}}} }}}}</text></revision></page>
 </mediawiki>
 """.format(template="&lt;templatestyles src=\"Head/styles.css\" /&gt;&lt;div class=\"x-head\"&gt;&lt;div "
@@ -140,6 +141,16 @@ def test_wikidata_is_never_asked(site):
     t = r.transcription
     assert [ln.reading.text for ln in t.lines if ln.region in t.order().regions] == ["By Aristotle and , not ."]
     assert r.wikidata == ["Q1", "Q868"] and t.annotators[1].measurements["wikidata"] == ["Q1", "Q868"]
+
+
+def test_a_formula_is_no_wikitext_inside_a_template(site):
+    """As in MediaWiki, a formula's ``}}``, ``|`` and ``''`` are the formula's, also in a template's argument."""
+    from linecaster_mediawiki import PageReader
+
+    tex = r"\overline{\frac{a}{b}} = y''_1 + |x|"
+    t = PageReader(site).read(f"<noinclude></noinclude>A {{{{Box|<math>{tex}</math>}}}} and <math>{tex}</math>."
+                              "<noinclude></noinclude>", "Page:Example.djvu/4").transcription
+    assert [f.latex for f in t.formulas] == [tex, tex]
 
 
 def test_parts_and_top_level_calls():

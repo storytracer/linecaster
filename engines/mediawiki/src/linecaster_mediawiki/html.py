@@ -248,7 +248,7 @@ class _Writer:
         if tag == "ref":
             self.ref(n, attrs)
         elif tag in ("math", "chem", "ce"):
-            tex = _flat(n.children)
+            tex = _unquote(_flat(n.children))
             if tag != "math":
                 tex = rf"\ce{{{tex}}}"
             el_attrs = {"alttext": tex}
@@ -439,6 +439,16 @@ INTERWIKI_LANGUAGES = frozenset({"de", "fr", "es", "it", "la", "ru", "pl", "pt",
 def _attrs(attrs: dict) -> dict:
     """Attributes as lxml takes them: string values, names that are XML names."""
     return {k: str(v) for k, v in attrs.items() if re.match(r"^[A-Za-z_][\w.-]*$", str(k))}
+
+
+def _unquote(text: str) -> str:
+    """Content of an opaque tag (``site.OPAQUE``) as written: wikitextprocessor's ``<nowiki>`` quoting undone where
+    it is left (a template's argument quotes ``_`` as ``&#95;`` past one unescaping)."""
+    from wikitextprocessor.common import _nowiki_map
+
+    for ch, entity in _nowiki_map.items():
+        text = text.replace(entity, ch)
+    return text
 
 
 def _flat(nodes) -> str:
