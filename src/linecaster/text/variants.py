@@ -6,7 +6,9 @@ each transform moving one step on one of them.
   never modernized);
 * **flow**: *as laid out* (one line per printed line, pages separated by a form feed) or *flowed* (the
   recomposition's paragraphs, ``Transcription.paragraphs``: rows joined, division marks removed, paragraphs
-  continued across regions and page breaks where the recomposition of the item continued them);
+  continued across regions and page breaks where the recomposition of the item continued them; a region with
+  lines and no paragraph, as in a ground truth or an imported file, is a paragraph of its own, continued where its
+  ``runs_into`` / ``continues`` links say);
 * **scope**: *full page* (the rendering policy's ``body`` and ``furniture`` layers) or *body only* (its ``body``
   layer: running heads and page numbers left out, and the text read inside pictures and charts).
 
@@ -114,14 +116,16 @@ KINDS = {"title": "title", "section_header": "heading", "list_item": "list_item"
 
 def body_blocks(pages: list[Transcription], page_ids: list[str] | None = None, policy: RenderingPolicy = DEFAULT_POLICY,
                 variant: str = "readable_txt") -> list[Block]:
-    """The body of consecutive pages (an item) from their recomposition: each page's regions in reading order
-    (regions without an order last), each paragraph a block (the latest recomposition's paragraphs; a paragraph that
-    continues another, in an earlier region or on an earlier page, is appended to that one's block with the
-    continuation's separator), a region with a table structure a ``table`` block, a formula region's LaTeX a
-    paragraph; only regions ``policy`` puts in the ``body`` layer, and no text read inside a picture or chart
-    (``NO_TEXT``). Texts carry ``variant``'s edits (``policy.edits``). ``page_ids`` name the pages as the
-    recomposition named them (``<page id>#<id>``; default ``#1``, ``#2``, ...). A page without paragraphs
-    contributes only its tables and formulas."""
+    """The body of consecutive pages (an item): each page's regions in reading order (regions without an order
+    last), each paragraph a block (the latest recomposition's paragraphs; a paragraph that continues another, in an
+    earlier region or on an earlier page, is appended to that one's block with the continuation's separator), a
+    region with a table structure a ``table`` block, a formula region's LaTeX a paragraph; only regions ``policy``
+    puts in the ``body`` layer, and no text read inside a picture or chart (``NO_TEXT``). A region with lines and no
+    paragraph of the recomposition (a ground truth, an imported file: its regions are its paragraphs) is a block of
+    its own: its lines in reading order, flowed (joined by a space); its ``continues`` and ``runs_into`` links (the
+    latest of each, by any annotator) join it like a paragraph's, with a space. Texts carry ``variant``'s edits
+    (``policy.edits``). ``page_ids`` name the pages as the links name them (``<page id>#<id>``; default ``#1``,
+    ``#2``, ...)."""
     ids = list(page_ids) if page_ids is not None else [f"#{k + 1}" for k in range(len(pages))]
     kinds = policy.kinds(variant)
     out: list[Block] = []
@@ -147,6 +151,9 @@ def body_blocks(pages: list[Transcription], page_ids: list[str] | None = None, p
                 out.append(Block("paragraph", label, nfc(formula.latex), nfc(formula.latex)))
                 continue
             own = paragraphs.get(rid, [])
+            if not own and rid is not None:
+                _region_block(t, rid, label, key, kinds, out, open_)
+                continue
             standalone = len(own) == 1 and not any(ch.isalpha() for ch in own[0].text)      # a page number
             for p in own:
                 edited = t.edit(p.id, kinds)
@@ -167,6 +174,32 @@ def body_blocks(pages: list[Transcription], page_ids: list[str] | None = None, p
                     page, pid = split_ref(runs_into)
                     open_[(page or key, pid)] = (b, sep)
     return out
+
+
+def _region_link(t: Transcription, rid: str, kind: str) -> str | None:
+    """The target of a region's latest ``kind`` link (``runs_into``, ``continues``), by any annotator."""
+    return next((ln.target for ln in reversed(t.links) if ln.source == rid and ln.kind == kind), None)
+
+
+def _region_block(t: Transcription, rid: str, label: str, key: str, kinds, out: list, open_: dict) -> None:
+    """A region without paragraphs as a block (``body_blocks``), or appended to the block it continues."""
+    lines = [ln for ln in t.lines_of(rid) if ln.reading is not None]
+    if not lines:
+        return
+    text = nfc(" ".join(x for ln in lines if (x := t.text_of(ln))))
+    normalized = nfc(" ".join(x for ln in lines if (x := t.text_of(ln, kinds))))
+    continued = open_.pop((key, rid), None) if _region_link(t, rid, "continues") is not None else None
+    if continued is not None:
+        b, sep = continued
+        b.text += sep + text
+        b.normalized += sep + normalized
+    else:
+        b = Block(KINDS.get(label, "paragraph"), label, text, normalized, t.heading_level(rid))
+        out.append(b)
+    runs_into = _region_link(t, rid, "runs_into")
+    if runs_into is not None:
+        page, target = split_ref(runs_into)
+        open_[(page or key, target)] = (b, " ")
 
 
 _MD_START = re.compile(r"^([#>*+\-]|\d+[.)])(\s|$)")

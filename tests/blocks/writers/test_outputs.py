@@ -186,3 +186,35 @@ def test_item_text_writers(tmp_path: Path):
         "ocr_new:lines", "ocr_new:paragraphs", "ocr_new:normalized"}
     with pytest.raises(PipelineConfigError):
         ItemTextWriter(str(tmp_path), variants=("nope",))
+
+
+def test_variants_flow_regions_without_paragraphs():
+    """A ground truth's regions are its paragraphs: without a recomposition they are blocks of their own, and their
+    continues / runs_into links (by any annotator) join them across the page break."""
+    from linecaster.data.transcription import Annotator, Link
+
+    def gt(texts, heading=None):
+        t = Transcription()
+        a = t.add_annotator(Annotator(kind="human", step="transcription", name="proofreaders"))
+        order = []
+        if heading:
+            t.add_region(a, "h", role="heading")
+            t.add_line(a, "h_l0", region="h", text=heading)
+            order.append("h")
+        for k, x in enumerate(texts):
+            t.add_region(a, f"p{k}", role="paragraph")
+            for j, part in enumerate(x.split("\n")):
+                t.add_line(a, f"p{k}_l{j}", region=f"p{k}", text=part)
+            order.append(f"p{k}")
+        t.add_order(a, order, [ln.id for r in order for ln in t.lines if ln.region == r])
+        return t, a
+
+    one, a1 = gt(["First paragraph.", "It runs on\nover the"], heading="CHAPTER I")
+    two, a2 = gt(["page break.", "New paragraph."])
+    rules = one.add_annotator(Annotator(kind="rule", step="transcription", name="links"))
+    one.links.append(Link(annotator=rules, kind="runs_into", source="p1", target="b#p0"))
+    two.links.append(Link(annotator=a2, kind="continues", source="p0", target="a#p1"))
+    v = T.variants([one, two], ["a", "b"])
+    assert v["readable_txt"] == "CHAPTER I\n\nFirst paragraph.\n\nIt runs on over the page break.\n\nNew paragraph."
+    assert v["readable_md"].startswith("## CHAPTER I\n\nFirst paragraph.")
+    assert v["verbatim_txt"] == "CHAPTER I\nFirst paragraph.\nIt runs on\nover the\fpage break.\nNew paragraph."

@@ -12,6 +12,15 @@ the tags; the first is `v0.1.0`.
   without them, now score `alnum@2` instead of `diplomatic@1`. Evidence of such a benchmark from 0.8.0 is not scored
   like the new one (the lanes differ); name `lanes: [diplomatic@1]` to keep the old scoring.
 
+### Changed
+
+- **Item texts flow regions without paragraphs.** The readable variants (`body_blocks`) took a page's text only
+  from the recomposition's paragraphs, so a transcription without one (a ground truth, an imported ALTO, PAGE or
+  Docling file, whose regions are its paragraphs) contributed only its tables and formulas to the item's text. A
+  region with lines and no paragraph is now a paragraph of its own: its lines flowed, its `runs_into` and
+  `continues` links (the latest of each, by any annotator) joining it across page breaks with a space. Regions with
+  paragraphs are read as before.
+
 ### Added
 
 - **Lane `alnum@2`**, letters and digits of any script: `reading@1`'s markup removed, NFKC, invisible characters
