@@ -125,6 +125,34 @@ class RenderingRule(BaseModel):
                                                                   (self.motivation, motivation)))
 
 
+class TableRules(BaseModel):
+    """What counts as a table when a page is written out (a document's tables are built by these rules)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_cell: Literal["table", "text"] = Field("table", description="a table of one cell: a table, or its text "
+                                                                       "as a text item")
+    single_column: Literal["table", "lines"] = Field("table", description="a table of one column: a table, or its "
+                                                                          "rows as the lines of a text item")
+    merge_single_rows: bool = Field(False, description="a one-row table right after a table of the same width is "
+                                                       "that table's next row")
+    fill_holes: bool = Field(False, description="grid positions a short row leaves empty become empty cells")
+
+
+class MarkdownRules(BaseModel):
+    """The Markdown a rendering writes (``linecaster.formats.docling.to_markdown``); docling-core's serializer
+    otherwise."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tables: Literal["html", "html-for-spans"] = Field(
+        "html-for-spans", description="every table as HTML (rows and cells with their spans, header cells as <th>, "
+                                      "line breaks as <br>), or Markdown tables and HTML only for spanning cells")
+    escape: bool = Field(True, description="escape characters Markdown would read (underscores, HTML)")
+    image_placeholder: str = Field("<!-- image -->", description="what a picture writes; '' for nothing")
+    html_scripts: bool = Field(False, description="superscript, subscript and underline as <sup>, <sub>, <u>")
+
+
 class RenderingPolicy(BaseModel):
     """Which annotations go into which layer of a rendering, and whose annotations count where several annotators
     gave one. Rules are tried in order; the first that matches wins; without a match, the role's default layer."""
@@ -139,6 +167,8 @@ class RenderingPolicy(BaseModel):
                                           "names whose annotations count first; the latest annotator otherwise")
     edits: dict[str, list[str]] = Field(default_factory=dict,
                                         description="per text variant: the edit kinds it applies")
+    tables: TableRules = Field(default_factory=TableRules, description="what counts as a table when written out")
+    markdown: MarkdownRules = Field(default_factory=MarkdownRules, description="the Markdown a rendering writes")
 
     @property
     def ref(self) -> str:

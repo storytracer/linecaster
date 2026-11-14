@@ -40,7 +40,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..data.geometry import BBox
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
+from ..data.policy import DEFAULT_POLICY, MarkdownRules, RenderingPolicy
 from ..data.refs import parse
 from ..data.transcription import Cell, Line, Region, Table, Transcription
 from ..text.recomposition import continuation, paragraphs as paragraphs_of, region_rows
@@ -78,18 +78,26 @@ def _prov(b: BBox, text: str = "", page_no: int = 1):
     return ProvenanceItem(page_no=page_no, bbox=_box(b), charspan=(0, len(text)))
 
 
-def table_data(table: Table):
+def table_data(table: Table, fill_holes: bool = False):
     """A table structure as docling-core's ``TableData``: its cells (text, offsets, spans, header and section flags,
-    box) and size. ``from_table_data`` reads it back."""
+    box) and size; ``fill_holes``: an empty cell at every grid position no cell covers. ``from_table_data`` reads it
+    back."""
     from docling_core.types.doc import TableCell, TableData
 
     cells = []
+    if fill_holes:
+        covered = {(r, c) for x in table.cells for r in range(x.start_row, x.end_row)
+                   for c in range(x.start_col, x.end_col)}
+        cells = [TableCell(text="", start_row_offset_idx=r, end_row_offset_idx=r + 1, start_col_offset_idx=c,
+                           end_col_offset_idx=c + 1) for r in range(table.num_rows) for c in range(table.num_cols)
+                 if (r, c) not in covered]
     for c in table.cells:
         b = BBox(c.box[0], c.box[1], c.box[0] + c.box[2], c.box[1] + c.box[3]) if c.box else None
         cells.append(TableCell(text=c.text, start_row_offset_idx=c.start_row, end_row_offset_idx=c.end_row,
                                start_col_offset_idx=c.start_col, end_col_offset_idx=c.end_col, row_span=c.row_span,
                                col_span=c.col_span, column_header=c.column_header, row_header=c.row_header,
                                row_section=c.row_section, bbox=_box(b) if b else None))
+    cells.sort(key=lambda c: (c.start_row_offset_idx, c.start_col_offset_idx))
     return TableData(table_cells=cells, num_rows=table.num_rows, num_cols=table.num_cols)
 
 
@@ -154,6 +162,7 @@ class DocumentBuilder:
         self.doc = DoclingDocument(name=name)
         self.sections, self.policy = sections, policy
         self._section = None      # the open section GroupItem, or None for the body
+        self._last_table = None   # the table item a one-row table may join (TableRules.merge_single_rows)
         self._level = 1
         self._items: dict[tuple[str, str], Any] = {}     # (page key, paragraph id) -> the item it is in
         self.pages = 0
@@ -207,6 +216,35 @@ class DocumentBuilder:
         return self.doc
 
     # ---------------------------------------------------------------- regions
+    def _add_table(self, page: "_PageContext", table: Table, b, layer) -> None:
+        """A table by the policy's table rules: one cell as text, one column as lines, a single row joined to the
+        table before it, holes filled."""
+        from docling_core.types.doc import DocItemLabel, TableCell
+
+        rules = self.policy.tables
+        rows: dict[int, list] = {}
+        for c in sorted(table.cells, key=lambda c: (c.start_row, c.start_col)):
+            rows.setdefault(c.start_row, []).append(c)
+        if rules.single_cell == "text" and len(table.cells) == 1 or rules.single_column == "lines" \
+                and table.num_cols == 1:
+            text = "\n".join(" ".join(c.text for c in row if c.text) for row in rows.values()).strip()
+            if text:
+                self._add_text(DocItemLabel.TEXT, text, _prov(b, text, page.page_no), layer)
+            self._last_table = None
+            return
+        last = self._last_table
+        if rules.merge_single_rows and table.num_rows == 1 and last is not None \
+                and last.data.num_cols == table.num_cols:
+            r = last.data.num_rows
+            for c in table_data(table, rules.fill_holes).table_cells:
+                last.data.table_cells.append(TableCell(**{**c.model_dump(), "start_row_offset_idx": r,
+                                                          "end_row_offset_idx": r + 1}))
+            last.data.num_rows += 1
+            return
+        self._last_table = self.doc.add_table(data=table_data(table, rules.fill_holes),
+                                              prov=_prov(b, "", page.page_no), parent=self._section,
+                                              content_layer=layer)
+
     def _add_region(self, page: "_PageContext", r: Region, lines: list[Line], paragraphs: list | None) -> None:
         from docling_core.types.doc import DocItemLabel
 
@@ -227,8 +265,8 @@ class DocumentBuilder:
                 self.doc.add_text(label=DocItemLabel.FORMULA, text=formula, prov=_prov(b, formula, page_no),
                                   parent=self._section, content_layer=layer)
         elif table is not None:
-            self.doc.add_table(data=table_data(table), prov=_prov(b, "", page_no), parent=self._section,
-                               content_layer=layer)
+            self._add_table(page, table, b, layer)
+            return
         elif label in TEXT_LABELS:
             if content.strip():
                 self._add_text(DocItemLabel(TEXT_LABELS[label]), content, _prov(b, content, page_no), layer)
@@ -237,6 +275,7 @@ class DocumentBuilder:
             if content.strip():
                 self.doc.add_text(label=DocItemLabel.TEXT, text=content, prov=_prov(b, content, page_no), parent=pic,
                                   content_layer=layer)
+        self._last_table = None                 # anything but a table ends the run a one-row table may join
 
     def _open_section(self, text: str) -> None:
         from docling_core.types.doc import GroupLabel
@@ -390,17 +429,71 @@ def _span_aware_table_serializer():
     return SpanAwareTableSerializer()
 
 
-def to_markdown(doc_or_t, furniture: bool = False, region_of: dict[str, str] | None = None) -> str:
-    """Markdown with Docling's defaults, tables with spanning cells as HTML; page headers and footers
-    only with ``furniture``. With ``region_of`` (``DocumentBuilder.region_of``) a ``---`` rule separates
-    the items of one layout region from the next."""
+def table_html(item, doc) -> str:
+    """A table as HTML: ``<caption>``, rows with their cells' ``rowspan`` and ``colspan``, header cells as ``<th>``,
+    line breaks as ``<br>``, text escaped as HTML requires."""
+    import html as htmllib
+
+    esc = lambda s: htmllib.escape(s, quote=False).replace("\n", "<br>")
+    starts: dict[int, list] = {}
+    for cell in item.data.table_cells:
+        starts.setdefault(cell.start_row_offset_idx, []).append(cell)
+    parts = ["<table>"]
+    cap = item.caption_text(doc)
+    if cap:
+        parts.append(f"<caption>{esc(cap)}</caption>")
+    for r in range(item.data.num_rows):
+        parts.append("<tr>")
+        for cell in sorted(starts.get(r, []), key=lambda x: x.start_col_offset_idx):
+            tag = "th" if cell.column_header or cell.row_header else "td"
+            span = (f' rowspan="{cell.row_span}"' if cell.row_span > 1 else "") + \
+                   (f' colspan="{cell.col_span}"' if cell.col_span > 1 else "")
+            parts.append(f"<{tag}{span}>{esc(cell.text)}</{tag}>")
+        parts.append("</tr>")
+    parts.append("</table>")
+    return "".join(parts)
+
+
+def _html_table_serializer():
+    from docling_core.transforms.serializer.common import create_ser_result
+    from docling_core.transforms.serializer.markdown import MarkdownTableSerializer
+
+    class HtmlTableSerializer(MarkdownTableSerializer):
+        def serialize(self, *, item, doc_serializer, doc, **kwargs):
+            return create_ser_result(text=table_html(item, doc), span_source=item)
+
+    return HtmlTableSerializer()
+
+
+def _markdown_serializer(doc, layers, rules: MarkdownRules):
     from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
+
+    class Serializer(MarkdownDocSerializer):
+        def serialize_superscript(self, text: str, **kwargs) -> str:
+            return f"<sup>{text}</sup>" if rules.html_scripts else super().serialize_superscript(text, **kwargs)
+
+        def serialize_subscript(self, text: str, **kwargs) -> str:
+            return f"<sub>{text}</sub>" if rules.html_scripts else super().serialize_subscript(text, **kwargs)
+
+        def serialize_underline(self, text: str, **kwargs) -> str:
+            return f"<u>{text}</u>" if rules.html_scripts else super().serialize_underline(text, **kwargs)
+
+    params = MarkdownParams(layers=layers, escape_underscores=rules.escape, escape_html=rules.escape,
+                            image_placeholder=rules.image_placeholder)
+    tables = _html_table_serializer() if rules.tables == "html" else _span_aware_table_serializer()
+    return Serializer(doc=doc, table_serializer=tables, params=params)
+
+
+def to_markdown(doc_or_t, furniture: bool = False, region_of: dict[str, str] | None = None,
+                rules: MarkdownRules | None = None) -> str:
+    """Markdown by a policy's Markdown rules (``RenderingPolicy.markdown``; default: Docling's defaults, tables
+    with spanning cells as HTML); page headers and footers only with ``furniture``. With ``region_of``
+    (``DocumentBuilder.region_of``) a ``---`` rule separates the items of one layout region from the next."""
     from docling_core.types.doc import GroupItem
 
     doc = load_docling(doc_or_t)
     layers = _layers(furniture)
-    ser = MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer(),
-                                params=MarkdownParams(layers=layers))
+    ser = _markdown_serializer(doc, layers, rules or MarkdownRules())
     if not region_of:
         return ser.serialize().text
     blocks: list[str] = []
@@ -455,18 +548,19 @@ def to_json(doc_or_dict) -> str:
 EXPORT_FORMATS = {"md": "md", "txt": "txt", "html": "html", "doclang": "doclang.xml", "json": "json"}
 
 
-def export(doc, fmt: str, furniture: bool = False, region_of: dict[str, str] | None = None) -> str:
+def export(doc, fmt: str, furniture: bool = False, region_of: dict[str, str] | None = None,
+           rules: MarkdownRules | None = None) -> str:
     """One export of a ``DoclingDocument`` (a document dict, or a transcription, rendered: ``load_docling``): ``md``
-    (``region_of`` puts ``---`` dividers between layout regions), ``txt``, ``html``, ``doclang`` or
-    ``json``. ``furniture`` keeps page headers and footers in md, txt and html (json and doclang
-    always hold them, in Docling's furniture layer)."""
+    (by the policy's Markdown ``rules``; ``region_of`` puts ``---`` dividers between layout regions), ``txt``,
+    ``html``, ``doclang`` or ``json``. ``furniture`` keeps page headers and footers in md, txt and html (json and
+    doclang always hold them, in Docling's furniture layer)."""
     if fmt not in EXPORT_FORMATS:
         raise ValueError(f"unknown export format {fmt!r}; choose from {', '.join(EXPORT_FORMATS)}")
     if fmt == "json":
         return to_json(doc)
     doc = load_docling(doc)
     if fmt == "md":
-        return to_markdown(doc, furniture, region_of)
+        return to_markdown(doc, furniture, region_of, rules)
     if fmt == "txt":
         return to_text(doc, furniture)
     if fmt == "html":

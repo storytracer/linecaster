@@ -5,7 +5,7 @@ datatrove, saturate or engines."""
 from .measurements import FINISH_REASONS, MEASUREMENTS
 from .page import PAGE_KEY, PAGE_SCHEMA, Item, Page, PageImage, Text
 from .source import SourceDocument
-from .policy import DEFAULT_POLICY, LAYERS, ROLES, RenderingPolicy, RenderingRule
+from .policy import DEFAULT_POLICY, LAYERS, ROLES, MarkdownRules, RenderingPolicy, RenderingRule, TableRules
 from .transcription import (
     DECISIONS, EDITS, LINKS, REASONS, SCHEMES, STATUSES, Anchor, Annotation, AnnotationSet, Annotator, Box, Cell, Classification,
     Decision, Description, DocumentRange, Edit, Formatting, Formula, Glyph, Line, Link, Paragraph, ParagraphRow, Point,
@@ -14,9 +14,9 @@ from .transcription import (
 
 __all__ = [
     "DECISIONS", "DEFAULT_POLICY", "EDITS", "FINISH_REASONS", "LAYERS", "LINKS", "MEASUREMENTS", "PAGE_KEY",
-    "PAGE_SCHEMA", "REASONS", "ROLES", "SCHEMES", "STATUSES", "Anchor", "Annotation", "AnnotationSet", "Annotator", "Box", "Cell",
-    "Classification", "Decision", "Description", "DocumentRange", "Edit", "Formatting", "Formula", "Glyph", "Item",
-    "Line", "Link", "Page", "PageImage", "Paragraph", "ParagraphRow", "Point", "Range", "RawOutput", "Reading",
-    "ReadingOrder", "Ref", "Region", "RenderingPolicy", "RenderingRule", "Shape", "Source", "SourceDocument", "Table", "Text",
-    "Transcription", "Word", "Zone",
+    "PAGE_SCHEMA", "REASONS", "ROLES", "SCHEMES", "STATUSES", "Anchor", "Annotation", "AnnotationSet", "Annotator",
+    "Box", "Cell", "Classification", "Decision", "Description", "DocumentRange", "Edit", "Formatting", "Formula",
+    "Glyph", "Item", "Line", "Link", "MarkdownRules", "Page", "PageImage", "Paragraph", "ParagraphRow", "Point",
+    "Range", "RawOutput", "Reading", "ReadingOrder", "Ref", "Region", "RenderingPolicy", "RenderingRule", "Shape",
+    "Source", "SourceDocument", "Table", "TableRules", "Text", "Transcription", "Word", "Zone",
 ]

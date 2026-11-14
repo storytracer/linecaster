@@ -1,6 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "MarkdownRules": {
+      "additionalProperties": false,
+      "description": "The Markdown a rendering writes (``linecaster.formats.docling.to_markdown``); docling-core's serializer\notherwise.",
+      "properties": {
+        "tables": {
+          "default": "html-for-spans",
+          "description": "every table as HTML (rows and cells with their spans, header cells as <th>, line breaks as <br>), or Markdown tables and HTML only for spanning cells",
+          "enum": [
+            "html",
+            "html-for-spans"
+          ],
+          "title": "Tables",
+          "type": "string"
+        },
+        "escape": {
+          "default": true,
+          "description": "escape characters Markdown would read (underscores, HTML)",
+          "title": "Escape",
+          "type": "boolean"
+        },
+        "image_placeholder": {
+          "default": "<!-- image -->",
+          "description": "what a picture writes; '' for nothing",
+          "title": "Image Placeholder",
+          "type": "string"
+        },
+        "html_scripts": {
+          "default": false,
+          "description": "superscript, subscript and underline as <sup>, <sub>, <u>",
+          "title": "Html Scripts",
+          "type": "boolean"
+        }
+      },
+      "title": "MarkdownRules",
+      "type": "object"
+    },
     "RenderingRule": {
       "additionalProperties": false,
       "description": "One rule of a policy: what it matches (``None``: anything) and the layer it puts it in.",
@@ -77,6 +113,46 @@
       ],
       "title": "RenderingRule",
       "type": "object"
+    },
+    "TableRules": {
+      "additionalProperties": false,
+      "description": "What counts as a table when a page is written out (a document's tables are built by these rules).",
+      "properties": {
+        "single_cell": {
+          "default": "table",
+          "description": "a table of one cell: a table, or its text as a text item",
+          "enum": [
+            "table",
+            "text"
+          ],
+          "title": "Single Cell",
+          "type": "string"
+        },
+        "single_column": {
+          "default": "table",
+          "description": "a table of one column: a table, or its rows as the lines of a text item",
+          "enum": [
+            "table",
+            "lines"
+          ],
+          "title": "Single Column",
+          "type": "string"
+        },
+        "merge_single_rows": {
+          "default": false,
+          "description": "a one-row table right after a table of the same width is that table's next row",
+          "title": "Merge Single Rows",
+          "type": "boolean"
+        },
+        "fill_holes": {
+          "default": false,
+          "description": "grid positions a short row leaves empty become empty cells",
+          "title": "Fill Holes",
+          "type": "boolean"
+        }
+      },
+      "title": "TableRules",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -122,6 +198,14 @@
       "description": "per text variant: the edit kinds it applies",
       "title": "Edits",
       "type": "object"
+    },
+    "tables": {
+      "$ref": "#/$defs/TableRules",
+      "description": "what counts as a table when written out"
+    },
+    "markdown": {
+      "$ref": "#/$defs/MarkdownRules",
+      "description": "the Markdown a rendering writes"
     },
     "schema": {
       "const": "linecaster.policy/1",

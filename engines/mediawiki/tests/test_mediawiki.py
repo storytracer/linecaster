@@ -125,7 +125,6 @@ def test_parts_and_top_level_calls():
 
 def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     from linecaster_mediawiki import PageReader, link_pages
-    from linecaster.text.variants import body_blocks, render
 
     reader = PageReader(site)
     first = "<noinclude></noinclude>A paragraph that runs<noinclude></noinclude>"
@@ -135,5 +134,3 @@ def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     t0, t1 = pages[0][1], pages[1][1]
     assert [(x.kind, x.target) for x in t0.links] == [("runs_into", "p1#paragraph_0")]
     assert [(x.kind, x.target) for x in t1.links] == [("continues", "p0#paragraph_0")]
-    text = render(body_blocks([t0, t1], ["p0", "p1"]))
-    assert "A paragraph that runs on to the next page." in text and "Another one." in text

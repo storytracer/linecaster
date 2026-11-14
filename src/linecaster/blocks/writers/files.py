@@ -149,7 +149,8 @@ class PageFileWriter(Contracted, PipelineStep):
         if document is not None:
             from ...formats.docling import export
 
-            return export(document, fmt, self.furniture, region_of if self.dividers else None)
+            return export(document, fmt, self.furniture, region_of if self.dividers else None,
+                          rendering_policy(self.policy).markdown)
         if fmt in ("md", "txt") and self.text_fallback:
             from ...text.variants import page_text
 
