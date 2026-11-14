@@ -1,0 +1,28 @@
+[project]
+name = "linecaster-mediawiki"
+version = "0.1.0"
+description = "MediaWiki importer for linecaster: wikitext (with ProofreadPage, Cite and Scribunto) read into transcriptions through wikitextprocessor"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
+    "linecaster>=0.8.2,<0.10",
+    # the wikitext engine: templates, parser functions and Lua modules expanded from the wiki's own pages, and the
+    # wikitext parser (MIT; Lua through lupa). Pinned to a commit: the PyPI release of the same version is older code
+    # (it still needs pkg_resources)
+    "wikitextprocessor @ git+https://github.com/tatuylonen/wikitextprocessor@6f96ddf5f3466707f1869fe6618390fd77dfd109",
+    "lxml>=5",
+    # anchors into the source text (linecaster.markup.anchors)
+    "rapidfuzz>=3.9",
+]
+
+# the engines by versioned id (docs/reference/catalog.md); the conventions they apply live in linecaster's catalog
+[project.entry-points."linecaster.engines"]
+"import.mediawiki.v1" = "linecaster_mediawiki:MediaWikiImporter"
+
+[project.scripts]
+linecaster-mediawiki = "linecaster_mediawiki.intake:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
