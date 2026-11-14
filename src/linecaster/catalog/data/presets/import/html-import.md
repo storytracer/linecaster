@@ -1,0 +1,1 @@
+Reads HTML, by its own semantics and, with the option conventions, a source's conventions into a transcription (`import.html.v1`): a ground truth by default (the option `ground_truth`), fitted to the page image where the file states another size.

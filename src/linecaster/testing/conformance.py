@@ -349,7 +349,7 @@ def _engine_input(cls, transcription):
     return _step_input(cls.step, (cls.capabilities or {}).get("unit"))
 
 
-def check_engine(engine_cls, *, options: dict | None = None, image=None, transcription=None):
+def check_engine(engine_cls, *, options: dict | None = None, image=None, transcription=None, source=None):
     """Checks that an engine class follows the engine protocol, and returns what its first call returned.
 
     The checks: ``engine_id`` is a code id (``<provider>.<step>[.<variant>].v<n>`` or ``<step>.<variant>.v<n>``)
@@ -364,6 +364,8 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     * a rule-based engine by its unit: ``engine(transcription)`` (page), ``engine([t1, t2])`` (item, the
       transcriptions of two pages), ``engine(image_bytes) -> (bytes, info)`` (the image step);
 
+    an importer (step ``import``) as ``engine(source)``, a ``SourceDocument``: it returns a new ``Transcription``
+    whose rule annotators of step ``import`` name the engine and only measurements of the vocabulary;
     a composition (a rendering) returns what it renders and changes nothing in the transcription it reads; every
     other call gives each transcription exactly one more ``Annotator``, of kind ``rule`` for a rule-based step
     (``model`` or ``rule`` for a model step: one without a model is a rule), naming the engine's step, the engine id (or no engine: the block fills it in) and only measurements of the vocabulary
@@ -377,6 +379,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
         options: keyword arguments that construct it (a preset's options and ``weights``); ``None``: none.
         image: the page image, an RGB array (the image step and an engine whose ``image_input`` is ``"bytes"``: an
             image file's bytes); default ``sample_page()`` (``sample_png()``).
+        source: an importer's source document (``linecaster.data.SourceDocument``); default the sample page as ALTO.
         transcription: the transcription it is called with; default a sample layout fit for its step and unit
             (``sample_layout``: recognition gets lines without readings, layout an empty transcription, lines a
             region, tables and formulas a region of their label besides a recognized one, a page engine
@@ -436,6 +439,26 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
                 problems.append(f"the image step returns (bytes, info), not {type(out).__name__}")
                 break
             result, dump = out, (out[0], json.dumps(out[1], sort_keys=True, default=str))
+        elif step == "import":              # a source document in, a new transcription out
+            from ..data import SourceDocument
+            from ..formats import to_alto
+            from .samples import sample_transcription
+
+            doc = source if source is not None else _sample_source(getattr(engine_cls, "format", "alto"))
+            out = engine(doc)
+            if not isinstance(out, Transcription):
+                problems.append(f"an importer returns a Transcription, not {type(out).__name__}")
+                break
+            d = out.model_dump(mode="json", by_alias=True)
+            mine = [s for s in _annotators(d) if s.get("kind") == "rule" and s.get("step") == "import"]
+            for s in mine:
+                if s.get("engine") not in (None, eid):
+                    problems.append(f"Annotator engine {s.get('engine')!r}, not {eid!r}")
+                if bad := unknown_measurements(s.get("measurements") or {}):
+                    problems.append(f"Annotator measurements outside the vocabulary: {bad}")
+            if not _annotators(d):
+                problems.append("the transcription names no annotator")
+            result, dump = out, _without_varying([d])
         elif step == "composition":         # a rendering: it returns the document and adds nothing
             t = _engine_input(engine_cls, copy.deepcopy(transcription))
             kept = t.model_dump(mode="json", by_alias=True)
@@ -497,6 +520,23 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     if problems:
         raise AssertionError(f"{name} ({eid}):\n" + "\n".join(f"- {p}" for p in dict.fromkeys(problems)))
     return first
+
+
+def _sample_source(fmt: str):
+    """A source document of a built-in importer's format, from the sample transcription."""
+    import json as _json
+
+    from ..data import SourceDocument
+    from ..formats import to_alto, to_hocr, to_page
+    from ..formats.docling import build_docling, docling_dict
+    from .samples import sample_transcription
+
+    t = sample_transcription()
+    data = {"page": lambda: to_page(t), "hocr": lambda: to_hocr(t), "text": lambda: t.text,
+            "docling": lambda: _json.dumps(docling_dict(build_docling(t))),
+            "html": lambda: "".join(f"<p>{ln.reading.text}</p>" for ln in t.lines if ln.reading)}.get(
+        fmt, lambda: to_alto(t))()
+    return SourceDocument(data=data, format=fmt if fmt != "auto" else None)
 
 
 # ------------------------------------------------------------------------------------------------- blocks

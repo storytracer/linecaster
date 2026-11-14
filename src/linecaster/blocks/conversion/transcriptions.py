@@ -1,148 +1,132 @@
-"""``TranscriptionConverter``: a library's own transcription of a page (ALTO, PAGE-XML, hOCR or plain text) read into
-a named transcription of the page record (default ``ocr_original``).
+"""``TranscriptionImporter``: a page's source document read into a named transcription of the page record by an
+importer (an engine of step ``import``): a library's own OCR (ALTO, PAGE-XML, hOCR, text) into ``ocr_original``, a
+ground truth into ``ground_truth``, a source's markup through an engine package's importer.
 
-The file comes with the page as a document media (``source="media"``: what ``ManifestReader(existing_ocr=True)``
-brings, its format in the media's ``metadata["format"]``) or is named by a URI in the page's metadata
-(``source="uri"``, ``uri_key``: any fsspec path or URL). It is read with linecaster's ``from_alto`` / ``from_page`` /
-``from_hocr`` (or as lines of plain text) at the page image's size: ALTO is scaled to the image by its own page size,
-PAGE-XML and hOCR by the image size they state, when it differs. A file that cannot be read is the page's error; a
-page without one passes unchanged.
+The document comes with the page as a document media (``source="media"``: what ``ManifestReader(existing_ocr=True)``
+brings, its format in the media's ``metadata["format"]``), is named by a URI in the page's metadata
+(``source="uri"``, ``uri_key``: any fsspec path or URL), or stands in the page's metadata itself
+(``source="metadata"``, ``data_key``: a table's column, such as a wiki page's wikitext). A document that cannot be read
+is the page's error; a page without one passes unchanged.
 """
 from __future__ import annotations
 
-import re
+from typing import Any
 
 from datatrove.data import MediaType
 
-from ...data.transcription import Annotator, Source, Transcription
+from ...data.source import SourceDocument
 from ...errors import PipelineConfigError
 from ..base.contract import Contract, Part
 from ..base.page import PageBlock
+from ..base.rule import now, rule_backend, stamp
 
-#: the formats it reads; ``auto`` tells them apart (the media's format, else the content)
-FORMATS = ("auto", "alto", "page", "hocr", "text")
-#: where the file comes from
-SOURCES = ("media", "uri")
-_ROOT = re.compile(rb"<(?:[\w.-]+:)?(alto|pcgts)\b", re.IGNORECASE)
-_HOCR = re.compile(rb"""class\s*=\s*["'][^"']*\bocr_page\b""", re.IGNORECASE)
+#: where the document comes from
+SOURCES = ("media", "uri", "metadata")
 
 
-def sniff(data: bytes) -> str:
-    """The format of a transcription file from its content: ``alto``, ``page``, ``hocr``, else ``text``."""
-    m = _ROOT.search(data[:65536])
-    if m:
-        return "alto" if m.group(1).lower() == b"alto" else "page"
-    if _HOCR.search(data):
-        return "hocr"
-    return "text"
+def _dotted(d, key: str):
+    for k in key.split("."):
+        d = d.get(k) if isinstance(d, dict) else None
+    return d
 
 
-def from_text(data: bytes, uri: str | None = None, ground_truth: bool = False) -> Transcription:
-    """Plain text (UTF-8): one line per text line, no geometry, read by the file (one annotator, kind ``file``;
-    ``ground_truth``: by people, kind ``human``, the source a ground truth), in the file's order."""
-    text = data.decode("utf-8-sig")
-    t = Transcription(source=Source(kind="ground_truth" if ground_truth else "converted", format="text", uri=uri))
-    a = t.add_annotator(Annotator(kind="human" if ground_truth else "file", step="transcription", name="text"))
-    for i, line in enumerate(text.splitlines()):
-        t.add_line(a, f"l{i}", text=line)
-    t.add_order(a, lines=[ln.id for ln in t.lines])
-    return t
+class TranscriptionImporter(PageBlock):
+    """Reads each page's source document into a named transcription, by an importer.
 
-
-def convert(data: bytes, fmt: str, width: int | None, height: int | None, uri: str | None = None,
-            ground_truth: bool = False) -> Transcription:
-    """``data`` in format ``fmt`` (``auto``: sniffed) as a transcription at an image of ``width`` x ``height``;
-    ``ground_truth``: the file is a ground truth (the readers' ``ground_truth``)."""
-    from ...formats import from_alto, from_hocr, from_page
-
-    fmt = sniff(data) if fmt == "auto" else fmt
-    if fmt == "alto":
-        return from_alto(data, image_width=width, image_height=height, uri=uri, ground_truth=ground_truth)
-    if fmt == "text":
-        return from_text(data, uri, ground_truth)
-    read = from_page if fmt == "page" else from_hocr
-    t = read(data, uri=uri, ground_truth=ground_truth)
-    w, h = t.source.image_width, t.source.image_height
-    if width and height and w and h and (w, h) != (width, height):
-        t = t.scaled(width / w, height / h)
-    return t
-
-
-class TranscriptionConverter(PageBlock):
-    """Reads the transcription file that comes with each page (ALTO, PAGE-XML, hOCR or plain text) into a named
-    transcription.
-
-    The file is a document media of the page (``source="media"``: what ``ManifestReader(existing_ocr=True)`` brings,
-    the part ``transcription_file``) or is named by a URI in the page's metadata (``source="uri"``). It is read with
-    linecaster's ``from_alto`` / ``from_page`` / ``from_hocr`` (or as lines of plain text) at the page image's size:
-    ALTO is scaled to the image by its own page size, PAGE-XML and hOCR by the image size they state, when it
-    differs. It adds whatever the file holds (``<transcription>:*``) and replaces whatever the page had under that
-    name; the transcription's ``source`` records the format, the file's URI and the page image (hash and size), and
-    its annotators are the steps the file names, else the file itself (kind ``file``; with ``ground_truth``,
-    people: kind ``human``, and ``source.kind`` ``ground_truth``). A file that cannot be read is the page's error; a page without one passes unchanged (``pages_without_file``). The
-    builder puts one after a reader that brings transcription files when the pipeline has none.
+    The importer (a preset of step ``import``, e.g. ``auto-import@1``, or an engine spec ``InProcess(...)``) reads the
+    document at the page image's size (a file that states another size is scaled to it). The transcription replaces
+    whatever the page had under that name; its ``source`` records the format, the document's URI or record and the
+    page image (hash and size). With ``context_keys``, values of the page's metadata go to the importer as the
+    document's context (a wiki page's title); ``record``, ``revision`` and ``dataset`` go to the source's fields.
 
     Args:
-        format: ``auto`` (the media's ``metadata["format"]``, else told from the content), ``alto``, ``page``,
-            ``hocr`` or ``text``.
-        source: ``media`` (the page's first document media with bytes) or ``uri`` (the file named by
-            ``uri_key``).
+        importer: the importer: a preset (``id@edition``) of step ``import`` or an ``InProcess`` engine spec.
+        source: ``media`` (the page's first document media with bytes), ``uri`` (the file named by ``uri_key``) or
+            ``metadata`` (the content in the page's metadata under ``data_key``).
         transcription: the name of the transcription it fills.
-        uri_key: the key of ``page.metadata`` that holds the file's URI (any fsspec path or URL), a dotted path into
-            nested metadata; needed with ``source="uri"`` and only then.
-        ground_truth: the files are ground truths, made or checked by people (plain text: lines without geometry).
+        uri_key: with ``source="uri"``: the key of ``page.metadata`` that holds the file's URI (dotted for nested
+            metadata).
+        data_key: with ``source="metadata"``: the key of ``page.metadata`` that holds the document's content.
+        context_keys: keys of ``page.metadata`` given to the importer as the document's context.
+        options: importer options over the preset's (``ground_truth``, ``conventions``, an engine's own).
+
+    Example:
+        TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})
     """
 
-    name = "📄 transcription converter"
+    name = "📄 transcription importer"
     role = "transform"
+    step = "import"
+    docs_args = {"importer": "auto-import@1"}
 
-    def __init__(self, format: str = "auto", source: str = "media", transcription: str = "ocr_original",
-                 uri_key: str | None = None, ground_truth: bool = False):
+    def __init__(self, importer="auto-import@1", source: str = "media", transcription: str = "ground_truth",
+                 uri_key: str | None = None, data_key: str | None = None, context_keys: tuple[str, ...] = (),
+                 options: dict[str, Any] | None = None):
         super().__init__()
-        if format not in FORMATS:
-            raise PipelineConfigError(f"TranscriptionConverter: format is one of {', '.join(FORMATS)}, not {format!r}")
         if source not in SOURCES:
-            raise PipelineConfigError(f"TranscriptionConverter: source is media or uri, not {source!r}")
+            raise PipelineConfigError(f"TranscriptionImporter: source is one of {', '.join(SOURCES)}, not {source!r}")
         if (source == "uri") != bool(uri_key):
-            raise PipelineConfigError("TranscriptionConverter: source='uri' names the file by uri_key (and only it)")
-        self.format, self.source, self.transcription, self.uri_key = format, source, transcription, uri_key
-        self.ground_truth = ground_truth
+            raise PipelineConfigError("TranscriptionImporter: source='uri' names the file by uri_key (and only it)")
+        if (source == "metadata") != bool(data_key):
+            raise PipelineConfigError("TranscriptionImporter: source='metadata' names the content by data_key (and "
+                                      "only it)")
+        self.backend = rule_backend(importer, self.step, options)
+        self.source, self.transcription, self.uri_key, self.data_key = source, transcription, uri_key, data_key
+        self.context_keys = tuple(context_keys)
+
+    def init_params(self) -> dict[str, Any]:
+        """The parameters, ``importer`` as the backend it resolved to (engine, options, edition and hash)."""
+        out = super().init_params()
+        out["importer"] = self.backend
+        return out
 
     def contract(self) -> Contract:
-        """Reads the delivered file (or the page record that names it) and the image's record; adds whatever the
-        file holds and replaces what the page had under that name (``<transcription>:*``)."""
+        """Reads the document (or the page record that names or holds it) and the image's record; adds whatever
+        the importer reads and replaces what the page had under that name (``<transcription>:*``)."""
         reads = {Part("metadata"), Part("transcription_file")} if self.source == "media" else {Part("metadata")}
         made = frozenset({Part("*", self.transcription)})
         return Contract(unit="page", role=self.role, reads=frozenset(reads), adds=made, replaces=made)
 
-    def _file(self, doc, page) -> tuple[bytes, str | None, str] | None:
-        """The file's bytes, its URI and its format hint, or None when the page has none."""
+    def warm_up(self) -> None:
+        self.backend.warm_up()
+
+    def _document(self, doc, page) -> tuple[bytes | str, str | None, str | None] | None:
+        """The document's content, its URI and its format hint, or None when the page has none."""
         if self.source == "media":
             m = next((m for m in doc.media if m.type == MediaType.DOCUMENT and m.media_bytes is not None), None)
             if m is None:
                 return None
-            return m.media_bytes, m.url or None, (m.metadata or {}).get("format") or self.format
-        uri = page.metadata
-        for key in self.uri_key.split("."):
-            uri = uri.get(key) if isinstance(uri, dict) else None
+            return m.media_bytes, m.url or None, (m.metadata or {}).get("format")
+        if self.source == "metadata":
+            data = _dotted(page.metadata, self.data_key)
+            return (data, None, None) if data else None
+        uri = _dotted(page.metadata, self.uri_key)
         if not uri:
             return None
         from .images import read_uri
 
-        return read_uri(str(uri)), str(uri), self.format
+        return read_uri(str(uri)), str(uri), None
 
     def process_page(self, doc, page):
-        found = self._file(doc, page)
+        found = self._document(doc, page)
         if found is None:
-            self.stat_update("pages_without_file")
+            self.stat_update("pages_without_document")
             return page
         data, uri, fmt = found
-        fmt = fmt if self.format == "auto" else self.format
         image = page.image
-        width, height = (image.width, image.height) if image else (None, None)
-        t = convert(data, fmt if fmt in FORMATS else "auto", width, height, uri, self.ground_truth)
+        context = {k: _dotted(page.metadata, k) for k in self.context_keys}
+        revision = context.pop("revision", None)
+        source = SourceDocument(data=data, format=fmt, uri=uri, record=context.pop("record", None),
+                                revision=str(revision) if revision is not None else None,
+                                dataset=context.pop("dataset", None), image_width=image.width if image else None,
+                                image_height=image.height if image else None, context=context)
+        start, began = now()
+        t = self.backend.model()(source)
+        for info in t.annotators:
+            if info.kind == "rule" and info.step == "import":
+                stamp(info, self.backend, start, began)
         if image is not None:
-            t.source.image_sha256, t.source.image_width, t.source.image_height = image.sha256, width, height
+            t.source.image_sha256 = image.sha256
         page.transcriptions[self.transcription] = t
-        self.stat_update(f"converted_{t.source.format}")
+        self.stat_update(f"imported_{t.source.format}")
         return page

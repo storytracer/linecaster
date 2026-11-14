@@ -1,5 +1,6 @@
-"""TranscriptionConverter: a library's own transcription (ALTO, PAGE-XML, hOCR, plain text) delivered with the
-page, read into ocr_original at the page image's size; and the builder putting one after a reader that brings it."""
+"""TranscriptionImporter: a page's source document read by an importer (step import): a library's own transcription
+(ALTO, PAGE-XML, hOCR, plain text) delivered with the page into ocr_original at the page image's size, a ground
+truth, a document in the page's metadata; and the builder putting one after a reader that brings a file."""
 from __future__ import annotations
 
 import io
@@ -9,13 +10,15 @@ from datatrove.data import Media, MediaType
 from PIL import Image
 
 from conftest import sample_transcription
-from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.blocks.conversion import TranscriptionConverter
-from linecaster.blocks.conversion.transcriptions import sniff
+from linecaster.backends import InProcess
+from linecaster.blocks.base.page import new_page_document, page_of
+from linecaster.blocks.conversion import TranscriptionImporter
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import to_alto, to_hocr, to_page
+from linecaster.formats.text import sniff
 
 W, H = 1600, 2200
+LIBRARY = {"transcription": "ocr_original", "options": {"ground_truth": False}}
 
 
 def page(file: bytes | None = None, fmt: str | None = None, metadata: dict | None = None):
@@ -39,7 +42,7 @@ def test_the_formats_at_the_page_images_size(fmt, write):
     original = sample_transcription()
     half = write(original.scaled(0.5), image_width=W // 2, image_height=H // 2)
     for hint in (fmt, None):
-        [doc] = run(TranscriptionConverter(), page(half, hint))
+        [doc] = run(TranscriptionImporter("auto-import@1", **LIBRARY), page(half, hint))
         t = page_of(doc).transcriptions["ocr_original"]
         assert (t.source.kind, t.source.format, t.source.uri) == ("converted", fmt, "https://lib.example/ocr/p1")
         assert (t.source.image_width, t.source.image_height) == (W, H)
@@ -51,30 +54,37 @@ def test_the_formats_at_the_page_images_size(fmt, write):
     assert sniff(half) == fmt
 
 
-def test_plain_text_a_uri_and_pages_without_a_file(tmp_path):
-    [doc] = run(TranscriptionConverter(format="text", transcription="ground_truth"), page("ein\nzwei\n".encode()))
+def test_plain_text_a_uri_metadata_and_pages_without_a_document(tmp_path):
+    [doc] = run(TranscriptionImporter("text-import@1", options={"ground_truth": False}), page("ein\nzwei\n".encode()))
     t = page_of(doc).transcriptions["ground_truth"]
     assert [ln.reading.text for ln in t.lines] == ["ein", "zwei"] and t.lines[0].box is None
     assert (t.source.kind, t.source.format, [a.kind for a in t.annotators]) == ("converted", "text", ["file"])
     (tmp_path / "p1.xml").write_bytes(to_alto(sample_transcription(), image_width=W, image_height=H))
-    by_uri = TranscriptionConverter(source="uri", uri_key="library.ocr")
+    by_uri = TranscriptionImporter("auto-import@1", source="uri", uri_key="library.ocr", **LIBRARY)
     [doc] = run(by_uri, page(metadata={"library": {"ocr": str(tmp_path / "p1.xml")}}))
     assert page_of(doc).transcriptions["ocr_original"].source.uri == str(tmp_path / "p1.xml")
-    block = TranscriptionConverter()
+    in_metadata = TranscriptionImporter("text-import@1", source="metadata", data_key="row.text",
+                                        context_keys=("row.id",))
+    [doc] = run(in_metadata, page(metadata={"row": {"text": "eins\nzwei", "id": "r1"}}))
+    assert page_of(doc).transcriptions["ground_truth"].source.kind == "ground_truth"
+    block = TranscriptionImporter("auto-import@1", **LIBRARY)
     [doc] = run(block, page())                                  # nothing delivered: the page passes unchanged
-    assert "ocr_original" not in page_of(doc).transcriptions and block.stats["pages_without_file"].total == 1
+    assert "ocr_original" not in page_of(doc).transcriptions and block.stats["pages_without_document"].total == 1
     with pytest.raises(PipelineConfigError):
-        TranscriptionConverter(source="uri")
+        TranscriptionImporter("auto-import@1", source="uri")
     with pytest.raises(PipelineConfigError):
-        TranscriptionConverter(format="pdf")
+        TranscriptionImporter("auto-import@1", source="metadata")
+    with pytest.raises(PipelineConfigError):
+        TranscriptionImporter("ratios@1")                       # a preset of another step
 
 
-@pytest.mark.parametrize("fmt, write", [("alto", to_alto), ("page", to_page), ("hocr", to_hocr), ("text", None)])
-def test_a_ground_truth(fmt, write):
-    """``ground_truth``: the source is a ground truth and, where the file names no steps, people read it; plain
-    text gives lines without geometry."""
+@pytest.mark.parametrize("preset, write", [("alto-import@1", to_alto), ("page-xml-import@1", to_page),
+                                           ("hocr-import@1", to_hocr), ("text-import@1", None)])
+def test_a_ground_truth(preset, write):
+    """A ground truth by default: the source is one and, where the file names no steps, people read it; plain text
+    gives lines without geometry."""
     data = write(sample_transcription(), image_width=W, image_height=H) if write else "ein\nzwei".encode()
-    [doc] = run(TranscriptionConverter(format=fmt, transcription="ground_truth", ground_truth=True), page(data))
+    [doc] = run(TranscriptionImporter(preset), page(data))
     t = page_of(doc).transcriptions["ground_truth"]
     assert t.source.kind == "ground_truth" and "errors" not in doc.metadata
     if write is None:
@@ -82,13 +92,21 @@ def test_a_ground_truth(fmt, write):
         assert [(a.kind, a.step) for a in t.annotators] == [("human", "transcription")]
 
 
+def test_an_engine_spec_and_html():
+    html = b"<html><body><p>One <i>two</i></p><p class='edit'>[edit]</p></body></html>"
+    [doc] = run(TranscriptionImporter(InProcess("linecaster.engines.importers:HtmlImporter")), page(html))
+    t = page_of(doc).transcriptions["ground_truth"]
+    assert [ln.reading.text for ln in t.lines] == ["One two", "[edit]"]
+    assert t.annotators[1].engine == "import.html.v1" and "seconds" in t.annotators[1].measurements
+
+
 def test_a_file_that_cannot_be_read_is_the_pages_error():
-    [doc] = run(TranscriptionConverter(format="alto"), page(b"<alto><Layout><Page"))
+    [doc] = run(TranscriptionImporter("alto-import@1", **LIBRARY), page(b"<alto><Layout><Page"))
     [entry] = doc.metadata["errors"]
-    assert entry["block"] == "TranscriptionConverter" and "ocr_original" not in page_of(doc).transcriptions
+    assert entry["block"] == "TranscriptionImporter" and "ocr_original" not in page_of(doc).transcriptions
 
 
-def test_the_builder_puts_a_converter_after_a_reader_that_brings_the_file(tmp_path):
+def test_the_builder_puts_an_importer_after_a_reader_that_brings_the_file(tmp_path):
     from linecaster.blocks.readers import ManifestReader
     from linecaster.blocks.writers import PageJsonlWriter
     from linecaster.runtime.builder import build
@@ -98,8 +116,9 @@ def test_the_builder_puts_a_converter_after_a_reader_that_brings_the_file(tmp_pa
 
     reader = ManifestReader(str(tmp_path), existing_ocr=True)
     p = build([reader, PageJsonlWriter(str(tmp_path / "out"))])
-    assert blocks(p) == ["ManifestReader", "TranscriptionConverter", "PageJsonlWriter"] and not p.problems
-    own = TranscriptionConverter(transcription="library")
+    assert blocks(p) == ["ManifestReader", "TranscriptionImporter", "PageJsonlWriter"] and not p.problems
+    assert p.blocks[1].transcription == "ocr_original"
+    own = TranscriptionImporter("auto-import@1", transcription="library")
     p = build([ManifestReader(str(tmp_path), existing_ocr=True), own, PageJsonlWriter(str(tmp_path / "out"))])
-    assert blocks(p) == ["ManifestReader", "TranscriptionConverter", "PageJsonlWriter"] and p.blocks[1] is own
-    assert "TranscriptionConverter" not in blocks(build([ManifestReader(str(tmp_path)), PageJsonlWriter("o")]))
+    assert blocks(p) == ["ManifestReader", "TranscriptionImporter", "PageJsonlWriter"] and p.blocks[1] is own
+    assert "TranscriptionImporter" not in blocks(build([ManifestReader(str(tmp_path)), PageJsonlWriter("o")]))

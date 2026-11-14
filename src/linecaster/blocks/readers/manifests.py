@@ -124,7 +124,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
 
     With ``existing_ocr``, a page's own OCR (ALTO or hOCR the manifest links: METS ``FULLTEXT``, IIIF ``seeAlso``
     / ``rendering``) is fetched too, as a second media of the document (type document, ``metadata["format"]``
-    ``alto`` or ``hocr``): a ``TranscriptionConverter`` after the reader reads it into the transcription
+    ``alto`` or ``hocr``): a ``TranscriptionImporter`` after the reader reads it into the transcription
     ``ocr_original`` (the builder puts one there when the pipeline has none), and
     ``ImageFilesWriter(ocr_folder=...)`` writes the bytes.
 

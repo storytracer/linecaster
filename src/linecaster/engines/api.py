@@ -13,7 +13,12 @@ import):
   catalog entry, for lookups);
 * ``drop_damaged_png_chunks``: an image file's bytes without a PNG's ancillary chunks whose checksum is wrong, which
   Pillow refuses and libpng skips (``linecaster.images.drop_damaged_png_chunks``), for an engine that hands the bytes
-  to its package.
+  to its package;
+* for importers (step ``import``): ``Importer``, the base of the import engines; ``conventions`` (a conventions
+  entry of the catalog, resolved: ``ResolvedConventions``); ``HtmlConverter`` (HTML into a transcription under
+  conventions); ``SourceMap`` (anchors into a source text by alignment); ``ConventionsDoc`` and
+  ``resolve_conventions`` (an entry and its chain resolved without the catalog, for tests); ``SourceDocument`` is in
+  the data model.
 
 Import-light, like the data model: the catalog is imported only when a helper is called.
 """
@@ -24,11 +29,18 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 from ..data.transcription import Transcription
 
+from ..formats.html import HtmlConverter, HtmlReading
+from ..markup.anchors import SourceMap
+from ..markup.model import ConventionsDoc
+from ..markup.resolve import ResolvedConventions, resolve as resolve_conventions
+from .importers import Importer
+
 if TYPE_CHECKING:
     from ..catalog.schema import Capabilities, ModelDoc
 
-__all__ = ["Capabilities", "drop_damaged_png_chunks", "Engine", "hf_file", "hf_snapshot", "model_entry",
-           "weights_of"]
+__all__ = ["Capabilities", "conventions", "drop_damaged_png_chunks", "Engine", "hf_file", "hf_snapshot",
+           "ConventionsDoc", "HtmlConverter", "HtmlReading", "Importer", "model_entry", "ResolvedConventions",
+           "resolve_conventions", "SourceMap", "weights_of"]
 
 
 def drop_damaged_png_chunks(data: bytes) -> bytes:
@@ -117,6 +129,18 @@ def hf_snapshot(weights: dict, download: bool = True) -> Path:
     from ..catalog.fetch import hf_snapshot as fetch
 
     return fetch(weights, download)
+
+
+def conventions(ref: str) -> "ResolvedConventions":
+    """A conventions entry of the catalog with its chain resolved (``id@edition``; ``id`` alone: its latest
+    edition), for an importer that applies a source's conventions.
+
+    Args:
+        ref: the entry, e.g. ``example@1``.
+    """
+    from ..catalog.registry import catalog
+
+    return catalog().conventions(ref)
 
 
 def model_entry(model_id: str) -> "ModelDoc | None":

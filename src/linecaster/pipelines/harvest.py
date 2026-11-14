@@ -52,7 +52,7 @@ launch, and --retry-failed also runs the finished books with failed pages again:
 pages are fetched (the others are read from OUT/images), without it every page of those books is fetched again.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
-from ..blocks.conversion import TranscriptionConverter
+from ..blocks.conversion import TranscriptionImporter
 from ..blocks.writers.images import ImageFilesWriter
 from ..blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
 from ..errors import PipelineConfigError
@@ -103,7 +103,7 @@ def pipeline(a, script: str) -> list:
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None, task_per_item=True,
                    reuse_folder=f"{out}/images" if a.reuse else None, reuse_index=index),
         # the library's OCR file (a document media) read into ocr_original
-        *([TranscriptionConverter()] if ocr else []),
+        *([TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})] if ocr else []),
         ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if ocr else None),
         run.pages(a),
     ]

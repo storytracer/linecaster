@@ -26,7 +26,7 @@ contracts before anything runs (``docs/reference/pipelines.md``).
 * **Rejects**: with a run folder, a ``RejectWriter`` into ``<run_folder>/rejects`` goes before the first writer (or
   binder) unless the pipeline has one: it writes the pages that carry errors.
 * **Converters**: a reader that brings a library's transcription file (``ManifestReader(existing_ocr=True)``) gets a
-  ``TranscriptionConverter`` right after it, into ``ocr_original``, unless a block reads the file already. ``max_page_errors`` sets every page
+  ``TranscriptionImporter`` right after it, into ``ocr_original``, unless a block reads the file already. ``max_page_errors`` sets every page
   block's error budget.
 * **Partial runs**: ``until`` keeps the blocks up to a block and writes page records; ``after`` starts from page
   records (the pipeline's ``PageRecordReader``) with the blocks after one; ``taps`` write page records after a
@@ -402,14 +402,14 @@ def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
 
 
 def _converters(entries: list[_Entry]) -> None:
-    """A ``TranscriptionConverter`` right after a block that brings a transcription file (``ManifestReader(
-    existing_ocr=True)``) when no block after it reads the file."""
-    from ..blocks.conversion.transcriptions import TranscriptionConverter
+    """A ``TranscriptionImporter`` (the library's OCR into ``ocr_original``) right after a block that brings a
+    transcription file (``ManifestReader(existing_ocr=True)``) when no block after it reads the file."""
+    from ..blocks.conversion.transcriptions import TranscriptionImporter
 
     file = Part("transcription_file")
     for i, e in enumerate(entries):
         if file in e.contract.adds and not any(file in later.contract.reads for later in entries[i + 1:]):
-            entries.insert(i + 1, _Entry(TranscriptionConverter()))
+            entries.insert(i + 1, _Entry(TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})))
             return
 
 
@@ -638,7 +638,7 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
     """Turns a list of blocks into a checked plan of stages, cut where the stream changes from pages to items.
 
     The builder expands composites, checks the contracts (every part a block reads is added before it, units fit,
-    servers go last, ...), inserts the blocks a run needs (a ``TranscriptionConverter`` after a reader that brings
+    servers go last, ...), inserts the blocks a run needs (a ``TranscriptionImporter`` after a reader that brings
     transcription files, the ``RecipeStamper``, a ``RejectWriter`` into ``<run_folder>/rejects``) and derives the
     graph. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them as one
     ``PipelineConfigError``. Every stage is traced (``linecaster.tracing.Tracing``) into ``<run_folder>/traces``

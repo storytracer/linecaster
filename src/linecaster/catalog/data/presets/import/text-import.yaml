@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../schemas/preset-1.json
+schema: linecaster.preset/1
+id: text-import
+edition: 1
+step: import
+engine: import.text.v1
+capabilities:
+  unit: page
+  produces:
+  - reading_order
+  - lines
+  - text
+provenance:
+  created: 2026-11-14
+support: core
