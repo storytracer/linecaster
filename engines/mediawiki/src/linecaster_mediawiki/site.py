@@ -9,8 +9,13 @@ exists (1000 x 1000 pixels; a module that asks, such as a figure template, needs
 
 The importer reads no network: wikitextprocessor would fetch the interwiki map from the wiki's live API when it
 takes in a dump, and ask Wikidata when a Lua module does; here the interwiki map is the siteinfo's (the API's
-``siprop=interwikimap``, where the siteinfo given to ``intake`` has it) and Wikidata answers as a wiki without
-Wikibase does: nothing.
+``siprop=interwikimap``, where the siteinfo given to ``intake`` has it).
+
+Wikidata is never asked (``WIKIDATA``): a well-formed entity id is taken to exist, and nothing about an entity is
+known (no label, description, sitelink, statements, nor the entity of a page). So a call that brings its own text
+prints that text (``{{wdl|Q868|Aristotle}}``: "Aristotle"), and one that needs Wikidata's text prints none (its
+module fails, and the failure is a software message). The ids asked about while a page is parsed are kept in the
+context's ``wikidata_asked``; the reader records them.
 """
 from __future__ import annotations
 
@@ -92,6 +97,32 @@ class Site:
         return _CONTEXTS[key]
 
 
+#: How ``mw.wikibase`` answers without Wikidata: wikitextprocessor's Lua module, changed so that a well-formed id
+#: exists (wikitextprocessor says no entity exists, so a module stops before the text its call brings) and a missing
+#: entity is nil (as in Wikibase; wikitextprocessor fails on it).
+WIKIDATA = [
+    ("function mw_wikibase.isValidEntityId(id)\n   return true\nend",
+     "function mw_wikibase.isValidEntityId(id)\n"
+     "   return type(id) == 'string' and (id:match('^[QPLM]%d+$') ~= nil or id:match('^L%d+%-[SF]%d+$') ~= nil)\nend"),
+    ("function mw_wikibase.entityExists(id)\n   return false\nend",
+     "function mw_wikibase.entityExists(id)\n   return mw_wikibase.isValidEntityId(id)\nend"),
+    ("    local entity_data = mw_wikibase_getEntity_py(id)\n",
+     "    local entity_data = mw_wikibase_getEntity_py(id)\n    if entity_data == nil then return nil end\n"),
+]
+
+
+def _unknown(name: str):
+    """A Wikidata lookup that asks nothing: records the id asked about and knows nothing."""
+
+    def lookup(wtp, *args):
+        asked = getattr(wtp, "wikidata_asked", None)
+        if asked is not None:
+            asked.append(str(args[0]) if args and args[0] is not None else f"{name}({wtp.title})")
+        return None
+
+    return lookup
+
+
 class _Offline:
     """wikitextprocessor's Wikidata session, answering as a wiki without Wikibase: nothing found, no request."""
 
@@ -111,11 +142,16 @@ class _Offline:
 
 def _offline(siteinfo: dict) -> None:
     """wikitextprocessor makes no network request: its interwiki map is the site's (siteinfo's ``interwikimap``,
-    else none), and Wikidata answers nothing."""
-    from wikitextprocessor import interwiki, wikidata
+    else none), and Wikidata is never asked (``WIKIDATA``); were a request still made, it gets no answer."""
+    from wikitextprocessor import interwiki, luaexec, wikidata
 
     interwiki.get_interwiki_data = lambda wtp: list(siteinfo.get("interwikimap", []))
     wikidata.init_wikidata_session = lambda wtp: setattr(wtp, "wikidata_session", _Offline())
+    for module, names in ((luaexec, ("mw_wikibase_getlabel", "mw_wikibase_getdescription",
+                                     "mw_wikibase_getEntityIdForCurrentPage", "mw_wikibase_getEntityIdForTitle")),
+                          (wikidata, ("mw_wikibase_getEntity", "mw_wikibase_getSitelink"))):
+        for name in names:
+            setattr(module, name, _unknown(name.removeprefix("mw_wikibase_")))
 
 
 def open_context(folder: Path, lang: str):
@@ -123,14 +159,19 @@ def open_context(folder: Path, lang: str):
     from wikitextprocessor import Wtp, luaexec
 
     _offline(json.loads((folder / "siteinfo.json").read_text(encoding="utf-8")))
-    loader = luaexec.lua_loader
+    loader = getattr(luaexec.lua_loader, "wrapped", luaexec.lua_loader)   # wrapped once, whatever the contexts
 
     def lua_loader(ctx, modname):
         data = loader(ctx, modname)
         if modname.strip() == "mw_title" and data:
             data = data.replace("file = nil,", FILE_STUB)
+        if modname.strip() == "mw_wikibase" and data:
+            for a, b in WIKIDATA:
+                assert a in data, f"wikitextprocessor's mw_wikibase changed: {a!r}"
+                data = data.replace(a, b)
         return data
 
+    lua_loader.wrapped = loader
     luaexec.lua_loader = lua_loader
 
     class SiteWtp(Wtp):

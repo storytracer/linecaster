@@ -29,6 +29,7 @@ class PageReading:
     transcription: Transcription
     ends_paragraph: bool
     unexpanded: list[str]
+    wikidata: list[str]
 
 
 class PageReader:
@@ -57,8 +58,10 @@ class PageReader:
         text, pos = page.parsed()
         w = self.site.wtp()
         w.start_page(title)
+        w.wikidata_asked = []
         root = w.parse(text, expand_all=True)
         built = HtmlBuilder(self.site, self.styles).build(root)
+        wikidata, w.wikidata_asked = sorted(set(w.wikidata_asked)), None
         t = Transcription(source=Source(kind="ground_truth", format="mediawiki", record=record or title,
                                         revision=revision, dataset=dataset))
         quality = page.quality
@@ -74,7 +77,9 @@ class PageReader:
                                                  "ends_paragraph": reading.ends_paragraph})
         if built.unexpanded:
             t.annotators[rules].measurements["unexpanded"] = sorted(set(built.unexpanded))
-        return PageReading(t, reading.ends_paragraph, built.unexpanded)
+        if wikidata:                                    # ids a module asked Wikidata about, unanswered
+            t.annotators[rules].measurements["wikidata"] = wikidata
+        return PageReading(t, reading.ends_paragraph, built.unexpanded, wikidata)
 
     def anchor(self, t: Transcription, text: str, pos: list[int], title: str) -> float:
         """Anchors the lines and regions of ``t`` in the revision; returns the share of lines anchored."""

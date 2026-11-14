@@ -59,7 +59,10 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
   wikitext through wikitextprocessor (pinned to a commit) in the wiki's own context (its templates, Lua modules and
   style sheets, taken in from a dump by `linecaster-mediawiki intake`), builds HTML by MediaWiki's rules (Cite's
   notes, Math, Poem, Gallery, TemplateStyles, the page's header and footer as DPUB-ARIA furniture) and reads it with
-  the HTML converter under the wiki's conventions; every line and region anchored in the revision.
+  the HTML converter under the wiki's conventions; every line and region anchored in the revision. It reads no
+  network: the interwiki map is the siteinfo's, and Wikidata is never asked (a well-formed id exists, nothing about
+  it is known), so a Wikidata link prints only the text its call brings; the ids asked about are recorded
+  (measurement `wikidata`).
 
 ### Changed
 

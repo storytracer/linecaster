@@ -21,6 +21,18 @@ DUMP = """<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" version="
 function p.twice(frame) return frame.args[1] .. frame.args[1] end
 return p</text></revision></page>
 <page><title>Template:Twice</title><ns>10</ns><id>5</id><revision><id>15</id><model>wikitext</model><text>{{{{#invoke:Twice|twice|{{{{{{1}}}}}}}}}}</text></revision></page>
+<page><title>Module:Wikidata link</title><ns>828</ns><id>6</id><revision><id>16</id><model>Scribunto</model><text>local p = {{}}
+function p.link(frame)
+  local id = frame.args.wikidata
+  if not mw.wikibase.isValidEntityId(id) then return "&lt;span class='error'&gt;invalid&lt;/span&gt;" end
+  if not mw.wikibase.entityExists(id) then return "&lt;span class='error'&gt;missing&lt;/span&gt;" end
+  local label = mw.wikibase.getLabel(id)
+  if frame.args.label ~= '' then label = frame.args.label end
+  local site = mw.wikibase.getSitelink(id, 'enwiki') or 'https://example.org/?q=' .. id
+  return '[' .. site .. ' ' .. label .. ']'
+end
+return p</text></revision></page>
+<page><title>Template:Wdl</title><ns>10</ns><id>7</id><revision><id>17</id><model>wikitext</model><text>{{{{#invoke:Wikidata link|link|wikidata={{{{{{1|}}}}}}|label={{{{{{2|}}}}}} }}}}</text></revision></page>
 </mediawiki>
 """.format(template="&lt;templatestyles src=\"Head/styles.css\" /&gt;&lt;div class=\"x-head\"&gt;&lt;div "
                     "class=\"x-cell\"&gt;{{{1}}}&lt;/div&gt;&lt;div class=\"x-cell\"&gt;&lt;span class=\"x-shout\"&gt;"
@@ -111,6 +123,23 @@ def test_the_engine_reads_a_source_document(site):
         engine(SourceDocument(data=PAGE))
     check_engine(MediaWikiImporter, options={"site": str(site.folder)},
                  source=SourceDocument(data=PAGE, record="Page:Example.djvu/12"))
+
+
+def test_wikidata_is_never_asked(site):
+    """A Wikidata link prints the text its call brings; one that needs Wikidata's label prints none (its module
+    fails: a software message, removed); the ids asked about are recorded."""
+    from linecaster_mediawiki import PageReader
+
+    c = resolve("mediawiki@1", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "mediawiki", "edition": 1, "format": "html",
+         "description": "software messages", "rules": [{"id": "errors", "match": {"kind": "tree", "css": ".error"},
+                                                        "decision": "remove", "params": {"reason": "error"},
+                                                        "why": "the software's messages"}]}))
+    r = PageReader(site, c).read("<noinclude></noinclude>By {{wdl|Q868|Aristotle}} and {{wdl|Q1}}, not "
+                                 "{{wdl|X9|Nobody}}.<noinclude></noinclude>", "Page:Example.djvu/3")
+    t = r.transcription
+    assert [ln.reading.text for ln in t.lines if ln.region in t.order().regions] == ["By Aristotle and , not ."]
+    assert r.wikidata == ["Q1", "Q868"] and t.annotators[1].measurements["wikidata"] == ["Q1", "Q868"]
 
 
 def test_parts_and_top_level_calls():
