@@ -1,6 +1,6 @@
 """Layout plots: a page image with the regions, lines and labels of a transcription drawn in.
 
-Region polygons colored by Docling label (``Transcription.label``) with a tag (label, heading level, reading-order
+Region polygons colored by region label (``Transcription.label``) with a tag (label, heading level, reading-order
 rank and the producing model's own label when it differs), the lines as thin boxes, furniture (page numbers,
 running heads) in gray; regions the default rendering policy puts nowhere (removed, suppressed, duplicate) are left
 out with their lines. Large pages are scaled down to ``max_width`` pixels. Pillow only.

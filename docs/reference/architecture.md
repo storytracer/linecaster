@@ -22,7 +22,8 @@ built on top of it.
 | Package | Holds |
 |---|---|
 | `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
-| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; the DoclingDocument exports and importer; the IIIF annotation page |
+| `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; DoclingDocuments in (the `docling` extra); the IIIF annotation page |
+| `linecaster.document` | a page's or an item's document (`Document`, its blocks and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
 | `linecaster.markup` | conventions: their format (`linecaster.conventions/1`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
 | `linecaster.text` | the text transforms: Unicode, typography, recomposition, the text variants |
 | `linecaster.images` | the working image, plots |

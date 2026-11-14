@@ -328,15 +328,14 @@ def test_old_hashes_still_resolve():
     lock: run records written before it still resolve."""
     c = Catalog()
     lock = c.dirs[0].lock
-    squiddle = lock.recipes["squiddle@1"]
-    assert squiddle.previous and squiddle.resolved["pipeline"] == "transcribe_modular.v1"
+    assert any(e.previous for e in lock.presets.values())          # editions a migration rehashed
     for ref, entry in [*lock.presets.items(), *lock.recipes.items()]:
         resolve = c.resolve_recipe if ref in lock.recipes else c.resolve
         for sha in (entry.sha256, *entry.previous):
             assert resolve(ref, sha256=sha).sha256 == entry.sha256
             assert c.by_sha256(sha).ref == ref
     with pytest.raises(CatalogError, match="not sha256:0"):
-        c.resolve_recipe("squiddle@1", sha256="sha256:" + "0" * 64)
+        c.resolve_recipe("squiddle@2", sha256="sha256:" + "0" * 64)
     with pytest.raises(CatalogError, match="no released edition"):
         c.by_sha256("sha256:" + "0" * 64)
 
@@ -362,14 +361,14 @@ def test_describing_a_recipe_imports_no_engine():
 
     check = ("import json, sys\n"
              "from linecaster.runtime.run import describe_recipe\n"
-             "d = describe_recipe('squiddle@1')\n"
+             "d = describe_recipe('squiddle@2')\n"
              "heavy = ('linecaster_kraken', 'linecaster_paddlex', 'linecaster_tesseract', 'kraken', 'torch', "
              "'onnxruntime', 'paddlex')\n"
              "print(json.dumps({'sha': d['pipeline_sha256'], 'loaded': sorted(m for m in sys.modules "
              "if m.split('.')[0] in heavy)}))\n")
     out = json.loads(subprocess.run([sys.executable, "-c", check], capture_output=True, text=True, check=True).stdout)
     assert out["loaded"] == []
-    assert out["sha"] == Catalog().dirs[0].lock.recipes["squiddle@1"].pipeline_sha256
+    assert out["sha"] == Catalog().dirs[0].lock.recipes["squiddle@2"].pipeline_sha256
 
 
 def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():

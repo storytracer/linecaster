@@ -47,7 +47,7 @@ class Contract:
   not checked) when it declares nothing. With `fetch_images=False` it brings no `image`.
 - **Writers** read what they write and add nothing (`ImageFilesWriter` replaces `metadata`: the image's URI then
   names its copy; `PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
-  md and txt, `document` for HTML, DocLang and JSON, `image` for plots). **Servers** have role `server` and unit
+  md and txt, `document` for HTML and JSON, `image` for plots). **Servers** have role `server` and unit
   `any`.
 - **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
   records, so what the pages carried stays available across either (the checks carry the parts over), apart from
@@ -589,7 +589,7 @@ The item-level steps follow a `Binder`; the usual shape (`pipelines/bind.py`, an
  Binder(),                                                  # page records -> item records
  Recomposer("unicode-recomposition@1", unit="item"),        # paragraphs continued across page breaks
  CharacterNormalizer("latin-historic@1", unit="item"),      # normalized lines, paragraphs, table cells
- Composer("docling-composition@1", unit="item"),            # the item's document
+ Composer("linked-composition@1", unit="item"),             # the item's document
  ItemTextWriter(f"{out}/texts"),                            # texts/<variant>/<rank>.jsonl.gz (format="files": <item>.txt|md)
  ItemDocumentWriter(f"{out}/documents", formats=("md", "txt", "json"), by_format=True)]   # documents/<format>/<item>.<ext>
 ```
@@ -602,7 +602,7 @@ the paragraphs of the item recomposition.
 Stored page records are rows `{"schema": "linecaster.page/4", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`): `page` is the page record of the
 [data model](data-model.md), its annotation sets with their annotators, raw outputs and annotations. Renderings
-(the Composer's Docling document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
+(the Composer's document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
 today's format (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/2` row through
 `linecaster.data.upgrade.page_2_to_3` (field by field in the [data model](data-model.md#from-linecasterpage2)); a
 `linecaster.page/1` row, whose transcriptions name their steps `model`, to page/2 first; a row without `schema` (the

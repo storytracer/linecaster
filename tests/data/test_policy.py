@@ -1,11 +1,11 @@
-"""Content roles and rendering policies: labels as roles, Docling labels from roles, layers from rules, and the
+"""Content roles and rendering policies: labels as roles, region labels from roles, layers from rules, and the
 default policy as the catalog's released edition."""
 from __future__ import annotations
 
 import pytest
 
 from linecaster.data import Annotator, RenderingPolicy, RenderingRule, Source, Transcription
-from linecaster.data.policy import DEFAULT_POLICY, docling_label, role_of_label
+from linecaster.data.policy import DEFAULT_POLICY, region_label, role_of_label
 from linecaster.text.variants import page_text
 
 
@@ -22,7 +22,7 @@ def test_an_unknown_policy_is_refused():
     from linecaster.errors import CatalogError
 
     with pytest.raises(CatalogError):
-        Composer("docling-composition@1", policy="nowhere@1")
+        Composer("linked-composition@1", policy="nowhere@1")
 
 
 @pytest.mark.parametrize("label,role,production", [
@@ -45,7 +45,7 @@ def _page() -> Transcription:
 
 def test_a_page_number_s_docling_label_follows_its_place():
     t = _page()
-    assert (docling_label(t, "r0"), docling_label(t, "r3")) == ("page_header", "page_footer")
+    assert (region_label(t, "r0"), region_label(t, "r3")) == ("page_header", "page_footer")
 
 
 def test_a_policy_moves_marginalia_out_of_the_text():

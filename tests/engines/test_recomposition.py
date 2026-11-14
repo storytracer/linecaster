@@ -212,10 +212,10 @@ def test_text_only_transcriptions_make_one_paragraph_per_region():
     (t,) = UnicodeRecompositionEngine()([t])
     first, second = t.paragraphs
     assert t.link(first.id, "runs_into") == "r1_p0" and first.text + second.text == "Die Untersuchung ist alt."
-    from linecaster.formats.docling import build_docling
+    from linecaster.document import build_document
 
-    doc = build_docling(t)
-    assert [x.text for x in doc.texts] == ["Die Untersuchung ist alt."]
+    doc = build_document(t)
+    assert [x.text for x in doc.blocks] == ["Die Untersuchung ist alt."]
 
 
 def test_removed_regions_are_left_out_and_a_later_recomposition_makes_the_paragraphs_anew():

@@ -59,7 +59,7 @@ def test_the_docs_describe_every_builtin_engine():
 
 
 def test_options_default_to_todays_constants():
-    from linecaster.engines import (DoclingCompositionEngine, RatiosTypographyEngine, UnicodeRecompositionEngine,
+    from linecaster.engines import (LinkedCompositionEngine, RatiosTypographyEngine, UnicodeRecompositionEngine,
                                     WebpLosslessImageEngine)
     from linecaster.images.convert import to_working_webp
     from linecaster.text import recomposition as R
@@ -74,12 +74,12 @@ def test_options_default_to_todays_constants():
     assert r.convention_marks == R.CONVENTION_MARKS and not r.rtl
     assert UnicodeRecompositionEngine.thresholds(r) == R.Thresholds()
     assert WebpLosslessImageEngine.Options().effort == inspect.signature(to_working_webp).parameters["effort"].default
-    assert DoclingCompositionEngine.Options().model_dump() == {"sections": False}
+    assert LinkedCompositionEngine.Options().model_dump() == {"sections": False}
 
 
 @pytest.mark.parametrize("step,preset", [("image", "working-image"), ("normalization", "latin-historic"),
                                          ("typography", "ratios"), ("recomposition", "unicode-recomposition"),
-                                         ("composition", "docling-composition")])
+                                         ("composition", "linked-composition")])
 def test_the_presets_are_the_engines_defaults(step, preset):
     """Each rule-based preset names every option of its engine, with the engine's defaults: today's behavior."""
     from linecaster.catalog.registry import catalog
@@ -202,20 +202,20 @@ def test_image_is_the_working_webp():
 
 
 def test_composition_from_lines_and_from_paragraphs():
-    """Without paragraphs a text region is one item, its rows as laid out; with them one item per paragraph, one
-    provenance entry per row."""
+    """Without paragraphs a text region is one block, its rows as laid out; with them one block per paragraph, one
+    origin per row."""
     from conftest import recomposed
-    from linecaster.formats.docling import build_docling, docling_dict
+    from linecaster.document import build_document
 
-    lines = docling_dict(build_docling(sample_transcription(), name="p1"))
-    flowed = docling_dict(build_docling(recomposed(sample_transcription()), name="p1"))
-    body = lambda d: [x for x in d["texts"] if x["label"] == "text"]       # noqa: E731
-    assert body(lines)[0]["text"] == ("The species described here were col-\nlected in the summer of 1887 by the "
-                                      "author.\n\n") and len(body(lines)[0]["prov"]) == 1    # two rows without text
-    assert body(flowed)[0]["text"] == "The species described here were collected in the summer of 1887 by the author."
-    assert [p["charspan"] for p in body(flowed)[0]["prov"]] == [[0, 35], [35, 78]]      # the mark removed
-    sections = docling_dict(build_docling(recomposed(sample_transcription()), name="p1", sections=True))
-    assert [g["name"] for g in sections["groups"]] == ["Flora of the Northern Hills"]
+    lines = build_document(sample_transcription(), name="p1")
+    flowed = build_document(recomposed(sample_transcription()), name="p1")
+    body = lambda d: [b for b in d.blocks if b.kind == "paragraph"]       # noqa: E731
+    assert body(lines)[0].text == ("The species described here were col-\nlected in the summer of 1887 by the "
+                                   "author.\n\n") and len(body(lines)[0].origins) == 1    # two rows without text
+    assert body(flowed)[0].text == "The species described here were collected in the summer of 1887 by the author."
+    assert [o.span for o in body(flowed)[0].origins] == [[0, 35], [35, 78]]      # the mark removed
+    sections = build_document(recomposed(sample_transcription()), name="p1", sections=True)
+    assert [b.text for b in sections.blocks if b.section == b.id] == ["Flora of the Northern Hills"]
 
 
 def test_pages_of_an_item_share_the_lexicon():

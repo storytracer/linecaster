@@ -53,7 +53,7 @@ NORMALIZE_MAP = str.maketrans({
 })
 _SUPERSCRIPT_E = re.compile("([aouAOU])ͤ")
 _UMLAUT = {"a": "ä", "o": "ö", "u": "ü", "A": "Ä", "O": "Ö", "U": "Ü"}
-#: the Docling labels whose text is left out of the flowed variants: the text read inside a picture or chart
+#: the region labels whose text is left out of the flowed variants: the text read inside a picture or chart
 NO_TEXT = frozenset({"picture", "chart"})
 #: variant -> (fidelity, flow, scope, format)
 VARIANTS = {

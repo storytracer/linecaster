@@ -10,10 +10,6 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.10",
-    "docling-core>=2.95",
-    # tabulate (docling's text export of tables) measures cell widths with wcwidth when it is installed and
-    # with len() otherwise: combining marks (kraken writes a + U+0308) then pad tables differently
-    "wcwidth>=0.2",
     # Unicode line, word and sentence breaking for recomposition (pure Python)
     "uniseg>=0.10",
     # Unicode scripts (\p{Script=...}) for the rule-based steps' by-script dispatch (linecaster.engines.scripts)
@@ -58,6 +54,9 @@ pypdfium2 = ["pypdfium2>=4.30"]
 rapidfuzz = ["rapidfuzz>=3.9"]
 # conventions of JSON formats: JSONPath queries, RFC 9535 (linecaster.markup.JsonMatcher)
 jsonpath-rfc9535 = ["jsonpath-rfc9535>=2.0"]
+# DoclingDocuments as a source (the importer import.docling.v1, linecaster.formats.docling) and SmolDocling's DocTags
+# answers (the adapter smoldocling): docling-core
+docling = ["docling-core>=2.95"]
 
 [project.scripts]
 linecaster = "linecaster.cli:main"

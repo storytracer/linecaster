@@ -1208,7 +1208,7 @@ def describe_recipe(ref: str, c=None) -> dict:
 def recipe(script: str, recipe_id: str) -> None:
     """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline shape
     (the recipe's ``pipeline:``, ``linecaster.pipelines``) with ``main``, ``--recipe`` set to it. The command line is
-    the shape's; an edition of the same recipe (``--recipe squiddle@1``) and slots on top (recorded as overrides) may be
+    the shape's; an edition of the same recipe (``--recipe squiddle@2``) and slots on top (recorded as overrides) may be
     given, another recipe may not. The script itself holds only its environment (the engine packages its presets
     need) and this call.
 

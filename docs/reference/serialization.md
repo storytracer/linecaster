@@ -1,8 +1,9 @@
 # Serialization and working images
 
 `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml,
-`linecaster.formats.iiif` writes an annotation set as an IIIF annotation page and `linecaster.formats.docling` reads
-a DoclingDocument; `linecaster.images.convert` turns any page image into the working image. None of them imports
+`linecaster.formats.iiif` writes an annotation set as an IIIF annotation page, `linecaster.document` writes a page's
+or an item's document as HTML, Markdown, text and JSON, and `linecaster.formats.docling` reads a DoclingDocument (the
+`docling` extra); `linecaster.images.convert` turns any page image into the working image. None of them imports
 datatrove, saturate or an engine. Each writer renders an annotation set under a [rendering
 policy](data-model.md#rendering); what it writes is a rendering, not stored in the page record.
 
@@ -20,7 +21,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
 2. **What is written** (`linecaster.formats._xml.file_layout`): of the transcription `t`, under the policy
    `policy` (`to_alto`, `to_page`, `to_hocr`; default `page-layers@1`, `linecaster.data.DEFAULT_POLICY`):
    - **regions**: id, polygon and box, detection confidence (the region's *score*), the annotator's own label
-     (`Region.label`, the **raw label**) and the region's **Docling label**, from its content role (`t.label`;
+     (`Region.label`, the **raw label**) and the region's **region label**, from its content role (`t.label`;
      `handwritten_text` for running text classified as handwritten), and its heading level (its `heading_level`
      classification, unless a later annotator classified its role anew);
    - **lines**: id, region (`t.region_of`: the latest `part_of` link, else `Line.region`), box, polygon, baseline,
@@ -40,10 +41,10 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    `annotator`, `output`, `derived_from` and extension fields, annotators of kind `file` and `human`, annotators'
    `measurements` other than `datetime`, and the source.
 3. **Reading** (`linecaster.formats._xml.transcription`): a reader makes one transcription of the file: its
-   regions (the raw label as `Region.label`, a `role` classification of the Docling label they read as,
+   regions (the raw label as `Region.label`, a `role` classification of the region label they read as,
    `linecaster.data.policy.classify_label`, and a `heading_level` one), its lines with their readings, and one
    reading order (the regions with a rank, the lines by rank, with their rows); hOCR's `lang` becomes the page's
-   `language` classification. A content role comes back as the role of its Docling label: roles that share one
+   `language` classification. A content role comes back as the role of its region label: roles that share one
    (marginalia, credit, floating and drop capitals read as paragraphs; endnotes and continued footnotes as footnotes;
    a page number as a header or footer) come back as that label's role. The **annotators** are the steps the file
    names (provenance, below); without any, the file is the one annotator (kind `file`, step `transcription`, named
@@ -117,7 +118,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
 | What is written | ALTO |
 |---|---|
 | region | `TextBlock` (`Illustration TYPE=<label>` for picture/chart regions without lines); `Shape/Polygon` only when the polygon is not the box |
-| Docling label | `LayoutTag TYPE="label" LABEL=<docling label>`, one per distinct label, in `TAGREFS` |
+| region label | `LayoutTag TYPE="label" LABEL=<region label>`, one per distinct label, in `TAGREFS` |
 | raw label (`Region.label`, when set) | `LayoutTag TYPE="raw_label" LABEL=<raw>` |
 | region order | `ReadingOrder/OrderedGroup/ElementRef` (regions with a rank + synthetic blocks); without `ReadingOrder` readers use document order (ALTO's implicit order) |
 | line | `TextLine` with `BASELINE="x,y x,y ..."` (4.2+ points syntax), `Shape/Polygon` |
@@ -127,7 +128,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
 
 Reading foreign ALTO: namespaces v1–v4 or none; blocks anywhere under `Page` (margins,
 `PrintSpace`, nested `ComposedBlock`s, which are transparent); raw label = the `LABEL` of the first
-referenced tag (Transkribus `StructureTag`, eScriptorium `OtherTag`), the Docling label (and so the role) mapped
+referenced tag (Transkribus `StructureTag`, eScriptorium `OtherTag`), the region label (and so the role) mapped
 from it;
 `BASELINE` as a single number (ALTO < 4.2) becomes a horizontal line across the line box;
 `SUBS_TYPE`/`SUBS_CONTENT` are ignored (the word keeps its `CONTENT`); missing ids are generated
@@ -141,7 +142,7 @@ scaled to the image (also corrects pixel ALTO made on a master of another size);
 
 | What is written | PAGE |
 |---|---|
-| region | `TextRegion` with `@type` from the Docling label (below); `ImageRegion`, `ChartRegion`, `TableRegion`, `MathsRegion` for picture, chart, table, formula regions **without lines** (PAGE does not allow lines in them) |
+| region | `TextRegion` with `@type` from the region label (below); `ImageRegion`, `ChartRegion`, `TableRegion`, `MathsRegion` for picture, chart, table, formula regions **without lines** (PAGE does not allow lines in them) |
 | raw label (`Region.label`, when set) | `@custom="structure {type:<raw>;}"` (Transkribus convention; `; { } \` escaped as `\uXXXX`) |
 | region and line score (detection confidence) | `Coords/@conf` |
 | region order | `ReadingOrder/OrderedGroup/RegionRefIndexed` (nested groups read recursively, `index` sorted) |
@@ -151,16 +152,16 @@ scaled to the image (also corrects pixel ALTO made on a master of another size);
 | heading level | extension |
 | model and rule annotators | `Metadata/MetadataItem type="processingStep"` (as OCR-D records its processors): `name` the step, `value` the preset edition or the model, `date` when recorded, `Labels externalModel="linecaster"` with `externalId="model"` (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and `externalId="settings"` (one label per setting); a summary in `Comments` |
 
-Label mapping, Docling → `TextRegion/@type`: text, paragraph, list_item, handwritten_text,
+Label mapping, region label → `TextRegion/@type`: text, paragraph, list_item, handwritten_text,
 reference → `paragraph`; title, section_header → `heading`; page_header → `header`; page_footer →
 `footer`; caption → `caption`; footnote → `footnote`; document_index → `TOC-entry`; others →
 `other` (or `paragraph`). Reading: `structure {type:...}` wins when it is a known name, then
 `@type`: paragraph → text, heading → section_header, header → page_header, footer, page-number,
 signature-mark, catch-word → page_footer, footnote(-continued)/endnote → footnote, TOC-entry →
 document_index, list-label → list_item, everything else → text; the raw label is the structure
-type, else `@type`, else the element name (`TableRegion`). The writer adds the Docling label to the
+type, else `@type`, else the element name (`TableRegion`). The writer adds the region label to the
 extension when the reverse mapping would not return it (e.g. `title` → `heading` →
-`section_header`). The same name table (`_xml.RAW_TO_DOCLING`) also maps eScriptorium/SegmOnto
+`section_header`). The same name table (`_xml.RAW_TO_LABEL`) also maps eScriptorium/SegmOnto
 zones and PP-DocLayout names. Old PAGE `Coords/Point` children are read; text on glyphs only is
 joined into the word.
 
@@ -201,11 +202,21 @@ one: its region's), the canvas itself where it has none. Each annotation names i
 `none` are left out with their lines and descriptions, and so are lines whose own `status` puts them nowhere. The
 output is validated against the IIIF Presentation 3 JSON Schema in the tests.
 
-## Docling (`linecaster.formats.docling`)
+## The document (`linecaster.document`)
 
-The Docling document is a rendering ([data model](data-model.md#rendering)): `build_docling(t, ..., policy)` makes
-one page's, `DocumentBuilder` an item's, and `export` writes it as Markdown, text, HTML, DocLang or JSON with
-docling-core's serializers. The `Composer` puts it into `doc.metadata["docling"]` for the writers; it is not stored.
+A page's or an item's document is a rendering ([data model](data-model.md#the-document-linecasterdocument)):
+`build_document(t, ..., policy)` makes one page's, `DocumentBuilder` an item's, and `export` writes it. The
+`Composer` puts it into `doc.metadata["document"]` for the writers; it is not stored. Each serialization writes the
+body, the furniture (page headers and footers) only with `furniture`:
+
+| Format | Writes |
+|---|---|
+| HTML (`to_html`) | an HTML5 document: a title `h1`, a heading of level n `h(n+1)` (at most `h6`), a paragraph `p`, list items `li` in a `ul`, a note `aside role="doc-footnote"`, a caption `p class="caption"`, code `pre`, a page header and footer `header role="doc-pageheader"` / `footer role="doc-pagefooter"`, a formula block its LaTeX between `\[` and `\]`, a table with its cells' spans and header cells (`table_html`), a picture a `figure` with its image and the text read inside it; formatting as `i`, `b`, `u`, `s`, `sup`, `sub`, languages as `lang`, line breaks as `br` |
+| Markdown (`to_markdown`) | by the policy's Markdown rules (`MarkdownRules`): headings `#`, list items `-`, formula blocks `$$…$$`, tables as HTML or as pipe tables (HTML where a cell spans), a picture the rules' placeholder, italic `*`, bold `**`, strikethrough `~~`, scripts and underline as HTML with `html_scripts`, characters Markdown would read escaped with `escape`; `dividers` puts `---` between the blocks of one layout region and the next |
+| text (`to_text`) | each block's text, blocks separated by a blank line; a table one row per line, cells separated by tabs |
+| JSON (`to_json`) | the complete document, every layer and origin (`linecaster.document/1`); `from_json` reads it back |
+
+## Docling (`linecaster.formats.docling`, the `docling` extra)
 
 `from_docling(source, page_no=None, ground_truth=False, name="docling", dataset=None, record=None)` reads a
 DoclingDocument (a document, its dict or its JSON) into a transcription:

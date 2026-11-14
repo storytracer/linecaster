@@ -6,11 +6,14 @@ import pytest
 from linecaster.data import SourceDocument
 from linecaster.engines.importers import IMPORTERS
 from linecaster.formats import to_alto, to_hocr, to_page
-from linecaster.formats.docling import build_docling, docling_dict
 from linecaster.testing import check_engine, sample_transcription
 
 
 def source(engine_id: str) -> SourceDocument:
+    from linecaster.testing.conformance import docling_sample
+
+    if engine_id == "import.docling.v1":
+        pytest.importorskip("docling_core")
     t = sample_transcription()
     return {
         "import.alto.v1": lambda: SourceDocument(data=to_alto(t), format="alto"),
@@ -18,7 +21,7 @@ def source(engine_id: str) -> SourceDocument:
         "import.hocr.v1": lambda: SourceDocument(data=to_hocr(t), format="hocr"),
         "import.auto.v1": lambda: SourceDocument(data=to_page(t)),
         "import.text.v1": lambda: SourceDocument(data="one\ntwo"),
-        "import.docling.v1": lambda: SourceDocument(data=json.dumps(docling_dict(build_docling(t)))),
+        "import.docling.v1": lambda: SourceDocument(data=json.dumps(docling_sample(t))),
         "import.html.v1": lambda: SourceDocument(data="<p>One <b>two</b></p><p>three</p>"),
     }[engine_id]()
 

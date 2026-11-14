@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/recipe-1.json
 schema: linecaster.recipe/1
 id: squiddle
-edition: 1
+edition: 2
 pipeline: transcribe_modular.v1
 presets:
   layout: pp-doclayoutv3@1
@@ -12,7 +12,7 @@ presets:
   typography: ratios@1
   recomposition: unicode-recomposition@1
   normalization: latin-historic@1
-  composition: docling-composition@1
+  composition: linked-composition@1
 provenance:
   authored_by:
   - Sebastian Majstorovic

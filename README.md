@@ -74,7 +74,7 @@ uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognition paddlex-ppocrv6-medium \
-  --typography ratios --recomposition unicode-recomposition --composition docling-composition
+  --typography ratios --recomposition unicode-recomposition --composition linked-composition
 ```
 
 | Flag | Effect |
@@ -85,7 +85,7 @@ uv run pipelines/transcribe_modular.py scans/ out/ \
 | `--recomposition` | running text in paragraphs (without it, the page stays as laid out) |
 | `--composition` | the page's document, for Markdown, HTML and JSON |
 | `--set recognition.batch_size=4` | change one option of a preset |
-| `--files DIR --formats md,alto` | per-page files: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, DocLang, JSON |
+| `--files DIR --formats md,alto` | per-page files: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, JSON |
 | `--dry-run` | print the plan and its graph, run nothing |
 
 Options after a recipe's name override single steps; the run record lists them.
@@ -111,7 +111,8 @@ For large collections, fetch the images once, then transcribe, then bind the pag
 uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
 uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
   --recognition paddlex-ppocrv6-medium --item-shards 64
-uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
+uv run pipelines/bind.py OUT2/pages OUT3 --recomposition unicode-recomposition --normalization latin-historic \
+  --composition linked-composition
 ```
 
 ## 📦 Output
@@ -120,7 +121,7 @@ uv run pipelines/bind.py OUT2/pages OUT3 --recipe item-texts
 |---|---|
 | 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 | 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
-| 📝 Markdown, HTML, DocLang, [Docling] JSON | documents with headings, tables and formulas |
+| 📝 Markdown, HTML, JSON (linecaster's document) | documents with headings, notes, tables, figures and formulas |
 | 📜 `verbatim_txt` per item | the text as printed, for checking against a transcription |
 | 📖 `readable_txt`, `readable_md` per item | reading and training: letterforms folded, hyphens joined, paragraphs flowed |
 | 🖼️ Page images as JPEG, JPEG 2000, PNG or WebP (`pipelines/convert.py`) | publishing and downloads: decoded and encoded on NVIDIA GPUs where the machine has them |
@@ -234,7 +235,7 @@ pipeline = [
     UnicodeNormalizer(),
     Typographer("ratios@1"),
     Recomposer("unicode-recomposition@1"),
-    Composer("docling-composition@1"),
+    Composer("linked-composition@1"),
     PageFileWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(
@@ -295,7 +296,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
 | [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, text variants |
 | [evaluation](docs/reference/evaluation.md) | scoring transcriptions against ground truths: benchmarks, lanes, score records, evidence |
-| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and Docling import |
+| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and the importers |
 | [catalog](docs/reference/catalog.md) | models, presets, recipes, policies and editions, and where measurements live |
 | [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
@@ -345,7 +346,6 @@ purposes. The Apache-2.0 license of the code does not apply to it. The same cred
 [HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
 [vLLM]: https://github.com/vllm-project/vllm
 [SGLang]: https://github.com/sgl-project/sglang
-[Docling]: https://github.com/docling-project/docling
 [ALTO]: https://www.loc.gov/standards/alto/
 [PAGE-XML]: https://github.com/PRImA-Research-Lab/PAGE-XML
 [hOCR]: https://kba.github.io/hocr-spec/1.2/

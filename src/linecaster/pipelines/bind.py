@@ -2,13 +2,12 @@ r"""The item stage (binding): an item's pages (book, issue, manuscript) bound in
 (paragraphs continued across page breaks), normalized and composed into the item's document; one text per item and
 text variant, and the item document in each format. It reads the page records of a transcribe run; written in item
 shards (`--item-shards N`), each task reads whole shard folders, so it sees every page of its items. No engine or
-GPU is needed: the steps are rule-based, each a preset (`--recipe item-texts` fills them).
+GPU is needed: the steps are rule-based, each a preset.
 
-    uv run pipelines/bind.py OUT1/pages OUT2 --recipe item-texts
     uv run pipelines/bind.py OUT1/pages OUT2 --recomposition unicode-recomposition --normalization latin-historic \
-        --composition docling-composition
+        --composition linked-composition
     uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
-    uv run pipelines/bind.py OUT1/pages OUT2 --recipe item-texts --tasks 64
+    uv run pipelines/bind.py OUT1/pages OUT2 ... --tasks 64
     ... --set composition.sections=true          # an option over the preset's
     ... --no-documents                           # texts only (then --composition is not needed)
     ... --on hf-jobs --namespace NS --commit <sha> --flavor cpu-upgrade --tasks 64
@@ -34,7 +33,7 @@ def options(ap):
                                             "continued across page breaks (e.g. unicode-recomposition)")
     ap.add_argument("--normalization", help="character normalization preset of the readable texts "
                                             "(e.g. latin-historic)")
-    ap.add_argument("--composition", help="composition preset: the item's document (e.g. docling-composition)")
+    ap.add_argument("--composition", help="composition preset: the item's document (e.g. linked-composition)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. composition.sections=true; repeatable")
     ap.add_argument("--variants", default="verbatim_txt,readable_txt,readable_md",
@@ -42,7 +41,7 @@ def options(ap):
     ap.add_argument("--files", action="store_true", help="also one file per item and variant: OUT/texts/<variant>/")
     ap.add_argument("--no-texts", action="store_true", help="no item texts")
     ap.add_argument("--formats", default="md,txt,json",
-                    help="item document formats, comma-separated: md, txt, html, doclang, json")
+                    help="item document formats, comma-separated: md, txt, html, json")
     ap.add_argument("--furniture", action="store_true",
                     help="item documents: keep page headers and footers in md, txt and html")
     ap.add_argument("--dividers", action="store_true",
@@ -67,7 +66,7 @@ def pipeline(a, script: str) -> list:
              *(("composition",) if not a.no_documents else ())]
     missing = [f"--{s}" for s in needs if not getattr(a, s)]
     if missing:
-        raise PipelineConfigError(f"bind: pick {' and '.join(missing)} (or --recipe item-texts); the readable texts "
+        raise PipelineConfigError(f"bind: pick {' and '.join(missing)} (or a --recipe that names them); the readable texts "
                                   f"need the recomposition and the normalization, the documents the composition")
     over = run.overrides(a.set, steps=[s for s in RULE_STEPS if getattr(a, s)])
     return [

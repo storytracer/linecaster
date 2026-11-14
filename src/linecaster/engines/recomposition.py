@@ -6,12 +6,12 @@ from typing import ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..data.transcription import Decision, Line, Link, Paragraph, ParagraphRow, Transcription
-from ..formats.docling import TEXT_LABELS
+from ..data.policy import TEXT_LABELS
 from ..text import recomposition as R
 from ..text.typography import hidden
 from .base import RuleEngine, ScriptDispatch, Strategy
 
-#: the (Docling) labels whose regions are recomposed into one paragraph: headings
+#: the region labels whose regions are recomposed into one paragraph: headings
 SINGLE_LABELS = ("title", "section_header")
 #: the one label whose paragraphs continue and are continued (into the next text region, onto the next page)
 RUNNING_LABEL = "text"

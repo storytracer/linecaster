@@ -1,13 +1,15 @@
 """Content roles and rendering policies: what a region is, and where a rendering puts it.
 
-A region's **content role** is a ``role`` classification (``ROLES``: PAGE-XML's region types, with docling-core's
-labels where PAGE has no word). A **rendering policy** (``RenderingPolicy``, a catalog entry ``policy``) decides
-which annotations go into which **layer** of a rendering (docling-core's content layers, ``metadata`` or ``none``)
-and whose annotations count where several annotators gave one.
+A region's **content role** is a ``role`` classification (``ROLES``: PAGE-XML's region types, with names of
+linecaster's own where PAGE has no word). A **rendering policy** (``RenderingPolicy``, a catalog entry ``policy``)
+decides which annotations go into which **layer** of a rendering (``LAYERS``) and whose annotations count where several
+annotators gave one.
 
-Engines and readers that speak Docling labels (a layout model's label map, a delivered DoclingDocument) classify
-through ``role_of_label``; renderers that write Docling labels read them back through ``docling_label``. A label
-that is neither a role nor a Docling label is kept as it is, as its own role.
+A **region label** is the coarser word layout models and page files use for a region (``text``, ``title``,
+``section_header``, ``caption``, ``footnote``, ``list_item``, ``page_header``, ``page_footer``, ``table``,
+``picture``, ...: ``ROLES``' second column). Engines and readers that speak region labels (a layout preset's label
+map, a page file's region types) classify through ``role_of_label``; writers that need one read it back through
+``region_label``. A label that is neither a role nor a region label is kept as it is, as its own role.
 """
 from __future__ import annotations
 
@@ -15,10 +17,11 @@ from typing import Any, Iterable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-#: the layers a rendering puts content in: docling-core's ``ContentLayer`` values, ``metadata`` and ``none``
+#: the layers a rendering puts content in: the body, the page's furniture (running heads and feet), background,
+#: invisible text, notes; ``metadata`` and ``none`` are never rendered
 LAYERS = ("body", "furniture", "background", "invisible", "notes", "metadata", "none")
 
-#: content role -> (PAGE-XML region type, docling-core label, default layer)
+#: content role -> (PAGE-XML region type, region label, default layer)
 ROLES: dict[str, tuple[str, str, str]] = {
     "paragraph": ("paragraph", "text", "body"),
     "heading": ("heading", "section_header", "body"),
@@ -56,8 +59,8 @@ ROLES: dict[str, tuple[str, str, str]] = {
     "other": ("other", "text", "body"),
 }
 
-#: a Docling label -> the content role it is read as (labels not listed: their own role)
-DOCLING_ROLES: dict[str, str] = {
+#: a region label -> the content role it is read as (labels not listed: their own role)
+LABEL_ROLES: dict[str, str] = {
     "text": "paragraph", "paragraph": "paragraph", "section_header": "heading", "title": "title",
     "caption": "caption", "list_item": "list_item", "document_index": "toc_entry", "footnote": "footnote",
     "reference": "reference", "code": "code", "table": "table", "formula": "formula", "picture": "picture",
@@ -65,7 +68,7 @@ DOCLING_ROLES: dict[str, str] = {
     "page_footer": "footer", "handwritten_text": "paragraph",
 }
 
-#: roles whose Docling label depends on where the zone is: page_header when the box's centre lies in the top
+#: roles whose region label depends on where the zone is: page_header when the box's centre lies in the top
 #: ``HEADER_ZONE`` of the page (as PP-DocLayout's ``number`` is placed), else page_footer
 _PLACED = frozenset({"page_number"})
 HEADER_ZONE = 0.15
@@ -73,10 +76,10 @@ HEADER_ZONE = 0.15
 
 def role_of_label(label: str) -> tuple[str, str | None]:
     """The content role a label is read as, and the production it implies (``handwritten_text``: handwritten):
-    a role as itself, a Docling label by ``DOCLING_ROLES``, anything else as its own role."""
+    a role as itself, a region label by ``LABEL_ROLES``, anything else as its own role."""
     if label in ROLES:
         return label, None
-    return DOCLING_ROLES.get(label, label), ("handwritten" if label == "handwritten_text" else None)
+    return LABEL_ROLES.get(label, label), ("handwritten" if label == "handwritten_text" else None)
 
 
 def classify_label(t, annotator: int, target: str, label: str, **fields) -> str:
@@ -89,10 +92,10 @@ def classify_label(t, annotator: int, target: str, label: str, **fields) -> str:
     return role
 
 
-def docling_label(t, target: str, role: str | None = None) -> str:
-    """The Docling label of ``target`` (a region id) from its content role (``role``, or its resolved one): a
+def region_label(t, target: str, role: str | None = None) -> str:
+    """The region label of ``target`` (a region id) from its content role (``role``, or its resolved one): a
     page number is ``page_header`` when its centre lies in the top ``HEADER_ZONE`` of the page (or without a box),
-    else ``page_footer``; a role without a Docling label of its own is written as it is."""
+    else ``page_footer``; a role without a region label of its own is written as it is."""
     role = role if role is not None else (t.role(target) or "paragraph")
     if role in _PLACED:
         r = t.region(target)
@@ -101,6 +104,16 @@ def docling_label(t, target: str, role: str | None = None) -> str:
             return "page_header" if r.box[1] + r.box[3] / 2 < HEADER_ZONE * height else "page_footer"
         return "page_header"
     return ROLES[role][1] if role in ROLES else role
+
+
+#: the region labels whose regions hold running text (the others: tables, pictures, charts, forms), each to the label
+#: its text takes (``paragraph`` is ``text``)
+TEXT_LABELS = {
+    "text": "text", "paragraph": "text", "title": "title", "section_header": "section_header",
+    "caption": "caption", "footnote": "footnote", "page_header": "page_header", "page_footer": "page_footer",
+    "list_item": "list_item", "formula": "formula", "code": "code", "reference": "reference",
+    "document_index": "document_index",
+}
 
 
 def default_layer(role: str | None) -> str:
@@ -140,8 +153,7 @@ class TableRules(BaseModel):
 
 
 class MarkdownRules(BaseModel):
-    """The Markdown a rendering writes (``linecaster.formats.docling.to_markdown``); docling-core's serializer
-    otherwise."""
+    """The Markdown a rendering writes (``linecaster.document.to_markdown``)."""
 
     model_config = ConfigDict(extra="forbid")
 

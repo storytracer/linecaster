@@ -30,7 +30,7 @@ class SingleRegionLayoutEngine(RuleEngine):
     class Options(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        label: str = Field("text", description="the region's label (a Docling label or a content role: its role)")
+        label: str = Field("text", description="the region's label (a region label or a content role: its role)")
         region_id: str = Field("page", description="the region's id")
 
     def __call__(self, image, t: Transcription, **options) -> Transcription:

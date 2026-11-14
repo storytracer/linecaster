@@ -784,7 +784,7 @@ BUILTIN_ENGINES = {
     "typography.ratios.v1": "linecaster.engines:RatiosTypographyEngine",
     "recomposition.unicode.v1": "linecaster.engines:UnicodeRecompositionEngine",
     "recomposition.by-script.v1": "linecaster.engines:ByScriptRecompositionEngine",
-    "composition.docling.v1": "linecaster.engines:DoclingCompositionEngine",
+    "composition.linked.v1": "linecaster.engines:LinkedCompositionEngine",
     **{eid: f"linecaster.engines:{cls.__name__}" for eid, cls in IMPORTERS.items()},
 }
 SERVED_ONLY = {"chat.v1"}

@@ -26,7 +26,7 @@ Benchmark" (arXiv:2504.10258v3), on region boxes, their labels and the page size
    first candidate in order wins a tie. After each stage the regions are sorted by the rank of their anchor, then
    top, then left.
 
-Label categories, linecaster's region labels (DoclingDocument's vocabulary) to the paper's: ``title`` and
+Label categories, linecaster's region labels (linecaster's region labels) to the paper's: ``title`` and
 ``section_header`` are *title*; ``picture``, ``chart``, ``table``, ``caption`` and ``seal`` are *vision*;
 ``footnote`` is *others* (masked and matched last); ``page_header`` and ``page_footer`` are page furniture (step 1);
 every other label (``text``, ``list_item``, ``formula``, ``code``, ``reference``, ...) is text, cross-layout or not
@@ -86,7 +86,7 @@ def xy_cut_plus_plus_order(boxes: Sequence[BBox], labels: Sequence[str], page_si
 
     Args:
         boxes: the regions' boxes, in page pixels.
-        labels: the regions' labels (DoclingDocument's vocabulary), one per box.
+        labels: the regions' labels (linecaster's region labels), one per box.
         page_size: the page's width and height, in the boxes' pixels.
         beta: a text region wider than ``beta`` times the median text width can be cross-layout (the paper's 1.3).
         theta_v: the density τ_d above which a band is cut horizontally first (the paper's 0.9).

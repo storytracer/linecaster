@@ -16,15 +16,14 @@ travels in. A stored page record names its format in its row's `schema`: `lineca
    policy is a catalog entry with an edition; run records and evidence name it.
 4. **Definitions generic, vocabularies specific.** The classes hold any input (a scanned book, a manuscript, a
    born-digital PDF, a newspaper issue); what a region is, how it was made and what a range is are words from
-   vocabularies borrowed from the standards (PAGE-XML, docling-core), extended where they lack a word.
+   vocabularies borrowed from the standards (PAGE-XML first), extended where they lack a word.
 5. **Records are lean.** Shared things are stored once per page and referred to by number (annotators, raw
    outputs); geometry is numbers; parts are nested where they never move (words in readings, glyphs in words);
-   renderings (Docling documents, texts) are written out, not stored; defaults are not written.
+   renderings (documents, texts) are written out, not stored; defaults are not written.
 
 The concepts are borrowed from IIIF Presentation 3 and the W3C Web Annotation model (annotations with a target, a
-motivation and a body), PAGE-XML (region types, production), PROV (derivation) and docling-core (tables, content
-layers, group labels, formatting, picture classes), under linecaster's names; the mappings are below
-([mappings](#mappings)). Exports conform to each standard.
+motivation and a body), PAGE-XML (region types, production) and PROV (derivation), under linecaster's names; the
+mappings are below ([mappings](#mappings)). Exports conform to each standard.
 
 ## Units
 
@@ -224,18 +223,16 @@ a line read as empty), `alternatives`, `words`, `formatting`, and its own annota
 A `Word` (`Shape`) has `text`, `confidence`, `hyphen` (it ends in a division mark), `alternatives`, `formatting`
 and `glyphs`, and an `id` only where its source gave one other than `<line>_w<n>`; a `Glyph` (`Shape`) `text` and `confidence`. Engines with character positions keep them as glyphs.
 
-`Formatting` is docling-core's: `bold`, `italic`, `underline`, `strikethrough`, `script` (`baseline`, `sub`,
-`super`); on a word, it covers the word; on a reading, each `Formatting` has a `charspan` (`[start, end]` in the
+`Formatting` says how characters are set: `bold`, `italic`, `underline`, `strikethrough`, `script` (`baseline`,
+`sub`, `super`); on a word, it covers the word; on a reading, each `Formatting` has a `charspan` (`[start, end]` in the
 reading's text).
 
 ### Tables and formulas
 
-A `Table` transcribes a region (`target`) as docling-core's table model, stored lean: `num_rows`, `num_cols`,
-`cells`, and `html` when the model wrote the table as HTML. A `Cell` (`Shape`) has docling-core's `TableCell`
-fields: `start_row`, `end_row`, `start_col`, `end_col` (docling-core's `*_offset_idx`, end exclusive), `text`,
-`column_header`, `row_header`, `row_section`. Spans and the grid are not stored (they follow from the offsets);
-`linecaster.formats.docling.table_data` and `from_table_data` convert to and from docling-core's `TableData`
-losslessly. A chart's data, when a model gives it, is a `Table` too, on the chart's region.
+A `Table` transcribes a region (`target`), stored lean: `num_rows`, `num_cols`, `cells`, and `html` when the model
+wrote the table as HTML. A `Cell` (`Shape`) has `start_row`, `end_row`, `start_col`, `end_col` (offsets, end
+exclusive), `text`, `column_header`, `row_header`, `row_section`. Spans and the grid are not stored (they follow
+from the offsets). A chart's data, when a model gives it, is a `Table` too, on the chart's region.
 
 A `Formula` transcribes a region as `latex`; `source` is the LaTeX as the source wrote it, where the reading's
 differs (a wiki's formula as its software normalizes it).
@@ -249,12 +246,12 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 |---|---|---|
 | `role` | what the content is ([content roles](#content-roles)) | layout, typography, a grounding VLM, a ground truth |
 | `production` | how it was made: `printed`, `typewritten`, `handwritten`, `stamped`, `born_digital` | layout, a ground truth |
-| `heading_level` | `1`, `2`, ... (docling-core's `SectionHeaderItem.level`) | typography |
+| `heading_level` | `1`, `2`, ... (1 the highest below the title) | typography |
 | `language` | a BCP 47 tag, on the page (`""`), a zone or a span | recognition, a ground truth |
 | `script` | an ISO 15924 code | recognition |
 | `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, typography, an importer |
-| `picture_class` | docling-core's `PictureClassificationLabel` (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
-| `code_language` | docling-core's `CodeLanguageLabel` | a VLM |
+| `picture_class` | what a picture shows (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
+| `code_language` | the programming language of a code region | a VLM |
 
 The annotator's own label is the region's `label`, not a classification; the mapping from it to a role is catalog
 data per engine (each engine's label map), applied by the annotator that made the region.
@@ -271,7 +268,6 @@ status `removed` and its reason, which no rendering takes.
 
 A `Description` is text an annotator wrote about a zone that is not printed on the page (a VLM's description of a
 figure, chart data it read off, an editor's note): `target`, `kind` (`description`, `data`, `note`), `text`, `format` (`text`, `markdown`, `html`).
-docling-core's `DescriptionMetaField`.
 
 ### Edits
 
@@ -317,7 +313,7 @@ paragraphs joined by links (`runs_into`, `continues`).
 | Field | Holds |
 |---|---|
 | `id` | unique within the item (paragraphs: within the page, `<region id>_p<n>`); never contains `#`, `/` or `[` |
-| `kind` | docling-core's `GroupLabel` (`chapter`, `section`, `list`, `ordered_list`, `inline`, `picture_area`, `form_area`, `key_value_area`, `comment_section`, `sheet`, `slide`) plus `document`, `article`, `work`, `paragraph`, `poem`, `stanza` |
+| `kind` | `chapter`, `section`, `list`, `ordered_list`, `inline`, `picture_area`, `form_area`, `key_value_area`, `comment_section`, `sheet`, `slide`, `document`, `article`, `work`, `paragraph`, `poem`, `stanza` |
 | `parent` | the range it is part of |
 | `parts` | the zones, spans and ranges of this piece, in order |
 | `title` | the range's title, if known |
@@ -351,22 +347,24 @@ A reference (`Ref`) names something in the same set:
 
 ## Content roles
 
-The `role` scheme's vocabulary, the **content roles**, is PAGE-XML's region types, with docling-core's labels where PAGE has no word:
+The `role` scheme's vocabulary, the **content roles**, is PAGE-XML's region types, with names of linecaster's own
+where PAGE has no word. Each role has a **region label**, the coarser word layout models and page files use (a layout
+preset maps its model's labels onto them), and a default layer:
 
-| Role | PAGE-XML | docling-core label | Default layer |
+| Role | PAGE-XML | Region label | Default layer |
 |---|---|---|---|
 | `paragraph` | `paragraph` | `text` | body |
 | `heading` | `heading` | `section_header` | body |
 | `title` | (`heading`) | `title` | body |
 | `caption` | `caption` | `caption` | body |
 | `list_item` | (`paragraph`) | `list_item` | body |
-| `list_label` | `list-label` | (the list item's `marker`) | body |
+| `list_label` | `list-label` | `list_item` | body |
 | `toc_entry` | `TOC-entry` | `document_index` | body |
 | `footnote` | `footnote` | `footnote` | body |
 | `footnote_continued` | `footnote-continued` | `footnote` | body |
 | `endnote` | `endnote` | `footnote` | body |
-| `marginalia` | `marginalia` | `text` (`aside_text` before) | body |
-| `drop_capital` | `drop-capital` | (joined to its word) | body |
+| `marginalia` | `marginalia` | `text` | body |
+| `drop_capital` | `drop-capital` | `text` | body |
 | `credit` | `credit` | `text` | body |
 | `floating` | `floating` | `text` | body |
 | `reference` | (`paragraph`) | `reference` | body |
@@ -391,16 +389,16 @@ The `role` scheme's vocabulary, the **content roles**, is PAGE-XML's region type
 | `other` | `other` | `text` | body |
 
 A content role says what the content is, not where it is rendered: the layers in the last column are the default
-policy's. A page number's Docling label depends on where it is: `page_header` when its centre lies in the top 15 %
-of the page (or without a box), else `page_footer`. A label that is neither a role nor a Docling label (a model's own) is kept as
-its own role and written as it is.
+policy's. A page number's region label depends on where it is: `page_header` when its centre lies in the top 15 %
+of the page (or without a box), else `page_footer`. A label that is neither a role nor a region label (a model's own)
+is kept as its own role and written as it is.
 
 ## Rendering
 
 A **rendering policy** (`RenderingPolicy`, a catalog entry `policy` with editions, like a preset) decides which
-annotations go into which **layer** of a rendering. The layers are docling-core's `ContentLayer` (`body`,
-`furniture`, `background`, `invisible`, `notes`), plus `metadata` (kept out of the text, written to the rendering's
-metadata) and `none`.
+annotations go into which **layer** of a rendering: `body`, `furniture` (running heads and feet, page numbers),
+`background`, `invisible`, `notes`, plus `metadata` (kept out of the text, written to the rendering's metadata) and
+`none`.
 
 | `RenderingPolicy` field | Holds |
 |---|---|
@@ -415,9 +413,26 @@ The default policy, `page-layers@1`, gives every role its default layer, `status
 the readable variants also `normalized`. A run names its
 policy (`--policy`); without one it uses the default, and the run record says which.
 
-Renderings are made from a set under a policy and are not stored: the Docling document (`linecaster.formats.docling`,
-one item per paragraph or region, the layer as the item's `content_layer`, roles as Docling labels), DocLang, ALTO,
-PAGE-XML, hOCR, the IIIF annotation page, and the texts.
+Renderings are made from a set under a policy and are not stored: the document (below), ALTO, PAGE-XML, hOCR, the
+IIIF annotation page, and the texts.
+
+### The document (`linecaster.document`)
+
+A page's or an item's **document** (`Document`, `linecaster.document/1`) is what a reader reads, in reading order:
+its pages and its **blocks**. A block (`Block`) is one unit of the rendering, of a `kind` made from its region's
+content role: `title`, `heading` (with its `level`), `paragraph`, `list_item`, `caption`, `footnote`, `toc_entry`,
+`reference`, `code`, `page_header`, `page_footer`, `formula` (its LaTeX the text), `table` (its `grid`: size and
+cells) or `picture` (its `file` and the text read inside it). Each block has its content `role`, the `layer` the
+policy put it in, its `text` (lines separated by `\n`) with formatting and languages over `spans` of it, the
+`section` it is in (the heading block that opens it, with sections), and an `Origin` per piece: the page, the region
+and lines it comes from, its box on the page image (clamped to the page; none without geometry) and the characters
+of the block's text it gives.
+
+`DocumentBuilder` makes it ([composition](#steps-and-what-they-add)): one block per region as laid out, or per
+paragraph of a recomposition; a paragraph or region that continues another (its `continues` link, on the same or
+an earlier page of the item) is one block with it, joined as recomposition joins rows. `linecaster.document`
+writes it as HTML (HTML5 with DPUB-ARIA roles for notes and page furniture), Markdown (by the policy's Markdown
+rules), text and JSON; the JSON is the complete document and reads back (`from_json`).
 
 ### Text variants (`linecaster.text.variants`)
 
@@ -451,8 +466,8 @@ never NFKC; spelling is never modernized.
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |
 
-Composition (the `Composer`) adds nothing: it renders the set as a Docling document, which travels with the
-datatrove document (`doc.metadata["docling"]`) to the writers and is not stored in the page record.
+Composition (the `Composer`) adds nothing: it renders the set as a document (`linecaster.document`), which travels
+with the datatrove document (`doc.metadata["document"]`) to the writers and is not stored in the page record.
 
 **Nothing is overwritten**: an engine call appends one annotator and adds annotations; it changes none that was there
 (setting a line's `region` or `reading` from `None` aside). The conformance checks (`linecaster.testing.check_engine`,
@@ -475,28 +490,27 @@ item-level blocks added.
 
 ## Mappings
 
-| linecaster | IIIF Presentation 3 / W3C Web Annotation | PAGE-XML | PROV | docling-core |
-|---|---|---|---|---|
-| `Item` | Manifest | (a METS file group) | Entity | (a document's origin) |
-| `Page` | Canvas | `Page` | Entity | `PageItem` |
-| `AnnotationSet`, `Transcription` | AnnotationPage | `PcGts` | Collection | `DoclingDocument` (rendered) |
-| `Annotator` | `creator` / `generator` (Software, Person) | `Metadata/MetadataItem` | Agent, Activity | `created_by` |
-| `RawOutput` | (none; a linecaster extension) | (none) | Entity, `wasGeneratedBy` | (none) |
-| `Annotation` | Annotation | (an element) | Entity | `DocItem` |
-| `derived_from` | (extension) | (none) | `wasDerivedFrom` | `ProvenanceItem` |
-| `Zone.box`, `polygon` | `FragmentSelector` `xywh=`, `SvgSelector` | `Coords` | | `BoundingBox` (`l, t, r, b`) |
-| `Region` + `role` | Annotation, motivation `classifying` | `TextRegion@type`, other regions | | `DocItemLabel` |
-| `Line`, `Reading` | Annotation, motivation `supplementing`, `textGranularity` `line` | `TextLine`, `TextEquiv` | | `TextItem.orig` |
-| `Word`, `Glyph` | `textGranularity` `word`, `glyph` | `Word`, `Glyph` | | |
-| `Edit` | motivation `editing` | `TextEquiv@index` | `wasRevisionOf` | `TextItem.text` (the edited form) |
-| `Classification` | motivation `classifying` | `@type`, `@production`, `TextStyle` | | `label`, `level`, `meta` |
-| `Description` | motivation `describing` | (none) | | `DescriptionMetaField` |
-| `Link` | motivation `linking` | `Relations` | | (`captions`, `footnotes` refs) |
-| `ReadingOrder` | Range of canvases' annotations | `ReadingOrder` | | the body's order |
-| `Range`, `DocumentRange` | Range | (none) | | `GroupItem` (`GroupLabel`) |
-| `Paragraph` | Annotation, `textGranularity` `paragraph` | (`TextRegion` of type paragraph) | | `TextItem` with provenance per row |
-| `Table`, `Cell` | (body as HTML) | `TableRegion`, `TableCell` | | `TableData`, `TableCell` |
-| `RenderingPolicy` layers | (none) | (none) | | `ContentLayer` |
+| linecaster | IIIF Presentation 3 / W3C Web Annotation | PAGE-XML | PROV |
+|---|---|---|---|
+| `Item` | Manifest | (a METS file group) | Entity |
+| `Page` | Canvas | `Page` | Entity |
+| `AnnotationSet`, `Transcription` | AnnotationPage | `PcGts` | Collection |
+| `Annotator` | `creator` / `generator` (Software, Person) | `Metadata/MetadataItem` | Agent, Activity |
+| `RawOutput` | (none; a linecaster extension) | (none) | Entity, `wasGeneratedBy` |
+| `Annotation` | Annotation | (an element) | Entity |
+| `derived_from` | (extension) | (none) | `wasDerivedFrom` |
+| `Zone.box`, `polygon` | `FragmentSelector` `xywh=`, `SvgSelector` | `Coords` | |
+| `Region` + `role` | Annotation, motivation `classifying` | `TextRegion@type`, other regions | |
+| `Line`, `Reading` | Annotation, motivation `supplementing`, `textGranularity` `line` | `TextLine`, `TextEquiv` | |
+| `Word`, `Glyph` | `textGranularity` `word`, `glyph` | `Word`, `Glyph` | |
+| `Edit` | motivation `editing` | `TextEquiv@index` | `wasRevisionOf` |
+| `Classification` | motivation `classifying` | `@type`, `@production`, `TextStyle` | |
+| `Description` | motivation `describing` | (none) | |
+| `Link` | motivation `linking` | `Relations` | |
+| `ReadingOrder` | Range of canvases' annotations | `ReadingOrder` | |
+| `Range`, `DocumentRange` | Range | (none) | |
+| `Paragraph` | Annotation, `textGranularity` `paragraph` | (`TextRegion` of type paragraph) | |
+| `Table`, `Cell` | (body as HTML) | `TableRegion`, `TableCell` | |
 
 The IIIF export (`linecaster.formats.iiif.to_annotation_page`) writes one AnnotationPage per set and page: regions
 (`classifying`, the content role as the body), readings and words (`supplementing`, IIIF's motivation for a
@@ -517,7 +531,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `PageImage.uri`, `format`, `width`, `height`, `sha256`, `pixels_sha256`, `source_width`, `source_height`, `scale`, `decoder`, `extra` | the same |
 | `Transcription.regions` | `regions` |
 | `Region.id` | `Region.id` |
-| `Region.label` | a `role` classification (Docling label → role), by the layout annotator; by typography where its step changed it |
+| `Region.label` | a `role` classification (region label → role), by the layout annotator; by typography where its step changed it |
 | `Region.raw_label` | `Region.label` |
 | `Region.polygon` | `Region.polygon` |
 | `Region.bbox` | `Region.box` |

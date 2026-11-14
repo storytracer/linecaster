@@ -37,7 +37,7 @@ class Region:
     def bbox(self) -> BBox:
         return BBox.of(self.polygon)
 
-#: PP-DocLayout labels -> Docling labels. ``number`` is a page number and is placed by position.
+#: PP-DocLayout labels -> region labels. ``number`` is a page number and is placed by position.
 LABEL_MAP = {
     "doc_title": "title",
     "paragraph_title": "section_header",
@@ -83,7 +83,7 @@ THRESHOLDS = PLUS_L_THRESHOLDS   # backwards-compatible name
 
 
 def regions_from_boxes(boxes, page_height: float, header_zone: float = 0.15) -> tuple[list[Region], bool]:
-    """Turn PaddleX layout boxes into ``Region``s with Docling labels.
+    """Turn PaddleX layout boxes into ``Region``s with region labels.
 
     Returns the regions and whether the model ordered them: a model with learned reading order
     (PP-DocLayoutV3) returns an ``order`` field on every box and PaddleX sorts the boxes by it, so
@@ -146,7 +146,7 @@ class PaddleLayout:
 
 class PaddleLayoutEngine:
     """linecaster engine for the layout step: adds regions (the model's own label, a ``role`` classification from its
-    Docling label, ``LABEL_MAP``, a page number placed by position as a page header or footer) and a reading order
+    region label, ``LABEL_MAP``, a page number placed by position as a page header or footer) and a reading order
     (PP-DocLayoutV3's own, or the order ``reading_order`` gives), all by one annotator.
     The model files: ``weights`` (a catalog pin) or the catalog's newest pin for ``model_name``
     (``weights.resolve``)."""

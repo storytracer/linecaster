@@ -203,7 +203,7 @@ class PresetDoc(_Doc):
     engine: str = Field(description="the code that runs it, by its versioned id, e.g. kraken.recognition.v1")
     options: dict[str, Any] = Field(default_factory=dict, description="the engine's options")
     settings: dict[str, Any] = Field(default_factory=dict)
-    labels: dict[str, str] = Field(default_factory=dict, description="native label -> DoclingDocument label")
+    labels: dict[str, str] = Field(default_factory=dict, description="native label -> region label")
     by_script: dict[str, str] = Field(default_factory=dict,
                                       description="a by-script engine's strategies: ISO 15924 script code, or * for "
                                                   "every other script (required) -> preset id@edition of the same "

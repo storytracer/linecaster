@@ -11,8 +11,8 @@ all by the step's annotator and naming the output they were parsed from:
 
 * **Labels** (``LABELS``): the model's label is the region's ``label``, verbatim; its content role
   (``linecaster.data.policy.ROLES``) a ``role`` classification: ``header`` and ``footer`` are ``header`` and
-  ``footer`` (page furniture); ``page_number`` is ``page_number``, whose Docling label is ``page_header`` when its
-  centre lies in the top 15 % of the page and ``page_footer`` below (``linecaster.data.policy.docling_label``); ``aside_text`` is ``marginalia`` (body text, as PP-DocLayout's ``aside_text``); ``title`` (document,
+  ``footer`` (page furniture); ``page_number`` is ``page_number``, whose region label is ``page_header`` when its
+  centre lies in the top 15 % of the page and ``page_footer`` below (``linecaster.data.policy.region_label``); ``aside_text`` is ``marginalia`` (body text, as PP-DocLayout's ``aside_text``); ``title`` (document,
   section and paragraph headings) is ``heading`` with a ``heading_level`` classification, the number of ``#`` it
   starts with (the ``#`` taken off the text). A label the card does not name is kept as the region's label,
   classified ``other`` and counted (``unknown``).
@@ -20,7 +20,7 @@ all by the step's annotator and naming the output they were parsed from:
   on the region, and a ``Link`` of kind ``continues`` to the last block of the same label on the page, where there is
   one; without one it continues the previous page or column). The blocks stay separate regions, linked.
 * **Text**: a block's content lines are its lines (``region``, rows in order), each read as it is, so the page's
-  text, the Docling composition and the text variants see them like any layout's: tables stay HTML, formulas LaTeX
+  text, the composition and the text variants see them like any layout's: tables stay HTML, formulas LaTeX
   (also a ``Formula``, without ``$$``). The model gives boxes for blocks, not lines: a line's box is the block's split
   into equal rows, one per content line, and says so (``lighton__estimated``). ``verbatim_txt`` keeps the furniture,
   ``readable_txt`` and ``readable_md`` leave it out (``linecaster.text.variants``). Each region keeps the box as the

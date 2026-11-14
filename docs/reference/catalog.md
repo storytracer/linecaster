@@ -114,7 +114,7 @@ are written by `linecaster catalog pin`.
 | `engine` | the engine's id: `engine: kraken.recognition.v1` |
 | `options` | the engine's options (its `Options` model) |
 | `settings` | prompts, sampling and other request settings (chat presets; `repair`: the repair pass's `max_tokens`, 0 for off, and `temperature`) |
-| `labels` | native layout label → DoclingDocument label, from which the layout step classifies each region's content role (the native label stays the region's `label`); unmapped labels are `text` |
+| `labels` | native layout label → region label, from which the layout step classifies each region's content role (the native label stays the region's `label`); unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
 | `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
@@ -353,7 +353,7 @@ pipeline's process only. `pipelines/transcribe_modular.py --layout single-region
 
 The engines of the rule-based steps (**strategies**) live in `linecaster.engines`, are pure Python and run in the
 pipeline's process only (`IN_PROCESS_ONLY`; `linecaster serve` refuses them): `image.webp-lossless.v1`,
-`normalization.latin-historic.v1`, `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.docling.v1`,
+`normalization.latin-historic.v1`, `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.linked.v1`,
 and the by-script engines `normalization.by-script.v1` and `recomposition.by-script.v1`. Each has no weights; its
 `Options` turn the rules' thresholds into options whose defaults are the values the rules have always had, and it
 declares `scripts`: the ISO 15924 scripts it covers (`Latn`, `Hebr`, ...), `"*"` for all. The rules themselves stay
@@ -365,7 +365,7 @@ is an item of one page); the image step takes and returns the image's bytes (`__
 info)`). Options given to a call override the engine's for that call. Each call appends an annotator (`Annotator`,
 kind `rule`) with its `engine` id, its options as `settings` and its counts as `measurements`; the block that runs
 it adds the preset edition and its hash, `seconds` and `datetime`. Composition is the exception: it renders the set
-as a Docling document and adds no annotator and no annotation. Its item unit is `item_document(pages, name, ...)`:
+as a document (`linecaster.document`) and adds no annotator and no annotation. Its item unit is `item_document(pages, name, ...)`:
 an item's document is no transcription.
 
 Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
@@ -373,7 +373,7 @@ over either, like model blocks but without a backend choice: `ImageConverter(out
 `CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
 `squiddle` recipe's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
-`unicode-recomposition@1`, `docling-composition@1`. Running text or the page as laid out is the presence of a
+`unicode-recomposition@1`, `linked-composition@1`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
 ### Scripts and dispatch
@@ -411,9 +411,10 @@ no default presets:
 the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
 overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
 
-The recipes: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
-recognition, tables, formulas and the rule-based steps) and `item-texts` (`bind.v1`: `unicode-recomposition@1`,
-`latin-historic@1`, `docling-composition@1`, the item stage's default combination). Each has its script,
+The recipe: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
+recognition, tables, formulas and the rule-based steps). The item stage (`bind.v1`) has no recipe: its presets are
+named (`--recomposition unicode-recomposition --normalization latin-historic --composition linked-composition`). A
+recipe has its script,
 `recipes/<id>.py` ([architecture](architecture.md#recipe-scripts)): its environment, with exactly the engine packages
 its presets need, and its entry point. `recipes/squiddle.py` is the environment with kraken;
 `pipelines/transcribe_modular.py` leaves kraken out.

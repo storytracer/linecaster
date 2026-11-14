@@ -56,6 +56,7 @@ def test_serve_args_match_the_card():
 
 
 def test_parse_keeps_doctags_verbatim_and_converts_with_docling_core():
+    pytest.importorskip("docling_core")                    # the docling extra
     t = chat_model("smoldocling-256m-preview").parse(completion(DOCTAGS), backend="served x")
     assert t.outputs[0].content == DOCTAGS and t.text == DOCTAGS
     # furniture (running head, page number) kept, picture placeholder empty

@@ -355,7 +355,7 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0,
 
     The steps the file names become the transcription's annotators (a foreign file: the software ``ocr-system``
     names, as a recognition step); without any, the file is its one annotator (kind ``file``). Regions are
-    classified by the Docling label their class reads as; ``lang`` becomes the page's ``language`` classification.
+    classified by the region label their class reads as; ``lang`` becomes the page's ``language`` classification.
 
     Args:
         data: the hOCR file's content.

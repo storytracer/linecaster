@@ -190,9 +190,7 @@ def upgrade_transcription(d: dict, page_id: str | None = None) -> Transcription:
                                                 value=d["language"]))
     for k, v in _ext(extra, ("raw", "passes", "kept", "finish_reason", "retyper_dropped")).items():
         setattr(t, k, v)
-    if d.get("docling") is not None:
-        pass                                                   # a rendering: made again from the set
-    return t
+    return t                                                   # a stored rendering ("docling") is not kept: made again
 
 
 def page_2_to_3(row: dict) -> dict:

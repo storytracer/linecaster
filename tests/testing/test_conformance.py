@@ -234,6 +234,8 @@ def _builtin_options(engine: str) -> dict:
 
 @pytest.mark.parametrize("engine", sorted(set(BUILTIN_ENGINES) - SERVED_ONLY))
 def test_every_builtin_engine_conforms(engine):
+    if engine == "import.docling.v1":
+        pytest.importorskip("docling_core")                # the docling extra
     check_engine(engine_class(engine), options=_builtin_options(engine))
 
 
@@ -370,7 +372,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     page = page_of(tables[0])
     page.transcriptions["ocr_new"] = t
     set_page(tables[0], page)
-    item_docs = list(Composer("docling-composition@1", unit="item").run(
+    item_docs = list(Composer("linked-composition@1", unit="item").run(
         iter(list(binding.Binder().run(iter(sample_documents(2)))))))
     out = tmp_path / "out"
     entries = [
@@ -401,12 +403,12 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (composition.Typographer("ratios@1"), {}),
         (composition.Recomposer("unicode-recomposition@1"), {}),
         (composition.Recomposer("unicode-recomposition@1", unit="item"), {}),
-        (composition.Composer("docling-composition@1"), {}),
-        (composition.Composer("docling-composition@1", unit="item"), {}),
+        (composition.Composer("linked-composition@1"), {}),
+        (composition.Composer("linked-composition@1", unit="item"), {}),
         (binding.Binder(), {}),
         (binding.Splitter(), {}),
         (validation.PageValidator(required=("ocr_new",)), {}),
-        (validation.RecipeStamper("squiddle@1", catalog().resolve_recipe("squiddle@1").sha256), {}),
+        (validation.RecipeStamper("squiddle@2", catalog().resolve_recipe("squiddle@2").sha256), {}),
         (servers.ModelServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
         (servers.ChatModelServer("lightonocr-2-1b"), {"run": False}),
         (servers.ServiceServer("falcon-ocr@1"), {"run": False}),

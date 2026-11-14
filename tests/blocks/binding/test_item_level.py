@@ -14,7 +14,7 @@ from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Annotator, Transcription, Word
 from linecaster.engines import UnicodeRecompositionEngine
-from linecaster.formats.docling import DocumentBuilder, to_markdown, to_text
+from linecaster.document import DocumentBuilder, to_markdown, to_text
 from linecaster.text.unicode import normalize_transcription
 
 from conftest import page_t
@@ -77,10 +77,11 @@ def test_paragraph_continues_across_the_page_break_with_page_provenance():
     for t, pid in zip(pages, ("b1-1", "b1-2")):
         b.add_page(t, 1000, 1000, page_id=pid)
     doc = b.build()
-    para = [x for x in doc.texts if x.text.startswith("It was")][0]
+    para = [x for x in doc.blocks if x.text.startswith("It was")][0]
     assert "turned to the north, where the ice waited." in para.text
-    assert sorted({p.page_no for p in para.prov}) == [1, 2]
-    assert [t.annotators[-1].measurements["continuations"] for t in pages] == [0, 1] and sorted(doc.pages) == [1, 2]
+    assert sorted({o.page for o in para.origins}) == [1, 2]
+    assert [t.annotators[-1].measurements["continuations"] for t in pages] == [0, 1]
+    assert [p.page for p in doc.pages] == [1, 2]
     first, second = (next(p for p in t.paragraphs if p.region == "text_1") for t in pages)   # the page number
     assert [d.kind for d in first.decisions] == ["continuation"]                          # between them stays apart
     assert pages[0].link(first.id, "runs_into") == f"b1-2#{second.id}"
@@ -93,13 +94,13 @@ def test_sections_and_dividers():
     for t in two_pages():
         b.add_page(t, 1000, 1000)
     doc = b.build()
-    assert len(doc.groups) == 1 and doc.groups[0].name == "CHAPTER I"
-    assert all(c.cref in {x.self_ref for x in doc.texts} for c in doc.groups[0].children)
-    assert len(doc.groups[0].children) == len(doc.texts)       # everything after the heading is in its section
-    md = to_markdown(doc, region_of=b.region_of)
+    heading = doc.blocks[0]
+    assert (heading.kind, heading.text, heading.section) == ("heading", "CHAPTER I", heading.id)
+    assert all(x.section == heading.id for x in doc.blocks)   # everything after the heading is in its section
+    md = to_markdown(doc, dividers=True)
     assert md.split("\n\n---\n\n")[0] == "### CHAPTER I"
     assert md.count("---") == 2                                # heading | p1 text | p2 text (furniture left out)
-    assert to_markdown(doc, furniture=True, region_of=b.region_of).count("---") == 4
+    assert to_markdown(doc, furniture=True, dividers=True).count("---") == 4
 
 
 def test_item_blocks_group_pages_and_write(tmp_path):
@@ -115,26 +116,24 @@ def test_item_blocks_group_pages_and_write(tmp_path):
         docs.append(d)
     stream = iter(docs)
     for block in (Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-                  Composer("docling-composition@1", unit="item", options={"sections": True}),
+                  Composer("linked-composition@1", unit="item", options={"sections": True}),
                   ItemDocumentWriter(str(tmp_path), formats=("md", "txt", "json"), dividers=True)):
         stream = block.run(stream)
     out = list(stream)
     assert len(out) == 1 and out[0].id == "b1"
     assert [p["page_id"] for p in out[0].metadata["item"]["pages"]] == ["b1-1", "b1-2"]
     md = (tmp_path / "b1.md").read_text()
-    assert md.startswith("### CHAPTER I") and "turned to the north" in md   # docling nests the heading one level in its section
+    assert md.startswith("### CHAPTER I") and "turned to the north" in md   # a level-2 heading
     assert (tmp_path / "b1.txt").exists() and (tmp_path / "b1.json").exists()
 
 
-def test_reflow_with_sections_and_a_title_keeps_a_consistent_tree():
-    # re-parenting the title into a new section without detaching it fails here ("Document hierarchy is
-    # inconsistent"); the section opens first, the title inside
+def test_a_title_opens_its_section_after_a_reflow():
     pages = two_pages()
     pages[0].classify(0, pages[0].regions[0].id, "role", "title")              # the layout called it a title
     b = DocumentBuilder("book", sections=True)
     for t, pid in zip(recomposed_item(pages), ("b1-1", "b1-2")):
         b.add_page(t, 1000, 1000, page_id=pid)
     doc = b.build()
-    title = [x for x in doc.texts if x.label == "title"][0]
-    assert title.parent.cref == doc.groups[0].self_ref and doc.groups[0].children[0].cref == title.self_ref
+    title = doc.blocks[0]
+    assert title.kind == "title" and all(x.section == title.id for x in doc.blocks)
     assert to_markdown(doc).startswith("# CHAPTER I")

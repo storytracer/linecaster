@@ -109,17 +109,14 @@ def test_launch_finds_the_pipeline():
     squiddle, vlm = str(ROOT / "recipes" / "squiddle.py"), str(ROOT / "pipelines" / "transcribe_vlm.py")
     assert launch.command("squiddle", ["IN", "OUT", "--furniture"]) == [
         "uv", "run", "--script", squiddle, "IN", "OUT", "--furniture", "--recipe", "squiddle"]
-    texts = str(ROOT / "recipes" / "item-texts.py")
-    assert launch.command("item-texts", ["P", "OUT"]) == ["uv", "run", "--script", texts, "P", "OUT", "--recipe",
-                                                          "item-texts"]
     assert launch.command("chandra-ocr-2@1", ["IN", "OUT"]) == [
         "uv", "run", "--script", vlm, "IN", "OUT", "--recognition", "chandra-ocr-2@1"]
     page = str(ROOT / "pipelines" / "transcribe_page.py")
     assert launch.command("indra-ocr@1", ["IN", "OUT"]) == [
         "uv", "run", "--script", page, "IN", "OUT", "--recognition", "indra-ocr@1"]
     assert launch.command("falcon-ocr", ["serve"])[4:6] == ["serve", "--recognition"]   # a page engine can be served
-    assert launch.command("squiddle@1", ["serve", "--port", "8101"]) == [
-        "uv", "run", "--script", squiddle, "serve", "--recipe", "squiddle@1", "--port", "8101"]
+    assert launch.command("squiddle@2", ["serve", "--port", "8101"]) == [
+        "uv", "run", "--script", squiddle, "serve", "--recipe", "squiddle@2", "--port", "8101"]
     assert launch.command("squiddle", ["ray", "start", "--head"])[-3:] == ["ray", "start", "--head"]
     for name, why in (("nope", "no recipe or page preset"), ("kraken-ppocrv6-medium", "--recognition kraken-ppocrv6-medium"),
                       ("minicpm-ocr-1.0", "reads layout regions")):

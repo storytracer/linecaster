@@ -42,7 +42,7 @@ def _setup(tmp_path: Path, misread: bool = True):
     _records(tmp_path / "gt", "ground_truth", truth)
     _records(tmp_path / "run" / "pages", "ocr_new", out)
     (tmp_path / "run" / "run.yaml").write_text(yamlio.dump({"run_id": "0" * 32, "pipeline_sha256": "sha256:" + "1" * 64,
-                                                            "recipe": {"ref": "squiddle@1"}}))
+                                                            "recipe": {"ref": "squiddle@2"}}))
     bench = {"schema": "linecaster.benchmark/1", "id": "test-gt", "edition": 1,
              "dataset": {"repo": "example.org/gt@0123abc", "importer": "docling"},
              "pages": {"ids": IDS, "sha256": listing_sha256(IDS)}, "supports": {"roles": ["header", "footnote"]},
@@ -57,7 +57,7 @@ def test_score_writes_scores_and_evidence_that_name_what_was_measured(tmp_path, 
     printed = capsys.readouterr().out
     assert "eligible" in printed and "cer_full_diplomatic" in printed
     ev = yamlio.read(tmp_path / "run" / "scores" / "evidence.yaml")
-    assert ev["schema"] == "linecaster.evidence/2" and ev["recipe"] == "squiddle@1"
+    assert ev["schema"] == "linecaster.evidence/2" and ev["recipe"] == "squiddle@2"
     assert ev["run"]["run_id"] == "0" * 32 and ev["run"]["pipeline_sha256"] == "sha256:" + "1" * 64
     assert ev["benchmark"]["ref"] == "test-gt@1" and ev["scoring"]["policy"] == "page-layers@1"
     assert ev["scoring"]["lanes"] == ["diplomatic@1", "alnum@1"] and ev["counts"]["missing"] == 0

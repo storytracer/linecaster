@@ -2,7 +2,7 @@
 
 Mapping (see ``docs/reference/serialization.md``):
 
-* region -> ``TextRegion`` with ``@type`` from its Docling label (``ImageRegion``, ``ChartRegion``,
+* region -> ``TextRegion`` with ``@type`` from its region label (``ImageRegion``, ``ChartRegion``,
   ``TableRegion``, ``MathsRegion`` for picture, chart, table and formula regions without lines);
   the producer's label in ``@custom`` as ``structure {type:<raw_label>;}`` (the Transkribus
   convention); the detection score as ``Coords/@conf``; reading order as
@@ -72,12 +72,12 @@ def structure_type(custom: str | None) -> str | None:
 
 
 def page_label(element: str, type_attr: str | None, structure: str | None) -> str:
-    """The Docling label a reader gives a PAGE region."""
+    """The region label a reader gives a PAGE region."""
     if element != "TextRegion":
-        return X.PAGE_ELEMENT_TO_DOCLING.get(element, "text")
-    if structure and structure.strip().lower() in X.RAW_TO_DOCLING:
-        return X.RAW_TO_DOCLING[structure.strip().lower()]
-    return X.docling_from_raw(type_attr)
+        return X.PAGE_ELEMENT_TO_LABEL.get(element, "text")
+    if structure and structure.strip().lower() in X.RAW_TO_LABEL:
+        return X.RAW_TO_LABEL[structure.strip().lower()]
+    return X.label_from_raw(type_attr)
 
 
 def page_raw_label(element: str, type_attr: str | None, structure: str | None) -> str:
@@ -121,9 +121,9 @@ class _Writer:
 
     def region(self, page, r: X.FileRegion, lines: list[X.FileLine], predicted_ro, pos) -> None:
         element = "TextRegion"
-        if not lines and r.label in X.DOCLING_TO_PAGE_ELEMENT:
-            element = X.DOCLING_TO_PAGE_ELEMENT[r.label]
-        type_attr = X.DOCLING_TO_PAGE_TEXT.get(r.label, "paragraph") if element == "TextRegion" else None
+        if not lines and r.label in X.LABEL_TO_PAGE_ELEMENT:
+            element = X.LABEL_TO_PAGE_ELEMENT[r.label]
+        type_attr = X.LABEL_TO_PAGE_TEXT.get(r.label, "paragraph") if element == "TextRegion" else None
         el = _e(page, element, id=r.id)
         if r.raw_label:
             el.set("custom", f"structure {{type:{_escape_custom(r.raw_label)};}}")
@@ -408,7 +408,7 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
     file without ``Page`` reads as an empty transcription.
 
     The steps the file names become the transcription's annotators; without any, the file is its one annotator
-    (kind ``file``). Regions are classified by the Docling label they read as (``page_label``).
+    (kind ``file``). Regions are classified by the region label they read as (``page_label``).
 
     Args:
         data: the PAGE-XML file's content.

@@ -83,7 +83,7 @@ def texts(t, region_id):
 
 
 def test_blocks_become_labelled_regions_in_the_order_emitted():
-    """The model's label verbatim, its content role and the Docling label of that role; a page number's Docling
+    """The model's label verbatim, its content role and the region label of that role; a page number's Docling
     label by its position on the page (top half: ``page_header``)."""
     t = ground(PAGE, "stop")
     got = [(r.id, t.label(r.id), r.label, t.role(r.id), rank) for rank, r in enumerate(t.ordered_regions())]
@@ -125,12 +125,12 @@ def test_boxes_are_scaled_from_0_1000_to_the_page_image_once():
 
 def test_the_full_text_keeps_the_furniture_and_the_body_texts_leave_it_out():
     from linecaster.engines import UnicodeRecompositionEngine
-    from linecaster.formats.docling import build_docling, to_text
+    from linecaster.document import build_document, to_text
     from linecaster.text.variants import variants
 
     t = place(ground(PAGE, "stop"), 2000, 3000)
     assert t.text.startswith("THE HISTORY OF YACHTING.\n143\nCHAPTER IX.") and t.text.endswith("- 143 -")
-    doc = build_docling(t, width=2000, height=3000)
+    doc = build_document(t, width=2000, height=3000)
     body, full = to_text(doc, furniture=False), to_text(doc, furniture=True)
     assert "THE HISTORY" in full and "THE HISTORY" not in body and "143" not in body
     assert "Built 1851." in body and "She won the cup" in body                # marginalia are body text
@@ -143,14 +143,14 @@ def test_the_full_text_keeps_the_furniture_and_the_body_texts_leave_it_out():
 def test_what_the_model_writes_about_figures_is_kept_but_in_no_text():
     """An image's description and a chart's data are the model's, not printed: descriptions of the region, no
     lines."""
-    from linecaster.formats.docling import build_docling, to_markdown, to_text
+    from linecaster.document import build_document, to_markdown, to_text
 
     t = place(ground(PAGE, "stop"), 2000, 3000)
     (image,), (chart,) = t.descriptions_of("image_5"), t.descriptions_of("chart_7")
     assert (image.kind, image.text) == ("description", "A schooner under full sail.")
     assert chart.kind == "data" and "<table>" in chart.text and chart.format == "html"
     assert not t.lines_of("image_5") and not t.lines_of("chart_7")
-    doc = build_docling(t, width=2000, height=3000)
+    doc = build_document(t, width=2000, height=3000)
     for text in (t.text, to_text(doc, furniture=True), to_markdown(doc, furniture=True)):
         assert "schooner under full sail" not in text and "Races" not in text
     assert "The America off Cowes." in t.text                                 # the printed caption is text

@@ -290,7 +290,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "native label -> DoclingDocument label",
+      "description": "native label -> region label",
       "title": "Labels",
       "type": "object"
     },

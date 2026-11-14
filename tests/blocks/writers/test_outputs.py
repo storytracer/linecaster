@@ -19,7 +19,7 @@ from linecaster.blocks.writers.items import ItemTextWriter
 from linecaster.data.transcription import Annotator, Transcription
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
-from linecaster.formats.docling import DOCUMENT_KEY, EXPORT_FORMATS, compose, docling_dict, export, load_docling
+from linecaster.document import DOCUMENT_KEY, EXPORT_FORMATS, build_document, export, load_document
 from linecaster.text import variants as T
 
 from conftest import item_variants, page_doc, page_with
@@ -28,7 +28,7 @@ SCHEMAS = Path(__file__).parents[2] / "schemas"
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
+    docs = list(Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFileWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -44,19 +44,19 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
         schema = etree.XMLSchema(etree.parse(str(SCHEMAS / xsd)))
         assert schema.validate(etree.parse(str(folder / name))), schema.error_log
     assert (folder / "p1.md").read_text().startswith("# THE TITLE")
-    assert json.loads((folder / "p1.json").read_text())["schema_name"] == "DoclingDocument"
+    assert json.loads((folder / "p1.json").read_text())["schema"] == "linecaster.document/1"
     assert json.loads((folder / "p1.transcription.json").read_text())["regions"]
 
 
 def test_page_files_flat_are_the_document_exports(tmp_path: Path):
     """Flat names with a suffix: each file is the document's export byte for byte, as the
     export writer this one replaces wrote them (flat, suffix, furniture)."""
-    docs = list(Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
+    docs = list(Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                         bucket_by_item=False).run(iter(docs)))
     data = docs[0].metadata[DOCUMENT_KEY]                 # the Composer's document
     for fmt in ("md", "txt", "json"):
-        expected = export(data if fmt == "json" else load_docling(data), fmt, True).encode("utf-8")
+        expected = export(load_document(data), fmt, True).encode("utf-8")
         assert (tmp_path / f"p1.x.{EXPORT_FORMATS[fmt]}").read_bytes() == expected, fmt
     assert sorted(p.name for p in tmp_path.iterdir()) == ["p1.x.json", "p1.x.md", "p1.x.txt"]
 
@@ -76,15 +76,15 @@ def test_page_files_without_composer_render_the_document(tmp_path: Path):
     assert DOCUMENT_KEY not in docs[0].metadata
     list(PageFileWriter(str(tmp_path / "w"), formats=("md", "json"), bucket_by_item=False).run(iter(docs)))
     page = page_of(docs[0])
-    document, _ = compose(page.transcriptions["ocr_new"], name="p1", width=1000, height=1000)
-    assert (tmp_path / "w" / "p1.json").read_text() == export(docling_dict(document), "json")
+    document = build_document(page.transcriptions["ocr_new"], name="p1", width=1000, height=1000)
+    assert (tmp_path / "w" / "p1.json").read_text() == export(document, "json")
     assert (tmp_path / "w" / "p1.md").read_text().startswith("# THE TITLE")
-    composed = list(Composer("docling-composition@1").run(iter(docs)))
+    composed = list(Composer("linked-composition@1").run(iter(docs)))
     list(PageFileWriter(str(tmp_path / "c"), formats=("md", "json"), bucket_by_item=False).run(iter(composed)))
     for name in ("p1.md", "p1.json"):
         assert (tmp_path / "c" / name).read_bytes() == (tmp_path / "w" / name).read_bytes()
     # a document composed from another transcription is not this one's
-    composed[0].metadata["docling_transcription"] = "ocr_original"
+    composed[0].metadata["document_transcription"] = "ocr_original"
     composed[0].metadata[DOCUMENT_KEY] = {"broken": True}
     list(PageFileWriter(str(tmp_path / "o"), formats=("json",), bucket_by_item=False).run(iter(composed)))
     assert (tmp_path / "o" / "p1.json").read_bytes() == (tmp_path / "w" / "p1.json").read_bytes()
@@ -103,8 +103,8 @@ def test_page_files_without_text_fallback_write_only_documents(tmp_path: Path):
     """``text_fallback=False``: a page without a document gets no file of a document format (the export
     writer's behavior), and a page with one gets them all."""
     t = lines_only()
-    fmts = ("md", "txt", "html", "doclang", "json")
-    composed = list(Composer("docling-composition@1").run(
+    fmts = ("md", "txt", "html", "json")
+    composed = list(Composer("linked-composition@1").run(
         Typographer("ratios@1").run(iter([page_doc(page_id="p2", item=None)]))))
     out = list(PageFileWriter(str(tmp_path), formats=fmts, bucket_by_item=False, text_fallback=False).run(
         iter([page_doc(t=t, item=None), *composed])))

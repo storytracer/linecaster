@@ -12,7 +12,7 @@ server started from it.
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
         --recognition paddlex-ppocrv6-medium
     uv run recipes/squiddle.py IMAGES OUT                     # the recipe squiddle, in its own environment
-    ... --typography ratios --recomposition unicode-recomposition --composition docling-composition
+    ... --typography ratios --recomposition unicode-recomposition --composition linked-composition
     ... --item-texts OUT/texts --recomposition unicode-recomposition --normalization latin-historic
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
         --recognition tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
@@ -57,8 +57,8 @@ def options(ap):
                                             "(e.g. unicode-recomposition; none: the page stays as laid out)")
     ap.add_argument("--normalization", help="character normalization preset of the readable item texts "
                                             "(--item-texts; e.g. latin-historic)")
-    ap.add_argument("--composition", help="page composition preset: the page's document, for md, txt, html, doclang "
-                                          "and json (e.g. docling-composition)")
+    ap.add_argument("--composition", help="page composition preset: the page's document, for md, txt, html and json "
+                                          "(e.g. linked-composition)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
     ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming, "

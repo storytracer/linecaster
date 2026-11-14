@@ -13,26 +13,26 @@ from datatrove.pipeline.writers import JsonlWriter
 from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
 from ...data.policy import DEFAULT_POLICY
 from ...errors import PipelineConfigError
-from ...formats.docling import DOCUMENT_KEY, EXPORT_FORMATS, REGION_MAP_KEY, export
+from ...document import DOCUMENT_KEY, EXPORT_FORMATS, export, load_document
 from ...text.variants import VARIANTS, variants
 from ..base.contract import Contract, Contracted, Part, parts
 from ..base.item import ITEM_KEY, item_pages
 
 
 class ItemDocumentWriter(Contracted, PipelineStep):
-    """Writes the document of each item record, one file per format: Markdown, text, HTML, DocLang, JSON.
+    """Writes the document of each item record, one file per format: Markdown, text, HTML, JSON.
 
-    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["docling"]``) and writes
-    ``<item id><suffix>.<ext>`` (``linecaster.formats.docling.export``); an item record without a document is
-    counted (``no_document``). Item records pass through.
+    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["document"]``) and writes
+    ``<item id><suffix>.<ext>`` (``linecaster.document.export``); an item record without a document is counted
+    (``no_document``). Item records pass through.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the documents go to.
-        formats: the formats to write: ``md``, ``txt``, ``html``, ``doclang``, ``json``; an unknown one is a
+        formats: the formats to write: ``md``, ``txt``, ``html``, ``json``; an unknown one is a
             ``PipelineConfigError``.
         suffix: added to each file's stem, before the extension.
         furniture: keep page headers and footers in md, txt and html.
-        dividers: put ``---`` between the items of consecutive layout regions in md.
+        dividers: put ``---`` between the blocks of consecutive layout regions in md.
         by_format: one folder per format, ``<format>/<item id><suffix>.<ext>``.
     """
 
@@ -54,8 +54,6 @@ class ItemDocumentWriter(Contracted, PipelineStep):
         self.furniture, self.dividers, self.by_format = furniture, dividers, by_format
 
     def run(self, data, rank: int = 0, world_size: int = 1):
-        from docling_core.types.doc import DoclingDocument
-
         for doc in data:
             meta = doc.metadata
             if DOCUMENT_KEY not in meta:
@@ -63,13 +61,11 @@ class ItemDocumentWriter(Contracted, PipelineStep):
                 yield doc
                 continue
             with self.track_time():
-                d = DoclingDocument.model_validate(meta[DOCUMENT_KEY])
-                region_of = meta.get(REGION_MAP_KEY) if self.dividers else None
+                d = load_document(meta[DOCUMENT_KEY])
                 for fmt in self.formats:
-                    content = meta[DOCUMENT_KEY] if fmt == "json" else d
                     name = f"{meta['item_id']}{self.suffix}.{EXPORT_FORMATS[fmt]}"
                     with self.folder.open(f"{fmt}/{name}" if self.by_format else name, "wt", encoding="utf-8") as f:
-                        f.write(export(content, fmt, self.furniture, region_of))
+                        f.write(export(d, fmt, self.furniture, self.dividers))
                     self.stat_update(fmt)
             yield doc
 

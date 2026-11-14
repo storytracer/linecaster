@@ -528,15 +528,26 @@ def _sample_source(fmt: str):
 
     from ..data import SourceDocument
     from ..formats import to_alto, to_hocr, to_page
-    from ..formats.docling import build_docling, docling_dict
     from .samples import sample_transcription
 
     t = sample_transcription()
     data = {"page": lambda: to_page(t), "hocr": lambda: to_hocr(t), "text": lambda: t.text,
-            "docling": lambda: _json.dumps(docling_dict(build_docling(t))),
+            "docling": lambda: _json.dumps(docling_sample(t)),
             "html": lambda: "".join(f"<p>{ln.reading.text}</p>" for ln in t.lines if ln.reading)}.get(
         fmt, lambda: to_alto(t))()
     return SourceDocument(data=data, format=fmt if fmt != "auto" else None)
+
+
+def docling_sample(t) -> dict:
+    """A small DoclingDocument (as a dict) with the sample's lines as text items: the source a Docling importer
+    reads (the ``docling`` extra)."""
+    from docling_core.types.doc import DocItemLabel, DoclingDocument
+
+    d = DoclingDocument(name="sample")
+    for ln in t.lines:
+        if ln.reading is not None:
+            d.add_text(label=DocItemLabel.TEXT, text=ln.reading.text)
+    return d.export_to_dict()
 
 
 # ------------------------------------------------------------------------------------------------- blocks

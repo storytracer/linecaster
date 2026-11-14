@@ -3,7 +3,7 @@
   "$defs": {
     "MarkdownRules": {
       "additionalProperties": false,
-      "description": "The Markdown a rendering writes (``linecaster.formats.docling.to_markdown``); docling-core's serializer\notherwise.",
+      "description": "The Markdown a rendering writes (``linecaster.document.to_markdown``).",
       "properties": {
         "tables": {
           "default": "html-for-spans",

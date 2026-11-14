@@ -9,6 +9,10 @@ from linecaster.runtime import run
 
 MODELS = ["--layout", "single-region@1", "--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
 
+#: the item stage's presets (bind.v1's slots)
+PRESETS = ("--recomposition", "unicode-recomposition", "--normalization", "latin-historic", "--composition",
+           "linked-composition")
+
 
 def _stages(shape, argv):
     plan = run.describe(shape, argv)
@@ -20,7 +24,7 @@ def test_the_modular_slots():
     (blocks,), _ = _stages(MODULAR, ["IN", "OUT", *MODELS])
     assert not {"Typographer", "Recomposer", "Composer", "CharacterNormalizer"} & set(blocks)     # none picked
     (blocks,), plan = _stages(MODULAR, ["IN", "OUT", *MODELS, "--typography", "ratios", "--composition",
-                                        "docling-composition", "--set", "composition.sections=true"])
+                                        "linked-composition", "--set", "composition.sections=true"])
     assert blocks[blocks.index("Typographer") + 1] == "Composer" and "Recomposer" not in blocks   # as laid out
     composer = next(b for b in plan.stages[0].blocks if type(b).__name__ == "Composer")
     assert composer.backend.overrides == {"sections": True}
@@ -57,10 +61,10 @@ def test_the_squiddle_recipe_fills_the_rule_based_slots():
     assert stages[1][:4] == ["PageRecordReader", "Binder", "Recomposer", "CharacterNormalizer"]
 
 
-def test_bind_takes_the_item_texts_recipe():
-    (blocks,), plan = _stages(BIND, ["P", "OUT", "--recipe", "item-texts", "--files"])
+def test_bind_takes_its_presets():
+    (blocks,), plan = _stages(BIND, ["P", "OUT", *PRESETS, "--files"])
     assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "Recomposer", "CharacterNormalizer", "Composer",
-                      "RecipeStamper", "ItemTextWriter", "ItemTextWriter", "ItemDocumentWriter"]
+                      "ItemTextWriter", "ItemTextWriter", "ItemDocumentWriter"]
     writer = plan.stages[0].blocks[-1]
     assert writer.by_format and writer.formats == ("md", "txt", "json")
     (blocks,), _ = _stages(BIND, ["P", "OUT", "--no-documents", "--variants", "verbatim_txt"])

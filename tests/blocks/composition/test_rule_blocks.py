@@ -31,12 +31,12 @@ def test_a_preset_or_an_engine_spec_with_options_over_it():
     spec = Typographer(InProcess("linecaster.engines:RatiosTypographyEngine", demote=1.0), options={"split": 2.0})
     assert spec.backend.kwargs == {"demote": 1.0, "split": 2.0} and spec.backend.overrides == {"split": 2.0}
     assert spec.backend.preset is None
-    over = Composer("docling-composition@1", options={"sections": True})
+    over = Composer("linked-composition@1", options={"sections": True})
     assert over.backend.kwargs == {"sections": True} and over.backend.overrides == {"sections": True}
     with pytest.raises(PipelineConfigError, match="no Served backend"):
         Typographer(Served("http://127.0.0.1:1/v1", model="typography"))
     with pytest.raises(PipelineConfigError, match="is a composition preset"):
-        Typographer("docling-composition@1")
+        Typographer("linked-composition@1")
     with pytest.raises(PipelineConfigError, match="no_such"):
         Typographer("ratios@1", options={"no_such": 1})
     with pytest.raises(PipelineConfigError, match="is a typography engine"):
@@ -47,7 +47,7 @@ def test_a_preset_or_an_engine_spec_with_options_over_it():
 
 def test_each_block_records_its_step():
     (doc,) = run([Typographer("ratios@1"), Recomposer("unicode-recomposition@1"),
-                  CharacterNormalizer("latin-historic@1"), Composer("docling-composition@1")], [page_doc()])
+                  CharacterNormalizer("latin-historic@1"), Composer("linked-composition@1")], [page_doc()])
     t = page_of(doc).transcriptions["ocr_new"]
     added = t.annotators[1:]                        # after the page's own (the layout's)
     steps = [(s.kind, s.step, s.engine, s.preset) for s in added]
@@ -57,7 +57,7 @@ def test_each_block_records_its_step():
     assert all({"seconds", "datetime"} <= set(s.measurements) and s.preset_sha256 for s in added)
     assert t.paragraphs and all(p.annotator == 2 for p in t.paragraphs)
     assert all(e.annotator == 3 and e.kind == "normalized" for e in t.edits)
-    assert doc.metadata["docling"]["name"] == "p1"
+    assert doc.metadata["document"]["name"] == "p1"
 
 
 def _item_docs():
@@ -76,11 +76,11 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
     item, page ``n`` its ``n``-th page, paragraphs continued across the page break; without a recomposition as laid
     out."""
     blocks = [Binder(), *([Recomposer("unicode-recomposition@1", unit="item")] if recomposed else []),
-              Composer("docling-composition@1", unit="item", options={"sections": sections})]
+              Composer("linked-composition@1", unit="item", options={"sections": sections})]
     (item,) = run(blocks, list(reversed(_item_docs())))
-    assert item.id == "b1" and item.metadata["item_id"] == "b1" and item.metadata["region_of"]
+    assert item.id == "b1" and item.metadata["item_id"] == "b1" and item.metadata["document"]["blocks"]
     assert ("turned to the north" in item.text) is recomposed
-    assert bool(item.metadata["docling"]["groups"]) is sections
+    assert any(b["section"] for b in item.metadata["document"]["blocks"]) is sections
     pages = item_pages(item)
     assert [p.page_id for p in pages] == ["b1-1", "b1-2"] and item.metadata[ITEM_KEY]["item_id"] == "b1"
     steps = [[s.step for s in p.transcriptions["ocr_new"].annotators[1:]] for p in pages]
@@ -98,10 +98,10 @@ def test_the_item_recomposition_makes_the_paragraphs_anew():
     (continued across the page break), as from pages without any."""
     docs = run([Recomposer("unicode-recomposition@1")], _item_docs())
     assert all(page_of(d).transcriptions["ocr_new"].paragraphs for d in docs)
-    item = [Binder(), Recomposer("unicode-recomposition@1", unit="item"), Composer("docling-composition@1", unit="item")]
+    item = [Binder(), Recomposer("unicode-recomposition@1", unit="item"), Composer("linked-composition@1", unit="item")]
     (flowed,) = run(item, docs)
     (fresh,) = run(item, _item_docs())
-    assert flowed.metadata["docling"] == fresh.metadata["docling"] and "turned to the north" in flowed.text
+    assert flowed.metadata["document"] == fresh.metadata["document"] and "turned to the north" in flowed.text
     pages = [p.transcriptions["ocr_new"] for p in item_pages(flowed)]
     assert [sum(r.kind == "paragraph" for r in t.ranges) for t in pages] == [2 * len(paragraphs(t)) for t in pages]   # the earlier ones stay
     assert all(page_of(d).transcriptions["ocr_new"].annotators[-1].step == "recomposition" for d in docs)   # untouched

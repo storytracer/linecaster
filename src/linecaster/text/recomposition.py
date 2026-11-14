@@ -143,7 +143,8 @@ def region_rows(t: Transcription, lines: list[Line], kinds: tuple[str, ...] = AS
         grouped.setdefault(rows.get(ln.id, 0), []).append(ln)
     out = []
     for i, k in enumerate(sorted(grouped)):
-        b = union([line_bbox(ln) for ln in grouped[k]])
+        boxes = [line_bbox(ln) for ln in grouped[k] if ln.polygon or ln.box]     # none: a text-only transcription
+        b = union(boxes) if boxes else None
         out.append(Row(" ".join(x for ln in grouped[k] if (x := t.text_of(ln, kinds))), b, i))
     return out
 

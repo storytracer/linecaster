@@ -142,10 +142,10 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert names(a.adds) == ["ocr_new:line_regions"] and Part("lines", "ocr_new") in a.replaces
     assert names(UnicodeNormalizer().contract().adds) == ["ocr_new:nfc"]
     assert names(Typographer("ratios@1").contract().adds) == ["ocr_new:hierarchy"]
-    assert names(Composer("docling-composition@1").contract().adds) == ["ocr_new:document"]
-    assert names(Composer("docling-composition@1").contract().reads) == ["ocr_new:lines", "ocr_new:regions"]
-    assert Composer("docling-composition@1", unit="item").contract().adds == {Part("document")}
-    assert Composer("docling-composition@1", unit="item").contract().unit == "item"
+    assert names(Composer("linked-composition@1").contract().adds) == ["ocr_new:document"]
+    assert names(Composer("linked-composition@1").contract().reads) == ["ocr_new:lines", "ocr_new:regions"]
+    assert Composer("linked-composition@1", unit="item").contract().adds == {Part("document")}
+    assert Composer("linked-composition@1", unit="item").contract().unit == "item"
     r = Recomposer("unicode-recomposition@1").contract()
     assert names(r.adds) == ["ocr_new:paragraphs"] and names(r.reads) == ["ocr_new:lines", "ocr_new:regions"]
     assert r.replaces == r.adds                    # paragraphs made anew where they exist
@@ -251,13 +251,13 @@ def _one_of_each(tmp_path) -> list:
         "RegionRecognizer": {"backend": "lightonocr-2-1b-regions"},
         "ChatModelServer": {"spec": "lightonocr-2-1b"}, "ServiceServer": {"preset": "falcon-ocr@1"},
         "ModelServer": {"models": [{"name": "lines", "spec": "pkg:Lines", "kwargs": {"x": 1}}]},
-        "RecipeStamper": {"recipe": "squiddle@1", "recipe_sha256": "sha256:" + "0" * 64},
+        "RecipeStamper": {"recipe": "squiddle@2", "recipe_sha256": "sha256:" + "0" * 64},
         "ManifestReader": {"data_folder": str(tmp_path)},
         "ResourceReader": {"data_folder": str(tmp_path / "in"), "item_key": "lccn",
                            "templates": {"marcxml": "https://catalog.library.test/{item}/marcxml"}},
         "RuleBlock": {"preset": InProcess("pkg:Rules", x=1)}, "Typographer": {"preset": "ratios@1"},
         "Recomposer": {"preset": "unicode-recomposition@1", "unit": "item"},
-        "Composer": {"preset": "docling-composition@1", "options": {"sections": True}},
+        "Composer": {"preset": "linked-composition@1", "options": {"sections": True}},
         "CharacterNormalizer": {"preset": "latin-historic@1"},
         "ImageConverter": {"output_folder": str(tmp_path / "webp"), "preset": "working-image@1"},
     }
@@ -316,9 +316,9 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
     from linecaster.catalog.registry import catalog
 
     composer = by_name["Composer"]["params"]
-    assert composer["preset"] == {"backend": "in-process", "engine": "linecaster.engines:DoclingCompositionEngine",
-                                  "options": {"sections": True}, "preset": "docling-composition@1",
-                                  "preset_sha256": catalog().resolve("docling-composition@1").sha256,
+    assert composer["preset"] == {"backend": "in-process", "engine": "linecaster.engines:LinkedCompositionEngine",
+                                  "options": {"sections": True}, "preset": "linked-composition@1",
+                                  "preset_sha256": catalog().resolve("linked-composition@1").sha256,
                                   "overrides": {"sections": True}}
     assert composer["unit"] == "page" and by_name["Recomposer"]["params"]["unit"] == "item"
     assert by_name["RuleBlock"]["params"]["preset"] == {"backend": "in-process", "engine": "pkg:Rules",

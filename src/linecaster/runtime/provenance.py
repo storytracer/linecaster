@@ -40,7 +40,7 @@ LC = "https://github.com/storytracer/linecaster"
 #: OCR-D step for linecaster steps OCRD_STEPS does not name (unicode, typography, ...: post-processing)
 OCRD_FALLBACK_STEP = "recognition/post-correction"
 #: packages the run record names besides linecaster (the engines' packages are added from the pipeline)
-KEY_PACKAGES = ("datatrove", "saturate", "docling-core")
+KEY_PACKAGES = ("datatrove", "saturate")
 
 
 # ------------------------------------------------------------------------------------------------ software

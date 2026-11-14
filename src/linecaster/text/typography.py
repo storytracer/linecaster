@@ -4,7 +4,7 @@ The engine ``typography.ratios.v1`` (``linecaster.engines.typography``) runs it,
 ``Ratios`` (the constants below are their defaults). It runs after recognition (and tables), before page composition. All rules
 are ratios to the page's own body type, measured from the row heights the line step delivered (a row = the lines
 of one region on the same visual row, ``Transcription.rows``; its box = the union of their boxes, derived from the
-polygons). Labels are Docling labels, as ``Transcription.label`` resolves them from the regions' content roles; a
+polygons). Labels are region labels, as ``Transcription.label`` resolves them from the regions' content roles; a
 region's own ``label`` is its layout model's raw label.
 
 - **Type-size ladder** (``heading_level``): the body size is the median row height of the
@@ -118,7 +118,7 @@ def union(boxes: list[BBox]) -> BBox:
 
 
 class Content:
-    """One region with its lines (in the transcription's line order), as the rules see it: its Docling label and
+    """One region with its lines (in the transcription's line order), as the rules see it: its region label and
     heading level as the rules have decided them so far, and the box the rules measure (``box``: the region's, shrunk
     to its remaining lines after a headline split)."""
 

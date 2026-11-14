@@ -51,7 +51,7 @@ def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):
     bytes stay behind at the binder, the item's document at the splitter."""
     records = PageRecordReader("p", fetch_images=False, provides=["ocr_new:regions", "ocr_new:lines"])
     ok = [records, Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-          Composer("docling-composition@1", unit="item"), ItemDocumentWriter(str(tmp_path)),
+          Composer("linked-composition@1", unit="item"), ItemDocumentWriter(str(tmp_path)),
           ItemTextWriter(str(tmp_path), variants=("verbatim_txt",)), Splitter(), PageJsonlWriter(str(tmp_path))]
     assert build(ok).problems == []
     plot = PageFileWriter(str(tmp_path), formats=("plot",))
@@ -59,4 +59,4 @@ def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):
         "PageFileWriter (🗂️ page files) reads image, which no block before it in the pipeline adds"]
     assert build([ImageFolderReader("x"), Binder(), Splitter(), ImageFetcher(), plot]).problems == []
     assert "reads document" in " ".join(build([ImageFolderReader("x"), Binder(), Composer(
-        "docling-composition@1", unit="item"), Splitter(), Binder(), ItemDocumentWriter(str(tmp_path))]).problems)
+        "linked-composition@1", unit="item"), Splitter(), Binder(), ItemDocumentWriter(str(tmp_path))]).problems)

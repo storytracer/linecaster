@@ -3,7 +3,7 @@
 Mapping (see ``docs/reference/serialization.md``):
 
 * region -> ``TextBlock`` (``Illustration`` for a picture or chart region without lines), its
-  Docling label as a ``LayoutTag`` of ``TYPE="label"``, its producer's label as a ``LayoutTag`` of
+  region label as a ``LayoutTag`` of ``TYPE="label"``, its producer's label as a ``LayoutTag`` of
   ``TYPE="raw_label"``; region reading order -> ``ReadingOrder/OrderedGroup/ElementRef``;
 * line -> ``TextLine`` (``BASELINE`` as a points list, polygon as ``Shape/Polygon``);
 * word -> ``String`` (``WC`` 0..1, ``ALTERNATIVE``), ``SP`` between words, a line-end hyphen as
@@ -344,7 +344,7 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     ``ValueError`` is raised. linecaster's extension tags, where present, restore what ALTO cannot hold.
 
     The steps the file names (``Processing``, ``OCRProcessing``) become the transcription's annotators; without
-    any, the file is its one annotator (kind ``file``). Regions are classified by the Docling label they read as
+    any, the file is its one annotator (kind ``file``). Regions are classified by the region label they read as
     (their ``label`` tag, else their producer's label or ``TYPE``).
 
     Args:
@@ -439,9 +439,9 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
             if el.tag == "Illustration":
                 if raw is None:     # our own files carry a label tag; foreign ones only TYPE
                     raw = "" if label is not None else (el.get("TYPE") or "")
-                label = label or X.docling_from_raw(el.get("TYPE"), "picture")
+                label = label or X.label_from_raw(el.get("TYPE"), "picture")
             else:
-                label = label or X.docling_from_raw(raw)
+                label = label or X.label_from_raw(raw)
             regions.append(X.FileRegion(bid, label, raw or "", polygon or X.rect(bbox), bbox, ext.get("score"),
                                         ext.get("heading_level")))
             real_ids_in_doc.append(bid)

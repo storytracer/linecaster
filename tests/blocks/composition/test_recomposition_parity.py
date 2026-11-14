@@ -1,22 +1,27 @@
-"""The recomposition engine and the Composer against the legacy builder (``legacy_builder``, the DocumentBuilder
-as it recomposed while it built, on the page/2 shape of each page: ``legacy_docling.page2``): the same documents
-(JSON) and region maps, per page and per item, from lines and from paragraphs, with and without sections, on the
-fixtures and on random pages (headings, page numbers, pictures, tables, formulas, indents, gaps, short rows, division
-marks of every kind)."""
+"""The recomposition engine and the composition against the legacy builder (``legacy_builder``, the DocumentBuilder
+as it recomposed while it built, on the page/2 shape of each page: ``legacy_docling.page2``; a DoclingDocument, so
+this needs the ``docling`` extra): the same content, block by block (kind, text, layer, section, and each origin's
+page, region, box and characters), per page and per item, from lines and from paragraphs, with and without sections,
+on the fixtures and on random pages (headings, page numbers, pictures, tables, formulas, indents, gaps, short rows,
+division marks of every kind)."""
 from __future__ import annotations
 
 import random
 
 import pytest
 
-from conftest import page_t, page_to_compose, sample_transcription
-from legacy_builder import LegacyDocumentBuilder
-from legacy_docling import page2
-from linecaster.data import Transcription
-from linecaster.data.upgrade import upgrade_transcription
-from linecaster.engines import DoclingCompositionEngine, UnicodeRecompositionEngine
-from linecaster.formats.docling import docling_dict
-from linecaster.text.recomposition import paragraphs, split_ref
+pytest.importorskip("docling_core")
+
+from conftest import page_t, page_to_compose, sample_transcription  # noqa: E402
+from legacy_builder import LegacyDocumentBuilder  # noqa: E402
+from legacy_docling import page2  # noqa: E402
+from linecaster.data import Transcription  # noqa: E402
+from linecaster.data.upgrade import upgrade_transcription  # noqa: E402
+from linecaster.engines import LinkedCompositionEngine, UnicodeRecompositionEngine  # noqa: E402
+from linecaster.text.recomposition import paragraphs, split_ref  # noqa: E402
+
+#: the legacy builder's Docling labels -> the document's block kinds
+KIND = {"text": "paragraph", "section_header": "heading", "document_index": "toc_entry"}
 
 #: docling-core warns about list items outside a list group (both builders add them so)
 pytestmark = pytest.mark.filterwarnings("ignore:ListItem parent must be a list group:DeprecationWarning")
@@ -84,11 +89,64 @@ def random_page(rng: random.Random, n: int) -> Transcription:
     return upgrade_transcription({"regions": regions, "lines": lines, "steps": [{"step": "layout", "name": "random"}]})
 
 
+def _legacy_content(doc, region_of) -> list[tuple]:
+    """The blocks of a DoclingDocument as the document's blocks would hold them; the text read inside a picture is
+    the picture's."""
+    from docling_core.types.doc import ContentLayer, PictureItem, SectionHeaderItem, TableItem
+
+    out, picture_of = [], {}
+    items = doc.iterate_items(included_content_layers=set(ContentLayer), with_groups=False, traverse_pictures=True)
+    for it, _ in items:
+        parent = it.parent.cref if it.parent is not None else None
+        if parent in picture_of:                                   # text read inside a picture: the picture's own
+            k = picture_of[parent]
+            kind, text, layer, level, group, grid, _ = out[k]
+            origins = (region_of.get(it.self_ref, ":").split(":", 1)[1],
+                       *((p.page_no, (p.bbox.l, p.bbox.t, p.bbox.r, p.bbox.b), tuple(p.charspan)) for p in it.prov))
+            out[k] = (kind, (text + "\n" if text else "") + it.text, layer, level, group, grid, origins)
+            continue
+        label = it.label.value
+        group, ref = None, parent
+        while ref and ref.startswith("#/groups/"):                 # up to the section (a list's group is none)
+            g = doc.groups[int(ref.split("/")[-1])]
+            if g.label.value == "section":
+                group = g.name
+                break
+            ref = g.parent.cref if g.parent is not None else None
+        origins = (region_of.get(it.self_ref, ":").split(":", 1)[1],
+                   *((p.page_no, (p.bbox.l, p.bbox.t, p.bbox.r, p.bbox.b), tuple(p.charspan)) for p in it.prov))
+        grid = None
+        if isinstance(it, TableItem):
+            cells = sorted((c.start_row_offset_idx, c.start_col_offset_idx, c.text) for c in it.data.table_cells)
+            grid = (it.data.num_rows, it.data.num_cols, tuple(cells))
+        level = it.level if isinstance(it, SectionHeaderItem) else None
+        if isinstance(it, PictureItem):
+            picture_of[it.self_ref] = len(out)
+        out.append((KIND.get(label, label), getattr(it, "text", "") or "", it.content_layer.value, level, group, grid,
+                    origins))
+    return out
+
+
+def _content(doc) -> list[tuple]:
+    """The document's blocks: kind, text, layer, heading level, the heading whose section it is in (as the legacy
+    builder names its groups), grid, its first region, and each origin's page, box and characters."""
+    by_id = {b.id: b for b in doc.blocks}
+    out = []
+    for b in doc.blocks:
+        section = " ".join(by_id[b.section].text.split())[:80] if b.section else None
+        grid = (b.grid.num_rows, b.grid.num_cols, tuple(sorted((c.start_row, c.start_col, c.text)
+                                                               for c in b.grid.cells))) if b.grid is not None else None
+        origins = (b.origins[0].region if b.origins else "",          # the legacy map names an item's first region
+                   *((o.page, tuple(o.box), tuple(o.span)) for o in b.origins if o.box is not None))
+        out.append((b.kind, b.text, b.layer, b.level, section, grid, origins))
+    return out
+
+
 def legacy(pages, text, sections, name="item"):
     b = LegacyDocumentBuilder(name, text=text, sections=sections)
     for t in pages:
         b.add_page(page2(t), 1000, 2000)
-    return docling_dict(b.build()), b.region_of
+    return _legacy_content(b.build(), b.region_of)
 
 
 def ours(pages, text, sections, name="item"):
@@ -96,17 +154,16 @@ def ours(pages, text, sections, name="item"):
     ids = [f"p{k}" for k in range(len(pages))]
     if text == "reflow":
         UnicodeRecompositionEngine()(pages, page_ids=ids)
-    doc, region_of = DoclingCompositionEngine(sections=sections).item_document(pages, name, page_ids=ids,
-                                                                               sizes=[(1000, 2000)] * len(pages))
-    return docling_dict(doc), region_of
+    doc = LinkedCompositionEngine(sections=sections).item_document(pages, name, page_ids=ids,
+                                                                  sizes=[(1000, 2000)] * len(pages))
+    return _content(doc)
 
 
 def ours_page(t, text, sections):
     t = t.model_copy(deep=True)
     if text == "reflow":
         UnicodeRecompositionEngine()([t])
-    doc, region_of = DoclingCompositionEngine(sections=sections)(t, name="item", width=1000, height=2000)
-    return docling_dict(doc), region_of
+    return _content(LinkedCompositionEngine(sections=sections)(t, name="item", width=1000, height=2000))
 
 
 def two_pages():

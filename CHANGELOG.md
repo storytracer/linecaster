@@ -7,9 +7,41 @@ the tags; the first is `v0.1.0`.
 ## Unreleased
 
 Ground truth from any source: importers (a new step), conventions of public sources in the catalog, an HTML importer,
-and anchors into the source text. The plan and its decisions are in NOTES.md (2026-11-14).
+and anchors into the source text. And linecaster's own document in place of Docling's: pages and items are composed
+into `linecaster.document` and written as HTML, Markdown, text and JSON by linecaster; docling-core is an optional
+extra. The decisions are in NOTES.md (2026-11-14).
 
 ### Upgrade notes
+
+- **Docling is no longer linecaster's document.** A page's or an item's document is `linecaster.document.Document`
+  (`linecaster.document/1`: pages and blocks, each with its kind, role, layer, text, formatting spans, section and
+  origins), built by `linecaster.document.DocumentBuilder` / `build_document` and written by `to_html`,
+  `to_markdown`, `to_text`, `to_json` / `export` (formats `md`, `txt`, `html`, `json`; `from_json` reads the JSON
+  back). What to change: `linecaster.formats.docling.build_docling`, `compose`, `DocumentBuilder`, `to_markdown`,
+  `to_text`, `to_html`, `to_json`, `export`, `load_docling`, `EXPORT_FORMATS` → their names in `linecaster.document`
+  (`build_docling` → `build_document`; `compose` returns the document alone); `to_markdown(..., region_of=...)` →
+  `to_markdown(..., dividers=True)` (each block's origins name its regions); `docling_dict(doc)` →
+  `doc.model_dump(by_alias=True)`. Removed with no replacement: the DocLang export (`doclang`, `to_doclang`) and
+  `table_data`. The `Composer` puts the document into `doc.metadata["document"]` (was `["docling"]`) and its
+  transcription into `["document_transcription"]` (was `["docling_transcription"]`); `["region_of"]` is gone. The
+  files differ: the HTML is linecaster's (HTML5, DPUB-ARIA roles for notes and furniture, formatting kept), the
+  Markdown linecaster's by the policy's `MarkdownRules`, the JSON a `linecaster.document/1` document.
+- **docling-core is the extra `docling`** (`linecaster[docling]`), used only by the Docling importer
+  (`import.docling.v1`, `linecaster.formats.docling.from_docling`) and the SmolDocling adapter; without it they raise
+  an `ImportError` that names the extra. `wcwidth` is no longer a dependency.
+- **Catalog: a one-time exception to "released editions never change".** `docling-composition@1`, `squiddle@1` and
+  the recipe `item-texts@1` (with `recipes/item-texts.py`) are removed from the catalog and its lock, not kept as
+  legacy: their engine is gone. Run records that name them no longer resolve with this version (linecaster 0.8.x
+  does). Use `linked-composition@1` (engine `composition.linked.v1`, `LinkedCompositionEngine`, was
+  `composition.docling.v1`, `DoclingCompositionEngine`) and `squiddle@2`; the item stage names its presets
+  (`pipelines/bind.py --recomposition unicode-recomposition --normalization latin-historic --composition
+  linked-composition`). `squiddle@2` differs from `squiddle@1` only in the composition: the transcriptions are the
+  same, the document files are linecaster's.
+- **Region labels are linecaster's** (the strings are the same, so no layout preset changes): `docling_label` →
+  `region_label`, `DOCLING_ROLES` → `LABEL_ROLES` (`linecaster.data.policy`), `_xml.DOCLING_TO_PAGE_TEXT`,
+  `DOCLING_TO_PAGE_ELEMENT`, `PAGE_ELEMENT_TO_DOCLING`, `RAW_TO_DOCLING`, `docling_from_raw` → `LABEL_TO_PAGE_TEXT`,
+  `LABEL_TO_PAGE_ELEMENT`, `PAGE_ELEMENT_TO_LABEL`, `RAW_TO_LABEL`, `label_from_raw`; `TEXT_LABELS` moved from
+  `linecaster.formats.docling` to `linecaster.data.policy`.
 
 - **Page records are `linecaster.page/4`.** page/4 only adds fields (`Zone.anchor`, `Source.revision`,
   `Classification.reason`, `Annotator.conventions` and `conventions_sha256`, `Formula.source`); `PageRecordReader` and
@@ -27,6 +59,19 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
 
 ### Added
 
+- **`linecaster.document`**: a page's or an item's document, its model (`Document`, `Block`, `Origin`, `Span`,
+  `Grid`, `Page`), its builder (`DocumentBuilder`, `build_document`, `block_kind`) and its serializers (HTML,
+  Markdown, text, JSON). A block keeps what the Docling document lost: formatting and languages as spans, a
+  picture's image (`file`), the region of every origin. A text region that continues another (its `continues` link,
+  a transcription without recomposition, as an imported ground truth) is one block with it; regions and lines
+  without geometry make blocks without boxes; origins are clamped to the page.
+- **`linked-composition@1`** (engine `composition.linked.v1`) composes it, and **`squiddle@2`** uses it.
+- **Rendering policies' table and Markdown rules** (`TableRules`: one cell as text, one column as lines, a one-row
+  table after a table of its width that table's next row, holes filled; `MarkdownRules`: tables as HTML or pipe
+  tables, escaping, the image placeholder, scripts as HTML), applied by the builder and the Markdown writer.
+- **The pipeline `import_transcriptions.v1`** (`pipelines/import_transcriptions.py`, shape
+  `linecaster.pipelines.import_transcriptions`): a source's documents into page records by an importer;
+  `ImageParquetReader(read_images=False)` reads a table without images.
 - **The `import` step and its engines, the importers** (`linecaster.engines.importers`): a source document
   (`linecaster.data.SourceDocument`: content, format, URI, record, revision, dataset, the page image's size, context)
   in, a transcription out, a ground truth by default. Built in: `import.alto.v1`, `import.page.v1`, `import.hocr.v1`,
@@ -54,7 +99,8 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
   `status` classification (`hidden`, `invisible`, `generated`, `editorial`, `error`, `metadata`, `apparatus`,
   `elsewhere`, `layout`).
 - `linecaster.text.formulas`: LaTeX without its presentation commands (a formula's content), for importers.
-- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `unexpanded`.
+- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `unexpanded`, `wikidata`,
+  `texvc_rejected`.
 - **`linecaster-mediawiki`** (`engines/mediawiki`, 0.1.0): `import.mediawiki.v1` reads a ProofreadPage `Page:` page's
   wikitext through wikitextprocessor (pinned to a commit) in the wiki's own context (its templates, Lua modules and
   style sheets, taken in from a dump by `linecaster-mediawiki intake`), builds HTML by MediaWiki's rules (Cite's
@@ -65,6 +111,8 @@ and anchors into the source text. The plan and its decisions are in NOTES.md (20
   (measurement `wikidata`). Formulas are LaTeX as MediaWiki's TeX checker writes it (texvcjs, pinned, installed
   by `intake` into the site folder and run in Node: MediaWiki's own commands as standard LaTeX, every argument in
   braces), the TeX as written their `source`; what texvc rejects stays as written (measurement `texvc_rejected`).
+  `link_pages` links an item's pages where a paragraph runs on (the importer's `ends_paragraph`) or a footnote
+  continues (Cite's `<ref follow=...>`).
 
 ### Changed
 

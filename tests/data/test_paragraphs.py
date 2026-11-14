@@ -46,7 +46,7 @@ def paragraphs_of(t: Transcription) -> list[Paragraph]:
 
 
 def test_paragraph_rows_give_the_documents_provenance():
-    from linecaster.formats.docling import build_docling
+    from linecaster.document import build_document
     from linecaster.text.typography import line_bbox
 
     t = page()
@@ -62,9 +62,8 @@ def test_paragraph_rows_give_the_documents_provenance():
                     max(b.y1 for b in boxes))
 
     ours = [(p.text, [((b := box(r)).x0, b.y0, b.x1, b.y1, *r.charspan) for r in p.rows]) for p in t.paragraphs]
-    doc = build_docling(t)
-    theirs = [(it.text, [(pv.bbox.l, pv.bbox.t, pv.bbox.r, pv.bbox.b, *pv.charspan) for pv in it.prov])
-              for it in doc.texts]
+    doc = build_document(t)
+    theirs = [(b.text, [(*o.box, *o.span) for o in b.origins]) for b in doc.blocks]
     assert ours == theirs
     assert t.paragraphs[0].rows[1].lines == ["l1", "l2"]               # a row of two lines, one box
 

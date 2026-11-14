@@ -345,7 +345,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert rec["pipeline_sha256"] == provenance.pipeline_sha256(run.build_plan(a, _pipeline(a, files)))
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")
-    assert set(sw["packages"]) >= {"datatrove", "saturate", "docling-core"}
+    assert set(sw["packages"]) >= {"datatrove", "saturate"}
     # every page file carries the steps, the recognizer with its preset
     for name, reader in (("p1.alto.xml", from_alto), ("p1.page.xml", from_page), ("p1.hocr", from_hocr)):
         m = reader((tmp_path / "files" / name).read_bytes()).annotators

@@ -1,6 +1,6 @@
 """The page/2 helpers of ``linecaster.formats.docling`` the legacy builder (``legacy_builder``) composes with, as they
 were at linecaster 0.7.4, and ``page2``: a page/3 transcription in the page/2 shape they read (``Line.region_id``,
-``row``, ``text``, ``bbox``; ``Region.label`` the Docling label, ``raw_label``, ``reading_order``, ``heading_level``,
+``row``, ``text``, ``bbox``; ``Region.label`` the region label, ``raw_label``, ``reading_order``, ``heading_level``,
 ``extra["table"]`` and ``extra["formula"]``). Kept verbatim as the reference of ``test_recomposition_parity.py``."""
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def _layer(label):
 
 def page2(t: Transcription) -> SimpleNamespace:
     """``t`` as the page/2 objects the legacy builder reads: each line's region, row, reading rank and text as
-    written, each region's Docling label, raw label, rank, heading level, table (as page/2's dict) and formula."""
+    written, each region's region label, raw label, rank, heading level, table (as page/2's dict) and formula."""
     ranks, rows, line_ranks = t.region_ranks(), t.rows(), t.line_ranks()
     lines = [SimpleNamespace(id=ln.id, region_id=t.region_of(ln), row=rows.get(ln.id, 0), reading_order=line_ranks[ln.id],
                              text=t.text_of(ln), polygon=ln.polygon, bbox=ln.box) for ln in t.lines]

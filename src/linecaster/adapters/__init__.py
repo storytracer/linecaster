@@ -340,7 +340,7 @@ class ChatAdapter:
         return self.request(crop)
 
     def reads_region(self, region, labels, t: Transcription) -> bool:
-        """Whether ``RegionRecognizer`` sends this region of ``t`` to the model. Default: its Docling label
+        """Whether ``RegionRecognizer`` sends this region of ``t`` to the model. Default: its region label
         (``Transcription.label``) is in ``labels``."""
         return t.label(region.id) in labels
 

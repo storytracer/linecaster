@@ -188,15 +188,6 @@ presets:
         - '0'
         - --limit-mm-per-prompt
         - '{"image": 1}'
-  docling-composition@1:
-    sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
-    released: '2026-11-06'
-    linecaster: null
-    resolved:
-      step: composition
-      engine: composition.docling.v1
-      options:
-        sections: false
   docling-import@1:
     sha256: sha256:f2e4e5e7be207731fbbc3d46bed3a9dc216cdf254e00b8bd6f619e143ab35ce1
     released: '2026-11-14'
@@ -803,6 +794,15 @@ presets:
         - --mm-processor-cache-gb
         - '0'
         - --no-enable-prefix-caching
+  linked-composition@1:
+    sha256: sha256:3b997511c280dd308090ef2520298aedeeb7e6f2cecd2d03ff602a0c79de303a
+    released: '2026-11-14'
+    linecaster: null
+    resolved:
+      step: composition
+      engine: composition.linked.v1
+      options:
+        sections: false
   minicpm-ocr-1.0@1:
     sha256: sha256:7837d022105b4ea68e7fddd9a8cb48886f30f8205fff8b3d94ab3b6b7769e223
     released: '2026-11-04'
@@ -2114,122 +2114,160 @@ presets:
       engine: image.webp-lossless.v1
       options:
         effort: 80
-recipes:
-  item-texts@1:
-    sha256: sha256:3494db0036c1671208196919d7b753025a6c54fdd44a96fa2566e7dab007b47d
-    released: '2026-11-06'
+policies:
+  page-layers@1:
+    sha256: sha256:681c4c720182dedf99fc1b698b539b6ce74219e8eac0e1a8c0e7ec02e6f99ae4
+    released: '2026-11-13'
+    linecaster: c71534eb887a029c1bbf78fdc28fa9aed13586d0
+    resolved:
+      id: page-layers
+      rules:
+      - status: suppressed
+        to: none
+      - status: duplicate
+        to: none
+      - status: removed
+        to: none
+      edits:
+        verbatim_txt:
+        - nfc
+        - joined
+        readable_txt:
+        - nfc
+        - joined
+        - normalized
+        readable_md:
+        - nfc
+        - joined
+        - normalized
+conventions:
+  enwikisource@1:
+    sha256: sha256:6f276a62bddbbf7def6e4b6563e8fa47bba85d8a0fd49444d805489c630800b9
+    released: '2026-11-14'
     linecaster: null
     resolved:
-      pipeline: bind.v1
-      presets:
-        composition:
-          ref: docling-composition@1
-          sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
-        normalization:
-          ref: latin-historic@1
-          sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
-        recomposition:
-          ref: unicode-recomposition@1
-          sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
-    pipeline:
-    - block: PageRecordReader
-      class: linecaster.blocks.readers.records:PageRecordReader
-      params:
-        fetch_images: false
-        http_policy: null
-        item_shards: true
-        provides: null
-    - block: RejectWriter
-      class: linecaster.blocks.writers.rejects:RejectWriter
-    - block: Binder
-      class: linecaster.blocks.binding.binder:Binder
-      params:
-        count_key: item_page_count
-    - block: Recomposer
-      class: linecaster.blocks.composition.recomposer:Recomposer
-      params:
-        preset:
-          engine: linecaster.engines:UnicodeRecompositionEngine
-          options:
-            rtl: false
-            convention_marks: ¬
-            indent: 0.8
-            gap_leading: 0.6
-            gap_height: 0.5
-            short_row: 1.5
-            short_row_width: 0.25
-            end_margin: 0.6
-            justified_rows: 3
-            justified_share: 0.6
-          preset: unicode-recomposition@1
-          preset_sha256: sha256:f1c660c9c0bfbea8f50f418fe0968dec5683b5911bae4831abb3006f3f831426
-        transcription: ocr_new
-        unit: item
-        options: null
-    - block: CharacterNormalizer
-      class: linecaster.blocks.text.normalizer:CharacterNormalizer
-      params:
-        preset:
-          engine: linecaster.engines:LatinHistoricNormalizationEngine
-          options: {}
-          preset: latin-historic@1
-          preset_sha256: sha256:23f82597907a9424d02a19045fe7ae07c52af8334987142c035bb0627da50a7d
-        transcription: ocr_new
-        unit: item
-        options: null
-    - block: Composer
-      class: linecaster.blocks.composition.composer:Composer
-      params:
-        preset:
-          engine: linecaster.engines:DoclingCompositionEngine
-          options:
-            sections: false
-          preset: docling-composition@1
-          preset_sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
-        transcription: ocr_new
-        unit: item
-        options: null
-        policy: page-layers@1
-    - block: RecipeStamper
-      class: linecaster.blocks.validation.recipe:RecipeStamper
-      params:
-        recipe: item-texts@1
-        recipe_sha256: sha256:3494db0036c1671208196919d7b753025a6c54fdd44a96fa2566e7dab007b47d
-    - block: ItemTextWriter
-      class: linecaster.blocks.writers.items:ItemTextWriter
-      params:
-        format: jsonl
-        variants:
-        - verbatim_txt
-        - readable_txt
-        - readable_md
-        transcription: ocr_new
-        token_counter: null
-        policy: page-layers@1
-    - block: ItemDocumentWriter
-      class: linecaster.blocks.writers.items:ItemDocumentWriter
-      params:
-        formats:
-        - md
-        - txt
-        - json
-        furniture: false
-        dividers: false
-        by_format: true
-    pipeline_sha256: sha256:be2476e822cd86291bd6ba7151d4e19a9ee283d740c97e58ca2530568a03144f
-  squiddle@1:
-    sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
-    previous_sha256:
-    - sha256:70b9be94bd10f6991d4e2efbc5e8ec36c7d32d2938bb5cad69548755f20bf071
-    - sha256:5e2b48358fc9face8560156bf98fc22e620ec39ac8e70811f6fa2408b8693447
-    released: '2026-11-04'
+      format: html
+      extends: mediawiki@1
+      disable: []
+      rules:
+      - id: running-head-cells
+        match:
+          kind: tree
+          css: .wst-rh-cell
+        decision: cell
+        params: {}
+        by: people
+      - id: no-run-on
+        match:
+          kind: tree
+          css: .wst-nop
+        decision: break
+        params: {}
+        by: people
+      - id: corrections
+        match:
+          kind: tree
+          css: .wst-tooltip[title^='[sic]']
+        decision: edit
+        params:
+          kind: corrected
+          attr: title
+          extract: ^\[sic\]\s*'(.*)'$
+        by: people
+      - id: tooltips
+        match:
+          kind: tree
+          css: .wst-tooltip
+        decision: describe
+        params:
+          kind: note
+          attr: title
+        by: people
+      - id: sidenotes
+        match:
+          kind: tree
+          css: .wst-sidenote
+        decision: note
+        params:
+          role: marginalia
+        by: people
+      - id: ditto-hidden
+        match:
+          kind: tree
+          css: .__ditto_hidden
+        decision: invisible
+        params: {}
+        by: people
+      - id: dot-leaders
+        match:
+          kind: tree
+          css: .ws-noexport
+        decision: remove
+        params:
+          reason: generated
+        by: rule
+      - id: figure-captions
+        match:
+          kind: tree
+          css: .wst-freedimg-caption
+        decision: caption
+        params: {}
+        by: people
+      - id: figure-boxes
+        match:
+          kind: tree
+          css: span.wst-freedimg
+        decision: block
+        params:
+          role: picture
+        by: people
+      - id: errata-notes
+        match:
+          kind: tree
+          css: aside[data-group=errata]
+        decision: remove
+        params:
+          reason: editorial
+          keep_text: true
+        by: people
+  mediawiki@1:
+    sha256: sha256:b964fa231b338691a771387af39a7efb12ef4d2c05c93f321eff2c906555fd93
+    released: '2026-11-14'
+    linecaster: null
+    resolved:
+      format: html
+      extends: null
+      disable: []
+      rules:
+      - id: software-messages
+        match:
+          kind: tree
+          css: .error
+          not_inside: math
+        decision: remove
+        params:
+          reason: error
+          keep_text: true
+        by: rule
+      - id: continued-notes
+        match:
+          kind: tree
+          css: aside.mw-ref-follow
+        decision: note
+        params:
+          continued: true
+        by: people
+recipes:
+  squiddle@2:
+    sha256: sha256:0683759f481f4bdd5f53407329b72ca162f2a0ecbc413ed47fe38148af62a992
+    released: '2026-11-14'
     linecaster: null
     resolved:
       pipeline: transcribe_modular.v1
       presets:
         composition:
-          ref: docling-composition@1
-          sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
+          ref: linked-composition@1
+          sha256: sha256:3b997511c280dd308090ef2520298aedeeb7e6f2cecd2d03ff602a0c79de303a
         formulas:
           ref: pp-formulanet-plus-l@1
           sha256: sha256:15cd51d26ee7f253e4bdd4b1da5d56516e2af01c06ac680a622cdcb6c519a4bf
@@ -2496,11 +2534,11 @@ recipes:
       class: linecaster.blocks.composition.composer:Composer
       params:
         preset:
-          engine: linecaster.engines:DoclingCompositionEngine
+          engine: linecaster.engines:LinkedCompositionEngine
           options:
             sections: false
-          preset: docling-composition@1
-          preset_sha256: sha256:6c7404915a34ea17cb950477b65f5513e5c0e51a9e7f507706e6f66f7f77e9cd
+          preset: linked-composition@1
+          preset_sha256: sha256:3b997511c280dd308090ef2520298aedeeb7e6f2cecd2d03ff602a0c79de303a
         transcription: ocr_new
         unit: page
         options: null
@@ -2508,155 +2546,12 @@ recipes:
     - block: RecipeStamper
       class: linecaster.blocks.validation.recipe:RecipeStamper
       params:
-        recipe: squiddle@1
-        recipe_sha256: sha256:bba4cbc333dde6f0d00e8776eef511c55476e023d76196a5644ca2a68ff2131b
+        recipe: squiddle@2
+        recipe_sha256: sha256:0683759f481f4bdd5f53407329b72ca162f2a0ecbc413ed47fe38148af62a992
     - block: RejectWriter
       class: linecaster.blocks.writers.rejects:RejectWriter
     - block: PageJsonlWriter
       class: linecaster.blocks.writers.records:PageJsonlWriter
       params:
         item_shards: null
-    pipeline_sha256: sha256:b0d7535a1a081c7f0519a1d55e93e308b009aff876ffaba876fbf8fa97faa299
-policies:
-  page-layers@1:
-    sha256: sha256:681c4c720182dedf99fc1b698b539b6ce74219e8eac0e1a8c0e7ec02e6f99ae4
-    released: '2026-11-13'
-    linecaster: c71534eb887a029c1bbf78fdc28fa9aed13586d0
-    resolved:
-      id: page-layers
-      rules:
-      - status: suppressed
-        to: none
-      - status: duplicate
-        to: none
-      - status: removed
-        to: none
-      edits:
-        verbatim_txt:
-        - nfc
-        - joined
-        readable_txt:
-        - nfc
-        - joined
-        - normalized
-        readable_md:
-        - nfc
-        - joined
-        - normalized
-conventions:
-  enwikisource@1:
-    sha256: sha256:6f276a62bddbbf7def6e4b6563e8fa47bba85d8a0fd49444d805489c630800b9
-    released: '2026-11-14'
-    linecaster: null
-    resolved:
-      format: html
-      extends: mediawiki@1
-      disable: []
-      rules:
-      - id: running-head-cells
-        match:
-          kind: tree
-          css: .wst-rh-cell
-        decision: cell
-        params: {}
-        by: people
-      - id: no-run-on
-        match:
-          kind: tree
-          css: .wst-nop
-        decision: break
-        params: {}
-        by: people
-      - id: corrections
-        match:
-          kind: tree
-          css: .wst-tooltip[title^='[sic]']
-        decision: edit
-        params:
-          kind: corrected
-          attr: title
-          extract: ^\[sic\]\s*'(.*)'$
-        by: people
-      - id: tooltips
-        match:
-          kind: tree
-          css: .wst-tooltip
-        decision: describe
-        params:
-          kind: note
-          attr: title
-        by: people
-      - id: sidenotes
-        match:
-          kind: tree
-          css: .wst-sidenote
-        decision: note
-        params:
-          role: marginalia
-        by: people
-      - id: ditto-hidden
-        match:
-          kind: tree
-          css: .__ditto_hidden
-        decision: invisible
-        params: {}
-        by: people
-      - id: dot-leaders
-        match:
-          kind: tree
-          css: .ws-noexport
-        decision: remove
-        params:
-          reason: generated
-        by: rule
-      - id: figure-captions
-        match:
-          kind: tree
-          css: .wst-freedimg-caption
-        decision: caption
-        params: {}
-        by: people
-      - id: figure-boxes
-        match:
-          kind: tree
-          css: span.wst-freedimg
-        decision: block
-        params:
-          role: picture
-        by: people
-      - id: errata-notes
-        match:
-          kind: tree
-          css: aside[data-group=errata]
-        decision: remove
-        params:
-          reason: editorial
-          keep_text: true
-        by: people
-  mediawiki@1:
-    sha256: sha256:b964fa231b338691a771387af39a7efb12ef4d2c05c93f321eff2c906555fd93
-    released: '2026-11-14'
-    linecaster: null
-    resolved:
-      format: html
-      extends: null
-      disable: []
-      rules:
-      - id: software-messages
-        match:
-          kind: tree
-          css: .error
-          not_inside: math
-        decision: remove
-        params:
-          reason: error
-          keep_text: true
-        by: rule
-      - id: continued-notes
-        match:
-          kind: tree
-          css: aside.mw-ref-follow
-        decision: note
-        params:
-          continued: true
-        by: people
+    pipeline_sha256: sha256:1dfa9b56852fc9a496f79d646b231f6ec7154bf3662fa9a1ec53048d254f30a6

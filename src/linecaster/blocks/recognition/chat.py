@@ -585,7 +585,7 @@ class RegionRecognizer(PageRecognizer):
         backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
             one on the task's ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
         transcription: the transcription it reads the regions of and adds the lines to.
-        labels: the regions' Docling labels it reads (``Transcription.label``; default: text-like regions and
+        labels: the regions' region labels it reads (``Transcription.label``; default: text-like regions and
             tables, no pictures or formulas).
         pad: pixels around each region's box at the page scale; ``None``: the adapter's ``region_pad``, else 8.
         primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:

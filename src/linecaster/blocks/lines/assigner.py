@@ -26,7 +26,7 @@ SKIP_LABELS = frozenset({"picture", "chart"})
 
 
 class _R:
-    """A region as the ordering helpers see it: ``bbox`` from the polygon (else the box), its Docling ``label``, a
+    """A region as the ordering helpers see it: ``bbox`` from the polygon (else the box), its region ``label``, a
     mutable ``order`` (its reading rank)."""
 
     def __init__(self, region: Region, label: str, order: int | None):
@@ -111,7 +111,7 @@ class LineAssigner(PageBlock):
 
     Args:
         transcription: the transcription whose lines and regions it works on.
-        skip_labels: region labels (Docling labels) that take no lines (default pictures and charts).
+        skip_labels: region labels (region labels) that take no lines (default pictures and charts).
         formulas_separately: formula regions take no lines either and the lines inside them are removed, for a
             formula step that reads them as LaTeX; ``False``: formula regions get lines like text regions.
     """

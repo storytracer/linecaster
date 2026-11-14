@@ -103,7 +103,7 @@ class Source(_Extensible):
     """Where an annotation set comes from: produced here, converted from a delivered file, or a ground truth."""
 
     kind: Literal["produced", "converted", "ground_truth"] = "produced"
-    format: str | None = None                # alto, page, hocr, docling, text, markdown, ...
+    format: str | None = None                # alto, page, hocr, html, mediawiki, text, markdown, ...
     uri: str | None = None
     sha256: str | None = None                # of the delivered file
     dataset: str | None = None               # repo@revision
@@ -134,7 +134,8 @@ class Shape(_Model):
 
 
 class Formatting(_Model):
-    """docling-core's ``Formatting``; on a reading, over ``charspan`` of its text."""
+    """How characters ``charspan`` of a reading's text are set: bold, italic, underlined, struck through, raised or
+    lowered."""
 
     charspan: list[int] | None = None
     bold: bool = False
@@ -224,7 +225,8 @@ class Line(Zone):
 
 
 class Cell(Shape):
-    """docling-core's ``TableCell``, lean: offsets (end exclusive), no spans, no grid."""
+    """One cell of a table: its rows and columns (offsets, end exclusive), its text and whether it heads a column, a
+    row or a section."""
 
     start_row: int
     end_row: int
@@ -298,7 +300,7 @@ class Classification(Annotation):
 
 
 class Description(Annotation):
-    """Text an annotator wrote about a zone that is not on the page (docling-core's ``DescriptionMetaField``)."""
+    """Text an annotator wrote about a zone that is not on the page (a description of a picture, a summary)."""
 
     target: Ref
     kind: str = "description"                # description | data | note
@@ -446,7 +448,7 @@ class AnnotationSet(_Extensible):
 
     def add_region(self, annotator: int, id: str, box: Box | None = None, polygon: list[Point] | None = None,
                    label: str = "", role: str | None = None, heading_level: int | None = None, **fields) -> Region:
-        """Appends a region and, with ``role`` (a content role or a Docling label), its ``role`` classification
+        """Appends a region and, with ``role`` (a content role or a region label), its ``role`` classification
         (and a ``heading_level`` one), all by ``annotator``."""
         from .policy import classify_label
         r = Region(annotator=annotator, id=id, box=box, polygon=polygon, label=label, **fields)
@@ -497,9 +499,9 @@ class AnnotationSet(_Extensible):
         return self.classification(target, "role", precedence)
 
     def label(self, target: Ref) -> str:
-        """The Docling label of a region, from its content role (``linecaster.data.policy.docling_label``)."""
-        from .policy import docling_label
-        return docling_label(self, target)
+        """The region label of a region, from its content role (``linecaster.data.policy.region_label``)."""
+        from .policy import region_label
+        return region_label(self, target)
 
     def heading_level(self, target: Ref) -> int | None:
         v = self.classification(target, "heading_level")
@@ -552,7 +554,7 @@ class AnnotationSet(_Extensible):
 
     @property
     def objects(self) -> dict[str, list]:
-        """Regions in the shape of a Hugging Face ``objects`` column: ``bbox`` and ``category`` (the Docling label)
+        """Regions in the shape of a Hugging Face ``objects`` column: ``bbox`` and ``category`` (the region label)
         lists, in reading order."""
         regs = [r for r in self.ordered_regions() if r.box is not None]
         return {"bbox": [r.box for r in regs], "category": [self.label(r.id) for r in regs]}

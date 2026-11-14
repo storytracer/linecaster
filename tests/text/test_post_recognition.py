@@ -8,7 +8,7 @@ from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.data.page import Page
-from linecaster.formats.docling import build_docling, to_markdown, to_text
+from linecaster.document import build_document, to_markdown, to_text
 from linecaster.text.typography import retype
 
 from conftest import body_region, line, page_to_compose, page_with, recomposed, region
@@ -100,33 +100,26 @@ def test_page_number_confidence_is_character_weighted():
 # ------------------------------------------------------------- document
 
 
-def test_build_docling_items_layers_and_order():
-    from docling_core.types.doc import ContentLayer, DocItemLabel
-
-    doc = build_docling(page_to_compose(), name="p1", width=1000, height=1000)
-    labels = [(it.label, getattr(it, "text", None)) for it, _ in doc.iterate_items(included_content_layers={
-        ContentLayer.BODY, ContentLayer.FURNITURE})]
-    assert labels[0] == (DocItemLabel.TITLE, "THE TITLE")
-    assert labels[1] == (DocItemLabel.TEXT, "\n".join(f"body {k}" for k in range(6)))
-    assert labels[2] == (DocItemLabel.PAGE_FOOTER, "12")
-    assert labels[3][0] == DocItemLabel.TABLE and labels[4][0] == DocItemLabel.PICTURE
-    assert labels[5] == (DocItemLabel.SECTION_HEADER, "LAST")              # unordered region last
-    child = [t for t in doc.texts if t.text == "Fig. 1 left"]               # row joined with a space
-    assert len(child) == 1 and child[0].parent.cref == doc.pictures[0].self_ref   # the picture's child
-    footer = [t for t in doc.texts if t.label == DocItemLabel.PAGE_FOOTER][0]
-    assert footer.content_layer == ContentLayer.FURNITURE
-    assert doc.texts[-1].level == 2
-    assert doc.tables[0].data.num_rows == 2 and doc.tables[0].data.table_cells[0].column_header
-    p = doc.texts[0].prov[0]
-    assert (p.bbox.l, p.bbox.t, p.bbox.r, p.bbox.b, p.charspan) == (100, 100, 900, 160, (0, 9))
-    assert doc.pages[1].size.width == 1000
+def test_build_document_blocks_layers_and_order():
+    doc = build_document(page_to_compose(), name="p1", width=1000, height=1000)
+    kinds = [(b.kind, b.text) for b in doc.blocks]
+    assert kinds[0] == ("title", "THE TITLE")
+    assert kinds[1] == ("paragraph", "\n".join(f"body {k}" for k in range(6)))
+    assert kinds[2] == ("page_footer", "12")
+    assert kinds[3][0] == "table" and kinds[4] == ("picture", "Fig. 1 left")   # its row joined with a space
+    assert kinds[5] == ("heading", "LAST")                                    # unordered region last
+    assert doc.blocks[2].layer == "furniture" and doc.blocks[5].level == 2
+    assert doc.blocks[3].grid.num_rows == 2 and doc.blocks[3].grid.cells[0].column_header
+    o = doc.blocks[0].origins[0]
+    assert (o.box, o.span, o.region) == ([100, 100, 900, 160], [0, 9], "doc_title_0")
+    assert doc.pages[0].width == 1000
 
 
 def test_exports_with_and_without_furniture():
-    doc = build_docling(page_to_compose(), name="p1", width=1000, height=1000)
+    doc = build_document(page_to_compose(), name="p1", width=1000, height=1000)
     md, md_f = to_markdown(doc), to_markdown(doc, furniture=True)
     assert md.startswith("# THE TITLE") and "\n12\n" not in md and "\n\n12\n\n" in md_f
-    assert "| a   | b   |" in md and "#### LAST" not in md and "## LAST" in md
+    assert "| a | b |" in md and "#### LAST" not in md and "### LAST" in md
     txt, txt_f = to_text(doc), to_text(doc, furniture=True)
     assert "12" not in txt.split("\n") and "12" in txt_f.split("\n")
     assert doc.name == "p1"
@@ -145,9 +138,9 @@ def test_blocks_run_and_write_files(tmp_path):
     set_page(doc, page, "ocr_new")
     out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                               bucket_by_item=False).run(
-        Composer("docling-composition@1").run(Typographer("ratios@1").run(iter([doc])))))
+        Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr_new"]
-    assert out[0].metadata["docling"]["name"] == "p1" and t.annotators[-1].step == "typography"   # composing adds none
+    assert out[0].metadata["document"]["name"] == "p1" and t.annotators[-1].step == "typography"   # composing adds none
     a = t.annotators[-1]
     assert (a.kind, a.engine, a.preset) == ("rule", "typography.ratios.v1", "ratios@1")
     assert a.measurements["leveled"] == 2 and {"seconds", "datetime"} <= set(a.measurements)
@@ -168,11 +161,11 @@ def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
         line(rid2, 0, 100, 400, 800, 20, "its last words here."),
         line("number_2", 0, 450, 900, 40, 20, "12")])
     recomposed(t)
-    doc = build_docling(t, "p", 1000, 1000)
-    texts = [x.text for x in doc.texts]
+    doc = build_document(t, "p", 1000, 1000)
+    texts = [x.text for x in doc.blocks]
     assert texts[0] == "The nest is built of dead grasses and bents, and the lining"
     assert texts[1] == "A new paragraph starts indented and runs to the end of the column with its last words here."
     assert texts[2] == "12" and len(texts) == 3
     m = t.annotators[-1].measurements
     assert (m["marks_removed"], m["continuations"], m["paragraphs"]) == (1, 1, 3)
-    assert [p.charspan for p in doc.texts[1].prov] == [(0, 35), (36, 70), (71, 91)]   # one entry per row, across regions
+    assert [o.span for o in doc.blocks[1].origins] == [[0, 35], [36, 70], [71, 91]]   # one per row, across regions

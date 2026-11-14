@@ -13,7 +13,7 @@ from linecaster.data.transcription import Annotator, Transcription
 
 
 def add(t, rid, label, raw, poly=None):
-    """Adds a region to ``t``: its own label ``raw``, its content role from the Docling label ``label``."""
+    """Adds a region to ``t``: its own label ``raw``, its content role from the region label ``label``."""
     poly = poly or [[10, 10], [110, 10], [110, 60], [10, 60]]
     xs, ys = [p[0] for p in poly], [p[1] for p in poly]
     return t.add_region(0, rid, [min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)], poly, label=raw, role=label)
@@ -41,7 +41,7 @@ def png(w=50, h=20):
     ("picture", "chart", "Chart to Table:", 4096),
     ("seal", "seal", "Seal Recognition:", 256),
     ("section_header", "", "Text Recognition:", 512),      # no raw label: mapped from Docling's (paragraph_title)
-    ("text", "something_new", "Text Recognition:", 4096),   # unknown raw label (another layout model): by the Docling label
+    ("text", "something_new", "Text Recognition:", 4096),   # unknown raw label (another layout model): by the region label
     ("reference", "something_new", "Text Recognition:", 2048),
     ("weird", "", "Text Recognition:", 8192),             # unknown altogether: the SDK default
 ])
@@ -68,7 +68,7 @@ def test_regions_read_and_skipped():
     assert reads(spec, "c", "picture", "chart", frozenset())
     for raw in ("image", "header_image", "footer_image"):
         assert not reads(spec, "d", "picture", raw, frozenset())
-    # LightOn keeps the label rule: the region's Docling label
+    # LightOn keeps the label rule: the region's region label
     assert reads(chat_model("lightonocr-2-1b"), "e", "text", "text", frozenset({"text"}))
     assert not reads(chat_model("lightonocr-2-1b"), "f", "picture", "image", frozenset({"text"}))
 

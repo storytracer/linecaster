@@ -42,7 +42,10 @@ def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple
 def to_markdown(doctags: str) -> str:
     """The page text of a SmolDocling completion: outer whitespace stripped, DocTags converted
     with docling-core (body and furniture layers, empty image placeholder), stripped again. Empty DocTags give
-    ``""``; docling-core does not raise on garbage."""
+    ``""``; docling-core does not raise on garbage (the ``docling`` extra)."""
+    from ..formats.docling import require_docling
+
+    require_docling()
     from docling_core.types.doc import DoclingDocument
     from docling_core.types.doc.common.content_layer import ContentLayer
     from docling_core.types.doc.document import DocTagsDocument

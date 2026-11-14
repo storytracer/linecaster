@@ -2,6 +2,44 @@
 
 Measurements, decisions and open questions, newest first.
 
+## linecaster's own document instead of Docling's (2026-11-14, decided by the maintainer)
+
+Docling was a good start and linecaster outgrew it: the DoclingDocument had no place for what the data model knows
+(formatting, the region of each piece of a continued paragraph, a picture's image), and its serializers decided the
+HTML and Markdown. The page's or item's document is now `linecaster.document` (`linecaster.document/1`), built by
+the same composition rules as before (blocks by content role, paragraphs as recomposed or as laid out, continuations
+across pages, the policy's layers and table rules, sections) and written by linecaster's own serializers (HTML,
+Markdown, text, the complete JSON). docling-core stays only as the extra `docling`, for the Docling importer and the
+SmolDocling adapter. What decided the details:
+
+- **Parity with the old builder, on content.** The frozen pre-recomposition builder
+  (`tests/blocks/composition/legacy_builder.py`, a DoclingDocument) and the new document agree block by block (kind,
+  text, layer, heading level, section, grid, each origin's page, box and characters) on the fixtures and 40 random
+  items, from lines and from paragraphs, with and without sections: 53 cases. The one difference is a gain: an origin
+  now names its own region where Docling's region map gave a continued paragraph its first region only.
+- **The region labels stay as strings** (`text`, `section_header`, `page_header`, ...): released layout presets map
+  their models' labels onto them, and their hashes include those maps. They are linecaster's vocabulary now
+  (`region_label`, `LABEL_ROLES`); only the name Docling went.
+- **A one-time exception to "released editions never change"**: `docling-composition@1`, `squiddle@1` and
+  `item-texts@1` were removed from the lock rather than kept as legacy, since their engine is gone; run records
+  naming them resolve only with 0.8.x. `squiddle@2` names `linked-composition@1`.
+- **Names**: a preset is named after its model or its method (`linked-composition`: paragraphs linked across page
+  breaks), never with generic words (`document`, `default`). The item stage has no recipe for now: `item-texts` said
+  nothing about what it does, and its normalization (`latin-historic`) is to be replaced (open items).
+
+## Ground truth from any source (2026-11-14, decided by the maintainer)
+
+Ground truth is read by importers, a step of its own (`import`), into the data model; a public source's markup is
+read through declarative conventions in the catalog, layered (`mediawiki` < `enwikisource`), the one kind of entry
+that names a source (CLAUDE.md's scope exception). Wikitext is read by one parser, wikitextprocessor, in
+`linecaster-mediawiki`: the page's HTML built by MediaWiki's rules (Cite, Math through texvcjs, Poem,
+TemplateStyles, ProofreadPage's header and footer), read by the HTML converter under the wiki's conventions, every
+line anchored in the revision. The reader reads no network: wikitextprocessor would fetch a wiki's interwiki map and
+ask Wikidata; Wikidata is never asked, and a Wikidata link resolves only to the text its call brings. Against a
+Parsoid-based dataset of 141,461 English Wikisource pages: words equal on 99.0 % of the pages with text (0.09 % of
+the characters differ), lines anchored 99.0 %, every formula of the old dataset found on its page as KaTeX reads it
+(8,557 against 8,220; the old one missed formulas in table cells and in lost footnotes).
+
 ## The scorer against two existing evaluations (2026-11-13, aarch64 GB10)
 
 `linecaster score` run on the stored outputs of two existing evaluations, against their ground truths imported as
@@ -325,7 +363,11 @@ written, the run record naming `squiddle@1` and its hash.
 
 ## Open items
 
-- **Content roles in the page files** (2026-11-13): ALTO, PAGE-XML and hOCR write a region's Docling label, so a role
+- **Transcription levels instead of `latin-historic`** (2026-11-14, the maintainer: "not fit for purpose anymore"):
+  its eight replacements have no principle. To follow OCR-D's ground-truth levels 1, 2 and 3 (the rules as data in
+  `OCR-D/gt-MufiLevelRules`, GPL-3.0: a catalog pin, not copied in), gaps filled from Unicode's decompositions, not
+  by hand; ground truth and OCR compared at one level. A plan for the maintainer first.
+- **Content roles in the page files** (2026-11-13): ALTO, PAGE-XML and hOCR write a region's region label, so a role
   without one of its own comes back as the role of its label (marginalia as paragraph, page_number as header,
   endnote as footnote). PAGE-XML has region types for marginalia, page-number, endnote and others: writing the PAGE
   type of the role (`ROLES`) and reading it back would keep them. The page files also resolve labels, levels and

@@ -1,0 +1,102 @@
+"""The document model (``linecaster.document/1``): a page or an item as a reader reads it, made from its
+transcriptions by ``DocumentBuilder`` and written out by the serializers (HTML, Markdown, text, JSON).
+
+A ``Document`` is its pages and its blocks in reading order. A **block** is one unit of the rendering: a title, a
+heading at its level, a paragraph (one across a page break when the pages say it runs on), a list item, a caption,
+a note, a page header or footer, a formula, a table, a picture. Each has the content role it was made from
+(``linecaster.data.policy.ROLES``), the layer the rendering policy put it in, its text with the formatting over
+spans of it, and where it comes from: one ``Origin`` per piece (its page, region, lines, box on the page image and
+the characters of the block's text it gives). With sections (``DocumentBuilder(sections=True)``), every block names
+the heading whose section it is in.
+
+The JSON (``Document.model_dump_json``, ``to_json``) is the complete document: a reading of it gives the same
+serializations again (``from_json``).
+"""
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from ..data.transcription import Cell
+
+SCHEMA = "linecaster.document/1"
+
+#: what a block is (from its region's content role: ``block_kind``)
+KINDS = ("title", "heading", "paragraph", "list_item", "caption", "footnote", "toc_entry", "reference", "code",
+         "page_header", "page_footer", "formula", "table", "picture")
+Kind = Literal["title", "heading", "paragraph", "list_item", "caption", "footnote", "toc_entry", "reference", "code",
+               "page_header", "page_footer", "formula", "table", "picture"]
+#: the layers blocks are in (``linecaster.data.policy.LAYERS`` without ``metadata`` and ``none``: never rendered)
+Layer = Literal["body", "furniture", "background", "invisible", "notes"]
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class Span(_Model):
+    """Formatting of characters ``[start, end)`` of a block's text."""
+
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+    bold: bool = False
+    italic: bool = False
+    underline: bool = False
+    strikethrough: bool = False
+    script: Literal["baseline", "sub", "super"] = "baseline"
+    language: str | None = None
+
+
+class Origin(_Model):
+    """One piece of a block: on ``page`` (the document's page number, from 1), from ``region`` and ``lines`` of
+    that page's transcription, in ``box`` (``[x0, y0, x1, y1]`` on the page image; None without geometry), giving
+    characters ``span`` of the block's text."""
+
+    page: int = Field(ge=1)
+    region: str | None = None
+    lines: list[str] = Field(default_factory=list)
+    box: list[float] | None = None
+    span: list[int] = Field(default_factory=lambda: [0, 0])
+
+
+class Grid(_Model):
+    """A table block's structure: its size and cells (``linecaster.data.Cell``: offsets, end exclusive)."""
+
+    num_rows: int
+    num_cols: int
+    cells: list[Cell] = Field(default_factory=list)
+
+
+class Block(_Model):
+    id: str
+    kind: Kind
+    role: str | None = None
+    layer: Layer = "body"
+    level: int | None = None                  # a heading's level (1 the highest below the title)
+    text: str = ""                            # lines separated by "\n"; a formula block's text is its LaTeX
+    spans: list[Span] = Field(default_factory=list)
+    grid: Grid | None = None
+    file: str | None = None                   # a picture's image, as its source names it
+    section: str | None = None                # the heading block whose section this block is in
+    origins: list[Origin] = Field(default_factory=list)
+
+
+class Page(_Model):
+    page: int = Field(ge=1)
+    id: str | None = None                     # the page's id in its item (``<page_id>#<id>`` references)
+    width: int | None = None
+    height: int | None = None
+
+
+class Document(_Model):
+    schema_: str = Field(SCHEMA, alias="schema")
+    name: str = "document"
+    pages: list[Page] = Field(default_factory=list)
+    blocks: list[Block] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    def layer(self, *layers: str) -> list[Block]:
+        """The blocks in ``layers``, in order."""
+        return [b for b in self.blocks if b.layer in layers]

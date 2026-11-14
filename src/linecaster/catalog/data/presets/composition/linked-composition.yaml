@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=../../../schemas/preset-1.json
 schema: linecaster.preset/1
-id: docling-composition
+id: linked-composition
 edition: 1
 step: composition
-engine: composition.docling.v1
+engine: composition.linked.v1
 options:
   sections: false
 capabilities:
@@ -11,5 +11,5 @@ capabilities:
   produces:
   - document
 provenance:
-  created: 2026-11-06
+  created: 2026-11-14
 support: core

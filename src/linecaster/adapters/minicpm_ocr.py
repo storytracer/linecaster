@@ -10,7 +10,7 @@ prompt and token cap per region type (``settings.elements``, looked up by the la
 unknown types), the region types not read (``settings.skip_labels``), sampling, ``mm_processor_kwargs``,
 the DSpark draft. This adapter holds the code:
 
-* **Labels**: a region without a PP-DocLayoutV3 label is mapped from its Docling label (``FROM_DOCLING``; the
+* **Labels**: a region without a PP-DocLayoutV3 label is mapped from its region label (``FROM_LABEL``; the
   label of its content role, ``Transcription.label``).
 * **Request**: the crop, then the prompt as a text part; the token cap clamped to max-model-len -
   ``settings.prompt_reserve`` as the SDK does; ``mm_processor_kwargs`` with the element's slice count;
@@ -35,8 +35,8 @@ from typing import Any, ClassVar
 
 from . import ChatAdapter, data_url
 
-#: Docling labels -> the SDK's region type, for regions whose producer gave no PP-DocLayoutV3 label
-FROM_DOCLING = {"title": "doc_title", "section_header": "paragraph_title", "caption": "figure_title",
+#: region labels -> the SDK's region type, for regions whose producer gave no PP-DocLayoutV3 label
+FROM_LABEL = {"title": "doc_title", "section_header": "paragraph_title", "caption": "figure_title",
                 "page_header": "header", "page_footer": "footer", "formula": "display_formula",
                 "picture": "image", "list_item": "text", "code": "algorithm", "document_index": "content"}
 PRESET = "minicpm-ocr-1.0"
@@ -59,12 +59,12 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
     def sdk_label(self, region, t=None) -> str:
         """The SDK's region type of ``region`` (of transcription ``t``): its own label where the SDK knows it, else
-        its Docling label mapped (``FROM_DOCLING``); without ``t`` no Docling label (the SDK's default)."""
+        its region label mapped (``FROM_LABEL``); without ``t`` no region label (the SDK's default)."""
         raw = region.label or ""
         if raw in self.config["elements"] or raw in self.skip_labels:
             return raw
-        docling = t.label(region.id) if t is not None else ""
-        return FROM_DOCLING.get(docling, docling)
+        label = t.label(region.id) if t is not None else ""
+        return FROM_LABEL.get(label, label)
 
     def element(self, label: str) -> dict:
         e = self.config["elements"].get(label) or self.config["default_element"]

@@ -79,7 +79,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | `nfc` | The as-written layer in one Unicode normalization form (the `UnicodeNormalizer`). |
 | `paragraphs` | The running text recomposed from the rows, with its decisions (the `Recomposer`). |
 | `normalized` | The normalized texts of lines and paragraphs (the `CharacterNormalizer`). |
-| `document` | The DoclingDocument of a page (the `Composer`) or of an item (`Composer(unit="item")`): a rendering that travels with the datatrove document (`doc.metadata["docling"]`), not stored in the page record. |
+| `document` | The document of a page (the `Composer`) or of an item (`Composer(unit="item")`, `linecaster.document`): a rendering that travels with the datatrove document (`doc.metadata["document"]`), not stored in the page record. |
 
 ## The catalog
 
@@ -137,16 +137,17 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **reading** | What a recognizer read on one line (`Reading`): its text, alternatives, words and glyphs. | not a reading order; not the `reading@1` lane |
 | **glyph** | One character of a word with its box and confidence, from engines with character positions. | |
 | **classification** | A value of one scheme given to a target (`Classification`): content role, production, heading level, language, script, status, picture class, code language. | not a role of a block |
-| **content role** | What a region, line or range is (`role` scheme): paragraph, heading, marginalia, footnote, header, page number, ... (PAGE-XML's region types, with docling-core's labels where PAGE has no word). | not a block's role |
+| **content role** | What a region, line or range is (`role` scheme): paragraph, heading, marginalia, footnote, header, page number, ... (PAGE-XML's region types, with names of linecaster's own where PAGE has no word). | not a block's role |
 | **production** | How content was made (`production` scheme): printed, typewritten, handwritten, stamped, born digital. | |
 | **edit** | Another form of a target's text (`Edit`): `nfc`, `normalized`, `corrected`, `joined`, `expanded`, `regularized`. The target's own text stays. | not an edit operation of a score |
 | **link** | A cross-reference between two annotations (`Link`): caption of, note of, continues, refers to. | not a URL |
 | **range** | A logical unit of content (`Range`): a document, chapter, section, article, list or paragraph, stored as its pieces on each page under one id. | not a Python `range` |
-| **document range** | A document within or across items (`DocumentRange`): an item holds one unless ranges say otherwise. | not a datatrove `Document`, not a Docling document |
+| **document range** | A document within or across items (`DocumentRange`): an item holds one unless ranges say otherwise. | not a datatrove `Document`, not a page's or item's document (a rendering) |
 | **reference** | A string naming an annotation in the same set (`Ref`): `<id>`, `<line>/<n>` (a word), `<ref>[<start>:<end>]` (characters), `""` (the page), `<page_id>#<ref>` (another page). | |
 | **rendering policy** | A catalog entry (`policy`, with editions) that decides which annotations go into which layer of a rendering, and whose annotations count where several annotators gave one. | |
-| **layer** | Where a rendering puts content: docling-core's content layers (`body`, `furniture`, `background`, `invisible`, `notes`), `metadata`, or `none`. | |
-| **rendering** | A Docling document, DocLang, ALTO, PAGE-XML, hOCR, an IIIF annotation page or a text made from an annotation set under a policy; written out, never stored in the page record. | |
+| **layer** | Where a rendering puts content: `body`, `furniture` (running heads and feet, page numbers), `background`, `invisible`, `notes`, `metadata`, or `none`. | |
+| **region label** | The coarser word layout models and page files use for a region (`text`, `title`, `section_header`, `caption`, `footnote`, `list_item`, `page_header`, `page_footer`, `table`, `picture`, ...): each content role has one; a layout preset maps its model's labels onto them. | not the model's own label (the raw label, `Region.label`) |
+| **rendering** | A document (`linecaster.document`) and its HTML, Markdown, text and JSON, ALTO, PAGE-XML, hOCR, an IIIF annotation page or a text made from an annotation set under a policy; written out, never stored in the page record. | |
 | **reading order** | The order in which a page's regions and lines are read (`ReadingOrder` annotations, one per annotator that ordered the page; the latest counts unless the policy's `precedence` says otherwise), from the layout model when it learned one (PP-DocLayoutV3), otherwise computed by linecaster. | not the order of `Transcription.lines`, which is the processing order |
 | **XY-cut**, **XY-Cut++** | The two ways linecaster computes a reading order for a layout model that has none: XY-cut splits the page recursively at whitespace gaps; XY-Cut++ (Liu et al., 2025) first masks titles, visuals and cross-layout regions, cuts the rest, then matches the masked regions back to their neighbours (`linecaster.data.geometry`, the layout option `reading_order`). | |
 | **cross-layout region** | A text region that spans several columns (longer than 1.3 × the median region and overlapping two or more others horizontally), which XY-Cut++ masks before cutting. | not a region label |
@@ -154,7 +155,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **row** | The lines of one region that sit side by side at the same height (a line's row is in the reading order's `rows`), as in typesetting; detection often splits one printed line into several lines on the same row. | never a stored record |
 | **word** | A word of a reading: its text, box, confidence and glyphs. | |
 | **paragraph** | The bottom range: running text recomposed from rows of lines, with the decisions that made it (`Paragraph`). Added by the `Recomposer`. | |
-| **Docling document** | A DoclingDocument: a rendering of a page or an item as docling-core's structure, made by the `Composer`. | not a datatrove `Document` (say "datatrove document"), not a document range |
+| **block** | One unit of a page's or an item's document (`linecaster.document.Block`): a title, heading, paragraph (one across a page break when the pages say it runs on), list item, caption, note, page header or footer, formula, table or picture, with its text, formatting and origins. | not a pipeline block |
 | **measurements** | Numbers an annotator records for a page: seconds, tokens, device, `finish_reason`, in a fixed vocabulary. | not trace attributes |
 | **text variant** | A named point on the three text dimensions, written per item: `verbatim_txt`, `readable_txt`, `readable_md`. | not a "version" |
 | **character fidelity**, **flow**, **scope** | The three text dimensions: as written → normalized (fidelity); as laid out → flowed (flow); full page → body only (scope). Each transform moves one step on one dimension. | not "axes" |

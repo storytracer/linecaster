@@ -5,7 +5,7 @@
 ``linecaster.text``, ``linecaster.images`` and ``linecaster.formats`` (the engines are thin). Import-light, like
 the data model: no datatrove, saturate, blocks or runtime."""
 from .base import RuleEngine, ScriptDispatch, Strategy
-from .composition import DoclingCompositionEngine
+from .composition import LinkedCompositionEngine
 from .image import ImageConvertEngine, WebpLosslessImageEngine
 from .importers import (
     AltoImporter, AutoImporter, DoclingImporter, HocrImporter, HtmlImporter, Importer, PageXmlImporter, TextImporter,
@@ -17,7 +17,7 @@ from .typography import RatiosTypographyEngine
 
 __all__ = [
     "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "Importer", "PageXmlImporter",
-    "TextImporter", "ByScriptNormalizationEngine", "ByScriptRecompositionEngine", "DoclingCompositionEngine", "ImageConvertEngine",
+    "TextImporter", "ByScriptNormalizationEngine", "ByScriptRecompositionEngine", "LinkedCompositionEngine", "ImageConvertEngine",
     "LatinHistoricNormalizationEngine", "RatiosTypographyEngine", "RuleEngine", "ScriptDispatch",
     "SingleRegionLayoutEngine", "Strategy", "UnicodeRecompositionEngine", "WebpLosslessImageEngine",
 ]

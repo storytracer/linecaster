@@ -1,5 +1,5 @@
-"""Document exports (html, doclang, docling's JSON formatting), per-page sections and dividers, line-level
-detail, layout plots, the single-region layout and ImageFolderReader's item and sequence options."""
+"""Document exports (HTML, Markdown, text, the document's JSON), per-page sections and dividers, line-level detail,
+layout plots, the single-region layout and ImageFolderReader's item and sequence options."""
 from __future__ import annotations
 
 import json
@@ -17,64 +17,58 @@ from linecaster.blocks.lines.assigner import LineAssigner
 from linecaster.blocks.readers.images import ImageFolderReader
 from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.blocks.writers.items import ItemDocumentWriter
-from docling_core.types.doc import ContentLayer
-
 from linecaster.data.transcription import Annotator, Description, Transcription, Word
+from linecaster.document import (DOCUMENT_KEY, EXPORT_FORMATS, DocumentBuilder, build_document, export, from_json,
+                                 load_document, to_html, to_json)
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
-from linecaster.formats.docling import (DOCUMENT_KEY, EXPORT_FORMATS, REGION_MAP_KEY, build_docling, export,
-                                        load_docling, to_doclang, to_html, to_json)
 
 from conftest import line, page_doc, page_t, page_to_compose, page_with, recomposed, region
 
 
 def _composed_doc(**options):
-    return list(Composer("docling-composition@1", options=options).run(Typographer("ratios@1").run(iter([page_doc()]))))
+    return list(Composer("linked-composition@1", options=options).run(Typographer("ratios@1").run(iter([page_doc()]))))
 
 
-def test_html_and_doclang_follow_docling_and_the_furniture_layer():
+def test_html_follows_the_furniture_layer():
     t = page_to_compose()
-    doc = build_docling(t, name="p1", width=1000, height=1000)
+    doc = build_document(t, name="p1", width=1000, height=1000)
     html, html_f = to_html(doc), to_html(doc, furniture=True)
-    assert html == doc.export_to_html() and "THE TITLE" in html
-    assert ">12<" not in html and ">12<" in html_f
-    dl = to_doclang(doc)
-    assert dl == doc.export_to_doclang(add_named_groups=True)
-    assert '<layer value="furniture"/>' in dl                 # DocLang keeps the furniture, marked
+    assert html.startswith("<!DOCTYPE html>") and "<h1>THE TITLE</h1>" in html and "<title>p1</title>" in html
+    assert ">12<" not in html and '<footer role="doc-pagefooter"><p>12</p></footer>' in html_f
     for fmt in EXPORT_FORMATS:
-        assert export(doc, fmt) == export(doc.export_to_dict(), fmt)
+        assert export(doc, fmt) == export(doc.model_dump(by_alias=True), fmt)
     with pytest.raises(ValueError):
         export(doc, "pdf")
 
 
-def test_json_is_formatted_as_docling_saves_it(tmp_path: Path):
+def test_json_is_the_complete_document():
+    """The JSON holds every layer and origin, and reads back to the same document."""
     t = page_to_compose()
     t.lines[0].reading.text = "THE TITLE ſ ä"
-    doc = build_docling(t, name="p1", width=1000, height=1000)
-    doc.save_as_json(tmp_path / "ref.json")
-    assert to_json(doc) == (tmp_path / "ref.json").read_text(encoding="utf-8")
-    assert to_json(doc.export_to_dict()) == to_json(doc)
+    doc = build_document(t, name="p1", width=1000, height=1000)
+    data = json.loads(to_json(doc))
+    assert data["schema"] == "linecaster.document/1" and "ſ ä" in to_json(doc)
+    assert {b["layer"] for b in data["blocks"]} == {"body", "furniture"}
+    assert from_json(to_json(doc)) == doc and to_json(doc.model_dump(by_alias=True)) == to_json(doc)
 
 
 def test_page_writers_write_every_document_format(tmp_path: Path):
     docs = _composed_doc()
-    fmts = ("md", "txt", "html", "doclang", "json")
+    fmts = ("md", "txt", "html", "json")
     list(PageFileWriter(str(tmp_path / "a"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
     data = docs[0].metadata[DOCUMENT_KEY]                 # the Composer's document
     for fmt in fmts:
         name = f"p1.x.{EXPORT_FORMATS[fmt]}"
-        expected = export(data if fmt == "json" else load_docling(data), fmt).encode("utf-8")
-        assert (tmp_path / "a" / name).read_bytes() == expected, name
-    assert (tmp_path / "a" / "p1.x.doclang.xml").read_text().startswith("<doclang")
+        assert (tmp_path / "a" / name).read_bytes() == export(load_document(data), fmt).encode("utf-8"), name
     assert (tmp_path / "a" / "p1.x.html").read_text().lstrip().lower().startswith("<!doctype html>")
 
 
 def test_sections_and_dividers_per_page(tmp_path: Path):
     docs = _composed_doc(sections=True)
-    groups = [g for g in docs[0].metadata[DOCUMENT_KEY]["groups"] if g["label"] == "section"]
-    assert [g["name"] for g in groups] == ["THE TITLE", "LAST"]
-    region_of = docs[0].metadata[REGION_MAP_KEY]
-    assert set(region_of.values()) >= {"1:doc_title_0", "1:text_1"}
+    doc = load_document(docs[0].metadata[DOCUMENT_KEY])
+    assert [b.text for b in doc.blocks if b.section == b.id] == ["THE TITLE", "LAST"]
+    assert {o.region for b in doc.blocks for o in b.origins} >= {"doc_title_0", "text_1"}
     list(PageFileWriter(str(tmp_path), formats=("md",), bucket_by_item=False, dividers=True).run(iter(docs)))
     list(PageFileWriter(str(tmp_path), formats=("md",), suffix=".plain", bucket_by_item=False).run(iter(docs)))
     with_rules, plain = (tmp_path / "p1.md").read_text(), (tmp_path / "p1.plain.md").read_text()
@@ -165,68 +159,52 @@ def test_image_folder_reader_item_and_sequence(tmp_path: Path):
         ImageFolderReader(str(tmp_path), item_id="x", item_from_parent=True)
 
 
-def test_item_exports_html_doclang_json(tmp_path: Path):
+def test_item_exports_every_format(tmp_path: Path):
     docs = []
     for n in (1, 2):
         t = page_t(n, [f"Page {n} text."], heading="Chapter" if n == 1 else None)
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
-    items = list(Composer("docling-composition@1", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
+    items = list(Composer("linked-composition@1", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
     list(ItemDocumentWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
-    from docling_core.types.doc import DoclingDocument
-
-    doc = DoclingDocument.model_validate(items[0].metadata["docling"])
+    doc = load_document(items[0].metadata[DOCUMENT_KEY])
     assert (tmp_path / "book.x.json").read_text() == to_json(doc)
-    assert '<group' in (tmp_path / "book.x.doclang.xml").read_text()
     assert json.loads((tmp_path / "book.x.json").read_text())["name"] == "book"
+    body = doc.layer("body")
+    assert [(b.kind, b.section) for b in body] == [("heading", "b0"), ("paragraph", "b0"), ("paragraph", "b0")]
+    assert [o.page for b in body for o in b.origins if b.kind == "paragraph"] == [1, 2]
 
 
-def test_provenance_is_clamped_to_the_page_as_docling_validates_it():
-    from docling_core.types.doc import DoclingDocument
-
+def test_origins_are_clamped_to_the_page():
     t = page_to_compose()
     t.regions[4].polygon = [[-18, -3], [300, -3], [300, 1034], [-18, 1034]]     # the picture, past the page edge
-    doc = build_docling(t, name="p1", width=1000, height=1000)
-    b = doc.pictures[0].prov[0].bbox
-    assert (b.l, b.t, b.r, b.b) == (0, 0, 300, 1000)
-    assert DoclingDocument.model_validate(doc.export_to_dict()).export_to_dict() == doc.export_to_dict()
+    doc = build_document(t, name="p1", width=1000, height=1000)
+    assert next(b for b in doc.blocks if b.kind == "picture").origins[0].box == [0, 0, 300, 1000]
     assert t.regions[4].polygon[0] == [-18, -3]                                    # the layout itself is untouched
 
 
-def test_doclang_export_leaves_the_document_alone():
-    t = page_to_compose()
-    t.lines[1].reading.text = "a longer first row"
-    doc = build_docling(recomposed(t), name="p1", width=1000, height=1000)
-    before = doc.export_to_dict()
-    to_doclang(doc)
-    assert doc.export_to_dict() == before
-
-
-def test_table_data_round_trip_is_lossless():
-    """``table_data`` and ``from_table_data`` invert each other: offsets, spans, header and section flags, text and
-    boxes."""
+def test_tables_follow_the_cells():
+    """A table block's grid holds its cells as they are (offsets, spans, header and section flags, text); HTML gives
+    the spans and header cells."""
     from linecaster.data.transcription import Cell, Table
-    from linecaster.formats.docling import from_table_data, table_data
+    from linecaster.document import table_html
 
-    table = Table(annotator=2, target="table_3", num_rows=3, num_cols=3, cells=[
-        Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Ort und Zeit", box=[100.0, 600.0, 400.5, 50.25],
-             column_header=True),
+    t = page_to_compose()
+    t.tables = [Table(annotator=0, target="table_3", num_rows=2, num_cols=3, cells=[
+        Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Ort und Zeit", column_header=True),
         Cell(start_row=0, end_row=1, start_col=2, end_col=3, text="n", column_header=True),
-        Cell(start_row=1, end_row=3, start_col=0, end_col=1, text="Köln", row_header=True, box=[100, 650, 200, 100]),
-        Cell(start_row=1, end_row=2, start_col=1, end_col=3, text="Sommer", row_section=True),
-        Cell(start_row=2, end_row=3, start_col=1, end_col=2, text=""),
-        Cell(start_row=2, end_row=3, start_col=2, end_col=3, text="2", box=[0.5, 0.25, 0.125, 1.0])])
-    data = table_data(table)
-    assert [(c.row_span, c.col_span) for c in data.table_cells] == [(1, 2), (1, 1), (2, 1), (1, 2), (1, 1), (1, 1)]
-    assert from_table_data(data, 2, "table_3") == table
-    assert from_table_data(data, 2, "table_3", html="<table/>").html == "<table/>"
+        Cell(start_row=1, end_row=2, start_col=0, end_col=1, text="Köln", row_header=True),
+        Cell(start_row=1, end_row=2, start_col=1, end_col=3, text="Sommer", row_section=True)])]
+    block = next(b for b in build_document(t).blocks if b.kind == "table")
+    assert block.grid.cells == t.tables[0].cells
+    assert table_html(block) == ('<table><tr><th colspan="2">Ort und Zeit</th><th>n</th></tr>'
+                                 '<tr><th>Köln</th><td colspan="2">Sommer</td></tr></table>')
 
 
 def _parts(doc):
-    return [(it.label.value, it.text if hasattr(it, "text") else None, it.content_layer.value)
-            for it, _ in doc.iterate_items(included_content_layers=set(ContentLayer))]
+    return [(b.kind, b.text or None, b.layer) for b in doc.blocks]
 
 
 def test_the_rendering_policy_places_the_regions():
@@ -238,20 +216,19 @@ def test_the_rendering_policy_places_the_regions():
     a = t.add_annotator(Annotator(kind="rule", step="typography", name="ratios"))
     t.classify(a, "section_header_6", "status", "removed")
     t.descriptions.append(Description(annotator=0, target="image_4", text="a drawing of a flower"))
-    parts = _parts(build_docling(t, name="p1", width=1000, height=1000))
+    parts = _parts(build_document(t, name="p1", width=1000, height=1000))
     assert ("page_footer", "12", "furniture") in parts and ("title", "THE TITLE", "body") in parts
     assert not any(text in ("LAST", "a drawing of a flower") for _, text, _ in parts)
     notes = RenderingPolicy(id="test", rules=[RenderingRule(role="title", to="notes"),
                                               RenderingRule(role="footer", to="none")])
-    parts = _parts(build_docling(t, name="p1", width=1000, height=1000, policy=notes))
+    parts = _parts(build_document(t, name="p1", width=1000, height=1000, policy=notes))
     assert ("title", "THE TITLE", "notes") in parts and not any(text == "12" for _, text, _ in parts)
 
 
 def test_paragraphs_continue_by_their_links():
     """A paragraph that runs into another (``runs_into``, ``continues`` links; on another page:
-    ``<page_id>#<id>``) is one item; without the links, two."""
+    ``<page_id>#<id>``) is one block; without the links, two."""
     from linecaster.data.transcription import Link
-    from linecaster.formats.docling import DocumentBuilder
 
     def item(*links):
         pages = [recomposed(page_t(1, ["The first page ends with a long sen-"])),
@@ -263,7 +240,7 @@ def test_paragraphs_continue_by_their_links():
         b = DocumentBuilder("book")
         for k, t in enumerate(pages):
             b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
-        return [x.text for x in b.build().texts if x.label.value == "text"]
+        return [x.text for x in b.build().blocks if x.kind == "paragraph"]
 
     assert item() == ["The first page ends with a long sen-", "tence that ends here."]
     joined = item((0, "runs_into", "text_1_p0", "p2#text_1_p0"), (1, "continues", "text_1_p0", "p1#text_1_p0"))
@@ -272,10 +249,9 @@ def test_paragraphs_continue_by_their_links():
 
 def test_regions_continue_by_their_links():
     """Without a recomposition (a transcription whose regions are its paragraphs, as an imported ground truth), a text
-    region that continues another is that one's item: a division mark before a lowercase letter removed, else a
-    space; the item's provenance has an entry per page."""
+    region that continues another is that one's block: a division mark before a lowercase letter removed, else a
+    space; the block has an origin per page."""
     from linecaster.data.transcription import Link
-    from linecaster.formats.docling import DocumentBuilder
 
     def item(first, second, linked=True):
         pages = [page_t(1, [first]), page_t(2, [second])]
@@ -285,12 +261,12 @@ def test_regions_continue_by_their_links():
         b = DocumentBuilder("item")
         for k, t in enumerate(pages):
             b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
-        return [x for x in b.build().texts if x.label.value == "text"]
+        return [x for x in b.build().blocks if x.kind == "paragraph"]
 
     assert [x.text for x in item("A long sen-", "tence ends.", linked=False)] == ["A long sen-", "tence ends."]
     joined = item("A long sen-", "tence ends.")
     assert [x.text for x in joined] == ["A long sentence ends."]
-    assert [(p.page_no, p.charspan) for p in joined[0].prov] == [(1, (0, 11)), (2, (10, 21))]
+    assert [(o.page, o.span) for o in joined[0].origins] == [(1, [0, 11]), (2, [10, 21])]
     assert [x.text for x in item("runs on to the", "next page.")] == ["runs on to the next page."]
     assert [x.text for x in item("the well-", "Known name")] == ["the well-Known name"]
 
@@ -301,4 +277,4 @@ def test_the_composer_adds_nothing_to_the_transcription():
     after = page_of(docs[0]).transcriptions["ocr_new"]
     assert after.model_dump(exclude={"annotators"}) == before.model_dump(exclude={"annotators"})
     assert [a.step for a in after.annotators] == [a.step for a in before.annotators]
-    assert docs[0].metadata["docling_transcription"] == "ocr_new" and docs[0].metadata[DOCUMENT_KEY]["name"] == "p1"
+    assert docs[0].metadata["document_transcription"] == "ocr_new" and docs[0].metadata[DOCUMENT_KEY]["name"] == "p1"

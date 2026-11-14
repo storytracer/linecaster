@@ -28,6 +28,10 @@ RULE = SampleRule(pages=12, per_item=3, seed=7)
 FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 1, "trust_env": False}
 SIZES = [5, 1, 8, 3, 6, 2, 7, 4]                 # pages of items i0 ... i7
 
+#: the item stage's presets (bind.v1's slots)
+PRESETS = ("--recomposition", "unicode-recomposition", "--normalization", "latin-historic", "--composition",
+           "linked-composition")
+
 
 def read(make, world_size: int) -> list[tuple[str, str]]:
     """The (item, page) ids every task of ``world_size`` reads, each task from a fresh reader (as in a task)."""
@@ -356,6 +360,6 @@ def test_sample_options_that_do_not_fit_the_input_are_refused(argv, message, cap
 def test_bind_reads_a_sample_of_its_page_records():
     from linecaster.pipelines import bind
 
-    p = run.describe(bind, ["OUT1/pages", "OUT2", "--recipe", "item-texts", "--sample-items", "2"])
+    p = run.describe(bind, ["OUT1/pages", "OUT2", *PRESETS, "--sample-items", "2"])
     reader = p.blocks[0]
     assert isinstance(reader, PageRecordReader) and reader.sample == SampleRule(items=2)

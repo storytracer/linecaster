@@ -236,8 +236,8 @@ def child(el: etree._Element, name: str) -> etree._Element | None:
 
 # ---------------------------------------------------------------- labels
 
-#: Docling label -> PAGE TextRegion/@type (text-bearing regions)
-DOCLING_TO_PAGE_TEXT = {
+#: region label -> PAGE TextRegion/@type (text-bearing regions)
+LABEL_TO_PAGE_TEXT = {
     "text": "paragraph",
     "paragraph": "paragraph",
     "title": "heading",
@@ -257,16 +257,16 @@ DOCLING_TO_PAGE_TEXT = {
     "chart": "other",
 }
 
-#: Docling label -> PAGE region element for regions without lines
-DOCLING_TO_PAGE_ELEMENT = {
+#: region label -> PAGE region element for regions without lines
+LABEL_TO_PAGE_ELEMENT = {
     "picture": "ImageRegion",
     "chart": "ChartRegion",
     "table": "TableRegion",
     "formula": "MathsRegion",
 }
 
-#: PAGE region element (other than TextRegion) -> Docling label
-PAGE_ELEMENT_TO_DOCLING = {
+#: PAGE region element (other than TextRegion) -> region label
+PAGE_ELEMENT_TO_LABEL = {
     "ImageRegion": "picture",
     "LineDrawingRegion": "picture",
     "GraphicRegion": "picture",
@@ -284,8 +284,8 @@ PAGE_ELEMENT_TO_DOCLING = {
 }
 
 #: Region labels as other tools name them (PAGE text types, Transkribus/eScriptorium structure
-#: types, ALTO tags, PP-DocLayout names), lower-cased -> Docling label. Unknown names map to "text".
-RAW_TO_DOCLING = {
+#: types, ALTO tags, PP-DocLayout names), lower-cased -> region label. Unknown names map to "text".
+RAW_TO_LABEL = {
     # PAGE TextRegion/@type
     "paragraph": "text",
     "heading": "section_header",
@@ -305,7 +305,7 @@ RAW_TO_DOCLING = {
     "toc-entry": "document_index",
     "list-label": "list_item",
     "other": "text",
-    # Docling's own names
+    # the region labels themselves
     "text": "text",
     "title": "title",
     "section_header": "section_header",
@@ -357,11 +357,11 @@ RAW_TO_DOCLING = {
 }
 
 
-def docling_from_raw(raw: str | None, default: str = "text") -> str:
+def label_from_raw(raw: str | None, default: str = "text") -> str:
     if not raw:
         return default
     key = raw.strip().lower()
-    return RAW_TO_DOCLING.get(key, RAW_TO_DOCLING.get(key.replace(" ", "-"), default))
+    return RAW_TO_LABEL.get(key, RAW_TO_LABEL.get(key.replace(" ", "-"), default))
 
 
 # ---------------------------------------------------------------- what a page file holds
@@ -380,7 +380,7 @@ class FileWord:
 
 
 class FileRegion:
-    """A region as a page file holds it: its Docling label (``label``, from its content role) and its producer's
+    """A region as a page file holds it: its region label (``label``, from its content role) and its producer's
     own (``raw_label``), polygon and box, detection confidence (``score``), heading level and rank in the reading
     order (``None``: not in it)."""
 
@@ -410,7 +410,7 @@ class FileLine:
 
 
 def file_label(t: Transcription, region_id: str) -> str:
-    """The Docling label a page file gives a region: its content role's (``Transcription.label``), and
+    """The region label a page file gives a region: its content role's (``Transcription.label``), and
     ``handwritten_text`` for running text classified as handwritten (the one label that carries a production)."""
     label = t.label(region_id)
     handwritten = t.classification(region_id, "production") == "handwritten"
@@ -486,7 +486,7 @@ def _by(annotators: list[Annotator], *steps: str) -> int:
 def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: list[Annotator], source: Source,
                   ground_truth: bool = False, language: str | None = None) -> Transcription:
     """The transcription a reader made of a page file: its regions, with a ``role`` classification of their
-    Docling label (``linecaster.data.policy.classify_label``) and a heading level, its lines with their readings,
+    region label (``linecaster.data.policy.classify_label``) and a heading level, its lines with their readings,
     and one reading order (regions with a rank in it, lines by rank, with their rows); ``language`` the page's
     ``language`` classification.
 
