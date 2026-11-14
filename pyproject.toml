@@ -20,6 +20,9 @@ dependencies = [
     "regex>=2024.11.6",
     # XML: ALTO, PAGE-XML, hOCR, METS/MODS manifests (linecaster.formats)
     "lxml>=5",
+    # CSS selectors on HTML and XML documents: conventions' tree matches and style sheets (linecaster.markup,
+    # linecaster.formats.html); pure Python
+    "cssselect>=1.2",
     "numpy>=2",
     "Pillow>=11",
     # http(s):// images, manifests and OCR files (linecaster.net.http): httpx with HTTP/2 (h2)
@@ -50,8 +53,11 @@ ray = ["ray[default]>=2.40"]
 nvimgcodec = ["nvidia-nvimgcodec-cu13[nvjpeg,nvjpeg2k,nvtiff]>=0.10,<0.11"]
 # PDF files as items, their pages rendered to images (linecaster.blocks.readers.pdf.PdfReader): PDFium's bindings
 pypdfium2 = ["pypdfium2>=4.30"]
-# scoring against ground truths (linecaster.scoring): the codepoint alignment's edit operations
+# scoring against ground truths (linecaster.scoring): the codepoint alignment's edit operations; importers' anchors
+# into their source text (linecaster.markup.anchors)
 rapidfuzz = ["rapidfuzz>=3.9"]
+# conventions of JSON formats: JSONPath queries, RFC 9535 (linecaster.markup.JsonMatcher)
+jsonpath-rfc9535 = ["jsonpath-rfc9535>=2.0"]
 
 [project.scripts]
 linecaster = "linecaster.cli:main"
