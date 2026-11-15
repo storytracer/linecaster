@@ -8,6 +8,7 @@ measurements: linecaster's catalog holds no evidence records.
 from __future__ import annotations
 
 import shutil
+import unicodedata
 from pathlib import Path
 
 from ..docs.common import GITHUB, HEADER, Links, table
@@ -209,11 +210,20 @@ def policy_page(c: Catalog, pid: str) -> str:
     return "\n".join(lines)
 
 
+def _chars(s: str) -> str:
+    """Characters as shown in a page: as code where each is visible on its own (a letter, digit, punctuation or
+    symbol), else as code points (a combining mark, a format character, a space: ``U+0640``)."""
+    if s and all(unicodedata.category(c)[0] in "LNPS" for c in s):
+        return f"`{s}`"
+    return " ".join(f"U+{ord(c):04X}" for c in s) or "nothing"
+
+
 def _rule(rule: dict) -> str:
     """A normalization's rule, in a line."""
     (kind, value), = rule.items()
     if kind == "map":
-        shown = ", ".join(f"`{k}` → `{v}`" if v else f"`{k!r}` removed" for k, v in list(value.items())[:12])
+        shown = ", ".join(f"{_chars(k)} → {_chars(v)}" if v else f"{_chars(k)} removed"
+                          for k, v in list(value.items())[:12])
         return f"map: {shown}" + (" …" if len(value) > 12 else "")
     if kind == "patterns":
         return f"{len(value)} pattern{'s' if len(value) != 1 else ''}: " + ", ".join(
