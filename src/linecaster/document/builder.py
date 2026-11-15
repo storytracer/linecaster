@@ -33,6 +33,8 @@ across pages (``Block.section``); blocks before the first stay outside.
 """
 from __future__ import annotations
 
+from difflib import SequenceMatcher
+
 from ..data.geometry import BBox
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.refs import parse
@@ -316,7 +318,8 @@ def paragraph_box(row, lines_by_id: dict[str, Line]) -> BBox | None:
 def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
     """A region's text, one visual row per line (``region_rows``' text: lines on a row joined with a space, rows
     with ``\\n``), and its lines' formatting, languages and inline formulas (``Transcription.formulas`` on a span of a
-    line) as spans of it (a line whose text as written differs in length from its reading keeps none)."""
+    line) as spans of it; where a line's text as written differs from its reading (an edit of the whole line, as a
+    word joined across pages), the spans move with the text they cover (``_moved``), a span on removed text goes."""
     rows = t.rows()
     grouped: dict[int, list[Line]] = {}
     for ln in lines:
@@ -341,21 +344,42 @@ def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
             if not x:
                 continue
             at = len(text) + (1 if row_texts else 0) + sum(len(s) + 1 for s in parts)
-            same = ln.reading is not None and len(ln.reading.text) == len(x)
-            for f in (ln.reading.formatting if same else []):
-                a, e = f.charspan or (0, len(x))
+            move = _moved(ln.reading.text if ln.reading is not None else x, x)
+            for f in (ln.reading.formatting if ln.reading is not None else []):
+                a, e = move(*(f.charspan or (0, len(ln.reading.text))))
                 if e > a and (f.bold or f.italic or f.underline or f.strikethrough or f.script != "baseline"):
                     spans.append(Span(start=at + a, end=at + e, bold=f.bold, italic=f.italic, underline=f.underline,
                                       strikethrough=f.strikethrough, script=f.script))
-            for a, e, lang in (languages.get(ln.id, []) if same else []):
-                spans.append(Span(start=at + a, end=at + e, language=lang))
-            for a, e in (formulas.get(ln.id, []) if same else []):
-                spans.append(Span(start=at + a, end=at + e, formula=True))
+            for a, e, lang in languages.get(ln.id, []):
+                a, e = move(a, e)
+                if e > a:
+                    spans.append(Span(start=at + a, end=at + e, language=lang))
+            for a, e in formulas.get(ln.id, []):
+                a, e = move(a, e)
+                if e > a:
+                    spans.append(Span(start=at + a, end=at + e, formula=True))
             parts.append(x)
         row = " ".join(parts)                  # a row of empty lines stays, as an empty row
         text += ("\n" if row_texts else "") + row
         row_texts.append(row)
     return text, spans
+
+
+def _moved(old: str, new: str):
+    """A function moving a span ``[start, end)`` of ``old`` onto ``new`` (another form of the same text): through
+    the parts both share unchanged; a span's start in a changed part goes to that part's start, its end to its end
+    (a span on a half that became the whole word covers the word; one on removed text is empty)."""
+    if old == new:
+        return lambda a, e: (a, e)
+    ops = SequenceMatcher(None, old, new, autojunk=False).get_opcodes()
+
+    def at(pos: int, end: bool) -> int:
+        for tag, i1, i2, j1, j2 in (reversed(ops) if end else ops):
+            if i1 <= pos <= i2:
+                return j1 + pos - i1 if tag == "equal" else (j2 if end else j1)
+        return len(new)
+
+    return lambda a, e: (at(a, False), at(e, True))
 
 
 def _continue_grid(grid: Grid, more: Grid, in_cell: bool) -> None:

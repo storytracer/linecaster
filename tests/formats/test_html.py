@@ -134,6 +134,23 @@ def test_a_table_cell_knows_its_formulas():
     assert to_markdown(build_document(one, policy=policy), rules=rules) == "Cost $x$ at \\$5"
 
 
+def test_a_line_edited_whole_keeps_its_spans():
+    """A ``joined`` edit of a whole line (a word joined across pages: its first half left out, its second written
+    whole) moves the line's formatting and formulas with their text; a span on removed text goes."""
+    from linecaster.data.transcription import Edit
+    from linecaster.document import build_document
+
+    t = read('<html><body><p>The <i>food</i> <math alttext="{\\displaystyle x}"></math> <i>de-</i></p>'
+             '</body></html>').transcription
+    ln = t.lines[0]
+    assert ln.reading.text == "The food $x$ de-"
+    t.edits.append(Edit(annotator=0, target=ln.id, kind="joined", text="The food $x$"))
+    para = next(b for b in build_document(t).blocks if b.kind == "paragraph")
+    assert para.text == "The food $x$"
+    assert [(para.text[s.start:s.end], s.italic, s.formula) for s in para.spans] == \
+        [("food", True, False), ("$x$", False, True)]
+
+
 def test_a_dollar_in_a_block_without_formulas_is_escaped_by_the_rule():
     from linecaster.data.policy import MarkdownRules
     from linecaster.document import build_document, to_markdown
