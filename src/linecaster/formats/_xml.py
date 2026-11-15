@@ -23,6 +23,7 @@ from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Edit, Line, Reading, Region, Source, Transcription, Word
+from ..data.writing import language_tag
 
 EXT_KEY = "linecaster"
 
@@ -535,8 +536,9 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
         lidx = {ln.id: i for i, ln in enumerate(lines)}
         by_rank = sorted(lines, key=lambda ln: (ln.reading_order, lidx[ln.id]))
         t.add_order(order_by, [r.id for r in ordered], [ln.id for ln in by_rank], [ln.row for ln in by_rank])
-    if language:
-        t.classify(reading_by, "", "language", language)
+    tag = language_tag(language)
+    if tag:
+        t.classify(reading_by, "", "language", tag)
     return t
 
 

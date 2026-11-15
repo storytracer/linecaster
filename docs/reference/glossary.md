@@ -96,6 +96,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **match** | Where a convention's rule points, by its format family's standard (its **match kind**): a CSS selector on an HTML or XML tree (`tree`), a JSONPath on JSON (`json`), a regular expression on text (`text`). | |
 | **decision** | What a convention's rule says the matched thing is, format-neutral and in the data model's vocabulary (`remove` with a reason, `block` of a role, `note`, `edit`, `cell`, ...); each importer applies the decisions it understands. | not a recomposition `Decision` (a paragraph's join) |
 | **coverage** | What an importer's conventions handled on a page: matches per rule, and what no rule matched (an element's classes), in the importer annotator's measurements. | |
+| **writing direction** | The direction a page or block is written in (`direction` scheme): `horizontal-lr`, `horizontal-rl` (right to left), `vertical-rl` (columns read right to left), `vertical-lr` (columns read left to right). | not a text's reading order |
 | **script** | A writing system, named by its ISO 15924 code (`Latn`, `Hebr`, `Arab`): Unicode's `Script` property. A by-script engine routes each decision to the strategy for the script around it; `*` stands for every script. | not a pipeline script |
 | **model** | An upstream artifact with weights (or learned data such as hyphenation patterns), pinned by revision, with its upstream card copied verbatim. | not an engine, not a preset, not a VLM adapter |
 | **preset** | A named configuration of one engine for one step: engine id, options, capabilities, and the model it loads if any. Referred to by its `id`. | |
@@ -175,6 +176,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
 | **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
+| **tokenizer** | How the word metrics cut a lane's text into words (`linecaster.scoring.tokens`): `whitespace` (the default), `uax29` (Unicode's word boundaries) or `characters`, named by a benchmark (`words`). | not a model's tokenizer (tokens of a VLM) |
 | **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, the default, `reading`, `alnum`, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
 | **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |

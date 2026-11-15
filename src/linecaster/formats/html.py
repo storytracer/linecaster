@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from ..data.transcription import (
     Annotator, Cell as TableCell, Description, Edit as EditAnnotation, Formatting, Formula, Link, Table, Transcription,
 )
+from ..data.writing import language_tag
 from ..markup.apply import Conventions, Coverage
 from ..markup.decisions import (
     Block, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
@@ -583,8 +584,8 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                 if r.edit is not None:
                     t.edits.append(EditAnnotation(annotator=who, target=f"{lid}[{a}:{e}]", kind=r.edit[0],
                                                   text=r.edit[1]))
-                if r.language:
-                    t.classify(who, f"{lid}[{a}:{e}]", "language", r.language)
+                if language_tag(r.language):
+                    t.classify(who, f"{lid}[{a}:{e}]", "language", language_tag(r.language))
             if fmts:
                 ln.reading.formatting = fmts
             if b.status is None:

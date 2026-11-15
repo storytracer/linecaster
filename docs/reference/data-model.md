@@ -252,14 +252,24 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 | `role` | what the content is ([content roles](#content-roles)) | layout, typography, a grounding VLM, a ground truth |
 | `production` | how it was made: `printed`, `typewritten`, `handwritten`, `stamped`, `born_digital` | layout, a ground truth |
 | `heading_level` | `1`, `2`, ... (1 the highest below the title) | typography |
-| `language` | a BCP 47 tag, on the page (`""`), a zone or a span | recognition, a ground truth |
-| `script` | an ISO 15924 code | recognition |
+| `language` | a BCP 47 tag (well-formed), on the page (`""`), a zone, a word or a span | recognition, a ground truth, an importer |
+| `script` | an ISO 15924 code (`Latn`, `Arab`, `Jpan`), on the page, a zone, a word or a span | a ground truth, an importer |
+| `direction` | the writing direction: `horizontal-lr`, `horizontal-rl` (right to left), `vertical-rl` (columns, right to left: Chinese, Japanese, Korean set vertically), `vertical-lr` (columns, left to right: Mongolian) | a ground truth, an importer, a layout step |
 | `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, typography, an importer |
 | `picture_class` | what a picture shows (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
 | `code_language` | the programming language of a code region | a VLM |
 
 The annotator's own label is the region's `label`, not a classification; the mapping from it to a role is catalog
 data per engine (each engine's label map), applied by the annotator that made the region.
+
+**Writing systems.** `language`, `script` and `direction` are checked where they are made
+(`linecaster.data.writing`: a well-formed BCP 47 tag, a four-letter ISO 15924 code, one of the four directions) and
+read through what encloses a target: `Transcription.language(target)`, `.script(target)` and `.direction(target)`
+take the value recorded on a span or word, else on its line, else on the line's region and the regions it lies in,
+else on the page (`""`); `None` where nothing records one. A value is never guessed into a record: a source or a step
+records it, and `linecaster.text.scripts` infers a text's script (`dominant_script`, with ISO 15924's `Jpan` and
+`Kore` for the combinations) or direction (`first_strong_direction`, the Unicode bidirectional algorithm's paragraph
+level) where a caller asks.
 
 A `status` classification's `reason` says why something present in a source is no text of the page
 (`linecaster.data.REASONS`): `hidden` (not seen and taking no space), `invisible` (not seen but taking its space),

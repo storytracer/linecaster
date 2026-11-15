@@ -293,7 +293,8 @@ class Formula(Annotation):
 
 
 #: classification schemes
-SCHEMES = ("role", "production", "heading_level", "language", "script", "status", "picture_class", "code_language")
+SCHEMES = ("role", "production", "heading_level", "language", "script", "direction", "status", "picture_class",
+           "code_language")
 STATUSES = ("illegible", "gap", "suppressed", "duplicate", "removed")
 #: why something present in a source is not text of the page (a ``status`` classification's ``reason``)
 REASONS: dict[str, str] = {
@@ -494,13 +495,60 @@ class AnnotationSet(_Extensible):
         return o
 
     def classify(self, annotator: int, target: Ref, scheme: str, value: Any, **fields) -> Classification:
-        c = Classification(annotator=annotator, target=target, scheme=scheme, value=str(value), **fields)
+        """Adds a classification; a ``language``, ``script`` or ``direction`` that is none
+        (``linecaster.data.writing.check``) is a ``ValueError``."""
+        from .writing import check
+
+        c = Classification(annotator=annotator, target=target, scheme=scheme, value=check(scheme, str(value)),
+                           **fields)
         self.classifications.append(c)
         return c
 
     # ------------------------------------------------------------------ resolving
     def region(self, region_id: str) -> Region | None:
         return next((r for r in self.regions if r.id == region_id), None)
+
+    def written(self, target: Ref, scheme: str) -> str | None:
+        """A ``language``, ``script`` or ``direction`` of ``target`` as recorded on it or on what encloses it: a span
+        or a word of a line falls back to its line, a line to its region (``region_of``), a region to the regions it
+        lies in (``Zone.parent``), anything to the page (``""``). ``None`` where nothing records one: a value is never
+        guessed here (``linecaster.text.scripts`` infers one from a text)."""
+        from .refs import parse
+
+        seen = set()
+        while target not in seen:
+            seen.add(target)
+            value = self.classification(target, scheme)
+            if value is not None:
+                return value
+            if target == "":
+                return None
+            ref = parse(target)
+            if ref.page is not None:
+                return None
+            if ref.span is not None or ref.word is not None or ref.cell is not None:
+                target = ref.id
+                continue
+            ln = self.line(ref.id) if hasattr(self, "line") else None
+            if ln is not None:
+                target = self.region_of(ln) or ""
+                continue
+            r = self.region(ref.id)
+            target = r.parent if r is not None and r.parent else ""
+        return None
+
+    def language(self, target: Ref = "") -> str | None:
+        """The language (BCP 47) recorded on ``target`` or what encloses it (``written``)."""
+        return self.written(target, "language")
+
+    def script(self, target: Ref = "") -> str | None:
+        """The script (ISO 15924) recorded on ``target`` or what encloses it (``written``)."""
+        return self.written(target, "script")
+
+    def direction(self, target: Ref = "") -> str | None:
+        """The writing direction (``linecaster.data.writing.DIRECTIONS``) recorded on ``target`` or what encloses it
+        (``written``)."""
+        return self.written(target, "direction")
 
     def classifications_of(self, target: Ref, scheme: str) -> list[Classification]:
         return [c for c in self.classifications if c.target == target and c.scheme == scheme]
