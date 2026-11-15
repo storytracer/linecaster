@@ -445,9 +445,9 @@ policy put it in, its `text` (literal: the readings as read, rows separated by `
 edits over `spans` of it (an edit span: `edit`, `edit_text`), its `language` and `direction` where they are not
 the document's, the `section` it is in (the heading block that opens it, with sections), and an `Origin` per piece:
 the page, the region and lines it comes from, its box on the page image (clamped to the page; none without geometry)
-and the characters of the block's text it gives. The document's `language` and `direction` are its pages' where every page records the
-same one; like a block's, they are only what the transcriptions record (`Transcription.language`, `.direction`),
-never inferred, and absent from the JSON where nothing records one.
+and the characters of the block's text it gives. The document's `language` and `direction` are its pages' where
+every page records the same one; like a block's, they are only what the transcriptions record
+(`Transcription.language`, `.direction`), never inferred, and absent from the JSON where nothing records one.
 
 `DocumentBuilder` makes it ([composition](#steps-and-what-they-add)), literal (`strategy: literal`): one block per
 region as laid out (one row per visual row: lines share a row when the order says so and their boxes overlap), or
