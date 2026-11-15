@@ -366,7 +366,10 @@ class _Walk:
                 self.as_block(el, d, fmt, case, part, attrs, by_rule=False)
             case Cell(role=role):                     # the cells under one parent: one row of cells
                 self.flush()
-                self.blocks.append(TextBlock(role=role or ("footer" if part == "footer" else "header"),
+                if role is None:                      # furniture where it stands: the header's, the footer's, the
+                    role = ("footer" if part == "footer" else  # body's top; in the body below text or a picture
+                            "paragraph" if part == "body" and self._body_printed() else "header")   # (a caption)
+                self.blocks.append(TextBlock(role=role,
                                              runs=self.content(el, fmt, case, part), part=part,
                                              group=id(el.getparent())))
             case Picture():
@@ -432,6 +435,11 @@ class _Walk:
         runs = self.content(el, fmt, case, part)
         if "".join(r.text for r in runs).strip():
             self.block(part).notes.append(TextBlock(role=role, runs=runs, part=part))
+
+    def _body_printed(self) -> bool:
+        """Whether the body has printed something yet, furniture aside: a picture, or a block with text."""
+        return any(b.part == "body" and b.role not in ("header", "footer")
+                   and (b.role == "picture" or any(r.text.strip() for r in b.runs)) for b in self.blocks)
 
     def picture(self, el, d: Picture, part):
         src = el.get(d.attr) or next((e.get(d.attr) for e in el.iterdescendants() if isinstance(e.tag, str)

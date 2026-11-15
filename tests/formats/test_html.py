@@ -115,3 +115,18 @@ def test_a_dollar_in_a_block_without_formulas_is_escaped_by_the_rule():
 
     doc = build_document(read("<html><body><p>Wages, $3.40; plumbers, $4.</p></body></html>").transcription)
     assert to_markdown(doc, rules=MarkdownRules(escape_dollar=True)) == "Wages, \\$3.40; plumbers, \\$4."
+
+
+def test_a_running_head_below_the_bodys_text_is_body_text():
+    """A row of cells without a role is the running head at the top of the body, but below a picture or text it is
+    body text (a plate's caption set with the running head's template)."""
+    rules = resolve("cells@1", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "cells", "edition": 1, "format": "html",
+         "description": "rows of cells", "rules": [
+             {"id": "cells", "match": {"kind": "tree", "css": ".rh > .cell"}, "decision": "cell",
+              "why": "a running head's cells"}]}))
+    row = '<div class="rh"><span class="cell">Drawn by A.</span><span class="cell">ROSA.</span></div>'
+    top = read(f"<html><body>{row}<p>Text.</p></body></html>", rules).transcription
+    plate = read(f'<html><body><figure><img src="File:Rosa.png"></figure>{row}</body></html>', rules).transcription
+    assert [top.role(r.id) for r in top.regions][:3] == ["header", "header", "header"]
+    assert [plate.role(r.id) for r in plate.regions] == ["picture", "paragraph", "paragraph", "paragraph"]

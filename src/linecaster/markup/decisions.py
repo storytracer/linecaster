@@ -77,7 +77,8 @@ class Block(Decision):
 class Cell(Decision):
     """A cell of a row of cells printed as one line (a running head: left, centre, right): the cells under one
     parent make one region of ``role``, each cell a region of its own inside it. Without a role: the furniture role
-    of the part it stands in (``header`` in the page's header, ``footer`` in its footer, else ``header``)."""
+    of the part it stands in (``header`` in the page's header, ``footer`` in its footer, ``header`` at the top of the
+    body), or, in the body below text or a picture, ``paragraph`` (a plate's caption set as a running head)."""
 
     name: ClassVar[str] = "cell"
     role: str | None = None
