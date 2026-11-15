@@ -6,6 +6,15 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Changed
+
+- **The default lane is `diplomatic`** (`DEFAULT_LANE`; was `alnum`): NFC and whitespace only, the comparison with the
+  fewest assumptions (two encodings of the same text, and a text in printed lines against one in paragraphs, compare
+  equal; case, punctuation, ſ, ligatures, diacritics and markup count). Every other lane adds decisions: `reading`
+  folds case, ſ, ligatures, quotes and dashes; `alnum` also drops punctuation. A patch by the maintainer's decision.
+  *Who:* a benchmark that names no lanes, and code calling `score_page`, `words` or `role_words` without a lane.
+  *What to do:* name `lanes: [alnum]` (or pass `lane="alnum"`) to keep the old numbers.
+
 ### Changed outputs
 
 - **`chandra-ocr-2`**: the adapter reads the model's layout HTML (`<div data-bbox data-label>` blocks) with

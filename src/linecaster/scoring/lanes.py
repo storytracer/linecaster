@@ -1,6 +1,7 @@
 """Lanes: the comparison strategies both sides of a scored text go through before it is counted (catalog strategies
 with ``use: comparison``, made of the same normalizations a written text may use; ``linecaster.catalog``,
-``Catalog.strategy``). A lane is named by its strategy's id: ``alnum`` (the default), ``reading``, ``diplomatic``,
+``Catalog.strategy``). A lane is named by its strategy's id: ``diplomatic`` (the default: NFC and whitespace only,
+the fewest assumptions that make two encodings and line layouts of the same text equal), ``reading``, ``alnum``,
 ``alnum-nonmark``, ``ascii-alnum``, or normalizations joined by ``+``. The release versions them, as every catalog
 entry; a score names each lane with its hash.
 
@@ -35,7 +36,9 @@ MARKUP = tuple(_MARKUP)
 LEGACY = {"diplomatic@1": "diplomatic", "reading@1": "reading", "alnum@1": "alnum-nonmark", "alnum@2": "alnum",
           "ascii-alnum@1": "ascii-alnum"}
 #: the lane scored when a benchmark or a call names none
-DEFAULT_LANE = "alnum"
+#: the lane a benchmark that names none is scored in, and the one word counts follow by default: the comparison with
+#: the fewest assumptions (0.10.0 and 0.10.1: ``alnum``)
+DEFAULT_LANE = "diplomatic"
 _CACHE: dict = {}
 
 

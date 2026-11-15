@@ -192,7 +192,7 @@ a strategy names it: dividing words, dehyphenating, modernizing letter forms are
 `Catalog.strategy(ref)` resolves `literal`, a strategy's id, or an unnamed strategy: normalizations and strategies
 joined by `+` (`latin-historic+unicode-marks+flow`), each strategy its normalizations. The catalog ships
 `latin-historic` (`nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`) for output and the lanes `diplomatic`,
-`reading`, `alnum` (the default lane), `alnum-nonmark` and `ascii-alnum` for comparison
+`reading`, `alnum`, `alnum-nonmark` and `ascii-alnum` for comparison, `diplomatic` the default lane
 ([evaluation](evaluation.md)).
 
 ## Measurements live elsewhere

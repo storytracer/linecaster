@@ -44,7 +44,7 @@ def test_the_default_lane_and_the_lane_names_from_before_0_10():
     from linecaster.catalog.registry import EditionWarning
     from linecaster.scoring import DEFAULT_LANE, lane
 
-    assert DEFAULT_LANE == "alnum" == lane("alnum")
+    assert DEFAULT_LANE == "diplomatic" == lane("diplomatic")
     for old, new in (("alnum@2", "alnum"), ("alnum@1", "alnum-nonmark"), ("reading@1", "reading"),
                      ("diplomatic@1", "diplomatic"), ("ascii-alnum@1", "ascii-alnum")):
         with pytest.warns(EditionWarning, match=old):
@@ -128,8 +128,9 @@ def test_confusion_without_boxes_is_empty_and_unmatched_regions_count_against_no
     assert confusion(t, Transcription()) == [{"role_true": "paragraph", "role_output": "none", "count": 1}]
 
 
-def test_words_drop_punctuation_case_and_illegible_words():
-    assert words("The ship, the SHIP; sh�p.") == {"the": 2, "ship": 2}
+def test_words_drop_punctuation_and_illegible_words_and_follow_the_lane():
+    assert words("The ship, the SHIP; sh�p.", "alnum") == {"the": 2, "ship": 2}         # alnum folds case
+    assert words("The ship, the SHIP; sh�p.") == {"The": 1, "ship": 1, "the": 1, "SHIP": 1}   # diplomatic keeps it
 
 
 def test_corpus_rates_pool_the_counts_and_the_bootstrap_is_deterministic():
