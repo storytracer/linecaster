@@ -1155,7 +1155,9 @@ output is compared with what is printed. Its <code>illegible</code> spans become
 <h2 id="lanes">Lanes<a class="headerlink" href="#lanes" title="Permanent link">&para;</a></h2>
 <p>A <strong>lane</strong> is a comparison strategy (a catalog <code>strategy</code> with <code>use: comparison</code>, <a href="../catalog/#strategy-strategiesidyaml">catalog</a>):
 normalizations both sides go through before they are counted, named by id and recorded with its hash. A benchmark
-that names no lanes is scored in <code>alnum</code> (<code>DEFAULT_LANE</code>).</p>
+that names no lanes is scored in <code>diplomatic</code> (<code>DEFAULT_LANE</code>): the comparison with the fewest assumptions, NFC and
+whitespace only (so that two encodings of the same text, and a text written in printed lines against one written in
+paragraphs, are equal), case, punctuation, ſ, ligatures, diacritics and markup kept; every other lane adds decisions.</p>
 <table>
 <thead>
 <tr>
@@ -1165,7 +1167,7 @@ that names no lanes is scored in <code>alnum</code> (<code>DEFAULT_LANE</code>).
 </thead>
 <tbody>
 <tr>
-<td><code>diplomatic</code></td>
+<td><code>diplomatic</code> (default)</td>
 <td>NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept</td>
 </tr>
 <tr>
@@ -1173,7 +1175,7 @@ that names no lanes is scored in <code>alnum</code> (<code>DEFAULT_LANE</code>).
 <td>markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters <code>` * \| ~ { } $ \</code>); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's</td>
 </tr>
 <tr>
-<td><code>alnum</code> (default)</td>
+<td><code>alnum</code></td>
 <td>markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space</td>
 </tr>
 <tr>

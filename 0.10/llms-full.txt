@@ -309,7 +309,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.10.1`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.10.2`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -534,7 +534,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
 | **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
-| **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, `reading`, `alnum`, the default, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
+| **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, the default, `reading`, `alnum`, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
 | **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |
 
@@ -2743,7 +2743,7 @@ a strategy names it: dividing words, dehyphenating, modernizing letter forms are
 `Catalog.strategy(ref)` resolves `literal`, a strategy's id, or an unnamed strategy: normalizations and strategies
 joined by `+` (`latin-historic+unicode-marks+flow`), each strategy its normalizations. The catalog ships
 `latin-historic` (`nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`) for output and the lanes `diplomatic`,
-`reading`, `alnum` (the default lane), `alnum-nonmark` and `ascii-alnum` for comparison
+`reading`, `alnum`, `alnum-nonmark` and `ascii-alnum` for comparison, `diplomatic` the default lane
 ([evaluation](evaluation.md)).
 
 ## Measurements live elsewhere
@@ -3505,13 +3505,15 @@ output is compared with what is printed. Its `illegible` spans become U+FFFD, on
 
 A **lane** is a comparison strategy (a catalog `strategy` with `use: comparison`, [catalog](catalog.md#strategy-strategiesidyaml)):
 normalizations both sides go through before they are counted, named by id and recorded with its hash. A benchmark
-that names no lanes is scored in `alnum` (`DEFAULT_LANE`).
+that names no lanes is scored in `diplomatic` (`DEFAULT_LANE`): the comparison with the fewest assumptions, NFC and
+whitespace only (so that two encodings of the same text, and a text written in printed lines against one written in
+paragraphs, are equal), case, punctuation, ſ, ligatures, diacritics and markup kept; every other lane adds decisions.
 
 | Lane | Normalizations |
 |---|---|
-| `diplomatic` | NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
+| `diplomatic` (default) | NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
 | `reading` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
-| `alnum` (default) | markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
+| `alnum` | markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
 | `alnum-nonmark` | NFC; casefolded; only letters and digits kept (0.9's `alnum@1`) |
 | `ascii-alnum` | HTML tags removed; lowercased; only the ASCII letters and digits kept (accented letters, ſ and ligatures separate words) |
 
