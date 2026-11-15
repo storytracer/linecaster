@@ -169,8 +169,8 @@ def _md_specials(s: str, rules: MarkdownRules, dollar: bool) -> str:
 
 
 def _md_escape(s: str, rules: MarkdownRules) -> str:
-    """Markdown's specials escaped in text whose formulas are not known (no formula spans: a table cell, a document
-    built before them), except inside what reads as an inline formula (``$…$``), whose TeX stays as it is."""
+    """Markdown's specials escaped in text whose formulas are not known (a table cell's: no formula spans), except
+    inside what reads as an inline formula (``$…$``), whose TeX stays as it is."""
     if not rules.escape:
         return s
     return "".join(_md_specials(p, rules, False) if k % 2 == 0 else p
@@ -179,14 +179,8 @@ def _md_escape(s: str, rules: MarkdownRules) -> str:
 
 def _md_inline(b: Block, rules: MarkdownRules) -> str:
     out = []
-    known = any(s.formula for s in b.spans)             # the block's formulas are known by their spans
-    for piece, fmt, _lang in _segments(b.text, b.spans):
-        if "formula" in fmt:
-            s = piece
-        elif known:
-            s = _md_specials(piece, rules, True)
-        else:
-            s = _md_escape(piece, rules)
+    for piece, fmt, _lang in _segments(b.text, b.spans):          # a block's formulas are its formula spans
+        s = piece if "formula" in fmt else _md_specials(piece, rules, True)
         core = s.strip()
         if not core:
             out.append(s)

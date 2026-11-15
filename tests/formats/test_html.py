@@ -106,3 +106,12 @@ def test_markdown_knows_formulas_by_their_spans():
     dialect = MarkdownRules(escape=False, escape_dollar=True, line_break="spaces", formula_display="$")
     assert to_markdown(doc, rules=dialect) == "Another \\$50,000 for $v_{1}$ and \\$5.  \nA new line."
     assert to_markdown(doc) == "Another $50,000 for $v_{1}$ and $5.\\\nA new line."
+
+
+
+def test_a_dollar_in_a_block_without_formulas_is_escaped_by_the_rule():
+    from linecaster.data.policy import MarkdownRules
+    from linecaster.document import build_document, to_markdown
+
+    doc = build_document(read("<html><body><p>Wages, $3.40; plumbers, $4.</p></body></html>").transcription)
+    assert to_markdown(doc, rules=MarkdownRules(escape_dollar=True)) == "Wages, \\$3.40; plumbers, \\$4."
