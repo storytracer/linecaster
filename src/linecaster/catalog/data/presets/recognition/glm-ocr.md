@@ -6,6 +6,6 @@ GLM-OCR, following the model card and the uv-scripts recipe `glm-ocr.py`.
 - Temperature 0.01, top_p 1e-05, repetition_penalty 1.1 (the authors' SDK values, via the recipe), max_tokens
   8192 (card).
 - Serve flags: `--max-model-len 32768`, no prefix caching, no multimodal processor cache, one image per prompt;
-  no `--trust-remote-code` (the architecture is in vLLM). vLLM 0.26.0, a release, where the card uses a nightly
+  no `--trust-remote-code` (the architecture is in vLLM). linecaster's vLLM (validated on 0.26.0), a release, where the card uses a nightly
   (linecaster's choice).
 - The completion is stored verbatim.

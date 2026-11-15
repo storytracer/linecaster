@@ -348,3 +348,12 @@ def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
     assert install_hint("recomposition.unicode.v1") == "" and install_hint("nowhere.recognition.v1") == ""
     script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_modular.py"
     assert {"linecaster", "linecaster-paddlex", "linecaster-tesseract"} == set(script_dependencies(script))
+
+
+def test_a_vllm_preset_without_a_version_runs_on_linecaster_s_vllm():
+    from linecaster.catalog.schema import VLLM_VERSION, Serve
+    s = Serve(server="vllm")
+    assert (s.version, s.image) == (VLLM_VERSION, f"vllm/vllm-openai:v{VLLM_VERSION}")
+    assert Serve(server="vllm", version="0.26.0").image == "vllm/vllm-openai:v0.26.0"      # a named release
+    assert Serve(server="vllm", version="0.32.1rc1.dev602+g5d35ce393").image is None       # a build: no image
+    assert Serve(server="sglang").version is None                                          # only vLLM has a pin

@@ -57,7 +57,8 @@ def test_serve_command_installs_the_plugin_before_vllm(tmp_path):
     assert f"revision='{REV}'" in script and "inference.constraints.txt" in script
     assert "grep -v '^nemotron-parse=='" in script
     assert 'uv pip install --system --python "$PY" --constraint /tmp/np-constraints.txt /tmp/np' in script
-    assert "assert vllm.__version__ == '0.26.0'" in script
+    from linecaster.catalog.schema import VLLM_VERSION
+    assert f"assert vllm.__version__ == '{VLLM_VERSION}'" in script                  # linecaster's vLLM
     assert script.splitlines()[-1].startswith(f"exec vllm serve {MODEL} --host 127.0.0.1 --port 8123 --revision {REV}")
     assert subprocess.run(["bash", "-n", "-c", script]).returncode == 0
     # the interpreter is read from the server command's shebang

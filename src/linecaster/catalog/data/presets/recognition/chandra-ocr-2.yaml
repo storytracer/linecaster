@@ -61,8 +61,6 @@ settings:
     grid: 28
 serve:
   server: vllm
-  version: 0.26.0
-  image: vllm/vllm-openai:v0.26.0
   flags:
   - --max-model-len
   - '20480'

@@ -8,6 +8,5 @@ checkpoint).
   server-side (`--default-chat-template-kwargs`).
 - Serve flags: `--max-model-len 16384` (linecaster's choice; a 2048-px page is at most 4096 image tokens), one
   image and no video per prompt, no multimodal processor cache, no prefix caching; no `--trust-remote-code`.
-- vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
-  `vllm/vllm-openai:v0.30.0`.
+- linecaster's vLLM, 0.30.0 or later: LightOn's repository says 0.27.1 makes these models loop.
 - The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Experimental.

@@ -4,6 +4,25 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- **One vLLM for every preset: linecaster's, 0.30.0** (`linecaster.catalog.schema.VLLM_VERSION`). A vLLM `serve`
+  block that names no `version` runs on it, and its `image` defaults to that release's `vllm/vllm-openai` image. Every
+  preset's own vLLM version and image are gone (0.26.0 for most, 0.25.1 for Surya OCR 2.5, a 0.32.1rc1 nightly in
+  its own image for MiniCPM-OCR 1.0); a preset names another version only where linecaster's fails it. Each preset's
+  page records the version it was validated on. By the maintainer's decision.
+  *Who:* anyone running a vLLM preset, on HF Jobs (the image) or with a pinned server environment.
+  *What to do:* run vLLM 0.30.0; to reproduce a run on an earlier version, name it in the preset's `serve`.
+
+### Changed outputs
+
+- Presets (the resolved `serve.version` and `serve.image`): chandra-ocr-2, deepseek-ocr, deepseek-ocr-2, dots-mocr,
+  dots-ocr, glm-ocr, lightonocr-2-1b, lightonocr-2-1b-regions, minicpm-ocr-1.0, nemotron-3.5-parse,
+  olmocr-2-7b-1025-fp8, ovisocr2, ovisocr3, paddleocr-vl-1.6, qianfan-ocr, qwen3.5-9b, smoldocling-256m-preview,
+  surya-ocr-2.5, unlimited-ocr. The LightOnOCR-3 presets already ran on 0.30.0.
+
 ## 0.10.2 (2026-11-15)
 
 ### Changed

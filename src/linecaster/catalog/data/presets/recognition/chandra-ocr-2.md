@@ -11,7 +11,7 @@ with the `ocr_layout` prompt of the CLI. Where linecaster departs from the clien
 - Serve flags: `--max-model-len 20480` (linecaster's choice, where the vendor's launcher has 18000: 6144 visual
   tokens at the cap + 12384 + the prompt do not fit in 18000), the vendor's `--mm-processor-kwargs` pixel bounds
   and `--dtype bfloat16`, one image and no video per prompt, no multimodal processor cache, no prefix caching; no
-  `--trust-remote-code`. vLLM 0.26.0 (linecaster's choice; the vendor's launcher pins 0.17.0).
+  `--trust-remote-code`. linecaster's vLLM (validated on 0.26.0; the vendor's launcher pins 0.17.0).
 - The model answers with HTML layout blocks (`<div data-bbox=.. data-label=..>`), stored verbatim; converting them
   to Markdown (the vendor's `parse_markdown`) is left to whoever reads the output. `--gpu-memory-utilization` is
   the deployment's choice.

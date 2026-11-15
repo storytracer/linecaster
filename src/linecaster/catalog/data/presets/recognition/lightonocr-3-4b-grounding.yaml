@@ -21,8 +21,6 @@ settings:
   page_longest: 2048
 serve:
   server: vllm
-  version: 0.30.0
-  image: vllm/vllm-openai:v0.30.0
   flags:
   - --max-model-len
   - '16384'

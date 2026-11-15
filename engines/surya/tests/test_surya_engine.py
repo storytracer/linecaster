@@ -15,7 +15,7 @@ def test_the_preset_serves_with_the_package_s_flags():
     """The preset's vLLM flags are the ones the installed package's own launcher passes for its gpu_type."""
     preset = yaml.safe_load(PRESET.read_text())
     assert preset["serve"]["flags"] == package_flags(preset["options"]["gpu_type"])
-    assert preset["serve"]["version"] == "0.25.1" and preset["serve"]["image"].startswith("vllm/vllm-openai:v0.25.1@")
+    assert "version" not in preset["serve"] and "image" not in preset["serve"]        # linecaster's vLLM
 
 
 def _block(html, error=False, label="Text"):

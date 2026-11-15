@@ -126,7 +126,7 @@ are written by `linecaster catalog pin`.
 | `settings` | prompts, sampling and other request settings (chat presets; `repair`: the repair pass's `max_tokens`, 0 for off, and `temperature`) |
 | `labels` | native layout label → region label, from which the layout step classifies each region's content role (the native label stays the region's `label`); unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id` of the same step, and `"*"` → the default for every other script (required) |
-| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
+| `serve` | the server it runs on: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version` (vLLM: linecaster's, `VLLM_VERSION`, 0.30.0, unless the preset names another), `image` (for HF Jobs; vLLM: that release's `vllm/vllm-openai` image unless named), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |

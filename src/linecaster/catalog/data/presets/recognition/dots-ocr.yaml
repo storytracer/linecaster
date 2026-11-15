@@ -15,8 +15,6 @@ settings:
   prompt: Extract the text content from this image.
 serve:
   server: vllm
-  version: 0.26.0
-  image: vllm/vllm-openai:v0.26.0
   flags:
   - --max-model-len
   - '32768'

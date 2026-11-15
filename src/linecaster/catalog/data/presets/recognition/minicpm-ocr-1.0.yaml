@@ -124,8 +124,6 @@ settings:
   region_pad: 0
 serve:
   server: vllm
-  version: 0.32.1rc1.dev602+g5d35ce393
-  image: cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3
   flags:
   - --max-model-len
   - '40960'

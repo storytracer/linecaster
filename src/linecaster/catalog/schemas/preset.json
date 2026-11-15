@@ -90,7 +90,7 @@
     },
     "Serve": {
       "additionalProperties": false,
-      "description": "The server a served preset was validated with: a chat server, ``linecaster serve``, or the service a page\nengine talks to (vLLM for an engine package that attaches to it, a vendor's own image entrypoint).",
+      "description": "The server a served preset runs on: a chat server, ``linecaster serve``, or the service a page engine talks to\n(vLLM for an engine package that attaches to it, a vendor's own image entrypoint). vLLM's version defaults to\nlinecaster's (``VLLM_VERSION``), its image to that release's ``vllm/vllm-openai`` image.",
       "properties": {
         "server": {
           "enum": [
@@ -112,6 +112,7 @@
             }
           ],
           "default": null,
+          "description": "the server's release; vLLM: linecaster's (0.30.0) unless the preset names another",
           "title": "Version"
         },
         "image": {
@@ -124,7 +125,7 @@
             }
           ],
           "default": null,
-          "description": "container image with digest, for HF Jobs",
+          "description": "container image, for HF Jobs; vLLM: the release's vllm/vllm-openai image unless the preset names another",
           "title": "Image"
         },
         "flags": {

@@ -147,13 +147,23 @@ class ModelRef(_Doc):
     revision: str
 
 
+#: the vLLM release linecaster runs its presets on: a vLLM preset that names no ``serve.version`` gets it (a preset
+#: names another version only where this one fails it)
+VLLM_VERSION = "0.30.0"
+#: a vLLM release's image, for a preset that names no ``serve.image``
+VLLM_IMAGE = "vllm/vllm-openai:v{version}"
+
+
 class Serve(_Doc):
-    """The server a served preset was validated with: a chat server, ``linecaster serve``, or the service a page
-    engine talks to (vLLM for an engine package that attaches to it, a vendor's own image entrypoint)."""
+    """The server a served preset runs on: a chat server, ``linecaster serve``, or the service a page engine talks to
+    (vLLM for an engine package that attaches to it, a vendor's own image entrypoint). vLLM's version defaults to
+    linecaster's (``VLLM_VERSION``), its image to that release's ``vllm/vllm-openai`` image."""
 
     server: Literal["vllm", "sglang", "linecaster", "vendor"]
-    version: str | None = None
-    image: str | None = Field(None, description="container image with digest, for HF Jobs")
+    version: str | None = Field(None, description=f"the server's release; vLLM: linecaster's ({VLLM_VERSION}) "
+                                                  "unless the preset names another")
+    image: str | None = Field(None, description="container image, for HF Jobs; vLLM: the release's "
+                                                "vllm/vllm-openai image unless the preset names another")
     flags: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     revision_flag: bool = Field(True, description="pass --revision; false: the server loads the default branch, "
@@ -170,6 +180,14 @@ class Serve(_Doc):
                                                                 "service is ready, in order")
     weights_dir: str | None = Field(None, description="vendor: the folder the entrypoint reads the weights from; the "
                                                       "model pin is downloaded there first")
+
+    @model_validator(mode="after")
+    def _vllm_default(self):
+        if self.server == "vllm":
+            self.version = self.version or VLLM_VERSION
+            if self.image is None and re.fullmatch(r"\d+\.\d+\.\d+", self.version):
+                self.image = VLLM_IMAGE.format(version=self.version)
+        return self
 
 
 class Capabilities(_Doc):
