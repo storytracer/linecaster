@@ -245,6 +245,7 @@ def test_greek_monotonic():
         assert mono("ᾠδὴ τῷ Ῥόδῳ") == "ωδή τώ Ρόδω"  # no iota subscript; τῷ keeps an accent
         assert mono("ῒ ῗ ϊ ΐ") == "ΐ ΐ ϊ ΐ"                                              # the diaeresis stays
         assert mono("Ἀθῆναι") == "Αθήναι"
+        assert mono("ᾼ ᾈδης ᾯ ῼ") == "Α Αδης Ώ Ω"                                    # capitals with prosgegrammeni
         assert mono("\u03B1\u0313\u0301") == mono("\u1F04") == "ά"  # decomposed (nfc first) or composed
         assert mono("Η Ελλάδα ΐ") == "Η Ελλάδα ΐ"                                       # monotonic: unchanged
     assert catalog().strategy("greek-monotonic").text("ὰ") == "ά"
