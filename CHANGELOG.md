@@ -61,14 +61,18 @@ extra. The decisions are in NOTES.md (2026-11-14).
 
 - **`linecaster.document`**: a page's or an item's document, its model (`Document`, `Block`, `Origin`, `Span`,
   `Grid`, `Page`), its builder (`DocumentBuilder`, `build_document`, `block_kind`) and its serializers (HTML,
-  Markdown, text, JSON). A block keeps what the Docling document lost: formatting and languages as spans, a
-  picture's image (`file`), the region of every origin. A text region that continues another (its `continues` link,
+  Markdown, text, JSON). A block keeps what the Docling document lost: formatting, languages and inline formulas
+  as spans (`Span.formula`), a picture's image (`file`), the region of every origin; a block's lines are hard line
+  breaks in Markdown. A table cell keeps its formulas too (`Cell.formulas` in the data model: their spans in the
+  cell's text, where the source marks them), so that a printed `$` in a cell is no formula. A text region that continues another (its `continues` link,
   a transcription without recomposition, as an imported ground truth) is one block with it; regions and lines
   without geometry make blocks without boxes; origins are clamped to the page.
 - **`linked-composition@1`** (engine `composition.linked.v1`) composes it, and **`squiddle@2`** uses it.
 - **Rendering policies' table and Markdown rules** (`TableRules`: one cell as text, one column as lines, a one-row
   table after a table of its width that table's next row, holes filled; `MarkdownRules`: tables as HTML or pipe
-  tables, escaping, the image placeholder, scripts as HTML), applied by the builder and the Markdown writer.
+  tables, escaping, the image placeholder, scripts as HTML, a dollar that is no formula as `\$` (`escape_dollar`), a
+  displayed formula between `$$` or `$` (`formula_display`), a line break as a backslash or two spaces
+  (`line_break`)), applied by the builder and the Markdown writer.
 - **The pipeline `import_transcriptions.v1`** (`pipelines/import_transcriptions.py`, shape
   `linecaster.pipelines.import_transcriptions`): a source's documents into page records by an importer;
   `ImageParquetReader(read_images=False)` reads a table without images.
@@ -91,7 +95,9 @@ extra. The decisions are in NOTES.md (2026-11-14).
   lists, tables with spans, figures, MathML formulas with their LaTeX, formatting, `lang`), ARIA and DPUB-ARIA roles
   (`heading`, `doc-pageheader`, `doc-pagefooter`, `doc-footnote`, `doc-noteref`), the page's CSS cascaded
   (`display: none`, `visibility: hidden`, `text-transform`, from style sheets and inline styles), and a source's
-  conventions; its coverage (what no rule matched) and whether the page's last paragraph runs on.
+  conventions; its coverage (what no rule matched) and whether the page's last paragraph runs on. Each line of the
+  source is a line of its own (verse keeps its lines); a row of cells without a role is the running head at the top
+  of the body and body text below its text or a picture (a plate's caption).
 - **Anchors**: `Zone.anchor` (characters `[start, end)` of the source text at `Source.revision`) and
   `linecaster.markup.anchors.SourceMap`, which anchors an importer's lines by aligning them with what its processor
   saw (verbatim pieces and opaque calls).
@@ -118,7 +124,10 @@ extra. The decisions are in NOTES.md (2026-11-14).
   page's header reopens it: `table_runs_on`, `table_continues`) is linked too, and where the header ends inside a cell,
   that cell; the document builder makes one table of them, the continued row joining the last by column. The reader records each top-level template call on the
   first element it writes (`data-mw-template`, `data-mw-param-<name>`, as Parsoid's `data-mw`), for conventions to
-  match what a page's HTML does not say; tags the parser left as text print nothing.
+  match what a page's HTML does not say; tags the parser left as text print nothing. Two faults of wikitextprocessor
+  are mended in the site's context: a Lua module's `mw.html` result prints its HTML (it printed "table"), and an
+  attribute's character references are decoded, as MediaWiki's sanitizer does (`{{SIC}}`'s tooltip
+  `[sic]&#32;'the'`).
 - **The decisions `continues` and `runs_on`**: a page's first block continues the previous page's last, its last runs
   on into the next, though a block would end there; the page reads as it is, an item joins them. `enwikisource@3`
   uses them for `{{ppoem}}`'s stanzas across a page break (`start=follow`, `end=follow`).
