@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: nfc
+description: "Unicode's canonical composition (NFC): the same characters, composed where Unicode composes them."
+scripts:
+- '*'
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  unicode: NFC

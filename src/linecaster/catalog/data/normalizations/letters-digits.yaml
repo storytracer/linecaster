@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: letters-digits
+description: 'Only letters and digits (Unicode categories L, N) and U+FFFD; every run of anything else one space: a decomposed accent separates its word.'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  keep:
+    categories:
+    - L
+    - N
+    ranges: []
+    also: �

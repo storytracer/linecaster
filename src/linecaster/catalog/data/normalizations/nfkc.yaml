@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: nfkc
+description: "Unicode's compatibility composition (NFKC): ligatures split, the long s as s, superscripts and full-width forms as their plain characters."
+scripts:
+- '*'
+languages: []
+use:
+- output
+- comparison
+subsumes:
+- nfc
+- long-s
+- ligatures
+rule:
+  unicode: NFKC

@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: r-rotunda
+description: The r rotunda (ꝛ, Ꝛ) as r, R.
+scripts:
+- Latn
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    ꝛ: r
+    Ꝛ: R

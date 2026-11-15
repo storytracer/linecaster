@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: diplomatic
+description: 'Every character as written (NFC), whitespace runs as one space: case, punctuation, the long s, ligatures and diacritics count.'
+use: comparison
+normalizations:
+- nfc
+- whitespace

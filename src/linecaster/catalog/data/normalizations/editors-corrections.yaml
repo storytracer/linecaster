@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: editors-corrections
+description: "The source's corrections applied (corrected edits: a [sic] read as the editors corrected it); the printed form is the literal text."
+scripts:
+- '*'
+languages: []
+use:
+- output
+subsumes: []
+rule:
+  edits:
+  - corrected

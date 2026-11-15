@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: long-s
+description: The long s (ſ) as s.
+scripts:
+- Latn
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    ſ: s

@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Keep": {
+      "additionalProperties": false,
+      "description": "The characters kept; every run of others becomes one space.",
+      "properties": {
+        "categories": {
+          "description": "Unicode general categories (by their first letter)",
+          "items": {
+            "enum": [
+              "L",
+              "M",
+              "N",
+              "P",
+              "S",
+              "Z",
+              "C"
+            ],
+            "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "ranges": {
+          "description": "character ranges, e.g. a-z, 0-9",
+          "items": {
+            "type": "string"
+          },
+          "title": "Ranges",
+          "type": "array"
+        },
+        "also": {
+          "default": "",
+          "description": "further characters kept, e.g. U+FFFD (an illegible character)",
+          "title": "Also",
+          "type": "string"
+        }
+      },
+      "title": "Keep",
+      "type": "object"
+    },
+    "Pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "description": "a regular expression (Python's re)",
+          "title": "Match",
+          "type": "string"
+        },
+        "flags": {
+          "description": "re flags: I, M, S",
+          "items": {
+            "enum": [
+              "I",
+              "M",
+              "S"
+            ],
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "replace": {
+          "default": " ",
+          "description": "what a match becomes",
+          "title": "Replace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "match"
+      ],
+      "title": "Pattern",
+      "type": "object"
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "description": "A normalization's rule: exactly one field set.",
+      "properties": {
+        "unicode": {
+          "anyOf": [
+            {
+              "enum": [
+                "NFC",
+                "NFKC"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a Unicode normalization form",
+          "title": "Unicode"
+        },
+        "map": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a table: each key (a character or a sequence; the longest first) becomes its value ('' removes it)",
+          "title": "Map"
+        },
+        "patterns": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Pattern"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "regular expressions, applied in order",
+          "title": "Patterns"
+        },
+        "case": {
+          "anyOf": [
+            {
+              "enum": [
+                "fold",
+                "lower"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unicode case folding, or lowercasing",
+          "title": "Case"
+        },
+        "keep": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Keep"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "only these characters; every run of others one space"
+        },
+        "whitespace": {
+          "anyOf": [
+            {
+              "const": "collapse",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "every run of whitespace one space, trimmed",
+          "title": "Whitespace"
+        },
+        "edits": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "corrected",
+                  "expanded",
+                  "regularized"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the source's own edits of these kinds, applied (a document's edit spans)",
+          "title": "Edits"
+        },
+        "divided_words": {
+          "anyOf": [
+            {
+              "const": "source",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a word divided across lines or pages, joined where the source marks it (joined edits)",
+          "title": "Divided Words"
+        },
+        "division_marks": {
+          "anyOf": [
+            {
+              "const": "unicode-marks",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a named method resolving the division marks no source marked",
+          "title": "Division Marks"
+        },
+        "flow": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a block's rows joined into running text",
+          "title": "Flow"
+        }
+      },
+      "title": "Rule",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One named normalization (``normalizations/<id>.yaml``): one concern, one rule, applied when a text is written\nor two are compared, never stored in a record.",
+  "properties": {
+    "schema": {
+      "const": "linecaster.normalization",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "scripts": {
+      "description": "ISO 15924 codes it is meant for, * any",
+      "items": {
+        "type": "string"
+      },
+      "title": "Scripts",
+      "type": "array"
+    },
+    "languages": {
+      "description": "BCP 47 tags it is meant for (empty: none in particular); a language-specific one is never applied unless named",
+      "items": {
+        "type": "string"
+      },
+      "title": "Languages",
+      "type": "array"
+    },
+    "use": {
+      "description": "output, comparison, or both",
+      "items": {
+        "enum": [
+          "output",
+          "comparison"
+        ],
+        "type": "string"
+      },
+      "title": "Use",
+      "type": "array"
+    },
+    "subsumes": {
+      "description": "normalizations whose effect this one includes (nfkc: ligatures, long-s), for the ground truth's conventions check",
+      "items": {
+        "type": "string"
+      },
+      "title": "Subsumes",
+      "type": "array"
+    },
+    "rule": {
+      "$ref": "#/$defs/Rule"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "description",
+    "use",
+    "rule"
+  ],
+  "title": "NormalizationDoc",
+  "type": "object"
+}

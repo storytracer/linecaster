@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: casefold
+description: Unicode case folding (ß as ss, final sigma as sigma).
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  case: fold

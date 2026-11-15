@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A transcription strategy (``strategies/<id>.yaml``): an ordered list of normalizations, for writing texts or\ncomparing them (a lane). ``literal`` is the built-in strategy without any.",
+  "properties": {
+    "schema": {
+      "const": "linecaster.strategy",
+      "title": "Schema",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "use": {
+      "description": "output (a text written) or comparison (a lane)",
+      "enum": [
+        "output",
+        "comparison"
+      ],
+      "title": "Use",
+      "type": "string"
+    },
+    "normalizations": {
+      "description": "the normalizations by id, in the order they apply",
+      "items": {
+        "type": "string"
+      },
+      "title": "Normalizations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "description",
+    "use",
+    "normalizations"
+  ],
+  "title": "StrategyDoc",
+  "type": "object"
+}

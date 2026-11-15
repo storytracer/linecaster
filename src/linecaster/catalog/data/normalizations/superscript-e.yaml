@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: superscript-e
+description: "A combining superscript e (U+0364) over a, o, u (A, O, U) as ä, ö, ü (Ä, Ö, Ü): German print's umlaut; over any other letter it stays."
+scripts:
+- Latn
+languages:
+- de
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    aͤ: ä
+    oͤ: ö
+    uͤ: ü
+    Aͤ: Ä
+    Oͤ: Ö
+    Uͤ: Ü

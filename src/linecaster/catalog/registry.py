@@ -33,7 +33,8 @@ from . import yamlio
 from ..engines.importers import IMPORTERS
 from ..markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
 from ..markup.resolve import ConventionsError, ResolvedConventions, resolve
-from .schema import SCHEMA_DIR, ModelDoc, PolicyDoc, PresetDoc, RecipeDoc, json_schemas, schema_file
+from .schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
+                     json_schemas, schema_file)
 
 CORE = Path(__file__).resolve().parent / "data"
 #: the rendering policy a block renders with unless it is given another
@@ -139,6 +140,9 @@ KINDS: tuple[EntryKind, ...] = (
     EntryKind("policy", "policies/*.yaml", PolicyDoc, lambda path: path.stem, None, "policies"),
     EntryKind("conventions", "conventions/*/*.yaml", ConventionsDoc, lambda path: path.stem, _conventions_folder,
               "conventions", lambda doc: True),
+    EntryKind("normalization", "normalizations/*.yaml", NormalizationDoc, lambda path: path.stem, None,
+              "normalizations"),
+    EntryKind("strategy", "strategies/*.yaml", StrategyDoc, lambda path: path.stem, None, "strategies"),
 )
 KIND = {k.name: k for k in KINDS}
 #: the headings every conventions entry's prose has
@@ -176,6 +180,14 @@ class Directory:
     @property
     def conventions(self) -> dict[str, ConventionsDoc]:
         return self.entries["conventions"]
+
+    @property
+    def normalizations(self) -> dict[str, NormalizationDoc]:
+        return self.entries["normalization"]
+
+    @property
+    def strategies(self) -> dict[str, StrategyDoc]:
+        return self.entries["strategy"]
 
     @classmethod
     def load(cls, root: str | Path) -> "Directory":
@@ -257,6 +269,54 @@ class Catalog:
     @property
     def conventions_entries(self) -> dict[str, tuple[Directory, ConventionsDoc]]:
         return self.index["conventions"]
+
+    @property
+    def normalizations(self) -> dict[str, tuple[Directory, NormalizationDoc]]:
+        return self.index["normalization"]
+
+    @property
+    def strategies(self) -> dict[str, tuple[Directory, StrategyDoc]]:
+        return self.index["strategy"]
+
+    # ------------------------------------------------------------------------------ normalizations, strategies
+
+    @staticmethod
+    def normalization_functional(doc: NormalizationDoc) -> dict:
+        """A normalization's functional content: its rule (not its description, scripts, languages, use)."""
+        return {"rule": doc.rule.model_dump(mode="json", exclude_none=True)}
+
+    def normalization(self, nid: str) -> "ResolvedNormalization":
+        """The normalization ``nid``, resolved: its rule, hash, uses and what it subsumes."""
+        nid = entry_id(nid)
+        if nid not in self.normalizations:
+            raise CatalogError(f"unknown normalization {nid!r}; known: {sorted(self.normalizations)}")
+        doc = self.normalizations[nid][1]
+        content = self.normalization_functional(doc)
+        return ResolvedNormalization(nid, content["rule"], canonical_sha256(content), tuple(doc.use),
+                                    tuple(doc.subsumes), tuple(doc.languages))
+
+    def strategy(self, ref: str, use: str | None = None) -> "ResolvedStrategy":
+        """The transcription strategy ``ref``: ``literal`` (no normalization), a strategy's id, or normalizations named
+        directly (``nfc+long-s+flow``: an unnamed strategy). With ``use`` (``output`` or ``comparison``), every
+        normalization must be meant for it; a named strategy is used as its ``use`` says."""
+        ref = entry_id(ref)
+        if ref == "literal":
+            return ResolvedStrategy("literal", use or "output", ())
+        if "+" in ref or ref in self.normalizations:
+            parts = tuple(self.normalization(n) for n in ref.split("+"))
+            kind = use or ("output" if all("output" in n.use for n in parts) else "comparison")
+        elif ref in self.strategies:
+            doc = self.strategies[ref][1]
+            if use is not None and use != doc.use:
+                raise CatalogError(f"strategy {ref} is for {doc.use}, not {use}")
+            parts, kind = tuple(self.normalization(n) for n in doc.normalizations), doc.use
+        else:
+            raise CatalogError(f"unknown strategy {ref!r}: 'literal', a strategy ({', '.join(sorted(self.strategies))}) "
+                               f"or normalizations joined by '+' ({', '.join(sorted(self.normalizations))})")
+        wrong = [n.id for n in parts if kind not in n.use]
+        if wrong:
+            raise CatalogError(f"strategy {ref}: {wrong} {'is' if len(wrong) == 1 else 'are'} not for {kind}")
+        return ResolvedStrategy(ref, kind, parts)
 
     # -------------------------------------------------------------------------------------------- lookups
 
@@ -414,6 +474,10 @@ class Catalog:
                     table[eid] = entry
                 elif kind.name == "policy":
                     table[eid] = canonical_sha256(self.policy_functional(doc))
+                elif kind.name == "normalization":
+                    table[eid] = self.normalization(eid).sha256
+                elif kind.name == "strategy":
+                    table[eid] = self.strategy(eid).sha256
                 else:
                     table[eid] = canonical_sha256(self.conventions_functional(doc))
             if table:
@@ -533,6 +597,15 @@ class Catalog:
                     except Exception as e:  # noqa: BLE001 - report, do not stop
                         problems.append(f"recipe {rid}: its pipeline cannot be built: {type(e).__name__}: {e}")
             problems += self._conventions_problems(d)
+            for sid, doc in d.strategies.items():
+                try:
+                    self.strategy(sid)
+                except CatalogError as e:
+                    problems.append(f"strategy {sid}: {e.args[0]}")
+            for nid, doc in d.normalizations.items():
+                unknown = [x for x in doc.subsumes if x not in self.normalizations]
+                if unknown:
+                    problems.append(f"normalization {nid}: subsumes unknown normalizations {unknown}")
             if not problems:
                 problems += self._index_problems(d, pipelines)
         return problems
@@ -616,6 +689,58 @@ class Resolved:
     @property
     def engine(self) -> str:
         return self.content["engine"]
+
+
+@dataclass(frozen=True)
+class ResolvedNormalization:
+    """A normalization as this release has it: its rule, the hash of it, what it is for, what it subsumes."""
+
+    id: str
+    rule: dict
+    sha256: str
+    use: tuple[str, ...]
+    subsumes: tuple[str, ...] = ()
+    languages: tuple[str, ...] = ()
+
+    @property
+    def text_rule(self) -> bool:
+        """Whether it acts on characters (``linecaster.text.normalize``), not on a document's structure."""
+        from .schema import TEXT_RULES
+
+        return next(iter(self.rule)) in TEXT_RULES
+
+
+@dataclass(frozen=True)
+class ResolvedStrategy:
+    """A transcription strategy as it runs: its name (a strategy's id, ``literal``, or normalizations joined by
+    ``+``), what it is for, and its normalizations in order."""
+
+    id: str
+    use: str
+    normalizations: tuple[ResolvedNormalization, ...]
+
+    @property
+    def content(self) -> dict:
+        return {"use": self.use, "normalizations": [{"id": n.id, "sha256": n.sha256} for n in self.normalizations]}
+
+    @property
+    def sha256(self) -> str:
+        return canonical_sha256(self.content)
+
+    @property
+    def literal(self) -> bool:
+        return not self.normalizations
+
+    def text(self, s: str) -> str:
+        """``s`` through the strategy's normalizations (character rules only: a structure rule acts on documents,
+        ``linecaster.document.strategy``)."""
+        from ..text.normalize import apply
+
+        return apply(s or "", [n.rule for n in self.normalizations])
+
+    def covers(self, nid: str) -> bool:
+        """Whether the strategy applies normalization ``nid``, itself or one that subsumes it."""
+        return any(n.id == nid or nid in n.subsumes for n in self.normalizations)
 
 
 @lru_cache(maxsize=1)

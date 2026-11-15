@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: alnum
+description: 'Letters, marks and digits of any script (the default lane): markup removed, compatibility forms folded, case folded, everything else a word boundary.'
+use: comparison
+normalizations:
+- markup
+- nfkc
+- invisible
+- casefold
+- nfkc
+- letters-marks-digits
+- whitespace

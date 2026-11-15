@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: latin-historic
+description: "Historic Latin print in today's letters: the long s, the ligatures, the r rotunda and German print's superscript e folded; æ, œ, ø, å, ß and every other character as they are; spelling never modernized."
+use: output
+normalizations:
+- nfc
+- superscript-e
+- long-s
+- ligatures
+- r-rotunda
+- nfc

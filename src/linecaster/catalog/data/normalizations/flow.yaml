@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: flow
+description: A block's rows joined into running text (a space unless Unicode's line breaking joins the two words), a block continued on the next page joined to it; a division mark nothing resolved is kept, the rows joined without a space.
+scripts:
+- '*'
+languages: []
+use:
+- output
+subsumes: []
+rule:
+  flow: true

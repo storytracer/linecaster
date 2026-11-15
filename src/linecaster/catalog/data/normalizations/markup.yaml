@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: markup
+description: 'Markup removed, each match as a space: special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the marks of emphasis, tables and formulas.'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: <\|/?[A-Za-z0-9_]+\|>
+    flags: []
+    replace: ' '
+  - match: \[\[\s*\d[\d,\s]*\]\]
+    flags: []
+    replace: ' '
+  - match: </?(?:a|b|big|blockquote|br|caption|center|code|col|colgroup|div|em|figcaption|figure|font|h[1-6]|hr|i|img|li|mark|ol|p|pre|s|small|span|strike|strong|sub|sup|table|tbody|td|tfoot|th|thead|tr|tt|u|ul)(?:\s[^>\n]{0,80})?\s*/?>
+    flags:
+    - I
+    replace: ' '
+  - match: ^[ \t]*#{1,6}[ \t]+
+    flags:
+    - M
+    replace: ' '
+  - match: ^[ \t]*[-*+][ \t]+
+    flags:
+    - M
+    replace: ' '
+  - match: ^[ \t]*[-=_*]{3,}[ \t]*$
+    flags:
+    - M
+    replace: ' '
+  - match: \\[a-zA-Z]+\*?
+    flags: []
+    replace: ' '
+  - match: '[`*|~{}$\\]'
+    flags: []
+    replace: ' '

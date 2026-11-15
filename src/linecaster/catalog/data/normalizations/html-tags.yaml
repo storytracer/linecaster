@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: html-tags
+description: Every HTML tag (anything between < and >) removed, as a space.
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: <[^>]+>
+    flags: []
+    replace: ' '

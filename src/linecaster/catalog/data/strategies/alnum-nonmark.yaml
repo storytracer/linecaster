@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: alnum-nonmark
+description: 'Letters and digits (alnum@1 before 0.10): a combining mark separates its word, a long s or a ligature does not match its plain letters.'
+use: comparison
+normalizations:
+- nfc
+- casefold
+- letters-digits
+- whitespace

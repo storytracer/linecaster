@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: ascii-letters-digits
+description: 'Only the ASCII letters a-z and digits and U+FFFD; every run of anything else one space: an accented letter separates its word.'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  keep:
+    categories: []
+    ranges:
+    - a-z
+    - 0-9
+    also: �

@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: invisible
+description: 'Invisible format characters removed: soft hyphen, zero-width space, non-joiner and joiner, word joiner, byte order mark.'
+scripts:
+- '*'
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    ­: ''
+    ​: ''
+    ‌: ''
+    ‍: ''
+    ⁠: ''
+    "\uFEFF": ''

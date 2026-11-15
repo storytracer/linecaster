@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: lowercase
+description: Lowercase (Python's str.lower).
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  case: lower

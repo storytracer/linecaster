@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: reading
+description: "What a reader reads: markup removed, compatibility forms (ligatures, the long s), invisible characters, quotes and dashes folded, case folded. A hyphen at a line's end stays (no dehyphenation: reading@1 joined it)."
+use: comparison
+normalizations:
+- markup
+- nfkc
+- invisible
+- quotes
+- dashes
+- casefold
+- whitespace

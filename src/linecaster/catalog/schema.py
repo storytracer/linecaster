@@ -316,6 +316,118 @@ class RecipeDoc(_Doc):
         return self.id
 
 
+# ------------------------------------------------------------------------------- normalizations, strategies
+
+#: what a normalization is for: writing a text, comparing two (casefolding, dropping punctuation), or both
+USES = ("output", "comparison")
+#: the rules a normalization may hold, exactly one each: on characters (``text``), or on a document's structure
+#: (the source's edits, divided words, division marks, flow)
+TEXT_RULES = ("unicode", "map", "patterns", "case", "keep", "whitespace")
+STRUCTURE_RULES = ("edits", "divided_words", "division_marks", "flow")
+
+
+class Pattern(_Doc):
+    match: str = Field(description="a regular expression (Python's re)")
+    flags: list[Literal["I", "M", "S"]] = Field(default_factory=list, description="re flags: I, M, S")
+    replace: str = Field(" ", description="what a match becomes")
+
+    @field_validator("match")
+    @classmethod
+    def _compiles(cls, v):
+        try:
+            re.compile(v)
+        except re.error as e:
+            raise ValueError(f"pattern {v!r}: {e}") from None
+        return v
+
+
+class Keep(_Doc):
+    """The characters kept; every run of others becomes one space."""
+
+    categories: list[Literal["L", "M", "N", "P", "S", "Z", "C"]] = Field(
+        default_factory=list, description="Unicode general categories (by their first letter)")
+    ranges: list[str] = Field(default_factory=list, description="character ranges, e.g. a-z, 0-9")
+    also: str = Field("", description="further characters kept, e.g. U+FFFD (an illegible character)")
+
+
+class Rule(_Doc):
+    """A normalization's rule: exactly one field set."""
+
+    unicode: Literal["NFC", "NFKC"] | None = Field(None, description="a Unicode normalization form")
+    map: dict[str, str] | None = Field(None, description="a table: each key (a character or a sequence; the longest "
+                                                         "first) becomes its value ('' removes it)")
+    patterns: list[Pattern] | None = Field(None, description="regular expressions, applied in order")
+    case: Literal["fold", "lower"] | None = Field(None, description="Unicode case folding, or lowercasing")
+    keep: Keep | None = Field(None, description="only these characters; every run of others one space")
+    whitespace: Literal["collapse"] | None = Field(None, description="every run of whitespace one space, trimmed")
+    edits: list[Literal["corrected", "expanded", "regularized"]] | None = Field(
+        None, description="the source's own edits of these kinds, applied (a document's edit spans)")
+    divided_words: Literal["source"] | None = Field(
+        None, description="a word divided across lines or pages, joined where the source marks it (joined edits)")
+    division_marks: Literal["unicode-marks"] | None = Field(
+        None, description="a named method resolving the division marks no source marked")
+    flow: bool | None = Field(None, description="a block's rows joined into running text")
+
+    @model_validator(mode="after")
+    def _one(self):
+        set_ = [k for k in (*TEXT_RULES, *STRUCTURE_RULES) if getattr(self, k) is not None]
+        if len(set_) != 1:
+            raise ValueError(f"a normalization holds exactly one rule ({', '.join((*TEXT_RULES, *STRUCTURE_RULES))}); "
+                             f"this one: {set_ or 'none'}")
+        return self
+
+    @property
+    def kind(self) -> str:
+        return next(k for k in (*TEXT_RULES, *STRUCTURE_RULES) if getattr(self, k) is not None)
+
+
+class NormalizationDoc(_Doc):
+    """One named normalization (``normalizations/<id>.yaml``): one concern, one rule, applied when a text is written
+    or two are compared, never stored in a record."""
+
+    schema_: Literal["linecaster.normalization"] = Field(alias="schema")
+    id: str
+    description: str = Field(min_length=1)
+    scripts: list[str] = Field(default_factory=lambda: ["*"], description="ISO 15924 codes it is meant for, * any")
+    languages: list[str] = Field(default_factory=list, description="BCP 47 tags it is meant for (empty: none in "
+                                                                   "particular); a language-specific one is never "
+                                                                   "applied unless named")
+    use: list[Literal[USES]] = Field(description="output, comparison, or both")
+    subsumes: list[str] = Field(default_factory=list, description="normalizations whose effect this one includes "
+                                                                  "(nfkc: ligatures, long-s), for the ground truth's "
+                                                                  "conventions check")
+    rule: Rule
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    @field_validator("id")
+    @classmethod
+    def _id(cls, v):
+        if not SLUG.match(v) or v == "literal":
+            raise ValueError(f"normalization ids are lowercase slugs, not 'literal': {v!r}")
+        return v
+
+
+class StrategyDoc(_Doc):
+    """A transcription strategy (``strategies/<id>.yaml``): an ordered list of normalizations, for writing texts or
+    comparing them (a lane). ``literal`` is the built-in strategy without any."""
+
+    schema_: Literal["linecaster.strategy"] = Field(alias="schema")
+    id: str
+    description: str = Field(min_length=1)
+    use: Literal[USES] = Field(description="output (a text written) or comparison (a lane)")
+    normalizations: list[str] = Field(description="the normalizations by id, in the order they apply")
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    @field_validator("id")
+    @classmethod
+    def _id(cls, v):
+        if not SLUG.match(v) or v == "literal":
+            raise ValueError(f"strategy ids are lowercase slugs, not 'literal' (built in): {v!r}")
+        return v
+
+
 # ----------------------------------------------------------------------------------------------- evidence
 
 class Evidence(_Doc):
@@ -454,6 +566,8 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.recipe": RecipeDoc,
     "linecaster.policy": PolicyDoc,
     "linecaster.conventions": ConventionsDoc,
+    "linecaster.normalization": NormalizationDoc,
+    "linecaster.strategy": StrategyDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.evidence/2": Evidence2,
     "linecaster.benchmark/1": Benchmark,

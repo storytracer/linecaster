@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: dashes
+description: The dashes U+2010 to U+2015 (hyphen, non-breaking hyphen, figure dash, en dash, em dash, horizontal bar) as the hyphen-minus.
+scripts:
+- '*'
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    ‐: '-'
+    ‑: '-'
+    ‒: '-'
+    –: '-'
+    —: '-'
+    ―: '-'

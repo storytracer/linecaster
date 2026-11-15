@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: ascii-alnum
+description: 'ASCII letters and digits only, lowercased, HTML tags removed: what is not ASCII separates words.'
+use: comparison
+normalizations:
+- html-tags
+- lowercase
+- ascii-letters-digits
+- whitespace

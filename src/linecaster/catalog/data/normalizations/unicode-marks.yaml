@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: unicode-marks
+description: "Division marks no source marked, resolved by squiddleocr's language-free rule: a hyphen after a letter at a row's end removed unless a capital, a digit or another script follows, or the document attests the hyphenated form and not the joined one. A guess, and wrong for most compounds divided at their own hyphen: opt-in, never a default."
+scripts:
+- '*'
+languages: []
+use:
+- output
+subsumes: []
+rule:
+  division_marks: unicode-marks
