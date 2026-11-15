@@ -7,11 +7,24 @@ from ..data.transcription import Annotator, Source, Transcription
 
 _ROOT = re.compile(rb"<(?:[\w.-]+:)?(alto|pcgts)\b", re.IGNORECASE)
 _HOCR = re.compile(rb"""class\s*=\s*["'][^"']*\bocr_page\b""", re.IGNORECASE)
+# the first element's start tag (after the prolog), and TEI's root elements
+_FIRST = re.compile(rb"<(?![?!])")
+_TEI_ROOT = re.compile(rb"<(?:([\w.-]+):)?(?:TEI|teiCorpus)\b([^>]*)>")
+_TEI_NS = b"http://www.tei-c.org/ns/1.0"
 
 
 def sniff(data: bytes) -> str:
-    """The format of a transcription file from its content: ``alto``, ``page``, ``hocr``, else ``text``."""
-    m = _ROOT.search(data[:65536])
+    """The format of a transcription file from its content: ``alto``, ``page``, ``hocr``, ``tei`` (its root ``TEI``
+    or ``teiCorpus`` in the TEI namespace), else ``text``."""
+    head = data[:65536]
+    first = _FIRST.search(head)
+    root = _TEI_ROOT.match(head, first.start()) if first else None
+    if root is not None:
+        xmlns = b"xmlns" + (b":" + root.group(1) if root.group(1) else b"")
+        if re.search(rb"(?:^|\s)" + re.escape(xmlns) + rb"\s*=\s*[\"']" + re.escape(_TEI_NS) + rb"[\"']",
+                     root.group(2)):
+            return "tei"
+    m = _ROOT.search(head)
     if m:
         return "alto" if m.group(1).lower() == b"alto" else "page"
     if _HOCR.search(data):

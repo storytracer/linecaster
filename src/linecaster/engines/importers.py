@@ -11,9 +11,9 @@ scaled to the page's). The formats themselves
 are ``linecaster.formats``; the importers are thin.
 
 Built in: ``import.alto.v1``, ``import.page.v1``, ``import.hocr.v1``, ``import.text.v1``, ``import.docling.v1``,
-``import.html.v1`` (with a source's ``conventions``) and ``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR and text
-apart and reads each with its importer). Engine packages add importers for formats that need more (a wiki's
-wikitext: ``linecaster-mediawiki``).
+``import.html.v1`` (with a source's ``conventions``), ``import.tei.v1`` (one page of a TEI P5 document) and
+``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR, TEI and text apart and reads each with its importer). Engine
+packages add importers for formats that need more (a wiki's wikitext: ``linecaster-mediawiki``).
 """
 from __future__ import annotations
 
@@ -195,8 +195,36 @@ class HtmlImporter(Importer):
         return t
 
 
+class TeiImporter(Importer):
+    """TEI P5 (``linecaster.formats.tei``: a ``sourceDoc``'s surface, or a page of its text with its ``facsimile``'s
+    zones or without geometry), one page of the document (``page``), scaled to the page image by the size its surface
+    states.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
+
+    engine_id: ClassVar[str] = "import.tei.v1"
+    step: ClassVar[str] = "import"
+    format: ClassVar[str] = "tei"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order", "lines", "text"]}
+    scripts: ClassVar[tuple[str, ...]] = ("*",)
+
+    class Options(Importer.Options):
+        page: int | str = Field(1, description="the document's page to read: its number (1-based) among the "
+                                               "sourceDoc's surfaces or the text's pages (pb begins one), or the "
+                                               "xml:id of its surface or pb")
+
+    def read(self, source, options):
+        from ..formats.tei import from_tei
+
+        return from_tei(source.as_bytes(), page=getattr(options, "page", 1), uri=source.uri,
+                        ground_truth=options.ground_truth)
+
+
 class AutoImporter(Importer):
-    """ALTO, PAGE-XML, hOCR or text, told apart by the document's format, else by its content.
+    """ALTO, PAGE-XML, hOCR, TEI or text, told apart by the document's format, else by its content (TEI: its first
+    page).
 
     Args:
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
@@ -208,7 +236,8 @@ class AutoImporter(Importer):
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order", "lines", "text"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
     BY_FORMAT: ClassVar[dict[str, type[Importer]]] = {"alto": AltoImporter, "page": PageXmlImporter,
-                                                       "hocr": HocrImporter, "text": TextImporter}
+                                                       "hocr": HocrImporter, "tei": TeiImporter,
+                                                       "text": TextImporter}
 
     def read(self, source, options):
         from ..formats.text import sniff
@@ -219,4 +248,4 @@ class AutoImporter(Importer):
 
 #: the built-in importers, by engine id
 IMPORTERS = {c.engine_id: c for c in (AltoImporter, PageXmlImporter, HocrImporter, TextImporter, DoclingImporter,
-                                       HtmlImporter, AutoImporter)}
+                                       HtmlImporter, TeiImporter, AutoImporter)}

@@ -52,6 +52,7 @@ presets:
   slanet-plus: sha256:f096e836fdfafdac5f70706c5fc8a9593d26ce6cb2498f7cea1eccdc88cd50e4
   smoldocling-256m-preview: sha256:fac56092cc35aa8837c214d598d6b226916695a544a41fb45a2e5fd7cf75d22e
   surya-ocr-2.5: sha256:65a671768b8659389f04315e7dfdeb38e55dc98d3e6716d2037b4146ea0f96b2
+  tei-import: sha256:2bcb96d409ff9d71dbddcc6c48914098aa87b256ad08356138beab0388d7a98b
   tesseract-best-eng: sha256:88f0184bf11a1db40471ebfb94dec6bbabd8b3cd28050c931591a462f8877ef9
   tesseract-best-latin: sha256:fc952da0f4a3b111cafa2154e547896a786c7b7f157e2c6b8517f4fe1021d58f
   tesseract-fast-eng: sha256:c06ef1dde3bfa8e236fc9f30ef24c0807b23bf3b678a6b9fcd970b1ef1b38c7c

@@ -23,6 +23,8 @@ def source(engine_id: str) -> SourceDocument:
         "import.text.v1": lambda: SourceDocument(data="one\ntwo"),
         "import.docling.v1": lambda: SourceDocument(data=json.dumps(docling_sample(t))),
         "import.html.v1": lambda: SourceDocument(data="<p>One <b>two</b></p><p>three</p>"),
+        "import.tei.v1": lambda: SourceDocument(data='<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><p>One '
+                                                     '<hi rend="bold">two</hi></p><p>three</p></body></text></TEI>'),
     }[engine_id]()
 
 

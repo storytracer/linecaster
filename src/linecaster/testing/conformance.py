@@ -524,6 +524,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
 def _sample_source(fmt: str):
     """A source document of a built-in importer's format, from the sample transcription."""
     import json as _json
+    from xml.sax.saxutils import escape
 
     from ..data import SourceDocument
     from ..formats import to_alto, to_hocr, to_page
@@ -532,7 +533,10 @@ def _sample_source(fmt: str):
     t = sample_transcription()
     data = {"page": lambda: to_page(t), "hocr": lambda: to_hocr(t), "text": lambda: t.text,
             "docling": lambda: _json.dumps(docling_sample(t)),
-            "html": lambda: "".join(f"<p>{ln.reading.text}</p>" for ln in t.lines if ln.reading)}.get(
+            "html": lambda: "".join(f"<p>{ln.reading.text}</p>" for ln in t.lines if ln.reading),
+            "tei": lambda: ('<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+                            + "".join(f"<p>{escape(ln.reading.text)}</p>" for ln in t.lines if ln.reading)
+                            + "</body></text></TEI>")}.get(
         fmt, lambda: to_alto(t))()
     return SourceDocument(data=data, format=fmt if fmt != "auto" else None)
 

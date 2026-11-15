@@ -2,9 +2,9 @@
 
 `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml,
 `linecaster.formats.iiif` writes an annotation set as an IIIF annotation page, `linecaster.document` writes a page's
-or an item's document as HTML, Markdown, text and JSON, and `linecaster.formats.docling` reads a DoclingDocument (the
-`docling` extra); `linecaster.images.convert` turns any page image into the working image. None of them imports
-datatrove, saturate or an engine. Each writer renders an annotation set under a [rendering
+or an item's document as HTML, Markdown, text and JSON, `linecaster.formats.docling` reads a DoclingDocument (the
+`docling` extra) and `linecaster.formats.tei` a page of a TEI P5 document; `linecaster.images.convert` turns any
+page image into the working image. None of them imports datatrove, saturate or an engine. Each writer renders an annotation set under a [rendering
 policy](data-model.md#rendering); what it writes is a rendering, not stored in the page record.
 
 ## Common rules for ALTO, PAGE and hOCR
@@ -265,6 +265,48 @@ names them, a source's [conventions](catalog.md). What the page says of its writ
 A value is inherited as in HTML: a note or a table cell has the language of the element it stands in. `dir="auto"`,
 and a `bdi` without `dir`, leave the direction to the text: nothing is recorded. A `writing-mode` on an inline element
 does not apply. A `lang` that is no well-formed BCP 47 tag is skipped and counted (`HtmlReading.ill_formed_languages`).
+
+## TEI import (`linecaster.formats.tei`)
+
+`from_tei(data, page=1, uri=None, ground_truth=False)` reads one page of a TEI P5 document (namespace
+`http://www.tei-c.org/ns/1.0`, or none; of a `teiCorpus`, its first `TEI`) into a transcription; the importer
+`import.tei.v1` (preset `tei-import`) runs it, and `import.auto.v1` picks it for a file whose root is `TEI` or
+`teiCorpus` in TEI's namespace. The document's first form decides how it is read:
+
+| Form | Pages | Regions | Lines |
+|---|---|---|---|
+| diplomatic: `sourceDoc` | its `surface`s (also in `surfaceGrp`) | each `zone` with lines or text of its own (a `zone` of `zone`s alone is none), its geometry `@points`, else `@ulx @uly @lrx @lry` | `line` and `zone[@type='line']`, with their geometry and a `path` as the baseline; a `zone` without lines: its text broken at `lb`, without geometry; a line on the surface: a line without a region, or a region of its own where all its text is one `fw`, `note` or `head` |
+| facsimile and text: `facsimile` with `text` | as in a text; `pb[@facs]` names the page's surface | as in a text, with the geometry of the `zone` a block's `@facs` points to (else the bounds of its lines) | as in a text, with the geometry of the `zone` an `lb` or `l` points to |
+| text: `text` (`front`, `body`, `back`) | `pb` begins one; text before the first `pb` is a page of its own | `p`, `ab`, `lg`, `byline`, `dateline`, `signed`, `trailer`, ... paragraphs; `head` a heading (its level the number of `div` around it); `titlePart` the title; `item` a list item; `fw`, `note`, `figure` (its `head` and `p` captions linked to it, its `figDesc` its description), `table` (a line per `row`) | `lb` and `l` begin one; `cb` ends a block; no geometry |
+
+`page` is the page's number (1-based) or the `xml:id` of its `surface` or `pb`; a page the document does not have is a
+`ValueError`. The page's surface gives the image size (its `graphic`'s `@width` and `@height` in pixels, else its own
+extent) and the source's `uri` (the graphic's `@url`, unless `uri` is given); coordinates are converted from the
+surface's grid (its origin `@ulx @uly`, scaled to the graphic's size) to pixels of that image.
+
+Roles: a `zone`'s `@subtype`, else its `@type` (`paragraph`, `column`, `head`, `running-title`, `header`, `footer`,
+`pageNum`, `catch`, `sig`, `marginalia`, `note`, `figure`, `table`, `caption`, ...; other names as PAGE-XML's and
+SegmOnto's region names read), else the element that holds all its text, else a paragraph. `fw` is the page's
+furniture by its `@type`: `header` (and `running-title`) a header, `pageNum` a page number, `catch` a catchword, `sig` a
+signature mark, `footer` a footer; another type a header above the page's first text and a footer below it. `note` is
+a footnote, a marginal note (`@place` `margin`, `left`, `right`, ...) marginalia, `@place="end"` an endnote. In a text,
+a note inside a block is a region after it, linked to it (`note_of`), and furniture comes first or last by where it
+stands, as in the HTML import.
+
+| Inline markup | Recorded as |
+|---|---|
+| `choice`: `sic`/`corr`, `abbr`/`expan`, `orig`/`reg` | the source's reading (`sic`, `abbr`, `orig`) in the line's text, the other as a `corrected`, `expanded` or `regularized` edit of its span; another `choice` its first child, `app` its `lem` (else its first `rdg`) |
+| `unclear` | its text, its span with `status` `illegible` (U+FFFD where it is scored) |
+| `gap` | no text; `status` `gap` on the empty span where it stands (`<line>[a:a]`) |
+| `@rend` (on `hi` and any element): `italic`, `bold`, `underline`, `strikethrough`, `sup`, `sub` and their usual spellings | the reading's formatting |
+| `lb[@break='no']` | the last word of one line and the first of the next, each with a `joined` edit holding the whole word (the first half without its division mark) |
+| `xml:lang` | a `language` classification (`language_tag`; an ill-formed value skipped) where it differs from what encloses it: the page (`TEI`, `text` and `body`, or `TEI`, `sourceDoc` and the surface), a region, a line (`line`, `l`), else the span of a line it covers |
+| `space` | a space |
+
+Anything else keeps its text and is otherwise ignored (`teiHeader`, `figDesc`, `desc` and the like hold no text of the
+page); an unknown element never fails the import. One annotator made all of it: people (kind `human`) with
+`ground_truth`, which also makes the source a ground truth, else the file (kind `file`), named `tei`, step
+`transcription`. The source has `format` `tei` and, for a namespaced file, `tei__namespace`.
 
 ## The document (`linecaster.document`)
 
