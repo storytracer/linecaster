@@ -103,3 +103,28 @@ def test_recomposition_margins_follow_the_recorded_direction():
     assert in_direction(rows, True, "vertical-rl") == (rows, True)          # the option overrides
     framed_rows, rtl = in_direction(rows, False, "horizontal-rl")
     assert (rtl, framed_rows[0].bbox, framed_rows[1].bbox) == (False, BBox(-900, 0, -100, 40), None)
+
+
+@pytest.mark.parametrize("recorded,indented_at,paragraphs", [
+    (True, "right", [["l0", "l1"], ["l2", "l3"]]),       # right to left: an indent from the right starts one
+    (True, "left", [["l0", "l1", "l2", "l3"]]),
+    (False, "left", [["l0", "l1"], ["l2", "l3"]]),
+    (False, "right", [["l0", "l1", "l2", "l3"]]),
+])
+def test_paragraphs_start_at_an_indent_on_the_side_lines_start(recorded, indented_at, paragraphs):
+    from linecaster.data import Source
+    from linecaster.engines import UnicodeRecompositionEngine
+
+    t = Transcription(source=Source(image_width=1000, image_height=1000))
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    if recorded:
+        t.classify(a, "", "direction", "horizontal-rl")
+    t.add_region(a, "r0", [100, 100, 800, 400], role="paragraph")
+    for i, s in enumerate(["الحمد لله رب العالمين الرحمن", "الرحيم مالك يوم الدين.", "إياك نعبد وإياك نستعين",
+                           "اهدنا الصراط المستقيم"]):
+        x0, x1 = (200 if i == 2 and indented_at == "left" else 100), (800 if i == 2 and indented_at == "right"
+                                                                      else 900)
+        t.add_line(a, f"l{i}", [x0, 100 + i * 50, x1 - x0, 40], region="r0", text=s)
+    t.add_order(a, ["r0"], [f"l{i}" for i in range(4)], [0, 1, 2, 3])
+    UnicodeRecompositionEngine()([t])
+    assert [[ln for row in p.rows for ln in row.lines] for p in t.paragraphs] == paragraphs
