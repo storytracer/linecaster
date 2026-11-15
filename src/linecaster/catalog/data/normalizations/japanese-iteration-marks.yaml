@@ -1,0 +1,150 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: japanese-iteration-marks
+description: "Japanese iteration marks written out: the kana marks (ゝ U+309D, ヽ U+30FD) as the kana before them, the voiced kana marks (ゞ U+309E, ヾ U+30FE) as its voiced form (かゞ as かが), the ideographic iteration mark (々 U+3005) as the ideograph before it (人々 as 人人). A mark after a character it cannot repeat stays, as do the marks for two kana and more (〳〵, 〴〵). For comparing texts that write a repetition one way with texts that write it the other; not for output, since both are standard spelling."
+scripts:
+- Hira
+- Kana
+- Hani
+languages:
+- ja
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: 'かゞ'
+    flags: []
+    replace: "かが"  # HIRAGANA LETTER KA + voiced mark
+  - match: 'きゞ'
+    flags: []
+    replace: "きぎ"  # HIRAGANA LETTER KI + voiced mark
+  - match: 'くゞ'
+    flags: []
+    replace: "くぐ"  # HIRAGANA LETTER KU + voiced mark
+  - match: 'けゞ'
+    flags: []
+    replace: "けげ"  # HIRAGANA LETTER KE + voiced mark
+  - match: 'こゞ'
+    flags: []
+    replace: "こご"  # HIRAGANA LETTER KO + voiced mark
+  - match: 'さゞ'
+    flags: []
+    replace: "さざ"  # HIRAGANA LETTER SA + voiced mark
+  - match: 'しゞ'
+    flags: []
+    replace: "しじ"  # HIRAGANA LETTER SI + voiced mark
+  - match: 'すゞ'
+    flags: []
+    replace: "すず"  # HIRAGANA LETTER SU + voiced mark
+  - match: 'せゞ'
+    flags: []
+    replace: "せぜ"  # HIRAGANA LETTER SE + voiced mark
+  - match: 'そゞ'
+    flags: []
+    replace: "そぞ"  # HIRAGANA LETTER SO + voiced mark
+  - match: 'たゞ'
+    flags: []
+    replace: "ただ"  # HIRAGANA LETTER TA + voiced mark
+  - match: 'ちゞ'
+    flags: []
+    replace: "ちぢ"  # HIRAGANA LETTER TI + voiced mark
+  - match: 'つゞ'
+    flags: []
+    replace: "つづ"  # HIRAGANA LETTER TU + voiced mark
+  - match: 'てゞ'
+    flags: []
+    replace: "てで"  # HIRAGANA LETTER TE + voiced mark
+  - match: 'とゞ'
+    flags: []
+    replace: "とど"  # HIRAGANA LETTER TO + voiced mark
+  - match: 'はゞ'
+    flags: []
+    replace: "はば"  # HIRAGANA LETTER HA + voiced mark
+  - match: 'ひゞ'
+    flags: []
+    replace: "ひび"  # HIRAGANA LETTER HI + voiced mark
+  - match: 'ふゞ'
+    flags: []
+    replace: "ふぶ"  # HIRAGANA LETTER HU + voiced mark
+  - match: 'へゞ'
+    flags: []
+    replace: "へべ"  # HIRAGANA LETTER HE + voiced mark
+  - match: 'ほゞ'
+    flags: []
+    replace: "ほぼ"  # HIRAGANA LETTER HO + voiced mark
+  - match: 'カヾ'
+    flags: []
+    replace: "カガ"  # KATAKANA LETTER KA + voiced mark
+  - match: 'キヾ'
+    flags: []
+    replace: "キギ"  # KATAKANA LETTER KI + voiced mark
+  - match: 'クヾ'
+    flags: []
+    replace: "クグ"  # KATAKANA LETTER KU + voiced mark
+  - match: 'ケヾ'
+    flags: []
+    replace: "ケゲ"  # KATAKANA LETTER KE + voiced mark
+  - match: 'コヾ'
+    flags: []
+    replace: "コゴ"  # KATAKANA LETTER KO + voiced mark
+  - match: 'サヾ'
+    flags: []
+    replace: "サザ"  # KATAKANA LETTER SA + voiced mark
+  - match: 'シヾ'
+    flags: []
+    replace: "シジ"  # KATAKANA LETTER SI + voiced mark
+  - match: 'スヾ'
+    flags: []
+    replace: "スズ"  # KATAKANA LETTER SU + voiced mark
+  - match: 'セヾ'
+    flags: []
+    replace: "セゼ"  # KATAKANA LETTER SE + voiced mark
+  - match: 'ソヾ'
+    flags: []
+    replace: "ソゾ"  # KATAKANA LETTER SO + voiced mark
+  - match: 'タヾ'
+    flags: []
+    replace: "タダ"  # KATAKANA LETTER TA + voiced mark
+  - match: 'チヾ'
+    flags: []
+    replace: "チヂ"  # KATAKANA LETTER TI + voiced mark
+  - match: 'ツヾ'
+    flags: []
+    replace: "ツヅ"  # KATAKANA LETTER TU + voiced mark
+  - match: 'テヾ'
+    flags: []
+    replace: "テデ"  # KATAKANA LETTER TE + voiced mark
+  - match: 'トヾ'
+    flags: []
+    replace: "トド"  # KATAKANA LETTER TO + voiced mark
+  - match: 'ハヾ'
+    flags: []
+    replace: "ハバ"  # KATAKANA LETTER HA + voiced mark
+  - match: 'ヒヾ'
+    flags: []
+    replace: "ヒビ"  # KATAKANA LETTER HI + voiced mark
+  - match: 'フヾ'
+    flags: []
+    replace: "フブ"  # KATAKANA LETTER HU + voiced mark
+  - match: 'ヘヾ'
+    flags: []
+    replace: "ヘベ"  # KATAKANA LETTER HE + voiced mark
+  - match: 'ホヾ'
+    flags: []
+    replace: "ホボ"  # KATAKANA LETTER HO + voiced mark
+  - match: 'うゞ'
+    flags: []
+    replace: "うゔ"  # HIRAGANA LETTER U + voiced mark
+  - match: 'ウヾ'
+    flags: []
+    replace: "ウヴ"  # KATAKANA LETTER U + voiced mark
+  - match: '([\u3041-\u3096])ゝ'
+    flags: []
+    replace: "\\1\\1"  # a hiragana repeated
+  - match: '([\u30A1-\u30FA])ヽ'
+    flags: []
+    replace: "\\1\\1"  # a katakana repeated
+  - match: '([\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])々'
+    flags: []
+    replace: "\\1\\1"  # an ideograph repeated

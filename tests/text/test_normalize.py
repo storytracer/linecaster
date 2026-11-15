@@ -261,6 +261,14 @@ def test_cyrillic_prereform():
     assert catalog().normalization("cyrillic-prereform").languages == ("ru",)
 
 
+def test_japanese_iteration_marks():
+    out = _n("japanese-iteration-marks", "comparison")
+    assert out("こゝろ たゞ 人々 カヽ ヒヾ うゞ") == "こころ ただ 人人 カカ ヒビ うゔ"
+    assert out("ゝ々 はゝ") == "ゝ々 はは"                                    # nothing to repeat: kept
+    with pytest.raises(CatalogError, match="not for output"):
+        _n("japanese-iteration-marks", "output")
+
+
 def test_composite_strategies_of_the_new_normalizations():
     c = catalog()
     s = c.strategy("nfc+arabic-tatweel+arabic-marks")
