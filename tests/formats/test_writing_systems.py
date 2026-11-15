@@ -301,3 +301,18 @@ def test_page_tables():
     assert L.from_page_script("other") is None and L.page_script("Zanb") is None
     assert (L.canonical("eng"), L.canonical("ger"), L.canonical("deu-DE"), L.canonical("grc"),
             L.canonical("en_US"), L.canonical("fra/lat")) == ("en", "de", "de-DE", "grc", "en-US", None)
+
+
+def test_alto_keeps_the_page_s_script_and_direction_on_the_page():
+    from lxml import etree
+
+    from linecaster.testing.scripts import script_page
+
+    for sid, direction, script in (("japanese", "vertical-rl", "Jpan"), ("arabic", "horizontal-rl", "Arab")):
+        xml = to_alto(script_page(sid))
+        back = from_alto(xml)
+        assert (back.direction(""), back.script("")) == (direction, script)
+        assert not [c for c in back.classifications if c.scheme in ("direction", "script") and c.target]
+        assert _schema("alto-4-4.xsd").validate(etree.fromstring(xml))
+        assert from_alto(to_alto(script_page(sid), extensions=False)).direction("r0") == (
+            "horizontal-rl" if sid == "arabic" else None)      # without the extension: BASEDIRECTION only

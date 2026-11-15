@@ -12,7 +12,8 @@ Mapping (see ``docs/reference/serialization.md``):
 * language -> ``LANG`` (BCP 47) on ``Page``, ``TextBlock``, ``TextLine`` and ``String``, where it differs from the
   enclosing level's; direction -> ``BASEDIRECTION`` on ``TextBlock`` (the page's on every block: ALTO's ``Page``
   has none) and ``TextLine`` (``ltr``, ``rtl``, ``ttb`` for both vertical directions); script, a word's direction
-  and a vertical block's direction go into the extension;
+  and a vertical block's direction go into the extension, the page's script and direction into an extension tag
+  named after the page (``lcx_<page id>``: ``Page`` has no ``TAGREFS``), so they come back on the page;
 * each model and rule annotator -> ``Description/Processing`` (category, date if recorded, the step, the step
   record as JSON in ``processingStepSettings``, linecaster as ``softwareCreator`` with the model and its
   revision), all referenced from ``Page/@PROCESSINGREFS``; read back as annotators (foreign files: their
@@ -278,6 +279,10 @@ class _Writer:
         page = _e(layout, "Page", ID=self.new_id("page_1"), PHYSICAL_IMG_NR="1",
                   WIDTH=str(width), HEIGHT=str(height), PROCESSINGREFS=" ".join(processing_ids) or None,
                   LANG=self.page_writing["language"])
+        held = {k: self.page_writing[k] for k in ("script", "direction") if self.page_writing[k]}
+        if held and self.extensions:            # ALTO's Page has no TAGREFS: the tag names the page by its id
+            self.tags.append(("OtherTag", self.new_id(f"lcx_{page.get('ID')}"), X.EXT_KEY, X.EXT_KEY,
+                              X.ext_dumps(held)))
         ps = _e(page, "PrintSpace", HPOS="0", VPOS="0", WIDTH=str(width), HEIGHT=str(height))
         for u in units:
             if u.synthetic:
@@ -465,6 +470,10 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     annotators = _processing(desc) if desc is not None else []
     page_holds = {"language": L.canonical(page.get("LANG")) if page is not None else None, "script": None,
                   "direction": None}
+    page_ext = tags.get(f"lcx_{page.get('ID')}") if page is not None and page.get("ID") else None
+    if page_ext is not None and page_ext.get("TYPE") == X.EXT_KEY:      # what the Page cannot hold
+        held = X.ext_loads(page_ext.get("DESCRIPTION"))
+        page_holds.update({k: held[k] for k in ("script", "direction") if held.get(k)})
     other_languages = page.get("OTHERLANGS") if page is not None else None
     regions: list[X.FileRegion] = []
     lines: list[X.FileLine] = []
