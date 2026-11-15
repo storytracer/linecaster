@@ -111,3 +111,49 @@ def test_a_foreign_annotation_page_with_selectors_percent_boxes_and_languages():
     assert [w.text for w in t.lines[0].reading.words] == ["ship"]
     assert [(e.target, e.kind, e.text) for e in t.edits] == [("l0", "corrected", "The ship sailed.")]
     assert {a.kind for a in t.annotators} == {"human"} and t.annotators[0].name == "Transcriber"
+
+
+def _edited():
+    from linecaster.data import Annotator, Transcription, Word
+    from linecaster.data.transcription import Edit
+
+    t = Transcription()
+    a = t.add_annotator(Annotator(step="transcription", name="people", kind="human"))
+    t.add_line(a, "l0", [0, 0, 500, 40], text="the qvick fox")
+    t.lines[0].reading.words.extend([Word(text="the", box=[0, 0, 100, 40]), Word(text="qvick", box=[120, 0, 150, 40])])
+    t.edits += [Edit(annotator=a, target="l0[4:9]", kind="corrected", text="quick"),
+                Edit(annotator=a, target="l0/1", kind="corrected", text="quick"),
+                Edit(annotator=a, target="l0", kind="regularized", text="the quick fox")]
+    t.classify(a, "l0/1", "language", "la")
+    return t
+
+
+def test_edits_of_a_span_and_of_a_word_keep_their_targets():
+    from linecaster.formats.iiif import from_annotation_page
+
+    page = to_annotation_page(_edited(), CANVAS, "https://example.org/anno")
+    back = from_annotation_page(json.dumps(page))
+    assert [(e.target, e.kind, e.text) for e in back.edits] == [
+        ("l0[4:9]", "corrected", "quick"), ("l0/1", "corrected", "quick"), ("l0", "regularized", "the quick fox")]
+    assert back.language("l0/1") == "la" and back.language("l0/0") is None
+
+
+def test_a_page_with_span_edits_is_valid_iiif():
+    jsonschema = pytest.importorskip("jsonschema")
+    with urllib.request.urlopen(SCHEMA_URL, timeout=30) as r:
+        data = r.read()
+    jsonschema.validate(to_annotation_page(_edited(), CANVAS, "https://example.org/anno"), json.loads(data))
+
+
+def test_a_word_on_no_line_is_left_out():
+    from linecaster.formats.iiif import from_annotation_page
+
+    def anno(n, text, xywh, granularity):
+        return {"id": f"https://example.org/anno/{n}", "type": "Annotation", "motivation": "supplementing",
+                "textGranularity": granularity, "body": {"type": "TextualBody", "value": text},
+                "target": f"{CANVAS}#xywh={xywh}"}
+
+    t = from_annotation_page({"type": "AnnotationPage", "items": [
+        anno(0, "one", "0,0,400,40", "line"), anno(1, "two", "0,500,400,40", "line"),
+        anno(2, "stray", "900,900,10,10", "word"), anno(3, "two", "0,500,100,40", "word")]})
+    assert [[w.text for w in ln.reading.words] for ln in t.lines] == [[], ["two"]]

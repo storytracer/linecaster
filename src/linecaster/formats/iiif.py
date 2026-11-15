@@ -3,7 +3,8 @@
 ``to_annotation_page(t, canvas, id)`` writes one annotation per region (motivation ``classifying``, its content
 role as the body), per line with a reading (``supplementing``, IIIF's motivation for a transcription, with the
 text granularity extension's ``textGranularity`` ``line``), per word (``word``), per description (``describing``)
-and per edit (``editing``, targeting the line's annotation). Targets are the canvas with a media fragment
+and per edit (``editing``, targeting the line's annotation, a span's edit those characters of its text by a
+``TextPositionSelector``, a word's the word's annotation). Targets are the canvas with a media fragment
 (``#xywh=``) where the annotation has a box, the canvas itself where it has none. Each annotation's ``generator``
 (``creator`` for people) is its annotator's name. A line's, a word's and an edit's body has the ``language`` its
 target records (``Transcription.language``: its own, else its line's, region's or page's); a region's body has none.
@@ -67,8 +68,12 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
     items: list[dict[str, Any]] = []
     hidden = {r.id for r in t.regions if policy.layer_of(t, r.id) == "none"}
     line_ids: dict[str, str] = {}
+    word_ids: dict[str, str] = {}
+    # lines with a word that records its own language (the others' words take their line's)
+    word_languages = {parse(c.target).id for c in t.classifications if c.scheme == "language"
+                      and parse(c.target).word is not None}
 
-    def add(motivation: str, body: dict, target: str, annotator: int, **extra) -> str:
+    def add(motivation: str, body: dict, target: str | dict, annotator: int, **extra) -> str:
         aid = f"{id}/{len(items)}"
         items.append({"id": aid, "type": "Annotation", "motivation": motivation, "body": body, "target": target,
                       **_by(t, annotator), **extra})
@@ -84,19 +89,30 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
         for ln in t.ordered_lines(hidden=True):
             if ln.reading is None or t.region_of(ln) in hidden or ln.id in hidden_lines:
                 continue
-            line_ids[ln.id] = add("supplementing", _body(t.text_of(ln), language=t.language(ln.id)),
+            language = t.language(ln.id)
+            line_ids[ln.id] = add("supplementing", _body(t.text_of(ln), language=language),
                                   _target(canvas, ln.box or (t.region(t.region_of(ln)).box
                                                              if t.region_of(ln) and t.region(t.region_of(ln))
                                                              else None)),
                                   ln.reading.annotator, textGranularity="line")
             for k, w in enumerate(ln.reading.words):
-                add("supplementing", _body(w.text, language=t.language(word_ref(ln.id, k))), _target(canvas, w.box),
-                    ln.reading.annotator, textGranularity="word")
+                own = t.language(word_ref(ln.id, k)) if ln.id in word_languages else language
+                word_ids[word_ref(ln.id, k)] = add("supplementing", _body(w.text, language=own),
+                                                   _target(canvas, w.box), ln.reading.annotator,
+                                                   textGranularity="word")
         for e in t.edits:
             ref = parse(e.target)
             target = line_ids.get(ref.id)
-            if target is not None and ref.page is None:
-                add("editing", _body(e.text, e.kind, t.language(e.target)), target, e.annotator)
+            if target is None or ref.page is not None:
+                continue
+            if ref.word is not None:                   # a word's edit: the word's annotation
+                target = word_ids.get(word_ref(ref.id, ref.word))
+                if target is None:
+                    continue
+            elif ref.span is not None:                 # a span's: those characters of the line's text
+                target = {"type": "SpecificResource", "source": target,
+                          "selector": {"type": "TextPositionSelector", "start": ref.span[0], "end": ref.span[1]}}
+            add("editing", _body(e.text, e.kind, t.language(e.target)), target, e.annotator)
     for d in t.descriptions:
         r = t.region(d.target)
         if r is not None and r.id not in hidden:
@@ -156,6 +172,25 @@ def _target_shape(target, size) -> tuple[str | None, list | None, list | None]:
     return None, None, None
 
 
+def _edit_target(target, lines: dict, words_by_id: dict) -> str | None:
+    """An edit's target as a ref: a line's annotation (the line), a word's (the word), or a ``TextPositionSelector``
+    of a line's annotation (those characters of it); ``None`` for anything else."""
+    if isinstance(target, str):
+        ln = lines.get(target)
+        return ln.id if ln is not None else words_by_id.get(target)
+    if not isinstance(target, dict):
+        return None
+    source = target.get("source")
+    source = source.get("id") if isinstance(source, dict) else source
+    ln = lines.get(source or target.get("id"))
+    if ln is None:
+        return words_by_id.get(source or target.get("id"))
+    selector = _first(target.get("selector"))
+    if isinstance(selector, dict) and selector.get("type") == "TextPositionSelector":
+        return f"{ln.id}[{int(selector['start'])}:{int(selector['end'])}]"
+    return ln.id
+
+
 def _text_bodies(body) -> list[dict]:
     bodies = body if isinstance(body, list) else [body]
     return [b for b in bodies if isinstance(b, dict) and ("value" in b or "chars" in b)]
@@ -191,6 +226,7 @@ def from_annotation_page(data: bytes | str | dict, uri: str | None = None, groun
     regions: list[tuple[str, BBox]] = []
     lines: dict[str, Any] = {}                       # annotation id -> line
     words: list[tuple[dict, int, list]] = []
+    words_by_id: dict[str, str] = {}                 # a word's annotation id -> its ref (<line>/<n>)
     rest: list[dict] = []
     languages: dict[str, str] = {}                   # line id -> its body's language
     for item in items:
@@ -235,9 +271,12 @@ def from_annotation_page(data: bytes | str | dict, uri: str | None = None, groun
         owner = max((ln for ln in t.lines if ln.box is not None and ln.reading is not None),
                     key=lambda ln: wb.intersection_area(BBox(ln.box[0], ln.box[1], ln.box[0] + ln.box[2],
                                                              ln.box[1] + ln.box[3])), default=None)
-        if owner is None:
-            continue
+        if owner is None or wb.intersection_area(BBox(owner.box[0], owner.box[1], owner.box[0] + owner.box[2],
+                                                      owner.box[1] + owner.box[3])) <= 0:
+            continue                                   # a word on no line
         owner.reading.words.append(Word(text=_value(bodies[0]), box=box))
+        if item.get("id"):
+            words_by_id[item["id"]] = f"{owner.id}/{len(owner.reading.words) - 1}"
         lang = language_tag(bodies[0].get("language"))
         if lang and lang != languages.get(owner.id):
             languages[f"{owner.id}/{len(owner.reading.words) - 1}"] = lang
@@ -248,10 +287,10 @@ def from_annotation_page(data: bytes | str | dict, uri: str | None = None, groun
             continue
         target = _first(item.get("target"))
         if motivation == "editing":
-            ln = lines.get(target if isinstance(target, str) else (target or {}).get("id"))
             kind = bodies[0].get("purpose")
-            if ln is not None and kind in EDITS:
-                t.edits.append(Edit(annotator=annotator(item), target=ln.id, kind=kind, text=_value(bodies[0])))
+            ref = _edit_target(target, lines, words_by_id)
+            if ref is not None and kind in EDITS:
+                t.edits.append(Edit(annotator=annotator(item), target=ref, kind=kind, text=_value(bodies[0])))
         elif motivation == "describing":
             _src, box, _polygon = _target_shape(target, size)
             match = [rid for rid, rb in regions if box is not None and rb == BBox(box[0], box[1], box[0] + box[2],

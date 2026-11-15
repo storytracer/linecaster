@@ -244,7 +244,7 @@ IIIF Presentation and text granularity contexts:
 | region, in reading order | motivation `classifying`, the content role as a `TextualBody` (purpose `classifying`) |
 | line with a reading, in reading order | `supplementing` (IIIF's motivation for a transcription), `textGranularity` `line`, the text as written, the line's language as the body's `language` |
 | word | `supplementing`, `textGranularity` `word`, the word's language as the body's `language` |
-| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose and its target's language as its `language`, targeting the line's annotation |
+| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose and its target's language as its `language`, targeting the line's annotation (a span's: those characters of its text, a `SpecificResource` with a `TextPositionSelector`; a word's: the word's annotation) |
 | description of a region | `describing`, its text with its kind as the purpose |
 
 Targets are the canvas with a media fragment (`#xywh=`, rounded) where the annotation has a box (a line without
@@ -265,8 +265,8 @@ own and other software's that follow the same conventions.
 |---|---|
 | `classifying` with a box | a region, the body's value its role |
 | `supplementing` (also `transcribing`, `commenting` and `painting` with `textGranularity` `line`), `line` or no granularity | a line, the body's value its text |
-| `textGranularity` `word` | a word of the line whose box holds most of it |
-| `editing` whose body's purpose is an edit kind (`corrected`, `expanded`, `regularized`, `joined`), targeting a line's annotation | an edit of that line |
+| `textGranularity` `word` | a word of the line whose box holds most of it (none: the word is left out) |
+| `editing` whose body's purpose is an edit kind (`corrected`, `expanded`, `regularized`, `joined`), targeting a line's annotation, characters of it (`TextPositionSelector`) or a word's annotation | an edit of that line, span or word |
 | `describing` with a region's box | a description of that region, the purpose its kind |
 
 A target is a media fragment (`#xywh=`, in pixels, or `percent:` of the canvas's size where `image_width` and
