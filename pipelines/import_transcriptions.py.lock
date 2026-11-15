@@ -741,7 +741,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.9.2"
+version = "0.9.3"
 source = { editable = "../" }
 dependencies = [
     { name = "cssselect" },
@@ -805,7 +805,7 @@ docs = [
 
 [[package]]
 name = "linecaster-mediawiki"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "../engines/mediawiki" }
 dependencies = [
     { name = "linecaster" },

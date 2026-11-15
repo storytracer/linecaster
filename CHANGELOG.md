@@ -4,6 +4,14 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.9.3 (2026-11-15)
+
+### Fixed
+
+- **linecaster-mediawiki 0.1.2**: `join_divided_words` compares a half with the whole word in Unicode's
+  compatibility form (a half printed with a ligature, `{{hws|ﬂush|flushed}}`, was left
+  unpaired) and pairs halves on one page too (a transcription that keeps the print's lines).
+
 ## 0.9.2 (2026-11-15)
 
 ### Fixed
