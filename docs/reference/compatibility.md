@@ -14,9 +14,9 @@ working or starts to mean something else:
 | backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for blocks | a new argument with a default that keeps the old behavior |
 | commands and flags | a `linecaster` command or a pipeline script's option renamed, removed, or given another meaning or default | a new command or option |
 | pipeline ids and slots | a pipeline id or a slot renamed or removed, a slot's step changed | a new pipeline script; a new slot that can stay empty |
-| page records and item records | a field renamed, removed or given another meaning; a schema id (`linecaster.page/4`) whose records a reader no longer reads | a new optional field; a new schema version that `PageRecordReader` reads together with the older ones |
+| data formats (page records, documents, run records, evidence, benchmarks, scores, samples) | a field renamed, removed or given another meaning (a new format version, `linecaster.page/5`); a format version a reader no longer reads | a new optional field (the version stays); a new version that its readers read together with the older ones, upgraded on load |
 | the run layout | a folder or file name under `OUT` (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) or its format changed | a new file or folder |
-| the catalog | a catalog id (model, preset, recipe, policy) renamed or removed; a released edition changed; the lock format changed without a migration | a new entry or edition; a catalog migration that keeps every output |
+| the catalog | a catalog id (model, preset, recipe, policy, conventions) renamed or removed; a field of an entry's file renamed or removed | a new entry; a change of what an entry does (its hash in `catalog.index` changes), named in CHANGELOG.md under *Changed outputs* |
 | engines | an engine id removed; an option renamed or removed, or a default changed (a new code id, `.v2`, instead) | a new engine; a new option whose default keeps the old behavior (the same id) |
 | the Python API | a public name renamed, removed or given another meaning in `linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines.api`, `linecaster.pipelines` (the shapes), `linecaster.runtime.run` (`main`, `recipe`, the helpers the shapes use) or `linecaster.testing` (its checks and markers) | a new name |
 | the output files' contents | a change of structure in the files a pipeline writes (ALTO, PAGE-XML, hOCR, Markdown, HTML, JSON) that breaks a reader of the old ones: other elements, attributes or fields | better text; a new optional element or field |
@@ -67,10 +67,15 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
 - **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.
 
-## Released catalog editions
+## The catalog and the data formats
 
-A released edition never changes ([catalog](catalog.md#released-editions-are-immutable)): a change that can change
-outputs is a new edition, and the old one stays resolvable from the lock. A catalog migration (a change of the
-catalog's vocabulary or format that keeps every output) recomputes an edition's hash and keeps the old one as
-`previous_sha256`, so run records written before it still resolve. Engine and pipeline code ids follow the same
-rule: an incompatible change of options or slots is a new id, and the old one stays registered.
+The release versions the catalog ([catalog](catalog.md)): an entry is its id, and what it does is the hash of its
+functional content, listed in the committed `catalog.index`. A change of what an entry does shows in the index's diff
+and is named in CHANGELOG.md under *Changed outputs*, so a user knows what to run again; a run record names every
+entry it used with its settings and hash and the linecaster that ran it, which reproduces it. A reference from before
+0.10 (`id@N`) resolves to the release's entry, with a warning. Engine and pipeline code ids keep their versions: an
+incompatible change of options or slots is a new id, and the old one stays registered.
+
+Data formats keep their own versions, because their files outlive the code: a format's version rises only on an
+incompatible change, readers upgrade every older version on load and refuse an unknown one, writers write the
+current one, and every file names the linecaster that wrote it.

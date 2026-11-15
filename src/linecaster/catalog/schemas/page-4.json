@@ -1,0 +1,2315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Anchor": {
+      "additionalProperties": false,
+      "description": "Where a zone's text comes from in the source the set was read from: characters ``[start, end)`` of the source\ntext (``Source.uri`` / ``Source.record`` at ``Source.revision``).",
+      "properties": {
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Anchor",
+      "type": "object"
+    },
+    "AnnotationSet": {
+      "additionalProperties": true,
+      "description": "Everything one source said about one page.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "annotators": {
+          "items": {
+            "$ref": "#/$defs/Annotator"
+          },
+          "title": "Annotators",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/RawOutput"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "regions": {
+          "items": {
+            "$ref": "#/$defs/Region"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "ranges": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Paragraph"
+              },
+              {
+                "$ref": "#/$defs/DocumentRange"
+              },
+              {
+                "$ref": "#/$defs/Range"
+              }
+            ]
+          },
+          "title": "Ranges",
+          "type": "array"
+        },
+        "classifications": {
+          "items": {
+            "$ref": "#/$defs/Classification"
+          },
+          "title": "Classifications",
+          "type": "array"
+        },
+        "descriptions": {
+          "items": {
+            "$ref": "#/$defs/Description"
+          },
+          "title": "Descriptions",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/Link"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "orders": {
+          "items": {
+            "$ref": "#/$defs/ReadingOrder"
+          },
+          "title": "Orders",
+          "type": "array"
+        }
+      },
+      "title": "AnnotationSet",
+      "type": "object"
+    },
+    "Annotator": {
+      "additionalProperties": false,
+      "description": "One thing that worked on an annotation set: a model step, a rule-based step, a delivered file, or people.\n``measurements`` keys come from the fixed vocabulary ``linecaster.data.MEASUREMENTS``. ``linecaster``: the\nlinecaster that recorded it (``producer``; set by ``Transcription.add_annotator``), so a record names its writer\nwherever it travels.",
+      "properties": {
+        "kind": {
+          "default": "model",
+          "enum": [
+            "model",
+            "rule",
+            "file",
+            "human"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "preset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preset"
+        },
+        "preset_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preset Sha256"
+        },
+        "conventions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conventions"
+        },
+        "conventions_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conventions Sha256"
+        },
+        "recipe": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recipe"
+        },
+        "recipe_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recipe Sha256"
+        },
+        "backend": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backend"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run"
+        },
+        "linecaster": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Linecaster"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "title": "Settings",
+          "type": "object"
+        },
+        "measurements": {
+          "additionalProperties": true,
+          "title": "Measurements",
+          "type": "object"
+        }
+      },
+      "required": [
+        "step",
+        "name"
+      ],
+      "title": "Annotator",
+      "type": "object"
+    },
+    "Cell": {
+      "additionalProperties": false,
+      "description": "One cell of a table: its rows and columns (offsets, end exclusive), its text and whether it heads a column, a\nrow or a section. ``formulas``: where the source marks a formula in the cell (MathML, a wiki's ``<math>``), its\ncharacter span in ``text`` ([start, end), the ``$…$`` the text writes it as included); a ``$`` outside them is\nprinted. Empty where the source marks none or cannot say (an engine's HTML that writes ``$…$`` as text).",
+      "properties": {
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "start_row": {
+          "title": "Start Row",
+          "type": "integer"
+        },
+        "end_row": {
+          "title": "End Row",
+          "type": "integer"
+        },
+        "start_col": {
+          "title": "Start Col",
+          "type": "integer"
+        },
+        "end_col": {
+          "title": "End Col",
+          "type": "integer"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "column_header": {
+          "default": false,
+          "title": "Column Header",
+          "type": "boolean"
+        },
+        "row_header": {
+          "default": false,
+          "title": "Row Header",
+          "type": "boolean"
+        },
+        "row_section": {
+          "default": false,
+          "title": "Row Section",
+          "type": "boolean"
+        },
+        "formulas": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "title": "Formulas",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_row",
+        "end_row",
+        "start_col",
+        "end_col"
+      ],
+      "title": "Cell",
+      "type": "object"
+    },
+    "Classification": {
+      "additionalProperties": true,
+      "description": "One value of one scheme for one target; a ``status`` may say why (``reason``, one of ``REASONS``).",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "scheme": {
+          "title": "Scheme",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "annotator",
+        "target",
+        "scheme",
+        "value"
+      ],
+      "title": "Classification",
+      "type": "object"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "description": "One decision of a recomposition, at one row of a paragraph (``row``: the index into ``Paragraph.rows``).\n``separator`` is, for a continuation, what joins this piece's text to the next piece's.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "mark_removed",
+            "hyphen_kept",
+            "paragraph_break",
+            "continuation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "row": {
+          "default": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "separator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Separator"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "Description": {
+      "additionalProperties": true,
+      "description": "Text an annotator wrote about a zone that is not on the page (a description of a picture, a summary).",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "kind": {
+          "default": "description",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "format": {
+          "default": "text",
+          "title": "Format",
+          "type": "string"
+        }
+      },
+      "required": [
+        "annotator",
+        "target",
+        "text"
+      ],
+      "title": "Description",
+      "type": "object"
+    },
+    "DocumentRange": {
+      "additionalProperties": true,
+      "description": "A document within or across items; ``kind`` is always written (``kind=\"document\"``).",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "document",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "parts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "annotator",
+        "id",
+        "kind"
+      ],
+      "title": "DocumentRange",
+      "type": "object"
+    },
+    "Edit": {
+      "additionalProperties": true,
+      "description": "Another form of a target's text; the target's own text stays.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "nfc",
+            "normalized",
+            "corrected",
+            "joined",
+            "expanded",
+            "regularized"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "annotator",
+        "target",
+        "kind",
+        "text"
+      ],
+      "title": "Edit",
+      "type": "object"
+    },
+    "Formatting": {
+      "additionalProperties": false,
+      "description": "How characters ``charspan`` of a reading's text are set: bold, italic, underlined, struck through, raised or\nlowered.",
+      "properties": {
+        "charspan": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charspan"
+        },
+        "bold": {
+          "default": false,
+          "title": "Bold",
+          "type": "boolean"
+        },
+        "italic": {
+          "default": false,
+          "title": "Italic",
+          "type": "boolean"
+        },
+        "underline": {
+          "default": false,
+          "title": "Underline",
+          "type": "boolean"
+        },
+        "strikethrough": {
+          "default": false,
+          "title": "Strikethrough",
+          "type": "boolean"
+        },
+        "script": {
+          "default": "baseline",
+          "enum": [
+            "baseline",
+            "sub",
+            "super"
+          ],
+          "title": "Script",
+          "type": "string"
+        }
+      },
+      "title": "Formatting",
+      "type": "object"
+    },
+    "Formula": {
+      "additionalProperties": true,
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "latex": {
+          "title": "Latex",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the LaTeX as the source wrote it, where the reading's differs (a wiki's formula as its software normalizes it)",
+          "title": "Source"
+        }
+      },
+      "required": [
+        "annotator",
+        "target",
+        "latex"
+      ],
+      "title": "Formula",
+      "type": "object"
+    },
+    "Glyph": {
+      "additionalProperties": false,
+      "properties": {
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Glyph",
+      "type": "object"
+    },
+    "Line": {
+      "additionalProperties": true,
+      "description": "A line zone, with the region it was assigned to and, once recognized, its reading.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline"
+        },
+        "reading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reading"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "annotator",
+        "id"
+      ],
+      "title": "Line",
+      "type": "object"
+    },
+    "Link": {
+      "additionalProperties": true,
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "annotator",
+        "kind",
+        "source",
+        "target"
+      ],
+      "title": "Link",
+      "type": "object"
+    },
+    "PageImage": {
+      "additionalProperties": false,
+      "description": "The image a page's coordinates refer to. Bytes travel next to the row (``Document.media``),\nnever inside it.",
+      "properties": {
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "pixels_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pixels Sha256"
+        },
+        "source_width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Width"
+        },
+        "source_height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Height"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale"
+        },
+        "decoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decoder"
+        },
+        "extra": {
+          "additionalProperties": true,
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "title": "PageImage",
+      "type": "object"
+    },
+    "Paragraph": {
+      "additionalProperties": true,
+      "description": "The bottom range: running text recomposed from rows of lines, with the decisions that made it.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "paragraph",
+          "default": "paragraph",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "parts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/ParagraphRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "decisions": {
+          "items": {
+            "$ref": "#/$defs/Decision"
+          },
+          "title": "Decisions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "annotator",
+        "id"
+      ],
+      "title": "Paragraph",
+      "type": "object"
+    },
+    "ParagraphRow": {
+      "additionalProperties": false,
+      "description": "One visual row of a paragraph: every line on the row, and the row's part of the paragraph's text.",
+      "properties": {
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "charspan": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Charspan",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lines",
+        "charspan"
+      ],
+      "title": "ParagraphRow",
+      "type": "object"
+    },
+    "Range": {
+      "additionalProperties": true,
+      "description": "A logical unit of content: its piece on this page. Pieces with the same id on other pages of the item are\nthe same range.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "parts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "annotator",
+        "id",
+        "kind"
+      ],
+      "title": "Range",
+      "type": "object"
+    },
+    "RawOutput": {
+      "additionalProperties": false,
+      "description": "One request's answer, verbatim: a completion as the model wrote it, or an engine's native result.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "items": {},
+              "type": "array"
+            }
+          ],
+          "title": "Content"
+        },
+        "format": {
+          "default": "text",
+          "title": "Format",
+          "type": "string"
+        },
+        "pass": {
+          "default": 1,
+          "title": "Pass",
+          "type": "integer"
+        },
+        "kept": {
+          "default": true,
+          "title": "Kept",
+          "type": "boolean"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "title": "Settings",
+          "type": "object"
+        },
+        "image_size": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Size"
+        },
+        "finish_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finish Reason"
+        },
+        "prompt_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Tokens"
+        },
+        "completion_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completion Tokens"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "required": [
+        "annotator",
+        "content"
+      ],
+      "title": "RawOutput",
+      "type": "object"
+    },
+    "Reading": {
+      "additionalProperties": true,
+      "description": "What a recognizer read on one line: exactly as the engine produced it.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "alternatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "words": {
+          "items": {
+            "$ref": "#/$defs/Word"
+          },
+          "title": "Words",
+          "type": "array"
+        },
+        "formatting": {
+          "items": {
+            "$ref": "#/$defs/Formatting"
+          },
+          "title": "Formatting",
+          "type": "array"
+        }
+      },
+      "required": [
+        "annotator",
+        "text"
+      ],
+      "title": "Reading",
+      "type": "object"
+    },
+    "ReadingOrder": {
+      "additionalProperties": true,
+      "description": "An order of the page: its regions in reading order, its lines in reading order, and each of those lines'\nvisual row within its region (``rows``, parallel to ``lines``). An order of regions only leaves ``lines`` empty.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "regions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "annotator"
+      ],
+      "title": "ReadingOrder",
+      "type": "object"
+    },
+    "Region": {
+      "additionalProperties": true,
+      "description": "A zone from a layout step; ``label`` is the annotator's own, verbatim.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "annotator",
+        "id"
+      ],
+      "title": "Region",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": true,
+      "description": "Where an annotation set comes from: produced here, converted from a delivered file, or a ground truth.",
+      "properties": {
+        "kind": {
+          "default": "produced",
+          "enum": [
+            "produced",
+            "converted",
+            "ground_truth"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset"
+        },
+        "record": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "image_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Sha256"
+        },
+        "image_width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Width"
+        },
+        "image_height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Height"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale"
+        }
+      },
+      "title": "Source",
+      "type": "object"
+    },
+    "Table": {
+      "additionalProperties": true,
+      "description": "A region's table structure; ``html`` as the model wrote it, when it did.",
+      "properties": {
+        "annotator": {
+          "title": "Annotator",
+          "type": "integer"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "derived_from": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "num_rows": {
+          "title": "Num Rows",
+          "type": "integer"
+        },
+        "num_cols": {
+          "title": "Num Cols",
+          "type": "integer"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/Cell"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "html": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Html"
+        }
+      },
+      "required": [
+        "annotator",
+        "target",
+        "num_rows",
+        "num_cols"
+      ],
+      "title": "Table",
+      "type": "object"
+    },
+    "Transcription": {
+      "additionalProperties": true,
+      "description": "An annotation set that also holds text: OCR, HTR or ground truth of one page.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "annotators": {
+          "items": {
+            "$ref": "#/$defs/Annotator"
+          },
+          "title": "Annotators",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/RawOutput"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "regions": {
+          "items": {
+            "$ref": "#/$defs/Region"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "ranges": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Paragraph"
+              },
+              {
+                "$ref": "#/$defs/DocumentRange"
+              },
+              {
+                "$ref": "#/$defs/Range"
+              }
+            ]
+          },
+          "title": "Ranges",
+          "type": "array"
+        },
+        "classifications": {
+          "items": {
+            "$ref": "#/$defs/Classification"
+          },
+          "title": "Classifications",
+          "type": "array"
+        },
+        "descriptions": {
+          "items": {
+            "$ref": "#/$defs/Description"
+          },
+          "title": "Descriptions",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/Link"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "orders": {
+          "items": {
+            "$ref": "#/$defs/ReadingOrder"
+          },
+          "title": "Orders",
+          "type": "array"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/Line"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/Table"
+          },
+          "title": "Tables",
+          "type": "array"
+        },
+        "formulas": {
+          "items": {
+            "$ref": "#/$defs/Formula"
+          },
+          "title": "Formulas",
+          "type": "array"
+        },
+        "edits": {
+          "items": {
+            "$ref": "#/$defs/Edit"
+          },
+          "title": "Edits",
+          "type": "array"
+        }
+      },
+      "title": "Transcription",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": true,
+      "description": "A word of a reading. ``id`` only when its source gave one other than ``<line>_w<n>``.",
+      "properties": {
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "hyphen": {
+          "default": false,
+          "title": "Hyphen",
+          "type": "boolean"
+        },
+        "alternatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "formatting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Formatting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "glyphs": {
+          "items": {
+            "$ref": "#/$defs/Glyph"
+          },
+          "title": "Glyphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "page_id": {
+      "title": "Page Id",
+      "type": "string"
+    },
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Item Id"
+    },
+    "sequence": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sequence"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PageImage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "transcriptions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Transcription"
+      },
+      "title": "Transcriptions",
+      "type": "object"
+    },
+    "annotations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AnnotationSet"
+      },
+      "title": "Annotations",
+      "type": "object"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "measurements": {
+      "additionalProperties": true,
+      "title": "Measurements",
+      "type": "object"
+    }
+  },
+  "required": [
+    "page_id"
+  ],
+  "title": "Page",
+  "type": "object"
+}

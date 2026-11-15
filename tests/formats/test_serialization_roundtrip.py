@@ -89,8 +89,9 @@ def assert_same(got: Transcription, want: Transcription) -> None:
 
 
 def steps(m: Annotator) -> dict:
-    """What a page file keeps of a step: everything but the measurements."""
-    return m.model_dump(exclude={"measurements"})
+    """What a page file keeps of a step: everything but the measurements and the linecaster that recorded it (the
+    reader records itself)."""
+    return m.model_dump(exclude={"measurements", "linecaster"})
 
 
 def _expected_for(t, fmt):

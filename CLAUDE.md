@@ -140,6 +140,13 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   it used with its settings and hash, and the linecaster version that ran it, which reproduces it. A reference
   from before 0.10 (`id@N`) resolves to the release's entry with a warning. Model pins (revision, file hashes) are
   data identity and stay exact.
+- **Data formats keep their own versions; the catalog's files do not.** A file that outlives the code and is read by
+  others (page records `linecaster.page/N`, documents, run records, evidence, benchmarks, scores, samples, the
+  broker's state) names its format version, and the version rises only on an incompatible change (a field removed,
+  renamed or given another meaning); an added optional field keeps it. Readers upgrade every older version on load
+  and refuse an unknown one; writers write the current one. Every data file names the linecaster that wrote it
+  (an annotator's `linecaster`, a document's `producer`, Parquet metadata). A reader years from now needs the
+  format, not the release.
 - **A preset's settings are its reference's** (the model card, or the reference script it follows at a pinned
   commit, named in its card) **until a measurement gives a reason to change one.** A deviation names its evidence in
   CHANGELOG.md (the measurement itself in NOTES.md), and the card says which settings differ from the reference. The

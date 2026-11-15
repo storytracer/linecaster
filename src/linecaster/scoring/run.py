@@ -105,11 +105,15 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
 
 
 def write_scores(records: list[dict], path: str | Path) -> Path:
-    """The score records as Parquet (zstd)."""
+    """The score records as Parquet (zstd), the file's metadata naming the linecaster that wrote it."""
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    from ..data.transcription import producer
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pylist(records), path, compression="zstd")
+    table = pa.Table.from_pylist(records)
+    table = table.replace_schema_metadata({**(table.schema.metadata or {}), b"linecaster": producer().encode()})
+    pq.write_table(table, path, compression="zstd")
     return path

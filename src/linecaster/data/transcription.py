@@ -16,6 +16,7 @@ otherwise). Which annotations go into which text is the rendering policy's (``li
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Annotated, Any, Iterable, Literal
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, model_validator
@@ -62,23 +63,41 @@ RULE_STEPS = frozenset({"unicode", "typography", "recomposition", "normalization
                         "ordering", "image", "import"})
 
 
+@lru_cache(maxsize=1)
+def producer() -> str:
+    """The linecaster that runs here: its release and, where known, its commit (``0.10.0 (1a2b3c4d5e6f)``, ``dirty``
+    with uncommitted changes), as a data file names its writer."""
+    from .. import __version__
+
+    try:
+        from ..runtime.provenance import commit
+
+        c = commit()
+    except Exception:  # noqa: BLE001 - provenance is best effort
+        c = None
+    return __version__ + (f" ({c['commit'][:12]}{', dirty' if c.get('dirty') else ''})" if c else "")
+
+
 class Annotator(_Model):
     """One thing that worked on an annotation set: a model step, a rule-based step, a delivered file, or people.
-    ``measurements`` keys come from the fixed vocabulary ``linecaster.data.MEASUREMENTS``."""
+    ``measurements`` keys come from the fixed vocabulary ``linecaster.data.MEASUREMENTS``. ``linecaster``: the
+    linecaster that recorded it (``producer``; set by ``Transcription.add_annotator``), so a record names its writer
+    wherever it travels."""
 
     kind: Literal["model", "rule", "file", "human"] = "model"
     step: str                                # layout, lines, recognition, ..., unicode, typography; transcription
     name: str                                # the model; without one, what ran; for people, the group
     engine: str | None = None                # the engine's code id, e.g. kraken.recognition.v1
     revision: str | None = None
-    preset: str | None = None                # the catalog preset edition it ran as: id@edition
+    preset: str | None = None                # the catalog preset it ran as (id@edition before linecaster 0.10)
     preset_sha256: str | None = None
-    conventions: str | None = None           # an importer's conventions, resolved: their chain, a>b>c@edition each
+    conventions: str | None = None           # an importer's conventions, resolved: their chain, a>b>c
     conventions_sha256: str | None = None    # the resolved conventions' content
-    recipe: str | None = None                # the recipe edition the run followed: id@edition
+    recipe: str | None = None                # the recipe the run followed (id@edition before 0.10)
     recipe_sha256: str | None = None
     backend: str | None = None               # in-process or served (with the server's address)
     run: str | None = None                   # the run id (RunRecord.run_id)
+    linecaster: str | None = None            # the linecaster that recorded it (producer())
     settings: dict[str, Any] = Field(default_factory=dict)
     measurements: dict[str, Any] = Field(default_factory=dict)
 
@@ -441,7 +460,10 @@ class AnnotationSet(_Extensible):
 
     # ------------------------------------------------------------------ adding
     def add_annotator(self, annotator: Annotator) -> int:
-        """Appends ``annotator`` and returns its index, which its annotations name."""
+        """Appends ``annotator`` (naming the linecaster that records it, unless it names one) and returns its index,
+        which its annotations name."""
+        if annotator.linecaster is None:
+            annotator.linecaster = producer()
         self.annotators.append(annotator)
         return len(self.annotators) - 1
 

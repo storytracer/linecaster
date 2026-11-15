@@ -16,7 +16,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..data.page import PAGE_SCHEMA, Page
 from ..data.policy import RenderingPolicy
+from ..document.model import SCHEMA as DOCUMENT_SCHEMA, Document
 from ..markup.model import ConventionsDoc
 from ..scoring.benchmark import Benchmark
 from ..errors import CatalogError
@@ -456,6 +458,8 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.evidence/2": Evidence2,
     "linecaster.benchmark/1": Benchmark,
     "linecaster.run-record/1": RunRecord,
+    PAGE_SCHEMA: Page,                   # a page record's `page` (the row: schema, id, text, page, errors)
+    DOCUMENT_SCHEMA: Document,
 }
 
 

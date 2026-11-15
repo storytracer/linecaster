@@ -16,11 +16,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..data.transcription import Cell
 
 SCHEMA = "linecaster.document/1"
+#: the document formats this linecaster reads (older ones upgraded on read)
+FORMATS = (SCHEMA,)
 
 #: what a block is (from its region's content role: ``block_kind``)
 KINDS = ("title", "heading", "paragraph", "list_item", "caption", "footnote", "toc_entry", "reference", "code",
@@ -93,6 +95,16 @@ class Page(_Model):
 class Document(_Model):
     schema_: str = Field(SCHEMA, alias="schema")
     name: str = "document"
+    producer: str | None = Field(None, description="the linecaster that wrote it (linecaster.data.transcription."
+                                                   "producer)")
+
+    @field_validator("schema_")
+    @classmethod
+    def _known(cls, v: str) -> str:
+        """A document of another format is refused, not misread (a reader upgrades the formats it knows)."""
+        if v not in FORMATS:
+            raise ValueError(f"unknown document format {v!r}; this linecaster reads {sorted(FORMATS)}")
+        return v
     pages: list[Page] = Field(default_factory=list)
     blocks: list[Block] = Field(default_factory=list)
 

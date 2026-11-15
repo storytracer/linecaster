@@ -26,7 +26,11 @@ def sample_table(sample: Sample):
 
     schema = sample_schema()
     columns = {name: [getattr(s, name) for s in sample.selected] for name in schema.names}
-    meta = {b"linecaster.sample": json.dumps(sample.record(), sort_keys=True).encode(), b"rule": RULE.encode()}
+    from .. import __version__
+
+    # the release that wrote it (not the commit: the same sample gives the same bytes within a release)
+    meta = {b"linecaster.sample": json.dumps(sample.record(), sort_keys=True).encode(), b"rule": RULE.encode(),
+            b"linecaster": __version__.encode()}
     return pa.table(columns, schema=schema.with_metadata(meta))
 
 

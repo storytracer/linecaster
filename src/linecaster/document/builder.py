@@ -128,6 +128,9 @@ class DocumentBuilder:
     def build(self) -> Document:
         """The document, every origin's box clamped to its page (a layout box often reaches a few pixels past the
         edge); the transcriptions keep their boxes."""
+        from ..data.transcription import producer
+
+        self.doc.producer = producer()
         size = {pg.page: (pg.width, pg.height) for pg in self.doc.pages}
         for block in self.doc.blocks:
             for o in block.origins:

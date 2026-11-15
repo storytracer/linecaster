@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Block": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "title",
+            "heading",
+            "paragraph",
+            "list_item",
+            "caption",
+            "footnote",
+            "toc_entry",
+            "reference",
+            "code",
+            "page_header",
+            "page_footer",
+            "formula",
+            "table",
+            "picture"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "layer": {
+          "default": "body",
+          "enum": [
+            "body",
+            "furniture",
+            "background",
+            "invisible",
+            "notes"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "spans": {
+          "items": {
+            "$ref": "#/$defs/Span"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Grid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/Origin"
+          },
+          "title": "Origins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "Cell": {
+      "additionalProperties": false,
+      "description": "One cell of a table: its rows and columns (offsets, end exclusive), its text and whether it heads a column, a\nrow or a section. ``formulas``: where the source marks a formula in the cell (MathML, a wiki's ``<math>``), its\ncharacter span in ``text`` ([start, end), the ``$…$`` the text writes it as included); a ``$`` outside them is\nprinted. Empty where the source marks none or cannot say (an engine's HTML that writes ``$…$`` as text).",
+      "properties": {
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polygon"
+        },
+        "start_row": {
+          "title": "Start Row",
+          "type": "integer"
+        },
+        "end_row": {
+          "title": "End Row",
+          "type": "integer"
+        },
+        "start_col": {
+          "title": "Start Col",
+          "type": "integer"
+        },
+        "end_col": {
+          "title": "End Col",
+          "type": "integer"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "column_header": {
+          "default": false,
+          "title": "Column Header",
+          "type": "boolean"
+        },
+        "row_header": {
+          "default": false,
+          "title": "Row Header",
+          "type": "boolean"
+        },
+        "row_section": {
+          "default": false,
+          "title": "Row Section",
+          "type": "boolean"
+        },
+        "formulas": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "title": "Formulas",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_row",
+        "end_row",
+        "start_col",
+        "end_col"
+      ],
+      "title": "Cell",
+      "type": "object"
+    },
+    "Grid": {
+      "additionalProperties": false,
+      "description": "A table block's structure: its size and cells (``linecaster.data.Cell``: offsets, end exclusive).",
+      "properties": {
+        "num_rows": {
+          "title": "Num Rows",
+          "type": "integer"
+        },
+        "num_cols": {
+          "title": "Num Cols",
+          "type": "integer"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/Cell"
+          },
+          "title": "Cells",
+          "type": "array"
+        }
+      },
+      "required": [
+        "num_rows",
+        "num_cols"
+      ],
+      "title": "Grid",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "description": "One piece of a block: on ``page`` (the document's page number, from 1), from ``region`` and ``lines`` of\nthat page's transcription, in ``box`` (``[x0, y0, x1, y1]`` on the page image; None without geometry), giving\ncharacters ``span`` of the block's text.",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "box": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Box"
+        },
+        "span": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Span",
+          "type": "array"
+        }
+      },
+      "required": [
+        "page"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "Page": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        }
+      },
+      "required": [
+        "page"
+      ],
+      "title": "Page",
+      "type": "object"
+    },
+    "Span": {
+      "additionalProperties": false,
+      "description": "Formatting of characters ``[start, end)`` of a block's text.",
+      "properties": {
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "bold": {
+          "default": false,
+          "title": "Bold",
+          "type": "boolean"
+        },
+        "italic": {
+          "default": false,
+          "title": "Italic",
+          "type": "boolean"
+        },
+        "underline": {
+          "default": false,
+          "title": "Underline",
+          "type": "boolean"
+        },
+        "strikethrough": {
+          "default": false,
+          "title": "Strikethrough",
+          "type": "boolean"
+        },
+        "script": {
+          "default": "baseline",
+          "enum": [
+            "baseline",
+            "sub",
+            "super"
+          ],
+          "title": "Script",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "formula": {
+          "default": false,
+          "description": "the characters are an inline formula, its LaTeX between $ and $",
+          "title": "Formula",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Span",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "default": "linecaster.document/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "name": {
+      "default": "document",
+      "title": "Name",
+      "type": "string"
+    },
+    "producer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the linecaster that wrote it (linecaster.data.transcription.producer)",
+      "title": "Producer"
+    },
+    "pages": {
+      "items": {
+        "$ref": "#/$defs/Page"
+      },
+      "title": "Pages",
+      "type": "array"
+    },
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/Block"
+      },
+      "title": "Blocks",
+      "type": "array"
+    }
+  },
+  "title": "Document",
+  "type": "object"
+}
