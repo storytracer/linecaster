@@ -1,14 +1,15 @@
 # Evaluation
 
 linecaster scores transcriptions against ground truths and writes the result as evidence. It ships the scorer, the
-normalization lanes, the score pipeline and the formats (`linecaster.benchmark/1`, `linecaster.score/1`,
-`linecaster.evidence/2`); it ships no benchmark and no evidence: those live with the evaluation that made them
-([catalog](catalog.md#measurements-live-elsewhere)). Any two evidence records with the same benchmark, policy, lanes
-and scorer edition are comparable, whatever model, pipeline or machine produced the runs they measure.
+lanes (comparison strategies of the catalog), the score pipeline and the formats (`linecaster.benchmark/2`,
+`linecaster.score/1`, `linecaster.evidence/3`); it ships no benchmark and no evidence: those live with the evaluation
+that made them ([catalog](catalog.md#measurements-live-elsewhere)). Any two evidence records with the same benchmark,
+policy, output strategy, lanes (by hash), unit and scorer are comparable, whatever model, pipeline or machine
+produced the runs they measure.
 
 ```text
 ground truth ──import──► transcription (source.kind ground_truth) ─┐
-                                                                   ├─ render (one policy) ─ normalize (lanes) ─ count ─► score records ─ aggregate ─► evidence
+                                                                   ├─ render (one policy, one output strategy) ─ lanes ─ count ─► score records ─ aggregate ─► evidence
 run's page records ─────► transcription (ocr_new) ─────────────────┘
 ```
 
@@ -22,7 +23,9 @@ the dataset's), with `source.kind = "ground_truth"`, `source.dataset` (`repo@rev
 or file it came from) and `source.sha256`. Its annotator is of kind `human` (people transcribed or checked it; their
 review in `settings.review`: `transcribed`, `proofread`, `validated`, or the source's own word) or `file` (a
 delivered file whose making is unknown). It holds what its source has and no more: roles, boxes, reading order,
-notes, continuations, corrections, illegible spans, each as the [data model](data-model.md) defines them.
+notes, continuations, corrections, illegible spans, each as the [data model](data-model.md) defines them, and,
+in `source.normalized`, the normalizations its transcription already embodies (from its conventions' `transcription`:
+a source that writes ſ as s embodies `long-s`).
 
 Ground truth is read by **importers**, the engines of the `import` step, which `TranscriptionImporter` runs and
 `pipelines/import_transcriptions.py` runs over a source's documents into page records: ALTO, PAGE-XML, hOCR, plain
@@ -47,25 +50,38 @@ benchmark. Two texts per page are scored:
 | `full` | body, furniture | everything printed on the page, in reading order |
 | `body` | body | the page without its furniture (running heads, page numbers, catchwords, signature marks) |
 
-Each is rendered as laid out (lines, `verbatim_txt`'s rules) with the policy's edits for `verbatim_txt`: what a
-model writes about a figure (descriptions) is in neither. A ground truth's `corrected` edits are not applied: the
+Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML),
+then the benchmark's **output strategy**'s rules on characters (`output`, default `literal`: nothing changed): what
+a model writes about a figure (descriptions) is in neither. A ground truth's `corrected` edits are not applied: the
 output is compared with what is printed. Its `illegible` spans become U+FFFD, one per character.
 
 ## Lanes
 
-A **lane** is a versioned normalization of a rendered text before it is counted, a catalog entry `lane` with
-editions (its functional content: the steps, in order). Both sides go through the same lane. A benchmark that names
-no lanes is scored in `alnum@2`, letters and digits of any script (`DEFAULT_LANE`).
+A **lane** is a comparison strategy (a catalog `strategy` with `use: comparison`, [catalog](catalog.md#strategy-strategiesidyaml)):
+normalizations both sides go through before they are counted, named by id and recorded with its hash. A benchmark
+that names no lanes is scored in `alnum` (`DEFAULT_LANE`).
 
-| Lane | Steps |
+| Lane | Normalizations |
 |---|---|
-| `diplomatic@1` | NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
-| `reading@1` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute accent to `'`, curly double quotes to `"`, the dashes U+2010 to U+2015 to `-`; a hyphen at a line end joined to the next line; casefolded; whitespace runs to one space; trimmed |
-| `alnum@1` | NFC; casefolded; only letters and digits (Unicode categories L and N) kept, each run of anything else one space; trimmed |
-| `alnum@2` (default) | `reading@1`'s markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded (ß to ss) and NFKC again; only letters, combining marks and digits of any script (Unicode categories L, M and N) kept, each run of anything else one space; trimmed |
-| `ascii-alnum@1` | HTML tags removed; lowercased; only the ASCII letters and digits kept, their runs joined by single spaces (accented letters, ſ and ligatures separate words) |
+| `diplomatic` | NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
+| `reading` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
+| `alnum` (default) | markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
+| `alnum-nonmark` | NFC; casefolded; only letters and digits kept (0.9's `alnum@1`) |
+| `ascii-alnum` | HTML tags removed; lowercased; only the ASCII letters and digits kept (accented letters, ſ and ligatures separate words) |
 
-NFKC appears only in a lane, never in a text variant: a lane makes two texts comparable, it is not a reading text.
+A lane from before 0.10 (`alnum@2`, `diplomatic@1`, ...) is read as today's (`alnum`, `alnum-nonmark` for `alnum@1`;
+`reading@1` without its hyphen join) with a warning. NFKC appears only in a lane, never in an output text: a lane
+makes two texts comparable, it is not a reading text.
+
+### Conventions
+
+A ground truth that declares the normalizations its transcription embodies (`source.normalized`) is checked against
+each lane: a declared normalization that neither the lane nor the output strategy's rules on characters apply,
+themselves or through one that `subsumes` it (`nfkc` subsumes `nfc`, `long-s`, `ligatures`), is a difference the
+comparison counts that is the ground truth's convention, not the output's error. Each score record names those
+(`conventions`), and the run warns once per lane (`ConventionsWarning`, and on the console of `linecaster score`).
+English Wikisource scored in `alnum`, for example: `r-rotunda` and `divided-words` (Wikisource rejoins words divided
+at a line end; the output as read does not).
 
 **U+FFFD in the ground truth** marks one illegible character: it matches any one character of the output and is
 excluded from both the errors and the reference length.
@@ -76,9 +92,9 @@ Per page, per text (`full`, `body`) and per lane:
 
 | Metric | Is |
 |---|---|
-| `s`, `d`, `i`, `h` | substitutions, deletions, insertions and hits of the codepoint alignment of output against ground truth (Levenshtein, U+FFFD as above); `n = s + d + h` |
+| `s`, `d`, `i`, `h` | substitutions, deletions, insertions and hits of the alignment of output against ground truth (Levenshtein, U+FFFD as above), in the benchmark's `unit`: grapheme clusters (the default: a base letter with its combining marks is one character) or codepoints; `n = s + d + h` |
 | `cer` | `(s + d + i) / n` |
-| `token_recall` | the share of the ground truth's words (whitespace tokens of the `reading@1` text, punctuation dropped) the output has, as multisets |
+| `token_recall` | the share of the ground truth's words (whitespace tokens of the lane's text) the output has, as multisets |
 | `over_extraction` | the share of the output's words the ground truth does not have |
 
 Per page and role, where the ground truth marks the role (no boxes needed):
@@ -98,7 +114,8 @@ annotators' measurements), so that truncation and cost are read next to the scor
 One row per page, text and lane, in `OUT/scores/*.parquet`: `page_id`, `item_id`, `text`, `lane`, `s`, `d`, `i`,
 `h`, `n`, `token_recall` counts, `over_extraction` counts, the role word counts as a map, the confusion rows as a
 list, the page's flags (`finish_reason`, `repaired`, `error`) and measurements, and the ids that tie the row to its
-sources: `run_id`, `benchmark_sha256`, `policy`, `lane`, `scorer`. Rates are not stored: they are derived from the
+sources: `run_id`, `benchmark_sha256`, `policy`, `output`, `lane`, `unit`, `scorer`, and `conventions` (the
+conventions check). Rates are not stored: they are derived from the
 counts, so corpus rates are exact.
 
 ## Aggregation
@@ -111,46 +128,50 @@ counts, so corpus rates are exact.
 - **Eligibility**: a run is scored only on exactly the benchmark's page set; a page the run failed counts as an empty
   output, and the evidence says how many there were. A run that lacks pages of the set is not eligible.
 
-## Benchmarks (`linecaster.benchmark/1`)
+## Benchmarks (`linecaster.benchmark/2`)
 
 A benchmark definition is a YAML file in the evaluation's repository:
 
 | Field | Holds |
 |---|---|
-| `schema` | `linecaster.benchmark/1` |
-| `id`, `edition` | its name and edition; a released edition never changes, its hash covers its functional content |
+| `schema` | `linecaster.benchmark/2` (`/1` is read, upgraded: its lanes by today's names, `unit: codepoint`) |
+| `id`, `edition` | its name and edition (the evaluation's own versioning); its hash covers its functional content |
 | `dataset` | the ground truth: `repo@revision`, the transcription's name, the importer |
 | `pages` | the page set: a sample rule (`linecaster.data.sample`: seed, items, pages per item, pages) or a list of page ids, and its `sha256` (of the sorted page ids, one per line) |
 | `supports` | what the ground truth has: `roles` (a list), `boxes`, `reading_order`, `notes`, `continuations` |
-| `policy` | the rendering policy edition both sides are rendered with |
+| `policy` | the rendering policy both sides are rendered with |
 | `texts`, `lanes` | which texts and lanes are scored |
+| `output` | the output strategy both texts are written with (`literal` by default) |
+| `unit` | `grapheme` (default) or `codepoint`: what a character error counts; part of the hash |
 | `metrics` | which metrics, of those the ground truth supports |
 | `bootstrap` | `seed`, `resamples`, `level` |
 | `strata` | fields to report rates by |
 
-## Evidence (`linecaster.evidence/2`)
+## Evidence (`linecaster.evidence/3`)
 
 One measurement per file, kept by the evaluation:
 
 | Field | Holds |
 |---|---|
-| `schema` | `linecaster.evidence/2` |
-| `preset` or `recipe` | the edition measured, `id@edition` |
+| `schema` | `linecaster.evidence/3` |
+| `preset` or `recipe` | what was measured, by id (the run record has its hash) |
 | `source` | `own-run`, `card-claim`, `vendor-benchmark` |
 | `run` | `uri` (the run folder), `run_id`, `pipeline_sha256`, `record_sha256` (of `run.yaml`) |
 | `benchmark` | `id@edition` and its `sha256` |
-| `scoring` | `policy`, `lanes`, `scorer` (linecaster's scorer edition), `linecaster` (version and commit) |
+| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `recall_header`, ... (`<metric>_<text>_<lane>`, `<metric>_<role>`) |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
 | `date`, `notes` | |
 
-`linecaster.evidence/1` records stay readable; `linecaster evidence check` validates a file of either edition, and
-`linecaster evidence compare` puts evidence records side by side, only those with the same benchmark edition, policy,
-lanes and scorer.
+`linecaster.evidence/1` and `/2` records stay readable, upgraded when read (their lanes by today's names, `unit:
+codepoint`, marked not comparable with evidence/3 where a hash is missing); `linecaster evidence check` validates a
+file of any version, and `linecaster evidence compare` puts evidence records side by side, only those scored the same
+way (benchmark, policy, output strategy, lanes by hash, unit).
 
 ## Run records
 
 A run record (`OUT/run.yaml`) carries what evidence names: `run_id` (stamped on every annotator the run adds),
-`pipeline_sha256`, the recipe and preset editions with their hashes, the policy edition, `hardware` (GPU model and
-count, driver, CUDA, CPU) and the software versions.
+`pipeline_sha256`, the recipe and every catalog entry the run used with its settings and hash (`catalog`: presets,
+policy, conventions, the strategies its texts were written by), `hardware` (GPU model and count, driver, CUDA, CPU)
+and the software versions.

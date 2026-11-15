@@ -45,7 +45,7 @@ You get one page record per page in `out/pages/`. Add `--files out/files --forma
 
 ## 🧭 Three ways to transcribe
 
-**1. A recipe**: a tested combination of presets, one per step, with its own edition. Each recipe has a script
+**1. A recipe**: a tested combination of presets, one per step, and the texts it writes. Each recipe has a script
 of its own in `recipes/`, which brings exactly the engines it needs:
 
 ```bash
@@ -111,8 +111,8 @@ For large collections, fetch the images once, then transcribe, then bind the pag
 uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
 uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
   --recognition paddlex-ppocrv6-medium --item-shards 64
-uv run pipelines/bind.py OUT2/pages OUT3 --recomposition unicode-recomposition --normalization latin-historic \
-  --composition linked-composition
+uv run pipelines/bind.py OUT2/pages OUT3 --recomposition unicode-recomposition --composition linked-composition \
+  --text literal:txt --text latin-historic+flow:md
 ```
 
 ## 📦 Output
@@ -122,12 +122,12 @@ uv run pipelines/bind.py OUT2/pages OUT3 --recomposition unicode-recomposition -
 | 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
 | 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
 | 📝 Markdown, HTML, JSON (linecaster's document) | documents with headings, notes, tables, figures and formulas |
-| 📜 `verbatim_txt` per item | the text as printed, for checking against a transcription |
-| 📖 `readable_txt`, `readable_md` per item | reading and training: letterforms folded, hyphens joined, paragraphs flowed |
+| 📜 Texts per item (`--text STRATEGY:FORMAT`) | `literal:txt`, the text exactly as read, for checking against a transcription; a strategy you name for reading and training: `latin-historic+flow:md` folds historic letterforms and flows the paragraphs |
 | 🖼️ Page images as JPEG, JPEG 2000, PNG or WebP (`pipelines/convert.py`) | publishing and downloads: decoded and encoded on NVIDIA GPUs where the machine has them |
 
-The text as written is always kept; readable text is derived from it. All text is Unicode [NFC]; spelling is never
-modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into
+The text as read is always kept, exactly; nothing is normalized, joined or dehyphenated unless a text names a
+transcription strategy that does it (`nfc`, `long-s`, `flow`, `unicode-marks`, ... in the catalog), and spelling is
+never modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into
 `OUT/traces/` (nothing is sent anywhere unless you set the `OTEL_*` variables), and `linecaster traces OUT` shows
 where the time went.
 
@@ -278,7 +278,8 @@ single characters.
 ## 🧰 Models and blocks
 
 Every configuration is a **preset** in Linecaster's catalog: an engine, a model at a pinned revision with its
-original model card, and settings. Released editions never change. Vision-language models run behind vLLM or
+original model card, and settings. The release versions the catalog: each entry's hash is in `catalog.index`, and a
+run record names every entry it used with its hash. Vision-language models run behind vLLM or
 SGLang; the other models run inside the pipeline or behind `linecaster serve`, one package per engine:
 `linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
 
@@ -293,10 +294,10 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 | [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
 | [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
 | [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
-| [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, text variants |
+| [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, documents and transcription strategies |
 | [evaluation](docs/reference/evaluation.md) | scoring transcriptions against ground truths: benchmarks, lanes, score records, evidence |
 | [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and the importers |
-| [catalog](docs/reference/catalog.md) | models, presets, recipes, policies and editions, and where measurements live |
+| [catalog](docs/reference/catalog.md) | models, presets, recipes, policies, conventions, normalizations and strategies, release versioning, and where measurements live |
 | [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
 | [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a trace sample of pages |
@@ -350,5 +351,4 @@ purposes. The Apache-2.0 license of the code does not apply to it. The same cred
 [hOCR]: https://kba.github.io/hocr-spec/1.2/
 [JSON Lines]: https://jsonlines.org/
 [Parquet]: https://parquet.apache.org/
-[NFC]: https://unicode.org/reports/tr15/
 [uv scripts]: https://docs.astral.sh/uv/guides/scripts/

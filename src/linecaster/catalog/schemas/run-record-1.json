@@ -131,7 +131,8 @@
             "preset",
             "recipe",
             "policy",
-            "conventions"
+            "conventions",
+            "strategy"
           ],
           "title": "Kind",
           "type": "string"

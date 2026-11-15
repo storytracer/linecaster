@@ -339,10 +339,14 @@ class Catalog:
     @staticmethod
     def conventions_functional(doc: ConventionsDoc) -> dict:
         """A conventions entry's functional content: what its rules do (format, parent, the parent's rules it
-        disables, each rule's match, decision, fields, who and place), not their documentation."""
-        return {"format": doc.format, "extends": doc.extends, "disable": sorted(doc.disable),
-                "rules": [r.model_dump(mode="json", include={"id", "match", "decision", "params", "by", "before",
-                                                              "after"}, exclude_none=True) for r in doc.rules]}
+        disables, each rule's match, decision, fields, who and place) and the normalizations its transcription
+        embodies (stated only), not their documentation."""
+        content = {"format": doc.format, "extends": doc.extends, "disable": sorted(doc.disable),
+                   "rules": [r.model_dump(mode="json", include={"id", "match", "decision", "params", "by", "before",
+                                                                 "after"}, exclude_none=True) for r in doc.rules]}
+        if doc.transcription is not None:
+            content["transcription"] = list(doc.transcription)
+        return content
 
     def policy(self, ref: str):
         """The rendering policy ``ref`` (its id), as a ``linecaster.data.policy.RenderingPolicy``."""

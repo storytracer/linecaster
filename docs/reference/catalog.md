@@ -1,4 +1,4 @@
-# The catalog: models, presets, recipes, policies, conventions
+# The catalog: models, presets, recipes, policies, conventions, normalizations, strategies
 
 The catalog describes every model Linecaster can run, how it runs it, and the tested combinations. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
@@ -10,29 +10,33 @@ src/linecaster/catalog/data/
   recipes/<id>.yaml, <id>.md
   policies/<id>.yaml
   conventions/<format>/<id>.yaml, <id>.md # one folder per format; the prose is required
-  catalog.lock
-src/linecaster/catalog/schemas/<kind>-<n>.json    # generated from the Pydantic models
+  normalizations/<id>.yaml                # one rule each
+  strategies/<id>.yaml                    # named lists of normalizations
+  catalog.index                           # generated: every entry's hash
+src/linecaster/catalog/schemas/<kind>.json        # generated from the Pydantic models
 ```
 
 ## What the catalog holds
 
-The catalog and its docs are organized by seven kinds: engines and pipelines (code, by versioned id) and
-five kinds of catalog entry (models, presets, recipes, policies, conventions; a YAML file each). The kinds of entry
-are one table in the code (`linecaster.catalog.registry.KINDS`: each kind's files, format, id rule, lock table and
-prose rule), so loading, the lock and the checks of prose are the same for all.
+The catalog and its docs are organized by nine kinds: engines and pipelines (code, by versioned id) and
+seven kinds of catalog entry (models, presets, recipes, policies, conventions, normalizations, strategies; a YAML
+file each). The kinds of entry are one table in the code (`linecaster.catalog.registry.KINDS`: each kind's files,
+format, id rule, index table and prose rule), so loading, the index and the checks of prose are the same for all.
 
 | Kind | Is | Named | Lives in |
 |---|---|---|---|
 | engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `typography.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
-| preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium` | `presets/<step>/<id>.yaml` |
+| preset | an engine, a model pin and the engine's options, ready to use | slug: `kraken-ppocrv6-medium` | `presets/<step>/<id>.yaml` |
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
-| recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle` | `recipes/<id>.yaml` |
-| policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug, with an edition: `page-layers` | `policies/<id>.yaml` |
-| conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug, with an edition: `example@1` | `conventions/<format>/<id>.yaml` |
+| recipe | a named combination: a pipeline, a preset per slot, options | slug: `squiddle` | `recipes/<id>.yaml` |
+| policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug: `page-layers` | `policies/<id>.yaml` |
+| conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug: `enwikisource` | `conventions/<format>/<id>.yaml` |
+| normalization | one named change of a text, applied when a text is written, never stored | slug: `long-s` | `normalizations/<id>.yaml` |
+| strategy | a transcription strategy: normalizations in order, to write texts or to compare them (a lane) | slug: `latin-historic`, `alnum` | `strategies/<id>.yaml` |
 
-Besides these: the **lock** (released editions) and the **run record** (`OUT/run.yaml`, and per page each
-`Annotator` of the page record: what a run resolved).
+Besides these: the **index** (`catalog.index`: every entry's hash) and the **run record** (`OUT/run.yaml`, and per
+page each `Annotator` of the page record: what a run resolved).
 
 ## Ids and versions
 
@@ -40,10 +44,9 @@ Besides these: the **lock** (released editions) and the **run record** (`OUT/run
 |---|---|---|---|
 | `version` | upstream | what upstream calls it, verbatim, never parsed | `PP-OCRv6 medium`, `Chandra 2` |
 | `revision` | upstream | the exact identity of the files | HF commit, version DOI, git commit, sha256 |
-| `edition` | linecaster | integer per preset, recipe or policy, raised when outputs can change | `edition: 3` |
 | `.v<n>` | linecaster | the contract of an engine's options or a pipeline's slots and options | `transcribe_modular.v1` |
 | `schema` | linecaster | the format of a YAML file | `linecaster.preset` |
-| release | linecaster | the package version (run records only) | `0.4.0` |
+| release | linecaster | the package version: it versions the catalog's entries too (release versioning) | `0.10.0` |
 
 - Slugs (models, presets, recipes, policies): lowercase `[a-z0-9.-]`. They may contain upstream names
   (`deepseek-ocr-2`), never our versions. Ids are unique across presets and recipes, so a name means one
@@ -51,40 +54,47 @@ Besides these: the **lock** (released editions) and the **run record** (`OUT/run
 - Code ids (`CODE_ID`): lowercase dotted names ending in `.v<n>`. An incompatible change is a new id
   (`.v2`); the old one stays registered. Adding an option is compatible when its default keeps the old
   behavior; changing a default, removing or renaming an option is not.
-- A reference is `id@edition`; `id` alone means the current edition. Run records always store the explicit
-  edition and its hash.
+- A reference is an entry's `id`. What it does is identified by the hash of its functional content (the
+  index; run records store it with the entry's settings). A reference from before 0.10, `id@edition`, resolves to
+  this release's entry with an `EditionWarning` (`linecaster.catalog.registry.split_ref`).
 - A tag or branch is resolved to a commit when a model is pinned; the tag is kept as `tag:` for information.
   Zenodo: the version DOI identifies the files, the concept DOI is information. Downloads without a commit:
   the file's sha256 is the revision.
 
 ## Files
 
-A model, preset, recipe or policy is a YAML file, the data, validated strictly by `linecaster.catalog.schema` (unknown
+A catalog entry is a YAML file, the data, validated strictly by `linecaster.catalog.schema` (unknown
 keys are errors), and a Markdown file of the same name next to it, the prose for people (why these settings,
 limitations, changes), without front matter. Tools read only the YAML; the docs generator also includes the
-prose. The prose is optional, except for presets and recipes with `support: core`. The lock is YAML only, and so
-is an evidence record (kept outside the catalog, [below](#measurements-live-elsewhere)). Bulk data (page records,
+prose. The prose is optional, except for presets and recipes with `support: core` and conventions. The index
+is YAML only, and so is an evidence record (kept outside the catalog, [below](#measurements-live-elsewhere)). Bulk data (page records,
 exports) is JSON Lines or Parquet, not catalog data.
 
 | Format | Schema id | JSON Schema |
 |---|---|---|
-| model | `linecaster.model` | `schemas/model-1.json` |
-| preset | `linecaster.preset` | `schemas/preset-1.json` |
-| recipe | `linecaster.recipe` | `schemas/recipe-1.json` |
-| policy | `linecaster.policy` | `schemas/policy-1.json` |
-| evidence (not catalog data; its schema ships here) | `linecaster.evidence/2` (`linecaster.evidence/1` is read too) | `schemas/evidence-2.json`, `schemas/evidence-1.json` |
-| benchmark (not catalog data; its schema ships here) | `linecaster.benchmark/1` | `schemas/benchmark-1.json` |
-| lock | `linecaster.lock/2` | `schemas/lock-2.json` |
-| run record (`OUT/run.yaml`, not catalog data; its schema ships here) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
+| model | `linecaster.model` | `schemas/model.json` |
+| preset | `linecaster.preset` | `schemas/preset.json` |
+| recipe | `linecaster.recipe` | `schemas/recipe.json` |
+| policy | `linecaster.policy` | `schemas/policy.json` |
+| conventions | `linecaster.conventions` | `schemas/conventions.json` |
+| normalization | `linecaster.normalization` | `schemas/normalization.json` |
+| strategy | `linecaster.strategy` | `schemas/strategy.json` |
+| evidence (not catalog data; its schema ships here) | `linecaster.evidence/3` (`/2` and `/1` are read too) | `schemas/evidence-3.json`, `-2`, `-1` |
+| benchmark (not catalog data) | `linecaster.benchmark/2` (`/1` is read, upgraded) | `schemas/benchmark-2.json` |
+| run record (`OUT/run.yaml`, not catalog data) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
+| page record, document (data, not catalog data) | `linecaster.page/5`, `linecaster.document/2` | `schemas/page-5.json`, `schemas/document-2.json` |
+
+Catalog entries carry no version in their schema id: the release versions them. The data formats keep their own
+versions ([compatibility](compatibility.md)).
 
 Every YAML file names its format twice: its first line is `# yaml-language-server: $schema=<relative path to
-src/linecaster/catalog/schemas/<kind>-<n>.json>` (for editors), and its field `schema` holds the schema id (for
+src/linecaster/catalog/schemas/<kind>.json>` (for editors), and its field `schema` holds the schema id (for
 tools). The JSON Schemas are generated from the Pydantic models (`linecaster catalog schemas`); the test suite
 fails when a committed one differs from a fresh one.
 
 YAML has 1.2 semantics, read with `ruamel.yaml` through `linecaster.catalog.yamlio`: only `true` / `false` are
 booleans (`NO` stays Norwegian), and a duplicate key is an error. Values that look like numbers or versions are
-quoted (`"1.0"`). Commands that write a file back (`release`, `pin`) keep its comments.
+quoted (`"1.0"`). Commands that write a file back (`pin`) keep its comments.
 
 ### Model (`models/<id>/model.yaml`)
 
@@ -108,14 +118,14 @@ are written by `linecaster catalog pin`.
 
 | Field | Meaning |
 |---|---|
-| `id`, `edition`, `step` | the step must match the folder |
+| `id`, `step` | the step must match the folder |
 | `model` | `id` and `revision` of a model pin |
 | `submodels` | further pins of a multi-model engine, by role |
 | `engine` | the engine's id: `engine: kraken.recognition.v1` |
 | `options` | the engine's options (its `Options` model) |
 | `settings` | prompts, sampling and other request settings (chat presets; `repair`: the repair pass's `max_tokens`, 0 for off, and `temperature`) |
 | `labels` | native layout label → region label, from which the layout step classifies each region's content role (the native label stays the region's `label`); unmapped labels are `text` |
-| `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id@edition` of the same step, and `"*"` → the default for every other script (required) |
+| `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id` of the same step, and `"*"` → the default for every other script (required) |
 | `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
@@ -125,10 +135,10 @@ are written by `linecaster catalog pin`.
 
 | Field | Meaning |
 |---|---|
-| `id`, `edition` | |
+| `id` | |
 | `pipeline` | the pipeline it fills: `pipeline: transcribe_modular.v1` |
-| `presets` | slot → preset `id@edition` (always an explicit edition) |
-| `options` | the pipeline's options, by name |
+| `presets` | slot → preset `id` |
+| `options` | the pipeline's options, by name (`squiddle`'s `text`: the item texts it writes, `<strategy>:<format>`) |
 | `provenance`, `support`, `superseded_by` | as for presets |
 
 A recipe's environment and entry point is its script `recipes/<id>.py` (see Pipelines, recipes and `launch.py`); a
@@ -138,31 +148,67 @@ recipe a derivative runs lives in this catalog too (`squiddle`).
 
 | Field | Meaning |
 |---|---|
-| `id`, `edition` | |
+| `id` | |
 | `description` | what the policy is for (prose, not part of its functional content) |
 | `rules` | the rules, the first that matches wins: `role`, `production`, `status`, `motivation` (each left out: any) and `to`, the layer (`body`, `furniture`, `background`, `invisible`, `notes`, `metadata`, `none`); without a match, the role's default layer |
 | `precedence` | per scheme (`role`, `heading_level`, ...) or `order`: the steps or annotator names whose annotations count first; the latest annotator otherwise |
-| `edits` | per text variant: the edit kinds it applies |
+| `tables`, `markdown` | what counts as a table when written out; the Markdown a rendering writes |
 
 A policy entry is a `linecaster.data.policy.RenderingPolicy` with a `schema` and a `description` (`PolicyDoc`); the
 [data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers`, the policy a block
 renders with unless it is given another (`DEFAULT_POLICY_REF`; in code without the catalog,
-`linecaster.data.DEFAULT_POLICY`). Blocks and pipelines name a policy by `id@edition` (`--policy`);
-`linecaster.catalog.registry.rendering_policy` resolves it, and an edition other than the file's must be released.
+`linecaster.data.DEFAULT_POLICY`). Blocks and pipelines name a policy by `id` (`--policy`);
+`linecaster.catalog.registry.rendering_policy` resolves it. A policy decides layers, never text: what a text is
+written as is its strategy's.
+
+### Normalization (`normalizations/<id>.yaml`)
+
+One concern, one rule (`linecaster.text.normalize` for the rules on characters, `linecaster.document.strategy` for
+those on a document's structure). A normalization is applied when a text is written or compared, never stored in a
+record.
+
+| Field | Meaning |
+|---|---|
+| `id`, `description` | |
+| `scripts`, `languages` | the ISO 15924 scripts it is meant for (`*` any); BCP 47 tags (a language-specific one is never in a default) |
+| `use` | `output` (a text written), `comparison` (a lane), or both |
+| `subsumes` | normalizations whose effect this one includes (`nfkc`: `nfc`, `long-s`, `ligatures`), for the conventions check of scoring |
+| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
+
+The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`,
+`ligatures`, `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`,
+`markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
+`editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`. None is applied unless
+a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.
+
+### Strategy (`strategies/<id>.yaml`)
+
+| Field | Meaning |
+|---|---|
+| `id`, `description` | `literal` is built in (no normalization: the text as read) and is no file |
+| `use` | `output` (a text written: `--text latin-historic:md`) or `comparison` (a scoring lane) |
+| `normalizations` | the normalizations by id, in the order they apply |
+
+`Catalog.strategy(ref)` resolves `literal`, a strategy's id, or an unnamed strategy: normalizations and strategies
+joined by `+` (`latin-historic+unicode-marks+flow`), each strategy its normalizations. The catalog ships
+`latin-historic` (`nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`) for output and the lanes `diplomatic`,
+`reading`, `alnum` (the default lane), `alnum-nonmark` and `ascii-alnum` for comparison
+([evaluation](evaluation.md)).
 
 ## Measurements live elsewhere
 
 linecaster is not a data repository: the catalog holds no measurements, and neither do the docs. An evaluation
 (a derivative's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
-by edition and hash. linecaster provides the format and the tooling to produce them:
+by id and hash. linecaster provides the format and the tooling to produce them:
 
-- **The evidence format** (`linecaster.evidence/1`, `linecaster.catalog.Evidence`, `schemas/evidence-1.json`): one
-  measurement per file, `preset: id@edition` or `recipe: id@edition`, `context` (for a preset measured inside a
+- **The evidence format** (`linecaster.evidence/3`, `linecaster.catalog.Evidence`, `schemas/evidence-3.json`): one
+  measurement per file, `preset: id` or `recipe: id` with its hash, `context` (for a preset measured inside a
   pipeline: the rest of it), `source` (`own-run`, `card-claim`, `vendor-benchmark`), `dataset` (`repo@revision`, or
   a description for claims), `metrics`, `date`, `hardware`, `software` (linecaster commit, server version,
   `backend`: `in-process` or `served`), `run`, `notes`. Claims are never measurements.
-- **What a measurement names:** the run record (`OUT/run.yaml`: the recipe edition and its hash, every block's
-  parameters, `pipeline_sha256`) and the recipe and preset editions stamped on every annotator of every page.
+- **What a measurement names:** the run record (`OUT/run.yaml`: the recipe and its hash, every block's
+  parameters, `pipeline_sha256`, and `catalog`: every entry the run used, with its settings and hash) and the recipe
+  and presets stamped on every annotator of every page.
 - **What it measures:** the page records (every transcription with its annotators' `measurements`: seconds, tokens,
   device), the traces (`linecaster traces OUT`: time per block and page) and the per-page and per-item files.
 - **Ground truth and reference transcriptions:** `ManifestReader(existing_ocr=True)` and the
@@ -171,73 +217,51 @@ by edition and hash. linecaster provides the format and the tooling to produce t
   datasets (JSON Lines or Parquet page records, ALTO, PAGE-XML, hOCR, text).
 
 - **Scoring** (`linecaster.scoring`, the [evaluation](evaluation.md)): ground truths imported as transcriptions,
-  rendered under the same rendering policy as the output they are compared with, normalized by versioned lanes,
-  scored per page into score records (`linecaster.score/1`) and aggregated into one evidence record, which names the
-  run, the benchmark (`linecaster.benchmark/1`), the policy and the scorer's and lanes' editions. A benchmark
+  rendered under the same rendering policy as the output they are compared with, compared through lanes
+  (comparison strategies), scored per page into score records (`linecaster.score/1`) and aggregated into one
+  evidence record, which names the run, the benchmark (`linecaster.benchmark/2`), the policy, the scorer (the
+  linecaster release) and each lane by id and hash. A benchmark
   definition lives with the evaluation, like its evidence; linecaster ships the format, never a benchmark.
   `linecaster score RUN TRUTH --benchmark FILE` scores a run (score records and an evidence record, by default in
   `RUN/scores/`), `linecaster evidence check FILES` validates evidence records and `linecaster evidence compare
   FILES` puts those scored the same way side by side.
 
-## Released editions are immutable
+## Release versioning: the index
 
-`linecaster catalog release <id>` (a preset, recipe or policy) writes the current edition's resolved functional content and its sha256 into
-`catalog.lock` (per entry: `sha256`, `previous_sha256` where a catalog migration changed it (a list, oldest first,
-after several), `released`,
-`linecaster` commit, `resolved`; a recipe edition also `pipeline` and `pipeline_sha256`, below).
+The catalog is versioned by the linecaster release, as a library's code is: entries carry no edition, there is no
+lock of released editions and no catalog migration. What an entry does is identified by the hash of its functional
+content (`canonical_sha256`):
 
-- **A preset's functional content** is what can change outputs: `step`, the model pin and every submodel pin
-  (`id`, `revision`, `files`), `engine`, `options`, `settings`, `labels`, `by_script` (each strategy's edition with
-  that edition's hash, as a recipe names its presets) and `serve`. A by-script preset is released only on released
-  strategies. Only what the YAML file
-  states counts, so a new optional schema field changes no hash. The Markdown prose, provenance, support level
-  and capabilities are not part of it.
-- **A policy's functional content** is everything but its `description`: `id`, `edition`, `rules`, `precedence`
-  and `edits`. It goes into the lock's `policies` table, next to `presets` and `recipes`; `verify` fails on a
-  policy edition that is not released or whose content changed.
-- **A recipe's functional content** is its pipeline, each slot's preset edition with that edition's hash and
-  the options it states. A recipe is released only on released preset editions, so one recipe edition pins a
-  whole run down to the weights' files.
+- **a preset's**: `step`, the model pin and every submodel pin (`id`, `revision`, `files`), `engine`, `options`,
+  `settings`, `labels`, `by_script` (each strategy's id with its hash) and `serve`. Only what the YAML file states
+  counts, so a new optional schema field changes no hash; the prose, provenance, support level and capabilities are
+  not part of it;
+- **a recipe's**: its pipeline, each slot's preset with its hash and the options it states; the index also keeps
+  `pipeline_sha256`, the hash of the pipeline its script builds from them (below);
+- **a policy's**: everything but its `description`;
+- **conventions'**: the format, the resolved rules (each rule's id, match, decision, fields, who and place) and the
+  normalizations the transcription embodies (`transcription`);
+- **a normalization's**: its rule; **a strategy's**: its normalizations, each with its hash, and its use.
 
-`linecaster catalog verify` (and `tests/catalog/test_catalog.py`) fails when a released edition's content changed;
-such a change is a new edition. Old editions stay resolvable from the lock after the file moves on.
-Unreleased editions are drafts.
+`linecaster catalog index` writes every entry's hash to `catalog.index` (committed, never edited by hand);
+`linecaster catalog verify` fails when it is stale. So a change of an entry's behaviour is a visible line in a
+review's diff, and the release's CHANGELOG names every entry whose hash changed (**Changed outputs**). A run is
+reproducible by its release (`linecaster==0.10.0` reruns 0.10.0's entries) and by its run record, which lists every
+entry it used with its settings and hash (`catalog`: kind, id, sha256, settings). Model pins (revision and file
+hashes) stay as they were: they identify weights, not behaviour of ours.
 
-### A recipe edition's expanded pipeline
+### A recipe's expanded pipeline
 
-A recipe names a pipeline id, presets and options; what runs is the pipeline its script builds from them. The lock
-keeps that too: `release` builds the recipe's pipeline (its pipeline script with `--recipe id@edition` on placeholder
-folders, in-process, one task) and records `pipeline`, every block with its class and its functional parameters
-(engines with their options, presets with their hashes; [pipelines](pipelines.md#the-run-record)), and its
-`pipeline_sha256`, the hash a run record of that recipe names. `verify` builds every released recipe edition's
-pipeline again and reports drift: a block, a parameter or a default that changed in code changes the hash, and
-`verify` names the blocks that differ.
+A recipe names a pipeline id, presets and options; what runs is the pipeline its script builds from them.
+`catalog index` builds each recipe's pipeline (its pipeline script with `--recipe id` on placeholder folders,
+in-process, one task) and records its `pipeline_sha256`, the hash a run record of that recipe names; `verify` builds
+it again, so a block, a parameter or a default that changed in code shows in the index.
 
 Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe`) builds the recipe's pipeline
 shape (`linecaster.pipelines`) in the current process, and blocks and backends import no engine before
 `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's engine packages
 (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the pipeline script
 with its engines records.
-
-Drift is resolved like any change of a released edition: a change that can change outputs gives the recipe a new
-edition; a change of the code that keeps behavior (a renamed parameter, a new option whose default keeps the old
-behavior) is recorded anew with `linecaster catalog release <id> --migrate-pipeline`. A recipe edition released
-before pipelines were locked gets its pipeline on its next `release` (a catalog migration: the edition and its
-`sha256` stay). The lock format stays `linecaster.lock/2`: the two fields are optional, and only recipe entries have
-them.
-
-### Catalog migrations
-
-A change of the catalog's own vocabulary or format that keeps every output as it was (a renamed step, a renamed
-pipeline id, a new file format) is a **catalog migration**: every released edition keeps its number, its
-`resolved` content is rewritten in the new terms and its hash recomputed, and the hash it had before stays in
-the lock as `previous_sha256` (after a second migration a list of both, oldest first). A run record names `id@edition` and that edition's hash at the time; it resolves
-by either hash (`Catalog.resolve(ref, sha256=...)`, `resolve_recipe`, `by_sha256`, `linecaster catalog show
-sha256:<hex>`). A change that can change outputs is never a migration: it is a new edition. A recipe that comes to
-name, as presets, what its pipeline already ran (`squiddle` naming the rule-based presets its pipeline ran through
-the option `text: reflow`) is a migration too: the pipeline it expands to is the same blocks with the same
-parameters, so the edition keeps its number, and `catalog release --migrate-pipeline` records the expanded pipeline
-again (the recipe stamp carries the new hash).
 
 ### Conventions (`conventions/<format>/<id>.yaml`)
 
@@ -248,38 +272,34 @@ Markdown sidecar is required, with the headings `## Source`, `## How the markup 
 
 | Field | Meaning |
 |---|---|
-| `id`, `edition` | |
+| `id` | |
 | `format` | the format whose importer applies it (`html`, `xml`, `json`, `text`, ...); its folder |
-| `extends` | the parent entry, pinned (`base@1`): the entry starts from the parent's resolved rules |
+| `extends` | the parent entry, by id: the entry starts from the parent's resolved rules |
 | `description`, `source` | what it is for and what it was written against (prose, not functional) |
 | `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `block` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
 | `disable` | a parent's rule id → why this source does not use it |
+| `transcription` | the normalizations the source's transcription already embodies (normalization ids: `long-s` when it writes ſ as s); a child's list replaces its parent's. Importers copy it into `Source.normalized`; scoring warns where a lane does not apply one ([evaluation](evaluation.md#conventions)) |
 
 **Layering.** A child's rule with a parent's id replaces it where it stands (or moves it, with `before`/`after`), a
 new id is added at the end (or before/after a rule), `disable` removes the parent's; every entry of a chain has the
 same format. `Catalog.conventions(ref)` resolves the chain into a `ResolvedConventions`: the rules in order, the
-chain (`base@1>source@3`) and the hash of what the rules do (format, matches, decisions, fields, who; not the
-documentation). An importer records both in its annotator (`conventions`, `conventions_sha256`): two readings applied
+chain (`mediawiki>enwikisource`), the normalizations of its transcription (the nearest entry's) and the hash of what
+the rules do (format, matches, decisions, fields, who, the transcription's normalizations; not the documentation). An importer records both in its annotator (`conventions`, `conventions_sha256`): two readings applied
 the same rules when the hashes are equal.
 
-**Released** like a policy: the functional content (format, parent, the disabled ids, each rule's id, match,
-decision, fields, who and place) is hashed into the lock; a child is released only on a released parent. An older
-edition is read back from the lock without its documentation.
-
-**Checks** (`linecaster catalog verify`): released and unchanged; resolvable; every decision applied by its format's
-importer; its prose and headings; across the children of one parent: a rule all of them repeat belongs in the
-parent (promotion), an override equal to what it replaces is redundant, a child on an older edition of its parent is
-lagging.
+**Checks** (`linecaster catalog verify`): resolvable; every decision applied by its format's importer; the
+transcription's normalizations known; its prose and headings; across the children of one parent: a rule all of them
+repeat belongs in the parent (promotion), an override equal to what it replaces is redundant.
 
 Conventions are the one kind of entry that names a source: they are declarative, opt-in (nothing applies them
-unless a run or ground truth names the edition), say what a source's markup means rather than what one dataset
+unless a run or ground truth names them), say what a source's markup means rather than what one dataset
 counts, hold no copied pages (tests use fixtures written for them), and keep the source's name inside the entry.
 
 ## Steps, capabilities, labels
 
 Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose engines run models, and the
-rule-based steps (`RULE_STEPS`) `image` (the working image), `normalization` (character fidelity: as written →
-normalized), `typography` (the hierarchy from type sizes), `recomposition` (running text from the rows: paragraphs),
+rule-based steps (`RULE_STEPS`) `image` (the working image), `typography` (the hierarchy from type sizes),
+`recomposition` (the paragraphs of the rows: structure, no text),
 `composition` (the document) and `import` (a source document read into a transcription: the importers). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
 Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
@@ -353,8 +373,9 @@ pipeline's process only. `pipelines/transcribe_modular.py --layout single-region
 
 The engines of the rule-based steps (**strategies**) live in `linecaster.engines`, are pure Python and run in the
 pipeline's process only (`IN_PROCESS_ONLY`; `linecaster serve` refuses them): `image.webp-lossless.v1`,
-`normalization.latin-historic.v1`, `typography.ratios.v1`, `recomposition.unicode.v1`, `composition.linked.v1`,
-and the by-script engines `normalization.by-script.v1` and `recomposition.by-script.v1`. Each has no weights; its
+`typography.ratios.v1`, `recomposition.unicode.v1`, `composition.linked.v1` and the by-script engine
+`recomposition.by-script.v1`. None of them changes a text: they add structure (headings, paragraphs, links), and a
+strategy writes the text when it is written. Each has no weights; its
 `Options` turn the rules' thresholds into options whose defaults are the values the rules have always had, and it
 declares `scripts`: the ISO 15924 scripts it covers (`Latn`, `Hebr`, ...), `"*"` for all. The rules themselves stay
 in `linecaster.text`, `linecaster.images` and `linecaster.formats`; the engines are thin.
@@ -364,15 +385,15 @@ item unit `__call__(pages: list[Transcription], **options) -> list[Transcription
 is an item of one page); the image step takes and returns the image's bytes (`__call__(data, **options) -> (bytes,
 info)`). Options given to a call override the engine's for that call. Each call appends an annotator (`Annotator`,
 kind `rule`) with its `engine` id, its options as `settings` and its counts as `measurements`; the block that runs
-it adds the preset edition and its hash, `seconds` and `datetime`. Composition is the exception: it renders the set
+it adds the preset and its hash, `seconds` and `datetime`. Composition is the exception: it renders the set
 as a document (`linecaster.document`) and adds no annotator and no annotation. Its item unit is `item_document(pages, name, ...)`:
 an item's document is no transcription.
 
-Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
+Their blocks take a preset (`id`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
 over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
-`CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
+`Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
-`squiddle` recipe's rules: `working-image`, `latin-historic`, `ratios`,
+`squiddle` recipe's rules: `working-image`, `ratios`,
 `unicode-recomposition`, `linked-composition`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
@@ -386,34 +407,34 @@ id: hebrew-latin-recomposition
 step: recomposition
 engine: recomposition.by-script.v1
 by_script:
-  Hebr: hebrew-recomposition@1
+  Hebr: hebrew-recomposition
   "*": unicode-recomposition
 ```
 
-`engine_spec` resolves them into the engine's `strategies` (each strategy's engine, options, edition and hash).
+`engine_spec` resolves them into the engine's `strategies` (each strategy's engine, options, id and hash).
 The engine (`ScriptDispatch`) routes each decision to the strategy of the script around it: for a decision at a row
 end (a division mark, the separator between two rows) the script of the last character before the row end that has
 one, else of the first after it (characters of the scripts Common and Inherited, such as spaces, hyphens, digits and
-combining marks, have none); for a normalization, each run of a text in one script (Common and Inherited
-characters stay with the run before them). A script without a strategy of its own goes to `"*"`. Scripts are
+combining marks, have none). A script without a strategy of its own goes to `"*"`. Scripts are
 Unicode's `Script` property, matched with the `regex` package's `\p{Script=...}`. `verify` checks that every
-strategy is an edition of the same step and covers its script.
+strategy is a preset of the same step and covers its script. (These by-script strategies are presets of a step;
+transcription strategies, the catalog kind, are another thing.)
 
 ## Pipelines, recipes and `launch.py`
 
 Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
 `transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
-too: `transcribe_modular.v1` has `--typography`, `--recomposition`, `--normalization` (the readable item texts'
-normalization, for `--item-texts`) and `--composition`, `bind.v1` `--recomposition`, `--normalization` and
-`--composition`; a slot left empty leaves its step out, e.g. no recomposition: the page stays as laid out). It has
-no default presets:
-the user fills every slot, or names a recipe (`--recipe id[@edition]`), with single flags on top recorded as
-overrides in the run record (`recipe`: the edition, the pipeline id, the hash and the overrides).
+too: `transcribe_modular.v1` has `--typography`, `--recomposition` and `--composition`, `bind.v1`
+`--recomposition` and `--composition`; a slot left empty leaves its step out, e.g. no recomposition: the page stays
+as laid out). It has no default presets: the user fills every slot, or names a recipe (`--recipe id`), with single
+flags on top recorded as overrides in the run record (`recipe`: the id, the pipeline id, the hash and the
+overrides). The texts a run writes are no slot: `--text <strategy>:<format>` names each (a recipe may name them in
+its `options`).
 
 The recipe: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
 recognition, tables, formulas and the rule-based steps). The item stage (`bind.v1`) has no recipe: its presets are
-named (`--recomposition unicode-recomposition --normalization latin-historic --composition linked-composition`). A
+named (`--recomposition unicode-recomposition --composition linked-composition`, and the texts with `--text`). A
 recipe has its script,
 `recipes/<id>.py` ([architecture](architecture.md#recipe-scripts)): its environment, with exactly the engine packages
 its presets need, and its entry point. `recipes/squiddle.py` is the environment with kraken;
@@ -436,12 +457,12 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 | `linecaster models [--step STEP]` | lists the presets (and the recipes) |
 | `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model entry, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
-| `linecaster catalog release ID [--commit SHA] [--migrate-pipeline]` | freezes the current edition of a preset, recipe or policy in the lock, a recipe with its expanded pipeline |
-| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, released editions and their hashes (policies among them), recipes and their expanded pipelines |
-| `linecaster catalog show REF` | the resolved functional content of a preset or recipe edition (`id@edition`, or a hash, today's or a previous one), with its hash |
+| `linecaster catalog index` | writes `catalog.index`: every entry's hash, and each recipe's pipeline hash |
+| `linecaster catalog verify` | checks the files (schema lines, prose next to its YAML file), the JSON Schemas against the models, cards, pins, the index (stale: a failure), conventions, recipes and their expanded pipelines |
+| `linecaster catalog show REF` | the resolved functional content of a preset or recipe, with its hash |
 | `linecaster catalog schemas [--out DIR]` | regenerates the JSON Schemas (default `src/linecaster/catalog/schemas/`) |
 | `linecaster docs [--out docs] [--readme README.md]` | writes the generated docs (the catalog's pages among them; not in git, written before the site is built) |
 
 The catalog's generated pages are grouped by kind: `docs/catalog/{engines, models, presets/<step>, pipelines,
-recipes}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
+recipes, policies, conventions, normalizations, strategies}/` and an index. Engine and pipeline pages are read from the source (`linecaster.catalog.code`, with
 `ast`), so the engines need not be installed. The pages quote no measurements.

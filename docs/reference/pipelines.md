@@ -29,7 +29,7 @@ class Contract:
 - **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image`, `metadata` and `transcription_file` (a
   library's own transcription delivered with the page, as a document media) (page-level), what presets produce (`PRODUCES`: `regions`, `reading_order`, `lines`, `baselines`, `text`, `words`, `word_confidences`,
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
-  `line_regions`, `hierarchy`, `nfc`, `paragraphs`, `normalized`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
+  `line_regions`, `hierarchy`, `paragraphs`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
 - **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
   `parts_removed`) that
@@ -52,19 +52,17 @@ class Contract:
 - **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
   records, so what the pages carried stays available across either (the checks carry the parts over), apart from
   the page image's bytes (`image`: an item record has none) at the binder and the item's `document` at the splitter.
-- **Item-unit blocks** (`Recomposer(unit="item")`, `CharacterNormalizer(unit="item")`, `Composer(unit="item")`)
+- **Item-unit blocks** (`Recomposer(unit="item")`, `Composer(unit="item")`)
   read item records: one datatrove document per item, `doc.metadata["item"]` holding the item id and its page records
   in order (`linecaster.blocks.base.item`); they read and add the parts of the pages' transcriptions, the item
-  `Composer` adds the item's `document` next to the record. **Item writers**: `ItemTextWriter` reads `lines` for
-  `verbatim_txt` and `paragraphs` and `normalized` for the readable variants, `ItemDocumentWriter` the `document`.
+  `Composer` adds the item's `document` next to the record. **Item writers** (`ItemDocumentWriter`, `ItemTextWriter`)
+  read the `document` and write it by each text's transcription strategy.
   `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
 | Block | Reads | Adds | Replaces, removes |
 |---|---|---|---|
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
-| `UnicodeNormalizer` | `text` | `nfc` | `text` |
-| `CharacterNormalizer` | `text` | `normalized` | |
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
 | `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` (rendered, not stored; no annotator) | |
@@ -223,7 +221,7 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 
 - **Per page.** An exception in a per-unit transform's `process_page` (other than a `PipelineConfigError`,
   `CatalogError` or `ServerError`, which fail the task) becomes an entry in the page's `doc.metadata["errors"]`:
-  `{"block": class, "step": a model block's step, "preset": its edition or null, "type": the exception's class,
+  `{"block": class, "step": a model block's step, "preset": its id or null, "type": the exception's class,
   "error": the message}`; a failed request of a served block is the same with type `ServerError`; checks
   (`PageValidator`, `ImageConverter`) add `field` and `raw_value`. The page goes on as it was.
 - **Later model blocks pass it by** (`skip_on_error`, the default for model blocks; stat `skipped_after_error`), at
@@ -283,13 +281,13 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 |---|---|
 | folders and file names: `data_folder`, `output_folder`, `output_filename`, `image_folder`, `manifest_folder`, `ocr_folder`, `folder`, `suffix`, `bucket_by_item`, `prefix` | where things are |
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
-| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset edition and hash, model and revision) | how a server is started and reached |
+| servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes`, `.skip_existing`, `.window`, `.initial_window`, `.max_window`, `ImageFolderReader.read_images` | presentation, file handling, memory, how many pages are in flight |
 | server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
-| the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset edition with its hash, wherever it runs |
+| the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset with its hash, wherever it runs |
 
 Everything else is functional: block classes and their order, transcription names, engine options, presets and
-their hashes, the recipe stamp, conditions and groups, writers' formats and options, `item_shards`. The base list
+their hashes, the recipe stamp, conditions and groups, writers' formats, texts and strategies, `item_shards`. The base list
 is `OPERATIONAL` in `linecaster.blocks.base.block`; a block class adds its own in `operational`. A parameter added
 to a released block with a default that keeps the old behavior is left out while it has that default
 (`unhashed_defaults`, e.g. `PageRecognizer`'s `repair_only`), so the pipelines that do not use it keep their hash. So a resumed run,
@@ -306,9 +304,9 @@ The same hash, tasks and sample: a resume, as datatrove's completion markers mak
 
 **Describe mode.** `linecaster.runtime.run.describe(shape, argv)` builds a pipeline shape's plan in the current
 process without its engines: its options parsed, presets resolved without checking that their engines are
-installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe edition that way (the shape of the
+installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe that way (the shape of the
 recipe's pipeline id, `linecaster.pipelines.shape(id)`, with `--recipe REF` and placeholder folders): what
-`linecaster catalog release` records in the lock and `verify` compares ([catalog](catalog.md)).
+`linecaster catalog index` records as the recipe's `pipeline_sha256` and `verify` compares ([catalog](catalog.md)).
 
 ## Samples
 
@@ -585,25 +583,33 @@ The item-level steps follow a `Binder`; the usual shape (`pipelines/bind.py`, an
 `pipelines/transcribe_modular.py`):
 
 ```python
+texts = ("literal:txt", "latin-historic+unicode-marks+flow:md")   # --text, repeatable
 [PageRecordReader(pages, fetch_images=False, item_shards=True),
  Binder(),                                                  # page records -> item records
  Recomposer("unicode-recomposition", unit="item"),        # paragraphs continued across page breaks
- CharacterNormalizer("latin-historic", unit="item"),      # normalized lines, paragraphs, table cells
- Composer("linked-composition", unit="item"),             # the item's document
- ItemTextWriter(f"{out}/texts"),                            # texts/<variant>/<rank>.jsonl.gz (format="files": <item>.txt|md)
- ItemDocumentWriter(f"{out}/documents", formats=("md", "txt", "json"), by_format=True)]   # documents/<format>/<item>.<ext>
+ Composer("linked-composition", unit="item"),             # the item's document, literal
+ ItemDocumentWriter(f"{out}/documents", texts=texts),     # documents/<strategy>/<item>.<ext>
+ ItemTextWriter(f"{out}/texts", texts=texts)]             # texts/<strategy>.<format>/<rank>.jsonl.gz (bind: --jsonl)
 ```
+
+A **text** is the item's document written by a transcription strategy in a format (`<strategy>:<format>`:
+`literal` or a catalog strategy, normalizations joined by `+` too; `md`, `txt`, `html`, `json`); nothing is
+normalized unless a text names a strategy, and `bind` writes only the literal document as JSON unless `--text` names
+others. A JSON Lines row holds `id` (the item), `text`, `spec`, `strategy`, `strategy_sha256`, `normalizations`,
+`format`, `page_ids`, `pages` and `token_count` with a token counter. The page files (`PageFileWriter`) take one
+`strategy` too (`--strategy`, default `literal`).
 
 A `Splitter` after the item-level blocks passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
 the paragraphs of the item recomposition.
 
 ## Page records
 
-Stored page records are rows `{"schema": "linecaster.page/4", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+Stored page records are rows `{"schema": "linecaster.page/5", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`): `page` is the page record of the
 [data model](data-model.md), its annotation sets with their annotators, raw outputs and annotations. Renderings
 (the Composer's document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
-today's format (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/2` row through
+today's format (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/4` row through
+`page_4_to_5` (the derived text dropped, [data model](data-model.md#from-linecasterpage4)); a `linecaster.page/2` row through
 `linecaster.data.upgrade.page_2_to_3` (field by field in the [data model](data-model.md#from-linecasterpage2)); a
 `linecaster.page/1` row, whose transcriptions name their steps `model`, to page/2 first; a row without `schema` (the
 oldest format) names its transcription `ocr`, read as `ocr_new`; a `.../pages` folder without records is read from
@@ -611,8 +617,8 @@ its sibling `rows/` (the folder's earlier name).
 
 ## Rendering policy
 
-The blocks that render (`Composer`, `PageFileWriter`, `ItemTextWriter`) take `policy`, a catalog policy edition
-(`id@edition`, default `page-layers`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
+The blocks that render (`Composer`, `PageFileWriter`, `ItemDocumentWriter`, `ItemTextWriter`) take `policy`, a
+catalog policy (`id`, default `page-layers`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
 each region in the documents, files and texts they write ([data model](data-model.md#rendering)).
 `pipelines/transcribe_modular.py` and `pipelines/bind.py` set it with `--policy`; it is a functional parameter, so the
 run record names it and `pipeline_sha256` covers it.

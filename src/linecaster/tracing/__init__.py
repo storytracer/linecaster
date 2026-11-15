@@ -242,8 +242,8 @@ def _family(block) -> str:
 
 
 def block_attributes(block) -> dict:
-    """The identifying attributes of a block's spans: class, name, family, unit; a model block's step, preset and
-    edition, engine, model, backend and server."""
+    """The identifying attributes of a block's spans: class, name, family, unit; a model block's step, preset,
+    engine, model, backend and server."""
     from ..blocks.base.contract import contract_of
 
     attrs = {"linecaster.block": type(block).__name__, "linecaster.block.family": _family(block)}

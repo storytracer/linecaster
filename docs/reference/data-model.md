@@ -1,23 +1,27 @@
 # The data model
 
 `linecaster.data` holds what is read from a page and how it is rendered; `linecaster.data.page` the page record it
-travels in. A stored page record names its format in its row's `schema`: `linecaster.page/4`. Importing
+travels in. A stored page record names its format in its row's `schema`: `linecaster.page/5`. Importing
 `linecaster.data` needs neither datatrove nor saturate nor an engine.
 
 ## Principles
 
 1. **Raw output is kept.** What a model answered (a completion, an engine's native result) is stored verbatim, once
    per request, next to what linecaster parsed from it (`RawOutput`).
-2. **Nothing is discarded or overwritten.** Every step adds annotations; a normalization, a correction, a removal,
-   a relabelling is a new annotation that refers to the one it is about. A page record holds everything any step
-   said, and who said it.
-3. **Rendering is a recorded, overridable policy.** Which annotations end up in which text (body, page furniture,
+2. **Nothing is discarded or overwritten.** Every step adds annotations; a correction, a removal, a relabelling is a
+   new annotation that refers to the one it is about. A page record holds everything any step said, and who said it.
+3. **The record holds the text as read.** A reading is what the model or the source gave, exactly, not even in NFC.
+   No step changes it or stores a derived form of it: a normalization (NFC, the long s, ligatures, a division mark
+   removed, rows joined) is applied when a text is written, by the transcription strategy the text names
+   (`linecaster.document.strategy`), and never by default. Edits are the source's own (an editor's correction, a
+   word the source marks as divided).
+4. **Rendering is a recorded, overridable policy.** Which annotations end up in which text (body, page furniture,
    notes, metadata, nowhere) is decided by a rendering policy at rendering time, never by a parser or a step. The
-   policy is a catalog entry with an edition; run records and evidence name it.
-4. **Definitions generic, vocabularies specific.** The classes hold any input (a scanned book, a manuscript, a
+   policy is a catalog entry; run records and evidence name it with its hash.
+5. **Definitions generic, vocabularies specific.** The classes hold any input (a scanned book, a manuscript, a
    born-digital PDF, a newspaper issue); what a region is, how it was made and what a range is are words from
    vocabularies borrowed from the standards (PAGE-XML first), extended where they lack a word.
-5. **Records are lean.** Shared things are stored once per page and referred to by number (annotators, raw
+6. **Records are lean.** Shared things are stored once per page and referred to by number (annotators, raw
    outputs); geometry is numbers; parts are nested where they never move (words in readings, glyphs in words);
    renderings (documents, texts) are written out, not stored; defaults are not written.
 
@@ -33,7 +37,6 @@ mappings are below ([mappings](#mappings)). Exports conform to each standard.
 | `Page` | one page of an item: its image and its annotation sets | `page_id` |
 | `PageImage` | the image a page's coordinates refer to: its location, size, format and hashes | |
 | `DocumentRange` | a unit of continuous content within or across items (a work, an article, a letter); see [ranges](#ranges) | `id` |
-| `Text` | one rendering of an item (or of a document range) as text: per variant, under a policy | `item_id`, `variant` |
 
 **An item** is what the input names: it gives the item's id (`item_id`) and its pages' order (`sequence`).
 linecaster assumes nothing about what an item is or how its pages came about: a scanned book, an issue, a PDF, a
@@ -85,7 +88,7 @@ that also holds text: readings, tables, formulas, paragraphs, edits. A page has 
 | `lines` | `Line`s: the line zones, each with its `Reading` | `Transcription` |
 | `tables` | `Table`s: a region's table structure | `Transcription` |
 | `formulas` | `Formula`s: a region's formula | `Transcription` |
-| `edits` | `Edit`s: NFC, normalized, corrected, joined forms of a reading, a word, a cell or a paragraph | `Transcription` |
+| `edits` | `Edit`s: the source's corrected, expanded, regularized or joined forms of a reading, a word, a cell or a span | `Transcription` |
 
 Derived, not stored: `text` (the set rendered under a policy), `confidence` (reading confidences weighted by
 length), `objects` (regions in the shape of a Hugging Face `objects` column).
@@ -105,6 +108,7 @@ adds a classification next to the first, and the policy's `precedence` says whos
 | `revision` | the revision of the source text that the zones' anchors refer to (a wiki page's revision id, a commit) |
 | `image_sha256`, `image_width`, `image_height` | the image the set's coordinates refer to |
 | `scale` | the factors (`[sx, sy]`) a set was scaled by onto this image (`AnnotationSet.scaled`) |
+| `normalized` | for a ground truth: the normalizations its transcription already embodies (catalog ids, from its conventions' `transcription`: `long-s` where it writes ſ as s); scoring warns where a lane does not apply one |
 
 ## Annotators and raw output
 
@@ -114,11 +118,12 @@ or people. Annotations name it by its index in `annotators`.
 | Field | Holds |
 |---|---|
 | `kind` | `model`, `rule`, `file`, `human` |
-| `step` | the catalog step: `layout`, `lines`, `recognition`, `tables`, `formulas`, `unicode`, `typography`, `recomposition`, `normalization`, `assignment`, `ordering`, ...; for a file or people: `transcription` |
+| `step` | the catalog step: `layout`, `lines`, `recognition`, `tables`, `formulas`, `typography`, `recomposition`, `assignment`, `ordering`, `import`, ...; for a file or people: `transcription` |
 | `name` | the model (`kraken-ppocrv6-medium`); for a rule, what ran (`unicodedata`, the engine's id); for people, the group (`proofreaders`) |
 | `engine`, `revision` | the engine's code id, the model's revision |
-| `preset`, `preset_sha256`, `recipe`, `recipe_sha256` | the preset and recipe editions it ran as, and their hashes |
-| `conventions`, `conventions_sha256` | an importer's: the conventions it applied, resolved (the chain, `base@1>source@3`), and the hash of what their rules do |
+| `preset`, `preset_sha256`, `recipe`, `recipe_sha256` | the preset and recipe it ran as, and their hashes |
+| `conventions`, `conventions_sha256` | an importer's: the conventions it applied, resolved (the chain, `mediawiki>enwikisource`), and the hash of what their rules do |
+| `linecaster` | the linecaster that added the annotator (`producer()`: version and commit) |
 | `backend` | in-process, or served with the server's address |
 | `run` | the run that produced the annotator's work (its run id, `RunRecord.run_id`); `None` for files and people |
 | `settings` | what decided the output besides the preset: the engine's options, a VLM's prompt and sampling; for people, their review: `review` (`transcribed`, `proofread`, `validated`, or the source's own word) |
@@ -276,21 +281,22 @@ paragraph, a span of one), `kind`, `text`:
 
 | `kind` | Is |
 |---|---|
-| `nfc` | the text in Unicode NFC (the `unicode` step); only when it differs |
-| `normalized` | the text normalized (`CharacterNormalizer`: ſ, ligatures, r rotunda ...) |
 | `corrected` | an editor's correction of what is printed (a misprint); the reading keeps the printed form |
-| `joined` | a word divided across lines or pages, joined: on its first half, `derived_from` naming the other half |
-| `expanded`, `regularized` | abbreviations expanded, spelling regularized (the text dimensions' later steps) |
+| `joined` | half of a word the source marks as divided across lines or pages (Wikisource's `{{hws}}`/`{{hwe}}`, ALTO's `SUBS_CONTENT`): the edit's target is the half's span, its text the whole word |
+| `expanded`, `regularized` | abbreviations expanded, spelling regularized, as the source states them |
 
-Edits chain: an edit may target another edit's result through `derived_from`; a renderer takes, per target, the
-last edit of the kinds the text variant asks for.
+Every edit is the source's: linecaster's steps write none (since `linecaster.page/5`; the `nfc` and `normalized`
+edits of page/4 are dropped when a record is read). A document carries them as spans of its literal text, and a
+strategy applies them when it names them: `editors-corrections`, `editors-expansions`, `editors-regularizations`,
+`divided-words` (the halves paired in reading order and written whole where the second stands).
 
 ### Links
 
 A `Link` is a cross-reference: `kind`, `source`, `target`. Kinds: `caption_of`, `note_of` (a footnote and its mark,
 `source` the note, `target` the mark's span), `continues` (`source` continues `target`: a paragraph or footnote
 from an earlier column or page), `runs_into` (`source` runs on into `target`), `refers_to`, `part_of` (a line in
-another region than the one it was assigned to).
+another region than the one it was assigned to; a drop capital's region, part of the line it begins: a document
+writes its letter at that line's start).
 
 ### Reading orders
 
@@ -319,16 +325,13 @@ paragraphs joined by links (`runs_into`, `continues`).
 | `title` | the range's title, if known |
 
 A **document range** (`DocumentRange`, `kind` `document`) is a document within or across items: an item holds one
-document unless ranges say otherwise. A **paragraph** (`Paragraph`, `kind` `paragraph`) is the bottom range that
-carries running text: `text` (as written, flowed: the rows joined, the division marks the recomposition removed
-gone), `rows` (`ParagraphRow`: `lines`, the ids of every line on the visual row, empty ones too, and `charspan`, the
-row's part of `text`), and `decisions` (`Decision`: `kind`, `reason`, `row`, `separator`; the vocabulary
-`DECISIONS`). A paragraph's `continuation` decision's `separator` joins its text to the paragraph it runs on into.
+document unless ranges say otherwise. A **paragraph** (`Paragraph`, `kind` `paragraph`) is the bottom range of
+running text: structure only, no text of its own (since `linecaster.page/5`): `rows` (`ParagraphRow`: `lines`, the
+ids of every line on the visual row, empty ones too) and `decisions` (`Decision`: `kind`, `reason`, `row`; the
+vocabulary `DECISIONS`). Its text is its lines' readings, row by row; a strategy writes it (`flow` joins the rows).
 
 | Decision `kind` | Reasons |
 |---|---|
-| `mark_removed` | `letter_follows` |
-| `hyphen_kept` | `capital_follows`, `digit_follows`, `no_letter_follows`, `script_change`, `attested` |
 | `paragraph_break` | `indent`, `gap`, `short_row` |
 | `continuation` | `division_mark`, `end_margin` |
 
@@ -395,59 +398,63 @@ is kept as its own role and written as it is.
 
 ## Rendering
 
-A **rendering policy** (`RenderingPolicy`, a catalog entry `policy` with editions, like a preset) decides which
+A **rendering policy** (`RenderingPolicy`, a catalog entry `policy`) decides which
 annotations go into which **layer** of a rendering: `body`, `furniture` (running heads and feet, page numbers),
 `background`, `invisible`, `notes`, plus `metadata` (kept out of the text, written to the rendering's metadata) and
 `none`.
 
 | `RenderingPolicy` field | Holds |
 |---|---|
-| `id`, `edition` | as a preset's |
+| `id` | as a preset's |
 | `rules` | `RenderingRule`s, the first that matches wins: `role`, `production`, `status`, `motivation` (each `None`: any) → `to` (a layer, `metadata` or `none`) |
 | `precedence` | whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (`role: [typography, layout]`), for reading orders (`order: [layout, ordering]`) and ranges |
-| `edits` | which edits a text variant applies, by variant (`readable_txt: [nfc, joined, normalized]`) |
+| `tables`, `markdown` | what counts as a table when written out (`TableRules`); the Markdown a rendering writes (`MarkdownRules`) |
 
 The default policy, `page-layers`, gives every role its default layer, `status` `suppressed`, `duplicate` and
 `removed` → `none`, descriptions → `metadata`; without `precedence` the latest annotator's classifications count
-(typography's over the layout's). Its `verbatim_txt` applies `nfc` and `joined` (a drop capital joined to its line),
-the readable variants also `normalized`. A run names its
-policy (`--policy`); without one it uses the default, and the run record says which.
+(typography's over the layout's). A policy decides layers, never text. A run names its policy (`--policy`); without one
+it uses the default, and the run record says which.
 
 Renderings are made from a set under a policy and are not stored: the document (below), ALTO, PAGE-XML, hOCR, the
 IIIF annotation page, and the texts.
 
 ### The document (`linecaster.document`)
 
-A page's or an item's **document** (`Document`, `linecaster.document/1`) is what a reader reads, in reading order:
+A page's or an item's **document** (`Document`, `linecaster.document/2`) is what a reader reads, in reading order:
 its pages and its **blocks**. A block (`Block`) is one unit of the rendering, of a `kind` made from its region's
 content role: `title`, `heading` (with its `level`), `paragraph`, `list_item`, `caption`, `footnote`, `toc_entry`,
 `reference`, `code`, `page_header`, `page_footer`, `formula` (its LaTeX the text), `table` (its `grid`: size and
 cells) or `picture` (its `file` and the text read inside it). Each block has its content `role`, the `layer` the
-policy put it in, its `text` (lines separated by `\n`) with formatting and languages over `spans` of it, the
+policy put it in, its `text` (literal: the readings as read, rows separated by `\n`; `wraps`: the positions of the
+`\n` that are breaks of the layout, which `flow` joins) with formatting, languages, inline formulas and the source's
+edits over `spans` of it (an edit span: `edit`, `edit_text`), the
 `section` it is in (the heading block that opens it, with sections), and an `Origin` per piece: the page, the region
 and lines it comes from, its box on the page image (clamped to the page; none without geometry) and the characters
 of the block's text it gives.
 
-`DocumentBuilder` makes it ([composition](#steps-and-what-they-add)): one block per region as laid out, or per
-paragraph of a recomposition; a paragraph or region that continues another (its `continues` link, on the same or
-an earlier page of the item) is one block with it, joined as recomposition joins rows. `linecaster.document`
-writes it as HTML (HTML5 with DPUB-ARIA roles for notes and page furniture), Markdown (by the policy's Markdown
-rules), text and JSON; the JSON is the complete document and reads back (`from_json`).
+`DocumentBuilder` makes it ([composition](#steps-and-what-they-add)), literal (`strategy: literal`): one block per
+region as laid out (one row per visual row: lines share a row when the order says so and their boxes overlap), or
+per paragraph of a recomposition (every break between its rows a wrap); a paragraph or region that continues another
+(its `continues` link, on the same or an earlier page of the item) is one block with it, on a new row (a wrap, unless
+a part has several rows and the first does not end in a division mark: verse). A drop capital (`part_of` its line) is
+written at its line's start. `linecaster.document.strategy.apply(document, strategy)` writes a strategy's document
+from it (`strategy` names it); `linecaster.document` writes either as HTML (HTML5 with DPUB-ARIA roles for notes and
+page furniture), Markdown (by the policy's Markdown rules: a wrap a plain newline, another row break a hard break, a
+row that would start a Markdown block escaped), text and JSON; the JSON is the complete document and reads back
+(`from_json`; a document/1 file is read as it is, its strategy not stated).
 
-### Text variants (`linecaster.text.variants`)
+### Texts and transcription strategies
 
-Three variants per item, each a choice of layers and edits from the policy:
-
-| Variant | Layers | Edits | Flow |
-|---|---|---|---|
-| `verbatim_txt` | body, furniture | `nfc`, `joined` | as laid out: each page's readings in reading order, tables as Markdown or HTML, pages joined with a form feed |
-| `readable_txt` | body | `nfc`, `joined`, `normalized` | flowed: the item's paragraphs, a paragraph's pieces joined with their separator, tables one row per line with tab-separated cells, a formula's LaTeX |
-| `readable_md` | body | as `readable_txt` | the same as Markdown: `#` title, `##` heading (by heading level), `- ` list item, tables as pipe tables (HTML when a cell spans) |
-
-The vocabulary is era-neutral, on three dimensions: character fidelity (as written → normalized → expanded →
-regularized), flow (as laid out → flowed) and scope (full page → body only). All text is NFC; the normalization folds
-ſ, ligatures, r rotunda and superscript e over a, o, u by an explicit mapping table, and keeps æ, œ, ø, å and ß;
-never NFKC; spelling is never modernized.
+A **text** is a document written by a **transcription strategy** in a format: `<strategy>:<format>`
+(`literal:txt`, `latin-historic+unicode-marks+flow:md`). `literal` changes nothing; a strategy of the catalog
+(`linecaster.catalog`: normalizations and strategies) applies its normalizations in order: rules on characters
+(`linecaster.text.normalize`: `nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`, ...) to every block's text
+and cell, and rules on the document: the source's edits, `divided-words`, `unicode-marks` (division marks resolved
+by squiddleocr's rule, the document's words as the lexicon), `flow` (the wraps joined: by a space, or none where
+Unicode's line breaking joins the words; a row that still ends in a division mark joined without a space, the mark
+kept). Spans, wraps and origins move with the text they cover. Nothing is written unless a run names it: by default
+the document as JSON, literal. The scope (full page or body only) is the layer choice when it is written
+(`furniture`).
 
 ## Steps and what they add
 
@@ -458,11 +465,9 @@ never NFKC; spelling is never modernized.
 | assignment | each line's `region` |
 | recognition | readings (words, glyphs, formatting), raw outputs; `language`, `script` classifications |
 | tables, formulas | tables, formulas |
-| unicode | `nfc` edits |
-| typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops, a `joined` edit for a drop capital joined to its line, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
+| typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops, a `part_of` link from a drop capital's region to the line it begins, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
 | ordering | a reading order (XY-cut, XY-Cut++) |
-| recomposition | paragraphs and their `runs_into` and `continues` links |
-| normalization | `normalized` edits |
+| recomposition | paragraphs (rows and decisions, no text) and their `runs_into` and `continues` links |
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |
 
@@ -484,8 +489,8 @@ sy)` moves every coordinate to another image size and records the factors in `so
 An item travels as one datatrove `Document`: `id` is the item id, `metadata["item"]` the item record, `{"item_id":
 ..., "pages": [...]}`, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the
 image bytes. The `Binder` makes it from a page stream; the item-unit blocks add to the page records inside it
-(`Recomposer(unit="item")`: paragraphs whose pieces span pages; `CharacterNormalizer(unit="item")`: edits); the
-renderers join a range's pieces across pages; the `Splitter` passes the pages on again, each with what the
+(`Recomposer(unit="item")`: paragraphs whose pieces span pages), and `Composer(unit="item")` adds the item's
+document next to it; the renderers join a range's pieces across pages; the `Splitter` passes the pages on again, each with what the
 item-level blocks added.
 
 ## Mappings
@@ -549,7 +554,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Line.bbox`, `polygon`, `baseline` | `Line.box`, `polygon`, `baseline` |
 | `Line.score` | `Line.confidence` |
 | `Line.text`, `confidence`, `alternatives`, `words` | `Line.reading`: `text`, `confidence`, `alternatives`, `words` |
-| `Line.normalized` | a `normalized` edit |
+| `Line.normalized` | dropped (page/5 stores no derived text) |
 | `Line.extra` | extension fields `page2__<key>` |
 | `Word.id` | `None` where it was `<line>_w<n>` (its index in the reading); kept otherwise |
 | `Word.text`, `confidence`, `hyphen`, `alternatives` | the same |
@@ -559,12 +564,12 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Paragraph.id`, `region_id` | `Paragraph.id`, `parts` |
 | `Paragraph.rows` | `rows` |
 | `ParagraphRow.lines` | the same |
-| `ParagraphRow.start`, `end` | `ParagraphRow.charspan` |
-| `Paragraph.text`, `decisions` | the same |
-| `Paragraph.normalized` | a `normalized` edit |
+| `ParagraphRow.start`, `end` | dropped (page/5) |
+| `Paragraph.text`, `decisions` | `decisions` (page/5: no text, no mark decisions) |
+| `Paragraph.normalized` | dropped (page/5) |
 | `Paragraph.continues`, `continues_from` | `runs_into` and `continues` links |
 | `ParagraphRef.id`, `page_id` | the links' target: `<id>` or `<page_id>#<id>` |
-| `Decision.kind`, `reason`, `row`, `separator` | the same |
+| `Decision.kind`, `reason`, `row`, `separator` | `kind`, `reason`, `row` (page/5) |
 | `Paragraph.extra` | extension fields `page2__<key>` |
 | `Transcription.docling` | not stored: rendered on demand |
 | `Transcription.language` | a `language` classification on the page |
@@ -577,3 +582,12 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Transcription.extra["raw"]`, `["passes"]`, `["kept"]`, `["finish_reason"]` | `outputs` |
 | `Transcription.extra["retyper_dropped"]` | the regions again, with one line holding their text, classified `status` `removed` by typography |
 | `Transcription.extra` (other keys) | extension fields `page2__<key>` |
+
+## From `linecaster.page/4`
+
+A page/4 record is upgraded when it is read (`linecaster.data.upgrade.page_4_to_5`), and so is every older one,
+through page/4: the derived text goes, the source's stays. Dropped: the `nfc` and `normalized` edits, `Paragraph.text`,
+`ParagraphRow.charspan`, the decisions on division marks (`mark_removed`, `hyphen_kept`) and `Decision.separator`. A
+drop capital's whole-line `joined` edit (typography's) becomes a `part_of` link from its region to the line, and the
+`removed` status typography gave the region goes. The source's edits (`corrected`, `expanded`, `regularized`, a
+divided word's halves) stay as they were.

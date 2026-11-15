@@ -57,7 +57,7 @@ def test_the_part_vocabulary():
 
 def test_glossary_names_every_part():
     glossary = (ROOT / "docs" / "reference" / "glossary.md").read_text()
-    missing = [p for p in ("image", "metadata", "line_regions", "hierarchy", "nfc", "document")
+    missing = [p for p in sorted(set(PARTS) - set(PRODUCES))          # every part beyond what presets produce
                if not re.search(rf"\| `{p}` \|", glossary)]
     assert missing == []
 

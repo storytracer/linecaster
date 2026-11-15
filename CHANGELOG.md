@@ -4,6 +4,100 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.10.0 (unreleased)
+
+linecaster no longer changes a text unless it is asked to. Records and documents hold the text exactly as read; a
+**transcription strategy** (`literal`, or the catalog's normalizations in order) writes a text when it is written.
+Nothing is normalized, joined or dehyphenated by default. The catalog is versioned by the release (no editions, no
+lock), and the data formats keep versions of their own.
+
+### Upgrade notes
+
+- **Texts are named, not fixed variants.** `verbatim_txt`, `readable_txt` and `readable_md` are gone, and so are
+  `bind`'s `--variants`, `--no-texts`, `--no-documents`, `--formats` and `--files`, and `--normalization` of `bind`
+  and `transcribe_modular` (whose `--files` and `--formats` still write the page files). *Who:* every run that
+  writes item texts. *What to do:* name each text, `--text STRATEGY:FORMAT`, repeatable: `--text literal:txt` for
+  the text as read (the item's document, blocks separated by a blank line, the running heads with `--furniture`; no
+  NFC, drop capitals not joined), `--text latin-historic+unicode-marks+flow:md` for 0.9's `readable_md` (also
+  `squiddle`'s second text). `bind` writes the literal document as JSON unless `--text` names others, one file per
+  item and text (`OUT/documents/<strategy>/<item>.<ext>`); `--jsonl` adds the JSON Lines
+  (`OUT/texts/<strategy>.<format>/`), whose rows carry `spec`, `strategy`, `strategy_sha256` and `normalizations`
+  instead of `variant`, `fidelity`, `flow` and `scope`. `ItemTextWriter` and `ItemDocumentWriter` take
+  `texts=("literal:txt", ...)` and read the item's document, so an item-level `Composer` comes before them;
+  `PageFileWriter` takes `strategy` (`--strategy`, default `literal`).
+- **No dehyphenation by default.** A division mark is resolved only by the source's own marking (`divided-words`:
+  Wikisource's `{{hws}}`/`{{hwe}}`, ALTO's `SUBS_CONTENT`) or by a rule a strategy names (`unicode-marks`,
+  squiddleocr's rule; `squiddle` names it). Under `flow`, a mark nothing resolved is joined without a space and
+  kept (`de-pends`). *Who:* anyone who relied on 0.9's readable texts or reflowed documents being dehyphenated.
+  *What to do:* name `unicode-marks` in the strategy where that rule suits your material. (Measured on Wikisource's
+  10,067 page-break words: the rule joins 99.7 % of ordinary words rightly but 94.5 % of compounds divided at their
+  own hyphen wrongly.)
+- **No NFC by default.** A reading stays as the model or source gave it (kraken writes decomposed text). *What to
+  do:* name `nfc` (or a strategy that includes it, `latin-historic`) where you need composed text. Scoring is
+  unaffected: lanes normalize both sides, and errors count grapheme clusters by default.
+- **Page records are `linecaster.page/5`**; older records are upgraded when read. The derived text is dropped:
+  `nfc` and `normalized` edits, `Paragraph.text`, `ParagraphRow.charspan`, the decisions on division marks
+  (`mark_removed`, `hyphen_kept`) and `Decision.separator`. A drop capital is a `part_of` link to its line (the
+  document writes its letter there), no longer a `joined` edit with the region `removed`. *Who:* code that read
+  those fields. *What to do:* write the text with a strategy (`linecaster.document.strategy.apply`, or
+  `Catalog.strategy(ref).text(s)` for a string).
+- **Documents are `linecaster.document/2`**: block text literal (rows as laid out, `Block.wraps` the layout's
+  breaks), the source's edits as spans (`Span.edit`, `edit_text`), and `strategy` and `producer` fields. A
+  document/1 file is read as it is, its strategy not stated. Markdown writes a wrap as a plain newline and other row
+  breaks as hard breaks.
+- **Removed:** the NFC step (`UnicodeNormalizer`, `linecaster.text.unicode`), the normalization step
+  (`CharacterNormalizer`, the engines `normalization.latin-historic.v1` and `normalization.by-script.v1`, the preset
+  `latin-historic`: now a strategy), the block family `text`, `linecaster.text.variants`, `linecaster.data.page.Text`,
+  the rendering policy's `edits`, `AS_WRITTEN` (`Transcription.text_of` is the reading), and
+  `linecaster_mediawiki.join_divided_words` (`link_pages` links only; `divided-words` pairs the halves).
+- **The catalog has no editions and no lock.** Entries are referred to by id; `id@N` from before resolves to the
+  release's entry with an `EditionWarning`. `catalog.lock`, `linecaster catalog release` and catalog migrations
+  are gone; `linecaster catalog index` writes `catalog.index` (every entry's hash), which `verify` checks. Catalog
+  file formats are unversioned (`linecaster.preset`, `schemas/preset.json`). *Who:* derivatives with catalog
+  entries of their own. *What to do:* drop `edition` from your YAML and `@N` from references; run `catalog index`.
+- **Scoring:** lanes are the catalog's comparison strategies: `alnum` (0.9's `alnum@2`, the default), `alnum-nonmark`
+  (`alnum@1`), `diplomatic`, `reading` (without `reading@1`'s hyphen join), `ascii-alnum`; old names resolve with a
+  warning. A character error counts a grapheme cluster by default (`unit: codepoint` for 0.9's counts, identical
+  numbers). Benchmarks are `linecaster.benchmark/2` (output strategy, lanes, unit), evidence `linecaster.evidence/3`
+  (lanes and output by hash); older files are upgraded when read, and evidence/2 is comparable to none written since.
+- **Engine packages** need `linecaster>=0.10,<0.11`: linecaster-kraken, -paddlex, -tesseract, -surya, -indra and
+  -services 0.3.0 (no code change), linecaster-mediawiki 0.2.0.
+
+### Added
+
+- **Normalizations and strategies**, two kinds of catalog entry: 23 normalizations (`nfc`, `nfkc`, `long-s`,
+  `ligatures`, `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`,
+  `lowercase`, `markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`,
+  `editors-corrections`, `editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`)
+  and the strategies `latin-historic` (output) and `diplomatic`, `reading`, `alnum`, `alnum-nonmark`, `ascii-alnum`
+  (comparison); `a+b+c` names an unnamed one. `linecaster.text.normalize`, `linecaster.document.strategy`,
+  `linecaster.text.offsets`, `linecaster.text.page`.
+- **Conventions declare what their source's text already is** (`transcription`): importers copy it into
+  `Source.normalized`; `mediawiki` declares `nfc`, `enwikisource` `nfc`, `long-s`, `ligatures`, `r-rotunda`,
+  `divided-words` (from Wikisource's style guides). Scoring checks each lane against it: a score record names what
+  the lane does not apply (`conventions`), and the run warns (`ConventionsWarning`).
+- **ALTO** divided words: `SUBS_TYPE`/`SUBS_CONTENT` read as each half's `joined` edit and written back.
+- Run records list every catalog entry the run used, with its settings and hash (`catalog`), the strategies its
+  texts were written by among them. Every data file names the linecaster that wrote it (`Annotator.linecaster`, a
+  document's `producer`, Parquet metadata). JSON schemas for page records and documents.
+
+### Changed
+
+- The `Recomposer` finds paragraphs and changes no text; the `DocumentBuilder` writes literal blocks (a line without
+  a row of its own in the order, or without geometry, is a row of its own; a continuation after a division mark is
+  a wrap even in verse).
+- Markdown escapes a row that would start a Markdown block (`#`, `-`, `1.`, a setext underline).
+- Word recall and role words follow the lane scored; rate keys keep the lane's full id; the scorer is named by the
+  linecaster that scored.
+
+### Changed outputs
+
+Entries whose hash in `catalog.index` changed: `squiddle` (no normalization slot; its texts `literal:txt` and
+`latin-historic+unicode-marks+flow:md`), `page-layers` (no `edits`), `mediawiki` and `enwikisource`
+(`transcription`); `latin-historic` moved from presets to strategies. Entries whose files are the same but whose
+engines write differently: `unicode-recomposition` (paragraphs without text or mark decisions), `ratios` (a drop
+capital is a `part_of` link), `linked-composition` (literal documents), and every lane (0.9's names, now strategies).
+
 ## 0.9.3 (2026-11-15)
 
 ### Fixed

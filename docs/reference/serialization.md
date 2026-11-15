@@ -25,9 +25,12 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
      `handwritten_text` for running text classified as handwritten), and its heading level (its `heading_level`
      classification, unless a later annotator classified its role anew);
    - **lines**: id, region (`t.region_of`: the latest `part_of` link, else `Line.region`), box, polygon, baseline,
-     detection confidence (the line's *score*) and its reading: the text as written (`t.text_of`: the reading's
-     text with the line's `nfc` and `joined` edits applied), confidence, alternatives, and the words with their ids,
-     text, box, confidence, alternatives and `hyphen` flag; a line not read has no reading;
+     detection confidence (the line's *score*) and its reading: the literal text (`t.text_of`: the reading's text,
+     exactly as read), confidence, alternatives, and the words with their ids,
+     text, box, confidence, alternatives and `hyphen` flag, and a word the source marks as half of a divided word
+     (a `joined` edit covering exactly the line's last or first word) as ALTO's `SUBS_TYPE` (`HypPart1`,
+     `HypPart2`) and `SUBS_CONTENT` (the whole word), which the ALTO reader reads back as those edits; a line not
+     read has no reading;
    - **the reading order** that counts (`t.order`): each region's rank in it, each line's rank on the page and row
      in its region;
    - the page's `language` classification (hOCR only).
@@ -36,7 +39,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    the roles separator and noise) are left out with their lines, and so are lines whose own `status` the policy puts
    there (a line assignment's duplicates); ranks are counted among what is written. **Not serialized**: the other
    classifications (production apart from handwritten running text, status, script, picture class, code language;
-   language in ALTO and PAGE), edits other than the as-written text (`normalized`, `corrected`, `expanded`, ...),
+   language in ALTO and PAGE), edits (`corrected`, `expanded`, `regularized`; ALTO's divided words apart),
    descriptions, links, ranges and paragraphs, tables and formulas, raw outputs, glyphs and formatting, annotations'
    `annotator`, `output`, `derived_from` and extension fields, annotators of kind `file` and `human`, annotators'
    `measurements` other than `datetime`, and the source.
@@ -92,7 +95,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    has no line confidence: a reader derives it as the length-weighted mean of the words' `WC`
    (as for foreign files); the writer stores the real line confidence in the extension when it
    differs from that mean.
-8. **Line text vs. words.** Words are joined with one space; when a line's text as written is not that join
+8. **Line text vs. words.** Words are joined with one space; when a line's literal text is not that join
    (double spaces, `None` with words), the text goes into the extension. A line without words is
    written as a single ALTO `String` carrying the line text and confidence (extension
    `{"wordless": true}`), as a PAGE `TextLine` with only a line `TextEquiv`, as an hOCR line with
@@ -150,7 +153,7 @@ scaled to the image (also corrects pixel ALTO made on a master of another size);
 | word | `Word`: `Coords` = box, `TextEquiv` |
 | box | not in PAGE: readers take the bounds of `Coords`; the writer stores the box when it differs |
 | heading level | extension |
-| model and rule annotators | `Metadata/MetadataItem type="processingStep"` (as OCR-D records its processors): `name` the step, `value` the preset edition or the model, `date` when recorded, `Labels externalModel="linecaster"` with `externalId="model"` (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and `externalId="settings"` (one label per setting); a summary in `Comments` |
+| model and rule annotators | `Metadata/MetadataItem type="processingStep"` (as OCR-D records its processors): `name` the step, `value` the preset or the model, `date` when recorded, `Labels externalModel="linecaster"` with `externalId="model"` (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and `externalId="settings"` (one label per setting); a summary in `Comments` |
 
 Label mapping, region label → `TextRegion/@type`: text, paragraph, list_item, handwritten_text,
 reference → `paragraph`; title, section_header → `heading`; page_header → `header`; page_footer →

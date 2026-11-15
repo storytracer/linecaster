@@ -389,13 +389,16 @@ def hardware() -> dict[str, Any]:
 
 
 #: the block parameters that name a catalog entry, and its kind
-CATALOG_KEYS = {"preset": "preset", "policy": "policy", "conventions": "conventions", "recipe": "recipe"}
+CATALOG_KEYS = {"preset": "preset", "policy": "policy", "conventions": "conventions", "recipe": "recipe",
+                "strategy": "strategy"}
 
 
 def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Every catalog entry the recorded ``pipeline`` names (a block parameter ``preset``, ``policy``, ``conventions``
-    or ``recipe``, at any depth) and the run's ``recipe``: kind, id, hash and functional content, as the catalog in
-    place has them. A name the catalog does not know (a test's fake) is left out."""
+    """Every catalog entry the recorded ``pipeline`` names (a block parameter ``preset``, ``policy``, ``conventions``,
+    ``recipe`` or ``strategy``, or the strategies of a writer's ``texts``, ``<strategy>:<format>``, at any depth) and
+    the run's ``recipe``: kind, id, hash and functional content, as the catalog in place has them (a strategy: its
+    normalizations, each with its hash; ``literal`` none). A name the catalog does not know (a test's fake) is left
+    out."""
     from ..catalog.registry import catalog, entry_id
     from ..errors import CatalogError
 
@@ -405,7 +408,12 @@ def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) 
         if isinstance(x, dict):
             for k, v in x.items():
                 if k in CATALOG_KEYS and isinstance(v, str) and v:
-                    found[(CATALOG_KEYS[k], entry_id(v))] = None
+                    found[(CATALOG_KEYS[k], v if k == "strategy" else entry_id(v))] = None
+                elif k == "texts" and isinstance(v, (list, tuple)):
+                    for spec in v:
+                        name = spec.rpartition(":")[0] if isinstance(spec, str) else spec[0] if spec else ""
+                        if name:
+                            found[("strategy", name)] = None
                 else:
                     walk(v)
         elif isinstance(x, list):
@@ -427,6 +435,9 @@ def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) 
             elif kind == "policy":
                 content = c.policy_functional(c.policies[eid][1])
                 sha = canonical(content)
+            elif kind == "strategy":
+                r = c.strategy(eid)
+                content, sha = r.content, r.sha256
             else:
                 for e in eid.split(">"):                       # a resolved chain names every entry of it
                     content = c.conventions_functional(c.conventions_doc(e))

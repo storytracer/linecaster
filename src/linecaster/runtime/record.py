@@ -113,7 +113,7 @@ def _run_id() -> str:
 class CatalogEntry(_Record):
     """A catalog entry the run used, as this release has it (entries carry no edition since 0.10)."""
 
-    kind: Literal["preset", "recipe", "policy", "conventions"]
+    kind: Literal["preset", "recipe", "policy", "conventions", "strategy"]
     id: str
     sha256: str = Field(description="the hash of its functional content (catalog.index)")
     settings: dict[str, Any] = Field(description="its functional content: what the hash covers")

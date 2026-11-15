@@ -10,5 +10,6 @@ median row height of the page's text regions); the squiddle combination's typogr
 - `page_number_min_conf` 0.75: a page-number region read with a lower mean character confidence (or empty) is an
   ornament or a blob, and is removed: typography classifies it `status` `removed` (with its confidence), and the
   rendering policy leaves it out.
-- Drop capitals (a layout model's `drop-capital` class) are joined to the first line of the text region they
-  belong to (a `joined` edit of that line), and their own region is classified `status` `removed`.
+- Drop capitals (a layout model's `drop-capital` class) are linked to the first line of the text region they
+  belong to (a `part_of` link); the document writes the letter at that line's start, and the line's own text stays
+  as read.

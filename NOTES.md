@@ -2,6 +2,45 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Transcription strategies and release versioning (2026-11-15, decided by the maintainer)
+
+**Why.** Measuring Wikisource's 10,067 words divided across a page break (the wikisource-cp-gt dataset, whose
+transcriptions mark them with `{{hws}}`/`{{hwe}}`) showed that linecaster dehyphenated by a rule nobody had chosen:
+the document builder's `resolve_mark` (squiddleocr's rule) removed the hyphen of ordinary divided words rightly
+(9,696 of 9,722 without a lexicon, 9,685 with the item's text as one) but joined compounds divided at their own
+hyphen wrongly (of 345: 94.5 % without a lexicon, `steellike`, `railroad`, `welldisposed`; 56.8 % with the item
+lexicon, which also wrongly kept `to-day` where the item attests it). Text was changed silently in other places too:
+NFC and drop-capital edits in every "as written" text, `normalized` edits stored in the records, three fixed text
+variants written by default, a hyphen join inside the `reading@1` lane. The maintainer: "Dehyphenation strategy is a
+sensitive, language- and script-specific, opinionated decision. It can be present in recipes, but cannot be default."
+
+**What was decided.**
+
+- `literal` (the readings exactly as given, not even NFC) or a named strategy (normalizations in order, mixed and
+  matched); applied when a text is written, never stored; no text written by default; no dehyphenation by default.
+  An unresolved division mark under `flow` joins without a space and stays (`de-pends`): nothing is guessed.
+- "Verbatim" is now literal, "readable" normalized; "diplomatic" survives only as a lane.
+- Lanes are comparison strategies built from the same normalizations; CER counts grapheme clusters; a ground truth
+  declares what its transcription embodies and scoring warns on a mismatch.
+- The catalog is versioned by the release, as Haystack's components are: no editions, no lock, no migrations; an
+  index of hashes makes a change of behaviour visible in review; run records name every entry with its settings and
+  hash. Data formats keep their own versions, rise only on an incompatible change, and are upgraded on read.
+
+**Parity**, on the frozen 0.9 code and data:
+
+- Scoring: every CER and role rate of the scoring fixture the same as 0.9's with `unit: codepoint`; the lanes give
+  the old lanes' output on hand-made and random text (`reading` without its hyphen join).
+- Text, on 40 random items of the recomposition parity generator: the page text equals 0.9's `verbatim_txt` (all
+  40); the literal document equals 0.9's lines-mode document, and with `unicode-marks+flow` its reflowed document,
+  block by block (the legacy spans that counted a removed mark clipped); `latin-historic+unicode-marks+flow` Markdown
+  equals `readable_md` apart from formulas (`$$...$$`) and pictures, which the document writes and `readable_md` left
+  out.
+- The Wikisource items (wikisource-cp-gt's item Markdown, written by 0.9.3), 40 items (20 random, 20 with divided
+  words) rebuilt with `divided-words+flow`: 26 identical; of 176 differences, 174 are page-break words the source
+  does not mark, which 0.9.3 dehyphenated by default and 0.10 keeps as printed (`re-member`), 2 spacing (0.10 the
+  better). Every word the source marks is written whole as before. The dataset keeps them as printed (the
+  maintainer: "leave them as printed").
+
 ## linecaster's own document instead of Docling's (2026-11-14, decided by the maintainer)
 
 Docling was a good start and linecaster outgrew it: the DoclingDocument had no place for what the data model knows

@@ -573,3 +573,21 @@ def test_the_run_record_names_every_catalog_entry_it_used():
         table = {"preset": "presets", "recipe": "recipes", "policy": "policies", "conventions": "conventions"}[e["kind"]]
         want = index[table][e["id"]]
         assert e["sha256"] == (want["sha256"] if isinstance(want, dict) else want) and e["settings"]
+
+
+def test_the_run_record_names_the_strategies_its_texts_are_written_by():
+    """A writer's texts (``<strategy>:<format>``) and a page writer's strategy are catalog entries of the run too:
+    each strategy with its normalizations and their hashes; ``literal`` with none."""
+    from linecaster.catalog.registry import catalog
+    from linecaster.pipelines import transcribe_modular
+    from linecaster.runtime import run
+    from linecaster.runtime.provenance import catalog_entries, pipeline_section
+
+    plan = run.describe(transcribe_modular, ["IN", "OUT", "--recipe", "squiddle", "--item-texts", "T",
+                                             "--files", "F", "--formats", "md", "--strategy", "nfc+flow"])
+    used = {e["id"]: e for e in catalog_entries(pipeline_section(plan), {"ref": "squiddle"}) if e["kind"] == "strategy"}
+    assert sorted(used) == ["latin-historic+unicode-marks+flow", "literal", "nfc+flow"]
+    assert used["literal"]["settings"]["normalizations"] == []
+    s = catalog().strategy("latin-historic+unicode-marks+flow")
+    assert used["latin-historic+unicode-marks+flow"]["sha256"] == s.sha256
+    assert [n["id"] for n in used["nfc+flow"]["settings"]["normalizations"]] == ["nfc", "flow"]

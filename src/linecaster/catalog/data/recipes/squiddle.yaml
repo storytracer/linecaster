@@ -11,6 +11,12 @@ presets:
   typography: ratios
   recomposition: unicode-recomposition
   composition: linked-composition
+options:
+  # the item texts (--item-texts): as read, and normalized by the recipe's choice of rules (squiddleocr's
+  # division-mark rule among them: a recipe's opinion, never a default)
+  text:
+  - literal:txt
+  - latin-historic+unicode-marks+flow:md
 provenance:
   authored_by:
   - Sebastian Majstorovic

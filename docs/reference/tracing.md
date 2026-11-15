@@ -11,7 +11,7 @@ variables say so, to an OTLP endpoint; nothing is sent anywhere else. Terms are 
 | Span | What it covers | Attributes (besides `linecaster.block`) |
 |---|---|---|
 | `linecaster.task` | the task, from its first page to its end (failed: status error, `linecaster.error.type`) | `task`, `tasks`, `sample` (the trace sample's share), `stage`, `units.failed_exported` |
-| `linecaster.warm_up` | a block loading its engine or client (`warm_up()`), per block that loads something | `block.name`, `preset`, `edition`, `engine`, `model`, `backend`, `server` |
+| `linecaster.warm_up` | a block loading its engine or client (`warm_up()`), per block that loads something | `block.name`, `preset`, `engine`, `model`, `backend`, `server` |
 | `linecaster.server.start` | a server block's warm-up: starting `linecaster serve` or vLLM/SGLang until it answers | `server`, `model`, `preset`, `port` |
 | `linecaster.reader.file` | a file a reader is through: a Parquet file, a file of page records, a manifest (wall time, while its pages also passed the later blocks) | `file`, `pages`, `seconds.own` (the time spent reading) |
 | `linecaster.writer.flush` | a page record writer closing its files (a remote file is uploaded then) | `files` |
@@ -38,7 +38,8 @@ A failed page (an entry added to `doc.metadata["errors"]` in this stage) has sta
 block's span, with `linecaster.error.type`.
 
 **Attributes** are identifiers and numbers under `linecaster.*`, never text or images: `block` (class), `block.name`
-(datatrove name), `block.family`, `unit`, `page.id`, `item.id`, `step`, `preset` and `edition` (of `id@edition`),
+(datatrove name), `block.family`, `unit`, `page.id`, `item.id`, `step`, `preset` (traces from before 0.10 also
+`edition`),
 `engine`, `model`, `backend` (`in-process`, `served`), `server` (the endpoint), counts on a block's span as the
 page leaves it (`lines`, `regions`, `words` of the block's transcription), `tokens.prompt`, `tokens.completion`,
 `finish_reason`, `error.type`, `region` (a region recognizer's request). The resource of every span: `service.name`
@@ -99,7 +100,7 @@ linecaster traces OUT [--by block|preset|task] [--slowest N] [--json]
 
 reads `OUT/traces/**/*.jsonl.gz` (a task still running: what its file has so far) and prints:
 
-- per block (or preset edition, or task) the duration of its `linecaster.block` spans over the traced pages (n,
+- per block (or preset, or task) the duration of its `linecaster.block` spans over the traced pages (n,
   p50, p90, p99, errors); for served blocks the split: `prepare`, `request` (as the pipeline saw it), and the
   server's `queue`, `decode` and `model`;
 - the **gaps**: per block the time it had no page in it between its first page and its last (it waited for its

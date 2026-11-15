@@ -147,6 +147,15 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   and refuse an unknown one; writers write the current one. Every data file names the linecaster that wrote it
   (an annotator's `linecaster`, a document's `producer`, Parquet metadata). A reader years from now needs the
   format, not the release.
+- **No text changes silently: the record holds the text as read, a strategy writes the rest.** A reading is what the
+  model or source gave, exactly (not even NFC); no step stores a derived text, and every edit is the source's. A
+  normalization (NFC, the long s, ligatures, a division mark removed, rows joined) is applied only when a text is
+  written or compared, by the transcription strategy that text names (`literal`, or the catalog's normalizations in
+  order), and no default names one. Dehyphenation, modernizing letter forms and the like are language- and
+  script-specific, opinionated decisions: a recipe may choose them (`squiddle`'s `unicode-marks`), a default never.
+  Under `flow` a division mark nothing resolved is joined without a space and kept (`de-pends`): nothing is guessed.
+  A measurement showed why (94.5 % of compounds divided at their own hyphen wrongly joined by a rule that looked
+  safe); a silent change of a ground truth's or a corpus's text is a fault no one sees.
 - **A preset's settings are its reference's** (the model card, or the reference script it follows at a pinned
   commit, named in its card) **until a measurement gives a reason to change one.** A deviation names its evidence in
   CHANGELOG.md (the measurement itself in NOTES.md), and the card says which settings differ from the reference. The
@@ -198,7 +207,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   [versions and releases](docs/reference/compatibility.md#versions-and-releases); it never releases on its own and
   never at the end of each piece of work. Finished work is merged into `main` and collects under Unreleased in
   CHANGELOG.md, and patches are the rule. A release is due when the latest one is wrong or incomplete where its users
-  meet it (a released edition fixed, a bug in released code), when a user or derivative needs what only `main` has, or
+  meet it (a wrong entry of the catalog, a bug in released code), when a user or derivative needs what only `main` has, or
   when Unreleased holds a finished piece of work; the agent then asks at the end of that task, naming what Unreleased
   holds and the version it would get. A version that moves with every change tells derivatives nothing, and one that
   lags leaves them on known bugs.

@@ -7,9 +7,10 @@ builder, failures and the run record are in [pipelines](pipelines.md), models, p
 ## What linecaster is
 
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
-combines layout, line, text, table and formula recognizers with post-processing (dehyphenation, recomposition,
-normalization) into reproducible datatrove pipelines that turn page images into text: the text as written, readable
-variants next to it, ALTO, PAGE-XML and hOCR on request. It also reads ground truth in any format into the same
+combines layout, line, text, table and formula recognizers with rule-based steps (typography, recomposition,
+composition) into reproducible datatrove pipelines that turn page images into text: the text as read, texts written
+by the transcription strategies a run names (normalized, flowed, dehyphenated only where a strategy says so), ALTO,
+PAGE-XML and hOCR on request. It also reads ground truth in any format into the same
 data model, writes it as page records and scores runs against it. It is a generalist tool: built on protocols (HTTP,
 S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, HTML, Parquet, JSON Lines) and standards (METS/MODS,
 Unicode, CSS selectors, JSONPath), its code depends on no collection, site, institution or project; what a public
@@ -25,7 +26,7 @@ built on top of it.
 | `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; DoclingDocuments in (the `docling` extra); the IIIF annotation page |
 | `linecaster.document` | a page's or an item's document (`Document`, its blocks and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
 | `linecaster.markup` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
-| `linecaster.text` | the text transforms: Unicode, typography, recomposition, the text variants |
+| `linecaster.text` | the text transforms: typography, recomposition, the normalizations' rules on characters, offsets through a change of text, a page's literal text |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
 | `linecaster.blocks` | the blocks by family ([blocks](../blocks/README.md)) |
@@ -36,7 +37,7 @@ built on top of it.
 | `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
 | `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
 | `linecaster.pipelines` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |
-| `linecaster.catalog` | the catalog: its entries, schemas, lock, fetching pins, the docs of its entries |
+| `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), schemas, index, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
 | `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_block`, the pytest markers |
@@ -64,7 +65,7 @@ A page that failed a step carries `doc.metadata["errors"]`, passes later model s
 `rejects/`; more failures than the error budget fail the task ([pipelines](pipelines.md#failures)). Library code
 raises `linecaster.errors`, never `SystemExit`.
 
-**Rule blocks** (`RuleBlock`: `Typographer`, `Recomposer`, `Composer`, `CharacterNormalizer`; and `ImageConverter`)
+**Rule blocks** (`RuleBlock`: `Typographer`, `Recomposer`, `Composer`; and `ImageConverter`)
 run a built-in engine of a rule-based step in the pipeline's process, picked by a preset.
 
 ## One page per request
@@ -142,7 +143,8 @@ line-recognizer presets.
 
 ## Recipe scripts
 
-A catalog recipe is YAML (`src/linecaster/catalog/data/recipes/<id>.yaml`: its presets, editions and hash). Its
+A catalog recipe is YAML (`src/linecaster/catalog/data/recipes/<id>.yaml`: its presets and options; its hash in
+the index). Its
 environment and entry point is a uv script of its own, `recipes/<id>.py`: a PEP 723 block with `linecaster[ray]`
 and exactly the engine packages its presets need (recipe → presets → engines → packages:
 `linecaster.catalog.code.recipe_packages`), its lock, and a body that only calls
