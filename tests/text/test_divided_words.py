@@ -38,6 +38,8 @@ def item(*pages: Transcription):
     ("such inter-", "inter-", "crossing of races.", "crossing", "inter-crossing",
      ["such", "inter-crossing of races."]),
     ("the hills ﬂush-", "ﬂush-", "ed red.", "ed", "flushed", ["the hills", "flushed red."]),
+    ("in die Stra¬", "Stra¬", "ße hinaus.", "ße", "Straße", ["in die", "Straße hinaus."]),     # ALTO's other marks
+    ("in die Stra⸗", "Stra⸗", "ße hinaus.", "ße", "Straße", ["in die", "Straße hinaus."]),
 ])
 def test_a_word_divided_across_pages(first, half1, second, half2, whole, joined):
     doc = item(page(first, halves={0: (half1, whole)}), page(second, halves={0: (half2, whole)}))

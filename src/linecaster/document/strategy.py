@@ -134,8 +134,12 @@ def _nfkc(s: str) -> str:
     return unicodedata.normalize("NFKC", s)
 
 
+#: the marks a divided word's first half may end with (ALTO's ``HYP``: hyphens, the soft hyphen, ¬, ⸗ and =)
+DIVISION_MARKS = "-\u00ad\u2010¬⸗="
+
+
 def _first_half(half: str, whole: str) -> bool:
-    return bool(half.strip()) and _nfkc(whole).startswith(_nfkc(half).rstrip().rstrip("-­‐").rstrip())
+    return bool(half.strip()) and _nfkc(whole).startswith(_nfkc(half).rstrip().rstrip(DIVISION_MARKS).rstrip())
 
 
 def _last_half(half: str, whole: str) -> bool:

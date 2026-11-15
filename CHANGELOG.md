@@ -19,6 +19,8 @@ the tags; the first is `v0.1.0`.
 
 - The HTML importer parses HTML given as text (not bytes) as the UTF-8 it is encoded in; a page without a declared
   charset had its non-ASCII text garbled.
+- `divided-words` pairs a first half that ends with `¬`, `⸗` or `=` (ALTO's division marks besides the hyphens), as
+  it paired one ending with a hyphen; such words stayed divided.
 
 ### Changed outputs
 
