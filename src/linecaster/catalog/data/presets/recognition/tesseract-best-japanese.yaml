@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
+id: tesseract-best-japanese
+step: recognition
+model:
+  id: tessdata-best
+  revision: e12c65a915945e4c28e237a9b52bc4a8f39a0cec
+engine: tesseract.recognition.v1
+options:
+  lang: script/Japanese
+  data: best
+  pad: 4
+  dpi: 300
+  preserve_interword_spaces: true
+capabilities:
+  unit: line
+  produces:
+  - text
+  - words
+  - word_confidences
+  - line_confidences
+provenance:
+  derived_from:
+  - tesseract-best-latin
+  created: 2026-11-15
+support: experimental

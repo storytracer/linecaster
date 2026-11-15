@@ -23,6 +23,9 @@ sample, so one error is 1.4 to 5 points:
 | Chinese, vertical | `script/HanT_vert`, mode 7 | 89.5 % | — | — |
 | Chinese, vertical | `script/HanT_vert`, mode 5 | — | 57.9 % | 5.3 % |
 | Japanese, vertical | `script/Japanese_vert`, mode 5 | — | 50.0 % | 0.0 % |
+| Chinese, simplified, horizontal | `script/HanS` | — | 90.6 % | 6.2 % |
+| Chinese, traditional, horizontal | `script/HanT` | — | 87.5 % | 28.1 % |
+| Japanese, horizontal | `script/Japanese` | — | 53.3 % | 0.0 % |
 | Korean | `script/Hangul` | 43.3 % | 43.3 % | 10.0 % |
 
 - The engine wrote a line as its words joined by spaces. Tesseract's words of a right-to-left line come out in
@@ -34,7 +37,10 @@ sample, so one error is 1.4 to 5 points:
 - English is unchanged by the line text: on 54 lines (the sample page with 4 and 8 lines, the Latin, Fraktur, Greek,
   Cyrillic and Devanagari samples; `eng` and `script/Latin`), the words joined and Tesseract's line text were the
   same. Real scans were not tried; the x86_64 machine was not at hand.
-- The remaining Arabic and Hebrew errors are in the vowel marks and points; the Cyrillic ones are ѣ read as ъ.
+- The remaining Arabic and Hebrew errors are in the vowel marks and points; the Cyrillic ones are ѣ read as ъ; most
+  of the horizontal traditional Chinese ones are ASCII commas read for the full-width ones (the `diplomatic` lane
+  does not fold them). The horizontal Chinese and Japanese pages are the samples' texts set horizontally, built in
+  the engine's test.
 - Drawn pages are clean: these numbers say the engine reads each script in its direction, not how well Tesseract
   reads scans of it.
 

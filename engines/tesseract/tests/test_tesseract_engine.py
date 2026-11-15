@@ -46,7 +46,13 @@ SCRIPT_PRESETS = [("script/Fraktur", False, "fraktur", 0.05), ("script/Greek", F
                   ("script/Cyrillic", False, "cyrillic", 0.1), ("script/Arabic", False, "arabic", 0.4),
                   ("script/Hebrew", False, "hebrew", 0.3), ("script/Devanagari", False, "devanagari", 0.05),
                   ("script/Thai", True, "thai", 0.1), ("script/Hangul", True, "korean", 0.2),
-                  ("script/HanT_vert", True, "chinese", 0.15), ("script/Japanese_vert", True, "japanese", 0.1)]
+                  ("script/HanT_vert", True, "chinese", 0.15), ("script/Japanese_vert", True, "japanese", 0.1),
+                  ("script/HanS", True, "zh-hans", 0.15), ("script/HanT", True, "zh-hant", 0.4),
+                  ("script/Japanese", True, "ja", 0.1)]
+# horizontal Chinese and Japanese (the script samples set them vertically)
+HORIZONTAL = {"zh-hans": ("zh-Hans", "Hani", ("天地玄黄，宇宙洪荒。", "日月盈昃，辰宿列张。"), "寒来暑往，秋收冬藏。"),
+              "zh-hant": ("zh-Hant", "Hani", ("天地玄黃，宇宙洪荒。", "日月盈昃，辰宿列張。"), "寒來暑往，秋收冬藏。"),
+              "ja": ("ja", "Jpan", ("東京は晴れです。", "今日はいい天気ですね。"), "カタカナとひらがな")}
 
 
 def _distance(a: str, b: str) -> int:
@@ -62,8 +68,11 @@ def _distance(a: str, b: str) -> int:
 @pytest.mark.parametrize("lang, spaces, sample, most", SCRIPT_PRESETS)
 def test_a_script_model_reads_its_script_in_its_direction(lang, spaces, sample, most):
     from linecaster.data import Annotator, Transcription
-    from linecaster.testing.scripts import script_image, script_page
+    from linecaster.testing.scripts import ScriptSample, script_image, script_page
 
+    if sample in HORIZONTAL:
+        language, script, first, second = HORIZONTAL[sample]
+        sample = ScriptSample(sample, language, script, "horizontal-lr", (first, (second,)))
     try:
         image = np.asarray(script_image(sample))
     except LookupError as e:
@@ -83,7 +92,8 @@ def test_a_script_model_reads_its_script_in_its_direction(lang, spaces, sample, 
     for ref, out in pairs:                               # words in reading order: those read right, in its order
         right = [w for w in out.split() if w in ref.split()]
         assert right == [w for w in ref.split() if w in right]
-    assert any(w in pairs[0][0].split() for w in pairs[0][1].split())
+    if len(pairs[0][0].split()) > 1:                     # a line of words: some read right, in its order
+        assert any(w in pairs[0][0].split() for w in pairs[0][1].split())
     for out in t.lines:                                  # the words are the line text's
         assert [w.text for w in out.reading.words] == t.text_of(out).split()
 

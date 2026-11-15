@@ -15,9 +15,12 @@ pins:
     script/Devanagari.traineddata: sha256:7ffe34c3cf6d512d2713a83c1f7ca580ae19e2e17d2b71c3f70e225652f907ce
     script/Fraktur.traineddata: sha256:29a867a25f1b00a5e9827356582515619d5102688bc1d14015789c78941116ee
     script/Greek.traineddata: sha256:1f527aef281c95c94112f8e698c87a335d82157e9e6183309ee39bcf75b6785b
+    script/HanS.traineddata: sha256:3a5291736537b6ed94e7e3064790788eba6deb517d5dd071005b2a2f57aa2339
+    script/HanT.traineddata: sha256:0de8b33fce2b03ef78ecc5ea4f5c699a218e4445bd05d532d305faa9f749e3cb
     script/HanT_vert.traineddata: sha256:4f4428a9e2368c5d58275f893dee60fafa1e8b8d96d9e16ee578f96387b1fca2
     script/Hangul.traineddata: sha256:8bfdf61f86d49812b14e0afdc8e3e67e0b50d02078f50e209f4366558fc4feca
     script/Hebrew.traineddata: sha256:656090bce4c45eedef9e5f9adde04a42d7a146ba37d39d88936f34a88628bcc6
+    script/Japanese.traineddata: sha256:c716f6a9d413b3c127f2f9defd9b6f4bba84eeb6c5bfd6feba7922d8025ddf2f
     script/Japanese_vert.traineddata: sha256:6eca729ad647326a2149e09cf0589d626f4e746863092e22f46841eae4574a49
     script/Latin.traineddata: sha256:cf7216998bf7f363f18e3def04cc6b28ae954d2a5a3bdad09f743c9d3538ef35
     script/Thai.traineddata: sha256:e3d1f0c68b47baffec4f7f4abb885c26757ad20e81436a6e369f12483a22a41b
@@ -34,6 +37,7 @@ scripts:
 - Deva
 - Grek
 - Hang
+- Hans
 - Hant
 - Hebr
 - Jpan
