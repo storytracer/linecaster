@@ -15,6 +15,9 @@ the tags; the first is `v0.1.0`.
   page records the version it was validated on. By the maintainer's decision.
   *Who:* anyone running a vLLM preset, on HF Jobs (the image) or with a pinned server environment.
   *What to do:* run vLLM 0.30.0; to reproduce a run on an earlier version, name it in the preset's `serve`.
+- **One Ray for every environment: 2.59.0**, the `ray` extra's exact pin (was `>=2.40`, which resolved 2.59.0 in
+  some scripts' locks and 2.60.0 in others). Every lock resolves it (`tests/test_locks.py`), so one cluster runs
+  every pipeline script's jobs. *Who:* environments with another Ray. *What to do:* run Ray 2.59.0.
 
 ### Changed outputs
 

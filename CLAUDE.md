@@ -75,6 +75,9 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,
   `-exporter-otlp-proto-http`, with protobuf), required because tracing is always on. Engines bring their own
   stacks, whose pins conflict.
+- **One version of each runtime across linecaster**: one vLLM (`linecaster.catalog.schema.VLLM_VERSION`, every
+  vLLM preset's unless it names another) and one Ray (the `ray` extra's exact pin, which every lock resolves:
+  `tests/test_locks.py`). Another version only where linecaster's fails, named where it is needed.
 - **Extras only for genuinely optional things, each named after the one dependency it brings**; no umbrella or alias
   extras. Tools for working on linecaster are dependency groups (`dev`, `docs`), not extras. An extra then says
   exactly what it installs.

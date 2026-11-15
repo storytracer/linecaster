@@ -42,8 +42,9 @@ dependencies = [
 [project.optional-dependencies]
 # MiniCPM-OCR 1.0: the SDK's own post-processing and Markdown assembly (pure Python; no Paddle without its [layout] extra)
 minicpm-ocr = ["minicpm-ocr==1.0.1"]
-# Ray clusters: datatrove's RayPipelineExecutor (linecaster.runtime.ray.RayGPUExecutor)
-ray = ["ray[default]>=2.40"]
+# Ray clusters: datatrove's RayPipelineExecutor (linecaster.runtime.ray.RayGPUExecutor). One Ray for every
+# environment (a cluster's nodes and each job's driver and workers must run the same release): linecaster's pin
+ray = ["ray[default]==2.59.0"]
 # NVIDIA GPUs decode JPEG, JPEG 2000 and TIFF and encode JPEG and JPEG 2000 (linecaster.images.accel): nvImageCodec's
 # CUDA 13 wheels (aarch64, x86_64) with nvJPEG, nvJPEG2000 and nvTIFF
 nvimgcodec = ["nvidia-nvimgcodec-cu13[nvjpeg,nvjpeg2k,nvtiff]>=0.10,<0.11"]

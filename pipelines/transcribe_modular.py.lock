@@ -979,7 +979,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "rapidfuzz", marker = "extra == 'rapidfuzz'", specifier = ">=3.9" },
-    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
+    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = "==2.59.0" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
