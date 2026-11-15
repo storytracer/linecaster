@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: cyrillic-prereform
+description: "Russian letters of the orthography before 1918 as today's: yat (ѣ U+0463, Ѣ U+0462) as е, Е; the decimal i (і U+0456, І U+0406) and izhitsa (ѵ U+0475, Ѵ U+0474, with double grave ѷ U+0477, Ѷ U+0476) as и, И; fita (ѳ U+0473, Ѳ U+0472) as ф, Ф; the hard sign (ъ U+044A, Ъ U+042A) removed after a letter at a word's end, kept inside a word (объявление). Spelling otherwise as printed: the endings -аго, -яго, ея and the prefixes без-, из- before voiceless consonants stay. Russian only: Ukrainian and Belarusian write і today."
+scripts:
+- Cyrl
+languages:
+- ru
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: '[ѣ]'
+    flags: []
+    replace: "е"
+  - match: '[Ѣ]'
+    flags: []
+    replace: "Е"
+  - match: '[іѵѷ]'
+    flags: []
+    replace: "и"
+  - match: '[ІѴѶ]'
+    flags: []
+    replace: "И"
+  - match: '[ѳ]'
+    flags: []
+    replace: "ф"
+  - match: '[Ѳ]'
+    flags: []
+    replace: "Ф"
+  - match: '(?<=[^\W\d_])[ъЪ](?![^\W\d_])'
+    flags: []
+    replace: ''

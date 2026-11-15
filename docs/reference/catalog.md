@@ -178,8 +178,10 @@ record.
 The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`,
 `ligatures`, `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`,
 `latex-text`, `markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
-`editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`. None is applied unless
-a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.
+`editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`, and for other writing
+traditions `arabic-tatweel`, `arabic-marks`, `arabic-letters`, `persian-arabic-letters` (Persian and Urdu),
+`hebrew-points`, `greek-monotonic` and `cyrillic-prereform` (Russian). None is applied unless a strategy names it:
+dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.
 
 ### Strategy (`strategies/<id>.yaml`)
 

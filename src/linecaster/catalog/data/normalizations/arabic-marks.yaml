@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: arabic-marks
+description: "The Arabic script's vowel and other combining marks removed: the honorific signs and small high letters U+0610 to U+061A, the harakat, tanwin, shadda and sukun U+064B to U+0652, the further vowel signs and marks U+0656 to U+065E, the superscript (dagger) alef U+0670, and the Quranic annotation marks U+06D6 to U+06DC, U+06DF to U+06E4, U+06E7, U+06E8, U+06EA to U+06ED. The madda and hamza above and below (U+0653 to U+0655) and the wavy hamza below (U+065F) stay, as do the small waw and yeh (U+06E5, U+06E6, letters) and the end of ayah, rub el hizb and sajdah signs: they belong to the letters or the text. For comparison only: a reading text keeps its vocalization."
+scripts:
+- Arab
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  map:
+    "\u0610": ''  # ARABIC SIGN SALLALLAHOU ALAYHE WASSALLAM
+    "\u0611": ''  # ARABIC SIGN ALAYHE ASSALLAM
+    "\u0612": ''  # ARABIC SIGN RAHMATULLAH ALAYHE
+    "\u0613": ''  # ARABIC SIGN RADI ALLAHOU ANHU
+    "\u0614": ''  # ARABIC SIGN TAKHALLUS
+    "\u0615": ''  # ARABIC SMALL HIGH TAH
+    "\u0616": ''  # ARABIC SMALL HIGH LIGATURE ALEF WITH LAM WITH YEH
+    "\u0617": ''  # ARABIC SMALL HIGH ZAIN
+    "\u0618": ''  # ARABIC SMALL FATHA
+    "\u0619": ''  # ARABIC SMALL DAMMA
+    "\u061A": ''  # ARABIC SMALL KASRA
+    "\u064B": ''  # ARABIC FATHATAN
+    "\u064C": ''  # ARABIC DAMMATAN
+    "\u064D": ''  # ARABIC KASRATAN
+    "\u064E": ''  # ARABIC FATHA
+    "\u064F": ''  # ARABIC DAMMA
+    "\u0650": ''  # ARABIC KASRA
+    "\u0651": ''  # ARABIC SHADDA
+    "\u0652": ''  # ARABIC SUKUN
+    "\u0656": ''  # ARABIC SUBSCRIPT ALEF
+    "\u0657": ''  # ARABIC INVERTED DAMMA
+    "\u0658": ''  # ARABIC MARK NOON GHUNNA
+    "\u0659": ''  # ARABIC ZWARAKAY
+    "\u065A": ''  # ARABIC VOWEL SIGN SMALL V ABOVE
+    "\u065B": ''  # ARABIC VOWEL SIGN INVERTED SMALL V ABOVE
+    "\u065C": ''  # ARABIC VOWEL SIGN DOT BELOW
+    "\u065D": ''  # ARABIC REVERSED DAMMA
+    "\u065E": ''  # ARABIC FATHA WITH TWO DOTS
+    "\u0670": ''  # ARABIC LETTER SUPERSCRIPT ALEF
+    "\u06D6": ''  # ARABIC SMALL HIGH LIGATURE SAD WITH LAM WITH ALEF MAKSURA
+    "\u06D7": ''  # ARABIC SMALL HIGH LIGATURE QAF WITH LAM WITH ALEF MAKSURA
+    "\u06D8": ''  # ARABIC SMALL HIGH MEEM INITIAL FORM
+    "\u06D9": ''  # ARABIC SMALL HIGH LAM ALEF
+    "\u06DA": ''  # ARABIC SMALL HIGH JEEM
+    "\u06DB": ''  # ARABIC SMALL HIGH THREE DOTS
+    "\u06DC": ''  # ARABIC SMALL HIGH SEEN
+    "\u06DF": ''  # ARABIC SMALL HIGH ROUNDED ZERO
+    "\u06E0": ''  # ARABIC SMALL HIGH UPRIGHT RECTANGULAR ZERO
+    "\u06E1": ''  # ARABIC SMALL HIGH DOTLESS HEAD OF KHAH
+    "\u06E2": ''  # ARABIC SMALL HIGH MEEM ISOLATED FORM
+    "\u06E3": ''  # ARABIC SMALL LOW SEEN
+    "\u06E4": ''  # ARABIC SMALL HIGH MADDA
+    "\u06E7": ''  # ARABIC SMALL HIGH YEH
+    "\u06E8": ''  # ARABIC SMALL HIGH NOON
+    "\u06EA": ''  # ARABIC EMPTY CENTRE LOW STOP
+    "\u06EB": ''  # ARABIC EMPTY CENTRE HIGH STOP
+    "\u06EC": ''  # ARABIC ROUNDED HIGH STOP WITH FILLED CENTRE
+    "\u06ED": ''  # ARABIC SMALL LOW MEEM

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: arabic-tatweel
+description: "The tatweel (kashida, U+0640), which only stretches a word, removed."
+scripts:
+- Arab
+languages: []
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    "\u0640": ''  # ARABIC TATWEEL

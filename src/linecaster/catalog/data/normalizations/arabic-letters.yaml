@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: arabic-letters
+description: "Arabic spelling variants folded, as Arabic search does: alef with madda above (U+0622), with hamza above (U+0623) and below (U+0625) and alef wasla (U+0671) as bare alef (U+0627); alef maksura (U+0649) as yeh (U+064A); teh marbuta (U+0629) as heh (U+0647). On composed text (after nfc). For comparison only: these letters are spelling, and Persian and Urdu write yeh without dots."
+scripts:
+- Arab
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  map:
+    "\u0622": "\u0627"  # ARABIC LETTER ALEF WITH MADDA ABOVE -> ا
+    "\u0623": "\u0627"  # ARABIC LETTER ALEF WITH HAMZA ABOVE -> ا
+    "\u0625": "\u0627"  # ARABIC LETTER ALEF WITH HAMZA BELOW -> ا
+    "\u0629": "\u0647"  # ARABIC LETTER TEH MARBUTA -> ه
+    "\u0649": "\u064A"  # ARABIC LETTER ALEF MAKSURA -> ي
+    "\u0671": "\u0627"  # ARABIC LETTER ALEF WASLA -> ا

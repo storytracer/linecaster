@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: persian-arabic-letters
+description: "Arabic yeh (U+064A) as Farsi yeh (U+06CC) and Arabic kaf (U+0643) as keheh (U+06A9): the letters Persian and Urdu text uses, where Arabic keyboards and fonts put the Arabic ones. Alef maksura (U+0649) and every other letter stay; text already written with U+06CC and U+06A9 is unchanged."
+scripts:
+- Arab
+languages:
+- fa
+- ur
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    "\u0643": "\u06A9"  # ARABIC LETTER KAF -> ک
+    "\u064A": "\u06CC"  # ARABIC LETTER YEH -> ی

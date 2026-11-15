@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: hebrew-points
+description: "Hebrew points and cantillation removed: the accents U+0591 to U+05AF, the points (niqqud) U+05B0 to U+05BD, rafe U+05BF, shin and sin dot U+05C1, U+05C2, the upper and lower dot U+05C4, U+05C5, qamats qatan U+05C7 and the Judeo-Spanish varika U+FB1E; the pointed presentation forms U+FB1D to U+FB4E as their bare letters. The maqaf (U+05BE), paseq (U+05C0), sof pasuq (U+05C3), nun hafukha (U+05C6) and the letters stay. For comparison only: without its points a pointed text is not the unpointed spelling (which adds vowel letters), and in Yiddish the points are part of the spelling."
+scripts:
+- Hebr
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  map:
+    "\u0591": ''  # HEBREW ACCENT ETNAHTA
+    "\u0592": ''  # HEBREW ACCENT SEGOL
+    "\u0593": ''  # HEBREW ACCENT SHALSHELET
+    "\u0594": ''  # HEBREW ACCENT ZAQEF QATAN
+    "\u0595": ''  # HEBREW ACCENT ZAQEF GADOL
+    "\u0596": ''  # HEBREW ACCENT TIPEHA
+    "\u0597": ''  # HEBREW ACCENT REVIA
+    "\u0598": ''  # HEBREW ACCENT ZARQA
+    "\u0599": ''  # HEBREW ACCENT PASHTA
+    "\u059A": ''  # HEBREW ACCENT YETIV
+    "\u059B": ''  # HEBREW ACCENT TEVIR
+    "\u059C": ''  # HEBREW ACCENT GERESH
+    "\u059D": ''  # HEBREW ACCENT GERESH MUQDAM
+    "\u059E": ''  # HEBREW ACCENT GERSHAYIM
+    "\u059F": ''  # HEBREW ACCENT QARNEY PARA
+    "\u05A0": ''  # HEBREW ACCENT TELISHA GEDOLA
+    "\u05A1": ''  # HEBREW ACCENT PAZER
+    "\u05A2": ''  # HEBREW ACCENT ATNAH HAFUKH
+    "\u05A3": ''  # HEBREW ACCENT MUNAH
+    "\u05A4": ''  # HEBREW ACCENT MAHAPAKH
+    "\u05A5": ''  # HEBREW ACCENT MERKHA
+    "\u05A6": ''  # HEBREW ACCENT MERKHA KEFULA
+    "\u05A7": ''  # HEBREW ACCENT DARGA
+    "\u05A8": ''  # HEBREW ACCENT QADMA
+    "\u05A9": ''  # HEBREW ACCENT TELISHA QETANA
+    "\u05AA": ''  # HEBREW ACCENT YERAH BEN YOMO
+    "\u05AB": ''  # HEBREW ACCENT OLE
+    "\u05AC": ''  # HEBREW ACCENT ILUY
+    "\u05AD": ''  # HEBREW ACCENT DEHI
+    "\u05AE": ''  # HEBREW ACCENT ZINOR
+    "\u05AF": ''  # HEBREW MARK MASORA CIRCLE
+    "\u05B0": ''  # HEBREW POINT SHEVA
+    "\u05B1": ''  # HEBREW POINT HATAF SEGOL
+    "\u05B2": ''  # HEBREW POINT HATAF PATAH
+    "\u05B3": ''  # HEBREW POINT HATAF QAMATS
+    "\u05B4": ''  # HEBREW POINT HIRIQ
+    "\u05B5": ''  # HEBREW POINT TSERE
+    "\u05B6": ''  # HEBREW POINT SEGOL
+    "\u05B7": ''  # HEBREW POINT PATAH
+    "\u05B8": ''  # HEBREW POINT QAMATS
+    "\u05B9": ''  # HEBREW POINT HOLAM
+    "\u05BA": ''  # HEBREW POINT HOLAM HASER FOR VAV
+    "\u05BB": ''  # HEBREW POINT QUBUTS
+    "\u05BC": ''  # HEBREW POINT DAGESH OR MAPIQ
+    "\u05BD": ''  # HEBREW POINT METEG
+    "\u05BF": ''  # HEBREW POINT RAFE
+    "\u05C1": ''  # HEBREW POINT SHIN DOT
+    "\u05C2": ''  # HEBREW POINT SIN DOT
+    "\u05C4": ''  # HEBREW MARK UPPER DOT
+    "\u05C5": ''  # HEBREW MARK LOWER DOT
+    "\u05C7": ''  # HEBREW POINT QAMATS QATAN
+    "\uFB1E": ''  # HEBREW POINT JUDEO-SPANISH VARIKA
+    "\uFB1D": "\u05D9"  # HEBREW LETTER YOD WITH HIRIQ -> י
+    "\uFB1F": "\u05F2"  # HEBREW LIGATURE YIDDISH YOD YOD PATAH -> ײ
+    "\uFB2A": "\u05E9"  # HEBREW LETTER SHIN WITH SHIN DOT -> ש
+    "\uFB2B": "\u05E9"  # HEBREW LETTER SHIN WITH SIN DOT -> ש
+    "\uFB2C": "\u05E9"  # HEBREW LETTER SHIN WITH DAGESH AND SHIN DOT -> ש
+    "\uFB2D": "\u05E9"  # HEBREW LETTER SHIN WITH DAGESH AND SIN DOT -> ש
+    "\uFB2E": "\u05D0"  # HEBREW LETTER ALEF WITH PATAH -> א
+    "\uFB2F": "\u05D0"  # HEBREW LETTER ALEF WITH QAMATS -> א
+    "\uFB30": "\u05D0"  # HEBREW LETTER ALEF WITH MAPIQ -> א
+    "\uFB31": "\u05D1"  # HEBREW LETTER BET WITH DAGESH -> ב
+    "\uFB32": "\u05D2"  # HEBREW LETTER GIMEL WITH DAGESH -> ג
+    "\uFB33": "\u05D3"  # HEBREW LETTER DALET WITH DAGESH -> ד
+    "\uFB34": "\u05D4"  # HEBREW LETTER HE WITH MAPIQ -> ה
+    "\uFB35": "\u05D5"  # HEBREW LETTER VAV WITH DAGESH -> ו
+    "\uFB36": "\u05D6"  # HEBREW LETTER ZAYIN WITH DAGESH -> ז
+    "\uFB38": "\u05D8"  # HEBREW LETTER TET WITH DAGESH -> ט
+    "\uFB39": "\u05D9"  # HEBREW LETTER YOD WITH DAGESH -> י
+    "\uFB3A": "\u05DA"  # HEBREW LETTER FINAL KAF WITH DAGESH -> ך
+    "\uFB3B": "\u05DB"  # HEBREW LETTER KAF WITH DAGESH -> כ
+    "\uFB3C": "\u05DC"  # HEBREW LETTER LAMED WITH DAGESH -> ל
+    "\uFB3E": "\u05DE"  # HEBREW LETTER MEM WITH DAGESH -> מ
+    "\uFB40": "\u05E0"  # HEBREW LETTER NUN WITH DAGESH -> נ
+    "\uFB41": "\u05E1"  # HEBREW LETTER SAMEKH WITH DAGESH -> ס
+    "\uFB43": "\u05E3"  # HEBREW LETTER FINAL PE WITH DAGESH -> ף
+    "\uFB44": "\u05E4"  # HEBREW LETTER PE WITH DAGESH -> פ
+    "\uFB46": "\u05E6"  # HEBREW LETTER TSADI WITH DAGESH -> צ
+    "\uFB47": "\u05E7"  # HEBREW LETTER QOF WITH DAGESH -> ק
+    "\uFB48": "\u05E8"  # HEBREW LETTER RESH WITH DAGESH -> ר
+    "\uFB49": "\u05E9"  # HEBREW LETTER SHIN WITH DAGESH -> ש
+    "\uFB4A": "\u05EA"  # HEBREW LETTER TAV WITH DAGESH -> ת
+    "\uFB4B": "\u05D5"  # HEBREW LETTER VAV WITH HOLAM -> ו
+    "\uFB4C": "\u05D1"  # HEBREW LETTER BET WITH RAFE -> ב
+    "\uFB4D": "\u05DB"  # HEBREW LETTER KAF WITH RAFE -> כ
+    "\uFB4E": "\u05E4"  # HEBREW LETTER PE WITH RAFE -> פ

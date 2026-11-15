@@ -189,3 +189,88 @@ def test_a_formula_and_the_same_text_typed_compare_equal_in_reading_and_alnum():
                                ("$x^{2}$", "x\u00b2"), ("$Cu_{2}$", "Cu\u2082"), ("$\\alpha$-rays", "\u03b1-rays")]:
             assert s.text(formula) == s.text(typed), (lane, formula)
     assert catalog().strategy("diplomatic", use="comparison").text("$\\frac{1}{2}$") == "$\\frac{1}{2}$"  # diplomatic: as written
+
+
+# ---- normalizations for writing traditions other than Latin: fixed strings, what must change and what must not ----
+
+def _n(nid: str, use: str):
+    return catalog().strategy(nid, use=use).text
+
+
+def test_arabic_tatweel():
+    for use in ("output", "comparison"):
+        assert _n("arabic-tatweel", use)("كتـــاب") == "كتاب"
+    assert catalog().normalization("arabic-tatweel").use == ("output", "comparison")
+
+
+def test_arabic_marks_removes_vocalization_and_keeps_the_hamza():
+    marks = _n("arabic-marks", "comparison")
+    assert marks("كَتَبَ") == "كتب" and marks("مُحَمَّدٌ") == "محمد" and marks("هٰذَا") == "هذا"
+    assert marks("ذٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ") == "ذلك ٱلكتب لا ريب فيه"     # Quranic marks; alef wasla stays
+    assert marks("ا\u0654 ا\u0655 ا\u0653") == "ا\u0654 ا\u0655 ا\u0653"  # hamza, madda stay
+    assert marks("\u06DD\u06DE\u06E9\u06E5\u06E6") == "\u06DD\u06DE\u06E9\u06E5\u06E6"  # signs, small waw and yeh stay
+    with pytest.raises(CatalogError, match="not for output"):
+        catalog().strategy("arabic-marks", use="output")
+
+
+def test_arabic_letters():
+    letters = _n("arabic-letters", "comparison")
+    assert letters("أحمد إسلام آمن ٱلله") == "احمد اسلام امن الله"
+    assert letters("مستشفى مدرسة") == "مستشفي مدرسه"
+    assert letters("كتاب ئ ؤ") == "كتاب ئ ؤ"                                          # other hamza seats stay
+    assert catalog().normalization("arabic-letters").use == ("comparison",)
+
+
+def test_persian_arabic_letters():
+    fa = _n("persian-arabic-letters", "output")
+    assert fa("كتاب علي") == "کتاب علی"                                              # Arabic kaf and yeh
+    assert fa("کتاب علی") == "کتاب علی"                                              # already Persian: unchanged
+    assert fa("موسى") == "موسى"                                                      # alef maksura stays
+    assert catalog().normalization("persian-arabic-letters").languages == ("fa", "ur")
+
+
+def test_hebrew_points():
+    points = _n("hebrew-points", "comparison")
+    assert points("בְּרֵאשִׁית בָּרָא אֱלֹהִים") == "בראשית ברא אלהים"
+    assert points("וַיֹּ֥אמֶר אֱלֹהִ֖ים יְהִ֣י א֑וֹר") == "ויאמר אלהים יהי אור"         # cantillation too
+    assert points("בֵּית־הַסֵּפֶר׀ אוֹר׃") == "בית־הספר׀ אור׃"                        # maqaf, paseq, sof pasuq stay
+    assert points("\uFB2A\uFB31\uFB4B") == "שבו"                                # pointed presentation forms
+    assert catalog().normalization("hebrew-points").use == ("comparison",)
+
+
+def test_greek_monotonic():
+    for use in ("output", "comparison"):
+        mono = _n("nfc+greek-monotonic", use)
+        assert mono("Ἐν ἀρχῇ ἦν ὁ λόγος") == "Εν αρχή ήν ο λόγος"
+        assert mono("ᾠδὴ τῷ Ῥόδῳ") == "ωδή τώ Ρόδω"  # no iota subscript; τῷ keeps an accent
+        assert mono("ῒ ῗ ϊ ΐ") == "ΐ ΐ ϊ ΐ"                                              # the diaeresis stays
+        assert mono("Ἀθῆναι") == "Αθήναι"
+        assert mono("\u03B1\u0313\u0301") == mono("\u1F04") == "ά"  # decomposed (nfc first) or composed
+        assert mono("Η Ελλάδα ΐ") == "Η Ελλάδα ΐ"                                       # monotonic: unchanged
+    assert catalog().strategy("greek-monotonic").text("ὰ") == "ά"
+
+
+def test_cyrillic_prereform():
+    old = _n("cyrillic-prereform", "output")
+    assert old("міръ Міръ") == "мир Мир"
+    assert old("свѣтъ и міръ, вѣра. ѲЕДОРЪ Ѳома") == "свет и мир, вера. ФЕДОР Фома"
+    assert old("объявленіе подъѣздъ") == "объявление подъезд"                           # ъ inside a word stays
+    assert old("сѷнодъ мѵро Ѵ") == "синод миро И"
+    assert old("какъ-то") == "как-то" and old("домъ\n") == "дом\n"
+    assert old("съѣздъ 1ъ ъ") == "съезд 1ъ ъ"                                            # after no letter: kept
+    assert catalog().normalization("cyrillic-prereform").languages == ("ru",)
+
+
+def test_composite_strategies_of_the_new_normalizations():
+    c = catalog()
+    s = c.strategy("nfc+arabic-tatweel+arabic-marks")
+    assert s.use == "comparison" and s.text("كِتَـــابٌ") == "كتاب"
+    assert [n.id for n in s.normalizations] == ["nfc", "arabic-tatweel", "arabic-marks"]
+    out = c.strategy("nfc+arabic-tatweel+persian-arabic-letters")
+    assert out.use == "output" and out.text("كتـــاب علي") == "کتاب علی"
+    assert c.strategy("nfc+arabic-marks+arabic-letters+casefold").text("إِسْلَامٌ") == "اسلام"
+    assert c.strategy("nfc+hebrew-points+whitespace").text("  שָׁלוֹם  עוֹלָם ") == "שלום עולם"
+    assert c.strategy("nfc+cyrillic-prereform+casefold").text("ВѢРА") == "вера"
+    for nid, scripts in (("arabic-tatweel", ("Arab",)), ("hebrew-points", ("Hebr",)),
+                         ("greek-monotonic", ("Grek",)), ("cyrillic-prereform", ("Cyrl",))):
+        assert tuple(c.normalizations[nid][1].scripts) == scripts
