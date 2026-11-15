@@ -46,7 +46,7 @@ def options(ap):
                     help="item documents: keep page headers and footers in md, txt and html")
     ap.add_argument("--dividers", action="store_true",
                     help="item documents: --- between the items of consecutive layout regions in md")
-    ap.add_argument("--policy", default="page-layers@1", metavar="ID@EDITION",
+    ap.add_argument("--policy", default="page-layers", metavar="ID@EDITION",
                     help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
                          "under: which content roles are body, furniture, notes or nowhere")
     ap.add_argument("--no-documents", action="store_true", help="no item documents")

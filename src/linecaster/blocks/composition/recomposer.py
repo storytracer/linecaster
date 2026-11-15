@@ -28,19 +28,19 @@ class Recomposer(RuleBlock):
     grows page by page, and a paragraph open at the foot of a page continues on the next one.
 
     Args:
-        preset: the recomposition engine: a preset (e.g. ``unicode-recomposition@1``) or an ``InProcess`` engine
+        preset: the recomposition engine: a preset (e.g. ``unicode-recomposition``) or an ``InProcess`` engine
             spec.
         transcription: the transcription to recompose.
         unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``Binder``).
         options: engine options over the preset's; ``None``: the preset's.
 
     Example:
-        Recomposer("unicode-recomposition@1", unit="item")
+        Recomposer("unicode-recomposition", unit="item")
     """
 
     name = "recomposer"
     step = "recomposition"
-    docs_args = {"preset": "unicode-recomposition@1"}
+    docs_args = {"preset": "unicode-recomposition"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

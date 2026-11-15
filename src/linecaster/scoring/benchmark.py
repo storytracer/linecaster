@@ -80,7 +80,7 @@ class Benchmark(_Model):
     dataset: Dataset
     pages: PageSet
     supports: Supports = Field(default_factory=Supports)
-    policy: str = Field("page-layers@1", description="the rendering policy edition both sides are rendered with")
+    policy: str = Field("page-layers", description="the rendering policy edition both sides are rendered with")
     texts: list[str] = Field(default_factory=lambda: list(TEXTS))
     lanes: list[str] = Field(default_factory=lambda: [DEFAULT_LANE])
     metrics: list[str] = Field(default_factory=lambda: ["cer", "token_recall", "over_extraction"])

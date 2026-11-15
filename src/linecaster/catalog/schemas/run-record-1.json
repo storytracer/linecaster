@@ -122,6 +122,45 @@
       "title": "BlockEntry",
       "type": "object"
     },
+    "CatalogEntry": {
+      "additionalProperties": false,
+      "description": "A catalog entry the run used, as this release has it (entries carry no edition since 0.10).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "preset",
+            "recipe",
+            "policy",
+            "conventions"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "the hash of its functional content (catalog.index)",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "description": "its functional content: what the hash covers",
+          "title": "Settings",
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "sha256",
+        "settings"
+      ],
+      "title": "CatalogEntry",
+      "type": "object"
+    },
     "Contract": {
       "additionalProperties": false,
       "properties": {
@@ -305,7 +344,7 @@
       "additionalProperties": false,
       "properties": {
         "ref": {
-          "description": "the recipe edition, id@edition",
+          "description": "the recipe's id (id@edition in records from before linecaster 0.10)",
           "title": "Ref",
           "type": "string"
         },
@@ -315,13 +354,22 @@
           "type": "string"
         },
         "sha256": {
-          "description": "the edition's hash",
+          "description": "the hash of its functional content in the release that ran it",
           "title": "Sha256",
           "type": "string"
         },
         "released": {
-          "title": "Released",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "records from before 0.10: whether the edition was released",
+          "title": "Released"
         },
         "overrides": {
           "anyOf": [
@@ -341,8 +389,7 @@
       "required": [
         "ref",
         "pipeline",
-        "sha256",
-        "released"
+        "sha256"
       ],
       "title": "Recipe",
       "type": "object"
@@ -735,6 +782,22 @@
       },
       "title": "Pipeline",
       "type": "array"
+    },
+    "catalog": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/CatalogEntry"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "every catalog entry the pipeline names (its blocks' presets, policies, conventions, the recipe), with its settings and hash",
+      "title": "Catalog"
     },
     "pipeline_sha256": {
       "description": "the hash of the pipeline's functional parameters: a resume into the same run folder needs the same one",

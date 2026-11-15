@@ -96,9 +96,7 @@ class Hosted:
         if self.model is not None and isinstance(getattr(self.model, "step", None), str):
             attrs["linecaster.step"] = self.model.step
         if self.preset:
-            attrs["linecaster.preset"], _, edition = self.preset.partition("@")
-            if edition:
-                attrs["linecaster.edition"] = edition
+            attrs["linecaster.preset"] = self.preset
         return attrs
 
     def work(self, loop: asyncio.AbstractEventLoop, tracer=None) -> None:

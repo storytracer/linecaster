@@ -12,7 +12,7 @@ from linecaster.blocks.recognition.chat import PageRecognizer
 from linecaster.testing import fake_chat_server
 from linecaster.testing.chat import completion
 
-PRESET = "lightonocr-3-0.8b-grounding@1"
+PRESET = "lightonocr-3-0.8b-grounding"
 FULL = ("![header](100,30,900,60)\nRUNNING HEAD\n\n![text](100,100,900,900)\nBody text.\n\n"
         "![image](100,910,500,990)\nA drawing.\n\n![page_number](480,960,520,990)\n7\n")
 

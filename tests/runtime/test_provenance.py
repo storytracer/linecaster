@@ -25,7 +25,7 @@ SHA = "sha256:" + "ab" * 32
 STEPS = [
     Annotator(step="layout", name="PP-DocLayoutV3", backend="paddlex/onnxruntime", settings={"threshold": 0.5}),
     Annotator(step="recognition", name="kraken-ppocrv6-medium", engine="kraken.recognition.v1", revision="0123abcd",
-              preset="kraken-ppocrv6-medium@1", preset_sha256=SHA, backend="in-process",
+              preset="kraken-ppocrv6-medium", preset_sha256=SHA, backend="in-process",
               settings={"batch_size": 8, "model": "medium", "n": "16"},
               measurements={"seconds": 1.25, "datetime": "2026-11-03T21:00:00Z"}),
     Annotator(kind="rule", step="unicode", name="unicodedata", settings={"form": "NFC"}),
@@ -78,12 +78,12 @@ def test_alto_processing_per_step():
     assert procs[2].findtext("a:processingCategory", namespaces=ns) == "contentModification"
     assert rec.findtext("a:processingDateTime", namespaces=ns) == "2026-11-03T21:00:00Z"
     settings = json.loads(rec.findtext("a:processingStepSettings", namespaces=ns))
-    assert settings == {"engine": "kraken.recognition.v1", "revision": "0123abcd", "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA,
+    assert settings == {"engine": "kraken.recognition.v1", "revision": "0123abcd", "preset": "kraken-ppocrv6-medium", "preset_sha256": SHA,
                         "backend": "in-process", "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
     sw = rec.find("a:processingSoftware", ns)
     assert [(etree.QName(c).localname, c.text) for c in sw] == [
         ("softwareCreator", "linecaster"), ("softwareName", "kraken-ppocrv6-medium"), ("softwareVersion", "0123abcd"),
-        ("applicationDescription", f"{P.software()}; preset kraken-ppocrv6-medium@1; backend in-process")]
+        ("applicationDescription", f"{P.software()}; preset kraken-ppocrv6-medium; backend in-process")]
     page = root.find("a:Layout/a:Page", ns)
     assert page.get("PROCESSINGREFS") == " ".join(p.get("ID") for p in procs)
     got = from_alto(data)
@@ -130,18 +130,18 @@ def test_page_metadata_items():
     md = etree.fromstring(data).find("p:Metadata", ns)
     assert md.findtext("p:Creator", namespaces=ns) == P.software()
     assert md.findtext("p:Comments", namespaces=ns) == (
-        "layout: PP-DocLayoutV3; recognition: kraken-ppocrv6-medium@0123abcd (preset kraken-ppocrv6-medium@1); "
+        "layout: PP-DocLayoutV3; recognition: kraken-ppocrv6-medium@0123abcd (preset kraken-ppocrv6-medium); "
         "unicode: unicodedata")
     items = md.findall("p:MetadataItem", ns)
     assert [(i.get("type"), i.get("name"), i.get("value")) for i in items] == [
-        ("processingStep", "layout", "PP-DocLayoutV3"), ("processingStep", "recognition", "kraken-ppocrv6-medium@1"),
+        ("processingStep", "layout", "PP-DocLayoutV3"), ("processingStep", "recognition", "kraken-ppocrv6-medium"),
         ("processingStep", "unicode", "unicodedata")]
     assert items[1].get("date") == "2026-11-03T21:00:00Z"
     model, settings = items[1].findall("p:Labels", ns)
     assert (model.get("externalModel"), model.get("externalId")) == ("linecaster", "model")
     assert [(lb.get("type"), lb.get("value")) for lb in model] == [
         ("name", "kraken-ppocrv6-medium"), ("engine", "kraken.recognition.v1"), ("revision", "0123abcd"),
-        ("preset", "kraken-ppocrv6-medium@1"), ("preset_sha256", SHA), ("backend", "in-process"),
+        ("preset", "kraken-ppocrv6-medium"), ("preset_sha256", SHA), ("backend", "in-process"),
         ("software", P.software())]
     assert [(lb.get("type"), lb.get("value")) for lb in settings] == [
         ("batch_size", "8"), ("model", "medium"), ("n", '"16"')]
@@ -192,7 +192,7 @@ def test_hocr_metadata_and_steps():
                                          "ocrp_lang ocrp_poly ocrp_wconf")
     assert json.loads(metas["linecaster-step-1"]) == {
         "step": "recognition", "name": "kraken-ppocrv6-medium", "engine": "kraken.recognition.v1", "revision": "0123abcd",
-        "preset": "kraken-ppocrv6-medium@1", "preset_sha256": SHA, "backend": "in-process",
+        "preset": "kraken-ppocrv6-medium", "preset_sha256": SHA, "backend": "in-process",
         "settings": {"batch_size": 8, "model": "medium", "n": "16"}}
     _same_steps(from_hocr(to_hocr(t)).annotators)
 
@@ -237,7 +237,7 @@ def test_mets_agent():
     notes = [(n.get(f"{{{OCRD}}}option") or n.get(f"{{{LC}}}option"), n.text) for n in agent.iter(f"{{{M}}}note")]
     assert notes == [("parameter", '{"batch_size":8,"model":"medium","n":"16"}'), ("step", "recognition"),
                      ("name", "kraken-ppocrv6-medium"), ("engine", "kraken.recognition.v1"), ("revision", "0123abcd"),
-                     ("preset", "kraken-ppocrv6-medium@1"), ("preset_sha256", SHA), ("backend", "in-process")]
+                     ("preset", "kraken-ppocrv6-medium"), ("preset_sha256", SHA), ("backend", "in-process")]
     _same_steps([provenance.from_mets_agent(a) for a in provenance.mets_agents(STEPS)])
     assert provenance.mets_agent(STEPS[2]).get("OTHERROLE") == provenance.OCRD_FALLBACK_STEP
 
@@ -310,7 +310,7 @@ def _pipeline(a, files: str):
     from linecaster.blocks.writers.files import PageFileWriter
 
     backend = InProcess("test_provenance:StampModel", size=3)
-    backend.preset, backend.preset_sha256 = "stamp@2", SHA
+    backend.preset, backend.preset_sha256 = "stamp", SHA
     return [run.reader(a), LineDetector(InProcess("test_provenance:OneLineModel")), LineRecognizer(backend),
             PageFileWriter(files, formats=("alto", "page", "hocr")), run.pages(a)]
 
@@ -340,7 +340,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     recognizer = stage["blocks"][2]
     assert recognizer["class"] == "linecaster.blocks.recognition.recognizers:LineRecognizer"
     assert recognizer["params"]["backend"] == {"backend": "in-process", "engine": "test_provenance:StampModel",
-                                               "options": {"size": 3}, "preset": "stamp@2", "preset_sha256": SHA}
+                                               "options": {"size": 3}, "preset": "stamp", "preset_sha256": SHA}
     assert recognizer["contract"]["role"] == "model" and recognizer["contract"]["reads"] == ["image", "ocr_new:lines"]
     assert rec["pipeline_sha256"] == provenance.pipeline_sha256(run.build_plan(a, _pipeline(a, files)))
     sw = rec["software"]
@@ -351,7 +351,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
         m = reader((tmp_path / "files" / name).read_bytes()).annotators
         assert [(x.step, x.name, x.engine, x.revision, x.preset, x.preset_sha256, x.settings) for x in m] == [
             ("lines", "one-line", None, None, None, None, {}),
-            ("recognition", "stamp", "stamp.recognition.v1", "r1", "stamp@2", SHA, {"size": 3})]
+            ("recognition", "stamp", "stamp.recognition.v1", "r1", "stamp", SHA, {"size": 3})]
     # every annotator the run added names it in the page records
     import gzip
 
@@ -402,7 +402,7 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
     printed = capsys.readouterr().out
     plan, end = json.JSONDecoder().raw_decode(printed)
     assert plan["record"]["schema"] == "linecaster.run-record/1"
-    assert plan["record"]["pipeline"][0]["blocks"][2]["params"]["backend"]["preset"] == "stamp@2"
+    assert plan["record"]["pipeline"][0]["blocks"][2]["params"]["backend"]["preset"] == "stamp"
     assert plan["record"]["pipeline_sha256"].startswith("sha256:")
     assert [b["block"] for b in plan["plan"]["stages"][0]["blocks"]][:3] == ["ImageFolderReader", "LineDetector",
                                                                             "LineRecognizer"]
@@ -432,7 +432,7 @@ def test_served_and_in_process_are_the_same_pipeline():
     from linecaster.blocks.writers.records import PageJsonlWriter
     from linecaster.runtime.builder import build
 
-    m = {"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {"model": "m"}}, "preset": "rec@3",
+    m = {"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {"model": "m"}}, "preset": "rec",
          "preset_sha256": SHA}
     local = InProcess(m["spec"], **m["kwargs"])
     local.preset, local.preset_sha256 = m["preset"], m["preset_sha256"]
@@ -446,7 +446,7 @@ def test_served_and_in_process_are_the_same_pipeline():
     f = provenance.functional_pipeline(in_process)
     assert [b["block"] for b in f] == ["ImageFolderReader", "LineRecognizer", "RejectWriter", "PageJsonlWriter"]
     assert f[1]["params"]["backend"] == {"engine": "pkg:Rec", "options": {"weights": {"model": "m"}},
-                                         "preset": "rec@3", "preset_sha256": SHA}
+                                         "preset": "rec", "preset_sha256": SHA}
     assert "data_folder" not in f[0]["params"] and "output_folder" not in f[3].get("params", {})
     # a functional parameter changes it
     other = build([reader, LineRecognizer(local, transcription="mine"), PageJsonlWriter("out/pages")], run_folder="out")
@@ -476,7 +476,7 @@ def test_engines_carry_presets(monkeypatch):
     import linecaster.catalog.registry as registry
 
     class R:
-        ref, sha256 = "rec@4", SHA
+        ref, sha256 = "rec", SHA
 
     monkeypatch.setattr(registry, "engine_spec", lambda ref, installed=True, served=False: ("pkg:Rec", {"weights": {"model": "m"}}, R()))
     models = [{"name": "recognition", "preset": "rec"}, {"name": "layout", "spec": "pkg:Layout"}]
@@ -484,9 +484,9 @@ def test_engines_carry_presets(monkeypatch):
     backends, servers = run.engines(a, models, "recipe.py")
     rec = backends["recognition"]
     assert (rec.spec, rec.kwargs) == ("pkg:Rec", {"weights": {"model": "m"}})
-    assert (rec.preset, rec.preset_sha256) == ("rec@4", SHA)
+    assert (rec.preset, rec.preset_sha256) == ("rec", SHA)
     assert backends["layout"].preset is None and servers == []
-    assert run.model_args(run.preset_models(models))[:2] == ["--preset", "recognition=rec@4"]
+    assert run.model_args(run.preset_models(models))[:2] == ["--preset", "recognition=rec"]
 
 
 def test_redact_argv():
@@ -556,3 +556,20 @@ def test_the_builder_sets_every_model_blocks_image_decode():
     assert [b.image_decode for b in blocks[1:]] == ["auto", "auto"]
     build(blocks, image_decode="cpu")
     assert [b.image_decode for b in blocks[1:]] == ["cpu", "cpu"]
+
+
+def test_the_run_record_names_every_catalog_entry_it_used():
+    """Entries carry no edition: a record names each entry the pipeline used with its settings and hash
+    (catalog.index), so the record says what ran without the release at hand."""
+    from linecaster.catalog.registry import catalog
+    from linecaster.runtime.provenance import catalog_entries
+    from linecaster.runtime.run import describe_recipe
+
+    used = catalog_entries(describe_recipe("squiddle")["pipeline"], {"ref": "squiddle"})
+    kinds = {(e["kind"], e["id"]) for e in used}
+    assert {("recipe", "squiddle"), ("policy", "page-layers"), ("preset", "kraken-ppocrv6-medium")} <= kinds
+    index = catalog().dirs[0].read_index()
+    for e in used:
+        table = {"preset": "presets", "recipe": "recipes", "policy": "policies", "conventions": "conventions"}[e["kind"]]
+        want = index[table][e["id"]]
+        assert e["sha256"] == (want["sha256"] if isinstance(want, dict) else want) and e["settings"]

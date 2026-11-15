@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=../../../schemas/model-1.json
-schema: linecaster.model/1
+# yaml-language-server: $schema=../../../schemas/model.json
+schema: linecaster.model
 id: tessdata-fast
 version: tessdata_fast
 source:

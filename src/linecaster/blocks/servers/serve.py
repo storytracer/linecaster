@@ -131,7 +131,7 @@ class ChatModelServer(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖥️ chat model server"
     unit, role = "any", "server"
-    docs_args = {"spec": "lightonocr-2-1b@1"}
+    docs_args = {"spec": "lightonocr-2-1b"}
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,

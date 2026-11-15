@@ -1,18 +1,17 @@
-# yaml-language-server: $schema=../../schemas/recipe-1.json
-schema: linecaster.recipe/1
+# yaml-language-server: $schema=../../schemas/recipe.json
+schema: linecaster.recipe
 id: squiddle
-edition: 2
 pipeline: transcribe_modular.v1
 presets:
-  layout: pp-doclayoutv3@1
-  lines: pp-ocrv6-medium-det@1
-  recognition: kraken-ppocrv6-medium@1
-  tables: slanet-plus@2
-  formulas: pp-formulanet-plus-l@1
-  typography: ratios@1
-  recomposition: unicode-recomposition@1
-  normalization: latin-historic@1
-  composition: linked-composition@1
+  layout: pp-doclayoutv3
+  lines: pp-ocrv6-medium-det
+  recognition: kraken-ppocrv6-medium
+  tables: slanet-plus
+  formulas: pp-formulanet-plus-l
+  typography: ratios
+  recomposition: unicode-recomposition
+  normalization: latin-historic
+  composition: linked-composition
 provenance:
   authored_by:
   - Sebastian Majstorovic

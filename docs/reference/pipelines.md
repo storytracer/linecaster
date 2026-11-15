@@ -91,7 +91,7 @@ class Contract:
 A model block's backend (`linecaster.backends`) says where its engine runs:
 
 - `InProcess("pkg:Class", **options)` (or `InProcess.from_preset(ref)`; a model block given a preset ref,
-  `LayoutDetector("single-region@1")`, builds one): the engine loads in the worker;
+  `LayoutDetector("single-region")`, builds one): the engine loads in the worker;
 - `Served(endpoint, model=name, ...)`: `linecaster serve` (or a server speaking its routes) hosts it, reached through
   saturate on `/v1/linecaster/{step}`; `warm_up()` refuses a server whose `/health` names another transcription
   format than `linecaster.page/4`, or none;
@@ -124,7 +124,7 @@ refuses them.
 
 ```python
 plan = build(blocks, tasks=8, until=None, after=None, taps={"LineAssigner": "OUT/taps/lines"},
-             run_folder="OUT", recipe=("squiddle@1", "sha256:..."))
+             run_folder="OUT", recipe=("squiddle", "sha256:..."))
 plan.check()          # PipelineConfigError listing every problem
 plan.stages           # [Stage(name, tasks, blocks, pipeline)]: one datatrove pipeline each, run in order
 plan.graph            # nodes (blocks; composites expanded, their group kept), edges (part -> the block reading it)
@@ -155,7 +155,7 @@ them, the pages it does not take passed on as it yields.
 **Composites**: `Composite(name, blocks, contract=None)` expands into its blocks (nested composites too); its
 outward contract is derived (what its blocks read that none of them adds, what they add and replace) unless given.
 `ModularTranscriber(lines, recognition, layout, formulas_separately=False, transcription="ocr_new")` is layout
-(`"single-region@1"`: the page as one region) → lines → line assignment → line recognition; each step a block, a
+(`"single-region"`: the page as one region) → lines → line assignment → line recognition; each step a block, a
 backend or a preset.
 
 **Stages**: with `tasks > 1`, the first binder (a block whose stream changes from pages to items) cuts the
@@ -587,9 +587,9 @@ The item-level steps follow a `Binder`; the usual shape (`pipelines/bind.py`, an
 ```python
 [PageRecordReader(pages, fetch_images=False, item_shards=True),
  Binder(),                                                  # page records -> item records
- Recomposer("unicode-recomposition@1", unit="item"),        # paragraphs continued across page breaks
- CharacterNormalizer("latin-historic@1", unit="item"),      # normalized lines, paragraphs, table cells
- Composer("linked-composition@1", unit="item"),             # the item's document
+ Recomposer("unicode-recomposition", unit="item"),        # paragraphs continued across page breaks
+ CharacterNormalizer("latin-historic", unit="item"),      # normalized lines, paragraphs, table cells
+ Composer("linked-composition", unit="item"),             # the item's document
  ItemTextWriter(f"{out}/texts"),                            # texts/<variant>/<rank>.jsonl.gz (format="files": <item>.txt|md)
  ItemDocumentWriter(f"{out}/documents", formats=("md", "txt", "json"), by_format=True)]   # documents/<format>/<item>.<ext>
 ```
@@ -612,7 +612,7 @@ its sibling `rows/` (the folder's earlier name).
 ## Rendering policy
 
 The blocks that render (`Composer`, `PageFileWriter`, `ItemTextWriter`) take `policy`, a catalog policy edition
-(`id@edition`, default `page-layers@1`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
+(`id@edition`, default `page-layers`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
 each region in the documents, files and texts they write ([data model](data-model.md#rendering)).
 `pipelines/transcribe_modular.py` and `pipelines/bind.py` set it with `--policy`; it is a functional parameter, so the
 run record names it and `pipeline_sha256` covers it.

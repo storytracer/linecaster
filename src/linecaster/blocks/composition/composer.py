@@ -36,20 +36,20 @@ class Composer(RuleBlock):
     text (with furniture), as ``ItemDocumentWriter`` writes them.
 
     Args:
-        preset: the composition engine: a preset (e.g. ``linked-composition@1``) or an ``InProcess`` engine spec.
+        preset: the composition engine: a preset (e.g. ``linked-composition``) or an ``InProcess`` engine spec.
         transcription: the transcription to compose.
         unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``Binder``).
         options: engine options over the preset's, e.g. ``{"sections": True}``; ``None``: the preset's.
         policy: the rendering policy (a catalog ``policy`` edition) that puts each region into its layer.
 
     Example:
-        Composer("linked-composition@1")
-        Composer("linked-composition@1", unit="item")
+        Composer("linked-composition")
+        Composer("linked-composition", unit="item")
     """
 
     name = "composer"
     step = "composition"
-    docs_args = {"preset": "linked-composition@1"}
+    docs_args = {"preset": "linked-composition"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None, policy: str = DEFAULT_POLICY_REF):

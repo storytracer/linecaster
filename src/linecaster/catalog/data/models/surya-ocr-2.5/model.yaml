@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=../../../schemas/model-1.json
-schema: linecaster.model/1
+# yaml-language-server: $schema=../../../schemas/model.json
+schema: linecaster.model
 id: surya-ocr-2.5
 version: Surya OCR 2.5
 source:

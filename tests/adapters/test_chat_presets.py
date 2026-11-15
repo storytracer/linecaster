@@ -32,7 +32,7 @@ def test_every_preset_builds_its_adapter(pid):
     assert (spec.model, spec.revision) == (m.source.ref, p.model.revision)
     m.pin(spec.revision)                                       # pinned in the model entry
     r = c.resolve(pid)
-    assert (spec.preset, spec.preset_sha256) == (r.ref, r.sha256) and r.released
+    assert (spec.preset, spec.preset_sha256) == (r.ref, r.sha256)
     assert p.step == spec.step == "recognition" and spec.unit == p.capabilities.unit in ("page", "region")
     assert spec.server == p.serve.server and spec.serve_args == p.serve.flags and spec.job_image
     assert spec.sampling and isinstance(spec.settings(), dict)
@@ -52,38 +52,43 @@ def test_every_adapter_is_used():
 ])
 def test_hugging_face_ids_name_a_preset(hub_id, page, regions):
     assert preset_ref(hub_id) == page and preset_ref(hub_id, prefer="region") == regions
-    assert chat_model(hub_id).preset == f"{page}@1"
-    assert preset_ref("dots-ocr@1") == "dots-ocr@1"
+    assert chat_model(hub_id).preset == page
+    assert preset_ref("dots-ocr") == "dots-ocr"
     with pytest.raises(CatalogError, match="no chat preset"):
         preset_ref("nobody/nothing")
 
 
-def test_an_explicit_edition_resolves_from_the_lock():
-    spec = chat_model("dots-ocr@1")
-    entry = catalog().dirs[0].lock.presets["dots-ocr@1"]
-    assert spec.preset == "dots-ocr@1" and spec.preset_sha256 == entry.sha256
+def test_a_reference_with_an_edition_resolves_to_this_release_with_a_warning():
+    """Catalog entries carry no edition since 0.10: ``dots-ocr@1`` (a record from before) is this release's
+    ``dots-ocr``, with a warning; its hash is the one the index lists."""
+    from linecaster.catalog.registry import EditionWarning
+
+    with pytest.warns(EditionWarning, match="dots-ocr@1"):
+        spec = chat_model("dots-ocr@1")
+    assert spec.preset == "dots-ocr"
+    assert spec.preset_sha256 == catalog().dirs[0].read_index()["presets"]["dots-ocr"]
     with pytest.raises(CatalogError):
-        chat_model("dots-ocr@99")
+        chat_model("nobody-knows")
 
 
 def test_the_annotator_records_the_preset_edition():
     spec = chat_model("glm-ocr")
     body = {"choices": [{"message": {"content": "x"}, "finish_reason": "stop"}], "usage": {}}
     m = spec.parse(body, backend="served x").annotators[0]
-    assert (m.preset, m.preset_sha256) == ("glm-ocr@1", spec.preset_sha256)
+    assert (m.preset, m.preset_sha256) == ("glm-ocr", spec.preset_sha256)
     assert (m.name, m.engine) == ("zai-org/GLM-OCR", "chat.v1") and m.settings == spec.settings()
 
 
 def test_blocks_take_preset_refs():
     page = PageRecognizer(Chat("dots-ocr", "http://127.0.0.1:1/v1"))
-    assert page.adapter.preset == "dots-ocr@1" and page.backend.model == "rednote-hilab/dots.ocr"
+    assert page.adapter.preset == "dots-ocr" and page.backend.model == "rednote-hilab/dots.ocr"
     regions = RegionRecognizer(Chat("lightonocr-2-1b-regions", "http://127.0.0.1:1/v1", served_name="m"))
     assert regions.pad == 8 and regions.adapter.page_longest == 1540 and regions.adapter.served_name == "m"
     assert RegionRecognizer("minicpm-ocr-1.0").pad == 0
     # a preset by name: Chat on the task's ChatModelServer; a Hugging Face id picks the preset of the block's unit
     assert PageRecognizer("lightonocr-2-1b").backend.endpoint == "http://127.0.0.1:8000/v1"
-    assert RegionRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b-regions@1"
-    assert PageRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b@1"
+    assert RegionRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b-regions"
+    assert PageRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b"
     serve = ChatModelServer("unlimited-ocr-2")
     assert serve.server == "sglang" and serve.spec.served_name == "Unlimited-OCR-2"
 

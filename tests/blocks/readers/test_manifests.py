@@ -286,7 +286,7 @@ def test_mets_pages_in_order_with_file_groups_and_existing_alto(server, tmp_path
     docs = list(reader.run())
     assert [m.metadata for d in docs for m in d.media[1:]] == [{"format": "alto"}, {"format": "alto"}]
     assert all(OCR_ORIGINAL not in page_of(d).transcriptions for d in docs)       # the reader only fetches the file
-    got = [page_of(d) for d in TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False}).run(iter(docs))]
+    got = [page_of(d) for d in TranscriptionImporter("auto-import", transcription="ocr_original", options={"ground_truth": False}).run(iter(docs))]
     assert [(p.page_id, p.sequence) for p in got] == [("flora_0001", 1), ("flora_0002", 2), ("flora_0003", 3)]
     f1, gone, lost = got
     assert f1.image.uri == f"{base}/max/f1.png"                     # MAX first
@@ -414,7 +414,7 @@ def test_a_mets_package_with_local_files(tmp_path):
 def test_harvest_saves_manifests_and_ocr_files(server, tmp_path):
     url = publish(server, "flora", mets(server["base"], ["f1"]))
     (tmp_path / "m.txt").write_text(url)
-    docs = TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False}).run(ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True,
+    docs = TranscriptionImporter("auto-import", transcription="ocr_original", options={"ground_truth": False}).run(ManifestReader(paths_file=str(tmp_path / "m.txt"), existing_ocr=True,
                                                        manifest_folder=str(tmp_path / "manifests"), http=FAST).run())
     [doc] = list(ImageFilesWriter(str(tmp_path / "images"), ocr_folder=str(tmp_path / "ocr")).run(docs))
     assert (tmp_path / "manifests" / "flora.xml").read_text().startswith("<?xml")

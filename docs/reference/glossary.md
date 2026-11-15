@@ -91,7 +91,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`, `import.alto.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit (an image and a transcription, a transcription, or, for an importer, a source document). Built-in engines live in the core; engine packages (`linecaster-kraken`, `linecaster-mediawiki`, ...) add more. | not saturate's `Engine` class (its server launcher) |
 | **strategy** | An engine of a rule-based step (normalization, typography, recomposition, composition, image, import). A strategy declares the scripts it covers. | |
 | **importer** | An engine of the `import` step: it reads a source document (`SourceDocument`: a file, a record, a wiki page's wikitext) into a transcription, a ground truth by default. `TranscriptionImporter` runs it. | not a reader block, which brings pages into a pipeline |
-| **conventions** | A catalog entry (`conventions/<format>/<id>.yaml`, `linecaster.conventions/1`) that says what one public source's markup means, as rules an importer applies: each a match and a decision. An entry may extend one other at a pinned edition; its Markdown sidecar is required. | not code: a source's own code never lives in linecaster |
+| **conventions** | A catalog entry (`conventions/<format>/<id>.yaml`, `linecaster.conventions`) that says what one public source's markup means, as rules an importer applies: each a match and a decision. An entry may extend one other at a pinned edition; its Markdown sidecar is required. | not code: a source's own code never lives in linecaster |
 | **match** | Where a convention's rule points, by its format family's standard (its **match kind**): a CSS selector on an HTML or XML tree (`tree`), a JSONPath on JSON (`json`), a regular expression on text (`text`). | |
 | **decision** | What a convention's rule says the matched thing is, format-neutral and in the data model's vocabulary (`remove` with a reason, `block` of a role, `note`, `edit`, `cell`, ...); each importer applies the decisions it understands. | not a recomposition `Decision` (a paragraph's join) |
 | **coverage** | What an importer's conventions handled on a page: matches per rule, and what no rule matched (an element's classes), in the importer annotator's measurements. | |
@@ -109,9 +109,9 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **evidence** | A measurement of a preset or recipe edition with its source (own run, model card, vendor benchmark), as an evidence record (`linecaster.evidence/2`) that names the run, the benchmark, the policy and the scoring it measured with; kept by an evaluation in its own repository. | not a catalog entry |
 | **version** | Upstream's name for a release of a model (`v6`, `3.5`). | not an edition |
 | **revision** | The exact upstream commit a model is pinned to. | |
-| **edition** | linecaster's release number of a preset, recipe, rendering policy or conventions entry: `kraken-ppocrv6-medium@1`. A released edition never changes; its hash covers its functional content. | not a version |
+| **edition** | linecaster's release number of a preset, recipe, rendering policy or conventions entry: `kraken-ppocrv6-medium`. A released edition never changes; its hash covers its functional content. | not a version |
 | **code id** | The versioned id of an engine or a pipeline: `<name>.v<n>`. An option added later keeps the id if its default keeps the old behavior. | |
-| **schema id** | The format of a YAML file: `linecaster.preset/1`. | |
+| **schema id** | The format of a YAML file: `linecaster.preset`. | |
 | **lock** | `catalog.lock`: the hash of every released edition, and the expanded pipeline of every recipe edition. | |
 
 ## Pages, items and text

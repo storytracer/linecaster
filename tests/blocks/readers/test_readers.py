@@ -260,7 +260,7 @@ def test_records_of_pdf_pages_fetch_the_page_not_the_file(tmp_path):
     bare = list(PageRecordReader(folder, fetch_images=False).run())
     assert {d.id: image_bytes(d) for d in ImageFetcher().run(iter(bare))} == rendered
     bare = list(PageRecordReader(folder, fetch_images=False).run())
-    converted = list(ImageConverter(str(tmp_path / "webp"), "working-image@1").run(iter(bare)))
+    converted = list(ImageConverter(str(tmp_path / "webp"), "working-image").run(iter(bare)))
     assert [page_of(d).image.extra["original"]["sha256"] for d in converted] == [
         page_of(d).image.sha256 for d in docs]
 

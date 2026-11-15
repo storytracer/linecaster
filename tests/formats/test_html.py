@@ -18,7 +18,7 @@ a <span class="sic" title="corrected">corected</span> word and <math alttext="{\
 <footer role="doc-pagefooter"><p>Foot</p></footer>
 </body></html>"""
 
-CONVENTIONS = {"schema": "linecaster.conventions/1", "id": "example", "edition": 1, "format": "html",
+CONVENTIONS = {"schema": "linecaster.conventions", "id": "example", "format": "html",
                "description": "test conventions", "rules": [
                    {"id": "head-cells", "match": {"kind": "tree", "css": ".rh > .cell"}, "decision": "cell",
                     "params": {"role": "header"}, "why": "running head cells"},
@@ -38,7 +38,7 @@ def read(page=PAGE, conventions=None):
 
 
 def test_html_semantics_and_conventions():
-    c = resolve("example@1", lambda ref: ConventionsDoc.model_validate(CONVENTIONS))
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(CONVENTIONS))
     r = read(conventions=c)
     t = r.transcription
     texts = {ln.id: ln.reading.text for ln in t.lines}
@@ -162,8 +162,8 @@ def test_a_dollar_in_a_block_without_formulas_is_escaped_by_the_rule():
 def test_a_running_head_below_the_bodys_text_is_body_text():
     """A row of cells without a role is the running head at the top of the body, but below a picture or text it is
     body text (a plate's caption set with the running head's template)."""
-    rules = resolve("cells@1", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "cells", "edition": 1, "format": "html",
+    rules = resolve("cells", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "cells", "format": "html",
          "description": "rows of cells", "rules": [
              {"id": "cells", "match": {"kind": "tree", "css": ".rh > .cell"}, "decision": "cell",
               "why": "a running head's cells"}]}))

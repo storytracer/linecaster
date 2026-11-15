@@ -115,8 +115,8 @@ def test_item_blocks_group_pages_and_write(tmp_path):
         set_page(d, p)
         docs.append(d)
     stream = iter(docs)
-    for block in (Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-                  Composer("linked-composition@1", unit="item", options={"sections": True}),
+    for block in (Binder(), Recomposer("unicode-recomposition", unit="item"),
+                  Composer("linked-composition", unit="item", options={"sections": True}),
                   ItemDocumentWriter(str(tmp_path), formats=("md", "txt", "json"), dividers=True)):
         stream = block.run(stream)
     out = list(stream)

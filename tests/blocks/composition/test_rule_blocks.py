@@ -25,35 +25,35 @@ def run(blocks, docs):
 
 
 def test_a_preset_or_an_engine_spec_with_options_over_it():
-    by_preset = Typographer("ratios@1")
-    assert by_preset.backend.preset == "ratios@1" and by_preset.backend.preset_sha256 == catalog().resolve(
-        "ratios@1").sha256
+    by_preset = Typographer("ratios")
+    assert by_preset.backend.preset == "ratios" and by_preset.backend.preset_sha256 == catalog().resolve(
+        "ratios").sha256
     spec = Typographer(InProcess("linecaster.engines:RatiosTypographyEngine", demote=1.0), options={"split": 2.0})
     assert spec.backend.kwargs == {"demote": 1.0, "split": 2.0} and spec.backend.overrides == {"split": 2.0}
     assert spec.backend.preset is None
-    over = Composer("linked-composition@1", options={"sections": True})
+    over = Composer("linked-composition", options={"sections": True})
     assert over.backend.kwargs == {"sections": True} and over.backend.overrides == {"sections": True}
     with pytest.raises(PipelineConfigError, match="no Served backend"):
         Typographer(Served("http://127.0.0.1:1/v1", model="typography"))
     with pytest.raises(PipelineConfigError, match="is a composition preset"):
-        Typographer("linked-composition@1")
+        Typographer("linked-composition")
     with pytest.raises(PipelineConfigError, match="no_such"):
-        Typographer("ratios@1", options={"no_such": 1})
+        Typographer("ratios", options={"no_such": 1})
     with pytest.raises(PipelineConfigError, match="is a typography engine"):
         Composer(InProcess("linecaster.engines:RatiosTypographyEngine"))
     with pytest.raises(PipelineConfigError):
-        Recomposer("unicode-recomposition@1", unit="book")
+        Recomposer("unicode-recomposition", unit="book")
 
 
 def test_each_block_records_its_step():
-    (doc,) = run([Typographer("ratios@1"), Recomposer("unicode-recomposition@1"),
-                  CharacterNormalizer("latin-historic@1"), Composer("linked-composition@1")], [page_doc()])
+    (doc,) = run([Typographer("ratios"), Recomposer("unicode-recomposition"),
+                  CharacterNormalizer("latin-historic"), Composer("linked-composition")], [page_doc()])
     t = page_of(doc).transcriptions["ocr_new"]
     added = t.annotators[1:]                        # after the page's own (the layout's)
     steps = [(s.kind, s.step, s.engine, s.preset) for s in added]
-    assert steps == [("rule", "typography", "typography.ratios.v1", "ratios@1"),
-                     ("rule", "recomposition", "recomposition.unicode.v1", "unicode-recomposition@1"),
-                     ("rule", "normalization", "normalization.latin-historic.v1", "latin-historic@1")]   # composing adds none
+    assert steps == [("rule", "typography", "typography.ratios.v1", "ratios"),
+                     ("rule", "recomposition", "recomposition.unicode.v1", "unicode-recomposition"),
+                     ("rule", "normalization", "normalization.latin-historic.v1", "latin-historic")]   # composing adds none
     assert all({"seconds", "datetime"} <= set(s.measurements) and s.preset_sha256 for s in added)
     assert t.paragraphs and all(p.annotator == 2 for p in t.paragraphs)
     assert all(e.annotator == 3 and e.kind == "normalized" for e in t.edits)
@@ -75,8 +75,8 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
     """Item records (``Binder``) through ``Recomposer(unit="item")`` and ``Composer(unit="item")``: one document per
     item, page ``n`` its ``n``-th page, paragraphs continued across the page break; without a recomposition as laid
     out."""
-    blocks = [Binder(), *([Recomposer("unicode-recomposition@1", unit="item")] if recomposed else []),
-              Composer("linked-composition@1", unit="item", options={"sections": sections})]
+    blocks = [Binder(), *([Recomposer("unicode-recomposition", unit="item")] if recomposed else []),
+              Composer("linked-composition", unit="item", options={"sections": sections})]
     (item,) = run(blocks, list(reversed(_item_docs())))
     assert item.id == "b1" and item.metadata["item_id"] == "b1" and item.metadata["document"]["blocks"]
     assert ("turned to the north" in item.text) is recomposed
@@ -96,9 +96,9 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
 def test_the_item_recomposition_makes_the_paragraphs_anew():
     """Pages recomposed one by one carry their own paragraphs; the item-level recomposition makes them anew
     (continued across the page break), as from pages without any."""
-    docs = run([Recomposer("unicode-recomposition@1")], _item_docs())
+    docs = run([Recomposer("unicode-recomposition")], _item_docs())
     assert all(page_of(d).transcriptions["ocr_new"].paragraphs for d in docs)
-    item = [Binder(), Recomposer("unicode-recomposition@1", unit="item"), Composer("linked-composition@1", unit="item")]
+    item = [Binder(), Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item")]
     (flowed,) = run(item, docs)
     (fresh,) = run(item, _item_docs())
     assert flowed.metadata["document"] == fresh.metadata["document"] and "turned to the north" in flowed.text
@@ -108,11 +108,11 @@ def test_the_item_recomposition_makes_the_paragraphs_anew():
 
 
 def test_the_normalizer_on_item_records():
-    (item,) = run([Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-                   CharacterNormalizer("latin-historic@1", unit="item")], _item_docs())
+    (item,) = run([Binder(), Recomposer("unicode-recomposition", unit="item"),
+                   CharacterNormalizer("latin-historic", unit="item")], _item_docs())
     for p in item_pages(item):
         t = p.transcriptions["ocr_new"]
-        assert t.annotators[-1].preset == "latin-historic@1"
+        assert t.annotators[-1].preset == "latin-historic"
         assert paragraphs(t) and all((t.edit(x.id, ("normalized",)) or x.text) == normalize(x.text) for x in paragraphs(t))
     with pytest.raises(PipelineConfigError):
-        CharacterNormalizer("latin-historic@1", unit="book")
+        CharacterNormalizer("latin-historic", unit="book")

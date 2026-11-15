@@ -179,7 +179,6 @@ class RenderingPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(description="the policy's name")
-    edition: int = Field(1, description="its edition")
     rules: list[RenderingRule] = Field(default_factory=list, description="the rules, first match wins")
     precedence: dict[str, list[str]] = Field(
         default_factory=dict, description="per scheme (role, heading_level, ...) or `order`: the steps or annotator "
@@ -191,7 +190,7 @@ class RenderingPolicy(BaseModel):
 
     @property
     def ref(self) -> str:
-        return f"{self.id}@{self.edition}"
+        return self.id
 
     def layer(self, role: str | None, production: str | None = None, status: str | None = None,
               motivation: str = "transcribing") -> str:
@@ -215,10 +214,10 @@ class RenderingPolicy(BaseModel):
         return tuple(self.edits.get(variant, default))
 
 
-#: the default policy (the catalog's ``page-layers@1``): every role in its default layer, what is suppressed,
+#: the default policy (the catalog's ``page-layers``): every role in its default layer, what is suppressed,
 #: duplicate or removed nowhere, descriptions in the metadata
 DEFAULT_POLICY = RenderingPolicy(
-    id="page-layers", edition=1,
+    id="page-layers",
     rules=[RenderingRule(status=s, to="none") for s in ("suppressed", "duplicate", "removed")],
     edits={"verbatim_txt": ["nfc", "joined"], "readable_txt": ["nfc", "joined", "normalized"],
            "readable_md": ["nfc", "joined", "normalized"]})

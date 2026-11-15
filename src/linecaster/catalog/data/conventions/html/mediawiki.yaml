@@ -1,7 +1,6 @@
-# yaml-language-server: $schema=../../../schemas/conventions-1.json
-schema: linecaster.conventions/1
+# yaml-language-server: $schema=../../../schemas/conventions.json
+schema: linecaster.conventions
 id: mediawiki
-edition: 1
 format: html
 description: >-
   What MediaWiki and its extensions write on every wiki, as the MediaWiki importer's HTML has it: the software's

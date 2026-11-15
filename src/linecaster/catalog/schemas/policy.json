@@ -189,12 +189,6 @@
       "title": "Id",
       "type": "string"
     },
-    "edition": {
-      "default": 1,
-      "description": "its edition",
-      "title": "Edition",
-      "type": "integer"
-    },
     "rules": {
       "description": "the rules, first match wins",
       "items": {
@@ -234,7 +228,7 @@
       "description": "the Markdown a rendering writes"
     },
     "schema": {
-      "const": "linecaster.policy/1",
+      "const": "linecaster.policy",
       "title": "Schema",
       "type": "string"
     },

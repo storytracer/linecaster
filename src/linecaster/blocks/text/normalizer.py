@@ -25,18 +25,18 @@ class CharacterNormalizer(RuleBlock):
     after an item-level ``Recomposer``.
 
     Args:
-        preset: the normalization engine: a preset (e.g. ``latin-historic@1``) or an ``InProcess`` engine spec.
+        preset: the normalization engine: a preset (e.g. ``latin-historic``) or an ``InProcess`` engine spec.
         transcription: the transcription to normalize.
         unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``Binder``).
         options: engine options over the preset's; ``None``: the preset's.
 
     Example:
-        CharacterNormalizer("latin-historic@1", unit="item")
+        CharacterNormalizer("latin-historic", unit="item")
     """
 
     name = "character normalizer"
     step = "normalization"
-    docs_args = {"preset": "latin-historic@1"}
+    docs_args = {"preset": "latin-historic"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

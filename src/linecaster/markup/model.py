@@ -1,7 +1,7 @@
-"""The conventions format, ``linecaster.conventions/1``: one YAML file per entry (``conventions/<format>/<id>.yaml``
+"""The conventions format, ``linecaster.conventions``: one YAML file per entry (``conventions/<format>/<id>.yaml``
 in the catalog), with a mandatory Markdown sidecar (``<id>.md``) for what the rules cannot say.
 
-    schema: linecaster.conventions/1
+    schema: linecaster.conventions
     id: example
     edition: 2
     format: html                      # what the rules match: the tree, JSON or text the format's importer reads
@@ -27,7 +27,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, field_validator, model_validator
 
-SCHEMA = "linecaster.conventions/1"
+SCHEMA = "linecaster.conventions"
 #: a rule's or an entry's id
 ID = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
 
@@ -112,13 +112,13 @@ class Rule(_Strict):
 
 
 class ConventionsDoc(_Strict):
-    """A conventions entry (``linecaster.conventions/1``)."""
+    """A conventions entry (``linecaster.conventions``; catalog entries carry no edition: the linecaster release
+    versions them)."""
 
-    schema_: Literal["linecaster.conventions/1"] = Field(alias="schema")
+    schema_: Literal["linecaster.conventions"] = Field(alias="schema")
     id: str
-    edition: int = Field(ge=1)
     format: str = Field(description="the format whose importer applies the entry: html, xml, json, text, ...")
-    extends: str | None = Field(None, description="the parent entry, id@edition")
+    extends: str | None = Field(None, description="the parent entry, by id")
     description: str = Field(min_length=1)
     source: dict[str, str] = Field(default_factory=dict,
                                    description="what the entry was written against: the source, its software and "
@@ -128,7 +128,7 @@ class ConventionsDoc(_Strict):
 
     @property
     def ref(self) -> str:
-        return f"{self.id}@{self.edition}"
+        return self.id
 
     @field_validator("id")
     @classmethod
@@ -139,9 +139,9 @@ class ConventionsDoc(_Strict):
 
     @field_validator("extends")
     @classmethod
-    def _pinned(cls, v: str | None) -> str | None:
-        if v is not None and not re.match(r"^[a-z0-9][a-z0-9.\-]*@[1-9][0-9]*$", v):
-            raise ValueError(f"extends {v!r}: a pinned edition, id@edition")
+    def _parent(cls, v: str | None) -> str | None:
+        if v is not None and not ID.match(v):
+            raise ValueError(f"extends {v!r}: the parent's id (catalog entries carry no edition)")
         return v
 
     @model_validator(mode="after")

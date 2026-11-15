@@ -66,7 +66,7 @@ def _write(directory: Path, model_id: str, source: dict, pin: Pin, card: Path, d
         return path
     cmeta = _card_meta(card)
     lic = str(cmeta.get("license", "")).lower()
-    meta = {"schema": "linecaster.model/1", "id": model_id, "version": None, "source": source, "pins": [entry],
+    meta = {"schema": "linecaster.model", "id": model_id, "version": None, "source": source, "pins": [entry],
             "license": SPDX.get(lic, cmeta.get("license_name") or lic or "unknown"),
             "languages": _languages(cmeta), "scripts": [], "derived_from": []}
     meta.update({k: v for k, v in defaults.items() if v is not None})

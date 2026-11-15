@@ -19,7 +19,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    files; they then round-trip only what the format holds natively. Foreign files have no
    extensions and readers fall back to the inferred values.
 2. **What is written** (`linecaster.formats._xml.file_layout`): of the transcription `t`, under the policy
-   `policy` (`to_alto`, `to_page`, `to_hocr`; default `page-layers@1`, `linecaster.data.DEFAULT_POLICY`):
+   `policy` (`to_alto`, `to_page`, `to_hocr`; default `page-layers`, `linecaster.data.DEFAULT_POLICY`):
    - **regions**: id, polygon and box, detection confidence (the region's *score*), the annotator's own label
      (`Region.label`, the **raw label**) and the region's **region label**, from its content role (`t.label`;
      `handwritten_text` for running text classified as handwritten), and its heading level (its `heading_level`
@@ -32,7 +32,7 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
      in its region;
    - the page's `language` classification (hOCR only).
 
-   Regions the policy puts in layer `none` (a `status` of removed, suppressed or duplicate under `page-layers@1`;
+   Regions the policy puts in layer `none` (a `status` of removed, suppressed or duplicate under `page-layers`;
    the roles separator and noise) are left out with their lines, and so are lines whose own `status` the policy puts
    there (a line assignment's duplicates); ranks are counted among what is written. **Not serialized**: the other
    classifications (production apart from handwritten running text, status, script, picture class, code language;

@@ -38,21 +38,16 @@
     }
   },
   "additionalProperties": false,
-  "description": "A named, opinionated combination: one pipeline, a preset edition for each of its slots, its options.",
+  "description": "A named, opinionated combination: one pipeline, a preset for each of its slots, its options.",
   "properties": {
     "schema": {
-      "const": "linecaster.recipe/1",
+      "const": "linecaster.recipe",
       "title": "Schema",
       "type": "string"
     },
     "id": {
       "title": "Id",
       "type": "string"
-    },
-    "edition": {
-      "minimum": 1,
-      "title": "Edition",
-      "type": "integer"
     },
     "pipeline": {
       "description": "the pipeline it fills, by its versioned id, e.g. transcribe_modular.v1 (pipelines/transcribe_modular.py)",
@@ -63,7 +58,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "slot -> preset id@edition (always an explicit edition)",
+      "description": "slot -> preset id",
       "title": "Presets",
       "type": "object"
     },
@@ -102,7 +97,6 @@
   "required": [
     "schema",
     "id",
-    "edition",
     "pipeline",
     "presets"
   ],

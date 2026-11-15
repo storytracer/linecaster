@@ -1,7 +1,6 @@
-# yaml-language-server: $schema=../../../schemas/preset-1.json
-schema: linecaster.preset/1
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
 id: latin-historic
-edition: 1
 step: normalization
 engine: normalization.latin-historic.v1
 capabilities:

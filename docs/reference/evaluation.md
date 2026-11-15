@@ -26,7 +26,7 @@ notes, continuations, corrections, illegible spans, each as the [data model](dat
 
 Ground truth is read by **importers**, the engines of the `import` step, which `TranscriptionImporter` runs and
 `pipelines/import_transcriptions.py` runs over a source's documents into page records: ALTO, PAGE-XML, hOCR, plain
-text, HTML and DoclingDocuments (the `docling` extra) in linecaster (`import.*.v1`, presets `alto-import@1`, ...), and formats that need
+text, HTML and DoclingDocuments (the `docling` extra) in linecaster (`import.*.v1`, presets `alto-import`, ...), and formats that need
 more in engine packages (MediaWiki wikitext: `linecaster-mediawiki`). A source with conventions of its own (a wiki's
 templates and classes, a project's markup) is read with its **conventions**, a catalog entry its importer applies:
 each rule a match in the format's standard and a decision in the data model's vocabulary (what is text, what is a

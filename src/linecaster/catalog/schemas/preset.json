@@ -220,18 +220,13 @@
   "additionalProperties": false,
   "properties": {
     "schema": {
-      "const": "linecaster.preset/1",
+      "const": "linecaster.preset",
       "title": "Schema",
       "type": "string"
     },
     "id": {
       "title": "Id",
       "type": "string"
-    },
-    "edition": {
-      "minimum": 1,
-      "title": "Edition",
-      "type": "integer"
     },
     "step": {
       "enum": [
@@ -298,7 +293,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "a by-script engine's strategies: ISO 15924 script code, or * for every other script (required) -> preset id@edition of the same step",
+      "description": "a by-script engine's strategies: ISO 15924 script code, or * for every other script (required) -> the preset (its id) of the same step",
       "title": "By Script",
       "type": "object"
     },
@@ -345,7 +340,6 @@
   "required": [
     "schema",
     "id",
-    "edition",
     "step",
     "engine"
   ],

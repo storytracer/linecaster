@@ -40,7 +40,7 @@ class InProcess:
         from linecaster.blocks.recognition import LineRecognizer
 
         LineRecognizer(InProcess("linecaster_kraken:KrakenRecognitionEngine", model="medium"))
-        LineRecognizer(InProcess.from_preset("kraken-ppocrv6-medium@1"))
+        LineRecognizer(InProcess.from_preset("kraken-ppocrv6-medium"))
     """
 
     served = False

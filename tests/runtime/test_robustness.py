@@ -83,7 +83,7 @@ def _doc(page_id: str = "p1", w: int = 40):
 
 
 def _modular(**text):
-    return [LayoutDetector("single-region@1"), LineDetector(InProcess("test_robustness:SlowLines")), LineAssigner(),
+    return [LayoutDetector("single-region"), LineDetector(InProcess("test_robustness:SlowLines")), LineAssigner(),
             LineRecognizer(InProcess("test_robustness:Text", **text))]
 
 
@@ -120,7 +120,7 @@ def test_warm_up_is_idempotent_and_its_failure_fails_the_task():
     assert EVENTS == [("load", "recognition")]
     broken = LineRecognizer(InProcess("test_robustness:NoSuchEngine"))
     with pytest.raises(AttributeError):
-        run_pages([LayoutDetector("single-region@1"), LineDetector(InProcess("test_robustness:SlowLines")), LineAssigner(), broken],
+        run_pages([LayoutDetector("single-region"), LineDetector(InProcess("test_robustness:SlowLines")), LineAssigner(), broken],
                   [_doc()])
 
 
@@ -148,7 +148,7 @@ def test_a_failing_page_carries_its_error_and_the_others_are_unaffected():
 
 
 def test_later_model_blocks_pass_a_failed_page_by():
-    blocks = [LayoutDetector("single-region@1"), LineDetector(InProcess("test_robustness:FailingLines")), LineAssigner(),
+    blocks = [LayoutDetector("single-region"), LineDetector(InProcess("test_robustness:FailingLines")), LineAssigner(),
               LineRecognizer(InProcess("test_robustness:Text"))]
     out = run_pages(blocks, [_doc("p1"), _doc("p2", 50)])
     assert out[1].metadata["errors"][0]["error"] == "no lines found"

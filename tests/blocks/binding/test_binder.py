@@ -36,7 +36,7 @@ def test_the_binder_gathers_each_item_in_order():
 
 
 def test_the_splitter_passes_on_the_pages_with_what_the_item_added():
-    (item,) = list(Recomposer("unicode-recomposition@1", unit="item").run(Binder().run(iter(_docs()))))
+    (item,) = list(Recomposer("unicode-recomposition", unit="item").run(Binder().run(iter(_docs()))))
     pages = list(Splitter().run(iter([item])))
     assert [d.id for d in pages] == ["b1-1", "b1-2"]
     first, second = (page_of(d).transcriptions["ocr_new"] for d in pages)
@@ -50,8 +50,8 @@ def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):
     """The item record holds its pages, so what the page blocks added is there for the item-unit blocks; the image
     bytes stay behind at the binder, the item's document at the splitter."""
     records = PageRecordReader("p", fetch_images=False, provides=["ocr_new:regions", "ocr_new:lines"])
-    ok = [records, Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-          Composer("linked-composition@1", unit="item"), ItemDocumentWriter(str(tmp_path)),
+    ok = [records, Binder(), Recomposer("unicode-recomposition", unit="item"),
+          Composer("linked-composition", unit="item"), ItemDocumentWriter(str(tmp_path)),
           ItemTextWriter(str(tmp_path), variants=("verbatim_txt",)), Splitter(), PageJsonlWriter(str(tmp_path))]
     assert build(ok).problems == []
     plot = PageFileWriter(str(tmp_path), formats=("plot",))
@@ -59,4 +59,4 @@ def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):
         "PageFileWriter (🗂️ page files) reads image, which no block before it in the pipeline adds"]
     assert build([ImageFolderReader("x"), Binder(), Splitter(), ImageFetcher(), plot]).problems == []
     assert "reads document" in " ".join(build([ImageFolderReader("x"), Binder(), Composer(
-        "linked-composition@1", unit="item"), Splitter(), Binder(), ItemDocumentWriter(str(tmp_path))]).problems)
+        "linked-composition", unit="item"), Splitter(), Binder(), ItemDocumentWriter(str(tmp_path))]).problems)

@@ -10,7 +10,7 @@ completion as its raw output, and what was parsed from it: text-only lines for m
 how they are cut, and helpers such as an answer format's Markdown conversion. Models
 that share that code share an adapter (both DeepSeek-OCRs, both LightOnOCR-3s, both dots, both Ovis).
 
-``chat_model(ref)`` is the one way in: a preset ref (``dots-ocr``, ``dots-ocr@1``) or, for compatibility, the
+``chat_model(ref)`` is the one way in: a preset ref (``dots-ocr``, ``dots-ocr``) or, for compatibility, the
 Hugging Face id (``rednote-hilab/dots.ocr``, the model's page preset). It returns a configured adapter, the
 object ``PageRecognizer`` / ``RegionRecognizer`` and ``ChatModelServer`` take: plain and picklable (datatrove
 dill-pickles the pipeline), importing neither vLLM nor torch (only Pillow, to re-encode the image).
@@ -151,7 +151,7 @@ class ChatAdapter:
                                                                   "cap, and again with the next while it stops at its "
                                                                   "cap (a number: one repair; a list: one per pass, "
                                                                   "rising, the first larger than max_tokens; 0 or []: "
-                                                                  "off; lightonocr-3-0.8b@3: [8192, 12288], twice and "
+                                                                  "off; lightonocr-3-0.8b: [8192, 12288], twice and "
                                                                   "three times its 4096)")
         repair_temperature: float = Field(0.1, ge=0, description="the repair pass's temperature (the reference "
                                                                  "script's, uv-scripts/ocr lighton-ocr3-saturate.py "
@@ -568,14 +568,14 @@ def chat_presets(catalog=None) -> dict[str, str]:
 
 
 def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
-    """``ref`` as a preset ref: a preset id[@edition] as it is; a Hugging Face id becomes one of that model's
+    """``ref`` as a preset ref: a preset id as it is; a Hugging Face id becomes one of that model's
     presets, the first in id order with unit ``prefer`` (``page``, or ``region`` for region reading), else
     the first in id order."""
-    from ..catalog.registry import catalog as installed
+    from ..catalog.registry import catalog as installed, entry_id
 
     c = catalog or installed()
-    if ref.split("@", 1)[0] in c.presets:
-        return ref
+    if entry_id(ref) in c.presets:
+        return entry_id(ref)
     ids = [pid for pid, repo in chat_presets(c).items() if repo == ref]
     if not ids:
         raise CatalogError(f"no chat preset for {ref!r}; chat presets: {sorted(chat_presets(c))}")
@@ -584,7 +584,7 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
 
 def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: str = "page",
                overrides: dict[str, Any] | None = None) -> ChatAdapter:
-    """The configured adapter for a chat preset: ``chat_model("lightonocr-2-1b")``, ``chat_model("dots-ocr@1")``,
+    """The configured adapter for a chat preset: ``chat_model("lightonocr-2-1b")``, ``chat_model("dots-ocr")``,
     or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="region"``:
     its region preset). What it reads (``unit``) is the preset's capability. ``overrides``: ``ChatAdapter.Options``
     over the preset's settings, e.g. ``{"repair_max_tokens": 8192}``."""

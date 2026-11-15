@@ -1,7 +1,6 @@
-# yaml-language-server: $schema=../../../schemas/preset-1.json
-schema: linecaster.preset/1
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
 id: lightonocr-3-4b
-edition: 1
 step: recognition
 model:
   id: lightonocr-3-4b

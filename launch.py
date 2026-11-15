@@ -14,7 +14,7 @@ runs in and starts that pipeline's script, in the script's own environment.
     uv run launch.py chandra-ocr-2 IMAGES OUT          # a page preset: = pipelines/transcribe_vlm.py IMAGES OUT --recognition chandra-ocr-2
     uv run launch.py indra-ocr IMAGES OUT              # a page engine's: = pipelines/transcribe_page.py IMAGES OUT --recognition indra-ocr
     uv run launch.py squiddle IMAGES OUT               # = uv run recipes/squiddle.py IMAGES OUT (the recipe's environment)
-    uv run launch.py squiddle@1 IMAGES OUT --recognition paddlex-ppocrv6-medium   # a slot on top: recorded as an override
+    uv run launch.py squiddle IMAGES OUT --recognition paddlex-ppocrv6-medium   # a slot on top: recorded as an override
     uv run launch.py chandra-ocr-2 IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --tasks 64
     uv run launch.py squiddle --help                   # the pipeline's options
 
@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 from linecaster.catalog import code
-from linecaster.catalog.registry import catalog, split_ref
+from linecaster.catalog.registry import catalog, entry_id
 
 ROOT = Path(__file__).resolve().parent
 #: the pipelines page presets run in (a chat VLM's, a page engine's), and their slot
@@ -54,7 +54,7 @@ def not_runnable(name: str) -> str:
     if name not in c.presets:
         return f"no recipe or page preset {name!r} (`uv run launch.py` lists them)"
     p = c.preset(name)
-    uses = sorted(rid for rid, (_, r) in c.recipes.items() if any(split_ref(x)[0] == name for x in r.presets.values()))
+    uses = sorted(rid for rid, (_, r) in c.recipes.items() if any(entry_id(x) == name for x in r.presets.values()))
     if p.step == "recognition" and p.capabilities.unit == "region":
         what = (f"reads layout regions: uv run pipelines/transcribe_vlm.py IMAGES OUT --layout <layout preset> "
                 f"--recognition {name}")
@@ -67,9 +67,9 @@ def not_runnable(name: str) -> str:
 
 
 def command(name: str, args: list[str]) -> list[str]:
-    """The pipeline script's command line for ``name`` (id[@edition] of a recipe or a page preset)."""
+    """The pipeline script's command line for ``name`` (the id of a recipe or a page preset)."""
     c = catalog()
-    rid, _ = split_ref(name)
+    rid = entry_id(name)
     if rid in c.recipes:                             # a recipe: its own script, its own environment
         recipes = code.recipe_scripts(ROOT)
         if rid not in recipes:

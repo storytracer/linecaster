@@ -1,7 +1,6 @@
-# yaml-language-server: $schema=../../schemas/policy-1.json
-schema: linecaster.policy/1
+# yaml-language-server: $schema=../../schemas/policy.json
+schema: linecaster.policy
 id: page-layers
-edition: 1
 description: >-
   Every content role in its default layer: body, furniture for running heads, running feet, page numbers,
   catchwords and signature marks, nowhere for separators and noise. What is suppressed, duplicate or removed goes

@@ -1,7 +1,6 @@
-# yaml-language-server: $schema=../../../schemas/preset-1.json
-schema: linecaster.preset/1
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
 id: jp2-lossless
-edition: 1
 step: image
 engine: image.convert.v1
 options:

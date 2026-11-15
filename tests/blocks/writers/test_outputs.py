@@ -28,7 +28,7 @@ SCHEMAS = Path(__file__).parents[2] / "schemas"
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
+    docs = list(Composer("linked-composition").run(Typographer("ratios").run(iter([page_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFileWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -51,7 +51,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 def test_page_files_flat_are_the_document_exports(tmp_path: Path):
     """Flat names with a suffix: each file is the document's export byte for byte, as the
     export writer this one replaces wrote them (flat, suffix, furniture)."""
-    docs = list(Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([page_doc()]))))
+    docs = list(Composer("linked-composition").run(Typographer("ratios").run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                         bucket_by_item=False).run(iter(docs)))
     data = docs[0].metadata[DOCUMENT_KEY]                 # the Composer's document
@@ -72,14 +72,14 @@ def lines_only(text: str = "nur Zeilen") -> Transcription:
 
 def test_page_files_without_composer_render_the_document(tmp_path: Path):
     """A page no ``Composer`` composed (e.g. read from page records) gets the document it would have composed."""
-    docs = list(Typographer("ratios@1").run(iter([page_doc()])))
+    docs = list(Typographer("ratios").run(iter([page_doc()])))
     assert DOCUMENT_KEY not in docs[0].metadata
     list(PageFileWriter(str(tmp_path / "w"), formats=("md", "json"), bucket_by_item=False).run(iter(docs)))
     page = page_of(docs[0])
     document = build_document(page.transcriptions["ocr_new"], name="p1", width=1000, height=1000)
     assert (tmp_path / "w" / "p1.json").read_text() == export(document, "json")
     assert (tmp_path / "w" / "p1.md").read_text().startswith("# THE TITLE")
-    composed = list(Composer("linked-composition@1").run(iter(docs)))
+    composed = list(Composer("linked-composition").run(iter(docs)))
     list(PageFileWriter(str(tmp_path / "c"), formats=("md", "json"), bucket_by_item=False).run(iter(composed)))
     for name in ("p1.md", "p1.json"):
         assert (tmp_path / "c" / name).read_bytes() == (tmp_path / "w" / name).read_bytes()
@@ -104,8 +104,8 @@ def test_page_files_without_text_fallback_write_only_documents(tmp_path: Path):
     writer's behavior), and a page with one gets them all."""
     t = lines_only()
     fmts = ("md", "txt", "html", "json")
-    composed = list(Composer("linked-composition@1").run(
-        Typographer("ratios@1").run(iter([page_doc(page_id="p2", item=None)]))))
+    composed = list(Composer("linked-composition").run(
+        Typographer("ratios").run(iter([page_doc(page_id="p2", item=None)]))))
     out = list(PageFileWriter(str(tmp_path), formats=fmts, bucket_by_item=False, text_fallback=False).run(
         iter([page_doc(t=t, item=None), *composed])))
     assert len(out) == 2
@@ -163,8 +163,8 @@ def test_item_text_writers(tmp_path: Path):
         t = page_with([_region("a", "text", 0)], [_line("l", "a", 0, txt)])
         pages.append(page_doc(f"b_{s}", "b", t, seq=s))
     stream = iter(pages)
-    for block in (Binder(), Recomposer("unicode-recomposition@1", unit="item"),
-                  CharacterNormalizer("latin-historic@1", unit="item"),
+    for block in (Binder(), Recomposer("unicode-recomposition", unit="item"),
+                  CharacterNormalizer("latin-historic", unit="item"),
                   ItemTextWriter(str(tmp_path / "files"), format="files"),
                   ItemTextWriter(str(tmp_path / "jsonl"), compression=None, output_filename="${variant}/${rank}.jsonl",
                                  token_counter=len)):

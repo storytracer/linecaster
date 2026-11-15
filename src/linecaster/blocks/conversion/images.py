@@ -81,7 +81,7 @@ class ImageConverter(Contracted, PipelineStep):
     """Converts each page's delivered image with an image engine and writes it, decoding and encoding as many pages at
     once as keeps the machine busy without overloading it.
 
-    The preset says what: ``working-image@1`` (engine ``image.webp-lossless.v1``) the working image, 8-bit sRGB
+    The preset says what: ``working-image`` (engine ``image.webp-lossless.v1``) the working image, 8-bit sRGB
     lossless WebP at full resolution; an ``image.convert.v1`` preset JPEG, JPEG 2000, PNG or WebP
     (``linecaster.images.transcode``: decoded on a GPU where the machine has one and it supports the format, encoded
     there for JPEG and JPEG 2000, else with Pillow; each image records its decoder and encoder). The image is written
@@ -110,7 +110,7 @@ class ImageConverter(Contracted, PipelineStep):
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
-        preset: the image preset (``id@edition``, e.g. ``working-image@1``) or an engine spec
+        preset: the image preset (``id@edition``, e.g. ``working-image``) or an engine spec
             (``InProcess("module:Class", **options)``).
         keep_bytes: the converted image replaces ``doc.media``, so later blocks need not read it again (it then also
             replaces ``image``); without it the page leaves with no image bytes.
@@ -127,7 +127,7 @@ class ImageConverter(Contracted, PipelineStep):
     type = "🔠 - LINECASTER"
     name = "🖼️ image converter"
     step = "image"
-    docs_args = {"output_folder": "out/images", "preset": "working-image@1"}
+    docs_args = {"output_folder": "out/images", "preset": "working-image"}
     # whether the image also travels on in memory, and how many pages are in flight: the same files
     operational = ("keep_bytes", "skip_existing", "window", "initial_window", "max_window", "max_io_window")
 

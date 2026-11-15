@@ -261,9 +261,7 @@ def block_attributes(block) -> dict:
     spec = getattr(block, "spec", None) or getattr(backend, "adapter", None)      # a chat preset's adapter
     preset = getattr(spec, "preset", None) or getattr(backend, "preset", None)
     if isinstance(preset, str):
-        attrs["linecaster.preset"] = preset.split("@", 1)[0]
-        if "@" in preset:
-            attrs["linecaster.edition"] = preset.split("@", 1)[1]
+        attrs["linecaster.preset"] = preset
     if backend is not None and hasattr(backend, "served"):
         attrs["linecaster.backend"] = "served" if backend.served else "in-process"
         engine = getattr(backend, "engine", None) if backend.served else getattr(backend, "spec", None)

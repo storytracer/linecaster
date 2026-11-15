@@ -21,8 +21,31 @@ from linecaster.runtime import provenance, run
 from linecaster.testing import fake_chat_server
 from linecaster.testing.chat import completion
 
-PRESET = "lightonocr-3-0.8b@2"
+#: the catalog's LightOnOCR-3 0.8B with its repair pass off (the tests turn it on) and, for the context check, with
+#: a 16384-token context: test presets of a catalog layered over linecaster's own (``repair_catalog``)
+PRESET = "lightonocr-3-0.8b-no-repair"
+SHORT = "lightonocr-3-0.8b-16k"
 MODEL = "lightonai/LightOnOCR-3-0.8B"
+
+
+@pytest.fixture(autouse=True, scope="module")
+def repair_catalog(tmp_path_factory):
+    import yaml
+
+    from linecaster.catalog.registry import CORE, Catalog, active, catalog
+
+    folder = tmp_path_factory.mktemp("catalog")
+    base = yaml.safe_load((CORE / "presets/recognition/lightonocr-3-0.8b.yaml").read_text())
+    (folder / "presets/recognition").mkdir(parents=True)
+    off = {**base, "id": PRESET, "settings": {**base["settings"], "repair": {"max_tokens": 0, "temperature": 0.1}}}
+    short = {**off, "id": SHORT, "serve": {**base["serve"], "flags": [
+        "16384" if f == "18000" else f for f in base["serve"]["flags"]]}}
+    for doc in (off, short):
+        (folder / f"presets/recognition/{doc['id']}.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
+    catalog.cache_clear()
+    with active(Catalog([CORE, folder])):
+        yield
+    catalog.cache_clear()
 PROMPT_TOKENS = 3000
 #: page width -> what the fake model does with it: stops at once, stops when given more room, or loops
 STOPS, LONG, LOOPS = 300, 400, 500
@@ -235,7 +258,7 @@ def test_a_warning_when_the_repair_cap_and_a_page_do_not_fit_the_context():
     try:
         PageRecognizer(Chat(PRESET, overrides={"repair_max_tokens": 12288}))             # 12288 + 4160 <= 18000
         assert seen == []
-        PageRecognizer(Chat("lightonocr-3-0.8b@1", overrides={"repair_max_tokens": 12288}))   # > 16384
+        PageRecognizer(Chat(SHORT, overrides={"repair_max_tokens": 12288}))   # > 16384
     finally:
         logger.remove(sink)
     assert len(seen) == 1 and "16384" in seen[0] and "repair_skipped" in seen[0]
@@ -465,10 +488,10 @@ def test_repair_only_continues_with_the_later_caps():
     assert len(out["stops"].outputs) == 1 and out["stops"].outputs[0].settings == {}   # not needed: unchanged
 
 
-def test_lightonocr_3_0_8b_edition_3_escalates_to_twice_and_three_times_its_cap():
+def test_lightonocr_3_0_8b_escalates_to_twice_and_three_times_its_cap():
     from linecaster.adapters import chat_model as model
 
-    three = model("lightonocr-3-0.8b@3")
+    three = model("lightonocr-3-0.8b")
     assert three.sampling["max_tokens"] == 4096 and three.repair_caps == (8192, 12288)
-    assert model("lightonocr-3-0.8b@2").repair_caps == ()
+    assert model(PRESET).repair_caps == ()
     assert three.repair_temperature == 0.1 and three.apply_overrides({"repair_max_tokens": 0}).repair_caps == ()

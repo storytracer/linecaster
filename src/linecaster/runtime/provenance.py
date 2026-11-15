@@ -142,7 +142,7 @@ def mets_agent(m: Annotator) -> etree._Element:
           <mets:name>linecaster 0.4.0 kraken-ppocrv6-medium@0123abcd</mets:name>
           <mets:note ocrd:option="parameter">{"batch_size":8}</mets:note>
           <mets:note lc:option="step">recognition</mets:note>
-          <mets:note lc:option="preset">kraken-ppocrv6-medium@1</mets:note>
+          <mets:note lc:option="preset">kraken-ppocrv6-medium</mets:note>
           ...
         </mets:agent>
     """
@@ -388,12 +388,69 @@ def hardware() -> dict[str, Any]:
     return out
 
 
+#: the block parameters that name a catalog entry, and its kind
+CATALOG_KEYS = {"preset": "preset", "policy": "policy", "conventions": "conventions", "recipe": "recipe"}
+
+
+def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Every catalog entry the recorded ``pipeline`` names (a block parameter ``preset``, ``policy``, ``conventions``
+    or ``recipe``, at any depth) and the run's ``recipe``: kind, id, hash and functional content, as the catalog in
+    place has them. A name the catalog does not know (a test's fake) is left out."""
+    from ..catalog.registry import catalog, entry_id
+    from ..errors import CatalogError
+
+    found: dict[tuple[str, str], None] = {}
+
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k in CATALOG_KEYS and isinstance(v, str) and v:
+                    found[(CATALOG_KEYS[k], entry_id(v))] = None
+                else:
+                    walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+
+    walk(pipeline)
+    if recipe and recipe.get("ref"):
+        found[("recipe", entry_id(recipe["ref"]))] = None
+    c, out = catalog(), []
+    for kind, eid in sorted(found):
+        try:
+            if kind == "preset":
+                r = c.resolve(eid)
+                content, sha = r.content, r.sha256
+            elif kind == "recipe":
+                r = c.resolve_recipe(eid)
+                content, sha = r.content, r.sha256
+            elif kind == "policy":
+                content = c.policy_functional(c.policies[eid][1])
+                sha = canonical(content)
+            else:
+                for e in eid.split(">"):                       # a resolved chain names every entry of it
+                    content = c.conventions_functional(c.conventions_doc(e))
+                    out.append({"kind": kind, "id": e, "sha256": canonical(content), "settings": content})
+                continue
+        except (CatalogError, KeyError):
+            continue
+        out.append({"kind": kind, "id": eid, "sha256": sha, "settings": content})
+    unique = {(e["kind"], e["id"]): e for e in out}
+    return [unique[k] for k in sorted(unique)]
+
+
+def canonical(content: Any) -> str:
+    from ..catalog.registry import canonical_sha256
+
+    return canonical_sha256(content)
+
+
 def run_record(options: dict[str, Any], plan=None, *, script: str | None = None, argv: list[str] | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
                created: dt.datetime | None = None, recipe: dict[str, Any] | None = None,
                script_name: str | None = None, run_id: str | None = None) -> dict[str, Any]:
     """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the run id
-    (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (edition, hash, what the command line changed in it), the command line (``--env``
+    (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (its id, hash, what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
     builder's ``plan`` (per stage its blocks as dicts, in order, with their contracts) and its ``pipeline_sha256``,
     ``extra`` (the Jobs' image and dependencies), the software (linecaster release and commit, Python, key
@@ -423,6 +480,8 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
             rec[k] = opts.pop(k)
     rec["options"] = opts           # the rest of the parsed options
     rec["pipeline"] = pipeline_section(plan)
+    if used := catalog_entries(rec["pipeline"], recipe):
+        rec["catalog"] = used
     rec["pipeline_sha256"] = pipeline_sha256(plan)
     if extra:
         rec.update(_plain({k: v for k, v in extra.items() if v is not None}))

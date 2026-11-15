@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=../../../schemas/model-1.json
-schema: linecaster.model/1
+# yaml-language-server: $schema=../../../schemas/model.json
+schema: linecaster.model
 id: minicpm-ocr-1.0
 version: MiniCPM-OCR 1.0
 source:

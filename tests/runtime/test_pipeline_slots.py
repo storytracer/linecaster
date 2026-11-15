@@ -7,7 +7,7 @@ from linecaster.pipelines import bind as BIND
 from linecaster.pipelines import transcribe_modular as MODULAR
 from linecaster.runtime import run
 
-MODELS = ["--layout", "single-region@1", "--lines", "pp-ocrv6-medium-det@1", "--recognition", "kraken-ppocrv6-medium@1"]
+MODELS = ["--layout", "single-region", "--lines", "pp-ocrv6-medium-det", "--recognition", "kraken-ppocrv6-medium"]
 
 #: the item stage's presets (bind.v1's slots)
 PRESETS = ("--recomposition", "unicode-recomposition", "--normalization", "latin-historic", "--composition",
@@ -33,7 +33,7 @@ def test_the_modular_slots():
                                       "unicode-recomposition"])
     with pytest.raises(PipelineConfigError, match="no step 'composition'"):
         run.describe(MODULAR, ["IN", "OUT", *MODELS, "--set", "composition.sections=true"])
-    with pytest.raises(PipelineConfigError, match="pick --layout"):        # single-region@1 is a slot like any
+    with pytest.raises(PipelineConfigError, match="pick --layout"):        # single-region is a slot like any
         run.describe(MODULAR, ["IN", "OUT", *MODELS[2:]])
 
 

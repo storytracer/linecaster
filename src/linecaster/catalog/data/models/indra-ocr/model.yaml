@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=../../../schemas/model-1.json
-schema: linecaster.model/1
+# yaml-language-server: $schema=../../../schemas/model.json
+schema: linecaster.model
 id: indra-ocr
 version: Indra OCR
 source:

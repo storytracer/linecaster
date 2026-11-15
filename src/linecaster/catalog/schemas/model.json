@@ -137,7 +137,7 @@
   "additionalProperties": false,
   "properties": {
     "schema": {
-      "const": "linecaster.model/1",
+      "const": "linecaster.model",
       "title": "Schema",
       "type": "string"
     },

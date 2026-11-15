@@ -1,6 +1,6 @@
 LightOnOCR-3-0.8B in its grounding mode on whole pages, following the model card's "Prompt Modes": every block of
 the page comes back with a label and a box, so page furniture (running heads, page numbers) is labelled instead of
-written into the text. Otherwise identical to `lightonocr-3-0.8b@3` (revision, image size, sampling, repair, serve flags).
+written into the text. Otherwise identical to `lightonocr-3-0.8b` (revision, image size, sampling, repair, serve flags).
 
 - The page image, then the text part `grounding` (the card's vLLM call); the image as for transcription: RGB,
   `thumbnail((2048, 2048))`, PNG.

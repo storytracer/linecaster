@@ -42,7 +42,7 @@ return p</text></revision></page>
                     "class=\"x-cell\"&gt;{{{1}}}&lt;/div&gt;&lt;div class=\"x-cell\"&gt;&lt;span class=\"x-shout\"&gt;"
                     "{{{2}}}&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;")
 
-CONVENTIONS = {"schema": "linecaster.conventions/1", "id": "example", "edition": 1, "format": "html",
+CONVENTIONS = {"schema": "linecaster.conventions", "id": "example", "format": "html",
                "description": "the test wiki's conventions", "rules": [
                    {"id": "head-cells", "match": {"kind": "tree", "css": ".x-cell"}, "decision": "cell",
                     "why": "the running head's cells"},
@@ -86,7 +86,7 @@ def site(tmp_path_factory, no_network):
 def reading(site):
     from linecaster_mediawiki import PageReader
 
-    c = resolve("example@1", lambda ref: ConventionsDoc.model_validate(CONVENTIONS))
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(CONVENTIONS))
     return PageReader(site, c).read(PAGE, "Page:Example.djvu/12", revision="99")
 
 
@@ -100,7 +100,7 @@ def test_a_page_read_through_its_templates_and_modules(reading):
     assert reading.ends_paragraph and not reading.unexpanded
     people, rules = t.annotators
     assert (people.kind, people.settings) == ("human", {"review": "proofread"})
-    assert rules.conventions == "example@1" and rules.measurements["rules_matched"] == {"end": 1, "head-cells": 2}
+    assert rules.conventions == "example" and rules.measurements["rules_matched"] == {"end": 1, "head-cells": 2}
     assert t.source.revision == "99" and t.source.format == "mediawiki"
 
 
@@ -134,8 +134,8 @@ def test_wikidata_is_never_asked(site):
     fails: a software message, removed); the ids asked about are recorded."""
     from linecaster_mediawiki import PageReader
 
-    c = resolve("mediawiki@1", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "mediawiki", "edition": 1, "format": "html",
+    c = resolve("mediawiki", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "mediawiki", "format": "html",
          "description": "software messages", "rules": [{"id": "errors", "match": {"kind": "tree", "css": ".error"},
                                                         "decision": "remove", "params": {"reason": "error"},
                                                         "why": "the software's messages"}]}))
@@ -344,8 +344,8 @@ def test_a_call_says_what_its_html_does_not(site):
     box = HtmlBuilder(site, calls=calls).build(w.parse(marked, expand_all=True)).root.find(".//div")
     assert (box.get("data-mw-template"), box.get("data-mw-param-1"), box.get("data-mw-param-end")) == \
         ("Box", "One line", "follow")
-    c = resolve("example@2", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "example", "edition": 2, "format": "html",
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "example", "format": "html",
          "description": "the test wiki's box across pages", "rules": [
              {"id": "box-continues", "decision": "continues", "why": "the box goes on from the previous page",
               "match": {"kind": "tree", "css": "[data-mw-template=Box][data-mw-param-start=follow]"}},
@@ -377,8 +377,8 @@ def test_an_attributes_character_references_are_decoded(site):
     decodes it, and a rule that matches the title reads it decoded."""
     from linecaster_mediawiki import PageReader
 
-    c = resolve("example@3", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "example", "edition": 3, "format": "html",
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "example", "format": "html",
          "description": "the test wiki's corrections", "rules": [
              {"id": "corrections", "decision": "edit", "why": "a correction in the tooltip",
               "match": {"kind": "tree", "css": ".tip[title^='[sic]']"},
@@ -402,8 +402,8 @@ def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second
     which the document builder writes), a compound's own hyphen kept."""
     from linecaster_mediawiki import PageReader, link_pages
 
-    c = resolve("example@4", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "example", "edition": 4, "format": "html",
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "example", "format": "html",
          "description": "the test wiki's divided words", "rules": [
              {"id": "divided-words", "decision": "edit", "why": "a word divided across a page break",
               "match": {"kind": "tree", "css": "span[data-mw-template=Hws], span[data-mw-template=Hwe]"},
@@ -428,8 +428,8 @@ def test_a_word_divided_within_a_page_is_joined_too(site):
     them as it joins halves on two pages."""
     from linecaster_mediawiki import PageReader, join_divided_words
 
-    c = resolve("example@4", lambda ref: ConventionsDoc.model_validate(
-        {"schema": "linecaster.conventions/1", "id": "example", "edition": 4, "format": "html",
+    c = resolve("example", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions", "id": "example", "format": "html",
          "description": "the test wiki's divided words", "rules": [
              {"id": "divided-words", "decision": "edit", "why": "a word divided across a line",
               "match": {"kind": "tree", "css": "span[data-mw-template=Hws], span[data-mw-template=Hwe]"},

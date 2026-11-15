@@ -166,9 +166,9 @@ def test_recomposition_by_script_routes_each_decision():
 
 # -------------------------------------------------------------------------------------------- the catalog
 
-def preset(root, pid, engine, step="recomposition", edition=1, **fields):
+def preset(root, pid, engine, step="recomposition", **fields):
     write_entry(root / "presets" / step / f"{pid}.yaml", {
-        "schema": "linecaster.preset/1", "id": pid, "edition": edition, "step": step, "engine": engine,
+        "schema": "linecaster.preset", "id": pid, "step": step, "engine": engine,
         "capabilities": {"unit": "item", "produces": ["paragraphs"]}, **fields})
 
 
@@ -183,27 +183,23 @@ def test_by_script_presets(tmp_path, fake_engine):
     preset(tmp_path, "unicode-recomposition", "recomposition.unicode.v1")
     preset(tmp_path, "hebrew-recomposition", FakeHebrewRecompositionEngine.engine_id)
     preset(tmp_path, "by-script", "recomposition.by-script.v1",
-           by_script={"Hebr": "hebrew-recomposition@1", "*": "unicode-recomposition@1"})
+           by_script={"Hebr": "hebrew-recomposition", "*": "unicode-recomposition"})
     c = Catalog([tmp_path])
+    c.write_index()                                   # a catalog directory commits its index (catalog.index)
     assert c.verify() == []
     content = c.resolve("by-script").content
     assert content["by_script"] == {code: {"ref": ref, "sha256": c.resolve(ref).sha256} for code, ref in
-                                    (("*", "unicode-recomposition@1"), ("Hebr", "hebrew-recomposition@1"))}
+                                    (("*", "unicode-recomposition"), ("Hebr", "hebrew-recomposition"))}
     with registry.active(c):
         target, kwargs, r = engine_spec("by-script")
-        assert target == "linecaster.engines:ByScriptRecompositionEngine" and r.ref == "by-script@1"
+        assert target == "linecaster.engines:ByScriptRecompositionEngine" and r.ref == "by-script"
         assert kwargs["strategies"]["Hebr"] == {"engine": f"{HERE}:FakeHebrewRecompositionEngine", "options": {},
-                                                "preset": "hebrew-recomposition@1",
+                                                "preset": "hebrew-recomposition",
                                                 "preset_sha256": c.resolve("hebrew-recomposition").sha256}
         e = registry.engine_class(r.engine)(**kwargs)
         assert type(e.dispatch.at("שלו-", "ם")).__name__ == "FakeHebrewRecompositionEngine"
         with pytest.raises(CatalogError, match="pipeline's process only"):
             engine_spec("by-script", served=True)
-    with pytest.raises(CatalogError, match="release its strategies first"):
-        c.release("by-script")
-    c.release("unicode-recomposition", today=dt.date(2026, 11, 6))
-    c.release("hebrew-recomposition", today=dt.date(2026, 11, 6))
-    c.release("by-script", today=dt.date(2026, 11, 6))
     assert Catalog([tmp_path]).verify() == []
 
 
@@ -211,18 +207,18 @@ def test_by_script_presets_are_checked(tmp_path, fake_engine):
     preset(tmp_path, "unicode-recomposition", "recomposition.unicode.v1")
     preset(tmp_path, "hebrew-recomposition", FakeHebrewRecompositionEngine.engine_id)
     preset(tmp_path, "latin-hebrew", "recomposition.by-script.v1",
-           by_script={"Latn": "hebrew-recomposition@1", "*": "unicode-recomposition@1"})
+           by_script={"Latn": "hebrew-recomposition", "*": "unicode-recomposition"})
     preset(tmp_path, "unknown", "recomposition.by-script.v1",
-           by_script={"Hebr": "no-such@1", "*": "unicode-recomposition@1"})
+           by_script={"Hebr": "no-such", "*": "unicode-recomposition"})
     preset(tmp_path, "latin-historic", "normalization.latin-historic.v1", step="normalization",
            capabilities={"unit": "page", "produces": ["normalized"]})
     preset(tmp_path, "other-step", "recomposition.by-script.v1",
-           by_script={"*": "latin-historic@1"})
+           by_script={"*": "latin-historic"})
     problems = Catalog([tmp_path]).verify()
     assert any("latin-hebrew: by_script Latn" in p and "covers only ['Hebr']" in p for p in problems)
     assert any("unknown: by_script Hebr" in p and "no-such" in p for p in problems)
     assert any("other-step: by_script *" in p and "normalization preset" in p for p in problems)
-    for bad in ({"Hebr": "hebrew-recomposition@1"}, {"Hebrew": "x@1", "*": "y@1"}, {"*": "unicode-recomposition"}):
+    for bad in ({"Hebr": "hebrew-recomposition"}, {"Hebrew": "x", "*": "y"}, {"*": "unicode-recomposition@1"}):
         preset(tmp_path, "bad", "recomposition.by-script.v1", by_script=bad)
         with pytest.raises(CatalogError, match="by_script"):
             Catalog([tmp_path])

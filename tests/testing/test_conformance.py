@@ -297,8 +297,8 @@ def test_check_block_finds_an_undeclared_removal(tmp_path):
                             replaces=parts(("metadata",), None))
 
     with pytest.raises(AssertionError, match=r"removed \['image'\]; the contract removes nothing"):
-        check_block(Hides(str(tmp_path / "webp"), "working-image@1"))
-    out = check_block(ImageConverter(str(tmp_path / "webp"), "working-image@1"))
+        check_block(Hides(str(tmp_path / "webp"), "working-image"))
+    out = check_block(ImageConverter(str(tmp_path / "webp"), "working-image"))
     assert [d.media for d in out] == [[], []]
 
 
@@ -372,7 +372,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     page = page_of(tables[0])
     page.transcriptions["ocr_new"] = t
     set_page(tables[0], page)
-    item_docs = list(Composer("linked-composition@1", unit="item").run(
+    item_docs = list(Composer("linked-composition", unit="item").run(
         iter(list(binding.Binder().run(iter(sample_documents(2)))))))
     out = tmp_path / "out"
     entries = [
@@ -393,25 +393,25 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (recognition.PageRecognizer(InProcess(f"{FAKES}:FakePageEngine")), {}),
         (recognition.RegionRecognizer(Chat("lightonocr-2-1b-regions", chat_url, max_window=2)), {}),
         (conversion.ImageFetcher(), {"docs": _on_disk(tmp_path)}),
-        (conversion.ImageConverter(str(out / "webp"), "working-image@1"), {}),
-        (conversion.ImageConverter(str(out / "webp2"), "working-image@1", keep_bytes=True), {}),
-        (conversion.TranscriptionImporter("auto-import@1", transcription="ocr_original",
+        (conversion.ImageConverter(str(out / "webp"), "working-image"), {}),
+        (conversion.ImageConverter(str(out / "webp2"), "working-image", keep_bytes=True), {}),
+        (conversion.TranscriptionImporter("auto-import", transcription="ocr_original",
                                           options={"ground_truth": False}), {"docs": _alto_docs()}),
         (text.UnicodeNormalizer(), {}),
-        (text.CharacterNormalizer("latin-historic@1"), {}),
-        (text.CharacterNormalizer("latin-historic@1", unit="item"), {}),
-        (composition.Typographer("ratios@1"), {}),
-        (composition.Recomposer("unicode-recomposition@1"), {}),
-        (composition.Recomposer("unicode-recomposition@1", unit="item"), {}),
-        (composition.Composer("linked-composition@1"), {}),
-        (composition.Composer("linked-composition@1", unit="item"), {}),
+        (text.CharacterNormalizer("latin-historic"), {}),
+        (text.CharacterNormalizer("latin-historic", unit="item"), {}),
+        (composition.Typographer("ratios"), {}),
+        (composition.Recomposer("unicode-recomposition"), {}),
+        (composition.Recomposer("unicode-recomposition", unit="item"), {}),
+        (composition.Composer("linked-composition"), {}),
+        (composition.Composer("linked-composition", unit="item"), {}),
         (binding.Binder(), {}),
         (binding.Splitter(), {}),
         (validation.PageValidator(required=("ocr_new",)), {}),
-        (validation.RecipeStamper("squiddle@2", catalog().resolve_recipe("squiddle@2").sha256), {}),
+        (validation.RecipeStamper("squiddle", catalog().resolve_recipe("squiddle").sha256), {}),
         (servers.ModelServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
         (servers.ChatModelServer("lightonocr-2-1b"), {"run": False}),
-        (servers.ServiceServer("falcon-ocr@1"), {"run": False}),
+        (servers.ServiceServer("falcon-ocr"), {"run": False}),
         (writers.PageJsonlWriter(str(out / "jsonl")), {}),
         (writers.PageParquetWriter(str(out / "parquet")), {}),
         (writers.PageFileWriter(str(out / "files"), formats=("hocr", "alto", "page", "txt", "md")), {}),
@@ -421,7 +421,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
         (writers.ItemTextWriter(str(out / "texts")), {}),
         (writers.ItemDocumentWriter(str(out / "documents")), {"docs": item_docs}),
-        (composites.ModularTranscriber(fake["lines"], fake["recognition"], "single-region@1"), {}),
+        (composites.ModularTranscriber(fake["lines"], fake["recognition"], "single-region"), {}),
     ]
     labels: dict[str, tuple[object, dict]] = {}
     for block, kwargs in entries:

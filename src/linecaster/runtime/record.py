@@ -19,10 +19,10 @@ class Script(_Record):
 
 
 class Recipe(_Record):
-    ref: str = Field(description="the recipe edition, id@edition")
+    ref: str = Field(description="the recipe's id (id@edition in records from before linecaster 0.10)")
     pipeline: str = Field(description="the pipeline id it fills")
-    sha256: str = Field(description="the edition's hash")
-    released: bool
+    sha256: str = Field(description="the hash of its functional content in the release that ran it")
+    released: bool | None = Field(None, description="records from before 0.10: whether the edition was released")
     overrides: dict[str, Any] | None = Field(None, description="what the command line gave instead of the recipe")
 
 
@@ -110,6 +110,15 @@ def _run_id() -> str:
     return uuid.uuid4().hex
 
 
+class CatalogEntry(_Record):
+    """A catalog entry the run used, as this release has it (entries carry no edition since 0.10)."""
+
+    kind: Literal["preset", "recipe", "policy", "conventions"]
+    id: str
+    sha256: str = Field(description="the hash of its functional content (catalog.index)")
+    settings: dict[str, Any] = Field(description="its functional content: what the hash covers")
+
+
 class RunRecord(_Record):
     schema_: Literal["linecaster.run-record/1"] = Field("linecaster.run-record/1", alias="schema")
     run_id: str = Field(default_factory=_run_id, description="the run's id, made when the record is: 32 hex digits, "
@@ -124,6 +133,9 @@ class RunRecord(_Record):
     workers: int | None = None
     options: dict[str, Any] = Field(default_factory=dict, description="the other parsed options")
     pipeline: list[Stage] = Field(default_factory=list, description="the stages with their blocks, in order")
+    catalog: list[CatalogEntry] | None = Field(None, description="every catalog entry the pipeline names (its "
+                                               "blocks' presets, policies, conventions, the recipe), with its "
+                                               "settings and hash")
     pipeline_sha256: str = Field(description="the hash of the pipeline's functional parameters: a resume into the "
                                              "same run folder needs the same one")
     image: str | None = Field(None, description="HF Jobs: the container image")

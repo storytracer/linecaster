@@ -233,9 +233,9 @@ pipeline = [
     LineRecognizer(
         P("linecaster_paddlex:PaddleRecognitionEngine")),
     UnicodeNormalizer(),
-    Typographer("ratios@1"),
-    Recomposer("unicode-recomposition@1"),
-    Composer("linked-composition@1"),
+    Typographer("ratios"),
+    Recomposer("unicode-recomposition"),
+    Composer("linked-composition"),
     PageFileWriter("out/", formats=("md", "alto")),
 ]
 LocalPipelineExecutor(

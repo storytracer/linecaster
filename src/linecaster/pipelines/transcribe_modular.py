@@ -71,7 +71,7 @@ def options(ap):
                     help="--files: added to each file's stem, before the extension (e.g. .paddle: <page>.paddle.md)")
     ap.add_argument("--furniture", action="store_true",
                     help="--files: keep page headers and footers in md, txt and html (by default they are left out)")
-    ap.add_argument("--policy", default="page-layers@1", metavar="ID@EDITION",
+    ap.add_argument("--policy", default="page-layers", metavar="ID@EDITION",
                     help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
                          "under: which content roles are body, furniture, notes or nowhere")
     ap.add_argument("--item-texts", metavar="DIR",

@@ -52,7 +52,7 @@ def _model_url(c: Catalog, p) -> str | None:
 def preset_page(c: Catalog, pid: str) -> str:
     d, p = c.presets[pid]
     body = d.bodies["preset"][pid].strip()
-    lines = [f"# {pid}", "", f"*Preset · edition {p.edition} · {p.step} · {p.support}*", ""]
+    lines = [f"# {pid}", "", f"*Preset · {p.step} · {p.support}*", ""]
     if body:
         lines += [body, ""]
     if p.page_preset:
@@ -161,7 +161,7 @@ def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path, links: Links) -> str
 def recipe_page(c: Catalog, rid: str) -> str:
     d, rc = c.recipes[rid]
     body = d.bodies["recipe"][rid].strip()
-    lines = [f"# {rid}", "", f"*Recipe · edition {rc.edition} · pipeline [`{rc.pipeline}`](../pipelines/"
+    lines = [f"# {rid}", "", f"*Recipe · pipeline [`{rc.pipeline}`](../pipelines/"
                              f"{rc.pipeline}.md) · {rc.support}*", ""]
     if body:
         lines += [body, ""]
@@ -183,8 +183,8 @@ def conventions_page(c: Catalog, cid: str) -> str:
     """A conventions entry: what it is, its parent, its prose, and its rules (match, decision, why)."""
     d, doc = c.conventions_entries[cid]
     resolved = c.conventions(doc.ref)
-    parent = f" · extends [`{doc.extends}`]({doc.extends.split('@')[0]}.md)" if doc.extends else ""
-    lines = [f"# {cid}", "", f"*Conventions · edition {doc.edition} · format `{doc.format}`{parent}*", "",
+    parent = f" · extends [`{doc.extends}`]({doc.extends}.md)" if doc.extends else ""
+    lines = [f"# {cid}", "", f"*Conventions · format `{doc.format}`{parent}*", "",
              _md(doc.description), "", f"Resolved: `{resolved.ref}`, {len(resolved.rules)} rules.", ""]
     if doc.source:
         lines += _table(("Written against", ""), [(k, _md(v)) for k, v in doc.source.items()])
@@ -202,7 +202,7 @@ def conventions_page(c: Catalog, cid: str) -> str:
 def policy_page(c: Catalog, pid: str) -> str:
     """A rendering policy: its rules (what goes into which layer), precedence and edits per text."""
     _, doc = c.policies[pid]
-    lines = [f"# {pid}", "", f"*Rendering policy · edition {doc.edition}*", "", _md(doc.description), ""]
+    lines = [f"# {pid}", "", "*Rendering policy*", "", _md(doc.description), ""]
     lines += ["## Rules", "", *_table(("Role", "Production", "Status", "Layer"), [
         (r.role or "any", r.production or "any", r.status or "any", f"`{r.to}`") for r in doc.rules])]
     if doc.edits:
@@ -236,8 +236,9 @@ def index_page(c: Catalog, engines: dict, pipelines: dict) -> str:
             (f"[`{cid}`](conventions/{cid}.md)", f"`{doc.format}`", f"`{doc.extends}`" if doc.extends else "-")
             for cid, (_, doc) in sorted(c.conventions_entries.items())])]
     if c.policies:
-        lines += ["## 🗂️ Rendering policies", "", *_table(("Policy", "Edition"), [
-            (f"[`{pid}`](policies/{pid}.md)", str(doc.edition)) for pid, (_, doc) in sorted(c.policies.items())])]
+        lines += ["## 🗂️ Rendering policies", "", *_table(("Policy", "Description"), [
+            (f"[`{pid}`](policies/{pid}.md)", _md(doc.description.split(". ")[0])) for pid, (_, doc)
+            in sorted(c.policies.items())])]
     lines += ["## 📦 Models", "", *_table(("Model", "Upstream", "License"), [
         (f"[`{mid}`](models/{mid}.md)", m.version or "", m.license) for mid, (_, m) in sorted(c.models.items())])]
     return "\n".join(lines)

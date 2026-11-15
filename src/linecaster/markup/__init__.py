@@ -1,4 +1,4 @@
-"""Conventions: what one source's markup means, as declarative catalog entries (``linecaster.conventions/1``), and
+"""Conventions: what one source's markup means, as declarative catalog entries (``linecaster.conventions``), and
 the machinery every importer shares to apply them.
 
 A **conventions** entry (``ConventionsDoc``) is a list of rules. A rule points at things in the source by a **match**

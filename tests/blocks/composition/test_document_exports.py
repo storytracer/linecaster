@@ -27,7 +27,7 @@ from conftest import line, page_doc, page_t, page_to_compose, page_with, recompo
 
 
 def _composed_doc(**options):
-    return list(Composer("linked-composition@1", options=options).run(Typographer("ratios@1").run(iter([page_doc()]))))
+    return list(Composer("linked-composition", options=options).run(Typographer("ratios").run(iter([page_doc()]))))
 
 
 def test_html_follows_the_furniture_layer():
@@ -109,14 +109,14 @@ def test_single_region_layout_takes_every_line():
     a = t.add_annotator(Annotator(step="lines", name="test"))
     t.add_line(a, "d0", [10, 10, 190, 20], [[10, 10], [200, 10], [200, 30], [10, 30]])
     t.add_line(a, "d1", [10, 50, 190, 20], [[10, 50], [200, 50], [200, 70], [10, 70]])
-    out = list(LineAssigner().run(LayoutDetector("single-region@1").run(iter([page_doc(t=t, item=None)]))))
+    out = list(LineAssigner().run(LayoutDetector("single-region").run(iter([page_doc(t=t, item=None)]))))
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(r.id, t.label(r.id), r.box, t.region_ranks().get(r.id)) for r in t.regions] == [
         ("page", "text", [0, 0, 1000, 1000], 0)]
     assert [(ln.id, t.region_of(ln), t.rows()[ln.id]) for ln in t.ordered_lines()] == [("d0", "page", 0),
                                                                                        ("d1", "page", 1)]
     step, assigned = t.annotators[-2:]
-    assert (step.step, step.engine, step.preset) == ("layout", "layout.single-region.v1", "single-region@1")
+    assert (step.step, step.engine, step.preset) == ("layout", "layout.single-region.v1", "single-region")
     assert assigned.step == "assignment" and set(assigned.measurements) == {"seconds", "datetime"}
     assert step.settings == {"label": "text", "region_id": "page"}
 
@@ -128,16 +128,16 @@ def test_single_region_layout_runs_in_process_only():
     from linecaster.runtime import run
 
     with pytest.raises(CatalogError, match="in the pipeline's process only"):
-        engine_spec("single-region@1", served=True)              # linecaster serve refuses it
+        engine_spec("single-region", served=True)              # linecaster serve refuses it
     with pytest.raises(PipelineConfigError, match="is a layout preset"):
         from linecaster.blocks.lines import LineDetector
 
-        LineDetector("single-region@1")
+        LineDetector("single-region")
     # a served run keeps it in the pipeline's process, and starts no model server for it alone
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["images", "out", "--backend", "served"]))
     backends, servers = run.engines(a, [{"name": "layout", "preset": "single-region"}], "x.py")
-    assert isinstance(backends["layout"], InProcess) and backends["layout"].preset == "single-region@1"
+    assert isinstance(backends["layout"], InProcess) and backends["layout"].preset == "single-region"
     assert servers == []
 
 
@@ -165,7 +165,7 @@ def test_item_exports_every_format(tmp_path: Path):
         t = page_t(n, [f"Page {n} text."], heading="Chapter" if n == 1 else None)
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
-    items = list(Composer("linked-composition@1", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
+    items = list(Composer("linked-composition", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
     list(ItemDocumentWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
@@ -334,7 +334,7 @@ def test_regions_continue_by_their_links():
 
 
 def test_the_composer_adds_nothing_to_the_transcription():
-    before = page_of(Typographer("ratios@1").run(iter([page_doc()])).__next__()).transcriptions["ocr_new"]
+    before = page_of(Typographer("ratios").run(iter([page_doc()])).__next__()).transcriptions["ocr_new"]
     docs = _composed_doc()
     after = page_of(docs[0]).transcriptions["ocr_new"]
     assert after.model_dump(exclude={"annotators"}) == before.model_dump(exclude={"annotators"})

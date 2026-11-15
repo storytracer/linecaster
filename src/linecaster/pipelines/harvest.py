@@ -103,7 +103,7 @@ def pipeline(a, script: str) -> list:
         run.reader(a, manifest_folder=f"{out}/manifests" if a.manifests else None, task_per_item=True,
                    reuse_folder=f"{out}/images" if a.reuse else None, reuse_index=index),
         # the library's OCR file (a document media) read into ocr_original
-        *([TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})] if ocr else []),
+        *([TranscriptionImporter("auto-import", transcription="ocr_original", options={"ground_truth": False})] if ocr else []),
         ImageFilesWriter(f"{out}/images", ocr_folder=f"{out}/ocr" if ocr else None),
         run.pages(a),
     ]

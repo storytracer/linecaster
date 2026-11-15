@@ -8,9 +8,9 @@ from linecaster.markup.decisions import Block, Remove, make
 from linecaster.markup.resolve import ConventionsError
 
 
-def doc(id, edition=1, rules=(), extends=None, disable=None, fmt="html"):
+def doc(id, rules=(), extends=None, disable=None, fmt="html"):
     return ConventionsDoc.model_validate({
-        "schema": "linecaster.conventions/1", "id": id, "edition": edition, "format": fmt, "extends": extends,
+        "schema": "linecaster.conventions", "id": id, "format": fmt, "extends": extends,
         "description": f"{id} conventions", "rules": list(rules), "disable": disable or {}})
 
 
@@ -29,38 +29,38 @@ def entries(*docs):
 
 
 def test_a_child_replaces_adds_disables_and_places_rules():
-    child = doc("site", 2, extends="base@1", disable={"notes": "the site has no notes"},
+    child = doc("site", extends="base", disable={"notes": "the site has no notes"},
                 rules=[rule("edit-links", ".edit, .editsection"),
                        rule("hidden", ".hide", "invisible", {}, before="edit-links"),
                        rule("captions", ".cap", "caption", {})])
-    r = resolve("site@2", entries(BASE, child))
-    assert r.chain == ("base@1", "site@2") and r.ref == "base@1>site@2"
+    r = resolve("site", entries(BASE, child))
+    assert r.chain == ("base", "site") and r.ref == "base>site"
     assert [x.id for x in r.rules] == ["hidden", "edit-links", "heads", "captions"]
     assert r.rule("edit-links").match.css == ".edit, .editsection"
     assert isinstance(r.decisions[2], Block) and r.decisions[2].heading_level == 1
-    assert len(r.sha256) == 64 and r.sha256 != resolve("base@1", entries(BASE)).sha256
+    assert len(r.sha256) == 64 and r.sha256 != resolve("base", entries(BASE)).sha256
 
 
 def test_documentation_does_not_change_the_hash():
     other = doc("base", rules=[{**rule("edit-links", ".edit"), "why": "said differently", "decided": "2026-11-14"},
                                rule("notes", ".note", "note", {}),
                                rule("heads", "h2", "block", {"role": "heading", "heading_level": 1})])
-    assert resolve("base@1", entries(BASE)).sha256 == resolve("base@1", entries(other)).sha256
+    assert resolve("base", entries(BASE)).sha256 == resolve("base", entries(other)).sha256
 
 
 def test_resolution_refuses_what_it_cannot_resolve():
     with pytest.raises(ConventionsError, match="disables"):
-        resolve("x@1", entries(BASE, doc("x", extends="base@1", disable={"nope": "?"})))
+        resolve("x", entries(BASE, doc("x", extends="base", disable={"nope": "?"})))
     with pytest.raises(ConventionsError, match="extends"):
-        resolve("x@1", entries(BASE, doc("x", extends="base@1", fmt="xml")))
+        resolve("x", entries(BASE, doc("x", extends="base", fmt="xml")))
     with pytest.raises(ConventionsError, match="unknown decision"):
-        resolve("x@1", entries(doc("x", rules=[rule("a", ".a", "teleport", {})])))
+        resolve("x", entries(doc("x", rules=[rule("a", ".a", "teleport", {})])))
     with pytest.raises(ConventionsError, match="reason"):
-        resolve("x@1", entries(doc("x", rules=[rule("a", ".a", params={"reason": "boredom"})])))
+        resolve("x", entries(doc("x", rules=[rule("a", ".a", params={"reason": "boredom"})])))
     with pytest.raises(ValidationError):
         doc("x", disable={"a": "no parent"})
     with pytest.raises(ValidationError):
-        doc("x", extends="base")                              # not pinned
+        doc("x", extends="base@1")                            # an edition: entries carry none
     with pytest.raises(ValidationError):
         doc("x", rules=[rule("a", ".a"), rule("a", ".b")])
 
@@ -76,7 +76,7 @@ def test_tree_matches_conditions_and_coverage():
     page = html.fromstring('<div><p class="text">a <span class="edit">[edit]</span>'
                            '<span class="hide" style="visibility:hidden">x</span></p>'
                            '<div class="box"><span class="edit">[edit]</span></div><span class="other">y</span></div>')
-    c = Conventions(resolve("x@1", entries(doc("x", rules=[
+    c = Conventions(resolve("x", entries(doc("x", rules=[
         rule("edit-outside-boxes", ".edit", "remove", {"reason": "generated"}, **{}),
         rule("hidden", "span", "invisible", {}),
     ]))), TreeMatcher())
@@ -93,7 +93,7 @@ def test_tree_matches_conditions_and_coverage():
 
 
 def test_a_matcher_reads_only_its_match_kind():
-    tree_rules = resolve("x@1", entries(doc("x", rules=[rule("a", ".a")])))
+    tree_rules = resolve("x", entries(doc("x", rules=[rule("a", ".a")])))
     with pytest.raises(ValueError, match="match kinds"):
         Conventions(tree_rules, TextMatcher())
 

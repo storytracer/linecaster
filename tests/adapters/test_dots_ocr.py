@@ -26,7 +26,7 @@ def sent(body: dict) -> tuple[str, bytes]:
 
 def test_registry_and_revision():
     spec = chat_model("rednote-hilab/dots.ocr")
-    assert spec.adapter == "dots" and spec.preset == "dots-ocr@1" and spec.revision == REVISION
+    assert spec.adapter == "dots" and spec.preset == "dots-ocr" and spec.revision == REVISION
 
 
 def test_request_matches_the_reference():

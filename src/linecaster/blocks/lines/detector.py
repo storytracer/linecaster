@@ -12,8 +12,8 @@ class LineDetector(ModelBlock):
     layout regions afterwards by a ``LineAssigner``.
 
     Example:
-        LineDetector("pp-ocrv6-medium-det@1")
+        LineDetector("pp-ocrv6-medium-det")
     """
 
     step = "lines"
-    docs_args = {"backend": "pp-ocrv6-medium-det@1"}
+    docs_args = {"backend": "pp-ocrv6-medium-det"}

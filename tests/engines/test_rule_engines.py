@@ -84,9 +84,9 @@ def test_the_presets_are_the_engines_defaults(step, preset):
     """Each rule-based preset names every option of its engine, with the engine's defaults: today's behavior."""
     from linecaster.catalog.registry import catalog
 
-    r = catalog().resolve(f"{preset}@1")
+    r = catalog().resolve(preset)
     cls = engine_class(r.engine)
-    assert r.content["step"] == step == cls.step and r.released
+    assert r.content["step"] == step == cls.step
     assert cls.Options(**r.content.get("options", {})) == cls.Options()
     assert set(r.content.get("options", {})) == set(cls.Options.model_fields)
 

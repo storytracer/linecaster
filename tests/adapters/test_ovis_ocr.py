@@ -50,8 +50,8 @@ def reference_encode_jpeg(data: bytes) -> bytes:
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_registry_and_revisions(model):
     spec = chat_model(model)
-    assert spec.adapter == "ovis-ocr" and spec.preset == {"ATH-MaaS/OvisOCR2": "ovisocr2@1",
-                                                            "ATH-MaaS/OvisOCR3": "ovisocr3@1"}[model]
+    assert spec.adapter == "ovis-ocr" and spec.preset == {"ATH-MaaS/OvisOCR2": "ovisocr2",
+                                                            "ATH-MaaS/OvisOCR3": "ovisocr3"}[model]
     assert spec.revision == REVISIONS[model]
 
 

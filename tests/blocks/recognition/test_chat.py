@@ -126,7 +126,7 @@ def test_page_recognition_takes_a_page_engine_but_no_other_unit():
     with pytest.raises(PipelineConfigError, match="needs a Chat, InProcess or Served backend"):
         PageRecognizer(object())
     with pytest.raises(PipelineConfigError, match="reads line units, not whole pages"):
-        PageRecognizer("kraken-ppocrv6-medium@1")
+        PageRecognizer("kraken-ppocrv6-medium")
 
 
 # ---------------------------------------------------- end to end, fake server
@@ -194,7 +194,7 @@ def test_chat_region_step_end_to_end(chat):
         ln.reading.text for ln in t.lines]                               # one raw output per request
     m = t.annotators[-1]
     assert (m.preset, m.measurements["regions"], m.measurements["prompt_tokens"]) == (
-        "lightonocr-2-1b-regions@1", 2, 20)
+        "lightonocr-2-1b-regions", 2, 20)
     assert all(ln.annotator == ln.reading.annotator == len(t.annotators) - 1 for ln in t.lines)
     assert page_of(out["none"]).transcriptions["ocr_new"].lines == []     # passed through unchanged
 
@@ -249,10 +249,10 @@ def test_region_recognizer_pad_explicit_wins_over_the_adapter():
     from linecaster.blocks.recognition.chat import DEFAULT_PAD, RegionRecognizer
 
     assert chat_model("minicpm-ocr-1.0").region_pad == 0
-    assert RegionRecognizer("minicpm-ocr-1.0@1").pad == 0                 # the adapter's region_pad is the default
-    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=4).pad == 4          # an explicit pad wins
-    assert RegionRecognizer("minicpm-ocr-1.0@1", pad=0).pad == 0
-    backend = Chat("minicpm-ocr-1.0@1")
+    assert RegionRecognizer("minicpm-ocr-1.0").pad == 0                 # the adapter's region_pad is the default
+    assert RegionRecognizer("minicpm-ocr-1.0", pad=4).pad == 4          # an explicit pad wins
+    assert RegionRecognizer("minicpm-ocr-1.0", pad=0).pad == 0
+    backend = Chat("minicpm-ocr-1.0")
     backend.adapter.region_pad = None
     assert RegionRecognizer(backend).pad == DEFAULT_PAD == 8              # neither says
 
@@ -264,12 +264,12 @@ def test_region_recognizer_declares_the_lines_it_replaces():
     from linecaster.blocks.recognition.chat import RegionRecognizer
     from linecaster.runtime.builder import build
 
-    c = RegionRecognizer("minicpm-ocr-1.0@1").contract()
+    c = RegionRecognizer("minicpm-ocr-1.0").contract()
     assert {str(p) for p in c.replaces} == {"ocr_new:lines", "ocr_new:text"}
     assert {"ocr_new:lines", "ocr_new:text"} <= {str(p) for p in c.adds}
     # after a line step, the earlier lines are replaced: not a part added twice
-    plan = build([ImageFolderReader("x"), LayoutDetector("single-region@1"), LineDetector(InProcess("x:Y")),
-                  RegionRecognizer("minicpm-ocr-1.0@1")])
+    plan = build([ImageFolderReader("x"), LayoutDetector("single-region"), LineDetector(InProcess("x:Y")),
+                  RegionRecognizer("minicpm-ocr-1.0")])
     assert plan.problems == []
 
 

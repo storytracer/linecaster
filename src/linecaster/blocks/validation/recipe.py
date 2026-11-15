@@ -24,7 +24,7 @@ class RecipeStamper(PageBlock):
 
     name = "recipe stamper"
     unit = "any"
-    docs_args = {"recipe": "squiddle@2", "recipe_sha256": "sha256:" + "0" * 64}
+    docs_args = {"recipe": "squiddle", "recipe_sha256": "sha256:" + "0" * 64}
 
     def __init__(self, recipe: str, recipe_sha256: str):
         super().__init__()

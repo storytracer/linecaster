@@ -16,12 +16,12 @@ class LineRecognizer(ModelBlock):
     Example:
         from linecaster.backends import InProcess
 
-        LineRecognizer("kraken-ppocrv6-medium@1")
+        LineRecognizer("kraken-ppocrv6-medium")
         LineRecognizer(InProcess("linecaster_kraken:KrakenRecognitionEngine"))
     """
 
     step = "recognition"
-    docs_args = {"backend": "kraken-ppocrv6-medium@1"}
+    docs_args = {"backend": "kraken-ppocrv6-medium"}
 
 
 class TableRecognizer(ModelBlock):
@@ -31,12 +31,12 @@ class TableRecognizer(ModelBlock):
     each ``table`` region, or what its preset produces). A page without a ``table`` region gets no image: the engine has nothing to read.
 
     Example:
-        TableRecognizer("slanet-plus@2")
+        TableRecognizer("slanet-plus")
     """
 
     step = "tables"
     region_label = "table"
-    docs_args = {"backend": "slanet-plus@2"}
+    docs_args = {"backend": "slanet-plus"}
 
 
 class FormulaRecognizer(ModelBlock):
@@ -48,9 +48,9 @@ class FormulaRecognizer(ModelBlock):
     for it.
 
     Example:
-        FormulaRecognizer("pp-formulanet-plus-l@1")
+        FormulaRecognizer("pp-formulanet-plus-l")
     """
 
     step = "formulas"
     region_label = "formula"
-    docs_args = {"backend": "pp-formulanet-plus-l@1"}
+    docs_args = {"backend": "pp-formulanet-plus-l"}

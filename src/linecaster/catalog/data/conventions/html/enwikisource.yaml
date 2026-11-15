@@ -1,9 +1,8 @@
-# yaml-language-server: $schema=../../../schemas/conventions-1.json
-schema: linecaster.conventions/1
+# yaml-language-server: $schema=../../../schemas/conventions.json
+schema: linecaster.conventions
 id: enwikisource
-edition: 4
 format: html
-extends: mediawiki@1
+extends: mediawiki
 description: >-
   English Wikisource's templates, as the classes and attributes their output carries: running heads, the end of a
   page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures, editors' errata,

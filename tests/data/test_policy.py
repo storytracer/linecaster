@@ -1,5 +1,5 @@
 """Content roles and rendering policies: labels as roles, region labels from roles, layers from rules, and the
-default policy as the catalog's released edition."""
+default policy as the catalog's."""
 from __future__ import annotations
 
 import pytest
@@ -9,12 +9,12 @@ from linecaster.data.policy import DEFAULT_POLICY, region_label, role_of_label
 from linecaster.text.variants import page_text
 
 
-def test_the_default_policy_is_the_catalog_s_released_edition():
+def test_the_default_policy_is_the_catalog_s():
     from linecaster.catalog.registry import catalog, rendering_policy
 
-    assert rendering_policy("page-layers@1") == DEFAULT_POLICY
+    assert rendering_policy("page-layers") == DEFAULT_POLICY
     c = catalog()
-    assert DEFAULT_POLICY.ref in c.policies["page-layers"][0].lock.policies
+    assert DEFAULT_POLICY.ref in c.policies["page-layers"][0].read_index()["policies"]
 
 
 def test_an_unknown_policy_is_refused():
@@ -22,7 +22,7 @@ def test_an_unknown_policy_is_refused():
     from linecaster.errors import CatalogError
 
     with pytest.raises(CatalogError):
-        Composer("linked-composition@1", policy="nowhere@1")
+        Composer("linked-composition", policy="nowhere")
 
 
 @pytest.mark.parametrize("label,role,production", [

@@ -19,11 +19,11 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **The one exception: declarative conventions of public sources, as catalog entries.** What a public source's
   markup or export means (a wiki's templates and classes, a TEI customization, a repository's PAGE-XML profile) may
   live in the catalog (`catalog/data/conventions/<format>/<source>.yaml`), written only in linecaster's formats
-  (`linecaster.conventions/1`) and validated against their schemas. The conditions keep linecaster generic:
+  (`linecaster.conventions`) and validated against their schemas. The conditions keep linecaster generic:
   - **declarative only**: no code names a source or branches on one; what needs computation is a decision of the
     format's generic vocabulary or of an engine package, never a source's own code;
   - **opt-in, never a default**: nothing applies a source's conventions unless a run or ground truth names the
-    edition, which its annotator records;
+    entry, which its annotator records with its hash;
   - **meaning, not a project's choices**: an entry says what the source's markup means, each rule with its `why` and
     `decided`, its Markdown sidecar what the rules cannot say; what one dataset counts as its ground truth stays in
     that derivative, as its own policy;
@@ -31,8 +31,8 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
     records, live with the evaluations or datasets that run them;
   - **names stay inside the entries**: a source is named only in its conventions entry and that entry's generated
     docs; code, other docs and tests keep `example.org`;
-  - **layered and released like every entry**: an entry extends at most one other at a pinned edition (shared
-    conventions once, each source only what differs); released editions are immutable.
+  - **layered like every entry**: an entry extends at most one other (shared conventions once, each source only
+    what differs); it is versioned by the release, like every catalog entry.
   Conventions are facts about a source that every reader of it needs once; kept in derivatives, each would decide
   them again, differently.
 - **Everything that produces text from images, and that reads, prepares and scores ground truth, lives here**;
@@ -133,9 +133,13 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   from Zenodo; the Zenodo DOIs are provenance, in each pin's `doi`. Zenodo throttles.
 - **PaddleX's official models are its `PaddlePaddle/<name>_onnx` / `_safetensors` repositories, pinned in the
   catalog; new models with `linecaster catalog pin`.** Engines load exactly the pin.
-- **Released editions never change** (`linecaster catalog verify` stays OK): a change that can change outputs is a
-  new edition; a change that keeps behavior is a catalog migration, which keeps the old hash as `previous_sha256`.
-  Run records name an edition and its hash, and must keep resolving.
+- **The release versions the catalog; nothing changes behaviour unseen.** Entries carry no edition (since 0.10, as
+  Haystack's components): an entry is its id, and what it does is the hash of its functional content, listed in the
+  committed `catalog.index` (`linecaster catalog index`; `verify` fails when it is stale). A change of behaviour
+  shows in the index's diff and is named in CHANGELOG.md under *Changed outputs*; a run record names every entry
+  it used with its settings and hash, and the linecaster version that ran it, which reproduces it. A reference
+  from before 0.10 (`id@N`) resolves to the release's entry with a warning. Model pins (revision, file hashes) are
+  data identity and stay exact.
 - **A preset's settings are its reference's** (the model card, or the reference script it follows at a pinned
   commit, named in its card) **until a measurement gives a reason to change one.** A deviation names its evidence in
   CHANGELOG.md (the measurement itself in NOTES.md), and the card says which settings differ from the reference. The

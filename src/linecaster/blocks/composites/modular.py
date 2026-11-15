@@ -25,18 +25,18 @@ class ModularTranscriber(Composite):
     Args:
         lines: a ``LineDetector``, its backend, or a lines preset's ref.
         recognition: a ``LineRecognizer``, its backend, or a recognition preset's ref.
-        layout: a ``LayoutDetector``, its backend, or a layout preset's ref; ``"single-region@1"`` reads the page as
+        layout: a ``LayoutDetector``, its backend, or a layout preset's ref; ``"single-region"`` reads the page as
             one region.
         formulas_separately: formula regions take no lines, for a formula step after it.
         transcription: the transcription every step works on (blocks given as blocks keep their own).
         name: the composite's name in the graph and the plan.
 
     Example:
-        ModularTranscriber("pp-ocrv6-medium-det@1", "kraken-ppocrv6-medium@1", layout="pp-doclayoutv3@1")
+        ModularTranscriber("pp-ocrv6-medium-det", "kraken-ppocrv6-medium", layout="pp-doclayoutv3")
     """
 
-    docs_args = {"lines": "pp-ocrv6-medium-det@1", "recognition": "kraken-ppocrv6-medium@1",
-                 "layout": "pp-doclayoutv3@1"}
+    docs_args = {"lines": "pp-ocrv6-medium-det", "recognition": "kraken-ppocrv6-medium",
+                 "layout": "pp-doclayoutv3"}
 
     def __init__(self, lines, recognition, layout, formulas_separately: bool = False,
                  transcription: str = "ocr_new", name: str = "modular transcriber"):

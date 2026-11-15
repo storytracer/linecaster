@@ -138,11 +138,11 @@ def test_blocks_run_and_write_files(tmp_path):
     set_page(doc, page, "ocr_new")
     out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                               bucket_by_item=False).run(
-        Composer("linked-composition@1").run(Typographer("ratios@1").run(iter([doc])))))
+        Composer("linked-composition").run(Typographer("ratios").run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert out[0].metadata["document"]["name"] == "p1" and t.annotators[-1].step == "typography"   # composing adds none
     a = t.annotators[-1]
-    assert (a.kind, a.engine, a.preset) == ("rule", "typography.ratios.v1", "ratios@1")
+    assert (a.kind, a.engine, a.preset) == ("rule", "typography.ratios.v1", "ratios")
     assert a.measurements["leveled"] == 2 and {"seconds", "datetime"} <= set(a.measurements)
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()

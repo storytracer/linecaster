@@ -407,7 +407,7 @@ annotations go into which **layer** of a rendering: `body`, `furniture` (running
 | `precedence` | whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (`role: [typography, layout]`), for reading orders (`order: [layout, ordering]`) and ranges |
 | `edits` | which edits a text variant applies, by variant (`readable_txt: [nfc, joined, normalized]`) |
 
-The default policy, `page-layers@1`, gives every role its default layer, `status` `suppressed`, `duplicate` and
+The default policy, `page-layers`, gives every role its default layer, `status` `suppressed`, `duplicate` and
 `removed` → `none`, descriptions → `metadata`; without `precedence` the latest annotator's classifications count
 (typography's over the layout's). Its `verbatim_txt` applies `nfc` and `joined` (a drop capital joined to its line),
 the readable variants also `normalized`. A run names its

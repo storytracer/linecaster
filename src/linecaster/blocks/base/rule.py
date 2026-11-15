@@ -1,7 +1,7 @@
 """``RuleBlock``: the base of the blocks of the rule-based steps (image, normalization, typography, recomposition,
 composition), each on a built-in engine (``linecaster.engines``) that runs in the pipeline's process.
 
-A rule block takes its engine like a model block: a catalog preset (``"ratios@1"``, ``id@edition``; ``id`` alone
+A rule block takes its engine like a model block: a catalog preset (``"ratios"``, ``id@edition``; ``id`` alone
 is its latest edition) or an engine spec, ``InProcess("module:Class", **options)``; ``options`` go over either (they
 are recorded as the backend's ``overrides``, as ``--set`` records them for model steps). There is no backend
 choice: rules are cheaper than a request, so a ``Served`` backend is refused. Each call of the engine adds one

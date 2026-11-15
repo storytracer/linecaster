@@ -8,7 +8,7 @@ model's raw answer is in each page's transcription.
     uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
     uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
-    ... --set "recognition.repair_max_tokens=[8192, 12288]"   # repair passes (below); =0: off (on in lightonocr-3-0.8b@3)
+    ... --set "recognition.repair_max_tokens=[8192, 12288]"   # repair passes (below); =0: off (on in lightonocr-3-0.8b)
     ... --set recognition.max_tokens=6000 --set recognition.temperature=0   # the sampling over the preset's
     ... --no-repetition-detection                             # loops run to max_tokens again (below)
     ... --set recognition.repetition_detection.min_count=12   # one of its settings over the defaults
@@ -45,7 +45,7 @@ only): a page whose completion stopped at ``max_tokens`` is sent again right awa
 sent again with the next. The page keeps the first completion that finished (``stop``), its first one otherwise, and
 its transcription records every pass as a raw output (``outputs``: its ``pass``, and ``kept`` for the one kept). The procedure is the reference
 script's (uv-scripts/ocr ``lighton-ocr3-saturate.py`` at e2b0aa5), which suggests 8192 for LightOnOCR-3;
-``lightonocr-3-0.8b@3`` repairs at 8192 and then 12288 (twice and three times its 4096), since dense tables needed
+``lightonocr-3-0.8b`` repairs at 8192 and then 12288 (twice and three times its 4096), since dense tables needed
 up to about 9,000 tokens. A page that
 stops at ``max_tokens`` is often a repetition loop, which a repair does not end, but a dense table can simply need
 more tokens and then finishes; the repair adds the second requests' tokens to the run (NOTES.md has the trials). A

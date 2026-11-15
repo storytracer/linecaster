@@ -208,10 +208,10 @@ class PageRecognizer(ModelBlock):
     Example:
         from linecaster.backends import Chat
 
-        PageRecognizer("lightonocr-2-1b@1")
-        PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
-        PageRecognizer(Chat("lightonocr-3-0.8b@2", overrides={"repair_max_tokens": [8192, 12288]}))   # repair passes
-        PageRecognizer("indra-ocr@1")             # a page engine, in the pipeline's process
+        PageRecognizer("lightonocr-2-1b")
+        PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+        PageRecognizer(Chat("lightonocr-3-0.8b", overrides={"repair_max_tokens": [8192, 12288]}))   # repair passes
+        PageRecognizer("indra-ocr")             # a page engine, in the pipeline's process
     """
 
     step = "recognition"
@@ -220,7 +220,7 @@ class PageRecognizer(ModelBlock):
     regions_read: tuple[str, ...] = ()
     lines_added: tuple[str, ...] = ()
     parts_made_anew: tuple[str, ...] = ()
-    docs_args = {"backend": "lightonocr-2-1b@1"}
+    docs_args = {"backend": "lightonocr-2-1b"}
     #: added later; a pipeline that leaves it at this default keeps its ``pipeline_sha256``
     unhashed_defaults = {"repair_only": False}
 
@@ -594,14 +594,14 @@ class RegionRecognizer(PageRecognizer):
         prepare_workers: threads that build the requests (crops, PNG encoding) ahead of admission.
 
     Example:
-        RegionRecognizer("minicpm-ocr-1.0@1")
+        RegionRecognizer("minicpm-ocr-1.0")
     """
 
     route = "/chat/completions"
     regions_read = ("regions",)
     lines_added = ("lines",)          # one line per region read
     parts_made_anew = ("lines", "text")   # the earlier lines (and their text) are replaced
-    docs_args = {"backend": "minicpm-ocr-1.0@1"}
+    docs_args = {"backend": "minicpm-ocr-1.0"}
 
     results_windows = 8               # a page's regions finish one by one
 

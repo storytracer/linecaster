@@ -293,16 +293,12 @@ def _catalog(a) -> None:
         from .catalog import yamlio
 
         c = registry.Catalog()
-        r = c.by_sha256(a.ref) if a.ref.startswith("sha256:") else None
-        kind = "recipe" if (r.id if r else a.ref.split("@", 1)[0]) in c.recipes else "preset"
-        if r is None:
-            r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
-        previous = {"previous_sha256": list(r.previous_sha256)} if r.previous_sha256 else {}
-        print(yamlio.dump({kind: r.ref, "sha256": r.sha256, **previous, "released": r.released, **r.content}))
-    elif a.action == "release":
-        e = registry.Catalog().release(a.ref, commit=a.commit, migrate_pipeline=a.migrate_pipeline)
-        print(f"{a.ref}: {e.sha256} (released {e.released})"
-              + (f", pipeline {e.pipeline_sha256}" if e.pipeline_sha256 else ""))
+        kind = "recipe" if registry.entry_id(a.ref) in c.recipes else "preset"
+        r = c.resolve_recipe(a.ref) if kind == "recipe" else c.resolve(a.ref)
+        print(yamlio.dump({kind: r.ref, "sha256": r.sha256, **r.content}))
+    elif a.action == "index":
+        for path in registry.Catalog().write_index():
+            print(path)
     elif a.action == "schemas":
         from .catalog import schema
 
@@ -374,19 +370,14 @@ def main(argv: list[str] | None = None) -> None:
                         "LINECASTER_TRACES, which a pipeline task sets for the server it starts)")
     m = sub.add_parser("models", help="the catalog's presets")
     m.add_argument("--step", default=None)
-    c = sub.add_parser("catalog", help="pin models, release and verify presets and recipes (docs/reference/catalog.md)")
-    c.add_argument("action", choices=["verify", "show", "release", "pin", "schemas"])
-    c.add_argument("ref", nargs="?", help="preset, recipe or rendering policy id[@edition] (show: a preset or recipe; release; show also takes an "
-                                          "edition's sha256, today's or from before a migration) or model id (pin)")
+    c = sub.add_parser("catalog", help="pin models, verify and index the catalog (docs/reference/catalog.md)")
+    c.add_argument("action", choices=["verify", "show", "index", "pin", "schemas"])
+    c.add_argument("ref", nargs="?", help="show: a preset or recipe id; pin: a model id")
     c.add_argument("--hf", help="pin: Hugging Face repo")
     c.add_argument("--github", help="pin: GitHub owner/name")
     c.add_argument("--revision", help="pin: commit, tag or branch (Hugging Face) / full commit (GitHub)")
     c.add_argument("--tag", help="pin (GitHub): the tag or branch the commit was taken from")
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
-    c.add_argument("--commit", help="release: the linecaster commit")
-    c.add_argument("--migrate-pipeline", action="store_true",
-                   help="release: record a released recipe edition's expanded pipeline anew (a catalog migration: the "
-                        "pipeline's code changed, its behavior did not)")
     c.add_argument("--out", help="schemas: output folder (default: the package's schemas/)")
     d = sub.add_parser("docs", help="write the generated docs (not in git; before building the site): the catalog's "
                                     "and the blocks' pages, the site's index and changelog, and llms.txt")

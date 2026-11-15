@@ -1106,21 +1106,19 @@ def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
 
 def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id: str, slots: dict[str, str],
                  argv: list[str] | None = None, c=None) -> None:
-    """Fill ``a`` from the recipe ``a.recipe`` (id[@edition] in the catalog ``c``): each slot's preset edition
-    and each option, unless the command line gives its own; what it gives instead is recorded as an override
-    (``a.recipe_record``: the recipe edition, its hash and the overrides, for the run record)."""
+    """Fill ``a`` from the recipe ``a.recipe`` (its id in the catalog ``c``): each slot's preset and each option,
+    unless the command line gives its own; what it gives instead is recorded as an override (``a.recipe_record``:
+    the recipe, its hash and the overrides, for the run record)."""
     if not getattr(a, "recipe", None):
         return
-    from ..catalog.registry import catalog, split_ref
+    from ..catalog.registry import catalog, entry_id
 
     argv = sys.argv[1:] if argv is None else argv
     c = catalog() if c is None else c
-    ref = a.recipe
-    rid, edition = split_ref(ref)
-    d, doc = c.recipes[rid] if rid in c.recipes else (None, None)
-    if doc is None:
+    ref = entry_id(a.recipe)
+    if ref not in c.recipes:
         raise CatalogError(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
-    pipeline = doc.pipeline if edition in (None, doc.edition) else d.lock.recipes[ref].resolved["pipeline"]
+    pipeline = c.recipes[ref][1].pipeline
     if pipeline != pipeline_id:                  # before resolving: its presets may need other engines
         raise PipelineConfigError(f"recipe {ref} is for the pipeline {pipeline}, not {pipeline_id}")
     r = c.resolve_recipe(ref)
@@ -1139,7 +1137,7 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
             setattr(a, name, value)
         elif getattr(a, name) != value:
             overrides[name] = getattr(a, name)
-    a.recipe_record = {"ref": r.ref, "pipeline": pipeline_id, "sha256": r.sha256, "released": r.released,
+    a.recipe_record = {"ref": r.ref, "pipeline": pipeline_id, "sha256": r.sha256,
                        **({"overrides": overrides} if overrides else {})}
 
 
@@ -1208,8 +1206,7 @@ def describe_recipe(ref: str, c=None) -> dict:
 def recipe(script: str, recipe_id: str) -> None:
     """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline shape
     (the recipe's ``pipeline:``, ``linecaster.pipelines``) with ``main``, ``--recipe`` set to it. The command line is
-    the shape's; an edition of the same recipe (``--recipe squiddle@2``) and slots on top (recorded as overrides) may be
-    given, another recipe may not. The script itself holds only its environment (the engine packages its presets
+    the shape's; slots on top (recorded as overrides) may be given, another recipe may not. The script itself holds only its environment (the engine packages its presets
     need) and this call.
 
     Example:
@@ -1218,7 +1215,7 @@ def recipe(script: str, recipe_id: str) -> None:
         if __name__ == "__main__":
             run.recipe(__file__, "squiddle")
     """
-    from ..catalog.registry import catalog, split_ref
+    from ..catalog.registry import catalog, entry_id
     from ..pipelines import shape as pipeline_shape
 
     c = catalog()
@@ -1234,9 +1231,8 @@ def recipe(script: str, recipe_id: str) -> None:
         ap.set_defaults(script_name=f"recipes/{recipe_id}.py")   # the record's name for a copy run from the URL
 
     def build(a, path: str):
-        if split_ref(a.recipe)[0] != recipe_id:
-            raise PipelineConfigError(f"{Path(script).name} runs the recipe {recipe_id} (an edition of it with "
-                                      f"--recipe {recipe_id}@N), not {a.recipe}")
+        if entry_id(a.recipe) != recipe_id:
+            raise PipelineConfigError(f"{Path(script).name} runs the recipe {recipe_id}, not {a.recipe}")
         return shape.pipeline(a, path)
 
     description = (f"The recipe {recipe_id} (the catalog's recipe, through the pipeline {shape.PIPELINE}).\n\n"

@@ -16,12 +16,12 @@ class Typographer(RuleBlock):
     ``numbers_dropped``. Its constructor is ``RuleBlock``'s (``preset``, ``transcription``, ``options``).
 
     Example:
-        Typographer("ratios@1")
+        Typographer("ratios")
     """
 
     name = "typographer"
     step = "typography"
-    docs_args = {"preset": "ratios@1"}
+    docs_args = {"preset": "ratios"}
     parts_read = ("regions", "lines")
     parts_added = ("hierarchy",)
     parts_replaced = ("regions", "lines")      # roles, heading levels, headline splits, removals, reading order

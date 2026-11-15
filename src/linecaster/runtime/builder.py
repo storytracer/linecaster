@@ -409,7 +409,7 @@ def _converters(entries: list[_Entry]) -> None:
     file = Part("transcription_file")
     for i, e in enumerate(entries):
         if file in e.contract.adds and not any(file in later.contract.reads for later in entries[i + 1:]):
-            entries.insert(i + 1, _Entry(TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})))
+            entries.insert(i + 1, _Entry(TranscriptionImporter("auto-import", transcription="ocr_original", options={"ground_truth": False})))
             return
 
 

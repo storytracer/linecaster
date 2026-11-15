@@ -25,10 +25,10 @@ prose rule), so loading, the lock and the checks of prose are the same for all.
 |---|---|---|---|
 | engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `typography.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
-| preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium@1` | `presets/<step>/<id>.yaml` |
+| preset | an engine, a model pin and the engine's options, ready to use | slug, with an edition: `kraken-ppocrv6-medium` | `presets/<step>/<id>.yaml` |
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
-| recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle@1` | `recipes/<id>.yaml` |
-| policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug, with an edition: `page-layers@1` | `policies/<id>.yaml` |
+| recipe | a named combination: a pipeline, a preset edition per slot, options | slug, with an edition: `squiddle` | `recipes/<id>.yaml` |
+| policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug, with an edition: `page-layers` | `policies/<id>.yaml` |
 | conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug, with an edition: `example@1` | `conventions/<format>/<id>.yaml` |
 
 Besides these: the **lock** (released editions) and the **run record** (`OUT/run.yaml`, and per page each
@@ -42,7 +42,7 @@ Besides these: the **lock** (released editions) and the **run record** (`OUT/run
 | `revision` | upstream | the exact identity of the files | HF commit, version DOI, git commit, sha256 |
 | `edition` | linecaster | integer per preset, recipe or policy, raised when outputs can change | `edition: 3` |
 | `.v<n>` | linecaster | the contract of an engine's options or a pipeline's slots and options | `transcribe_modular.v1` |
-| `schema` | linecaster | the format of a YAML file | `linecaster.preset/1` |
+| `schema` | linecaster | the format of a YAML file | `linecaster.preset` |
 | release | linecaster | the package version (run records only) | `0.4.0` |
 
 - Slugs (models, presets, recipes, policies): lowercase `[a-z0-9.-]`. They may contain upstream names
@@ -68,10 +68,10 @@ exports) is JSON Lines or Parquet, not catalog data.
 
 | Format | Schema id | JSON Schema |
 |---|---|---|
-| model | `linecaster.model/1` | `schemas/model-1.json` |
-| preset | `linecaster.preset/1` | `schemas/preset-1.json` |
-| recipe | `linecaster.recipe/1` | `schemas/recipe-1.json` |
-| policy | `linecaster.policy/1` | `schemas/policy-1.json` |
+| model | `linecaster.model` | `schemas/model-1.json` |
+| preset | `linecaster.preset` | `schemas/preset-1.json` |
+| recipe | `linecaster.recipe` | `schemas/recipe-1.json` |
+| policy | `linecaster.policy` | `schemas/policy-1.json` |
 | evidence (not catalog data; its schema ships here) | `linecaster.evidence/2` (`linecaster.evidence/1` is read too) | `schemas/evidence-2.json`, `schemas/evidence-1.json` |
 | benchmark (not catalog data; its schema ships here) | `linecaster.benchmark/1` | `schemas/benchmark-1.json` |
 | lock | `linecaster.lock/2` | `schemas/lock-2.json` |
@@ -145,7 +145,7 @@ recipe a derivative runs lives in this catalog too (`squiddle`).
 | `edits` | per text variant: the edit kinds it applies |
 
 A policy entry is a `linecaster.data.policy.RenderingPolicy` with a `schema` and a `description` (`PolicyDoc`); the
-[data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers@1`, the policy a block
+[data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers`, the policy a block
 renders with unless it is given another (`DEFAULT_POLICY_REF`; in code without the catalog,
 `linecaster.data.DEFAULT_POLICY`). Blocks and pipelines name a policy by `id@edition` (`--policy`);
 `linecaster.catalog.registry.rendering_policy` resolves it, and an edition other than the file's must be released.
@@ -234,7 +234,7 @@ pipeline id, a new file format) is a **catalog migration**: every released editi
 the lock as `previous_sha256` (after a second migration a list of both, oldest first). A run record names `id@edition` and that edition's hash at the time; it resolves
 by either hash (`Catalog.resolve(ref, sha256=...)`, `resolve_recipe`, `by_sha256`, `linecaster catalog show
 sha256:<hex>`). A change that can change outputs is never a migration: it is a new edition. A recipe that comes to
-name, as presets, what its pipeline already ran (`squiddle@1` naming the rule-based presets its pipeline ran through
+name, as presets, what its pipeline already ran (`squiddle` naming the rule-based presets its pipeline ran through
 the option `text: reflow`) is a migration too: the pipeline it expands to is the same blocks with the same
 parameters, so the edition keeps its number, and `catalog release --migrate-pipeline` records the expanded pipeline
 again (the recipe stamp carries the new hash).
@@ -242,7 +242,7 @@ again (the recipe stamp carries the new hash).
 ### Conventions (`conventions/<format>/<id>.yaml`)
 
 What one public source's markup or export means (a wiki's templates and classes, a TEI customization, a
-repository's PAGE-XML profile), declaratively, in the format `linecaster.conventions/1` (`linecaster.markup`). Its
+repository's PAGE-XML profile), declaratively, in the format `linecaster.conventions` (`linecaster.markup`). Its
 Markdown sidecar is required, with the headings `## Source`, `## How the markup works`, `## Not in the rules` and
 `## Open questions`: what the rules cannot say neatly.
 
@@ -304,7 +304,7 @@ layout and the rule-based engines. It declares
 settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `max_tokens`, `temperature` and
 `top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
 [repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`;
-a list of rising caps is one repair pass each; `lightonocr-3-0.8b@3` sets `[8192, 12288]`, the other presets leave it
+a list of rising caps is one repair pass each; `lightonocr-3-0.8b` sets `[8192, 12288]`, the other presets leave it
 off), and `repetition_detection` over `settings.sampling.repetition_detection` ([repetition detection](glossary.md):
 on by default wherever the preset's server is vLLM 0.17.0 or later, `false` off, `true` the defaults,
 `repetition_detection.<field>=<value>` for one of `min_pattern_size`, `max_pattern_size`, `min_count`; refused
@@ -343,10 +343,10 @@ it out.
 
 ### The single-region layout
 
-`layout.single-region.v1` (`linecaster.engines:SingleRegionLayoutEngine`, preset `single-region@1`) is a layout
+`layout.single-region.v1` (`linecaster.engines:SingleRegionLayoutEngine`, preset `single-region`) is a layout
 engine without a model: one region covering the page image (label `text`, classified as a paragraph, id `page`; both
 options), alone in a reading order, by an annotator of kind `rule` and step `layout`. It has the model engines' call (`__call__(image, transcription)`), so
-`LayoutDetector("single-region@1")` runs it, and like the rule-based engines it is built in and runs in the
+`LayoutDetector("single-region")` runs it, and like the rule-based engines it is built in and runs in the
 pipeline's process only. `pipelines/transcribe_modular.py --layout single-region` reads a page as one region.
 
 ### Rule-based engines
@@ -372,8 +372,8 @@ Their blocks take a preset (`id@edition`) or an engine spec (`InProcess("module:
 over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
 `CharacterNormalizer(preset)` (`normalization`), `Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
-`squiddle` recipe's rules: `working-image@1`, `latin-historic@1`, `ratios@1`,
-`unicode-recomposition@1`, `linked-composition@1`. Running text or the page as laid out is the presence of a
+`squiddle` recipe's rules: `working-image`, `latin-historic`, `ratios`,
+`unicode-recomposition`, `linked-composition`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
 ### Scripts and dispatch
@@ -387,7 +387,7 @@ step: recomposition
 engine: recomposition.by-script.v1
 by_script:
   Hebr: hebrew-recomposition@1
-  "*": unicode-recomposition@1
+  "*": unicode-recomposition
 ```
 
 `engine_spec` resolves them into the engine's `strategies` (each strategy's engine, options, edition and hash).

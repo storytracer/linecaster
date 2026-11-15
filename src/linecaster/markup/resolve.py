@@ -22,7 +22,7 @@ class ConventionsError(ValueError):
 @dataclass(frozen=True)
 class ResolvedConventions:
     """An entry with its chain resolved: the rules in order, each with its decision; ``chain`` names the entries,
-    root first (``base@1>child@2``)."""
+    root first (``base>child``)."""
 
     format: str
     chain: tuple[str, ...]

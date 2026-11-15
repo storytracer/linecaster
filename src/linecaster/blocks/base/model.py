@@ -47,10 +47,10 @@ STEP_PRODUCES = {"layout": ("regions", "reading_order"), "lines": ("lines",), "r
 
 @lru_cache(maxsize=None)
 def _preset_produces(ref: str) -> tuple[str, ...] | None:
-    from ...catalog.registry import catalog, split_ref
+    from ...catalog.registry import catalog, entry_id
 
     try:
-        p = catalog().preset(split_ref(ref)[0])
+        p = catalog().preset(entry_id(ref))
     except (CatalogError, ValueError):     # unknown, or not an id@edition
         return None
     return tuple(p.capabilities.produces) or None
@@ -140,7 +140,7 @@ class ModelBlock(PageBlock):
         from linecaster.backends import InProcess, Served
         from linecaster.blocks.lines import LineDetector
 
-        LineDetector("pp-ocrv6-medium-det@1")
+        LineDetector("pp-ocrv6-medium-det")
         LineDetector(InProcess("linecaster_paddlex:PaddleLineEngine"))
         LineDetector(Served("http://127.0.0.1:8100/v1", model="lines"))
     """

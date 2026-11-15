@@ -112,7 +112,7 @@ class DerivedFrom(_Doc):
 
 
 class ModelDoc(_Doc):
-    schema_: Literal["linecaster.model/1"] = Field(alias="schema")
+    schema_: Literal["linecaster.model"] = Field(alias="schema")
     id: str
     version: str | None = Field(None, description="what upstream calls it, verbatim")
     source: Source
@@ -193,9 +193,8 @@ class Provenance(_Doc):
 
 
 class PresetDoc(_Doc):
-    schema_: Literal["linecaster.preset/1"] = Field(alias="schema")
+    schema_: Literal["linecaster.preset"] = Field(alias="schema")
     id: str
-    edition: int = Field(ge=1)
     step: Literal[STEPS]
     model: ModelRef | None = Field(None, description="None for engines without weights (rules)")
     submodels: dict[str, ModelRef] = Field(default_factory=dict,
@@ -206,8 +205,8 @@ class PresetDoc(_Doc):
     labels: dict[str, str] = Field(default_factory=dict, description="native label -> region label")
     by_script: dict[str, str] = Field(default_factory=dict,
                                       description="a by-script engine's strategies: ISO 15924 script code, or * for "
-                                                  "every other script (required) -> preset id@edition of the same "
-                                                  "step")
+                                                  "every other script (required) -> the preset (its id) of the "
+                                                  "same step")
     serve: Serve | None = None
     capabilities: Capabilities = Field(default_factory=Capabilities)
     provenance: Provenance = Field(default_factory=Provenance)
@@ -240,14 +239,14 @@ class PresetDoc(_Doc):
             raise ValueError(f"by_script keys are ISO 15924 script codes (Latn, Hebr) or '*': {bad}")
         if "*" not in v:
             raise ValueError("by_script needs a default strategy: '*'")
-        loose = [f"{k}: {r}" for k, r in v.items() if "@" not in r]
-        if loose:
-            raise ValueError(f"by_script names exact preset editions (id@edition): {loose}")
+        pinned = [f"{k}: {r}" for k, r in v.items() if "@" in r]
+        if pinned:
+            raise ValueError(f"by_script names presets by id (catalog entries carry no edition): {pinned}")
         return v
 
     @property
     def ref(self) -> str:
-        return f"{self.id}@{self.edition}"
+        return self.id
 
     @property
     def page_preset(self) -> bool:
@@ -262,7 +261,7 @@ class PolicyDoc(RenderingPolicy):
     rendering, and whose count where several annotators gave one (``linecaster.data.policy.RenderingPolicy``).
     Its functional content is everything but ``description``."""
 
-    schema_: Literal["linecaster.policy/1"] = Field(alias="schema")
+    schema_: Literal["linecaster.policy"] = Field(alias="schema")
     description: str = Field("", description="what the policy is for (not part of its functional content)")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -274,14 +273,13 @@ class PolicyDoc(RenderingPolicy):
 # ------------------------------------------------------------------------------------------------ recipes
 
 class RecipeDoc(_Doc):
-    """A named, opinionated combination: one pipeline, a preset edition for each of its slots, its options."""
+    """A named, opinionated combination: one pipeline, a preset for each of its slots, its options."""
 
-    schema_: Literal["linecaster.recipe/1"] = Field(alias="schema")
+    schema_: Literal["linecaster.recipe"] = Field(alias="schema")
     id: str
-    edition: int = Field(ge=1)
     pipeline: str = Field(description="the pipeline it fills, by its versioned id, e.g. transcribe_modular.v1 "
                                       "(pipelines/transcribe_modular.py)")
-    presets: dict[str, str] = Field(description="slot -> preset id@edition (always an explicit edition)")
+    presets: dict[str, str] = Field(description="slot -> preset id")
     options: dict[str, Any] = Field(default_factory=dict, description="the pipeline's options, by name")
     provenance: Provenance = Field(default_factory=Provenance)
     support: Literal["core", "experimental", "legacy"] = "experimental"
@@ -305,15 +303,15 @@ class RecipeDoc(_Doc):
 
     @field_validator("presets")
     @classmethod
-    def _editions(cls, v):
-        bad = [f"{k}: {r}" for k, r in v.items() if "@" not in r]
+    def _ids(cls, v):
+        bad = [f"{k}: {r}" for k, r in v.items() if "@" in r]
         if bad:
-            raise ValueError(f"a recipe names exact preset editions (id@edition): {bad}")
+            raise ValueError(f"a recipe names its presets by id (catalog entries carry no edition): {bad}")
         return v
 
     @property
     def ref(self) -> str:
-        return f"{self.id}@{self.edition}"
+        return self.id
 
 
 # ----------------------------------------------------------------------------------------------- evidence
@@ -341,9 +339,7 @@ class Evidence(_Doc):
     @field_validator("preset", "recipe")
     @classmethod
     def _ref(cls, v):
-        if v is not None and "@" not in v:
-            raise ValueError("evidence names an exact edition: id@edition")
-        return v
+        return v                  # an id; records from before 0.10 name id@edition (kept as written)
 
     @model_validator(mode="after")
     def _one(self):
@@ -445,61 +441,29 @@ def read_evidence(data: dict) -> Evidence | Evidence2:
     return (Evidence2 if data.get("schema") == "linecaster.evidence/2" else Evidence).model_validate(data)
 
 
-# ------------------------------------------------------------------------------------------------- lock
-
-class LockEntry(_Doc):
-    sha256: str
-    previous_sha256: str | list[str] | None = Field(
-        None, description="the edition's hash before a catalog migration (changes that keep behavior), or its hashes "
-                          "before several, oldest first; run records may name them")
-    released: dt.date
-    linecaster: str | None = Field(None, description="the linecaster commit it was released in")
-    resolved: dict[str, Any]
-    pipeline: list[dict[str, Any]] | None = Field(None, description="a recipe edition: its expanded pipeline, every "
-                                                                    "block with its functional parameters")
-    pipeline_sha256: str | None = Field(None, description="a recipe edition: the hash of its expanded pipeline, as "
-                                                          "run records name it")
-
-    @property
-    def previous(self) -> tuple[str, ...]:
-        """The edition's earlier hashes, oldest first."""
-        p = self.previous_sha256
-        return () if p is None else (p,) if isinstance(p, str) else tuple(p)
-
-
-class Lock(_Doc):
-    schema_: Literal["linecaster.lock/2"] = Field("linecaster.lock/2", alias="schema")
-    presets: dict[str, LockEntry] = Field(default_factory=dict)
-    recipes: dict[str, LockEntry] = Field(default_factory=dict)
-    policies: dict[str, LockEntry] = Field(default_factory=dict)
-    conventions: dict[str, LockEntry] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-
 # ---------------------------------------------------------------------------------------------- schemas
 
 #: the JSON Schemas' folder, shipped with the package
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
 #: every format, by schema id
 FORMATS: dict[str, type[BaseModel]] = {
-    "linecaster.model/1": ModelDoc,
-    "linecaster.preset/1": PresetDoc,
-    "linecaster.recipe/1": RecipeDoc,
-    "linecaster.policy/1": PolicyDoc,
-    "linecaster.conventions/1": ConventionsDoc,
+    "linecaster.model": ModelDoc,
+    "linecaster.preset": PresetDoc,
+    "linecaster.recipe": RecipeDoc,
+    "linecaster.policy": PolicyDoc,
+    "linecaster.conventions": ConventionsDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.evidence/2": Evidence2,
     "linecaster.benchmark/1": Benchmark,
-    "linecaster.lock/2": Lock,
     "linecaster.run-record/1": RunRecord,
 }
 
 
 def schema_file(schema_id: str) -> str:
-    """``linecaster.preset/1`` -> ``preset-1.json``."""
+    """``linecaster.preset`` -> ``preset.json`` (a catalog file, versioned by the release);
+    ``linecaster.evidence/2`` -> ``evidence-2.json`` (a data format, with its own version)."""
     kind, _, n = schema_id.removeprefix("linecaster.").partition("/")
-    return f"{kind}-{n}.json"
+    return f"{kind}-{n}.json" if n else f"{kind}.json"
 
 
 def json_schemas() -> dict[str, str]:

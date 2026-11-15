@@ -33,7 +33,7 @@ def _dotted(d, key: str):
 class TranscriptionImporter(PageBlock):
     """Reads each page's source document into a named transcription, by an importer.
 
-    The importer (a preset of step ``import``, e.g. ``auto-import@1``, or an engine spec ``InProcess(...)``) reads the
+    The importer (a preset of step ``import``, e.g. ``auto-import``, or an engine spec ``InProcess(...)``) reads the
     document at the page image's size (a file that states another size is scaled to it). The transcription replaces
     whatever the page had under that name; its ``source`` records the format, the document's URI or record and the
     page image (hash and size). With ``context_keys``, values of the page's metadata go to the importer as the
@@ -51,15 +51,15 @@ class TranscriptionImporter(PageBlock):
         options: importer options over the preset's (``ground_truth``, ``conventions``, an engine's own).
 
     Example:
-        TranscriptionImporter("auto-import@1", transcription="ocr_original", options={"ground_truth": False})
+        TranscriptionImporter("auto-import", transcription="ocr_original", options={"ground_truth": False})
     """
 
     name = "📄 transcription importer"
     role = "transform"
     step = "import"
-    docs_args = {"importer": "auto-import@1"}
+    docs_args = {"importer": "auto-import"}
 
-    def __init__(self, importer="auto-import@1", source: str = "media", transcription: str = "ground_truth",
+    def __init__(self, importer="auto-import", source: str = "media", transcription: str = "ground_truth",
                  uri_key: str | None = None, data_key: str | None = None, context_keys: tuple[str, ...] = (),
                  options: dict[str, Any] | None = None):
         super().__init__()

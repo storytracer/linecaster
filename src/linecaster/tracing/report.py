@@ -107,7 +107,7 @@ def _task_key(res: dict) -> str:
 def _group(s: dict, by: str) -> str:
     a = s["attrs"]
     if by == "preset":
-        p = a.get("linecaster.preset")
+        p = a.get("linecaster.preset")      # traces from before 0.10 also carry linecaster.edition
         return f"{p}@{a['linecaster.edition']}" if p and a.get("linecaster.edition") else (p or "(no preset)")
     if by == "task":
         return _task_key(s["resource"])

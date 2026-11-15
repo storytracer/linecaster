@@ -41,7 +41,7 @@ class Chat:
         from linecaster.backends import Chat
         from linecaster.blocks.recognition import PageRecognizer
 
-        PageRecognizer(Chat("lightonocr-2-1b@1", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
+        PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
     """
 
     served = True

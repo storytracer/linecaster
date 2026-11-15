@@ -181,7 +181,7 @@
       "$ref": "#/$defs/Supports"
     },
     "policy": {
-      "default": "page-layers@1",
+      "default": "page-layers",
       "description": "the rendering policy edition both sides are rendered with",
       "title": "Policy",
       "type": "string"

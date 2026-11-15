@@ -254,21 +254,16 @@
     }
   },
   "additionalProperties": false,
-  "description": "A conventions entry (``linecaster.conventions/1``).",
+  "description": "A conventions entry (``linecaster.conventions``; catalog entries carry no edition: the linecaster release\nversions them).",
   "properties": {
     "schema": {
-      "const": "linecaster.conventions/1",
+      "const": "linecaster.conventions",
       "title": "Schema",
       "type": "string"
     },
     "id": {
       "title": "Id",
       "type": "string"
-    },
-    "edition": {
-      "minimum": 1,
-      "title": "Edition",
-      "type": "integer"
     },
     "format": {
       "description": "the format whose importer applies the entry: html, xml, json, text, ...",
@@ -285,7 +280,7 @@
         }
       ],
       "default": null,
-      "description": "the parent entry, id@edition",
+      "description": "the parent entry, by id",
       "title": "Extends"
     },
     "description": {
@@ -320,7 +315,6 @@
   "required": [
     "schema",
     "id",
-    "edition",
     "format",
     "description"
   ],

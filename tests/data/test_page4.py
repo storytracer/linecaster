@@ -28,8 +28,8 @@ def test_reason_belongs_to_a_status():
 
 def test_annotator_names_its_conventions():
     a = Annotator(kind="rule", step="import", name="mediawiki", engine="import.mediawiki.v1",
-                  conventions="mediawiki@1>example@2", conventions_sha256="0" * 64)
-    assert Annotator.model_validate(a.model_dump()).conventions == "mediawiki@1>example@2"
+                  conventions="mediawiki>example@2", conventions_sha256="0" * 64)
+    assert Annotator.model_validate(a.model_dump()).conventions == "mediawiki>example@2"
 
 
 def test_page3_rows_are_read_as_they_are():
