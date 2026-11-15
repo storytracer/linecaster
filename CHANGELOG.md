@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.9.0 (2026-11-15)
 
 Ground truth from any source: importers (a new step), conventions of public sources in the catalog, an HTML importer,
 and anchors into the source text. And linecaster's own document in place of Docling's: pages and items are composed
@@ -13,6 +13,9 @@ extra. The decisions are in NOTES.md (2026-11-14).
 
 ### Upgrade notes
 
+- **Engine packages accept `linecaster>=0.8,<0.10`** (`linecaster-kraken`, `-paddlex`, `-tesseract`, `-indra`,
+  `-surya`, `-services` 0.2.1; their engines are unchanged). `linecaster-mediawiki` 0.1.0, the first release,
+  requires `linecaster>=0.9,<0.10` (the import step).
 - **Docling is no longer linecaster's document.** A page's or an item's document is `linecaster.document.Document`
   (`linecaster.document/1`: pages and blocks, each with its kind, role, layer, text, formatting spans, section and
   origins), built by `linecaster.document.DocumentBuilder` / `build_document` and written by `to_html`,
