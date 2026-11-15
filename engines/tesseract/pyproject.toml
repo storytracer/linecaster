@@ -1,6 +1,6 @@
 [project]
 name = "linecaster-tesseract"
-version = "0.3.0"
+version = "0.2.2"
 description = "Tesseract engines for linecaster: Tesseract's LSTM line recognizer through tesserocr"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"

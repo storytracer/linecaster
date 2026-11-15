@@ -1,6 +1,6 @@
 [project]
 name = "linecaster-surya"
-version = "0.3.0"
+version = "0.2.2"
 description = "Surya OCR engines for linecaster: Datalab's surya-ocr package (full-page OCR) attached to a vLLM server"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"

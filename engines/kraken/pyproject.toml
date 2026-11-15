@@ -1,6 +1,6 @@
 [project]
 name = "linecaster-kraken"
-version = "0.3.0"
+version = "0.2.2"
 description = "kraken engines for linecaster: kraken's PP-OCRv6 line recognizer on torch"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"

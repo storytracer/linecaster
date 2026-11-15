@@ -1,6 +1,6 @@
 [project]
 name = "linecaster-indra"
-version = "0.3.0"
+version = "0.2.2"
 description = "Indra OCR engines for linecaster: Datalab's CPU OCR pipeline (ONNX Runtime) on whole pages"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"

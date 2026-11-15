@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## 0.10.0 (unreleased)
+## 0.10.0 (2026-11-15)
 
 linecaster no longer changes a text unless it is asked to. Records and documents hold the text exactly as read; a
 **transcription strategy** (`literal`, or the catalog's normalizations in order) writes a text when it is written.
@@ -61,7 +61,7 @@ lock), and the data formats keep versions of their own.
   numbers). Benchmarks are `linecaster.benchmark/2` (output strategy, lanes, unit), evidence `linecaster.evidence/3`
   (lanes and output by hash); older files are upgraded when read, and evidence/2 is comparable to none written since.
 - **Engine packages** need `linecaster>=0.10,<0.11`: linecaster-kraken, -paddlex, -tesseract, -surya, -indra and
-  -services 0.3.0 (no code change), linecaster-mediawiki 0.2.0.
+  -services 0.2.2 (no code change), linecaster-mediawiki 0.2.0 (`join_divided_words` removed).
 
 ### Added
 
