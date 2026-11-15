@@ -35,6 +35,9 @@ the tags; the first is `v0.1.0`.
 
 ### Changed outputs
 
+- **unlimited-ocr-2**: the completion's layout blocks (`<BLOCK>label[box]<FORK>text`) are read into regions and text
+  by the HTML importer (`read_blocks`; running head and foot, page numbers, footnotes by their labels), where the
+  page's text was the completion's lines, markup included. Runs read again from their stored completions.
 - Presets (the resolved `serve.version` and `serve.image`): chandra-ocr-2, deepseek-ocr, deepseek-ocr-2, dots-mocr,
   dots-ocr, glm-ocr, lightonocr-2-1b, lightonocr-2-1b-regions, minicpm-ocr-1.0, nemotron-3.5-parse,
   olmocr-2-7b-1025-fp8, ovisocr2, ovisocr3, paddleocr-vl-1.6, qianfan-ocr, qwen3.5-9b, smoldocling-256m-preview,

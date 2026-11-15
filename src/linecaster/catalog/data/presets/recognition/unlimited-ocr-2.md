@@ -14,7 +14,9 @@ Unlimited-OCR-2 on Baidu's patched SGLang, following the model card. No vLLM sup
 - max_tokens 8000, temperature 0.0, `skip_special_tokens` false, `images_config {"crop_mode": true}` (gundam,
   the card's single-page default), and the card's no-repeat n-gram guard as an SGLang custom logit processor
   (`DeepseekOCRNoRepeatNGramLogitProcessor`, by its dill pickle reference) with its parameters.
-- The completion (`<BLOCK>type[x1, y1, x2, y2]<FORK>text` blocks) is stored verbatim; Baidu's own Markdown
-  converter is left to whoever reads the output. A response without content is an error.
+- The completion (`<BLOCK>type[x1, y1, x2, y2]<FORK>text` blocks) is stored verbatim and read into the
+  transcription by linecaster's HTML importer (`linecaster.adapters.unlimited_ocr.read_blocks`): the running head and
+  foot, page numbers and footnotes by their labels, titles as headings, the text literally. A response without
+  content is an error.
 - The card's flags are for an 80 GB A800 (`--mem-fraction-static 0.7`, CUDA graphs up to 16384 prefill tokens);
   they also run on a 96 GB card.

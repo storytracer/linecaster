@@ -213,3 +213,30 @@ def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, t
     good.joinpath("python3").write_text("#!/bin/sh\necho 'No module named sglang' >&2\nexit 1\n")
     with pytest.raises(ServerError, match="No module named sglang"):
         block.server_python()
+
+
+def test_unlimited_ocr2_s_layout_blocks_are_read_by_the_html_importer():
+    """Unlimited-OCR-2's blocks become regions with roles and their text (the running head and its page number as
+    furniture, a footer page number by its box, a title as a heading, an empty image as nothing); the completion stays
+    the raw output; a completion without blocks is read line by line."""
+    from linecaster.adapters import chat_model
+    from linecaster.scoring.render import text
+
+    a = chat_model("unlimited-ocr-2")
+    raw = ("<PAGE><BLOCK>header[390, 36, 616, 51]<FORK>SPIRAL TWINERS.\n"
+           "<BLOCK>page_number[906, 34, 943, 51]<FORK>11\n"
+           "<BLOCK>title[112, 138, 865, 172]<FORK>MOVEMENTS & HABITS\n"
+           "<BLOCK>text[48, 66, 947, 574]<FORK>When a revolving shoot\nstrikes a stick.\n"
+           "<BLOCK>image[100, 600, 900, 800]<FORK>\n"
+           "<BLOCK>footnote[48, 900, 947, 930]<FORK>1 A note.\n"
+           "<BLOCK>page_number[480, 960, 520, 975]<FORK>12\n")
+    t = a.parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
+    assert t.outputs[0].content == raw
+    full, body = text(t, "full"), text(t, "body")
+    assert "<BLOCK>" not in full and "<FORK>" not in full and "&amp;" not in full
+    assert full.startswith("SPIRAL TWINERS.\n11\nMOVEMENTS & HABITS\nWhen a revolving shoot\nstrikes a stick.")
+    assert "SPIRAL TWINERS." not in body and "11" not in body.split("\n") and "12" not in body.split("\n")
+    assert "When a revolving shoot" in body
+    assert {t.role(r.id) for r in t.regions} >= {"header", "footer", "paragraph", "heading"}
+    cut = a.parse({"choices": [{"message": {"content": "plain\nlines"}, "finish_reason": "length"}], "usage": {}})
+    assert cut.text == "plain\nlines"
