@@ -234,6 +234,29 @@ def test_a_table_continues_across_pages(in_cell, cells):
     assert [(c.start_row, c.start_col, c.text) for c in tables[0].grid.cells] == cells
 
 
+def test_a_cell_continued_on_the_next_page_keeps_its_formulas():
+    """A cell that goes on onto the next page joins its text there, and the formulas of both parts stay on theirs."""
+    from linecaster.data import Link
+    from linecaster.data.transcription import Cell, Table
+
+    def page(text, formulas):
+        t = page_to_compose()
+        t.tables = [Table(annotator=0, target="table_3", num_rows=1, num_cols=1, cells=[
+            Cell(start_row=0, end_row=1, start_col=0, end_col=1, text=text, formulas=formulas)])]
+        return t
+
+    first, second = page("$x$ and", [[0, 3]]), page("$y$ on", [[0, 3]])
+    first.links += [Link(annotator=0, kind="runs_into", source="table_3", target="p2#table_3"),
+                    Link(annotator=0, kind="runs_into", source="table_3/r0c0", target="p2#table_3/r0c0")]
+    second.links += [Link(annotator=0, kind="continues", source="table_3", target="p1#table_3"),
+                     Link(annotator=0, kind="continues", source="table_3/r0c0", target="p1#table_3/r0c0")]
+    b = DocumentBuilder("item")
+    for k, t in enumerate((first, second)):
+        b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
+    cell = next(x for x in b.build().blocks if x.kind == "table").grid.cells[0]
+    assert cell.text == "$x$ and $y$ on" and [cell.text[a:e] for a, e in cell.formulas] == ["$x$", "$y$"]
+
+
 def _parts(doc):
     return [(b.kind, b.text or None, b.layer) for b in doc.blocks]
 

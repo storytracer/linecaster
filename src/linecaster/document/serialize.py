@@ -89,10 +89,33 @@ def _html_inline(b: Block) -> str:
     return "".join(out)
 
 
-def table_html(b: Block) -> str:
+def _cell_pieces(c) -> list[tuple[str, bool]]:
+    """A cell's text cut at its formulas: (piece, whether it is a formula)."""
+    out, at = [], 0
+    for a, e in sorted(c.formulas):
+        if a < at or e > len(c.text):
+            continue
+        if a > at:
+            out.append((c.text[at:a], False))
+        out.append((c.text[a:e], True))
+        at = e
+    if at < len(c.text):
+        out.append((c.text[at:], False))
+    return out
+
+
+def _cell_dollars(c, escape_dollar: bool) -> str:
+    """A cell's text, with ``escape_dollar`` a ``$`` outside its formulas written ``\\$``."""
+    if not escape_dollar:
+        return c.text
+    return "".join(p if f else p.replace("$", "\\$") for p, f in _cell_pieces(c))
+
+
+def table_html(b: Block, escape_dollar: bool = False) -> str:
     """A table block as HTML: rows with their cells' ``rowspan`` and ``colspan``, header cells as ``<th>``, line
-    breaks as ``<br>``, text escaped as HTML requires."""
-    esc = lambda s: htmllib.escape(s, quote=False).replace("\n", "<br>")   # noqa: E731
+    breaks as ``<br>``, text escaped as HTML requires; with ``escape_dollar`` (Markdown's rule, ``MarkdownRules``) a
+    ``$`` outside a cell's formulas written ``\\$``."""
+    esc = lambda c: htmllib.escape(_cell_dollars(c, escape_dollar), quote=False).replace("\n", "<br>")  # noqa: E731
     starts: dict[int, list] = {}
     for c in b.grid.cells:
         starts.setdefault(c.start_row, []).append(c)
@@ -103,7 +126,7 @@ def table_html(b: Block) -> str:
             tag = "th" if c.column_header or c.row_header else "td"
             span = (f' rowspan="{c.row_span}"' if c.row_span > 1 else "") + \
                    (f' colspan="{c.col_span}"' if c.col_span > 1 else "")
-            parts.append(f"<{tag}{span}>{esc(c.text)}</{tag}>")
+            parts.append(f"<{tag}{span}>{esc(c)}</{tag}>")
         parts.append("</tr>")
     parts.append("</table>")
     return "".join(parts)
@@ -204,7 +227,8 @@ def _pipe_table(b: Block, rules: MarkdownRules) -> str:
     rows = [[""] * b.grid.num_cols for _ in range(b.grid.num_rows)]
     for c in b.grid.cells:
         if c.start_row < b.grid.num_rows and c.start_col < b.grid.num_cols:
-            rows[c.start_row][c.start_col] = _md_escape(" ".join(c.text.split()), rules).replace("|", "\\|")
+            text = _cell_dollars(c, rules.escape_dollar)
+            rows[c.start_row][c.start_col] = _md_escape(" ".join(text.split()), rules).replace("|", "\\|")
     if not rows:
         return ""
     lines = ["| " + " | ".join(rows[0]) + " |", "|" + "|".join("---" for _ in rows[0]) + "|"]
@@ -232,7 +256,7 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
         return f"${b.text}$" if rules.formula_display == "$" else f"$${b.text}$$"
     if b.kind == "table":
         spans = any(c.row_span > 1 or c.col_span > 1 for c in b.grid.cells)
-        return table_html(b) if rules.tables == "html" or spans else _pipe_table(b, rules)
+        return table_html(b, rules.escape_dollar) if rules.tables == "html" or spans else _pipe_table(b, rules)
     if b.kind == "picture":
         parts = [rules.image_placeholder] if rules.image_placeholder else []
         return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules), rules)] if b.text else []))

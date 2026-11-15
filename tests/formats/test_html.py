@@ -109,6 +109,31 @@ def test_markdown_knows_formulas_by_their_spans():
 
 
 
+def test_a_table_cell_knows_its_formulas():
+    """A cell's formulas are spans of its text, so a printed dollar in a cell is told apart from a formula: written
+    \\$ by the rule in a table's HTML and in a table set as text, never paired with the next cell's dollar."""
+    from linecaster.data.policy import DEFAULT_POLICY, MarkdownRules, TableRules
+    from linecaster.document import build_document, table_html, to_markdown
+
+    cell = '<td>Cost <math alttext="{\\displaystyle x}"></math> at $5</td>'
+    t = read(f"<html><body><table><tr>{cell}<td>$0 40</td></tr><tr><td>a</td><td>b</td></tr></table>"
+             "</body></html>").transcription
+    first = t.tables[0].cells[0]
+    assert first.text == "Cost $x$ at $5" and [first.text[a:e] for a, e in first.formulas] == ["$x$"]
+    assert t.tables[0].cells[1].formulas == []
+    rules = MarkdownRules(escape=False, escape_dollar=True)
+    table = next(b for b in build_document(t).blocks if b.kind == "table")
+    assert table_html(table, escape_dollar=True).startswith("<table><tr><td>Cost $x$ at \\$5</td><td>\\$0 40</td>")
+    assert "<td>Cost $x$ at $5</td>" in table_html(table)
+    assert "Cost $x$ at \\$5" in to_markdown(build_document(t), rules=rules)
+
+    one = read(f"<html><body><table><tr>{cell}</tr></table></body></html>").transcription
+    policy = DEFAULT_POLICY.model_copy(update={"tables": TableRules(single_cell="text"), "markdown": rules})
+    para = next(b for b in build_document(one, policy=policy).blocks if b.kind == "paragraph")
+    assert [para.text[s.start:s.end] for s in para.spans if s.formula] == ["$x$"]
+    assert to_markdown(build_document(one, policy=policy), rules=rules) == "Cost $x$ at \\$5"
+
+
 def test_a_dollar_in_a_block_without_formulas_is_escaped_by_the_rule():
     from linecaster.data.policy import MarkdownRules
     from linecaster.document import build_document, to_markdown

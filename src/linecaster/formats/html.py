@@ -467,7 +467,7 @@ class _Walk:
 
     def table(self, el, case, part):
         self.flush()
-        rows: list[list[tuple[str, int, int]]] = []
+        rows: list[list[tuple[str, int, int, list[list[int]]]]] = []
         caption = None
         for x in el.iter():
             if not isinstance(x.tag, str):
@@ -479,8 +479,8 @@ class _Walk:
                 cells = []
                 for c in x:
                     if isinstance(c.tag, str) and c.tag.lower() in ("td", "th"):
-                        text = "\n".join(t for t, _ in _lines(self.content(c, frozenset(), case, part)))
-                        cells.append((text, _span(c.get("rowspan")), _span(c.get("colspan"))))
+                        text, formulas = _cell_text(self.content(c, frozenset(), case, part))
+                        cells.append((text, _span(c.get("rowspan")), _span(c.get("colspan")), formulas))
                 rows.append(cells)
         if caption is not None:
             self.as_block(caption, Block(role="caption"), frozenset(), case, part, {})
@@ -503,10 +503,20 @@ def _span(v: str | None) -> int:
         return 1
 
 
+def _cell_text(runs: list[Run]) -> tuple[str, list[list[int]]]:
+    """A cell's text (its lines joined by ``\\n``) and its formulas' spans in it."""
+    lines, formulas, at = [], [], 0
+    for text, spans in _lines(runs):
+        formulas += [[at + a, at + e] for a, e, r in spans if e > a and "formula" in r.fmt]
+        lines.append(text)
+        at += len(text) + 1
+    return "\n".join(lines), formulas
+
+
 def _block_text(b: TextBlock) -> str:
     """A block's text; a table's: its cells' texts in order."""
     if b.rows is not None:
-        return " ".join(text for row in b.rows for text, _, _ in row if text)
+        return " ".join(row_cell[0] for row in b.rows for row_cell in row if row_cell[0])
     return "\n".join(t for t, _ in _lines(b.runs))
 
 
@@ -593,13 +603,14 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
             cells, grid = [], {}
             for i, row in enumerate(b.rows):
                 j = 0
-                for text, rs, cs in row:
+                for text, rs, cs, formulas in row:
                     while (i, j) in grid:
                         j += 1
                     for di in range(rs):
                         for dj in range(cs):
                             grid[(i + di, j + dj)] = True
-                    cells.append(TableCell(start_row=i, end_row=i + rs, start_col=j, end_col=j + cs, text=text))
+                    cells.append(TableCell(start_row=i, end_row=i + rs, start_col=j, end_col=j + cs, text=text,
+                                           formulas=formulas))
                     j += cs
             t.tables.append(Table(annotator=who, target=rid, num_rows=max((c.end_row for c in cells), default=0),
                                   num_cols=max((c.end_col for c in cells), default=0), cells=cells))

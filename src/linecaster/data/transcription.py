@@ -226,7 +226,9 @@ class Line(Zone):
 
 class Cell(Shape):
     """One cell of a table: its rows and columns (offsets, end exclusive), its text and whether it heads a column, a
-    row or a section."""
+    row or a section. ``formulas``: where the source marks a formula in the cell (MathML, a wiki's ``<math>``), its
+    character span in ``text`` ([start, end), the ``$…$`` the text writes it as included); a ``$`` outside them is
+    printed. Empty where the source marks none or cannot say (an engine's HTML that writes ``$…$`` as text)."""
 
     start_row: int
     end_row: int
@@ -236,6 +238,7 @@ class Cell(Shape):
     column_header: bool = False
     row_header: bool = False
     row_section: bool = False
+    formulas: list[list[int]] = Field(default_factory=list)
 
     @property
     def row_span(self) -> int:

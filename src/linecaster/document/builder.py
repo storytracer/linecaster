@@ -213,10 +213,20 @@ class DocumentBuilder:
         origin = Origin(page=page.page_no, region=r.id, box=_box(b))
         if rules.single_cell == "text" and len(table.cells) == 1 or rules.single_column == "lines" \
                 and table.num_cols == 1:
-            text = "\n".join(" ".join(c.text for c in row if c.text) for row in rows.values()).strip()
+            text, formulas = "", []
+            for k, row in enumerate(rows.values()):          # rows by "\n", a row's cells by " "
+                text += "\n" if k else ""
+                for j, c in enumerate(x for x in row if x.text):
+                    text += " " if j else ""
+                    formulas += [(len(text) + f[0], len(text) + f[1]) for f in c.formulas]
+                    text += c.text
+            lead = len(text) - len(text.lstrip())
+            text = text.strip()
             if text:
                 origin.span = [0, len(text)]
-                self._block("paragraph", page, text, role=role, origins=[origin])
+                block = self._block("paragraph", page, text, role=role, origins=[origin])
+                block.spans += [Span(start=a - lead, end=e - lead, formula=True) for a, e in formulas
+                                if 0 <= a - lead and e - lead <= len(text)]
             self._last_table = None
             return
         grid = _grid(table, rules.fill_holes)
@@ -363,7 +373,11 @@ def _continue_grid(grid: Grid, more: Grid, in_cell: bool) -> None:
                 grid.cells.append(c.model_copy(update={"start_row": last, "end_row": last + c.end_row - c.start_row}))
             elif c.text:
                 join = "\n" if "\n" in prev.text or "\n" in c.text else " "
-                prev.text = (prev.text + join + c.text).strip()
+                text = prev.text + join + c.text
+                lead, at = len(text) - len(text.lstrip()), len(prev.text) + len(join)
+                prev.formulas = [[a - lead, e - lead] for a, e in prev.formulas] + \
+                                [[a + at - lead, e + at - lead] for a, e in c.formulas]
+                prev.text = text.strip()
         shift = last - top                    # the top row went into the last; the next rows follow it
         more_cells = [c for c in more.cells if c.start_row != top]
     else:
