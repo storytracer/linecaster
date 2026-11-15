@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..data.geometry import BBox, bbox_of, xywh
+from ..data.geometry.frames import to_frame
 from ..data.policy import DEFAULT_POLICY, classify_label
 from ..data.transcription import Annotator, Line, Link, Region, Transcription, Zone
 
@@ -231,7 +232,13 @@ def split_leading_heading(c: Content, body: float, stats: RetypeStats, r: Ratios
     return head
 
 
-def merge_drop_capitals(contents: list[Content], stats: RetypeStats, annotator: int | None = None) -> list[Content]:
+def merge_drop_capitals(contents: list[Content], stats: RetypeStats, annotator: int | None = None,
+                        direction: str | None = None) -> list[Content]:
+    """Each drop capital joined to the first line of the text region it overlaps most, else of the nearest one
+    after it in the writing ``direction`` (``None``: ``horizontal-lr``, the region to its right, below its top)."""
+    def box(c: Content) -> BBox:
+        return to_frame(c.bbox, direction)
+
     drops = [c for c in contents if c.region.label.endswith("drop-capital")]
     if not drops:
         return contents
@@ -242,13 +249,13 @@ def merge_drop_capitals(contents: list[Content], stats: RetypeStats, annotator: 
         letter = d.text.strip()
         if not letter or not texts:
             continue
-        db = d.bbox
-        target = max(texts, key=lambda c: c.bbox.intersection_area(db))
-        if target.bbox.intersection_area(db) <= 0:
-            below = [c for c in texts if c.bbox.y1 > db.y0 and c.bbox.x1 > db.x0]
+        db = box(d)
+        target = max(texts, key=lambda c: box(c).intersection_area(db))
+        if box(target).intersection_area(db) <= 0:
+            below = [c for c in texts if box(c).y1 > db.y0 and box(c).x1 > db.x0]
             if not below:
                 continue
-            target = min(below, key=lambda c: (abs(c.bbox.y0 - db.y0), c.bbox.x0 - db.x1))
+            target = min(below, key=lambda c: (abs(box(c).y0 - db.y0), box(c).x0 - db.x1))
         t = target.t
         first = target.lines[0]
         t.links.append(Link(annotator=annotator, kind="part_of", source=d.region.id, target=first.id))
@@ -319,7 +326,7 @@ def retype(t: Transcription, stats: RetypeStats | None = None, ratios: Ratios = 
             out.append(head)
         out.append(c)
     level_headings(out, body, stats, ratios, annotator)
-    out = merge_drop_capitals(out, stats, annotator)
+    out = merge_drop_capitals(out, stats, annotator, t.direction(""))
     out = drop_uncertain_numbers(out, stats, ratios, annotator)
     _order(t, annotator, out, unassigned, rows)
     return stats

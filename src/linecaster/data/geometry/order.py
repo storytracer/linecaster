@@ -2,11 +2,14 @@
 slotting unordered regions into an order a model gave. XY-Cut++, which also reads the regions' labels, is in
 ``xy_cut_plus_plus``.
 
-The functions take any objects with a ``bbox`` (a ``BBox``) and a mutable ``order`` (int or None)."""
+The functions take any objects with a ``bbox`` (a ``BBox``) and a mutable ``order`` (int or None). The orders take a
+writing ``direction`` (``linecaster.data.writing.DIRECTIONS``, default ``horizontal-lr``): the boxes are seen in its
+frame (``frames``), so "top" and "left" mean the start of a column and of a row in that direction."""
 from __future__ import annotations
 
 from typing import Sequence
 
+from .frames import boxes_in_frame, framed
 from .types import BBox
 
 
@@ -26,15 +29,16 @@ def suppress_contained(regions: Sequence, max_containment: float = 0.8) -> list:
     return keep
 
 
-def xy_cut_order(boxes: Sequence[BBox], min_gap: float = 1.0) -> list[int]:
+def xy_cut_order(boxes: Sequence[BBox], min_gap: float = 1.0, direction: str | None = None) -> list[int]:
     """Return the indices of ``boxes`` in reading order.
 
     Recursively splits the set at the largest whitespace gap: horizontally (a gap spanning the full
     width, top group first) whenever one exists, otherwise vertically (left group first); groups that
-    cannot be split are ordered by their top edge, then left edge.
+    cannot be split are ordered by their top edge, then left edge. In the frame of ``direction``: right to left
+    the right group first; vertical, a gap between columns first, the right column first (``vertical-rl``).
     """
     idx = list(range(len(boxes)))
-    return _order(idx, boxes, min_gap)
+    return _order(idx, boxes_in_frame(boxes, direction), min_gap)
 
 
 def _order(idx: list[int], boxes: Sequence[BBox], min_gap: float) -> list[int]:
@@ -63,7 +67,7 @@ def _split(idx: list[int], boxes: Sequence[BBox], axis: str, min_gap: float) -> 
     return groups
 
 
-def place_unordered(regions: Sequence) -> None:
+def place_unordered(regions: Sequence, direction: str | None = None) -> None:
     """Give regions without an ``order`` a place among those that have one, in place.
 
     An unordered region goes after the last ordered region that ends above its center and overlaps
@@ -71,8 +75,10 @@ def place_unordered(regions: Sequence) -> None:
     top comes first, a missed line follows the paragraph above it and a drop capital precedes its
     paragraph. When no region carries an order the whole set is ordered with plain XY-cut
     (``xy_cut_order``; the ``LineAssigner`` of released recipes reaches this with orphan rows alone, where
-    XY-Cut++ would order some pages differently). Ranks are renumbered 0..n-1.
+    XY-Cut++ would order some pages differently). Ranks are renumbered 0..n-1. Above and left are in the frame of
+    ``direction``.
     """
+    regions = framed(regions, direction)
     ordered = sorted((r for r in regions if r.order is not None), key=lambda r: r.order)
     if not ordered:
         for rank, i in enumerate(xy_cut_order([r.bbox for r in regions])):

@@ -5,6 +5,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..data.geometry.frames import HORIZONTAL_LR, to_frame
 from ..data.transcription import DECISIONS, Decision, Line, Link, Paragraph, ParagraphRow, Transcription
 from ..data.policy import TEXT_LABELS
 from ..text import recomposition as R
@@ -32,6 +33,15 @@ def rows_of(t: Transcription, lines: list[Line]) -> tuple[list[R.Row], list[list
     ranks = t.line_ranks()
     ordered = sorted(lines, key=lambda ln: ranks[ln.id])
     return [R.Row(t.text_of(ln) or "", None, i) for i, ln in enumerate(ordered)], [[ln.id] for ln in ordered]
+
+
+def in_direction(rows: list[R.Row], rtl: bool, direction: str | None) -> tuple[list[R.Row], bool]:
+    """A region's rows as the margins see them, and whether they run right to left: as they are with ``rtl`` (the
+    option) or without a recorded ``direction``; else their boxes in the direction's frame
+    (``linecaster.data.geometry.frames``: right to left mirrored, vertical columns as rows), left to right there."""
+    if rtl or direction in (None, HORIZONTAL_LR):
+        return rows, rtl
+    return [R.Row(r.text, to_frame(r.bbox, direction) if r.bbox is not None else None, r.index) for r in rows], False
 
 
 def digits_only(made: list[R.Paragraph]) -> bool:
@@ -78,7 +88,9 @@ class UnicodeRecompositionEngine(RuleEngine):
     class Options(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        rtl: bool = Field(False, description="the writing direction is right to left (start and end margins)")
+        rtl: bool = Field(False, description="the writing direction is right to left (start and end margins); "
+                                             "False: each region's recorded direction (horizontal-rl, or a vertical "
+                                             "one, whose rows are columns), else left to right")
         convention_marks: str = Field("¬", description="characters a transcription convention writes for a "
                                                        "line-end hyphen, besides Unicode's hyphens")
         indent: float = Field(0.8, description="a row indented this many ems from the start margin starts a "
@@ -151,7 +163,8 @@ class UnicodeRecompositionEngine(RuleEngine):
                     continue
                 label = TEXT_LABELS[label]
                 rows, on_row = rows_of(t, lines)
-                made = R.reflow_rows(rows, o.rtl, lexicon, label in SINGLE_LABELS, stats, rules, th)
+                rows, rtl = in_direction(rows, o.rtl, t.direction(rid if rid is not None else ""))
+                made = R.reflow_rows(rows, rtl, lexicon, label in SINGLE_LABELS, stats, rules, th)
                 if not made:
                     continue
                 own = [Paragraph(annotator=a, id=f"{rid}_p{n}" if rid is not None else f"p{n}",
@@ -163,9 +176,9 @@ class UnicodeRecompositionEngine(RuleEngine):
                 if digits_only(made):
                     continue
                 nonempty = [row for row in rows if row.text.strip()]
-                m = R.Margins.of(nonempty, o.rtl, th) if all(row.bbox is not None for row in nonempty) else None
+                m = R.Margins.of(nonempty, rtl, th) if all(row.bbox is not None for row in nonempty) else None
                 if (open_ is not None and label == RUNNING_LABEL
-                        and R.continues(open_.chain, rows[made[0].spans[0].row], m, o.rtl, th)):
+                        and R.continues(open_.chain, rows[made[0].spans[0].row], m, rtl, th)):
                     self._continue(open_, k, t, own[0], made[0], ids, lexicon, stats, rules, th)
                     if len(made) == 1 and made[0].open_end:
                         open_.paragraph, open_.page, open_.t = own[0], k, t

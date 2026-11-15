@@ -17,6 +17,7 @@ from linecaster.data import Annotator, Transcription
 from linecaster.data.geometry import BBox, xywh
 from linecaster.data.geometry.order import suppress_contained, xy_cut_order
 from linecaster.data.geometry.xy_cut_plus_plus import xy_cut_plus_plus_order
+from linecaster.data.writing import DIRECTIONS
 
 from .compat import create_predictor, paddle_image
 from .weights import check, resolve
@@ -116,15 +117,20 @@ class PaddleLayout:
     def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
                  threshold: float | dict[int, float] | None = None,
                  header_zone: float = 0.15, nms: bool = True, merge_mode: str | dict[int, str] | None = None,
-                 max_containment: float = 0.8, reading_order: str = "xy-cut", model_dir: str | None = None):
+                 max_containment: float = 0.8, reading_order: str = "xy-cut", model_dir: str | None = None,
+                 direction: str | None = None):
         defaults = MODEL_DEFAULTS.get(model_name, {"threshold": 0.5, "merge_mode": "large"})
         self.model_name, self.header_zone = model_name, header_zone
         self.threshold = defaults["threshold"] if threshold is None else threshold
         self.merge_mode = defaults["merge_mode"] if merge_mode is None else merge_mode
         self.nms, self.max_containment, self.reading_order = nms, max_containment, reading_order
+        self.direction = direction
         self.predictor = create_predictor(model_name, device, model_dir=model_dir)
 
-    def analyze(self, image: np.ndarray) -> list[Region]:
+    def analyze(self, image: np.ndarray, direction: str | None = None) -> list[Region]:
+        """The regions of ``image``, ordered; a model without learned order orders them in the writing direction
+        ``direction`` (else this layout's, else ``horizontal-lr``)."""
+        direction = direction or self.direction
         res = next(iter(self.predictor.predict(paddle_image(image), threshold=self.threshold,
                                                layout_nms=self.nms, layout_merge_bboxes_mode=self.merge_mode)))
         regions, learned = regions_from_boxes(res["boxes"], image.shape[0], self.header_zone)
@@ -136,9 +142,10 @@ class PaddleLayout:
         else:
             boxes = [r.bbox for r in regions]
             if self.reading_order == "xy-cut++":
-                ranked = xy_cut_plus_plus_order(boxes, [r.label for r in regions], (image.shape[1], image.shape[0]))
+                ranked = xy_cut_plus_plus_order(boxes, [r.label for r in regions], (image.shape[1], image.shape[0]),
+                                                direction=direction)
             else:
-                ranked = xy_cut_order(boxes)
+                ranked = xy_cut_order(boxes, direction=direction)
             for rank, i in enumerate(ranked):
                 regions[i].order = rank
         return regions
@@ -179,13 +186,18 @@ class PaddleLayoutEngine:
                                   "titles, figures, tables and cross-column text masked, the rest cut by density, "
                                   "the masked regions matched back by label and distance); PP-DocLayoutV3 keeps its "
                                   "own order")
+        direction: Literal[DIRECTIONS] | None = Field(
+            None, description="the writing direction the regions of a model without learned reading order are "
+                              "ordered in (horizontal-rl: right to left; vertical-rl, vertical-lr: columns); None: "
+                              "the page's recorded direction, else horizontal-lr")
 
     def __init__(self, model_name: str = "PP-DocLayoutV3", device: str = "auto",
                  threshold: float | dict[int, float] | None = None, header_zone: float = 0.15, nms: bool = True,
                  merge_mode: str | dict[int, str] | None = None, max_containment: float = 0.8,
-                 reading_order: str = "xy-cut", weights: dict | None = None):
+                 reading_order: str = "xy-cut", weights: dict | None = None, direction: str | None = None):
         o = self.Options(model_name=model_name, device=device, threshold=threshold, header_zone=header_zone, nms=nms,
-                         merge_mode=merge_mode, max_containment=max_containment, reading_order=reading_order)
+                         merge_mode=merge_mode, max_containment=max_containment, reading_order=reading_order,
+                         direction=direction)
         check(o.model_name, weights)
         self.options, self.weights = o, weights
         self.name, self.device = o.model_name, o.device
@@ -198,14 +210,16 @@ class PaddleLayoutEngine:
         self.layout = PaddleLayout(self.name, self.device, model_dir=model_dir, **self.kwargs)
 
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
-        regions = self.layout.analyze(image)
         t = transcription
+        direction = self.layout.direction or t.direction("")
+        regions = self.layout.analyze(image, direction)
         threshold = self.layout.threshold
+        settings = {"threshold": str(threshold) if isinstance(threshold, float) else "model default",
+                    "header_zone": self.layout.header_zone, "nms": self.layout.nms}
+        if direction:
+            settings["direction"] = direction
         a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
-                                      backend="paddlex/onnxruntime",
-                                      settings={"threshold": str(threshold) if isinstance(threshold, float)
-                                                else "model default",
-                                                "header_zone": self.layout.header_zone, "nms": self.layout.nms}))
+                                      backend="paddlex/onnxruntime", settings=settings))
         for r in regions:
             t.add_region(a, r.id, xywh(r.bbox), np.asarray(r.polygon, dtype=float).tolist(), label=r.raw_label,
                          role=r.label, confidence=r.score)

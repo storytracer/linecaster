@@ -7,7 +7,9 @@ reading order; duplicates are classified ``duplicate`` and lines are ordered row
 
 The assigner sets each detected line's ``region`` (a line that has one already keeps it) and adds a
 ``ReadingOrder`` (regions by reading order, then rows; each line's row within its region), both by its annotator
-(step ``assignment``). The list order of ``Transcription.lines`` afterwards is the processing order a recognizer
+(step ``assignment``). Rows run in the writing direction (``linecaster.data.writing.DIRECTIONS``): the block's
+``direction``, else the region's recorded one (``Transcription.direction``), else ``horizontal-lr``; a vertical
+direction's rows are columns. The list order of ``Transcription.lines`` afterwards is the processing order a recognizer
 follows (regions in the layout step's order, orphan rows last, rows within each region). Line ids stay as the line
 step gave them.
 """
@@ -16,9 +18,11 @@ from __future__ import annotations
 import time
 
 from ...data.geometry import BBox
+from ...data.geometry.frames import to_frame
 from ...data.geometry.order import place_unordered
 from ...data.page import Page
 from ...data.transcription import Annotator, Line, Region, Transcription
+from ...data.writing import check
 from ...text.typography import hidden, line_bbox, union, zone_bbox
 from ..base.page import PageBlock
 
@@ -48,19 +52,22 @@ def _owner(line: Line, regions: list[_R]) -> _R | None:
     return best
 
 
-def rows(lines: list[Line], overlap: float = 0.5) -> list[list[Line]]:
-    """Visual rows: a line joins the current row when it vertically overlaps the row's top line."""
+def rows(lines: list[Line], overlap: float = 0.5, direction: str | None = None) -> list[list[Line]]:
+    """Visual rows: a line joins the current row when it vertically overlaps the row's top line; rows top to bottom,
+    each left to right. In another writing ``direction`` the same in its frame (``frames``): right to left, or
+    columns (right to left for ``vertical-rl``), each top to bottom."""
+    box = {id(ln): to_frame(_lb(ln), direction) for ln in lines}
     out: list[list[Line]] = []
-    for ln in sorted(lines, key=lambda l: _lb(l).y0):
+    for ln in sorted(lines, key=lambda l: box[id(l)].y0):
         if out:
-            ref = _lb(min(out[-1], key=lambda r: _lb(r).y0))
-            b = _lb(ln)
+            ref = box[id(min(out[-1], key=lambda r: box[id(r)].y0))]
+            b = box[id(ln)]
             inter = min(ref.y1, b.y1) - max(ref.y0, b.y0)
             if inter >= overlap * min(ref.height, b.height):
                 out[-1].append(ln)
                 continue
         out.append([ln])
-    return [sorted(row, key=lambda r: _lb(r).x0) for row in out]
+    return [sorted(row, key=lambda r: box[id(r)].x0) for row in out]
 
 
 def dedupe(lines: list[Line], max_containment: float = 0.7) -> list[Line]:
@@ -74,11 +81,11 @@ def dedupe(lines: list[Line], max_containment: float = 0.7) -> list[Line]:
     return keep
 
 
-def order_rows(lines: list[Line]) -> tuple[list[Line], dict[str, int]]:
-    """De-duplicate, then order lines row by row (top to bottom, left to right): the lines kept, in order, and each
-    one's row."""
+def order_rows(lines: list[Line], direction: str | None = None) -> tuple[list[Line], dict[str, int]]:
+    """De-duplicate, then order lines row by row (top to bottom, left to right; in another writing ``direction`` as
+    ``rows``): the lines kept, in order, and each one's row."""
     out, row_of = [], {}
-    for i, row in enumerate(rows(dedupe(lines))):
+    for i, row in enumerate(rows(dedupe(lines), direction=direction)):
         for ln in row:
             row_of[ln.id] = i
             out.append(ln)
@@ -114,6 +121,9 @@ class LineAssigner(PageBlock):
         skip_labels: region labels (region labels) that take no lines (default pictures and charts).
         formulas_separately: formula regions take no lines either and the lines inside them are removed, for a
             formula step that reads them as LaTeX; ``False``: formula regions get lines like text regions.
+        direction: the writing direction rows and orphan regions are ordered in (``horizontal-rl``: right to left;
+            ``vertical-rl``, ``vertical-lr``: columns); ``None``: each region's recorded direction, the page's for
+            the orphans, else ``horizontal-lr``.
     """
 
     name = "line assigner"
@@ -121,9 +131,13 @@ class LineAssigner(PageBlock):
     parts_added = ("line_regions",)
     parts_replaced = ("regions", "reading_order", "lines")      # orphan regions, line order
 
-    def __init__(self, transcription: str = "ocr_new", skip_labels=SKIP_LABELS, formulas_separately: bool = True):
+    def __init__(self, transcription: str = "ocr_new", skip_labels=SKIP_LABELS, formulas_separately: bool = True,
+                 direction: str | None = None):
         super().__init__()
         self.transcription, self.skip_labels, self.formulas_separately = transcription, frozenset(skip_labels), formulas_separately
+        if direction is not None:
+            check("direction", direction)
+        self.direction = direction
 
     def _wants_lines(self, c: _R) -> bool:
         if c.label in self.skip_labels:
@@ -135,9 +149,11 @@ class LineAssigner(PageBlock):
 
         start, began = now()
         t = page.transcription(self.transcription)
-        a = t.add_annotator(Annotator(kind="rule", step="assignment", name="line assigner",
-                                      settings={"skip_labels": sorted(self.skip_labels),
-                                                "formulas_separately": self.formulas_separately}))
+        settings = {"skip_labels": sorted(self.skip_labels), "formulas_separately": self.formulas_separately}
+        if self.direction:
+            settings["direction"] = self.direction
+        a = t.add_annotator(Annotator(kind="rule", step="assignment", name="line assigner", settings=settings))
+        page_direction = self.direction or t.direction("")
         ranks = t.region_ranks()
         contents = [_R(r, t.label(r.id), ranks.get(r.id)) for r in t.regions if not hidden(t, r.id)]
         by_id = {c.region.id: c for c in contents}
@@ -162,7 +178,7 @@ class LineAssigner(PageBlock):
                 self.stat_update("lines_in_skipped_regions")
         if orphans:
             n = 0
-            orphan_rows = rows(orphans)
+            orphan_rows = rows(orphans, direction=page_direction)
             for row in orphan_rows:
                 rid, n = _free_id(t, "orphan", n)
                 b = union([_lb(ln) for ln in row])
@@ -173,12 +189,12 @@ class LineAssigner(PageBlock):
                 for ln in c.lines:
                     ln.region = region.id
                 contents.append(c)
-            place_unordered(contents)
+            place_unordered(contents, page_direction)
             ocr = [c for c in contents if self._wants_lines(c)]
             self.stat_update("orphan_rows", value=len(orphan_rows))
         row_of: dict[str, int] = {}
         for c in ocr:
-            kept, found = order_rows(c.lines)
+            kept, found = order_rows(c.lines, self.direction or t.direction(c.region.id))
             for ln in c.lines:
                 if ln.id not in found:
                     t.classify(a, ln.id, "status", "duplicate")

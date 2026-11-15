@@ -49,6 +49,7 @@ from bisect import bisect_right
 from statistics import median
 from typing import Mapping, Sequence
 
+from .frames import HORIZONTAL_LR, to_frame
 from .order import _split
 from .types import BBox
 
@@ -78,7 +79,7 @@ def xy_cut_plus_plus_order(boxes: Sequence[BBox], labels: Sequence[str], page_si
                            beta: float = 1.3, theta_v: float = 0.9, tau_overlap: float = 0.3,
                            center_tolerance: float = 0.2,
                            edge_weights: Mapping[str, Sequence[float]] | None = None,
-                           min_gap: float = 1.0) -> list[int]:
+                           min_gap: float = 1.0, direction: str | None = None) -> list[int]:
     """Returns the indices of ``boxes`` in XY-Cut++ reading order.
 
     Pure and deterministic: the order depends only on the arguments (ties go to the lower index). The method's
@@ -97,7 +98,15 @@ def xy_cut_plus_plus_order(boxes: Sequence[BBox], labels: Sequence[str], page_si
         edge_weights: per category (``title``, ``cross-layout``, ``vision``, ``others``), the four direction
             weights of the edge gap; ``None``: the paper's (``EDGE_WEIGHTS``).
         min_gap: the narrowest whitespace gap, in pixels, a cut is made at (1, as ``xy_cut_order``).
+        direction: the page's writing direction (``linecaster.data.writing.DIRECTIONS``): the boxes and the page are
+            read in its frame (``frames``: right to left mirrored, vertical with columns as rows); ``None``:
+            ``horizontal-lr``.
     """
+    if direction not in (None, HORIZONTAL_LR):
+        page = to_frame(BBox(0.0, 0.0, float(page_size[0]), float(page_size[1])), direction)
+        boxes = [BBox(f.x0 - page.x0, f.y0 - page.y0, f.x1 - page.x0, f.y1 - page.y0)
+                 for f in (to_frame(b, direction) for b in boxes)]
+        page_size = (page.width, page.height)
     if len(labels) != len(boxes):
         raise ValueError(f"{len(boxes)} boxes but {len(labels)} labels")
     weights = {**EDGE_WEIGHTS, **(edge_weights or {})}
