@@ -358,3 +358,11 @@ def test_a_ground_truth_file_is_read_as_people_s(fmt):
     assert {ln.annotator for ln in t.lines} == {0} and t.text
     tess = from_hocr(HOCR_TESSERACT, ground_truth=True)
     assert tess.source.kind == "ground_truth" and [a.kind for a in tess.annotators] == ["model"]
+
+
+def test_tag_soup_hocr_given_as_text_is_read_as_the_utf8_it_is():
+    from linecaster.formats import from_hocr
+
+    data = ('<html><body><div class="ocr_page" title="bbox 0 0 100 100"><span class="ocr_line" '
+            'title="bbox 0 0 100 20">café שלום<br></span></div></body></html>')
+    assert [ln.reading.text for ln in from_hocr(data).lines] == ["café שלום"]

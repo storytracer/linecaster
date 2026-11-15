@@ -375,7 +375,9 @@ def _parse(data: bytes | str):
         return X.parse_xml(data)
     except etree.XMLSyntaxError:
         import lxml.html
-        root = lxml.html.fromstring(data if isinstance(data, bytes) else data.encode("utf-8"))
+        # text was decoded already: parsed as the UTF-8 it is encoded in (bytes: by their charset, as a browser)
+        parser = lxml.html.HTMLParser(encoding="utf-8") if isinstance(data, str) else None
+        root = lxml.html.fromstring(data if isinstance(data, bytes) else data.encode("utf-8"), parser=parser)
         return X.parse_xml(root)
 
 
