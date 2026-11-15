@@ -4,6 +4,21 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.9.1 (2026-11-15)
+
+### Added
+
+- **`enwikisource@4`**: words divided across a page break (`{{hws}}`/`{{hwe}}`, `{{hyphenated word start}}`/`end`):
+  each half is read as printed, with a `joined` edit giving the whole word from the span's `title`. The conventions'
+  `edit` decision takes the kind `joined`.
+- **linecaster-mediawiki 0.1.1**: `join_divided_words` (called by `link_pages`) pairs an item's halves and gives each
+  line a `joined` edit of the whole line, the first half left out and the second written as the whole word, as the
+  wiki's main namespace writes it, a compound divided at its own hyphen keeping it (`inter-crossing`); the document
+  builder writes these edits, so an item's document has the word whole where a plate, caption or table stands
+  between the halves, and no division mark rule decides it. The reader marks a template call inside a line too when
+  a rule of the conventions names its template (`[data-mw-template=...]`), outside links and tags, and an inline
+  element a call writes first carries the call's attributes.
+
 ## 0.9.0 (2026-11-15)
 
 Ground truth from any source: importers (a new step), conventions of public sources in the catalog, an HTML importer,

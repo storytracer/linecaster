@@ -1,6 +1,6 @@
 [project]
 name = "linecaster-mediawiki"
-version = "0.1.0"
+version = "0.1.1"
 description = "MediaWiki importer for linecaster: wikitext (with ProofreadPage, Cite and Scribunto) read into transcriptions through wikitextprocessor"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
