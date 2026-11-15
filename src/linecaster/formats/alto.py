@@ -9,6 +9,10 @@ Mapping (see ``docs/reference/serialization.md``):
 * word -> ``String`` (``WC`` 0..1, ``ALTERNATIVE``), ``SP`` between words, a line-end hyphen as
   ``HYP``; a line without words is written as one ``String`` carrying the line's text;
 * lines without a region go into a synthetic ``TextBlock`` the reader drops again;
+* language -> ``LANG`` (BCP 47) on ``Page``, ``TextBlock``, ``TextLine`` and ``String``, where it differs from the
+  enclosing level's; direction -> ``BASEDIRECTION`` on ``TextBlock`` (the page's on every block: ALTO's ``Page``
+  has none) and ``TextLine`` (``ltr``, ``rtl``, ``ttb`` for both vertical directions); script, a word's direction
+  and a vertical block's direction go into the extension;
 * each model and rule annotator -> ``Description/Processing`` (category, date if recorded, the step, the step
   record as JSON in ``processingStepSettings``, linecaster as ``softwareCreator`` with the model and its
   revision), all referenced from ``Page/@PROCESSINGREFS``; read back as annotators (foreign files: their
@@ -28,7 +32,7 @@ from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
-from . import _provenance as P, _xml as X
+from . import _languages as L, _provenance as P, _xml as X
 
 NS = "http://www.loc.gov/standards/alto/ns-v4#"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
@@ -36,6 +40,17 @@ XLINK = "http://www.w3.org/1999/xlink"
 SCHEMA_LOCATION = f"{NS} http://www.loc.gov/standards/alto/v4/alto-4-4.xsd"
 HYPHENS = ("-", "¬", "⸗", "‐", "­", "=")
 ILLUSTRATION_LABELS = ("picture", "chart")
+#: direction -> ``BASEDIRECTION``
+BASE_DIRECTIONS = {"horizontal-lr": "ltr", "horizontal-rl": "rtl", "vertical-rl": "ttb", "vertical-lr": "ttb"}
+
+
+def base_direction(value: str | None, enclosing: str | None = None) -> str | None:
+    """The direction of a ``TextBlock`` or ``TextLine`` with this ``BASEDIRECTION``: ``ltr`` horizontal-lr, ``rtl``
+    horizontal-rl, ``ttb`` (top to bottom, columns in an order ALTO does not say) the ``enclosing`` level's direction
+    where that is vertical; ``None`` otherwise (``btt``)."""
+    if value == "ttb":
+        return enclosing if enclosing in ("vertical-rl", "vertical-lr") else None
+    return {"ltr": "horizontal-lr", "rtl": "horizontal-rl"}.get(value or "")
 
 
 def _e(parent, tag: str, **attrs) -> etree._Element:
@@ -52,6 +67,7 @@ class _Writer:
         self.qz = X.Quantizer(precision)
         self.extensions = extensions
         self.regions, self.lines = X.file_layout(t, policy)
+        self.page_writing = X.page_writing(t)
         self.used: set[str] = {r.id for r in self.regions} | {ln.id for ln in self.lines} | {
             w.id for ln in self.lines for w in ln.words}
         self.tags: list[tuple[str, str, str, str, str | None]] = []   # (element, id, type, label, description)
@@ -89,6 +105,32 @@ class _Writer:
         el.set("WIDTH", self.qz.num(w))
         el.set("HEIGHT", self.qz.num(h))
 
+    def writing(self, el: etree._Element, values: dict[str, str | None], ext: dict[str, Any],
+                enclosing: str | None = None) -> None:
+        """Writes a language as ``LANG`` and a direction as ``BASEDIRECTION`` where the element has them (a
+        ``TextBlock``, ``TextLine``, ``String`` a language, the first two a direction), and into ``ext`` what a
+        reader would read otherwise (a script, a direction ``BASEDIRECTION`` cannot say within ``enclosing``)."""
+        tag, script, direction = values["language"], values["script"], values["direction"]
+        name = etree.QName(el).localname
+        if tag and name in ("TextBlock", "TextLine", "String"):
+            el.set("LANG", tag)
+        elif tag:
+            ext["language"] = tag
+        if script:
+            ext["script"] = script
+        if direction and name in ("TextBlock", "TextLine"):
+            el.set("BASEDIRECTION", BASE_DIRECTIONS[direction])
+        if direction and (name not in ("TextBlock", "TextLine")
+                          or base_direction(BASE_DIRECTIONS[direction], enclosing) != direction):
+            ext["direction"] = direction
+
+    def block_writing(self, r: X.FileRegion | None) -> dict[str, str | None]:
+        """What a block writes: its own language, and a script and direction also where they are the page's (ALTO's
+        ``Page`` holds no script or direction)."""
+        own = X.writing(r) if r is not None else dict.fromkeys(X.WRITING)
+        return {"language": own["language"], "script": own["script"] or self.page_writing["script"],
+                "direction": own["direction"] or self.page_writing["direction"]}
+
     def shape(self, el: etree._Element, points) -> None:
         sh = _e(el, "Shape")
         _e(sh, "Polygon", POINTS=self.qz.fmt_points(points))
@@ -114,10 +156,11 @@ class _Writer:
             ext["heading_level"] = r.heading_level
         if r.reading_order != predicted_ro:
             ext["reading_order"] = r.reading_order
+        self.writing(el, self.block_writing(r), ext)
         self.ext(el, r.id, ext)
         return el
 
-    def text_line(self, block, ln: X.FileLine, pos) -> None:
+    def text_line(self, block, ln: X.FileLine, pos, enclosing: str | None) -> None:
         el = _e(block, "TextLine", ID=ln.id)
         self.box(el, ln.bbox)
         if ln.baseline:
@@ -125,6 +168,7 @@ class _Writer:
         if ln.polygon:
             self.shape(el, ln.polygon)
         ext = X.line_order_ext(ln, pos)
+        self.writing(el, X.writing(ln), ext, enclosing)
         if ln.score is not None:
             ext["score"] = ln.score
         if ln.words:
@@ -141,6 +185,9 @@ class _Writer:
                 if i:
                     _e(el, "SP")
                 s = self.string(el, w, text)
+                wext: dict[str, Any] = {}
+                self.writing(s, X.writing(w), wext)
+                self.ext(s, w.id, wext)
                 if w.subs and i in (0, last):             # a half of a word divided across lines
                     first_half = i == last and (i > 0 or w.hyphen)        # the line's last word, before the break
                     s.set("SUBS_TYPE", "HypPart1" if first_half else "HypPart2")
@@ -229,18 +276,22 @@ class _Writer:
 
         layout = etree.Element(f"{{{NS}}}Layout")
         page = _e(layout, "Page", ID=self.new_id("page_1"), PHYSICAL_IMG_NR="1",
-                  WIDTH=str(width), HEIGHT=str(height), PROCESSINGREFS=" ".join(processing_ids) or None)
+                  WIDTH=str(width), HEIGHT=str(height), PROCESSINGREFS=" ".join(processing_ids) or None,
+                  LANG=self.page_writing["language"])
         ps = _e(page, "PrintSpace", HPOS="0", VPOS="0", WIDTH=str(width), HEIGHT=str(height))
         for u in units:
             if u.synthetic:
                 block = _e(ps, "TextBlock", ID=u.block_id)
                 self.box(block, X.unit_bbox(u.lines))
                 block.set("TAGREFS", self.tag("label", "text"))
-                self.ext(block, u.block_id, {"synthetic": True})
+                ext = {"synthetic": True}
+                self.writing(block, self.block_writing(None), ext)
+                self.ext(block, u.block_id, ext)
             else:
                 block = self.region_block(ps, u.region, u.lines, ranks.get(u.region.id))
+            direction = (u.region and u.region.direction) or self.page_writing["direction"]
             for ln in u.lines:
-                self.text_line(block, ln, pos)
+                self.text_line(block, ln, pos, direction)
 
         if self.tags:
             tags = _e(root, "Tags")
@@ -331,6 +382,21 @@ def _scale_for(unit: str, page_w, page_h, image_width, image_height, dpi) -> _Sc
                      "present) or the scan resolution (dpi) to convert to pixels")
 
 
+def _writing(el, ext: dict[str, Any], enclosing: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """What an element says of its language (``LANG``, a ``TextBlock``'s deprecated ``language``; ISO 639-1 codes for
+    three-letter ones) and direction (``BASEDIRECTION`` within ``enclosing``, ``base_direction``), with what the
+    extension ``ext`` says over it; and the extension field for a ``BASEDIRECTION`` that makes no direction
+    (``alto__base_direction``)."""
+    own: dict[str, Any] = {"language": L.canonical(el.get("LANG") or el.get("language"))}
+    fields: dict[str, Any] = {}
+    if el.get("BASEDIRECTION"):
+        own["direction"] = base_direction(el.get("BASEDIRECTION"), enclosing)
+        if own["direction"] is None:
+            fields["alto__base_direction"] = el.get("BASEDIRECTION")
+    own.update({k: ext[k] for k in X.WRITING if k in ext})
+    return own, fields
+
+
 def _reading_order_refs(ro) -> list[str]:
     refs: list[str] = []
     for el in ro.iter():
@@ -350,7 +416,9 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
 
     The steps the file names (``Processing``, ``OCRProcessing``) become the transcription's annotators; without
     any, the file is its one annotator (kind ``file``). Regions are classified by the region label they read as
-    (their ``label`` tag, else their producer's label or ``TYPE``).
+    (their ``label`` tag, else their producer's label or ``TYPE``). ``LANG`` and ``BASEDIRECTION`` become
+    ``language`` and ``direction`` classifications of the page, a region, a line or a word, each where they differ
+    from the enclosing level's (``_writing``).
 
     Args:
         data: the ALTO file's content.
@@ -395,6 +463,9 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
     ro_refs = _reading_order_refs(ro_el) if ro_el is not None else None
 
     annotators = _processing(desc) if desc is not None else []
+    page_holds = {"language": L.canonical(page.get("LANG")) if page is not None else None, "script": None,
+                  "direction": None}
+    other_languages = page.get("OTHERLANGS") if page is not None else None
     regions: list[X.FileRegion] = []
     lines: list[X.FileLine] = []
     region_ro_ext: dict[str, Any] = {}
@@ -426,10 +497,14 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
             bbox = sc.box(el)
             shape = el.find("Shape/Polygon")
             polygon = sc.points(X.parse_points(shape.get("POINTS"))) if shape is not None else None
+            own, fields = _writing(el, ext)
+            fr = X.FileRegion(bid, "", "", None, None, fields=fields)
+            holds = X.narrower(fr, own, page_holds)
             text_lines = [] if el.tag == "Illustration" else X.children(el, "TextLine")
             parsed = []
-            for row, tl in enumerate(text_lines):
-                parsed.append(_line(tl, row, line_no, None if synthetic else bid, sc, tags))
+            for row, tl in enumerate(text_lines):     # a synthetic block's lines compare with the page
+                parsed.append(_line(tl, row, line_no, None if synthetic else bid, sc, tags, holds,
+                                    page_holds if synthetic else holds))
                 line_no += 1
             if bbox is None:
                 if polygon:
@@ -448,7 +523,7 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
             else:
                 label = label or X.label_from_raw(raw)
             regions.append(X.FileRegion(bid, label, raw or "", polygon or X.rect(bbox), bbox, ext.get("score"),
-                                        ext.get("heading_level")))
+                                        ext.get("heading_level"), **X.writing(fr), fields=fr.fields))
             real_ids_in_doc.append(bid)
             if "reading_order" in ext:
                 region_ro_ext[bid] = ext["reading_order"]
@@ -470,9 +545,10 @@ def from_alto(data: bytes | str, *, image_width: int | None = None, image_height
         image_height=image_height or (round(page_h * sc.sy) if page_h else None),
         scale=None if sc.identity else [sc.sx, sc.sy],
         **{k: v for k, v in {"alto__namespace": ns,
-                             "alto__measurement_unit": unit if unit != "pixel" else None}.items() if v},
+                             "alto__measurement_unit": unit if unit != "pixel" else None,
+                             "alto__other_languages": other_languages}.items() if v},
     )
-    return X.transcription(regions, lines, annotators, source, ground_truth)
+    return X.transcription(regions, lines, annotators, source, ground_truth, **page_holds)
 
 
 def _text(el, name: str, strip: bool = True) -> str | None:
@@ -519,12 +595,23 @@ def _processing(desc) -> list[Annotator]:
     return steps
 
 
-def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> X.FileLine:
+def _ext(el, tags) -> dict[str, Any]:
     ext: dict[str, Any] = {}
-    for ref in (tl.get("TAGREFS") or "").split():
+    for ref in (el.get("TAGREFS") or "").split():
         tg = tags.get(ref)
         if tg is not None and tg.get("TYPE") == X.EXT_KEY:
             ext.update(X.ext_loads(tg.get("DESCRIPTION")))
+    return ext
+
+
+def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags, block: dict[str, Any],
+          enclosing: dict[str, Any]) -> X.FileLine:
+    """A ``TextLine``; ``block`` is what holds in its block, ``enclosing`` what its values are compared with (its
+    region's, the page's in a synthetic block)."""
+    ext = _ext(tl, tags)
+    own, fields = _writing(tl, ext, block["direction"])
+    fl = X.FileLine("", region_id, 0, 0, None, fields=fields)
+    holds = X.narrower(fl, {k: own.get(k) or block[k] for k in X.WRITING}, enclosing)
     lid = tl.get("ID") or f"line_{rank}"
     bbox = sc.box(tl)
     shape = tl.find("Shape/Polygon")
@@ -542,8 +629,10 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> X
         wb = sc.box(s)
         alts = [a.text or "" for a in X.children(s, "ALTERNATIVE")]
         subs = s.get("SUBS_CONTENT") if s.get("SUBS_TYPE") in ("HypPart1", "HypPart2") else None
-        words.append(X.FileWord(s.get("ID") or f"{lid}_w{k}", s.get("CONTENT") or "", wb, X.parse_num(s.get("WC")),
-                                alts, subs=subs or None))
+        w = X.FileWord(s.get("ID") or f"{lid}_w{k}", s.get("CONTENT") or "", wb, X.parse_num(s.get("WC")), alts,
+                       subs=subs or None)
+        X.narrower(w, _writing(s, _ext(s, tags))[0], holds)
+        words.append(w)
     if hyp is not None and words:
         words[-1].text += hyp
         words[-1].hyphen = True
@@ -591,4 +680,5 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> X
     if text is None:                # not read: no reading
         confidence, words = None, []
     return X.FileLine(lid, region_id, ext.get("reading_order", rank), ext.get("row", row), bbox, polygon, baseline,
-                      ext.get("score"), text, confidence, ext.get("alternatives", []), words)
+                      ext.get("score"), text, confidence, ext.get("alternatives", []), words, **X.writing(fl),
+                      fields=fl.fields)

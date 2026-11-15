@@ -11,7 +11,11 @@ Mapping (see ``docs/reference/serialization.md``):
 * reading order is document order;
 * ``ocr-system`` is linecaster with its release, ``ocr-capabilities`` what the file contains, each model and rule
   annotator a ``meta`` named ``linecaster-step-<n>`` (the step record as JSON), read back as annotators;
-* the page's ``language`` classification -> ``lang`` (and ``ocr-langs`` for an ISO 639-1 code).
+* the page's ``language`` classification -> ``lang`` (and ``ocr-langs`` for an ISO 639-1 code); a region's, line's or
+  word's -> ``lang`` on its element where it differs from the enclosing level's;
+* direction -> ``dir`` (``ltr``, ``rtl``) and, for a vertical one, ``style="writing-mode: vertical-rl"`` (or
+  ``vertical-lr``) on the ``ocr_page`` and on a region's, line's or word's element where it differs from the
+  enclosing level's; script goes into the extension.
 
 Regions the rendering policy puts nowhere (removed, suppressed, duplicate) are not written.
 
@@ -30,7 +34,7 @@ from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
-from . import _provenance as P, _xml as X
+from . import _languages as L, _provenance as P, _xml as X
 
 XHTML = "http://www.w3.org/1999/xhtml"
 DOCTYPE = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
@@ -68,7 +72,9 @@ LINE_CLASSES = {"ocr_line", "ocr_textfloat", "ocr_caption", "ocr_header", "ocr_f
 STEP_META = "linecaster-step-"
 #: the order of ``ocr-capabilities`` (element classes as they nest, then properties)
 CAPABILITY_ORDER = ("ocr_page", "ocr_carea", "ocr_header", "ocr_footer", "ocr_photo", "ocr_table", "ocr_math",
-                    "ocr_par", "ocr_line", "ocrx_word", "ocrp_lang", "ocrp_poly", "ocrp_wconf")
+                    "ocr_par", "ocr_line", "ocrx_word", "ocrp_lang", "ocrp_dir", "ocrp_poly", "ocrp_wconf")
+VERTICAL = ("vertical-rl", "vertical-lr")
+_WRITING_MODE = re.compile(r"(?:^|;)\s*writing-mode\s*:\s*([a-z-]+)", re.I)
 
 
 def _conf_pct(c: float) -> int:
@@ -143,7 +149,26 @@ class _Writer:
         if data and self.extensions:
             e.set(EXT_ATTR, X.ext_dumps(data))
 
-    def region(self, page, r: X.FileRegion, lines: list[X.FileLine], predicted_ro: int) -> etree._Element:
+    def writing(self, e, values: dict[str, str | None], ext: dict[str, Any], enclosing: str | None) -> None:
+        """Writes a language as ``lang`` (and ``xml:lang``), a direction as ``dir`` or a vertical ``writing-mode``
+        (``horizontal-tb`` again within a vertical ``enclosing`` direction), a script into ``ext``."""
+        tag, script, direction = values["language"], values["script"], values["direction"]
+        if tag:
+            e.set("lang", tag)
+            e.set("{http://www.w3.org/XML/1998/namespace}lang", tag)
+            self.capabilities.add("ocrp_lang")
+        if direction in VERTICAL:
+            e.set("style", f"writing-mode: {direction}")
+        elif direction:
+            if enclosing in VERTICAL:
+                e.set("style", "writing-mode: horizontal-tb")
+            e.set("dir", "rtl" if direction == "horizontal-rl" else "ltr")
+            self.capabilities.add("ocrp_dir")
+        if script:
+            ext["script"] = script
+
+    def region(self, page, r: X.FileRegion, lines: list[X.FileLine], predicted_ro: int,
+               enclosing: str | None) -> etree._Element:
         cls = LABEL_TO_CLASS.get(r.label, "ocr_carea")
         qbox = self.qz.box(r.bbox)
         props = [_bbox_prop(qbox)]
@@ -162,11 +187,12 @@ class _Writer:
             ext["heading_level"] = r.heading_level
         if r.reading_order != predicted_ro:
             ext["reading_order"] = r.reading_order
+        self.writing(div, X.writing(r), ext, enclosing)
         self.ext(div, ext)
         par = self.el(div, "p", "ocr_par", self.new_id(f"{r.id}_par"), [_bbox_prop(qbox)])
         return par
 
-    def line(self, parent, ln: X.FileLine, pos) -> None:
+    def line(self, parent, ln: X.FileLine, pos, enclosing: str | None) -> None:
         qbox = self.qz.box(ln.bbox)
         props = [_bbox_prop(qbox)]
         ext = X.line_order_ext(ln, pos)
@@ -182,6 +208,8 @@ class _Writer:
         if ln.confidence is not None:
             props.append(f"x_wconf {_conf_pct(ln.confidence)}")
         span = self.el(parent, "span", "ocr_line", ln.id, props)
+        self.writing(span, X.writing(ln), ext, enclosing)
+        direction = ln.direction or enclosing
         if ln.score is not None:
             ext["score"] = ln.score
         if ln.words:
@@ -197,6 +225,7 @@ class _Writer:
                 ws = self.el(span, "span", "ocrx_word", w.id, wprops)
                 ws.text = w.text
                 wext: dict[str, Any] = {}
+                self.writing(ws, X.writing(w), wext, direction)
                 if w.hyphen:
                     wext["hyphen"] = True
                 if w.alternatives:
@@ -248,13 +277,18 @@ class _Writer:
             props.append(f'image "{uri}"')
         props += [f"bbox 0 0 {width} {height}", "ppageno 0"]
         page = self.el(body, "div", "ocr_page", self.new_id("page_1"), props)
+        held = X.page_writing(t)
+        ext: dict[str, Any] = {}
+        self.writing(page, {**held, "language": None}, ext, None)      # the language is the html's
+        self.ext(page, ext)
         for u in units:
             if u.synthetic:
-                parent = page
+                parent, direction = page, held["direction"]
             else:
-                parent = self.region(page, u.region, u.lines, ranks[u.region.id])
+                parent = self.region(page, u.region, u.lines, ranks[u.region.id], held["direction"])
+                direction = u.region.direction or held["direction"]
             for ln in u.lines:
-                self.line(parent, ln, pos)
+                self.line(parent, ln, pos, direction)
         capabilities.set("content", " ".join(c for c in CAPABILITY_ORDER if c in self.capabilities))
         return etree.tostring(html, xml_declaration=True, encoding="UTF-8", doctype=DOCTYPE,
                               pretty_print=True)
@@ -355,7 +389,9 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0,
 
     The steps the file names become the transcription's annotators (a foreign file: the software ``ocr-system``
     names, as a recognition step); without any, the file is its one annotator (kind ``file``). Regions are
-    classified by the region label their class reads as; ``lang`` becomes the page's ``language`` classification.
+    classified by the region label their class reads as. ``lang``, ``dir`` and ``writing-mode`` (``writing_at``)
+    become ``language`` and ``direction`` classifications of the page, a region, a line or a word, each where they
+    differ from the enclosing level's.
 
     Args:
         data: the hOCR file's content.
@@ -377,15 +413,39 @@ def from_hocr(data: bytes | str, *, uri: str | None = None, page: int = 0,
         return X.transcription([], [], [], Source(kind="converted", format="hocr", uri=uri), ground_truth)
     pg = pages[page]
     pprops = parse_title(pg.get("title"))
-    state = {"line": 0, "region": 0, "orphan_row": 0, "gen": 0}
+    page_holds = writing_at(pg)
+    state = {"line": 0, "region": 0, "orphan_row": 0, "gen": 0, "page": page_holds, "holds": {}}
     found = _Found()
     _walk(pg, found, state, None)
     pbox = _bbox(pprops)
     image = pprops.get("image", "").strip().strip('"') or None
     source = Source(kind="converted", format="hocr", uri=uri or image,
                     image_width=int(pbox[2]) if pbox else None, image_height=int(pbox[3]) if pbox else None)
-    return X.transcription(found.regions, found.lines, _steps(root), source, ground_truth,
-                           language=root.get("lang") or None)
+    return X.transcription(found.regions, found.lines, _steps(root), source, ground_truth, **page_holds)
+
+
+def writing_at(el) -> dict[str, str | None]:
+    """The language, script and direction that hold at an element: ``lang`` (ISO 639-1 codes for three-letter ones),
+    linecaster's ``script`` and the direction of ``dir`` and CSS's ``writing-mode`` in ``style`` (vertical-rl,
+    vertical-lr; else ``rtl`` horizontal-rl, ``ltr`` or ``horizontal-tb`` horizontal-lr), each from the element or
+    the nearest element it lies in that has one."""
+    found: dict[str, str | None] = {}
+    for e in (el, *el.iterancestors()):
+        if not isinstance(e.tag, str):
+            continue
+        m = _WRITING_MODE.search(e.get("style") or "")
+        for k, v in (("lang", e.get("lang")), ("dir", e.get("dir")), ("mode", m and m.group(1).lower()),
+                     ("script", _ext(e).get("script") if e.get(EXT_ATTR) else None)):
+            if v is not None and k not in found:
+                found[k] = v
+    mode, dir_ = found.get("mode"), (found.get("dir") or "").lower()
+    if mode in VERTICAL:
+        direction = mode
+    else:
+        direction = {"rtl": "horizontal-rl", "ltr": "horizontal-lr"}.get(dir_)
+        if direction is None and mode == "horizontal-tb" and not dir_:
+            direction = "horizontal-lr"
+    return {"language": L.canonical(found.get("lang")), "script": found.get("script"), "direction": direction}
 
 
 class _Found:
@@ -457,6 +517,7 @@ def _region(el, cls: set[str], t: _Found, state) -> X.FileRegion:
     r = X.FileRegion(rid, ext.get("label", CLASS_TO_LABEL.get(primary, "text")), ext.get("raw_label", primary),
                      poly or X.rect(bbox), bbox, ext.get("score"), ext.get("heading_level"),
                      ext.get("reading_order", state["region"]))
+    state["holds"][rid] = X.narrower(r, writing_at(el), state["page"])
     state["region"] += 1
     t.regions.append(r)
     return r
@@ -474,14 +535,18 @@ def _line(el, t: _Found, state, region: X.FileRegion | None) -> None:
         row = state.get("region_row", 0)
         state["region_row"] = row + 1
     lid = el.get("id") or f"line_{rank}"
+    fl = X.FileLine(lid, None, 0, 0, None)
+    holds = X.narrower(fl, writing_at(el), state["holds"][region.id] if region is not None else state["page"])
     words: list[X.FileWord] = []
     for k, we in enumerate(d for d in el.iter() if isinstance(d.tag, str) and "ocrx_word" in _classes(d)):
         wp = parse_title(we.get("title"))
         wext = _ext(we)
         conf = wp.get("x_wconf")
-        words.append(X.FileWord(we.get("id") or f"{lid}_w{k}", "".join(we.itertext()), _bbox(wp),
-                                float(conf) / 100 if conf and _nums(conf) else None, wext.get("alternatives", []),
-                                bool(wext.get("hyphen"))))
+        w = X.FileWord(we.get("id") or f"{lid}_w{k}", "".join(we.itertext()), _bbox(wp),
+                       float(conf) / 100 if conf and _nums(conf) else None, wext.get("alternatives", []),
+                       bool(wext.get("hyphen")))
+        X.narrower(w, writing_at(we), holds)
+        words.append(w)
     poly = _pairs(props.get("poly"))
     bbox = _bbox(props) or (X.bounds(poly) if poly else [0.0, 0.0, 0.0, 0.0])
     baseline = _pairs(props.get("x_bline"))
@@ -502,4 +567,4 @@ def _line(el, t: _Found, state, region: X.FileRegion | None) -> None:
         confidence, alternatives, words = None, [], []
     t.lines.append(X.FileLine(lid, region.id if region is not None else None, ext.get("reading_order", rank),
                               ext.get("row", row), bbox, poly, baseline, ext.get("score"), text, confidence,
-                              alternatives, words))
+                              alternatives, words, **X.writing(fl)))

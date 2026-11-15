@@ -10,6 +10,11 @@ Mapping (see ``docs/reference/serialization.md``):
 * line -> ``TextLine`` (``Coords`` = polygon, or the box when there is none; ``Baseline``;
   ``TextEquiv`` with ``@conf``; alternatives as further ``TextEquiv`` with ``@index``);
 * word -> ``Word`` (``Coords`` = box, ``TextEquiv``);
+* language, script and direction -> ``primaryLanguage`` (a word's ``language``; PAGE's English names, ``_languages``),
+  ``primaryScript`` (``"Latn - Latin"``) and ``readingDirection`` with ``textLineOrder`` (``DIRECTIONS``) on ``Page``,
+  ``TextRegion``, ``TextLine`` and ``Word`` (a line's and a word's direction as ``readingDirection`` alone), each
+  where it differs from the enclosing level's; ``secondaryLanguage`` and ``secondaryScript`` are read as extension
+  fields;
 * lines without a region go into a synthetic ``TextRegion`` the reader drops again;
 * each model and rule annotator -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step,
   ``value`` the preset edition or model, ``Labels`` of the ``linecaster`` model for the rest), read back as
@@ -31,7 +36,7 @@ from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Source, Transcription
-from . import _provenance as P, _xml as X
+from . import _languages as L, _provenance as P, _xml as X
 
 NS = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
@@ -92,12 +97,68 @@ def _conf(v: float | None) -> str | None:
     return None if v is None else repr(float(v))
 
 
+#: (``readingDirection``, ``textLineOrder``) of a page or region -> its direction
+BLOCK_DIRECTIONS = {("left-to-right", "top-to-bottom"): "horizontal-lr",
+                    ("right-to-left", "top-to-bottom"): "horizontal-rl",
+                    ("top-to-bottom", "right-to-left"): "vertical-rl",
+                    ("top-to-bottom", "left-to-right"): "vertical-lr"}
+_BLOCK_ATTRS = {v: k for k, v in BLOCK_DIRECTIONS.items()}
+#: a line's or word's direction -> its ``readingDirection``
+_LINE_ATTRS = {"horizontal-lr": "left-to-right", "horizontal-rl": "right-to-left", "vertical-rl": "top-to-bottom",
+               "vertical-lr": "top-to-bottom"}
+
+
+def block_direction(reading: str | None, line_order: str | None) -> str | None:
+    """The direction of a page or region with this ``readingDirection`` and ``textLineOrder`` (``BLOCK_DIRECTIONS``;
+    a horizontal reading direction without a line order: lines top to bottom); ``None`` for any other combination."""
+    if line_order is None and reading in ("left-to-right", "right-to-left"):
+        line_order = "top-to-bottom"
+    return BLOCK_DIRECTIONS.get((reading, line_order))
+
+
+def line_direction(reading: str | None, enclosing: str | None) -> str | None:
+    """The direction of a line or word with this ``readingDirection``: left-to-right horizontal-lr, right-to-left
+    horizontal-rl, top-to-bottom the enclosing level's direction where that is vertical; ``None`` otherwise."""
+    if reading == "top-to-bottom":
+        return enclosing if enclosing in ("vertical-rl", "vertical-lr") else None
+    return {"left-to-right": "horizontal-lr", "right-to-left": "horizontal-rl"}.get(reading or "")
+
+
 class _Writer:
     def __init__(self, t: Transcription, extensions: bool, policy: RenderingPolicy = DEFAULT_POLICY):
         self.t = t
         self.regions, self.lines = X.file_layout(t, policy)
+        self.page_writing = X.page_writing(t)
         self.qz = X.Quantizer(0, clamp=True)
         self.extensions = extensions
+
+    def writing(self, el, values: dict[str, str | None], ext: dict[str, Any], enclosing: str | None = None,
+                block: bool = False, language: str = "primaryLanguage") -> None:
+        """Writes a language, script and direction as PAGE's attributes (a page's or region's direction as
+        ``readingDirection`` and ``textLineOrder``, a line's or word's, with the ``enclosing`` level's direction, as
+        ``readingDirection``), and into ``ext`` what a reader would read otherwise (a language PAGE has no name for,
+        a variant: ``de-1901``)."""
+        tag, script, direction = values["language"], values["script"], values["direction"]
+        if tag:
+            name = L.page_language(tag)
+            if name:
+                el.set(language, name)
+            if L.from_page_language(name) != tag:
+                ext["language"] = tag
+        if script:
+            value = L.page_script(script)
+            if value:
+                el.set("primaryScript", value)
+            else:
+                ext["script"] = script
+        if direction:
+            if block:
+                el.set("readingDirection", _BLOCK_ATTRS[direction][0])
+                el.set("textLineOrder", _BLOCK_ATTRS[direction][1])
+            else:
+                el.set("readingDirection", _LINE_ATTRS[direction])
+                if line_direction(_LINE_ATTRS[direction], enclosing) != direction:
+                    ext["direction"] = direction
 
     def ext(self, el, data: dict[str, Any]) -> None:
         if data and self.extensions:
@@ -143,20 +204,25 @@ class _Writer:
             ext["heading_level"] = r.heading_level
         if r.reading_order != predicted_ro:
             ext["reading_order"] = r.reading_order
+        if element == "TextRegion":
+            self.writing(el, X.writing(r), ext, block=True)
+        else:                           # other regions have no language, script or direction
+            ext.update({k: v for k, v in X.writing(r).items() if v})
         self.ext(el, ext)
         for ln in lines:
-            self.line(el, ln, pos)
+            self.line(el, ln, pos, r.direction or self.page_writing["direction"])
 
     def synthetic(self, page, block_id: str, lines: list[X.FileLine], pos) -> None:
         el = _e(page, "TextRegion", id=block_id)
         self.coords(el, X.rect(X.unit_bbox(lines)))
         self.ext(el, {"synthetic": True})
         for ln in lines:
-            self.line(el, ln, pos)
+            self.line(el, ln, pos, self.page_writing["direction"])
 
-    def line(self, region_el, ln: X.FileLine, pos) -> None:
+    def line(self, region_el, ln: X.FileLine, pos, enclosing: str | None) -> None:
         el = _e(region_el, "TextLine", id=ln.id)
         ext = X.line_order_ext(ln, pos)
+        self.writing(el, X.writing(ln), ext, enclosing)
         want = self.qz.box(ln.bbox)
         if ln.polygon:
             _, pts = self.coords(el, ln.polygon, ln.score)
@@ -172,8 +238,9 @@ class _Writer:
             else:
                 ext["baseline"] = bl
         hyphen = []
+        direction = ln.direction or enclosing
         for w in ln.words:
-            self.word(el, w, ln)
+            self.word(el, w, ln, direction)
             if w.hyphen:
                 hyphen.append(w.id)
         if hyphen:
@@ -181,9 +248,10 @@ class _Writer:
         self.text_equivs(el, ln.text, ln.confidence, ln.alternatives)     # an unread line has none of them
         self.ext(el, ext)
 
-    def word(self, line_el, w: X.FileWord, ln: X.FileLine) -> None:
+    def word(self, line_el, w: X.FileWord, ln: X.FileLine, enclosing: str | None) -> None:
         el = _e(line_el, "Word", id=w.id)
         ext: dict[str, Any] = {}
+        self.writing(el, X.writing(w), ext, enclosing, language="language")
         if w.bbox is not None:
             self.coords(el, X.rect(self.qz.box(w.bbox)))
         else:
@@ -230,6 +298,8 @@ class _Writer:
         for m in steps:
             self.processing_step(md, m)
         page = _e(root, "Page", imageFilename=uri or "", imageWidth=str(width), imageHeight=str(height))
+        page_ext: dict[str, Any] = {}
+        self.writing(page, self.page_writing, page_ext, block=True)
         if in_group:
             ro = _e(page, "ReadingOrder")
             used = {r.id for r in self.regions} | {u.block_id for u in units}
@@ -240,6 +310,7 @@ class _Writer:
             grp = _e(ro, "OrderedGroup", id=gid)
             for i, u in enumerate(in_group):
                 _e(grp, "RegionRefIndexed", index=str(i), regionRef=u.block_id)
+        self.ext(page, page_ext)
         for u in units:
             if u.synthetic:
                 self.synthetic(page, u.block_id, u.lines, pos)
@@ -340,6 +411,45 @@ def _text_equivs(el) -> tuple[str | None, float | None, list[str]]:
     return text(tes[0]), X.parse_num(tes[0].get("conf")), [text(te) for te in tes[1:]]
 
 
+def _writing(el, get=None, language: str = "primaryLanguage", block: bool = False,
+             enclosing: tuple[str | None, str | None] | str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """What an element says of its language, script and direction (its attributes through ``get``, default its own),
+    and the extension fields for what has no value of ours: a language name or script value PAGE's tables lack
+    (``page__language``, ``page__script``: ``other``), the secondary language and script
+    (``page__secondary_language``, ``page__secondary_script``), a reading direction and line order that make no
+    direction (``page__reading_direction``, ``page__text_line_order``). A page's or region's (``block``) direction is
+    ``block_direction`` of its ``readingDirection`` and ``textLineOrder``, either missing one taken from
+    ``enclosing`` (the page's pair); a line's or word's ``line_direction`` of its ``readingDirection`` within
+    ``enclosing`` (the direction that holds there). linecaster's extension overrides them all."""
+    get = get or el.get
+    own: dict[str, str | None] = {}
+    fields: dict[str, Any] = {}
+    name, script = get(language), get("primaryScript")
+    if name:
+        own["language"] = L.from_page_language(name)
+        if own["language"] is None:
+            fields["page__language"] = name
+    if script:
+        own["script"] = L.from_page_script(script)
+        if own["script"] is None:
+            fields["page__script"] = script
+    for attr, field in (("secondaryLanguage", "page__secondary_language"),
+                        ("secondaryScript", "page__secondary_script")):
+        if get(attr):
+            fields[field] = get(attr)
+    reading, order = get("readingDirection"), get("textLineOrder") if block else None
+    if block and (reading or order):
+        outer = enclosing or (None, None)
+        own["direction"] = block_direction(reading or outer[0], order or outer[1])
+    elif reading:
+        own["direction"] = line_direction(reading, enclosing)
+    if (reading or order) and not own.get("direction"):
+        fields.update({k: v for k, v in (("page__reading_direction", reading), ("page__text_line_order", order)) if v})
+    ext = _ext(el)
+    own.update({k: ext[k] for k in X.WRITING if k in ext})
+    return own, fields
+
+
 def _coords_conf(el) -> float | None:
     c = X.child(el, "Coords")
     return X.parse_num(c.get("conf")) if c is not None else None
@@ -408,7 +518,9 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
     file without ``Page`` reads as an empty transcription.
 
     The steps the file names become the transcription's annotators; without any, the file is its one annotator
-    (kind ``file``). Regions are classified by the region label they read as (``page_label``).
+    (kind ``file``). Regions are classified by the region label they read as (``page_label``). Languages, scripts and
+    directions become classifications of the page, a region, a line or a word, each where they differ from the
+    enclosing level's (``_writing``).
 
     Args:
         data: the PAGE-XML file's content.
@@ -433,6 +545,9 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
                                ground_truth)
     ro_el = X.child(page, "ReadingOrder")
     ro_refs = _ro_refs(ro_el) if ro_el is not None else None
+    own, page_fields = _writing(page, block=True)
+    page_holds = {k: own.get(k) for k in X.WRITING}
+    page_order = (page.get("readingDirection"), page.get("textLineOrder"))
 
     regions: list[X.FileRegion] = []
     lines: list[X.FileLine] = []
@@ -450,10 +565,16 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
             rid = f"region_{gen}"
         synthetic = bool(ext.get("synthetic"))
         polygon = _points(el)
+        fr = X.FileRegion(rid, "", "", None, None)
+        holds = page_holds
+        if not synthetic:
+            own, fr.fields = _writing(el, lambda attr, el=el: _inherited(el, page, attr), block=True,
+                                      enclosing=page_order)
+            holds = X.narrower(fr, own, page_holds)
         text_lines = X.children(el, "TextLine") if el.tag == "TextRegion" else []
         parsed = []
         for row, tl in enumerate(text_lines):
-            parsed.append(_line(tl, row, line_no, None if synthetic else rid))
+            parsed.append(_line(tl, row, line_no, None if synthetic else rid, holds))
             line_no += 1
         lines.extend(parsed)
         if not polygon:     # a region without Coords: the box around its lines
@@ -465,7 +586,8 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
         regions.append(X.FileRegion(
             rid, ext.get("label", page_label(el.tag, type_attr, structure)),
             ext.get("raw_label", page_raw_label(el.tag, type_attr, structure)), polygon,
-            ext.get("bbox", X.bounds(polygon)), _coords_conf(el), ext.get("heading_level")))
+            ext.get("bbox", X.bounds(polygon)), _coords_conf(el), ext.get("heading_level"),
+            **X.writing(fr), fields=fr.fields))
         real_ids.append(rid)
         if "reading_order" in ext:
             region_ro_ext[rid] = ext["reading_order"]
@@ -479,14 +601,28 @@ def from_page(data: bytes | str, *, uri: str | None = None, ground_truth: bool =
     w = X.parse_num(page.get("imageWidth"))
     h = X.parse_num(page.get("imageHeight"))
     source = Source(kind="converted", format="page", uri=uri or page.get("imageFilename") or None,
-                    image_width=int(w) if w else None, image_height=int(h) if h else None, **namespace)
-    return X.transcription(regions, lines, annotators, source, ground_truth)
+                    image_width=int(w) if w else None, image_height=int(h) if h else None, **namespace,
+                    **page_fields)
+    return X.transcription(regions, lines, annotators, source, ground_truth, **page_holds)
 
 
-def _line(tl, row: int, rank: int, region_id: str | None) -> X.FileLine:
+def _inherited(el, page, attr: str) -> str | None:
+    """``attr`` of a region ``el`` or of the nearest region it lies in (up to ``page``): PAGE nests regions,
+    linecaster's are flat."""
+    while el is not None and el is not page:
+        if el.get(attr):
+            return el.get(attr)
+        el = el.getparent()
+    return None
+
+
+def _line(tl, row: int, rank: int, region_id: str | None, enclosing: dict[str, str | None]) -> X.FileLine:
     ext = _ext(tl)
     lid = tl.get("id") or f"line_{rank}"
     polygon = _points(tl)
+    own, fields = _writing(tl, enclosing=enclosing["direction"])
+    fl = X.FileLine(lid, region_id, 0, 0, None, fields=fields)
+    holds = X.narrower(fl, own, enclosing)
     words = []
     for k, we in enumerate(X.children(tl, "Word")):
         wext = _ext(we)
@@ -494,8 +630,12 @@ def _line(tl, row: int, rank: int, region_id: str | None) -> X.FileLine:
         text, conf, alts = _text_equivs(we)
         if text is None:     # PAGE allows text on glyphs only
             text = "".join((_text_equivs(g)[0] or "") for g in X.children(we, "Glyph"))
-        words.append(X.FileWord(we.get("id") or f"{lid}_w{k}", text,
-                                wext["bbox"] if "bbox" in wext else (X.bounds(wpts) if wpts else None), conf, alts))
+        own, fields = _writing(we, language="language", enclosing=holds["direction"])
+        w = X.FileWord(we.get("id") or f"{lid}_w{k}", text,
+                       wext["bbox"] if "bbox" in wext else (X.bounds(wpts) if wpts else None), conf, alts,
+                       fields=fields)
+        X.narrower(w, own, holds)
+        words.append(w)
     for wid in ext.get("hyphen", []):
         for w in words:
             if w.id == wid:
@@ -517,4 +657,4 @@ def _line(tl, row: int, rank: int, region_id: str | None) -> X.FileLine:
     return X.FileLine(lid, region_id, ext.get("reading_order", rank), ext.get("row", row), bbox,
                       ext["polygon"] if "polygon" in ext else polygon,
                       ext["baseline"] if "baseline" in ext else _baseline(tl), _coords_conf(tl), text, confidence,
-                      alternatives, words)
+                      alternatives, words, **X.writing(fl), fields=fl.fields)

@@ -33,21 +33,29 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
      read has no reading;
    - **the reading order** that counts (`t.order`): each region's rank in it, each line's rank on the page and row
      in its region;
-   - the page's `language` classification (hOCR only).
+   - **languages, scripts and directions** as recorded (`t.language`, `t.script`, `t.direction`: a target's own
+     classification, else its line's, its region's or the page's; never an inferred one): the page's, and a
+     region's, line's or word's where it differs from the level that encloses it in the file (a word's line, a
+     line's region, else the page), so a value the page records is written once.
 
    Regions the policy puts in layer `none` (a `status` of removed, suppressed or duplicate under `page-layers`;
    the roles separator and noise) are left out with their lines, and so are lines whose own `status` the policy puts
    there (a line assignment's duplicates); ranks are counted among what is written. **Not serialized**: the other
-   classifications (production apart from handwritten running text, status, script, picture class, code language;
-   language in ALTO and PAGE), edits (`corrected`, `expanded`, `regularized`; ALTO's divided words apart),
+   classifications (production apart from handwritten running text, status, picture class, code language; spans'
+   languages and directions), edits (`corrected`, `expanded`, `regularized`; ALTO's divided words apart),
    descriptions, links, ranges and paragraphs, tables and formulas, raw outputs, glyphs and formatting, annotations'
    `annotator`, `output`, `derived_from` and extension fields, annotators of kind `file` and `human`, annotators'
    `measurements` other than `datetime`, and the source.
 3. **Reading** (`linecaster.formats._xml.transcription`): a reader makes one transcription of the file: its
    regions (the raw label as `Region.label`, a `role` classification of the region label they read as,
    `linecaster.data.policy.classify_label`, and a `heading_level` one), its lines with their readings, and one
-   reading order (the regions with a rank, the lines by rank, with their rows); hOCR's `lang` becomes the page's
-   `language` classification. A content role comes back as the role of its region label: roles that share one
+   reading order (the regions with a rank, the lines by rank, with their rows). A language, script or direction the
+   file states becomes a classification (by the annotator that made the readings) of the narrowest target it holds
+   for, the page, a region, a line or a word (`<line>/<n>`), where it differs from the enclosing level's: a value an
+   element inherits from one the reader does not keep (hOCR's `ocr_par`, a nested PAGE region, a synthetic block)
+   is recorded on what lies in it. A language as BCP 47 with the ISO 639-1 code for a three-letter one (`eng`, `deu`
+   and `ger` read as `en`, `de`; `linecaster.formats._languages.canonical`); a value that is no language, script or
+   direction is not recorded. A content role comes back as the role of its region label: roles that share one
    (marginalia, credit, floating and drop capitals read as paragraphs; endnotes and continued footnotes as footnotes;
    a page number as a header or footer) come back as that label's role. The **annotators** are the steps the file
    names (provenance, below); without any, the file is the one annotator (kind `file`, step `transcription`, named
@@ -57,7 +65,8 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    (else lines), the reading order by the latest of typography, assignment, ordering, lines, layout and recognition,
    and by the first annotator where none of these ran. The **source** is `kind="converted"`, `format`, `uri` and
    the image size, with ALTO's scale factors (`scale`) and the extension fields `alto__namespace` (the file's
-   namespace), `alto__measurement_unit` (when not `pixel`) and `page__namespace`. **`ground_truth=True`** (every
+   namespace), `alto__measurement_unit` (when not `pixel`), `alto__other_languages` (`OTHERLANGS`),
+   `page__namespace`, and PAGE's page-level extension fields (below). **`ground_truth=True`** (every
    reader) makes the source a ground truth (`kind="ground_truth"`) and the file's own annotator people (kind
    `human`); steps the file names stay what they are. Readers return regions and lines in document order, which
    may differ from the original list order; tests compare by id.
@@ -108,13 +117,13 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
    are. Ids the writers make up themselves (synthetic blocks, tags, the page) avoid every existing
    id.
 11. **Known limits.** Characters XML cannot carry (C0 controls other than tab/newline) make the
-    writers raise lxml's `ValueError`; text is not silently altered. Language is written to hOCR
-    `lang` only.
+    writers raise lxml's `ValueError`; text is not silently altered.
 12. **Tests** cover the fixture in `tests/conftest.py` (polygon regions, baselines, box-only lines,
     empty and unrecognized lines, a region-less line, hyphenation, alternatives), irregular orders,
     300 seeded random transcriptions per format (every tenth also validated against the XSD),
     and foreign files (ALTO v2 mm10, v3 without namespace, eScriptorium v4; PAGE 2010 and
-    Transkribus 2013; Tesseract hOCR and tag-soup HTML).
+    Transkribus 2013; Tesseract hOCR and tag-soup HTML); languages, scripts and directions
+    (`tests/formats/test_writing_systems.py`) in round trips and foreign files of each format.
 
 ## ALTO (writes 4.4, reads v1 to v4)
 
@@ -127,6 +136,9 @@ policy](data-model.md#rendering); what it writes is a rendering, not stored in t
 | line | `TextLine` with `BASELINE="x,y x,y ..."` (4.2+ points syntax), `Shape/Polygon` |
 | word | `String` (`WC`, `ALTERNATIVE`), `SP` between words; a `hyphen` word that ends in `- ¬ ⸗ ‐ soft hyphen =` is split into `String` + `HYP` (reader re-joins: word text and line text unchanged) |
 | region and line score (detection confidence), heading level, line confidence | extension |
+| language (BCP 47) | `LANG` on `Page`, `TextBlock`, `TextLine`, `String`; an `Illustration`'s in the extension |
+| direction | `BASEDIRECTION` on `TextBlock` and `TextLine`: horizontal-lr `ltr`, horizontal-rl `rtl`, vertical-rl and vertical-lr `ttb`. `Page` has none: every block carries the page's direction (or its own); a vertical block's direction, a word's and an `Illustration`'s also in the extension |
+| script | extension (ALTO has none); the page's on every block |
 | model and rule annotators | `Description/Processing` (category, date when recorded, the step as `processingStepDescription`, the step record as JSON in `processingStepSettings`, linecaster as `softwareCreator` with the model and its revision), all referenced from `Page/@PROCESSINGREFS` |
 
 Reading foreign ALTO: namespaces v1–v4 or none; blocks anywhere under `Page` (margins,
@@ -139,7 +151,12 @@ from it;
 is read as is; with `image_width`/`image_height` and `Page/@WIDTH`/`@HEIGHT` every coordinate is
 scaled to the image (also corrects pixel ALTO made on a master of another size); `mm10` and
 `inch1200` without the image size need `dpi=` (`px = v * dpi / 254` resp. `/ 1200`); otherwise
-`from_alto` raises `ValueError` rather than guessing.
+`from_alto` raises `ValueError` rather than guessing. **Languages and directions**: `LANG` of the `Page` is the
+page's language, of a `TextBlock` (or its deprecated `language`), `TextLine` or `String` the region's, line's or
+word's; `OTHERLANGS` is kept as the source's `alto__other_languages`. `BASEDIRECTION` `ltr` reads as horizontal-lr,
+`rtl` as horizontal-rl; `ttb` says the lines are vertical but not in which order the columns run, so on a line it reads
+as its block's vertical direction and is otherwise not recorded: the value is kept as the region's or line's
+extension field `alto__base_direction`, as is `btt`.
 
 ## PAGE (writes 2019-07-15, reads 2009–2019)
 
@@ -153,6 +170,9 @@ scaled to the image (also corrects pixel ALTO made on a master of another size);
 | word | `Word`: `Coords` = box, `TextEquiv` |
 | box | not in PAGE: readers take the bounds of `Coords`; the writer stores the box when it differs |
 | heading level | extension |
+| language | `primaryLanguage` of `Page`, `TextRegion` and `TextLine`, `language` of `Word`: PAGE's English name of the tag's language (`German` for `de` and `de-1901`; `linecaster.formats._languages`); a tag PAGE names otherwise (`de-1901`) or not at all (`grc`) in the extension (not written without it) |
+| script | `primaryScript` of `Page`, `TextRegion`, `TextLine` and `Word` (`Latn - Latin`); a code PAGE's list lacks in the extension |
+| direction | `Page` and `TextRegion`: `readingDirection` and `textLineOrder`, horizontal-lr `left-to-right` and `top-to-bottom`, horizontal-rl `right-to-left` and `top-to-bottom`, vertical-rl `top-to-bottom` and `right-to-left`, vertical-lr `top-to-bottom` and `left-to-right`; `TextLine` and `Word`: `readingDirection` (`left-to-right`, `right-to-left`, `top-to-bottom` for both vertical ones; within a level that is not vertical, a vertical one also in the extension); another region's (`ImageRegion`, ...) language, script and direction in the extension |
 | model and rule annotators | `Metadata/MetadataItem type="processingStep"` (as OCR-D records its processors): `name` the step, `value` the preset or the model, `date` when recorded, `Labels externalModel="linecaster"` with `externalId="model"` (name, engine, revision, preset, preset hash, recipe, recipe hash, backend, software) and `externalId="settings"` (one label per setting); a summary in `Comments` |
 
 Label mapping, region label → `TextRegion/@type`: text, paragraph, list_item, handwritten_text,
@@ -168,6 +188,18 @@ extension when the reverse mapping would not return it (e.g. `title` → `headin
 zones and PP-DocLayout names. Old PAGE `Coords/Point` children are read; text on glyphs only is
 joined into the word.
 
+Languages, scripts and directions are read from the same attributes. A language name maps to its tag by
+`linecaster.formats._languages` (generated from the 2019 schema's names and the ISO 639-3 code table: the ISO 639-1
+code where there is one, else the ISO 639-3 code; Cambodian and Khmer both read as `km`, Panjabi and Punjabi as `pa`),
+a script value to its four-letter code. A nested `TextRegion` takes what it does not say from the region it lies in;
+a region's `readingDirection` or `textLineOrder` alone is completed by the page's, and a horizontal
+`readingDirection` without any line order reads with lines top to bottom. A line's or word's `top-to-bottom` reads as
+the enclosing vertical direction. What has no value of linecaster's is kept as an extension field of the page (the
+source), region, line or word: `page__language` (`other`, a name the table lacks), `page__script`,
+`page__secondary_language` and `page__secondary_script` (PAGE's secondary values, read only), and
+`page__reading_direction` with `page__text_line_order` for a combination that is no direction (`top-to-bottom`
+lines stacked `top-to-bottom`).
+
 ## hOCR 1.2
 
 | What is written | hOCR |
@@ -178,12 +210,19 @@ joined into the word.
 | word | `span.ocrx_word`: `bbox`, `x_wconf` |
 | raw label, region and line score, heading level, hyphen, alternatives | extension |
 | model and rule annotators | `meta name="linecaster-step-<n>"`, the step record as JSON; `ocr-system` is linecaster with its release, `ocr-capabilities` what the file contains |
-| the page's `language` classification | `html/@lang` and `xml:lang`; `ocr-langs` for an ISO 639-1 code |
+| the page's language | `html/@lang` and `xml:lang`; `ocr-langs` for an ISO 639-1 code |
+| a region's, line's or word's language | `lang` and `xml:lang` of its `ocr_carea` (or its class's `div`), `ocr_line` or `ocrx_word` |
+| direction | on the `ocr_page` and a region's, line's or word's element: `dir="ltr"` (horizontal-lr), `dir="rtl"` (horizontal-rl), `style="writing-mode: vertical-rl"` (or `vertical-lr`); a horizontal one within a vertical level also `writing-mode: horizontal-tb` |
+| script | extension (hOCR has none), the page's on the `ocr_page` |
 
 Reading foreign hOCR: XHTML or tag-soup HTML (lxml.html fallback); regions are the top-level
 float/area classes, lines are `ocr_line`, `ocr_textfloat`, `ocr_caption` and `ocr_header`/
 `ocr_footer` spans inside a region (Tesseract's line classes); word text includes nested
-`<strong>`/`<em>`; `image "..."` may contain `;`.
+`<strong>`/`<em>`; `image "..."` may contain `;`. A language, script and direction hold as in HTML, from the element or
+the nearest element it lies in that states one (`hocr.writing_at`): `lang` (`xml:lang`), `dir` (`ltr`, `rtl`;
+`auto` states none) and CSS's `writing-mode` in `style` (`vertical-rl`, `vertical-lr`; `horizontal-tb` without a
+`dir` reads as horizontal-lr). The page's are those of its `ocr_page`; a paragraph's (Tesseract writes `lang` on
+`ocr_par`) count for its lines.
 
 ## IIIF annotation page (`linecaster.formats.iiif`)
 
@@ -194,9 +233,9 @@ IIIF Presentation and text granularity contexts:
 | Annotation set | Annotation |
 |---|---|
 | region, in reading order | motivation `classifying`, the content role as a `TextualBody` (purpose `classifying`) |
-| line with a reading, in reading order | `supplementing` (IIIF's motivation for a transcription), `textGranularity` `line`, the text as written, the page's `language` classification as the body's `language` |
-| word | `supplementing`, `textGranularity` `word` |
-| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose, targeting the line's annotation |
+| line with a reading, in reading order | `supplementing` (IIIF's motivation for a transcription), `textGranularity` `line`, the text as written, the line's language as the body's `language` |
+| word | `supplementing`, `textGranularity` `word`, the word's language as the body's `language` |
+| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose and its target's language as its `language`, targeting the line's annotation |
 | description of a region | `describing`, its text with its kind as the purpose |
 
 Targets are the canvas with a media fragment (`#xywh=`, rounded) where the annotation has a box (a line without
@@ -204,6 +243,28 @@ one: its region's), the canvas itself where it has none. Each annotation names i
 (`Software`), or as `creator` (`Person`) for people, with the annotator's name. Regions the policy puts in layer
 `none` are left out with their lines and descriptions, and so are lines whose own `status` puts them nowhere. The
 output is validated against the IIIF Presentation 3 JSON Schema in the tests.
+
+A body's language is the one its target records ([data model](data-model.md#classifications): `Transcription.language`,
+its own `language` classification, else its line's, its region's or the page's), never an inferred one; a body
+without one has no `language`, and a region's body never has one.
+
+## HTML import (`linecaster.formats.html`)
+
+`HtmlConverter` reads an HTML tree into a transcription by HTML's own semantics (blocks, headings, lists, tables,
+pictures, MathML formulas, DPUB-ARIA furniture and notes, the CSS that decides what is printed) and, where a run
+names them, a source's [conventions](catalog.md). What the page says of its writing is recorded as `language` and
+`direction` classifications, each on the narrowest thing it differs on, by whoever the text is by:
+
+| HTML | Recorded as |
+|---|---|
+| `lang` (`xml:lang` before it) of the root (`html`, its `body`) | the page's (`""`) `language` |
+| `dir` and CSS `writing-mode` of the root | the page's `direction`: `rtl` `horizontal-rl`, `ltr` `horizontal-lr`, `vertical-rl` and `vertical-lr` as they are |
+| `lang`, `dir`, `writing-mode` of a block (a paragraph, heading, list item, page header or footer, note, table) that differ from the page's | its region's |
+| `lang`, `dir` of inline elements (`span`, `bdo`, `bdi`, ...) that differ from their line's | a span of the line (`<line>[a:e]`), consecutive runs of one value one span, without its spaces at either end |
+
+A value is inherited as in HTML: a note or a table cell has the language of the element it stands in. `dir="auto"`,
+and a `bdi` without `dir`, leave the direction to the text: nothing is recorded. A `writing-mode` on an inline element
+does not apply. A `lang` that is no well-formed BCP 47 tag is skipped and counted (`HtmlReading.ill_formed_languages`).
 
 ## The document (`linecaster.document`)
 
@@ -214,10 +275,10 @@ body, the furniture (page headers and footers) only with `furniture`:
 
 | Format | Writes |
 |---|---|
-| HTML (`to_html`) | an HTML5 document: a title `h1`, a heading of level n `h(n+1)` (at most `h6`), a paragraph `p`, list items `li` in a `ul`, a note `aside role="doc-footnote"`, a caption `p class="caption"`, code `pre`, a page header and footer `header role="doc-pageheader"` / `footer role="doc-pagefooter"`, a formula block its LaTeX between `\[` and `\]`, a table with its cells' spans and header cells (`table_html`), a picture a `figure` with its image and the text read inside it; formatting as `i`, `b`, `u`, `s`, `sup`, `sub`, languages as `lang`, line breaks as `br` |
-| Markdown (`to_markdown`) | by the policy's Markdown rules (`MarkdownRules`): headings `#`, list items `-`, formula blocks `$$…$$`, tables as HTML or as pipe tables (HTML where a cell spans), a picture the rules' placeholder, italic `*`, bold `**`, strikethrough `~~`, scripts and underline as HTML with `html_scripts`, characters Markdown would read escaped with `escape`; `dividers` puts `---` between the blocks of one layout region and the next |
+| HTML (`to_html`) | an HTML5 document: a title `h1`, a heading of level n `h(n+1)` (at most `h6`), a paragraph `p`, list items `li` in a `ul`, a note `aside role="doc-footnote"`, a caption `p class="caption"`, code `pre`, a page header and footer `header role="doc-pageheader"` / `footer role="doc-pagefooter"`, a formula block its LaTeX between `\[` and `\]`, a table with its cells' spans and header cells (`table_html`), a picture a `figure` with its image and the text read inside it; formatting as `i`, `b`, `u`, `s`, `sup`, `sub`, languages as `lang`, line breaks as `br`; the document's language as `<html lang>`, its direction as `<html dir="rtl">` or a `writing-mode` style; a block's language and direction where they are not the document's as its element's `lang`, `dir="rtl"` (`dir="ltr"` in a right-to-left document) and `style="writing-mode: vertical-rl"` (or `vertical-lr`) |
+| Markdown (`to_markdown`) | by the policy's Markdown rules (`MarkdownRules`): headings `#`, list items `-`, formula blocks `$$…$$`, tables as HTML or as pipe tables (HTML where a cell spans), a picture the rules' placeholder, italic `*`, bold `**`, strikethrough `~~`, scripts and underline as HTML with `html_scripts`, characters Markdown would read escaped with `escape`; `dividers` puts `---` between the blocks of one layout region and the next; no language or direction (Markdown has none, and neither has text) |
 | text (`to_text`) | each block's text, blocks separated by a blank line; a table one row per line, cells separated by tabs |
-| JSON (`to_json`) | the complete document, every layer and origin (`linecaster.document/1`); `from_json` reads it back |
+| JSON (`to_json`) | the complete document, every layer and origin (`linecaster.document/2`), a language or direction only where one is recorded; `from_json` reads it back |
 
 ## Docling (`linecaster.formats.docling`, the `docling` extra)
 

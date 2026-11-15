@@ -11,6 +11,11 @@ see an extension and use the inferred values.
 Writers write what ``file_layout`` makes of a transcription (``FileRegion``, ``FileLine``, ``FileWord``: what a page
 file holds, its labels, text and order resolved); readers collect the same and ``transcription`` turns them into
 annotations.
+
+A language, script or direction (``WRITING``) is held where it differs from the level that encloses it in the file
+(a word's line, a line's region or the page, a region's page), so a page-level language is written once; readers
+fill the same from what each element says or inherits (``narrower``), and ``transcription`` records the values as
+classifications of the narrowest target that carries them. Only recorded values are written, never inferred ones.
 """
 from __future__ import annotations
 
@@ -22,10 +27,13 @@ from typing import Any, Iterable, Sequence
 from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
+from ..data.refs import word as word_ref
 from ..data.transcription import Annotator, Edit, Line, Reading, Region, Source, Transcription, Word
-from ..data.writing import language_tag
+from ..data.writing import CHECKS, language_tag
 
 EXT_KEY = "linecaster"
+#: the classification schemes of a writing system, as page files hold them
+WRITING = ("language", "script", "direction")
 
 # ---------------------------------------------------------------- numbers and geometry
 
@@ -370,44 +378,77 @@ def label_from_raw(raw: str | None, default: str = "text") -> str:
 class FileWord:
     """A word as a page file holds it: its id (``<line>_w<n>`` unless the reading gave another), text, box,
     confidence, alternatives, hyphen flag and, for half of a word divided across lines (ALTO's ``SUBS_CONTENT``),
-    the whole word (``subs``: the line's ``joined`` edit of the word)."""
+    the whole word (``subs``: the line's ``joined`` edit of the word); its language, script and direction where they
+    differ from its line's, and the format's extension fields (``fields``, ``<format>__<name>``)."""
 
-    __slots__ = ("id", "text", "bbox", "confidence", "alternatives", "hyphen", "subs")
+    __slots__ = ("id", "text", "bbox", "confidence", "alternatives", "hyphen", "subs", "language", "script",
+                 "direction", "fields")
 
     def __init__(self, id: str, text: str, bbox=None, confidence: float | None = None,
-                 alternatives: list[str] | None = None, hyphen: bool = False, subs: str | None = None):
+                 alternatives: list[str] | None = None, hyphen: bool = False, subs: str | None = None,
+                 language: str | None = None, script: str | None = None, direction: str | None = None,
+                 fields: dict[str, Any] | None = None):
         self.id, self.text, self.bbox, self.confidence = id, text, bbox, confidence
         self.alternatives, self.hyphen, self.subs = list(alternatives or []), hyphen, subs
+        self.language, self.script, self.direction, self.fields = language, script, direction, dict(fields or {})
 
 
 class FileRegion:
     """A region as a page file holds it: its region label (``label``, from its content role) and its producer's
     own (``raw_label``), polygon and box, detection confidence (``score``), heading level and rank in the reading
-    order (``None``: not in it)."""
+    order (``None``: not in it); its language, script and direction where they differ from the page's, and the
+    format's extension fields (``fields``, ``<format>__<name>``)."""
 
-    __slots__ = ("id", "label", "raw_label", "polygon", "bbox", "score", "heading_level", "reading_order")
+    __slots__ = ("id", "label", "raw_label", "polygon", "bbox", "score", "heading_level", "reading_order",
+                 "language", "script", "direction", "fields")
 
     def __init__(self, id: str, label: str, raw_label: str, polygon, bbox, score: float | None = None,
-                 heading_level: int | None = None, reading_order: int | None = None):
+                 heading_level: int | None = None, reading_order: int | None = None, language: str | None = None,
+                 script: str | None = None, direction: str | None = None, fields: dict[str, Any] | None = None):
         self.id, self.label, self.raw_label, self.polygon, self.bbox = id, label, raw_label, polygon, bbox
         self.score, self.heading_level, self.reading_order = score, heading_level, reading_order
+        self.language, self.script, self.direction, self.fields = language, script, direction, dict(fields or {})
 
 
 class FileLine:
     """A line as a page file holds it: its region, rank on the page and row in its region, geometry, detection
     confidence (``score``), and its reading (``text`` ``None``: not read; then no confidence, alternatives or
-    words)."""
+    words); its language, script and direction where they differ from its region's (the page's for a line without
+    one), and the format's extension fields (``fields``, ``<format>__<name>``)."""
 
     __slots__ = ("id", "region_id", "reading_order", "row", "bbox", "polygon", "baseline", "score", "text",
-                 "confidence", "alternatives", "words")
+                 "confidence", "alternatives", "words", "language", "script", "direction", "fields")
 
     def __init__(self, id: str, region_id: str | None, reading_order: int, row: int, bbox, polygon=None,
                  baseline=None, score: float | None = None, text: str | None = None, confidence: float | None = None,
-                 alternatives: list[str] | None = None, words: list[FileWord] | None = None):
+                 alternatives: list[str] | None = None, words: list[FileWord] | None = None,
+                 language: str | None = None, script: str | None = None, direction: str | None = None,
+                 fields: dict[str, Any] | None = None):
         self.id, self.region_id, self.reading_order, self.row = id, region_id, reading_order, row
         self.bbox, self.polygon, self.baseline, self.score = bbox, polygon, baseline, score
         self.text, self.confidence = text, confidence
         self.alternatives, self.words = list(alternatives or []), list(words or [])
+        self.language, self.script, self.direction, self.fields = language, script, direction, dict(fields or {})
+
+
+def writing(item) -> dict[str, str | None]:
+    """The language, script and direction a ``FileRegion``, ``FileLine`` or ``FileWord`` holds."""
+    return {k: getattr(item, k) for k in WRITING}
+
+
+def narrower(item, own: dict[str, str | None], enclosing: dict[str, str | None]) -> dict[str, str | None]:
+    """Sets ``item``'s language, script and direction to those of ``own`` (what its element says or inherits from
+    elements the reader does not keep) that differ from ``enclosing`` (the level that encloses it); returns what holds
+    for it: ``own``'s values, else ``enclosing``'s."""
+    holds = {k: own.get(k) or enclosing.get(k) for k in WRITING}
+    for k in WRITING:
+        setattr(item, k, holds[k] if holds[k] != enclosing.get(k) else None)
+    return holds
+
+
+def page_writing(t: Transcription) -> dict[str, str | None]:
+    """The language, script and direction recorded for the page (``Transcription.written`` of ``""``)."""
+    return {k: t.written("", k) for k in WRITING}
 
 
 def file_label(t: Transcription, region_id: str) -> str:
@@ -446,17 +487,24 @@ def file_layout(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> t
     Labels from the content roles (``file_label``), heading levels that still apply (``heading_level``), each line's
     literal text (its reading, ``Transcription.text_of``), each line's region its resolved one (``region_of``). Regions
     ``policy`` puts in layer ``none`` (removed, suppressed, duplicate, separators) are left out with their lines,
-    and so are lines it puts there (a line assignment's duplicates); ranks are counted among what is written."""
+    and so are lines it puts there (a line assignment's duplicates); ranks are counted among what is written.
+    Languages, scripts and directions as recorded (``Transcription.written``), each where it differs from the
+    enclosing level's (``narrower``)."""
     hidden = {r.id for r in t.regions if policy.layer_of(t, r.id) == "none"}
     shown = [r for r in t.regions if r.id not in hidden]
     region_ranks = t.region_ranks()
     in_order = sorted((r for r in shown if r.id in region_ranks), key=lambda r: region_ranks[r.id])
     rank = {r.id: i for i, r in enumerate(in_order)}
+    page = page_writing(t)
+    recorded = {str(c.target) for c in t.classifications if c.scheme in WRITING and c.target != ""}
+    held = {}                                   # region id -> what holds for it
     regions = []
     for r in shown:
         polygon = r.polygon or rect(r.box or [0.0, 0.0, 0.0, 0.0])
-        regions.append(FileRegion(r.id, file_label(t, r.id), r.label, polygon, r.box or bounds(polygon),
-                                  r.confidence, heading_level(t, r.id), rank.get(r.id)))
+        fr = FileRegion(r.id, file_label(t, r.id), r.label, polygon, r.box or bounds(polygon), r.confidence,
+                        heading_level(t, r.id), rank.get(r.id))
+        held[r.id] = narrower(fr, _written(t, r.id), page) if recorded else page
+        regions.append(fr)
     line_ranks, rows = t.line_ranks(), t.rows()
     lines = [ln for ln in t.lines if t.region_of(ln) not in hidden and not hidden_line(t, ln, policy)]
     line_rank = {ln.id: i for i, ln in enumerate(sorted(lines, key=lambda ln: line_ranks[ln.id]))}
@@ -468,10 +516,20 @@ def file_layout(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> t
         words = [] if reading is None else [
             FileWord(ln.word_id(k), w.text, w.box, w.confidence, w.alternatives, w.hyphen, subs.get(k))
             for k, w in enumerate(reading.words)]
-        out.append(FileLine(ln.id, t.region_of(ln), line_rank[ln.id], rows.get(ln.id, 0), bbox, ln.polygon,
-                            ln.baseline, ln.confidence, t.text_of(ln),
-                            reading.confidence if reading else None, reading.alternatives if reading else [], words))
+        fl = FileLine(ln.id, t.region_of(ln), line_rank[ln.id], rows.get(ln.id, 0), bbox, ln.polygon, ln.baseline,
+                      ln.confidence, t.text_of(ln), reading.confidence if reading else None,
+                      reading.alternatives if reading else [], words)
+        if recorded:        # a line or word nothing names holds its region's or line's
+            holds = narrower(fl, _written(t, ln.id) if ln.id in recorded else {}, held.get(fl.region_id, page))
+            for k, w in enumerate(words):
+                ref = word_ref(ln.id, k)
+                narrower(w, _written(t, ref) if ref in recorded else {}, holds)
+        out.append(fl)
     return regions, out
+
+
+def _written(t: Transcription, target: str) -> dict[str, str | None]:
+    return {k: t.written(target, k) for k in WRITING}
 
 
 def _by(annotators: list[Annotator], *steps: str) -> int:
@@ -485,11 +543,14 @@ def _by(annotators: list[Annotator], *steps: str) -> int:
 
 
 def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: list[Annotator], source: Source,
-                  ground_truth: bool = False, language: str | None = None) -> Transcription:
+                  ground_truth: bool = False, language: str | None = None, script: str | None = None,
+                  direction: str | None = None) -> Transcription:
     """The transcription a reader made of a page file: its regions, with a ``role`` classification of their
     region label (``linecaster.data.policy.classify_label``) and a heading level, its lines with their readings,
-    and one reading order (regions with a rank in it, lines by rank, with their rows); ``language`` the page's
-    ``language`` classification.
+    and one reading order (regions with a rank in it, lines by rank, with their rows); ``language``, ``script`` and
+    ``direction`` the page's classifications of them, and the regions', lines' and words' theirs (by the reading
+    annotator; a value that is none of its scheme's is left out). The items' ``fields`` become their extension
+    fields.
 
     ``annotators`` are the steps the file names; without any, the file is the one annotator (kind ``file``, step
     ``transcription``, named after its format). ``ground_truth`` makes the source a ground truth and that annotator
@@ -511,7 +572,7 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
     order_by = _by(annotators, "typography", "assignment", "ordering", "lines", "layout", "recognition")
     for r in regions:
         t.regions.append(Region(annotator=layout, id=r.id, box=r.bbox, polygon=r.polygon, label=r.raw_label or "",
-                                confidence=r.score))
+                                confidence=r.score, **r.fields))
         classify_label(t, role_by, r.id, r.label)
         if r.heading_level is not None:
             t.classify(role_by, r.id, "heading_level", r.heading_level)
@@ -519,7 +580,7 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
         reading = None
         if ln.text is not None:
             words = [Word(text=w.text, box=w.bbox, confidence=w.confidence, hyphen=w.hyphen,
-                          alternatives=w.alternatives, id=None if w.id == f"{ln.id}_w{k}" else w.id)
+                          alternatives=w.alternatives, id=None if w.id == f"{ln.id}_w{k}" else w.id, **w.fields)
                      for k, w in enumerate(ln.words)]
             reading = Reading(annotator=reading_by, text=ln.text, confidence=ln.confidence,
                               alternatives=ln.alternatives, words=words)
@@ -528,7 +589,7 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
                     t.edits.append(Edit(annotator=reading_by, target=f"{ln.id}[{a}:{e}]", kind="joined",
                                         text=w.subs))
         t.lines.append(Line(annotator=lines_by, id=ln.id, region=ln.region_id, box=ln.bbox, polygon=ln.polygon,
-                            baseline=ln.baseline, confidence=ln.score, reading=reading))
+                            baseline=ln.baseline, confidence=ln.score, reading=reading, **ln.fields))
     if regions or lines:
         ridx = {r.id: i for i, r in enumerate(regions)}
         ordered = sorted((r for r in regions if r.reading_order is not None),
@@ -536,10 +597,22 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
         lidx = {ln.id: i for i, ln in enumerate(lines)}
         by_rank = sorted(lines, key=lambda ln: (ln.reading_order, lidx[ln.id]))
         t.add_order(order_by, [r.id for r in ordered], [ln.id for ln in by_rank], [ln.row for ln in by_rank])
-    tag = language_tag(language)
-    if tag:
-        t.classify(reading_by, "", "language", tag)
+    _classify_writing(t, reading_by, "", {"language": language_tag(language), "script": script,
+                                          "direction": direction})
+    for r in regions:
+        _classify_writing(t, reading_by, r.id, writing(r))
+    for ln in lines:
+        _classify_writing(t, reading_by, ln.id, writing(ln))
+        if ln.text is not None:
+            for k, w in enumerate(ln.words):
+                _classify_writing(t, reading_by, word_ref(ln.id, k), writing(w))
     return t
+
+
+def _classify_writing(t: Transcription, annotator: int, target: str, values: dict[str, str | None]) -> None:
+    for k in WRITING:
+        if values.get(k) and CHECKS[k](values[k]):
+            t.classify(annotator, target, k, values[k])
 
 
 # ---------------------------------------------------------------- units and order
