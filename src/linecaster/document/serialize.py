@@ -11,7 +11,8 @@ reads it back).
   and the text read inside it; formatting as ``i``, ``b``, ``u``, ``s``, ``sup``, ``sub`` and ``lang``; line
   breaks ``br``.
 - **Markdown** (``to_markdown``, by a policy's ``MarkdownRules``): headings ``#``, list items ``-``, formulas
-  ``$$…$$``, tables as the rules say (HTML, or a pipe table unless a cell spans), a picture the rules' placeholder,
+  ``$$…$$``, tables as the rules say (HTML, or a pipe table unless a cell spans; as HTML each cell's text is Markdown
+  between blank lines, which a viewer renders), rows as hard line breaks, a picture the rules' placeholder,
   italic ``*``, bold ``**``, strikethrough ``~~``, scripts and underline as HTML with ``html_scripts``, characters
   Markdown would read escaped with ``escape``; ``dividers``: a ``---`` rule between the blocks of one layout region
   and the next.
@@ -213,6 +214,30 @@ def _md_lines(s: str) -> str:
     return "\\\n".join(s.split("\n"))
 
 
+def _md_table_html(b: Block, rules: MarkdownRules) -> str:
+    """A table as HTML inside Markdown, each cell's text as Markdown between blank lines: CommonMark ends an HTML
+    block at a blank line and reads what follows as Markdown, so a cell's formulas, escapes and line breaks render
+    in a viewer as they do outside the table."""
+    starts: dict[int, list] = {}
+    for c in b.grid.cells:
+        starts.setdefault(c.start_row, []).append(c)
+    out = ["<table>"]
+    for r in range(b.grid.num_rows):
+        out.append("<tr>")
+        for c in sorted(starts.get(r, []), key=lambda x: x.start_col):
+            tag = "th" if c.column_header or c.row_header else "td"
+            span = (f' rowspan="{c.row_span}"' if c.row_span > 1 else "") + \
+                   (f' colspan="{c.col_span}"' if c.col_span > 1 else "")
+            text = "\n".join(ln.strip() for ln in c.text.strip().split("\n"))
+            if text:
+                out.append(f"<{tag}{span}>\n\n{_md_lines(_md_escape(text, rules))}\n\n</{tag}>")
+            else:
+                out.append(f"<{tag}{span}></{tag}>")
+        out.append("</tr>")
+    out.append("</table>")
+    return "\n".join(out)
+
+
 def _md_block(b: Block, rules: MarkdownRules) -> str:
     if b.kind == "title":
         return "# " + " ".join(_md_inline(b, rules).split("\n"))
@@ -226,7 +251,7 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
         return f"$${b.text}$$"
     if b.kind == "table":
         spans = any(c.row_span > 1 or c.col_span > 1 for c in b.grid.cells)
-        return table_html(b) if rules.tables == "html" or spans else _pipe_table(b, rules)
+        return _md_table_html(b, rules) if rules.tables == "html" or spans else _pipe_table(b, rules)
     if b.kind == "picture":
         parts = [rules.image_placeholder] if rules.image_placeholder else []
         return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules))] if b.text else []))

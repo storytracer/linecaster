@@ -317,3 +317,19 @@ def test_the_composer_adds_nothing_to_the_transcription():
     assert after.model_dump(exclude={"annotators"}) == before.model_dump(exclude={"annotators"})
     assert [a.step for a in after.annotators] == [a.step for a in before.annotators]
     assert docs[0].metadata["document_transcription"] == "ocr_new" and docs[0].metadata[DOCUMENT_KEY]["name"] == "p1"
+
+
+def test_a_table_in_markdown_keeps_its_cells_markdown():
+    """A table Markdown cannot hold (spans) is HTML in the Markdown, each cell's text between blank lines, so a
+    viewer reads it as Markdown again: its formulas render, its escapes and line breaks too."""
+    from linecaster.data.transcription import Cell, Table
+    from linecaster.document import to_markdown
+
+    t = page_to_compose()
+    t.tables = [Table(annotator=0, target="table_3", num_rows=2, num_cols=2, cells=[
+        Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Cards of\nthe variables"),
+        Cell(start_row=1, end_row=2, start_col=0, end_col=1, text="$\\mathbf{V}_{2}$"),
+        Cell(start_row=1, end_row=2, start_col=1, end_col=2, text="")])]
+    md = to_markdown(build_document(t))
+    assert '<td colspan="2">\n\nCards of\\\nthe variables\n\n</td>' in md
+    assert "<td>\n\n$\\mathbf{V}_{2}$\n\n</td>" in md and "<td></td>" in md
