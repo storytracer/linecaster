@@ -62,6 +62,25 @@ def edges(root) -> tuple[bool, bool]:
     return plain(kids[0], False), plain(kids[-1], True)
 
 
+def table_edges(root, opens_table: bool) -> tuple[str | None, bool]:
+    """How the page's body takes up and leaves a table across the page break, as the main namespace has one table:
+    whether its first block continues the previous page's table (``rows``: the header reopens the table and the body
+    goes on with its rows, ``opens_table``; ``cell``: the header ends inside a cell, so the body's first text goes on
+    with the previous page's last cell; else None), and whether its last block is a table the next page continues
+    (the footer closes it, or the page leaves it open)."""
+    body = root.find("body")
+    kids = _text_children(body) if body is not None else []
+    if not kids:
+        return None, False
+    first, last = kids[0], kids[-1]
+    start = None
+    if first.tag == "table":
+        start = "cell" if "header" in (first.get("data-parts") or "").split() else "rows" if opens_table else None
+    runs_on = last.tag == "table" and ("footer" in (last.get("data-parts") or "").split()
+                                       or bool(last.get("data-unclosed")))
+    return start, runs_on
+
+
 @dataclass
 class PageReading:
     transcription: Transcription
@@ -121,10 +140,15 @@ class PageReader:
         reading = self.importer.read(built.root, t, people, rules)
         anchored = self.anchor(t, text, pos, title, expanded)
         opens_plain, closes_plain = edges(built.root)
+        table_start, table_runs_on = table_edges(built.root, page.opens_table)
         ends = not reading.runs_on and (reading.ends_paragraph or not closes_plain or built.closes_block)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
                                                  "ends_paragraph": ends,
                                                  "starts_paragraph": not (opens_plain or reading.continues)})
+        if table_start:
+            t.annotators[rules].measurements["table_continues"] = table_start
+        if table_runs_on:
+            t.annotators[rules].measurements["table_runs_on"] = True
         if built.unexpanded:
             t.annotators[rules].measurements["unexpanded"] = sorted(set(built.unexpanded))
         if built.texvc_rejected:

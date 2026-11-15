@@ -99,8 +99,8 @@ extra. The decisions are in NOTES.md (2026-11-14).
   `status` classification (`hidden`, `invisible`, `generated`, `editorial`, `error`, `metadata`, `apparatus`,
   `elsewhere`, `layout`).
 - `linecaster.text.formulas`: LaTeX without its presentation commands (a formula's content), for importers.
-- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `starts_paragraph`, `unexpanded`,
-  `wikidata`, `texvc_rejected`.
+- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `starts_paragraph`, `table_continues`,
+  `table_runs_on`, `unexpanded`, `wikidata`, `texvc_rejected`.
 - **`linecaster-mediawiki`** (`engines/mediawiki`, 0.1.0): `import.mediawiki.v1` reads a ProofreadPage `Page:` page's
   wikitext through wikitextprocessor (pinned to a commit) in the wiki's own context (its templates, Lua modules and
   style sheets, taken in from a dump by `linecaster-mediawiki intake`), builds HTML by MediaWiki's rules (Cite's
@@ -114,7 +114,9 @@ extra. The decisions are in NOTES.md (2026-11-14).
   `link_pages` links an item's pages where a paragraph runs on or a footnote continues (Cite's
   `<ref follow=...>`): as ProofreadPage joins a main-namespace page's pages, only from text into text (the importer's
   `ends_paragraph` and `starts_paragraph`, from the page's first and last body blocks, seeing through a block the page
-  leaves open, a block across its parts, and its frame). The reader records each top-level template call on the
+  leaves open, a block across its parts, and its frame). A table one page leaves to the next (the footer closes it, the next
+  page's header reopens it: `table_runs_on`, `table_continues`) is linked too, and where the header ends inside a cell,
+  that cell; the document builder makes one table of them, the continued row joining the last by column. The reader records each top-level template call on the
   first element it writes (`data-mw-template`, `data-mw-param-<name>`, as Parsoid's `data-mw`), for conventions to
   match what a page's HTML does not say; tags the parser left as text print nothing.
 - **The decisions `continues` and `runs_on`**: a page's first block continues the previous page's last, its last runs

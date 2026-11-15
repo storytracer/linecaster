@@ -46,6 +46,12 @@ class PageSource:
         return cls(wikitext, head, foot)
 
     @property
+    def opens_table(self) -> bool:
+        """Whether the header opens a table and ends before its next cell: the body goes on with the table's rows (the
+        part boundary moves to the table's start, ``parsed``)."""
+        return _open_table(self.wikitext[:self.header_end]) is not None
+
+    @property
     def quality(self) -> int | None:
         """The page's proofreading level (0-4) from its header's ``<pagequality>``."""
         m = _QUALITY.search(self.wikitext[:self.header_end])

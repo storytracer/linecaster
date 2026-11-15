@@ -203,6 +203,37 @@ def test_tables_follow_the_cells():
                                  '<tr><th>Köln</th><td colspan="2">Sommer</td></tr></table>')
 
 
+@pytest.mark.parametrize("in_cell, cells", [
+    (False, [(0, 0, "a"), (0, 1, "b"), (1, 0, ""), (1, 1, "on"), (2, 0, "c"), (2, 1, "d")]),     # its rows follow
+    (True, [(0, 0, "a"), (0, 1, "b on"), (1, 0, "c"), (1, 1, "d")]),     # its top row goes on with the last, by column
+])
+def test_a_table_continues_across_pages(in_cell, cells):
+    """A table a page's ``runs_into`` link leaves to the next is one table block in the item's document; where the
+    next page goes on in the middle of a cell (a link between cells), its top row joins the last."""
+    from linecaster.data import Link
+    from linecaster.data.transcription import Cell, Table
+
+    def page(rows):
+        t = page_to_compose()
+        t.tables = [Table(annotator=0, target="table_3", num_rows=len(rows), num_cols=2, cells=[
+            Cell(start_row=i, end_row=i + 1, start_col=j, end_col=j + 1, text=x)
+            for i, row in enumerate(rows) for j, x in enumerate(row)])]
+        return t
+
+    first, second = page([["a", "b"]]), page([["", "on"], ["c", "d"]])
+    first.links.append(Link(annotator=0, kind="runs_into", source="table_3", target="p2#table_3"))
+    second.links.append(Link(annotator=0, kind="continues", source="table_3", target="p1#table_3"))
+    if in_cell:
+        first.links.append(Link(annotator=0, kind="runs_into", source="table_3/r0c1", target="p2#table_3/r0c1"))
+        second.links.append(Link(annotator=0, kind="continues", source="table_3/r0c1", target="p1#table_3/r0c1"))
+    b = DocumentBuilder("item")
+    for k, t in enumerate((first, second)):
+        b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
+    tables = [x for x in b.build().blocks if x.kind == "table"]
+    assert len(tables) == 1 and len(tables[0].origins) == 2
+    assert [(c.start_row, c.start_col, c.text) for c in tables[0].grid.cells] == cells
+
+
 def _parts(doc):
     return [(b.kind, b.text or None, b.layer) for b in doc.blocks]
 

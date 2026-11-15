@@ -220,6 +220,15 @@ class DocumentBuilder:
             self._last_table = None
             return
         grid = _grid(table, rules.fill_holes)
+        continued = self._items.get((page.key, r.id)) if _region_link(page.t, r.id, "continues") else None
+        if continued is not None and continued[0].grid is not None:     # a table the previous page began
+            block = continued[0]
+            _continue_grid(block.grid, grid, any(ln.kind == "continues" and ln.source.startswith(f"{r.id}/")
+                                                 for ln in page.t.links))
+            block.origins.append(origin)
+            self._last_table = block
+            self._table_runs_into(page, r, block)
+            return
         last = self._last_table
         if rules.merge_single_rows and table.num_rows == 1 and last is not None \
                 and last.grid.num_cols == table.num_cols:
@@ -229,6 +238,13 @@ class DocumentBuilder:
             last.origins.append(origin)
             return
         self._last_table = self._block("table", page, role=role, grid=grid, origins=[origin])
+        self._table_runs_into(page, r, self._last_table)
+
+    def _table_runs_into(self, page: "_PageContext", r: Region, block: Block) -> None:
+        runs_into = _region_link(page.t, r.id, "runs_into")
+        if runs_into is not None:
+            ref = parse(runs_into)
+            self._items[(ref.page or page.key, ref.id)] = (block, None)
 
     def _add_paragraphs(self, page: "_PageContext", r: Region | None, kind: str, paragraphs: list,
                         level: int | None = None) -> None:
@@ -322,6 +338,34 @@ def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
         text += ("\n" if row_texts else "") + row
         row_texts.append(row)
     return text, spans
+
+
+def _continue_grid(grid: Grid, more: Grid, in_cell: bool) -> None:
+    """``more``, a table's part on the next page, appended to ``grid``: its rows after ``grid``'s; with ``in_cell`` (the
+    page goes on in the middle of a cell, the header repeating the row up to it) its top row goes on with ``grid``'s
+    last, column by column: a cell's text after the text of the last row's cell in its column, a cell in a column the
+    last row does not fill added to that row."""
+    rows = sorted({c.start_row for c in more.cells})
+    if in_cell and grid.cells and rows:
+        top, last = rows[0], max(c.start_row for c in grid.cells)
+        by_col = {c.start_col: c for c in grid.cells if c.start_row == last}
+        for c in sorted((c for c in more.cells if c.start_row == top), key=lambda c: c.start_col):
+            prev = by_col.get(c.start_col)
+            if prev is None:
+                grid.cells.append(c.model_copy(update={"start_row": last, "end_row": last + c.end_row - c.start_row}))
+            elif c.text:
+                join = "\n" if "\n" in prev.text or "\n" in c.text else " "
+                prev.text = (prev.text + join + c.text).strip()
+        shift = last - top                    # the top row went into the last; the next rows follow it
+        more_cells = [c for c in more.cells if c.start_row != top]
+    else:
+        shift = grid.num_rows - (rows[0] if rows else 0)
+        more_cells = list(more.cells)
+    for c in more_cells:
+        grid.cells.append(c.model_copy(update={"start_row": c.start_row + shift, "end_row": c.end_row + shift}))
+    grid.num_rows = max([grid.num_rows, *(c.end_row for c in grid.cells)])
+    grid.num_cols = max([grid.num_cols, *(c.end_col for c in grid.cells)])
+    grid.cells.sort(key=lambda c: (c.start_row, c.start_col))
 
 
 def _grid(table: Table, fill_holes: bool = False) -> Grid:

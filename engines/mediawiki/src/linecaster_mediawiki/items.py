@@ -6,12 +6,15 @@ the wiki joins them when it transcludes the pages into a main-namespace page, un
 with a block (a centred heading, a table: ``starts_paragraph``). ``link_pages`` records the joins as the data model's
 links between the pages' regions (``<page_id>#<region>``): the last body paragraph of a page that runs on
 ``runs_into`` the next page's first body paragraph, which ``continues`` it; a page's first continued footnote
-(``footnote_continued``: Cite's ``<ref follow=...>``) ``continues`` the last footnote of the page before. linecaster's
-item texts (``linecaster.text.variants``) flow them into one text.
+(``footnote_continued``: Cite's ``<ref follow=...>``) ``continues`` the last footnote of the page before; a table that
+runs on (``table_runs_on``) ``runs_into`` the next page's first table where that one continues it (``table_continues``),
+and where the next page goes on in the middle of a cell (``cell``) its last cell into the next's first. linecaster's
+item texts (``linecaster.text.variants``) and documents flow them into one.
 """
 from __future__ import annotations
 
 from linecaster.data import Link, Transcription
+from linecaster.data.refs import cell as cell_ref
 
 BODY = ("paragraph",)
 NOTES = ("footnote", "footnote_continued")
@@ -41,6 +44,23 @@ def link_pages(pages: list[tuple[str, Transcription]]) -> int:
             t.links.append(Link(annotator=a, kind="runs_into", source=body[-1], target=f"{nid}#{following[0]}"))
             n.links.append(Link(annotator=_importer(n), kind="continues", source=following[0],
                                 target=f"{pid}#{body[-1]}"))
+            joins += 1
+        m, mn = t.annotators[a].measurements, n.annotators[_importer(n)].measurements
+        if body and following and t.role(body[-1]) == "table" and n.role(following[0]) == "table" \
+                and m.get("table_runs_on") and mn.get("table_continues") in ("rows", "cell"):
+            last, first = body[-1], following[0]
+            t.links.append(Link(annotator=a, kind="runs_into", source=last, target=f"{nid}#{first}"))
+            n.links.append(Link(annotator=_importer(n), kind="continues", source=first, target=f"{pid}#{last}"))
+            prev, nxt = t.table(last), n.table(first)
+            if mn["table_continues"] == "cell" and prev is not None and nxt is not None and prev.cells and nxt.cells:
+                end = max(prev.cells, key=lambda c: (c.start_row, c.start_col))
+                top = min(c.start_row for c in nxt.cells)          # the cell in the last cell's column, else the first
+                start = min((c for c in nxt.cells if c.start_row == top),
+                            key=lambda c: (c.start_col != end.start_col, c.start_col))
+                a_ref, b_ref = cell_ref(last, end.start_row, end.start_col), cell_ref(first, start.start_row,
+                                                                                       start.start_col)
+                t.links.append(Link(annotator=a, kind="runs_into", source=a_ref, target=f"{nid}#{b_ref}"))
+                n.links.append(Link(annotator=_importer(n), kind="continues", source=b_ref, target=f"{pid}#{a_ref}"))
             joins += 1
         notes = _ordered(t, NOTES)
         first = next((r for r in _ordered(n, NOTES) if n.role(r) == "footnote_continued"), None)

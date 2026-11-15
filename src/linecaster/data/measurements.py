@@ -41,6 +41,9 @@ MEASUREMENTS: dict[str, str] = {
     "unmapped": "an importer's conventions: features of nodes no rule matched (an element's classes) -> how many",
     "anchored": "an importer: lines anchored in the source text, of all lines",
     "ends_paragraph": "an importer: the page's last paragraph ends on the page (true) or runs on onto the next",
+    "table_continues": "an importer: the page's first block continues the previous page's table: with its rows "
+                       "(rows), or in the middle of its last cell (cell)",
+    "table_runs_on": "an importer: the page's last block is a table the next page continues",
     "starts_paragraph": "an importer: the page begins with a new paragraph or a block (true), not one that continues "
                         "the previous page's",
     "unexpanded": "an importer of a template language: the template calls it could not expand, by name",

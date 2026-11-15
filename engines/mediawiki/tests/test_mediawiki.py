@@ -274,6 +274,31 @@ def test_a_paragraph_runs_on_only_from_text_into_text(site, first, second, joine
     assert not any("</div>" in ln.reading.text for _, t in pages for ln in t.lines)   # a stray end tag prints nothing
 
 
+@pytest.mark.parametrize("first, second, cell", [
+    # the footer closes the table, the header reopens it: the next page goes on with its rows
+    ("{| class=\"t\"\n|-\n| a || b\n|-\n| c || d<noinclude>\n|}</noinclude>",
+     "<noinclude>{| class=\"t\"\n</noinclude>|-\n| e || f\n|}", None),
+    # the header ends inside a cell: the next page goes on with the last cell's text, in its column
+    ("{| class=\"t\"\n|-\n| a || The entry that runs<noinclude>\n|}</noinclude>",
+     "<noinclude>{| class=\"t\"\n|-\n| ||</noinclude>on to the next page.\n|-\n| c || d\n|}",
+     ("table_0/r0c1", "p1#table_0/r0c1")),
+])
+def test_a_table_continues_across_the_page_break(site, first, second, cell):
+    """A table one page leaves to the next is one table in the main namespace: each page reads its own, the links
+    join them (an item's document builds one table)."""
+    from linecaster_mediawiki import PageReader, link_pages
+
+    reader = PageReader(site)
+    pages = [(f"p{i}", reader.read(w if w.startswith("<noinclude>") else f"<noinclude></noinclude>{w}",
+                                   f"Page:Example.djvu/{i}").transcription) for i, w in enumerate((first, second))]
+    tables = [[r.id for r in t.regions if t.role(r.id) == "table"] for _, t in pages]
+    assert [len(x) for x in tables] == [1, 1]
+    assert link_pages(pages) == 1
+    t0 = pages[0][1]
+    assert ("runs_into", tables[0][0], f"p1#{tables[1][0]}") in [(x.kind, x.source, x.target) for x in t0.links]
+    assert [(x.source, x.target) for x in t0.links if "/" in x.source] == ([cell] if cell else [])
+
+
 def test_a_call_says_what_its_html_does_not(site):
     """The first element a template call writes carries its name and short parameters; conventions match them to
     join what each page writes whole (a stanza a template continues across the page break)."""
