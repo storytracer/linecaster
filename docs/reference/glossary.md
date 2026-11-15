@@ -174,6 +174,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | Term | Meaning | Not |
 |---|---|---|
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
+| **line image** | An image of one line with its text, as line-level ground-truth datasets give them: imported as a page whose one line is the whole image (`text-import`'s `line_image`). | not a line's crop from a page image |
 | **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
 | **tokenizer** | How the word metrics cut a lane's text into words (`linecaster.scoring.tokens`): `whitespace` (the default), `uax29` (Unicode's word boundaries) or `characters`, named by a benchmark (`words`). | not a model's tokenizer (tokens of a VLM) |
