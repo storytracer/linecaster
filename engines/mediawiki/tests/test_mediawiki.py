@@ -278,6 +278,9 @@ def test_a_paragraph_runs_on_only_from_text_into_text(site, first, second, joine
     # the footer closes the table, the header reopens it: the next page goes on with its rows
     ("{| class=\"t\"\n|-\n| a || b\n|-\n| c || d<noinclude>\n|}</noinclude>",
      "<noinclude>{| class=\"t\"\n</noinclude>|-\n| e || f\n|}", None),
+    # the header repeats the table's heading row: the body goes on with new rows
+    ("{| class=\"t\"\n! Title !! Page\n|-\n| Resignation || 67<noinclude>\n|}</noinclude>",
+     "<noinclude>{| class=\"t\"\n! Title !! Page\n</noinclude>|-\n| The Violet || 69\n|}", None),
     # the header ends inside a cell: the next page goes on with the last cell's text, in its column
     ("{| class=\"t\"\n|-\n| a || The entry that runs<noinclude>\n|}</noinclude>",
      "<noinclude>{| class=\"t\"\n|-\n| ||</noinclude>on to the next page.\n|-\n| c || d\n|}",
@@ -297,6 +300,23 @@ def test_a_table_continues_across_the_page_break(site, first, second, cell):
     t0 = pages[0][1]
     assert ("runs_into", tables[0][0], f"p1#{tables[1][0]}") in [(x.kind, x.source, x.target) for x in t0.links]
     assert [(x.source, x.target) for x in t0.links if "/" in x.source] == ([cell] if cell else [])
+
+
+def test_a_body_starts_a_row_by_its_syntax_or_its_call():
+    """In a table the header leaves open, the body starts a row where its first line is table syntax, written or a
+    call's output (styles printing nothing before it); other text goes on with the header's last cell."""
+    from linecaster_mediawiki.proofread import HEAD_END
+    from linecaster_mediawiki.reader import body_starts_row
+
+    assert body_starts_row(f"{{|{HEAD_END}\n|-\n| a", {})
+    assert not body_starts_row(f"{{|\n| x{HEAD_END}goes on", {})
+    text = f"{{|{HEAD_END}\n{{{{Row|a}}}}"
+    call = text.index("{{Row")
+    assert body_starts_row(text, {(call, len(text)): '<templatestyles src="R.css" />\n|- class="r"\n| a'})
+    assert not body_starts_row(text, {(call, len(text)): "<span>a</span>"})
+    text = f"{{|{HEAD_END}{{{{Nothing}}}}\n{{{{Row|a}}}}"
+    one, two = text.index("{{Nothing"), text.index("{{Row")
+    assert body_starts_row(text, {(one, two - 1): "", (two, len(text)): "|-\n| a"})   # a call printing nothing
 
 
 def test_a_call_says_what_its_html_does_not(site):

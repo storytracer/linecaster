@@ -62,11 +62,38 @@ def edges(root) -> tuple[bool, bool]:
     return plain(kids[0], False), plain(kids[-1], True)
 
 
-def table_edges(root, opens_table: bool) -> tuple[str | None, bool]:
+_ROW_SYNTAX = ("|", "!", "{|")
+_LEAD = re.compile(r"^(?:\s|<templatestyles[^>]*/>|<!--.*?-->)*", re.S)   # what prints nothing before a row
+
+
+def body_starts_row(text: str, expanded: dict[tuple[int, int], str]) -> bool:
+    """Whether the body (after ``HEAD_END`` in the parsed ``text``) begins with a table's own syntax: a row, a cell or a
+    table, written or from a call (its output in ``expanded``). In a table the header leaves open, text that does not
+    goes on with the header's last cell, as the parser reads it."""
+    k = text.find(HEAD_END)
+    if k < 0:
+        return False
+    calls = {a: (b, v) for (a, b), v in expanded.items()}
+    i = k + 1
+    while True:
+        while i < len(text) and text[i] in " \t\n":
+            i += 1
+        if text.startswith(_ROW_SYNTAX, i):
+            return True
+        if i not in calls:
+            return False
+        end, out = calls[i]
+        out = _LEAD.sub("", out)
+        if out:
+            return out.startswith(_ROW_SYNTAX)
+        i = end                                     # a call that prints nothing ({{nopt}}): what follows it decides
+
+
+def table_edges(root, opens_table: bool, starts_row: bool = True) -> tuple[str | None, bool]:
     """How the page's body takes up and leaves a table across the page break, as the main namespace has one table:
     whether its first block continues the previous page's table (``rows``: the header reopens the table and the body
-    goes on with its rows, ``opens_table``; ``cell``: the header ends inside a cell, so the body's first text goes on
-    with the previous page's last cell; else None), and whether its last block is a table the next page continues
+    goes on with its rows, ``opens_table`` or ``starts_row``; ``cell``: the body's first text goes on with the header's
+    last cell, the previous page's last; else None), and whether its last block is a table the next page continues
     (the footer closes it, or the page leaves it open)."""
     body = root.find("body")
     kids = _text_children(body) if body is not None else []
@@ -75,7 +102,10 @@ def table_edges(root, opens_table: bool) -> tuple[str | None, bool]:
     first, last = kids[0], kids[-1]
     start = None
     if first.tag == "table":
-        start = "cell" if "header" in (first.get("data-parts") or "").split() else "rows" if opens_table else None
+        if opens_table:
+            start = "rows"
+        elif "header" in (first.get("data-parts") or "").split():
+            start = "rows" if starts_row else "cell"
     runs_on = last.tag == "table" and ("footer" in (last.get("data-parts") or "").split()
                                        or bool(last.get("data-unclosed")))
     return start, runs_on
@@ -121,7 +151,7 @@ class PageReader:
         w.start_page(title)
         w.wikidata_asked = []
         def keep(a: int, b: int) -> bool:                  # a call whose output is a table's own syntax: no mark,
-            return not expanded[(a, b)].lstrip().startswith(("|", "!", "{|"))   # the syntax must begin its line
+            return not _LEAD.sub("", expanded[(a, b)]).startswith(_ROW_SYNTAX)   # the syntax must begin its line
 
         marked, _, calls = mark_calls(text, pos, keep)      # the calls' marks are for the build alone
         root = w.parse(marked, expand_all=True)
@@ -140,7 +170,7 @@ class PageReader:
         reading = self.importer.read(built.root, t, people, rules)
         anchored = self.anchor(t, text, pos, title, expanded)
         opens_plain, closes_plain = edges(built.root)
-        table_start, table_runs_on = table_edges(built.root, page.opens_table)
+        table_start, table_runs_on = table_edges(built.root, page.opens_table, body_starts_row(text, expanded))
         ends = not reading.runs_on and (reading.ends_paragraph or not closes_plain or built.closes_block)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
                                                  "ends_paragraph": ends,
