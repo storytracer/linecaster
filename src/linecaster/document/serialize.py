@@ -82,17 +82,35 @@ _HTML_TAGS = (("bold", "b"), ("italic", "i"), ("underline", "u"), ("strikethroug
 
 
 def _html_inline(b: Block) -> str:
-    out = []
+    """A block's text as HTML: its formatting as tags, a run of another direction as one ``span dir`` (a bidi
+    isolate), and inside it runs of another language as ``span lang``."""
+    def runs(items, key):            # consecutive items with one key value, together
+        out: list[tuple[object, list]] = []
+        for item in items:
+            if out and out[-1][0] == key(item):
+                out[-1][1].append(item)
+            else:
+                out.append((key(item), [item]))
+        return out
+
+    pieces = []
     for piece, fmt, lang, direction in _segments(b.text, b.spans):
         s = htmllib.escape(piece, quote=False).replace("\n", "<br>")
         for k, tag in reversed(_HTML_TAGS):
             if k in fmt:
                 s = f"<{tag}>{s}</{tag}>"
-        bidi = {"horizontal-rl": "rtl", "horizontal-lr": "ltr"}.get(direction or "")
-        if lang or bidi:
-            attrs = (f' lang="{htmllib.escape(lang)}"' if lang else "") + (f' dir="{bidi}"' if bidi else "")
-            s = f"<span{attrs}>{s}</span>"
-        out.append(s)
+        pieces.append((s, lang, {"horizontal-rl": "rtl", "horizontal-lr": "ltr"}.get(direction or "")))
+    out = []
+    for bidi, group in runs(pieces, lambda p: p[2]):
+        langs = runs(group, lambda p: p[1])
+        if bidi and len(langs) == 1:               # one language over the whole run: one span says both
+            lang = langs[0][0]
+            attrs = (f' lang="{htmllib.escape(lang)}"' if lang else "") + f' dir="{bidi}"'
+            out.append(f'<span{attrs}>{"".join(p[0] for p in group)}</span>')
+            continue
+        inner = "".join(f'<span lang="{htmllib.escape(lang)}">{"".join(p[0] for p in g)}</span>' if lang
+                        else "".join(p[0] for p in g) for lang, g in langs)
+        out.append(f'<span dir="{bidi}">{inner}</span>' if bidi else inner)
     return "".join(out)
 
 
