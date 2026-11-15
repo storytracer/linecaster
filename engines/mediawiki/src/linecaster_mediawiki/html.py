@@ -92,6 +92,7 @@ class _Writer:
         self.part = "header"
         self.unexpanded: list[str] = []
         self.closes_block = False        # the body's last text is followed by the end of a block from an earlier page
+        self.block_parts: dict = {}      # every block element -> the parts it is open in
         self.texvc_rejected: list[str] = []
         self.pre = 0
         self.styles_seen: set[str] = set()
@@ -139,6 +140,10 @@ class _Writer:
         self.part = part
         if self.container is not self.body and self.top:
             self.top[-1][1].add(part)
+        el = self.container                   # every block open here, nested ones too, is open in the next part
+        while el is not None and el is not self.body:
+            self.block_parts.setdefault(el, set()).add(part)
+            el = el.getparent()
 
     def text(self, s: str) -> None:
         if "templatestyles" in s.lower():               # left as text where wikitextprocessor does not take the tag
@@ -190,6 +195,7 @@ class _Writer:
     def open_block(self, tag: str, attrs: dict | None = None) -> tuple:
         self.paragraph_break()
         el = etree.SubElement(self.container, tag, _attrs(attrs or {}))
+        self.block_parts[el] = {self.part}
         self._top_block(el)
         saved = (self.container, self.p, self.inline, self.cursor)
         self.container, self.p, self.inline, self.cursor = el, None, [], None
@@ -211,9 +217,10 @@ class _Writer:
             elif where == {"footer"}:
                 parts["footer"].append(el)
             else:
-                if len(where) > 1:                     # a block across the parts: the page's own wrapper
-                    el.set("data-parts", " ".join(p for p in PARTS if p in where))
                 parts["body"].append(el)
+        for el, where in self.block_parts.items():
+            if len(where) > 1:                         # a block across the parts (the page's own wrapper, or a block
+                el.set("data-parts", " ".join(p for p in PARTS if p in where))   # the next or last page goes on with)
         if len(parts["header"]):
             self.body.append(parts["header"])
         for el in parts["body"]:

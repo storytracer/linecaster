@@ -249,6 +249,10 @@ def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     # a wrapper the header opens and the footer closes is the page's own view: the paragraphs inside run on
     ("<noinclude><div class=\"j\"></noinclude>A paragraph that runs<noinclude></div></noinclude>",
      "<noinclude><div class=\"j\"></noinclude>on to the next page.<noinclude></div></noinclude>", True),
+    # nested wrappers too
+    ("<noinclude><div class=\"q\"><div class=\"f\"></noinclude>A paragraph that runs<noinclude></div></div></noinclude>",
+     "<noinclude><div class=\"q\"><div class=\"f\"></noinclude>on to the next page.<noinclude></div></div></noinclude>",
+     True),
     # a block the page opens and does not close goes on onto the next page, which closes it
     ("<div class=\"b\">\nA paragraph that runs", "on to the next page.</div>\n\nText.", True),
     # a block the header reopens and the body closes ends on this page
