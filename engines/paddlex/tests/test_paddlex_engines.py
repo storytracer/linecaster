@@ -63,15 +63,18 @@ class _Boxes:
         yield {"boxes": self.boxes}
 
 
-@pytest.mark.parametrize("reading_order, expected", [
-    ("xy-cut", ["text_0", "text_1", "text_2", "text_3"]),        # the aligned gaps cut across both columns
-    ("xy-cut++", ["text_0", "text_2", "text_1", "text_3"]),
+@pytest.mark.parametrize("reading_order, direction, expected", [
+    ("xy-cut", None, ["text_0", "text_1", "text_2", "text_3"]),        # the aligned gaps cut across both columns
+    ("xy-cut++", None, ["text_0", "text_2", "text_1", "text_3"]),
+    ("xy-cut", "horizontal-rl", ["text_1", "text_0", "text_3", "text_2"]),
+    ("xy-cut++", "horizontal-rl", ["text_1", "text_3", "text_0", "text_2"]),   # the right column first
 ])
-def test_regions_without_learned_order_follow_reading_order(reading_order, expected):
+def test_regions_without_learned_order_follow_reading_order(reading_order, direction, expected):
     boxes = [{"coordinate": c, "label": "text", "score": 0.9} for c in
              ([100, 100, 480, 500], [520, 100, 900, 500], [100, 520, 480, 1300], [520, 520, 900, 1300])]
     layout = PaddleLayout.__new__(PaddleLayout)
     layout.predictor, layout.threshold, layout.nms, layout.merge_mode = _Boxes(boxes), 0.5, True, "large"
     layout.header_zone, layout.max_containment, layout.reading_order = 0.15, 0.8, reading_order
-    regions = layout.analyze(np.zeros((1400, 1000, 3), dtype=np.uint8))
+    layout.direction = None
+    regions = layout.analyze(np.zeros((1400, 1000, 3), dtype=np.uint8), direction)
     assert [r.id for r in sorted(regions, key=lambda r: r.order)] == expected
