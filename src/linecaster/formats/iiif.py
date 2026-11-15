@@ -3,9 +3,9 @@
 ``to_annotation_page(t, canvas, id)`` writes one annotation per region (motivation ``classifying``, its content
 role as the body), per line with a reading (``supplementing``, IIIF's motivation for a transcription, with the
 text granularity extension's ``textGranularity`` ``line``), per word (``word``), per description (``describing``)
-and per edit (``editing``, targeting the line's annotation, a span's edit those characters of its text by a
-``TextPositionSelector``, a word's the word's annotation). Targets are the canvas with a media fragment
-(``#xywh=``) where the annotation has a box, the canvas itself where it has none. Each annotation's ``generator``
+and per edit (``editing``, targeting the line's annotation, a word's edit the word's, a span's edit those
+characters of the line's or word's text by a ``TextPositionSelector``; a glyph's edit is left out). Targets are the
+canvas with a media fragment (``#xywh=``) where the annotation has a box, the canvas itself where it has none. Each annotation's ``generator``
 (``creator`` for people) is its annotator's name. A line's, a word's and an edit's body has the ``language`` its
 target records (``Transcription.language``: its own, else its line's, region's or page's); a region's body has none.
 
@@ -107,9 +107,9 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
                 continue
             if ref.word is not None:                   # a word's edit: the word's annotation
                 target = word_ids.get(word_ref(ref.id, ref.word))
-                if target is None:
+                if target is None or ref.glyph is not None:      # a glyph's edit: no annotation of its own
                     continue
-            elif ref.span is not None:                 # a span's: those characters of the line's text
+            if ref.span is not None:                   # a span's: those characters of the line's or word's text
                 target = {"type": "SpecificResource", "source": target,
                           "selector": {"type": "TextPositionSelector", "start": ref.span[0], "end": ref.span[1]}}
             add("editing", _body(e.text, e.kind, t.language(e.target)), target, e.annotator)
@@ -174,7 +174,7 @@ def _target_shape(target, size) -> tuple[str | None, list | None, list | None]:
 
 def _edit_target(target, lines: dict, words_by_id: dict) -> str | None:
     """An edit's target as a ref: a line's annotation (the line), a word's (the word), or a ``TextPositionSelector``
-    of a line's annotation (those characters of it); ``None`` for anything else."""
+    of either (those characters of it); ``None`` for anything else."""
     if isinstance(target, str):
         ln = lines.get(target)
         return ln.id if ln is not None else words_by_id.get(target)
@@ -183,12 +183,11 @@ def _edit_target(target, lines: dict, words_by_id: dict) -> str | None:
     source = target.get("source")
     source = source.get("id") if isinstance(source, dict) else source
     ln = lines.get(source or target.get("id"))
-    if ln is None:
-        return words_by_id.get(source or target.get("id"))
+    ref = ln.id if ln is not None else words_by_id.get(source or target.get("id"))
     selector = _first(target.get("selector"))
-    if isinstance(selector, dict) and selector.get("type") == "TextPositionSelector":
-        return f"{ln.id}[{int(selector['start'])}:{int(selector['end'])}]"
-    return ln.id
+    if ref is not None and isinstance(selector, dict) and selector.get("type") == "TextPositionSelector":
+        return f"{ref}[{int(selector['start'])}:{int(selector['end'])}]"
+    return ref
 
 
 def _text_bodies(body) -> list[dict]:

@@ -244,7 +244,7 @@ IIIF Presentation and text granularity contexts:
 | region, in reading order | motivation `classifying`, the content role as a `TextualBody` (purpose `classifying`) |
 | line with a reading, in reading order | `supplementing` (IIIF's motivation for a transcription), `textGranularity` `line`, the text as written, the line's language as the body's `language` |
 | word | `supplementing`, `textGranularity` `word`, the word's language as the body's `language` |
-| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose and its target's language as its `language`, targeting the line's annotation (a span's: those characters of its text, a `SpecificResource` with a `TextPositionSelector`; a word's: the word's annotation) |
+| edit of a line's reading (or of a word or span of it) | `editing`, the edited text with its kind as the purpose and its target's language as its `language`, targeting the line's annotation (a word's: the word's annotation; a span's: those characters of the line's or word's text, a `SpecificResource` with a `TextPositionSelector`; a glyph's edit is left out) |
 | description of a region | `describing`, its text with its kind as the purpose |
 
 Targets are the canvas with a media fragment (`#xywh=`, rounded) where the annotation has a box (a line without

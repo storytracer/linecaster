@@ -123,7 +123,9 @@ def _edited():
     t.lines[0].reading.words.extend([Word(text="the", box=[0, 0, 100, 40]), Word(text="qvick", box=[120, 0, 150, 40])])
     t.edits += [Edit(annotator=a, target="l0[4:9]", kind="corrected", text="quick"),
                 Edit(annotator=a, target="l0/1", kind="corrected", text="quick"),
-                Edit(annotator=a, target="l0", kind="regularized", text="the quick fox")]
+                Edit(annotator=a, target="l0", kind="regularized", text="the quick fox"),
+                Edit(annotator=a, target="l0/1[1:2]", kind="corrected", text="u"),
+                Edit(annotator=a, target="l0/1/2", kind="corrected", text="i")]
     t.classify(a, "l0/1", "language", "la")
     return t
 
@@ -134,7 +136,8 @@ def test_edits_of_a_span_and_of_a_word_keep_their_targets():
     page = to_annotation_page(_edited(), CANVAS, "https://example.org/anno")
     back = from_annotation_page(json.dumps(page))
     assert [(e.target, e.kind, e.text) for e in back.edits] == [
-        ("l0[4:9]", "corrected", "quick"), ("l0/1", "corrected", "quick"), ("l0", "regularized", "the quick fox")]
+        ("l0[4:9]", "corrected", "quick"), ("l0/1", "corrected", "quick"), ("l0", "regularized", "the quick fox"),
+        ("l0/1[1:2]", "corrected", "u")]                                    # a glyph's edit: left out
     assert back.language("l0/1") == "la" and back.language("l0/0") is None
 
 
