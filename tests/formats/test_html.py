@@ -205,3 +205,50 @@ def test_enwikisource_declares_its_transcription():
     c = catalog()
     assert c.conventions("enwikisource").transcription == ("nfc", "long-s", "ligatures", "r-rotunda", "divided-words")
     assert c.conventions("mediawiki").transcription == ("nfc",)
+
+
+WRITING = """<html lang="en"><body>
+<header role="doc-pageheader" lang="la">Liber primus</header>
+<h2>A heading</h2>
+<p>English text with <span lang="de">ein <i>deutsches</i> Wort</span> in it.<aside role="doc-footnote" lang="fr">Une
+note.</aside></p>
+<p lang="ar" dir="rtl">نص عربي <bdo dir="ltr">ABC</bdo></p>
+<div style="writing-mode: vertical-rl" lang="ja"><p>縦書きの文章</p></div>
+<p lang="en US">An ill-formed tag.</p>
+</body></html>"""
+
+
+def writing(t, scheme):
+    return {c.target: c.value for c in t.classifications if c.scheme == scheme}
+
+
+def test_lang_dir_and_writing_mode_are_recorded_where_they_differ():
+    """The root's language and direction are the page's, a block's that differs its region's, inline runs' that
+    differ from their line's a span's (consecutive runs merged, without spaces at either end); a ``lang`` on a page
+    header or a note is read, an ill-formed one skipped and counted."""
+    r = read(WRITING)
+    t = r.transcription
+    texts = {ln.id: ln.reading.text for ln in t.lines}
+    assert texts["paragraph_0_l0"][18:36] == "ein deutsches Wort"
+    assert writing(t, "language") == {"": "en", "header_0": "la", "paragraph_0_l0[18:36]": "de", "footnote_0": "fr",
+                                      "paragraph_1": "ar", "paragraph_2": "ja"}
+    assert writing(t, "direction") == {"paragraph_1": "horizontal-rl", "paragraph_1_l0[8:11]": "horizontal-lr",
+                                       "paragraph_2": "vertical-rl"}
+    assert texts["paragraph_1_l0"][8:11] == "ABC"
+    assert t.language("paragraph_3_l0") == "en" and t.language("footnote_0_l0") == "fr"
+    assert t.direction("paragraph_2_l0") == "vertical-rl" and t.direction("") is None
+    assert r.ill_formed_languages == {"en US": 1}
+
+
+def test_the_roots_dir_is_the_pages_and_auto_records_nothing():
+    t = read('<html dir="rtl" lang="he"><body><p>שלום</p><p dir="ltr" lang="en">Hello</p>'
+             '<p dir="auto">?</p></body></html>').transcription
+    assert writing(t, "direction") == {"": "horizontal-rl", "paragraph_1": "horizontal-lr"}
+    assert writing(t, "language") == {"": "he", "paragraph_1": "en"}
+
+
+def test_a_language_reaches_notes_and_cells():
+    t = read('<html><body><p lang="de">Text<aside role="doc-footnote">Fußnote.</aside></p>'
+             '<table lang="fr"><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>'
+             '</body></html>').transcription
+    assert writing(t, "language") == {"paragraph_0": "de", "footnote_0": "de", "table_0": "fr"}

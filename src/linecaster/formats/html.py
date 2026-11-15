@@ -13,11 +13,18 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
   ``linecaster.text.formulas``; a TeX ``annotation`` that differs is the formula's ``source``);
 - ARIA and DPUB-ARIA roles: ``heading`` (with ``aria-level``) a heading, ``doc-pageheader`` and
   ``doc-pagefooter`` the page's furniture (header, footer), ``doc-footnote`` a note, ``doc-noteref`` a note's mark
-  (not text); the ``lang`` attribute the language of the text inside;
+  (not text);
 - CSS, from the page's ``<style>`` sheets and inline styles, cascaded as a browser cascades it: ``display: none`` is
   removed (``hidden``), ``visibility: hidden`` printed as nothing (a space, a block break for a block),
   ``text-transform`` sets the letters' case; ``style``, ``script``, ``head`` and the like are removed
-  (``metadata``).
+  (``metadata``);
+- writing: ``lang`` (``xml:lang`` before it) the language of the text inside, ``dir`` (``rtl``, ``ltr``; ``auto``
+  and a ``bdi`` without one leave it to the text; ``bdo``'s too) its direction, CSS's ``writing-mode`` (``vertical-rl``,
+  ``vertical-lr``; not on inline elements) a vertical one. Each is recorded (``language``, ``direction``
+  classifications, by whoever the text is by) on the narrowest thing it differs on: the page (``""``) for the root's
+  (``html``, its ``body``), a region for a block's that differs from the page's, a span of a line for runs of a line
+  that differ from it (consecutive runs with one value one span, without its spaces at either end). A ``lang`` that
+  is no BCP 47 tag (``language_tag``) is skipped and counted (``HtmlReading.ill_formed_languages``).
 
 **Conventions** decide what a source's own markup means (``linecaster.markup.decisions``): a rule's decision on an
 element replaces HTML's meaning of it. ``HtmlConverter.DECISIONS`` are the decisions it applies.
@@ -30,6 +37,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from ..data.transcription import (
@@ -55,6 +63,16 @@ FORMATS = {"i": "italic", "em": "italic", "cite": "italic", "var": "italic", "b"
 #: characters that print nothing (zero-width spaces and joiners, soft hyphens, bidirectional marks)
 SILENT = re.compile("[­​-‏⁠-⁤⁦-⁩﻿]")
 PARTS = ("header", "body", "footer")
+#: CSS's ``writing-mode`` values (with SVG 1.1's, which CSS reads as these) -> the writing mode
+WRITING_MODES = {"horizontal-tb": "horizontal-tb", "vertical-rl": "vertical-rl", "vertical-lr": "vertical-lr",
+                 "lr": "horizontal-tb", "lr-tb": "horizontal-tb", "rl": "horizontal-tb", "rl-tb": "horizontal-tb",
+                 "tb": "vertical-rl", "tb-rl": "vertical-rl"}
+#: inline elements: a writing mode set on one does not apply (its block's does)
+INLINE_TAGS = frozenset(FORMATS) | {"span", "a", "bdi", "bdo", "abbr", "small", "big", "font", "q", "code", "kbd",
+                                    "samp", "mark", "dfn", "time", "data", "tt", "label"}
+#: what the walk carries of the text's writing: its language, HTML's directionality, CSS's writing mode
+WRITING = ("language", "bidi", "mode")
+XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
 
 
 @dataclass
@@ -62,8 +80,9 @@ class Run:
     text: str
     fmt: frozenset = frozenset()
     edit: tuple[str, str] | None = None      # (kind, other reading)
-    language: str | None = None
+    language: str | None = None              # a BCP 47 tag
     source: str | None = None                # a formula's LaTeX as the source wrote it
+    direction: str | None = None             # a writing direction (linecaster.data.writing.DIRECTIONS)
 
 
 @dataclass
@@ -81,33 +100,39 @@ class TextBlock:
     group: int | None = None                                   # cells of one row of cells
     notes: list["TextBlock"] = field(default_factory=list)
     descriptions: list[tuple[str, str]] = field(default_factory=list)
+    language: str | None = None                                # the block's language and direction (its element's)
+    direction: str | None = None
 
 
 @dataclass
 class HtmlReading:
     """What an HTML tree was read into: the transcription, the coverage of the conventions, whether the page's last
     body block ends there (a ``break`` decision, or not a paragraph) or runs on (a ``runs_on`` decision about it), and
-    whether its first continues the previous page's (a ``continues`` decision about it)."""
+    whether its first continues the previous page's (a ``continues`` decision about it); ``ill_formed_languages``:
+    the language values that are no BCP 47 tag, skipped, with how often each was met."""
 
     transcription: Transcription
     coverage: Coverage
     ends_paragraph: bool
     continues: bool = False
     runs_on: bool = False
+    ill_formed_languages: Counter = field(default_factory=Counter)
 
 
 class _Cascade:
-    """The page's CSS as a browser cascades it, for the three properties that decide what is read: ``display``
-    (``none``: not there), ``visibility`` (``hidden``: there but printed as nothing; inherited) and ``text-transform``
-    (the letters' case; inherited). The page's style sheets' rules (outside @-blocks, without pseudo-elements) and
-    inline styles, by importance, then origin (an inline style above the sheets), specificity and order."""
+    """The page's CSS as a browser cascades it, for the properties that decide what is read: ``display`` (``none``:
+    not there), ``visibility`` (``hidden``: there but printed as nothing; inherited), ``text-transform`` (the letters'
+    case; inherited) and ``writing-mode`` (horizontal or vertical; inherited, by the walk). The page's style sheets'
+    rules (outside @-blocks, without pseudo-elements) and inline styles, by importance, then origin (an inline style
+    above the sheets), specificity and order."""
 
-    PROPERTY = re.compile(r"(text-transform|display|visibility)\s*:\s*([a-z-]+)\s*(!\s*important)?", re.I)
+    PROPERTY = re.compile(r"(text-transform|display|visibility|writing-mode)\s*:\s*([a-z-]+)\s*(!\s*important)?",
+                          re.I)
 
     def __init__(self, root):
         from cssselect import HTMLTranslator, SelectorError, parse
 
-        best: dict[str, dict] = {"text-transform": {}, "display": {}, "visibility": {}}
+        best: dict[str, dict] = {"text-transform": {}, "display": {}, "visibility": {}, "writing-mode": {}}
         order = 0
 
         def declare(el, decls: str, origin: int, spec):
@@ -150,6 +175,10 @@ class _Cascade:
     def visibility(self, el, inherited: str | None) -> str | None:
         """The element's visibility, given its parent's."""
         return self.declared["visibility"].get(el, inherited)
+
+    def writing_mode(self, el) -> str | None:
+        """The writing mode declared for the element itself (``WRITING_MODES``), None where none is."""
+        return WRITING_MODES.get(self.declared["writing-mode"].get(el))
 
     @staticmethod
     def _rules(css: str):
@@ -206,22 +235,41 @@ class HtmlConverter:
             transcription.source.normalized = list(self.resolved.transcription)
         decided, coverage = self.conventions.decide(root) if self.conventions else ({}, Coverage())
         walk = _Walk(decided, _Cascade(root))
-        walk.element(root, frozenset(), None, "body")
+        page = walk.page(root)
+        walk.ctx = page
+        walk.element(root, frozenset(), None, "body", page)
         walk.flush()
         ends = walk.ends_paragraph()
         body = [k for k, b in enumerate(walk.blocks) if b.part == "body" and b.status is None]
         continues = bool(body) and body[0] in walk.continued
         runs_on = bool(body) and body[-1] in walk.running
-        _build(transcription, walk.blocks, walk.notes, people, rules)
-        return HtmlReading(transcription, coverage, ends and not runs_on, continues, runs_on)
+        _build(transcription, walk.blocks, walk.notes, people, rules, _writing(page))
+        return HtmlReading(transcription, coverage, ends and not runs_on, continues, runs_on,
+                           walk.ill_formed)
+
+
+def _direction(bidi: str | None, mode: str | None) -> str | None:
+    """A writing direction (``DIRECTIONS``) from HTML's directionality (``ltr``, ``rtl``; None: ``auto`` or not
+    stated) and CSS's writing mode: a vertical mode whatever the directionality, else the directionality's."""
+    if mode in ("vertical-rl", "vertical-lr"):
+        return mode
+    return {"rtl": "horizontal-rl", "ltr": "horizontal-lr"}.get(bidi)
+
+
+def _writing(attrs: dict) -> dict:
+    """The language and the direction the walk's ``attrs`` give."""
+    return {"language": attrs.get("language"), "direction": _direction(attrs.get("bidi"), attrs.get("mode"))}
 
 
 class _Walk:
-    """One walk over the tree: blocks in reading order, notes, and the state of the block being read."""
+    """One walk over the tree: blocks in reading order, notes, and the state of the block being read; ``ctx`` the
+    writing (``WRITING``) of the block-level element being read, which a block takes when it begins."""
 
-    def __init__(self, decided: dict, case: _Cascade):
+    def __init__(self, decided: dict, case: _Cascade, ctx: dict | None = None):
         self.decided = decided
         self.case = case
+        self.ctx: dict = ctx or {}
+        self.ill_formed: Counter = Counter()   # language values that are no BCP 47 tag
         self.blocks: list[TextBlock] = []
         self.notes: list[TextBlock] = []
         self.cur: TextBlock | None = None
@@ -244,15 +292,25 @@ class _Walk:
 
     def block(self, part: str, **fields) -> TextBlock:
         if self.cur is None:
-            self.cur = TextBlock(part=part, **fields)
+            self.cur = TextBlock(part=part, **_writing(self.ctx), **fields)
         return self.cur
+
+    @contextmanager
+    def within(self, attrs: dict):
+        """Reading a block-level element whose writing ``attrs`` gives: the blocks begun inside take it."""
+        saved, self.ctx = self.ctx, attrs
+        try:
+            yield
+        finally:
+            self.ctx = saved
 
     def emit(self, text: str, fmt: frozenset, part: str, case: str | None, **attrs):
         if not text:
             return
         text = self.case.apply(text, case, self.prev)
         self.prev = text[-1]
-        self.block(part).runs.append(Run(text, fmt, **attrs))
+        self.block(part).runs.append(Run(text, fmt, edit=attrs.get("edit"), language=attrs.get("language"),
+                                         source=attrs.get("source"), direction=_writing(attrs)["direction"]))
         if part == "body" and text.strip():
             self.last_break = False
 
@@ -260,13 +318,52 @@ class _Walk:
         body = [b for b in self.blocks if b.part == "body" and b.status is None]
         return self.last_break or not body or body[-1].role != "paragraph"
 
+    # -- writing
+    def language(self, value: str | None, attrs: dict, count: bool = True) -> dict:
+        """``attrs`` with ``value`` as the language where it is a BCP 47 tag (``language_tag``); an ill-formed one is
+        skipped (counted with ``count``), an empty one is none."""
+        if value is None or not value.strip():
+            return attrs
+        tag = language_tag(value)
+        if tag is None:
+            if count:
+                self.ill_formed[value] += 1
+            return attrs
+        return attrs if tag == attrs.get("language") else {**attrs, "language": tag}
+
+    def scope(self, el, attrs: dict, count: bool = True) -> dict:
+        """``attrs`` with what ``el`` says of its text's writing: its language (``xml:lang``, else ``lang``), its
+        directionality (``dir``: ``rtl``, ``ltr``; ``auto``, and a ``bdi`` without one, leave it to the text) and,
+        unless it is inline (``INLINE_TAGS``), its CSS writing mode."""
+        tag = el.tag.lower()
+        attrs = self.language(next((v for v in (el.get(XML_LANG), el.get("xml:lang"), el.get("lang"))
+                                    if v is not None), None), attrs, count)
+        d = (el.get("dir") or "").strip().lower()
+        if d in ("ltr", "rtl") or d == "auto" or (tag == "bdi" and not d):
+            bidi = d if d in ("ltr", "rtl") else None
+            if bidi != attrs.get("bidi"):
+                attrs = {**attrs, "bidi": bidi}
+        mode = self.case.writing_mode(el) if tag not in INLINE_TAGS else None
+        if mode is not None and mode != attrs.get("mode"):
+            attrs = {**attrs, "mode": mode}
+        return attrs
+
+    def page(self, root) -> dict:
+        """The page's writing: the root's (``html``) and its ``body``'s (``scope``), where the walk begins."""
+        tag = root.tag.lower() if isinstance(root.tag, str) else ""
+        if tag not in ("html", "body"):
+            return {}
+        attrs = self.scope(root, {}, count=False)
+        body = next((c for c in root if isinstance(c.tag, str) and c.tag.lower() == "body"), None)
+        return self.scope(body, attrs, count=False) if tag == "html" and body is not None else attrs
+
     # -- the walk
     def element(self, el, fmt: frozenset, case: str | None, part: str, attrs: dict | None = None):
         if not isinstance(el.tag, str):                       # comments, processing instructions
             return
         tag = el.tag.lower()
         case = self.case.value(el, case)
-        attrs = attrs or {}
+        attrs = self.scope(el, attrs or {})
         rule = self.decided.get(el)
         if rule is not None:
             if self.decision(el, rule[0], rule[1], fmt, case, part, attrs):
@@ -280,11 +377,12 @@ class _Walk:
             return
         if role in ("doc-pageheader", "doc-pagefooter"):
             self.flush()
-            self.children(el, fmt, case, "header" if role == "doc-pageheader" else "footer", attrs)
-            self.flush()
+            with self.within(attrs):
+                self.children(el, fmt, case, "header" if role == "doc-pageheader" else "footer", attrs)
+                self.flush()
             return
         if role == "doc-footnote":
-            self.note(el, Note(), fmt, case, part)
+            self.note(el, Note(), fmt, case, part, attrs)
             return
         if role == "doc-noteref":
             return
@@ -293,8 +391,6 @@ class _Walk:
             self.as_block(el, Block(role="heading", heading_level=int(level) if level and level.isdigit()
                                     and int(level) > 0 else 2), fmt, case, part, attrs)
             return
-        if el.get("lang") and el.get("lang") != attrs.get("language"):
-            attrs = {**attrs, "language": el.get("lang")}
         if tag == "br":
             self.emit("\n", fmt, part, None, **attrs)
             self.prev = " "
@@ -303,7 +399,7 @@ class _Walk:
             self.flush()
             return
         if tag == "table":
-            self.table(el, case, part)
+            self.table(el, case, part, attrs)
             return
         if tag == "img":
             self.picture(el, Picture(), part)
@@ -322,8 +418,9 @@ class _Walk:
             return
         if tag in BLOCK_TAGS:
             self.flush()
-            self.children(el, fmt, case, part, attrs)
-            self.flush()
+            with self.within(attrs):
+                self.children(el, fmt, case, part, attrs)
+                self.flush()
             return
         f = fmt | {FORMATS[tag]} if tag in FORMATS else fmt
         self.children(el, f, case, part, attrs)
@@ -347,9 +444,10 @@ class _Walk:
 
     def as_block(self, el, d: Block, fmt, case, part, attrs, by_rule: bool = False):
         self.flush()
-        self.block(part, role=d.role, heading_level=d.heading_level, by_rule=by_rule)
-        self.children(el, fmt, case, part, attrs)
-        self.flush()
+        with self.within(attrs):
+            self.block(part, role=d.role, heading_level=d.heading_level, by_rule=by_rule)
+            self.children(el, fmt, case, part, attrs)
+            self.flush()
 
     # -- decisions
     def decision(self, el, rule_id: str, d: Decision, fmt, case, part, attrs) -> bool:
@@ -361,7 +459,7 @@ class _Walk:
                 text = " ".join("".join(el.itertext()).split()) if keep else ""
                 if text:
                     self.blocks.append(TextBlock(role="other", runs=[Run(text)], part=part,
-                                                 status=("removed", reason)))
+                                                 status=("removed", reason), **_writing(attrs)))
             case Invisible():
                 self.invisible(tag, fmt, part, case)
             case Unwrap():
@@ -374,14 +472,14 @@ class _Walk:
                     role = ("footer" if part == "footer" else  # body's top; in the body below text or a picture
                             "paragraph" if part == "body" and self._body_printed() else "header")   # (a caption)
                 self.blocks.append(TextBlock(role=role,
-                                             runs=self.content(el, fmt, case, part), part=part,
-                                             group=id(el.getparent())))
+                                             runs=self.content(el, fmt, case, part, attrs), part=part,
+                                             group=id(el.getparent()), **_writing(attrs)))
             case Picture():
                 self.picture(el, d, part)
             case Caption():
                 self.as_block(el, Block(role="caption"), fmt, case, part, attrs)
             case Note():
-                self.note(el, d, fmt, case, part)
+                self.note(el, d, fmt, case, part, attrs)
             case Edit(kind=kind, attr=attr, extract=extract):
                 other = el.get(attr)
                 if other and extract:
@@ -389,8 +487,7 @@ class _Walk:
                     other = m.group(1) if m else None
                 self.children(el, fmt, case, part, {**attrs, "edit": (kind, other)} if other else attrs)
             case Language(attr=attr):
-                lang = el.get(attr)
-                self.children(el, fmt, case, part, {**attrs, "language": lang} if lang else attrs)
+                self.children(el, fmt, case, part, self.language(el.get(attr), attrs))
             case Format():
                 f = {k for k in ("bold", "italic", "underline", "strikethrough") if getattr(d, k)}
                 if d.script != "baseline":
@@ -416,11 +513,13 @@ class _Walk:
                 return False
         return True
 
-    def content(self, el, fmt, case, part) -> list[Run]:
+    def content(self, el, fmt, case, part, attrs: dict) -> list[Run]:
         """An element's content read whole, as runs: its blocks one after another, a line break between them; the
-        notes inside it go to the page's notes, its pictures to the blocks."""
-        sub = _Walk(self.decided, self.case)
-        sub.children(el, fmt, self.case.value(el, case), part, {})
+        notes inside it go to the page's notes, its pictures to the blocks. Its writing is ``attrs``' (``WRITING``)."""
+        writing = {k: v for k, v in attrs.items() if k in WRITING}
+        sub = _Walk(self.decided, self.case, writing)
+        sub.ill_formed = self.ill_formed
+        sub.children(el, fmt, self.case.value(el, case), part, writing)
         sub.flush()
         runs: list[Run] = []
         for b in sub.blocks:
@@ -434,11 +533,11 @@ class _Walk:
         self.notes += sub.notes
         return runs
 
-    def note(self, el, d: Note, fmt, case, part):
+    def note(self, el, d: Note, fmt, case, part, attrs: dict):
         role = "footnote_continued" if d.continued and d.role == "footnote" else d.role
-        runs = self.content(el, fmt, case, part)
+        runs = self.content(el, fmt, case, part, attrs)
         if "".join(r.text for r in runs).strip():
-            self.block(part).notes.append(TextBlock(role=role, runs=runs, part=part))
+            self.block(part).notes.append(TextBlock(role=role, runs=runs, part=part, **_writing(attrs)))
 
     def _body_printed(self) -> bool:
         """Whether the body has printed something yet, furniture aside: a picture, or a block with text."""
@@ -469,7 +568,7 @@ class _Walk:
         if block:
             self.flush()
 
-    def table(self, el, case, part):
+    def table(self, el, case, part, attrs: dict):
         self.flush()
         rows: list[list[tuple[str, int, int, list[list[int]]]]] = []
         caption = None
@@ -480,16 +579,16 @@ class _Walk:
             if t == "caption" and x.getparent() is el:
                 caption = x
             if t == "tr" and _owner(x) is el:
-                cells = []
+                cells, row = [], self.scope(x, attrs)
                 for c in x:
                     if isinstance(c.tag, str) and c.tag.lower() in ("td", "th"):
-                        text, formulas = _cell_text(self.content(c, frozenset(), case, part))
+                        text, formulas = _cell_text(self.content(c, frozenset(), case, part, self.scope(c, row)))
                         cells.append((text, _span(c.get("rowspan")), _span(c.get("colspan")), formulas))
                 rows.append(cells)
         if caption is not None:
-            self.as_block(caption, Block(role="caption"), frozenset(), case, part, {})
+            self.as_block(caption, Block(role="caption"), frozenset(), case, part, self.scope(caption, attrs))
         if any(rows):
-            self.blocks.append(TextBlock(role="table", part=part, rows=[r for r in rows if r]))
+            self.blocks.append(TextBlock(role="table", part=part, rows=[r for r in rows if r], **_writing(attrs)))
 
 
 def _owner(tr):
@@ -533,7 +632,7 @@ def _lines(runs: list[Run]) -> list[tuple[str, list[tuple[int, int, Run]]]]:
                 lines.append(cur)
                 cur = []
             if part:
-                cur.append(Run(part, r.fmt, r.edit, r.language, r.source))
+                cur.append(Run(part, r.fmt, r.edit, r.language, r.source, r.direction))
     lines.append(cur)
     out = []
     for runs_ in lines:
@@ -552,12 +651,42 @@ def _lines(runs: list[Run]) -> list[tuple[str, list[tuple[int, int, Run]]]]:
     return out
 
 
-def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], people: int, rules: int) -> None:
+def _differing(text: str, spans: list[tuple[int, int, Run]], scheme: str, enclosing: str | None):
+    """The spans of a line's text whose runs' ``scheme`` (``language``, ``direction``) is not ``enclosing`` (the
+    line's): consecutive runs of one value one span, without its spaces at either end; (start, end, value)."""
+    merged: list[list] = []
+    for a, e, r in spans:
+        if e <= a:
+            continue
+        v = getattr(r, scheme)
+        if merged and merged[-1][2] == v and merged[-1][1] == a:
+            merged[-1][1] = e
+        else:
+            merged.append([a, e, v])
+    out = []
+    for a, e, v in merged:
+        if v is None or v == enclosing:
+            continue
+        while a < e and text[a].isspace():
+            a += 1
+        while e > a and text[e - 1].isspace():
+            e -= 1
+        if e > a:
+            out.append((a, e, v))
+    return out
+
+
+def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], people: int, rules: int,
+           page: dict) -> None:
     """The blocks as regions and lines of ``t``: header first, then the body's blocks with their notes after them,
-    then the footer; reading order by part."""
+    then the footer; reading order by part. ``page``: the page's language and direction, recorded on it; a block's
+    recorded on its region where they differ, a run's on its span where they differ from its block's."""
     order: list[str] = []
     line_order: list[str] = []
     counter: Counter = Counter()
+    for scheme in ("language", "direction"):
+        if page[scheme] is not None:
+            t.classify(people, "", scheme, page[scheme])
 
     def new_id(role: str) -> str:
         counter[role] += 1
@@ -584,8 +713,9 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                 if r.edit is not None:
                     t.edits.append(EditAnnotation(annotator=who, target=f"{lid}[{a}:{e}]", kind=r.edit[0],
                                                   text=r.edit[1]))
-                if language_tag(r.language):
-                    t.classify(who, f"{lid}[{a}:{e}]", "language", language_tag(r.language))
+            for scheme in ("language", "direction"):
+                for a, e, v in _differing(text, spans, scheme, getattr(b, scheme) or page[scheme]):
+                    t.classify(who, f"{lid}[{a}:{e}]", scheme, v)
             if fmts:
                 ln.reading.formatting = fmts
             if b.status is None:
@@ -599,6 +729,9 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                      heading_level=b.heading_level, parent=parent)
         if b.status is not None:
             t.classify(rules, rid, "status", b.status[0], reason=b.status[1])
+        for scheme in ("language", "direction"):
+            if getattr(b, scheme) is not None and getattr(b, scheme) != page[scheme]:
+                t.classify(who, rid, scheme, getattr(b, scheme))
         if b.file is not None:
             setattr(t.region(rid), "html__src", b.file)
         for kind, text in b.descriptions:
@@ -619,7 +752,7 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
             t.tables.append(Table(annotator=who, target=rid, num_rows=max((c.end_row for c in cells), default=0),
                                   num_cols=max((c.end_col for c in cells), default=0), cells=cells))
             b = TextBlock(role=b.role, runs=[Run(" ".join(c.text.replace("\n", " ") for c in cells if c.text))],
-                          part=b.part)
+                          part=b.part, language=b.language, direction=b.direction)
         if b.status is None:
             order.append(rid)
         lines(rid, b, who)

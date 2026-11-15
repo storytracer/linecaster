@@ -35,6 +35,11 @@ Empty regions make no block.
 
 ``sections``: every title or heading opens a section that holds it and every block after it up to the next one,
 across pages (``Block.section``); blocks before the first stay outside.
+
+Writing: only what the transcriptions record (``Transcription.language``, ``.direction``), never an inferred value.
+The document's language and direction are its pages' (their ``""`` classifications) where every page records the
+same one; a block's are its region's (as resolved: the region's own, else what encloses it) where they differ from
+the document's; a span's language is a ``language`` classification of a span of a line.
 """
 from __future__ import annotations
 
@@ -99,6 +104,8 @@ class DocumentBuilder:
         self._section: str | None = None          # the heading block whose section is open
         self._last_table: Block | None = None      # the table a one-row table may join (merge_single_rows)
         self._items: dict[tuple[str, str], Block] = {}     # (page key, id) -> the block it continues
+        self._pages_writing: list[tuple[str | None, str | None]] = []     # each page's language and direction
+        self._writing: dict[str, tuple[str | None, str | None]] = {}      # block id -> its region's
         self.pages = 0
 
     # ------------------------------------------------------------------ pages
@@ -114,6 +121,7 @@ class DocumentBuilder:
             if not hidden_line(t, ln, self.policy):
                 by_region.setdefault(t.region_of(ln), []).append(ln)
         page = _PageContext(page_no, page_id if page_id is not None else f"#{page_no}", t)
+        self._pages_writing.append((t.language(""), t.direction("")))
         paragraphs: dict[str | None, list] = {}
         for p in page.paragraphs:
             paragraphs.setdefault(p.region, []).append(p)
@@ -121,19 +129,26 @@ class DocumentBuilder:
             layer = self.policy.layer_of(t, r.id)
             if layer in NOT_RENDERED:
                 continue
-            page.layer = layer
+            page.layer, page.region = layer, r.id
             self._add_region(page, r, by_region.get(r.id, []), paragraphs.get(r.id) if page.recomposed else None)
         if None in paragraphs and not t.regions:          # a text-only page: its paragraphs without a region
-            page.layer = "body"
+            page.layer, page.region = "body", None
             self._add_paragraphs(page, None, "paragraph", paragraphs[None])
         return page_no
 
     def build(self) -> Document:
         """The document, every origin's box clamped to its page (a layout box often reaches a few pixels past the
-        edge); the transcriptions keep their boxes."""
+        edge); the transcriptions keep their boxes. Its language and direction are the pages' where all record the
+        same one, a block's its region's where they differ from the document's."""
         from ..data.transcription import producer
 
         self.doc.producer = producer()
+        for k, field in enumerate(("language", "direction")):
+            values = {w[k] for w in self._pages_writing}
+            setattr(self.doc, field, values.pop() if len(values) == 1 else None)
+            for block in self.doc.blocks:
+                value = self._writing.get(block.id, (None, None))[k]
+                setattr(block, field, value if value != getattr(self.doc, field) else None)
         size = {pg.page: (pg.width, pg.height) for pg in self.doc.pages}
         for block in self.doc.blocks:
             for o in block.origins:
@@ -148,6 +163,7 @@ class DocumentBuilder:
     def _block(self, kind: str, page: "_PageContext", text: str = "", opens: bool = True, **fields) -> Block:
         """A new block; a title or heading opens its section unless not ``opens``."""
         b = Block(id=f"b{len(self.doc.blocks)}", kind=kind, layer=page.layer, text=text, **fields)
+        self._writing[b.id] = (page.t.language(page.region or ""), page.t.direction(page.region or ""))
         if kind in ("title", "heading") and self.sections and opens:
             self._section = b.id
         b.section = self._section if self.sections else None
@@ -475,7 +491,7 @@ def _region_link(t: Transcription, region: str, kind: str) -> str | None:
 
 class _PageContext:
     """The page being added: its number, its key for references (its id), its transcription and lines by id, its
-    paragraphs (its latest recomposition's) and whether it has any, and the layer of the region being added."""
+    paragraphs (its latest recomposition's) and whether it has any, and the layer and id of the region being added."""
 
     def __init__(self, page_no: int, key: str, t: Transcription):
         self.page_no, self.key, self.t = page_no, key, t
@@ -483,6 +499,7 @@ class _PageContext:
         self.paragraphs = paragraphs_of(t)
         self.recomposed = bool(self.paragraphs)
         self.layer = "body"
+        self.region: str | None = None
 
 
 def build_document(t: Transcription, name: str = "page", width: int | None = None, height: int | None = None,

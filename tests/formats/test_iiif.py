@@ -35,6 +35,23 @@ def test_every_region_line_and_word_is_an_annotation_on_the_canvas():
     assert all(a["generator"]["name"] == "sample" for a in p["items"])
 
 
+def test_each_body_has_its_targets_language():
+    """A line's and a word's body has the language its target records (its own, else its line's, region's or the
+    page's); a region's body has none, and a page that records none gives none."""
+    t = sample_transcription()
+    assert not any("language" in a["body"] for a in page()["items"])
+    t.classify(0, "", "language", "en")
+    t.classify(0, "footnote_4", "language", "la")
+    t.classify(0, "l1/1", "language", "de")
+    p = to_annotation_page(t, CANVAS, "https://example.org/annotations/item1/1/ocr_new")
+    lines = {a["body"]["value"]: a["body"].get("language") for a in p["items"] if a.get("textGranularity") == "line"}
+    words = [a["body"].get("language") for a in p["items"] if a.get("textGranularity") == "word"]
+    footnote = next(ln for ln in t.lines if ln.id == "l7")
+    assert lines[t.text_of(footnote)] == "la" and lines["12 THE BOTANIST"] == "en"
+    assert words[3:6] == ["en", "de", "en"]                         # l0 has three words, then l1's
+    assert not any("language" in a["body"] for a in p["items"] if a["motivation"] == "classifying")
+
+
 @pytest.mark.network
 def test_the_page_is_valid_iiif():
     jsonschema = pytest.importorskip("jsonschema")

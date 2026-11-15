@@ -5,14 +5,15 @@ role as the body), per line with a reading (``supplementing``, IIIF's motivation
 text granularity extension's ``textGranularity`` ``line``), per word (``word``), per description (``describing``)
 and per edit (``editing``, targeting the line's annotation). Targets are the canvas with a media fragment
 (``#xywh=``) where the annotation has a box, the canvas itself where it has none. Each annotation's ``generator``
-(``creator`` for people) is its annotator's name.
+(``creator`` for people) is its annotator's name. A line's, a word's and an edit's body has the ``language`` its
+target records (``Transcription.language``: its own, else its line's, region's or page's); a region's body has none.
 """
 from __future__ import annotations
 
 from typing import Any
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse
+from ..data.refs import parse, word as word_ref
 from ..data.transcription import AnnotationSet, Transcription
 
 CONTEXT = ["http://iiif.io/api/extension/text-granularity/context.json",
@@ -49,7 +50,6 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
     """The annotation page of ``t`` on ``canvas`` (the page's canvas URI), with ``id`` as its id (annotations
     ``<id>/<n>``). Regions the policy puts nowhere are left out, with their lines."""
     items: list[dict[str, Any]] = []
-    language = t.classification("", "language")
     hidden = {r.id for r in t.regions if policy.layer_of(t, r.id) == "none"}
     line_ids: dict[str, str] = {}
 
@@ -69,19 +69,19 @@ def to_annotation_page(t: AnnotationSet, canvas: str, id: str,
         for ln in t.ordered_lines(hidden=True):
             if ln.reading is None or t.region_of(ln) in hidden or ln.id in hidden_lines:
                 continue
-            line_ids[ln.id] = add("supplementing", _body(t.text_of(ln), language=language),
+            line_ids[ln.id] = add("supplementing", _body(t.text_of(ln), language=t.language(ln.id)),
                                   _target(canvas, ln.box or (t.region(t.region_of(ln)).box
                                                              if t.region_of(ln) and t.region(t.region_of(ln))
                                                              else None)),
                                   ln.reading.annotator, textGranularity="line")
-            for w in ln.reading.words:
-                add("supplementing", _body(w.text, language=language), _target(canvas, w.box),
+            for k, w in enumerate(ln.reading.words):
+                add("supplementing", _body(w.text, language=t.language(word_ref(ln.id, k))), _target(canvas, w.box),
                     ln.reading.annotator, textGranularity="word")
         for e in t.edits:
             ref = parse(e.target)
             target = line_ids.get(ref.id)
             if target is not None and ref.page is None:
-                add("editing", _body(e.text, e.kind), target, e.annotator)
+                add("editing", _body(e.text, e.kind, t.language(e.target)), target, e.annotator)
     for d in t.descriptions:
         r = t.region(d.target)
         if r is not None and r.id not in hidden:

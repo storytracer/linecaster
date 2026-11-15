@@ -64,6 +64,38 @@
           "default": null,
           "title": "Level"
         },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the block's language (BCP 47) where it is not the document's",
+          "title": "Language"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "horizontal-lr",
+                "horizontal-rl",
+                "vertical-rl",
+                "vertical-lr"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the block's writing direction where it is not the document's",
+          "title": "Direction"
+        },
         "text": {
           "default": "",
           "title": "Text",
@@ -501,6 +533,38 @@
       "default": null,
       "description": "the transcription strategy that wrote it: literal as the builder made it, else a strategy's id or normalizations joined by +; None: not stated (a linecaster.document/1 file)",
       "title": "Strategy"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the document's language (BCP 47): its pages', where they all record the same one",
+      "title": "Language"
+    },
+    "direction": {
+      "anyOf": [
+        {
+          "enum": [
+            "horizontal-lr",
+            "horizontal-rl",
+            "vertical-rl",
+            "vertical-lr"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the document's writing direction: its pages', where they all record the same one",
+      "title": "Direction"
     },
     "pages": {
       "items": {

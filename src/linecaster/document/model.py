@@ -15,6 +15,11 @@ spans of it, and where it comes from: one ``Origin`` per piece (its page, region
 the characters of the block's text it gives). With sections (``DocumentBuilder(sections=True)``), every block names
 the heading whose section it is in.
 
+Writing: the document's ``language`` and ``direction`` are its pages' where they all record the same one; a block's
+are its region's where they differ from the document's (``linecaster.data.writing``: a BCP 47 tag, a writing
+direction), a language over characters of its text a span's. Only recorded values: none is inferred, and a value not
+stated is left out of the JSON.
+
 The JSON (``Document.model_dump_json``, ``to_json``) is the complete document: a reading of it gives the same
 serializations again (``from_json``).
 """
@@ -25,6 +30,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..data.transcription import Cell
+
+_UNSTATED = lambda v: v is None          # noqa: E731  (an optional field left out of the JSON when not stated)
 
 SCHEMA = "linecaster.document/2"
 #: the document formats this linecaster reads (a document/1 as it is: its block texts were flowed, its spans held
@@ -38,6 +45,8 @@ Kind = Literal["title", "heading", "paragraph", "list_item", "caption", "footnot
                "page_header", "page_footer", "formula", "table", "picture"]
 #: the layers blocks are in (``linecaster.data.policy.LAYERS`` without ``metadata`` and ``none``: never rendered)
 Layer = Literal["body", "furniture", "background", "invisible", "notes"]
+#: writing directions (``linecaster.data.writing.DIRECTIONS``)
+Direction = Literal["horizontal-lr", "horizontal-rl", "vertical-rl", "vertical-lr"]
 
 
 class _Model(BaseModel):
@@ -87,6 +96,10 @@ class Block(_Model):
     role: str | None = None
     layer: Layer = "body"
     level: int | None = None                  # a heading's level (1 the highest below the title)
+    language: str | None = Field(None, exclude_if=_UNSTATED,
+                                 description="the block's language (BCP 47) where it is not the document's")
+    direction: Direction | None = Field(None, exclude_if=_UNSTATED,
+                                        description="the block's writing direction where it is not the document's")
     text: str = ""                            # lines separated by "\n"; a formula block's text is its LaTeX
     spans: list[Span] = Field(default_factory=list)
     # the offsets of the "\n" in text that are the layout's (rows of running text, a page break inside a paragraph):
@@ -113,6 +126,12 @@ class Document(_Model):
     strategy: str | None = Field(None, description="the transcription strategy that wrote it: literal as the "
                                                    "builder made it, else a strategy's id or normalizations joined "
                                                    "by +; None: not stated (a linecaster.document/1 file)")
+    language: str | None = Field(None, exclude_if=_UNSTATED,
+                                 description="the document's language (BCP 47): its pages', where they all record "
+                                             "the same one")
+    direction: Direction | None = Field(None, exclude_if=_UNSTATED,
+                                        description="the document's writing direction: its pages', where they all "
+                                                    "record the same one")
 
     @field_validator("schema_")
     @classmethod

@@ -9,12 +9,16 @@ reads it back).
   class="caption"``, code ``pre``, a page header and footer DPUB-ARIA's ``doc-pageheader`` / ``doc-pagefooter``, a
   formula block its LaTeX between ``\\[`` and ``\\]``, a table ``table_html``, a picture ``figure`` with its image
   and the text read inside it; formatting as ``i``, ``b``, ``u``, ``s``, ``sup``, ``sub`` and ``lang``; line
-  breaks ``br``.
+  breaks ``br``. Writing (``_writing_attributes``): the document's language as ``<html lang>``, its direction as
+  ``<html dir="rtl">`` (right to left) or ``<html style="writing-mode: …">`` (vertical); a block's language, where
+  it is not the document's, as its element's ``lang``, its direction as ``dir="rtl"``, ``dir="ltr"`` (only in a
+  document written right to left) or ``style="writing-mode: …"`` (vertical; ``horizontal-tb`` in a vertical
+  document).
 - **Markdown** (``to_markdown``, by a policy's ``MarkdownRules``): headings ``#``, list items ``-``, formulas
   ``$$…$$``, tables as the rules say (HTML, or a pipe table unless a cell spans), a picture the rules' placeholder,
   italic ``*``, bold ``**``, strikethrough ``~~``, scripts and underline as HTML with ``html_scripts``, characters
   Markdown would read escaped with ``escape``; ``dividers``: a ``---`` rule between the blocks of one layout region
-  and the next.
+  and the next. Markdown has no language or direction: they are not written.
 - **Text** (``to_text``): each block's text, blocks separated by a blank line; a table one row per line, its cells
   separated by tabs.
 """
@@ -111,15 +115,15 @@ def _cell_dollars(c, escape_dollar: bool) -> str:
     return "".join(p if f else p.replace("$", "\\$") for p, f in _cell_pieces(c))
 
 
-def table_html(b: Block, escape_dollar: bool = False) -> str:
+def table_html(b: Block, escape_dollar: bool = False, attributes: str = "") -> str:
     """A table block as HTML: rows with their cells' ``rowspan`` and ``colspan``, header cells as ``<th>``, line
     breaks as ``<br>``, text escaped as HTML requires; with ``escape_dollar`` (Markdown's rule, ``MarkdownRules``) a
-    ``$`` outside a cell's formulas written ``\\$``."""
+    ``$`` outside a cell's formulas written ``\\$``; ``attributes`` the ``table`` element's (`` lang="de"``)."""
     esc = lambda c: htmllib.escape(_cell_dollars(c, escape_dollar), quote=False).replace("\n", "<br>")  # noqa: E731
     starts: dict[int, list] = {}
     for c in b.grid.cells:
         starts.setdefault(c.start_row, []).append(c)
-    parts = ["<table>"]
+    parts = [f"<table{attributes}>"]
     for r in range(b.grid.num_rows):
         parts.append("<tr>")
         for c in sorted(starts.get(r, []), key=lambda x: x.start_col):
@@ -132,31 +136,53 @@ def table_html(b: Block, escape_dollar: bool = False) -> str:
     return "".join(parts)
 
 
-def _html_block(b: Block) -> str:
+def _writing_attributes(language: str | None, direction: str | None, enclosing_language: str | None = None,
+                        enclosing_direction: str | None = None) -> str:
+    """An element's ``lang``, ``dir`` and ``style`` (its ``writing-mode``) for ``language`` and ``direction``
+    where they differ from what encloses it (the document's): a vertical direction as its writing mode, right to
+    left as ``dir="rtl"``, left to right as ``dir="ltr"`` only where it encloses right to left; a horizontal one
+    inside a vertical document with ``writing-mode: horizontal-tb``. ``""`` where nothing differs."""
+    out = ""
+    if language and language != enclosing_language:
+        out += f' lang="{htmllib.escape(language)}"'
+    if direction and direction != enclosing_direction:
+        if direction == "horizontal-rl":
+            out += ' dir="rtl"'
+        elif direction == "horizontal-lr" and enclosing_direction == "horizontal-rl":
+            out += ' dir="ltr"'
+        if direction.startswith("vertical"):
+            out += f' style="writing-mode: {direction}"'
+        elif (enclosing_direction or "").startswith("vertical"):
+            out += ' style="writing-mode: horizontal-tb"'
+    return out
+
+
+def _html_block(b: Block, a: str = "") -> str:
+    """A block as HTML; ``a``: its outer element's writing attributes (``_writing_attributes``)."""
     inline = _html_inline(b)
     if b.kind == "title":
-        return f"<h1>{inline}</h1>"
+        return f"<h1{a}>{inline}</h1>"
     if b.kind == "heading":
         n = min((b.level or 1) + 1, 6)
-        return f"<h{n}>{inline}</h{n}>"
+        return f"<h{n}{a}>{inline}</h{n}>"
     if b.kind == "footnote":
-        return f'<aside role="doc-footnote"><p>{inline}</p></aside>'
+        return f'<aside role="doc-footnote"{a}><p>{inline}</p></aside>'
     if b.kind == "page_header":
-        return f'<header role="doc-pageheader"><p>{inline}</p></header>'
+        return f'<header role="doc-pageheader"{a}><p>{inline}</p></header>'
     if b.kind == "page_footer":
-        return f'<footer role="doc-pagefooter"><p>{inline}</p></footer>'
+        return f'<footer role="doc-pagefooter"{a}><p>{inline}</p></footer>'
     if b.kind == "code":
-        return f"<pre><code>{htmllib.escape(b.text, quote=False)}</code></pre>"
+        return f"<pre{a}><code>{htmllib.escape(b.text, quote=False)}</code></pre>"
     if b.kind == "formula":
-        return f'<div class="formula">\\[{htmllib.escape(b.text, quote=False)}\\]</div>'
+        return f'<div class="formula"{a}>\\[{htmllib.escape(b.text, quote=False)}\\]</div>'
     if b.kind == "table":
-        return table_html(b)
+        return table_html(b, attributes=a)
     if b.kind == "picture":
         img = f'<img src="{htmllib.escape(b.file)}" alt="">' if b.file else ""
-        return f"<figure>{img}{f'<p>{inline}</p>' if b.text else ''}</figure>"
+        return f"<figure{a}>{img}{f'<p>{inline}</p>' if b.text else ''}</figure>"
     if b.kind in ("caption", "toc_entry", "reference"):
-        return f'<p class="{b.kind.replace("_", "-")}">{inline}</p>'
-    return f"<p>{inline}</p>"
+        return f'<p class="{b.kind.replace("_", "-")}"{a}>{inline}</p>'
+    return f"<p{a}>{inline}</p>"
 
 
 def to_html(source, furniture: bool = False, layers=None) -> str:
@@ -164,20 +190,22 @@ def to_html(source, furniture: bool = False, layers=None) -> str:
     doc = load_document(source)
     out, in_list = [], False
     for b in _blocks(doc, furniture, layers):
+        a = _writing_attributes(b.language, b.direction, doc.language, doc.direction)
         if b.kind == "list_item":
             if not in_list:
                 out.append("<ul>")
                 in_list = True
-            out.append(f"<li>{_html_inline(b)}</li>")
+            out.append(f"<li{a}>{_html_inline(b)}</li>")
             continue
         if in_list:
             out.append("</ul>")
             in_list = False
-        out.append(_html_block(b))
+        out.append(_html_block(b, a))
     if in_list:
         out.append("</ul>")
     title = htmllib.escape(doc.name)
-    return ('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n'
+    root = _writing_attributes(doc.language, doc.direction)
+    return (f'<!DOCTYPE html>\n<html{root}>\n<head>\n<meta charset="utf-8">\n'
             f"<title>{title}</title>\n</head>\n<body>\n" + "\n".join(out) + "\n</body>\n</html>\n")
 
 
