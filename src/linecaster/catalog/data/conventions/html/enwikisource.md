@@ -32,6 +32,14 @@ at a page's end.
   whole word, including a compound's own hyphen (`inter-crossing`), where the wiki does. The reader marks a call
   inside a line too when a rule names its template, so the rule matches the span the call writes.
 
+The transcription itself is already normalized, and the entry says so (`transcription`, copied into each page's
+`Source.normalized`; scoring checks a lane against it): the long s is written s and typographic ligatures (ﬁ, ﬂ, ﬀ,
+ﬅ) as their letters, æ and œ kept, r rotunda modernized ([Wikisource:Style guide/Orthography]); a word broken over
+two lines is rejoined, a true hyphen kept ([Help:Beginner's guide to typography]); MediaWiki stores the text in NFC.
+
+[Wikisource:Style guide/Orthography]: https://en.wikisource.org/wiki/Wikisource:Style_guide/Orthography
+[Help:Beginner's guide to typography]: https://en.wikisource.org/wiki/Help:Beginner%27s_guide_to_typography
+
 ## Not in the rules
 
 - Templates whose output has no class of its own and that no rule names cannot be matched in the HTML: `{{ua}}` (an

@@ -70,3 +70,18 @@ def resolve(name: str):
 def normalize(text: str, name: str) -> str:
     """``text`` through the lane ``name``."""
     return resolve(lane(name)).text(text or "")
+
+
+def uncovered(declared, name: str, output: str = "literal") -> list[str]:
+    """The conventions check: the normalizations a ground truth declares it embodies (``Source.normalized``) that
+    neither the lane ``name`` nor the output strategy's character rules apply, themselves or by one that subsumes
+    them (``ResolvedStrategy.covers``). Each one is a difference the comparison counts that is the ground truth's
+    convention, not the output's error (a ground truth that writes ſ as s, scored by a lane that keeps ſ)."""
+    from ..catalog.registry import catalog
+    from ..catalog.schema import TEXT_RULES
+
+    lane_s = resolve(lane(name))
+    out = catalog().strategy(output, use="output")
+    out_chars = [n for n in out.normalizations if next(iter(n.rule)) in TEXT_RULES]   # scoring applies these only
+    return [n for n in declared
+            if not lane_s.covers(n) and not any(x.id == n or n in x.subsumes for x in out_chars)]

@@ -179,3 +179,29 @@ def test_a_running_head_below_the_bodys_text_is_body_text():
     plate = read(f'<html><body><figure><img src="File:Rosa.png"></figure>{row}</body></html>', rules).transcription
     assert [top.role(r.id) for r in top.regions][:3] == ["header", "header", "header"]
     assert [plate.role(r.id) for r in plate.regions] == ["picture", "paragraph", "paragraph", "paragraph"]
+
+
+def test_the_conventions_transcription_is_the_sources_normalizations():
+    """A conventions entry names the normalizations its source's transcription embodies (``transcription``): the
+    nearest entry of the chain that states them, part of the hash; the importer copies them into
+    ``Source.normalized``."""
+    parent = {**CONVENTIONS, "id": "base", "rules": [], "transcription": ["nfc"]}
+    child = {"schema": "linecaster.conventions", "id": "child", "format": "html", "extends": "base",
+             "description": "a child", "transcription": ["nfc", "long-s"]}
+    silent = {**child, "id": "silent", "transcription": None}
+    docs = {d["id"]: ConventionsDoc.model_validate(d) for d in (parent, child, silent)}
+    entry = docs.__getitem__
+    assert resolve("child", entry).transcription == ("nfc", "long-s")
+    assert resolve("silent", entry).transcription == ("nfc",)                     # the parent's
+    assert resolve("child", entry).sha256 != resolve("silent", entry).sha256
+    t = read(conventions=resolve("child", entry))
+    assert t.transcription.source.normalized == ["nfc", "long-s"]
+    assert read().transcription.source.normalized == []
+
+
+def test_enwikisource_declares_its_transcription():
+    from linecaster.catalog.registry import catalog
+
+    c = catalog()
+    assert c.conventions("enwikisource").transcription == ("nfc", "long-s", "ligatures", "r-rotunda", "divided-words")
+    assert c.conventions("mediawiki").transcription == ("nfc",)

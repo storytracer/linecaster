@@ -11,6 +11,15 @@ source:
   wiki: English Wikisource (en.wikisource.org)
   dump: enwikisource-20261101-pages-articles (Template, Module and Index namespaces)
   importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.1, wikitextprocessor 6f96ddf)
+# what the transcription already is (Wikisource:Style guide/Orthography; Help:Beginner's guide to typography): the
+# long s as s, typographic ligatures as their letters (æ and œ kept), r rotunda modernized, a word broken over two
+# lines rejoined (a true hyphen kept); MediaWiki's NFC
+transcription:
+- nfc
+- long-s
+- ligatures
+- r-rotunda
+- divided-words
 rules:
 - id: running-head-cells
   match: {kind: tree, css: .wst-rh-cell}

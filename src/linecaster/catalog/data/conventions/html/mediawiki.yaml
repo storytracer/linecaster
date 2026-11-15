@@ -8,6 +8,9 @@ description: >-
 source:
   software: MediaWiki 1.48 (wmf.4) with Cite, Scribunto, ProofreadPage, TemplateStyles, Math
   importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.0, wikitextprocessor 6f96ddf)
+# MediaWiki stores every text it saves in Unicode NFC
+transcription:
+- nfc
 rules:
 - id: software-messages
   match: {kind: tree, css: .error, not_inside: math}

@@ -124,3 +124,29 @@ def test_evidence_from_before_0_10_is_read_upgraded_and_compared_with_none():
     assert isinstance(ev, Evidence3) and ev.upgraded_from == "linecaster.evidence/2"
     assert [x.id for x in ev.scoring.lanes] == ["alnum"] and ev.scoring.unit == "codepoint"
     assert not ev.comparable(ev)                      # no hashes: comparable to no record
+
+
+def test_the_conventions_check_warns_where_a_lane_does_not_apply_the_ground_truths_normalizations(tmp_path, capsys):
+    """A ground truth that declares what its transcription already is (``Source.normalized``): each score record
+    names what the lane does not apply (``conventions``), and the run warns of it once per lane."""
+    from linecaster.scoring.lanes import uncovered
+    from linecaster.scoring.run import ConventionsWarning
+
+    assert uncovered(["nfc", "long-s", "r-rotunda"], "alnum") == ["r-rotunda"]          # nfkc subsumes long-s
+    assert uncovered(["long-s"], "diplomatic") == ["long-s"]
+    assert uncovered(["long-s"], "diplomatic", output="latin-historic") == []           # the output strategy does
+    assert uncovered(["divided-words"], "alnum", output="unicode-marks+flow") == ["divided-words"]   # structure: no
+    _setup(tmp_path)
+    for f in (tmp_path / "gt").glob("*.jsonl"):
+        rows = [json.loads(x) for x in f.read_text().splitlines()]
+        for r in rows:
+            r["page"]["transcriptions"]["ground_truth"]["source"]["normalized"] = ["nfc", "long-s"]
+        f.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    with pytest.warns(ConventionsWarning, match="lane diplomatic: the ground truth already applies long-s"):
+        cli.main(["score", str(tmp_path / "run"), str(tmp_path / "gt"), "--benchmark", str(tmp_path / "bench.yaml")])
+    assert "conventions: lane diplomatic does not apply long-s" in capsys.readouterr().out
+    import pyarrow.parquet as pq
+
+    rows = pq.read_table(tmp_path / "run" / "scores" / "scores.parquet").to_pylist()
+    assert {r["lane"]: tuple(r["conventions"]) for r in rows} == {"diplomatic": ("long-s",),
+                                                                 "alnum-nonmark": ("long-s",)}

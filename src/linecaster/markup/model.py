@@ -125,6 +125,11 @@ class ConventionsDoc(_Strict):
                                                "versions, the dump or export")
     rules: list[Rule] = Field(default_factory=list)
     disable: dict[str, str] = Field(default_factory=dict, description="a parent's rule id -> why it does not apply")
+    transcription: list[str] | None = Field(
+        None, description="the normalizations the source's transcription already embodies (catalog normalization "
+                          "ids: long-s when it writes ſ as s, divided-words when it joins a word divided within a "
+                          "page, ...); importers copy them into Source.normalized and scoring checks a lane against "
+                          "them. A child's list replaces its parent's; none given: the parent's")
 
     @property
     def ref(self) -> str:

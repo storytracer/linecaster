@@ -520,6 +520,9 @@ class Catalog:
             except CatalogError as e:
                 problems.append(f"conventions {cid}: {e}")
                 continue
+            unknown_n = sorted(set(resolved.transcription) - set(self.normalizations))
+            if unknown_n:
+                problems.append(f"conventions {cid}: transcription names unknown normalizations: {unknown_n}")
             known = applied.get(doc.format)
             if known is not None:
                 unknown = sorted({r.decision for r in resolved.rules} - known)

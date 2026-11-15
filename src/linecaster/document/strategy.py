@@ -71,18 +71,21 @@ def apply(doc: Document, strategy) -> Document:
     return out
 
 
-def _rewrite(b: Block, new: str) -> None:
-    """``b``'s text made ``new``: its spans, wraps and origins moved with it."""
+def _rewrite(b: Block, new: str, mv=None, kept=None) -> None:
+    """``b``'s text made ``new``: its spans, wraps and origins moved with it (by ``mv``, a span mover; default the
+    one ``linecaster.text.offsets.moved`` infers from the two texts; ``kept``: whether a wrap's newline is still
+    there, default: the character it moves to is one)."""
     if new == b.text:
         return
-    mv = moved(b.text, new)
+    mv = mv or moved(b.text, new)
     spans = []
     for s in b.spans:
         a, e = mv(s.start, s.end)
         if e > a or (s.edit is not None and e >= a and s.start == s.end):
             spans.append(s.model_copy(update={"start": a, "end": e}))
     b.spans = spans
-    b.wraps = sorted({w2 for w2 in (mv(w, w + 1)[0] for w in b.wraps) if w2 < len(new) and new[w2] == "\n"})
+    b.wraps = sorted({w2 for w in b.wraps if (kept is None or kept(w)) and (w2 := mv(w, w + 1)[0]) < len(new)
+                      and new[w2] == "\n"})
     for o in b.origins:
         if o.span:
             o.span = list(mv(o.span[0], o.span[1]))
@@ -91,13 +94,34 @@ def _rewrite(b: Block, new: str) -> None:
 
 def _replace(b: Block, parts: list[tuple[int, int, str]], drop_edits: set[int] = frozenset()) -> None:
     """``b``'s characters ``[a, e)`` replaced by each part's text (parts not overlapping); the spans at the indices
-    ``drop_edits`` (applied edits) go."""
+    ``drop_edits`` (applied edits) go. Positions move by the parts themselves (``_part_mover``), not by a diff."""
+    parts = sorted(parts)
     text = b.text
-    for a, e, new in sorted(parts, reverse=True):
+    for a, e, new in reversed(parts):
         text = text[:a] + new + text[e:]
     if drop_edits:
         b.spans = [s for k, s in enumerate(b.spans) if k not in drop_edits]
-    _rewrite(b, text)
+    _rewrite(b, text, _part_mover(parts, b.text), lambda w: not any(a <= w < e for a, e, _ in parts))
+
+
+def _part_mover(parts: list[tuple[int, int, str]], old: str):
+    """A span mover through ``parts`` (sorted, not overlapping) of the text ``old``: a position before a part stays,
+    after it moves by the part's change of length, inside it by the part's own change (``moved`` on the part's old
+    and new text: what both share stays under its span); a span ending where a part begins does not take it in; an
+    insertion where a span begins comes before it."""
+    def at(pos: int, end: bool) -> int:
+        shift = 0
+        for a, e, new in parts:
+            if (a < e <= pos) or (a == e < pos) or (a == e == pos and not end):   # the part lies before pos
+                shift += len(new) - (e - a)
+            elif a < pos < e:                            # inside the part
+                inner = moved(old[a:e], new)(pos - a, pos - a)
+                return a + shift + (inner[1] if end else inner[0])
+            else:
+                break
+        return pos + shift
+
+    return lambda a, e: (at(a, False), at(e, True))
 
 
 def _apply_edits(b: Block, kinds: set[str]) -> None:

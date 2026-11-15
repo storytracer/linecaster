@@ -16,7 +16,8 @@ start.
 text one visual row per line (the region's lines on the same row joined with a space, rows joined with ``\\n``), one
 origin with the region's box. A text region that continues another (its own ``continues`` link: a transcription
 whose regions are its paragraphs, such as an imported ground truth) is appended to that one's block on a new row,
-which is a wrap (``Block.wraps``) unless either part has several rows (verse, a stanza across a page break).
+which is a wrap (``Block.wraps``) unless either part has several rows (verse, a stanza across a page break) and the
+first does not end in a division mark (a word that goes on is a wrap in verse too).
 
 **With paragraphs** (a recomposition ran: its latest recomposition's, ``linecaster.text.recomposition.paragraphs``):
 one block per paragraph of a text region, its rows on rows of the text, every break between them a wrap, an origin
@@ -42,7 +43,7 @@ from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.refs import parse
 from ..data.transcription import Cell, Line, Region, Table, Transcription
 from ..formats._xml import heading_level, hidden_line
-from ..text.recomposition import continuation, paragraphs as paragraphs_of
+from ..text.recomposition import continuation, ends_with_mark, paragraphs as paragraphs_of
 from ..text.typography import line_bbox, zone_bbox
 from .model import Block, Document, Grid, Origin, Page, Span
 
@@ -192,7 +193,8 @@ class DocumentBuilder:
         continued = self._items.get((page.key, r.id)) if _region_link(t, r.id, "continues") else None
         if continued is not None:
             block = continued
-            wrap = "\n" not in block.text and "\n" not in text        # verse goes on with a row of its own
+            # verse goes on with a row of its own; a part that ends in a division mark goes on with its word: a wrap
+            wrap = ("\n" not in block.text and "\n" not in text) or ends_with_mark(block.text)
             offset = _append_row(block, text, spans, wrap)
             origin.span = [offset, len(block.text)]
             block.origins.append(origin)

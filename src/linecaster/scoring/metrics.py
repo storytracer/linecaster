@@ -78,12 +78,14 @@ def confusion(truth: Transcription, output: Transcription, threshold: float = 0.
 def score_page(truth: Transcription, output: Transcription | None, texts=tuple(TEXTS), lanes=(DEFAULT_LANE,),
                policy: RenderingPolicy = DEFAULT_POLICY, boxes: bool = True, unit: str = "grapheme",
                strategy: str = "literal") -> dict[str, Any]:
-    """One page's counts: ``rows`` (one per text and lane: ``s``, ``d``, ``i``, ``h``, ``n`` in ``unit``s, and the
-    word counts ``words_true``, ``words_output``, ``words_both`` by that lane), ``roles`` (role -> true, output, both
+    """One page's counts: ``rows`` (one per text and lane: ``s``, ``d``, ``i``, ``h``, ``n`` in ``unit``s, the
+    word counts ``words_true``, ``words_output``, ``words_both`` by that lane, and ``conventions``: the
+    normalizations the ground truth declares (``Source.normalized``) that the lane and the output strategy do not
+    apply, ``linecaster.scoring.lanes.uncovered``), ``roles`` (role -> true, output, both
     word counts, by the first lane) and, with ``boxes``, ``confusion``. Both texts are written by the output
     ``strategy`` (``literal``: as read) before a lane normalizes them. A missing output (a failed page) counts as
     empty."""
-    from .lanes import lane as lane_of
+    from .lanes import lane as lane_of, uncovered
     from ..catalog.registry import catalog
 
     output = output if output is not None else Transcription()
@@ -97,7 +99,8 @@ def score_page(truth: Transcription, output: Transcription | None, texts=tuple(T
             c = edit_counts(normalize(ref, ln), normalize(hyp, ln), unit)
             rows.append({"text": name, "lane": ln, "unit": unit, "s": c.s, "d": c.d, "i": c.i, "h": c.h, "n": c.n,
                          "words_true": sum(wt.values()), "words_output": sum(wo.values()),
-                         "words_both": _overlap(wt, wo)})
+                         "words_both": _overlap(wt, wo),
+                         "conventions": uncovered(truth.source.normalized, ln, strategy)})
     first = lane_of(lanes[0]) if lanes else DEFAULT_LANE
     rt, ro = role_words(truth, policy, first), role_words(output, policy, first)
     roles = {role: {"true": sum(rt.get(role, Counter()).values()), "output": sum(ro.get(role, Counter()).values()),

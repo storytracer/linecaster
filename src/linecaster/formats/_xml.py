@@ -22,7 +22,7 @@ from typing import Any, Iterable, Sequence
 from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.transcription import Annotator, Line, Reading, Region, Source, Transcription, Word
+from ..data.transcription import Annotator, Edit, Line, Reading, Region, Source, Transcription, Word
 
 EXT_KEY = "linecaster"
 
@@ -368,14 +368,15 @@ def label_from_raw(raw: str | None, default: str = "text") -> str:
 
 class FileWord:
     """A word as a page file holds it: its id (``<line>_w<n>`` unless the reading gave another), text, box,
-    confidence, alternatives and hyphen flag."""
+    confidence, alternatives, hyphen flag and, for half of a word divided across lines (ALTO's ``SUBS_CONTENT``),
+    the whole word (``subs``: the line's ``joined`` edit of the word)."""
 
-    __slots__ = ("id", "text", "bbox", "confidence", "alternatives", "hyphen")
+    __slots__ = ("id", "text", "bbox", "confidence", "alternatives", "hyphen", "subs")
 
     def __init__(self, id: str, text: str, bbox=None, confidence: float | None = None,
-                 alternatives: list[str] | None = None, hyphen: bool = False):
+                 alternatives: list[str] | None = None, hyphen: bool = False, subs: str | None = None):
         self.id, self.text, self.bbox, self.confidence = id, text, bbox, confidence
-        self.alternatives, self.hyphen = list(alternatives or []), hyphen
+        self.alternatives, self.hyphen, self.subs = list(alternatives or []), hyphen, subs
 
 
 class FileRegion:
@@ -462,8 +463,9 @@ def file_layout(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> t
     for ln in lines:
         bbox = ln.box or (bounds(ln.polygon) if ln.polygon else [0.0, 0.0, 0.0, 0.0])
         reading = ln.reading
+        subs = _joined_words(t, ln)
         words = [] if reading is None else [
-            FileWord(ln.word_id(k), w.text, w.box, w.confidence, w.alternatives, w.hyphen)
+            FileWord(ln.word_id(k), w.text, w.box, w.confidence, w.alternatives, w.hyphen, subs.get(k))
             for k, w in enumerate(reading.words)]
         out.append(FileLine(ln.id, t.region_of(ln), line_rank[ln.id], rows.get(ln.id, 0), bbox, ln.polygon,
                             ln.baseline, ln.confidence, t.text_of(ln),
@@ -520,6 +522,10 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
                      for k, w in enumerate(ln.words)]
             reading = Reading(annotator=reading_by, text=ln.text, confidence=ln.confidence,
                               alternatives=ln.alternatives, words=words)
+            for (a, e), w in zip(word_spans(ln.text, [w.text for w in ln.words]), ln.words):
+                if w.subs and e > a:                     # a half of a word divided across lines: the whole word
+                    t.edits.append(Edit(annotator=reading_by, target=f"{ln.id}[{a}:{e}]", kind="joined",
+                                        text=w.subs))
         t.lines.append(Line(annotator=lines_by, id=ln.id, region=ln.region_id, box=ln.bbox, polygon=ln.polygon,
                             baseline=ln.baseline, confidence=ln.score, reading=reading))
     if regions or lines:
@@ -635,6 +641,37 @@ def line_order_ext(ln: FileLine, pos: dict[str, tuple[int, int]]) -> dict[str, A
     if ln.row != row:
         ext["row"] = ln.row
     return ext
+
+
+def word_spans(text: str, words: list[str]) -> list[tuple[int, int]]:
+    """Each word's characters in the line's ``text``, found in order ((0, 0) for one that is not there)."""
+    out, at = [], 0
+    for w in words:
+        k = text.find(w, at) if w else -1
+        if k < 0:
+            out.append((0, 0))
+            continue
+        out.append((k, k + len(w)))
+        at = k + len(w)
+    return out
+
+
+def _joined_words(t: Transcription, ln) -> dict[int, str]:
+    """Word index -> the whole word, for the words of ``ln`` a ``joined`` edit covers exactly (a half of a word
+    divided across lines, as ALTO writes it: ``SUBS_CONTENT``)."""
+    if ln.reading is None or not ln.reading.words:
+        return {}
+    spans = {}
+    for e in t.edits:
+        target = str(e.target)
+        if e.kind == "joined" and target.startswith(f"{ln.id}[") and target.endswith("]"):
+            a, _, b = target[len(ln.id) + 1:-1].partition(":")
+            if a.isdigit() and b.isdigit():
+                spans[(int(a), int(b))] = e.text
+    if not spans:
+        return {}
+    found = word_spans(t.text_of(ln) or "", [w.text for w in ln.reading.words])
+    return {k: spans[s] for k, s in enumerate(found) if s in spans}
 
 
 def joined_words(ln: FileLine) -> str:

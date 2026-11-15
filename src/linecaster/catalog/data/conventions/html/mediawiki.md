@@ -14,6 +14,8 @@ notes `doc-footnote` elements where their marks stand, Math's formulas MathML `m
 remains is what only MediaWiki's classes say: the software's error messages (`.error`), and a note that continues
 one from an earlier page (`mw-ref-follow`, the importer's class for `<ref follow=...>`).
 
+MediaWiki stores every text it saves in Unicode NFC: the entry's `transcription` names `nfc`.
+
 ## Not in the rules
 
 - A reuse of a named note (`<ref name=x/>`) prints nothing where it stands; the importer leaves it out.

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import warnings
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,11 @@ from .benchmark import Benchmark
 from .metrics import score_page
 
 SCORE_SCHEMA = "linecaster.score/1"
+
+
+class ConventionsWarning(UserWarning):
+    """A lane does not apply a normalization the ground truth declares it embodies (``score_run``'s conventions
+    check)."""
 
 
 def read_records(folder: str | Path) -> Iterator[dict]:
@@ -54,8 +60,9 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
               policy: RenderingPolicy = DEFAULT_POLICY, run_id: str | None = None) -> dict[str, Any]:
     """Scores the run's page records against the ground truth's. Returns ``records`` (score records), ``pages``
     (per page: ``page_id``, ``item_id``, ``roles``, ``confusion``), ``rates`` (metric name -> value, interval,
-    ``n``), ``roles`` (per role precision and recall), and the counts ``pages_scored``, ``missing``, ``failed`` and
-    ``eligible``."""
+    ``n``), ``roles`` (per role precision and recall), the counts ``pages_scored``, ``missing``, ``failed`` and
+    ``eligible``, and ``conventions`` (lane -> the ground truth's declared normalizations it does not apply, on any
+    page: the conventions check; each one warned of)."""
     if policy.ref != benchmark.policy:
         raise ValueError(f"the benchmark renders with {benchmark.policy}, not {policy.ref}")
     truths = {r["id"]: r for r in read_records(truth)}
@@ -106,7 +113,15 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
                 if metric in benchmark.metrics:
                     key = f"{metric}_{name}_{ln}"
                     out_rates[key] = rates(sel, metric, b.seed, b.resamples, b.level)
-    return {"records": records, "pages": pages, "rates": out_rates,
+    conventions: dict[str, list[str]] = {}
+    for r in records:
+        if r.get("conventions"):
+            conventions[r["lane"]] = sorted(set(conventions.get(r["lane"], [])) | set(r["conventions"]))
+    for ln, missing_n in conventions.items():
+        warnings.warn(f"lane {ln}: the ground truth already applies {', '.join(missing_n)} (its conventions), the "
+                      f"lane does not: the output's differences there are counted as errors", ConventionsWarning,
+                      stacklevel=2)
+    return {"records": records, "pages": pages, "rates": out_rates, "conventions": conventions,
             "roles": role_rates([p["roles"] for p in pages]) if roles else {},
             "pages_scored": len(wanted), "missing": missing, "failed": failed, "eligible": missing == 0}
 

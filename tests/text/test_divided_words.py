@@ -57,3 +57,39 @@ def test_a_word_divided_within_a_page_and_flowed():
 def test_a_half_without_its_partner_stays_as_printed():
     doc = item(page("the end of the de-", halves={0: ("de-", "depends")}), page("and something else."))
     assert [b.text for b in apply(doc, "divided-words").blocks] == ["the end of the de-", "and something else."]
+
+
+ALTO = """<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns="http://www.loc.gov/standards/alto/ns-v4#"><Description><MeasurementUnit>pixel</MeasurementUnit>
+</Description><Layout><Page ID="p1" WIDTH="1000" HEIGHT="1000" PHYSICAL_IMG_NR="1"><PrintSpace>
+<TextBlock ID="b1" HPOS="100" VPOS="100" WIDTH="800" HEIGHT="60">
+<TextLine ID="l1" HPOS="100" VPOS="100" WIDTH="800" HEIGHT="20">
+<String ID="s1" CONTENT="The" HPOS="100" VPOS="100" WIDTH="60" HEIGHT="20"/><SP/>
+<String ID="s2" CONTENT="cicada" HPOS="170" VPOS="100" WIDTH="100" HEIGHT="20"/><SP/>
+<String ID="s3" CONTENT="de" SUBS_TYPE="HypPart1" SUBS_CONTENT="depends" HPOS="280" VPOS="100" WIDTH="40" HEIGHT="20"/>
+<HYP CONTENT="-"/></TextLine>
+<TextLine ID="l2" HPOS="100" VPOS="130" WIDTH="800" HEIGHT="20">
+<String ID="s4" CONTENT="pends" SUBS_TYPE="HypPart2" SUBS_CONTENT="depends" HPOS="100" VPOS="130" WIDTH="80" HEIGHT="20"/>
+<SP/><String ID="s5" CONTENT="upon" HPOS="190" VPOS="130" WIDTH="60" HEIGHT="20"/><SP/>
+<String ID="s6" CONTENT="it." HPOS="260" VPOS="130" WIDTH="40" HEIGHT="20"/></TextLine>
+</TextBlock></PrintSpace></Page></Layout></alto>"""
+
+
+def test_alto_subs_content_is_the_sources_divided_word():
+    """ALTO's ``SUBS_TYPE``/``SUBS_CONTENT`` (HypPart1, HypPart2) read as each half's joined edit, written back as
+    they were; recomposed, ``divided-words+flow`` writes the word whole and ``flow`` alone keeps it as printed."""
+    from linecaster.document import build_document
+    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.formats import from_alto, to_alto
+
+    t = from_alto(ALTO)
+    assert [ln.reading.text for ln in t.lines] == ["The cicada de-", "pends upon it."]
+    assert [(e.target, e.kind, e.text) for e in t.edits] == [("l1[11:14]", "joined", "depends"),
+                                                              ("l2[0:5]", "joined", "depends")]
+    written = to_alto(t).decode()
+    assert 'SUBS_TYPE="HypPart1" SUBS_CONTENT="depends"' in written and 'SUBS_TYPE="HypPart2"' in written
+    assert [(e.target, e.text) for e in from_alto(written).edits] == [(e.target, e.text) for e in t.edits]
+    (r,) = UnicodeRecompositionEngine()([t])
+    doc = build_document(r)
+    assert to_text(apply(doc, "divided-words+flow")) == "The cicada depends upon it."
+    assert to_text(apply(doc, "flow")) == "The cicada de-pends upon it."

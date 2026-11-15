@@ -231,3 +231,5 @@ def test_regions_without_paragraphs_flow_across_the_page_break():
     assert to_markdown(flowed).startswith("## CHAPTER I\n\nFirst paragraph.")
     verse = item("A line of verse\nand its next")                     # two source lines: rows of their own
     assert to_text(apply(verse, "flow")) == to_text(verse) and "its next\npage break." in to_text(verse)
+    hyphenated = item("A line of verse\nand its divi-")                   # a word that goes on: a wrap all the same
+    assert to_text(apply(hyphenated, "flow")).endswith("and its divi-page break.\n\nNew paragraph.")

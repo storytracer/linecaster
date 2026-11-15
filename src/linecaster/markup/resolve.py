@@ -28,6 +28,8 @@ class ResolvedConventions:
     chain: tuple[str, ...]
     rules: tuple[Rule, ...]
     decisions: tuple[Decision, ...]
+    #: the normalizations the source's transcription embodies (``ConventionsDoc.transcription``, the nearest given)
+    transcription: tuple[str, ...] = ()
 
     @property
     def ref(self) -> str:
@@ -36,10 +38,12 @@ class ResolvedConventions:
     @property
     def sha256(self) -> str:
         """The hash of what the rules do: format, matches, decisions and their fields, by and order (not why,
-        decided, open: they are documentation)."""
+        decided, open: they are documentation), and the normalizations the transcription embodies."""
         content = {"format": self.format,
                    "rules": [r.model_dump(mode="json", include={"id", "match", "decision", "params", "by"})
                              for r in self.rules]}
+        if self.transcription:
+            content["transcription"] = list(self.transcription)
         return hashlib.sha256(json.dumps(content, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
     def rule(self, rule_id: str) -> Rule:
@@ -61,12 +65,15 @@ def _place(rules: list[Rule], rule: Rule) -> None:
 def resolve(ref: str, entry: Callable[[str], ConventionsDoc]) -> ResolvedConventions:
     """The entry ``ref`` (``id@edition``) with its chain, each entry looked up by ``entry(ref)``."""
     seen: list[str] = []
+    stated: list[tuple[str, ...]] = []                     # each entry's transcription, root first
 
     def walk(r: str) -> tuple[str, tuple[str, ...], list[Rule]]:
         if r in seen:
             raise ConventionsError(f"conventions extend themselves: {' > '.join([*seen, r])}")
         seen.append(r)
         doc = entry(r)
+        if doc.transcription is not None:
+            stated.insert(0, tuple(doc.transcription))     # the walk goes child first: the child's ends up last
         if doc.extends is None:
             fmt, chain, rules = doc.format, (), []
         else:
@@ -95,4 +102,4 @@ def resolve(ref: str, entry: Callable[[str], ConventionsDoc]) -> ResolvedConvent
             decisions.append(make(r.decision, r.params))
         except (KeyError, ValueError) as e:
             raise ConventionsError(f"rule {r.id} of {chain[-1]}: {e}") from e
-    return ResolvedConventions(fmt, chain, tuple(rules), tuple(decisions))
+    return ResolvedConventions(fmt, chain, tuple(rules), tuple(decisions), stated[-1] if stated else ())

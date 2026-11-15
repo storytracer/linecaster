@@ -140,7 +140,11 @@ class _Writer:
                         hyphen_extra.append(w.id)
                 if i:
                     _e(el, "SP")
-                self.string(el, w, text)
+                s = self.string(el, w, text)
+                if w.subs and i in (0, last):             # a half of a word divided across lines
+                    first_half = i == last and (i > 0 or w.hyphen)        # the line's last word, before the break
+                    s.set("SUBS_TYPE", "HypPart1" if first_half else "HypPart2")
+                    s.set("SUBS_CONTENT", w.subs)
             if hyp is not None:
                 _e(el, "HYP", CONTENT=hyp)
             if hyphen_extra:
@@ -162,7 +166,7 @@ class _Writer:
             ext["alternatives"] = ln.alternatives
         self.ext(el, ln.id, ext)
 
-    def string(self, line_el, w: X.FileWord, text: str) -> None:
+    def string(self, line_el, w: X.FileWord, text: str):
         s = _e(line_el, "String", ID=w.id, CONTENT=text)
         if w.bbox is not None:
             self.box(s, w.bbox)
@@ -171,6 +175,7 @@ class _Writer:
         for alt in w.alternatives:
             a = _e(s, "ALTERNATIVE")
             a.text = alt
+        return s
 
     # ------------------------------------------------------------ provenance
     def processing(self, desc, i: int, m: Annotator) -> str:
@@ -536,8 +541,9 @@ def _line(tl, row: int, rank: int, region_id: str | None, sc: _Scale, tags) -> X
     for k, s in enumerate(strings):
         wb = sc.box(s)
         alts = [a.text or "" for a in X.children(s, "ALTERNATIVE")]
+        subs = s.get("SUBS_CONTENT") if s.get("SUBS_TYPE") in ("HypPart1", "HypPart2") else None
         words.append(X.FileWord(s.get("ID") or f"{lid}_w{k}", s.get("CONTENT") or "", wb, X.parse_num(s.get("WC")),
-                                alts))
+                                alts, subs=subs or None))
     if hyp is not None and words:
         words[-1].text += hyp
         words[-1].hyphen = True

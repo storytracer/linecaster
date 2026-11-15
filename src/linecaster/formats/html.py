@@ -195,11 +195,14 @@ class HtmlConverter:
                 raise ValueError(f"conventions {conventions.ref} use decisions the HTML importer does not apply: "
                                  f"{unknown}")
         self.conventions = Conventions(conventions, TreeMatcher()) if conventions is not None else None
+        self.resolved = conventions
 
     # ------------------------------------------------------------------------------------------------ reading
     def read(self, root, transcription: Transcription, people: int, rules: int) -> HtmlReading:
         """Reads ``root`` into ``transcription`` (its source and annotators already set): ``people`` and ``rules``
-        are the annotators' indices."""
+        are the annotators' indices. The source's normalizations are the conventions' (``Source.normalized``)."""
+        if self.resolved is not None and self.resolved.transcription and not transcription.source.normalized:
+            transcription.source.normalized = list(self.resolved.transcription)
         decided, coverage = self.conventions.decide(root) if self.conventions else ({}, Coverage())
         walk = _Walk(decided, _Cascade(root))
         walk.element(root, frozenset(), None, "body")

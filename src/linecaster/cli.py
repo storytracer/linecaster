@@ -160,6 +160,8 @@ def _score(a) -> None:
         lo, hi = m.get("lo"), m.get("hi")
         interval = f" [{lo:.4f}, {hi:.4f}]" if lo is not None else ""
         print(f"{name:32s} {m['value']:.4f}{interval}" if m["value"] is not None else f"{name:32s} -")
+    for ln, missing_n in sorted(result["conventions"].items()):
+        print(f"conventions: lane {ln} does not apply {', '.join(missing_n)}, which the ground truth does")
     print(f"pages {result['pages_scored']}, missing {result['missing']}, failed {result['failed']}; "
           f"{'eligible' if result['eligible'] else 'NOT eligible'}; {out}")
 

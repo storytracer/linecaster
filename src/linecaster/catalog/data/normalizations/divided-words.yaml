@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/normalization.json
 schema: linecaster.normalization
 id: divided-words
-description: "A word divided across lines or pages written whole where the source marks it (joined edits: Wikisource's hws/hwe, ALTO's SUBS_CONTENT): the first part left out, the whole word where the second stands, a compound's own hyphen kept."
+description: "A word divided across lines or pages written whole where the source marks it (joined edits: Wikisource's hws/hwe, ALTO's SUBS_CONTENT): the first part left out, the whole word where the second stands, a compound's own hyphen kept. In a ground truth's conventions (transcription): its text writes such words whole."
 scripts:
 - '*'
 languages: []
