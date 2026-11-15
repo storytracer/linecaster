@@ -120,3 +120,18 @@ def test_an_annotation_page_carries_each_line_s_language(sid):
     lines = [a for a in page["items"] if a.get("textGranularity") == "line"]
     assert [a["body"]["value"] for a in lines] == s.lines and {a["body"]["language"] for a in lines} == {s.language}
     assert from_annotation_page(page).language("") == s.language
+
+
+@pytest.mark.parametrize("sid", SAMPLES)
+def test_written_page_xml_and_alto_are_valid(sid):
+    from pathlib import Path
+
+    from lxml import etree
+
+    from linecaster.formats import to_alto, to_page
+
+    schemas = Path(__file__).parents[1] / "schemas"
+    for name, xml in (("pagecontent-2019-07-15.xsd", to_page(script_page(sid))),
+                      ("alto-4-4.xsd", to_alto(script_page(sid)))):
+        schema = etree.XMLSchema(etree.parse(str(schemas / name)))
+        assert schema.validate(etree.fromstring(xml)), schema.error_log
