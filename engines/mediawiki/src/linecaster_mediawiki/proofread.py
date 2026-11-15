@@ -58,17 +58,15 @@ class PageSource:
         ProofreadPage keeps the header, the body and the footer apart and parses each from the start of a line: each
         marker stands on a line of its own, so a part's last line ends before it (a header line that starts with a
         space is preformatted, and its ``<pre>`` would otherwise hold the marker and the body after it) and the next
-        part starts a line. A table that spans two parts is the body's (the header opens a table the page continues,
-        the footer closes one the body opened): the boundary moves to the table's start or past its end, since text
-        between a table's start and its first row is no part of the table and the parser drops it."""
+        part starts a line. A header that opens a table and ends before its next cell (after ``{|`` or a row's
+        ``|-``) would put the marker where the parser drops text: the boundary moves to the table's start, and the
+        table is the body's. One that ends inside a cell keeps its boundary (the marker stands in the cell's text:
+        the page's frame, a one-cell table the footer closes, is unwrapped by the builder)."""
         w, h, f = self.wikitext, self.header_end, self.footer_start
         opened = _open_table(w[:h])
         if opened is not None:
             h = opened
-        closed = _closing_table(w[f:])
-        if closed is not None:
-            f += closed
-        pieces = [(w[:h], 0, False), ("\n" + HEAD_END + "\n\n", h, True), (w[h:f], h, False),
+        pieces =[(w[:h], 0, False), ("\n" + HEAD_END + "\n\n", h, True), (w[h:f], h, False),
                   ("\n" + FOOT_START + "\n", f, True), (w[f:], f, False)]
         out: list[str] = []
         pos: list[int] = []
@@ -91,34 +89,26 @@ class PageSource:
         return "".join(out), pos
 
 
-#: a line that starts or ends a table (after whitespace and ProofreadPage's tags)
-_TABLE_LINE = re.compile(r"(?m)^(?:\s|</?noinclude\s*>)*(\{\||\|\})")
+
+
+#: a table's structural lines: its start, its end, a row's start, a caption, a cell (after whitespace and tags)
+_TABLE_STRUCTURE = re.compile(r"(?m)^(?:\s|</?noinclude\s*>)*(\{\||\|\}|\|-|\|\+|\||!)")
 
 
 def _open_table(text: str) -> int | None:
-    """Where the last table that ``text`` opens and does not close starts (its line's start), or None."""
+    """Where the outermost table that ``text`` opens and does not close starts (its line's start), when ``text`` ends
+    before its next cell (its last structural line is the table's start or a row's ``|-``); else None."""
     stack: list[int] = []
-    for m in _TABLE_LINE.finditer(text):
-        if m.group(1) == "{|":
+    last = None
+    for m in _TABLE_STRUCTURE.finditer(text):
+        token = m.group(1)
+        if token == "{|":
             stack.append(m.start())
-        elif stack:
-            stack.pop()
-    return stack[0] if stack else None
-
-
-def _closing_table(text: str) -> int | None:
-    """The end of the line that closes a table opened before ``text`` (the first ``|}`` with no ``{|`` of its own
-    before it), or None."""
-    depth = 0
-    for m in _TABLE_LINE.finditer(text):
-        if m.group(1) == "{|":
-            depth += 1
-        elif depth:
-            depth -= 1
-        else:
-            end = text.find("\n", m.end())
-            return len(text) if end < 0 else end
-    return None
+        elif token == "|}":
+            if stack:
+                stack.pop()
+        last = token
+    return stack[0] if stack and last in ("{|", "|-") else None
 
 
 def top_level_calls(text: str) -> list[tuple[int, int]]:

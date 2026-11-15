@@ -221,6 +221,19 @@ class _Writer:
         for el, where in self.block_parts.items():
             if len(where) > 1:                         # a block across the parts (the page's own wrapper, or a block
                 el.set("data-parts", " ".join(p for p in PARTS if p in where))   # the next or last page goes on with)
+        for el, where in list(self.block_parts.items()):
+            cells = list(el.iter("td", "th")) if el.tag == "table" and {"header", "footer"} <= where else []
+            if len(cells) == 1:                        # the page's frame: a one-cell table the header opens and the
+                kids = list(cells[0])                  # footer closes, for the page's own view; its content is the body
+                parent = el.getparent()
+                if parent is not None:
+                    at = parent.index(el)
+                    parent.remove(el)
+                    for k, kid in enumerate(kids):
+                        parent.insert(at + k, kid)
+                elif el in parts["body"]:
+                    at = parts["body"].index(el)
+                    parts["body"][at:at + 1] = kids
         if len(parts["header"]):
             self.body.append(parts["header"])
         for el in parts["body"]:

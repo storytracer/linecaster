@@ -253,6 +253,9 @@ def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     ("<noinclude><div class=\"q\"><div class=\"f\"></noinclude>A paragraph that runs<noinclude></div></div></noinclude>",
      "<noinclude><div class=\"q\"><div class=\"f\"></noinclude>on to the next page.<noinclude></div></div></noinclude>",
      True),
+    # the page's frame (a one-cell table the header opens and the footer closes) is unwrapped
+    ("<noinclude>{| class=\"frame\"\n|-\n|</noinclude>A paragraph that runs<noinclude>\n|}</noinclude>",
+     "<noinclude>{| class=\"frame\"\n|-\n|</noinclude>on to the next page.<noinclude>\n|}</noinclude>", True),
     # a block the page opens and does not close goes on onto the next page, which closes it
     ("<div class=\"b\">\nA paragraph that runs", "on to the next page.</div>\n\nText.", True),
     # a block the header reopens and the body closes ends on this page
