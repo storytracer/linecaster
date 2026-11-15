@@ -2,9 +2,12 @@
 
 Each line is cut out as the bounding box of its polygon, with ``pad`` pixels around it and everything
 outside the polygon painted white, and read with page segmentation mode 7 (one line of text), so
-Tesseract reads the lines a line detector found instead of segmenting the page itself. Words and
-their boxes come from Tesseract (``RIL.WORD``), moved back into page coordinates; confidences are
-Tesseract's, scaled to 0–1.
+Tesseract reads the lines a line detector found instead of segmenting the page itself; a line whose recorded writing
+direction is vertical (``Transcription.direction``: ``vertical-rl``, ``vertical-lr``) with mode 5 (a block of
+vertical text), for tessdata's vertical models (``script/HanT_vert``, ``script/Japanese_vert``). The line's text is
+Tesseract's own (in logical order, spaced as Tesseract spaces it: no spaces between the letters of scripts written
+without them, right-to-left words in reading order); words and their boxes come from Tesseract (``RIL.WORD``), moved
+back into page coordinates; confidences are Tesseract's, scaled to 0–1.
 """
 from __future__ import annotations
 
@@ -58,14 +61,19 @@ class TesseractRecognitionEngine:
                                                                   "the data set the pin belongs to")
         pad: int = Field(4, description="white pixels around each line image")
         dpi: int = Field(300, description="the resolution Tesseract assumes (user_defined_dpi)")
+        preserve_interword_spaces: bool = Field(
+            False, description="Tesseract's preserve_interword_spaces: no space between letters Tesseract reads as "
+                               "words of their own (Thai, Chinese, Japanese, Korean); for scripts written with "
+                               "spaces it can drop one")
 
     def __init__(self, lang: str = "eng", data: str = "best", pad: int = 4, dpi: int = 300,
-                 weights: dict | None = None):
-        o = self.Options(lang=lang, data=data, pad=pad, dpi=dpi)
+                 preserve_interword_spaces: bool = False, weights: dict | None = None):
+        o = self.Options(lang=lang, data=data, pad=pad, dpi=dpi, preserve_interword_spaces=preserve_interword_spaces)
         if weights is not None and weights["model"] != MODEL_IDS[o.data]:
             raise ValueError(f"data={o.data!r} does not name the pinned weights {weights['model']!r}")
         self.options, self.weights = o, weights
         self.lang, self.data, self.pad, self.dpi = o.lang, o.data, o.pad, o.dpi
+        self.preserve_interword_spaces = o.preserve_interword_spaces
         self.name = f"tesseract {o.data}/{o.lang}"
         self.revision: str | None = weights["revision"] if weights else None
         self.api = None
@@ -79,11 +87,16 @@ class TesseractRecognitionEngine:
         self.api = tesserocr.PyTessBaseAPI(path=str(path), lang=self.lang, psm=tesserocr.PSM.SINGLE_LINE,
                                            oem=tesserocr.OEM.LSTM_ONLY)
         self.api.SetVariable("user_defined_dpi", str(self.dpi))
+        if self.preserve_interword_spaces:
+            self.api.SetVariable("preserve_interword_spaces", "1")
         self.version = tesserocr.tesseract_version().split()[1]
 
-    def read(self, crop: np.ndarray, dx: int, dy: int) -> list[Word]:
-        from tesserocr import RIL, iterate_level
+    def read(self, crop: np.ndarray, dx: int, dy: int, vertical: bool = False) -> list[Word]:
+        """The words of a line image (``crop``, at ``dx``, ``dy`` on the page), read as one line of text or, with
+        ``vertical``, as a block of vertical text; the line's text is ``text()`` afterwards."""
+        from tesserocr import PSM, RIL, iterate_level
 
+        self.api.SetPageSegMode(PSM.SINGLE_BLOCK_VERT_TEXT if vertical else PSM.SINGLE_LINE)
         self.api.SetImage(Image.fromarray(crop))
         self.api.Recognize()
         words = []
@@ -103,12 +116,24 @@ class TesseractRecognitionEngine:
                               confidence=float(w.Confidence(RIL.WORD)) / 100.0))
         return words
 
+    def text(self) -> str:
+        """The text of the line read last, as Tesseract writes it (its lines joined by a space)."""
+        try:
+            return " ".join((self.api.GetUTF8Text() or "").split("\n")).strip()
+        except RuntimeError:       # tesserocr's "No text returned": an empty line image
+            return ""
+
     def __call__(self, image: np.ndarray, transcription: Transcription, **params) -> Transcription:
         t = transcription
+        vertical = {ln.id for ln in t.lines if ln.reading is None
+                    and (t.direction(ln.id) or "").startswith("vertical")}
+        settings = {"lang": self.lang, "data": self.data, "psm": 7, "pad": self.pad, "dpi": self.dpi}
+        if vertical:
+            settings["psm_vertical"] = 5
+        if self.preserve_interword_spaces:
+            settings["preserve_interword_spaces"] = True
         a = t.add_annotator(Annotator(step=self.step, name=self.name, revision=self.revision,
-                                      backend=f"tesseract {self.version} (tesserocr)",
-                                      settings={"lang": self.lang, "data": self.data, "psm": 7,
-                                                "pad": self.pad, "dpi": self.dpi}))
+                                      backend=f"tesseract {self.version} (tesserocr)", settings=settings))
         for ln in t.lines:
             if ln.reading is not None:
                 continue
@@ -117,7 +142,7 @@ class TesseractRecognitionEngine:
                 x, y, w, h = ln.box
                 poly = BBox(x, y, x + w, y + h).polygon.tolist()
             crop, dx, dy = crop_line(image, poly, self.pad) if poly else (np.zeros((0, 0)), 0, 0)
-            words = self.read(crop, dx, dy) if crop.size else []
-            t.read(a, ln, " ".join(w.text for w in words),
+            words = self.read(crop, dx, dy, ln.id in vertical) if crop.size else []
+            t.read(a, ln, self.text() if crop.size else "",
                    float(np.mean([w.confidence for w in words])) if words else 0.0, words=words)
         return t

@@ -2,6 +2,42 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Tesseract on other scripts (2026-11-15, aarch64 machine with a GB10 GPU; CPU only)
+
+The script samples (`linecaster.testing.scripts`) drawn as page images with the installed fonts (`script_image`:
+DejaVu Sans, Gargi for Devanagari, Phetsarath for Thai, Noto Sans CJK; no Mongolian font was installed) and read by
+`tesseract.recognition.v1` (tesserocr 2.12.0, Tesseract 5.5.3) with tessdata_best's script models at the pinned
+commit, on the samples' line boxes; character error rate (code points, `diplomatic` lane), 19 to 71 characters per
+sample, so one error is 1.4 to 5 points:
+
+| Sample | Model | words joined (before) | Tesseract's line text | and `preserve_interword_spaces` |
+|---|---|---|---|---|
+| Latin | `script/Latin` | 0.0 % | 0.0 % | 0.0 % |
+| Fraktur | `script/Fraktur` | 0.0 % | 0.0 % | 0.0 % |
+| Greek, polytonic | `script/Greek` | 0.0 % | 0.0 % | 0.0 % |
+| Cyrillic, pre-reform | `script/Cyrillic` | 3.6 % | 3.6 % | 3.6 % |
+| Arabic | `script/Arabic` | 71.7 % | 26.7 % | 30.0 % |
+| Hebrew, pointed | `script/Hebrew` | 81.8 % | 15.9 % | 22.7 % |
+| Devanagari | `script/Devanagari` | 0.0 % | 0.0 % | 0.0 % |
+| Thai | `script/Thai` | 106.9 % | 106.9 % | 3.4 % |
+| Chinese, vertical | `script/HanT_vert`, mode 7 | 89.5 % | — | — |
+| Chinese, vertical | `script/HanT_vert`, mode 5 | — | 57.9 % | 5.3 % |
+| Japanese, vertical | `script/Japanese_vert`, mode 5 | — | 50.0 % | 0.0 % |
+| Korean | `script/Hangul` | 43.3 % | 43.3 % | 10.0 % |
+
+- The engine wrote a line as its words joined by spaces. Tesseract's words of a right-to-left line come out in
+  reading order but each with its letters in visual order (`مسب` for `بسم`); its line text (`GetUTF8Text`) is in
+  logical order. Thai, Chinese, Japanese and Korean got a space between letters Tesseract reads as words of their
+  own; Tesseract's `preserve_interword_spaces` leaves them out but drops spaces in Arabic and Hebrew, so it is a
+  per-script setting (the Thai, Hangul and vertical presets).
+- Vertical lines need page segmentation mode 5 (a block of vertical text); mode 7 reads one or two characters.
+- English is unchanged by the line text: on 54 lines (the sample page with 4 and 8 lines, the Latin, Fraktur, Greek,
+  Cyrillic and Devanagari samples; `eng` and `script/Latin`), the words joined and Tesseract's line text were the
+  same. Real scans were not tried; the x86_64 machine was not at hand.
+- The remaining Arabic and Hebrew errors are in the vowel marks and points; the Cyrillic ones are ѣ read as ъ.
+- Drawn pages are clean: these numbers say the engine reads each script in its direction, not how well Tesseract
+  reads scans of it.
+
 ## Transcription strategies and release versioning (2026-11-15, decided by the maintainer)
 
 **Why.** Measuring Wikisource's 10,067 words divided across a page break (the wikisource-cp-gt dataset, whose
@@ -439,6 +475,33 @@ written, the run record naming `squiddle@1` and its hash.
   Start with 1, 2 and 3 (they define the contract and make later results trustworthy), then 6 (ground truth drives
   the rest); 4, 5 and 8 as languages come in. Scripts, languages and directions are standards (Unicode, ISO 15924,
   BCP 47); a source's conventions are catalog data, never code.
+
+  **Status on the branch `i18n` (2026-11-16):** 1 to 6 are done in a first form, 8 is begun (Tesseract's script
+  models as presets, measured on drawn pages: "Tesseract on other scripts" above), 7 is the evaluations' work.
+  - 1: `language`, `script`, `direction` classifications, checked (BCP 47 well-formedness only, no registry
+    lookup; ISO 15924 by its shape, since ISO lists more codes than Unicode's Script property: `Jpan`, `Latf`),
+    resolved through what encloses a target; inference (`linecaster.text.scripts`) only on request, never stored.
+    PAGE-XML, ALTO, hOCR, HTML, documents and IIIF read and write them.
+  - The PAGE language table (`linecaster.formats._languages`) was generated once from the PAGE 2019 schema and SIL's
+    ISO 639-3 code table (`iso-639-3.tab`, used with attribution; SIL is the ISO 639-3 registration authority); 30
+    PAGE names were mapped by hand (listed in the module). ALTO's and hOCR's three-letter codes are recorded as the
+    ISO 639-1 code where one exists (BCP 47's canonical form; `eng` is well-formed but no valid tag).
+  - 3: tokenizers `whitespace` (marks and joiners kept), `uax29`, `characters`; dictionary segmentation for Thai,
+    Lao, Khmer and Myanmar is not there. Options: ICU's dictionary break iterator (PyICU: a native build, as an
+    extra named after it) or PyThaiNLP (Thai only, Apache-2.0). `uax29` gives Thai per character, which overcounts
+    words but is deterministic.
+  - 5: Arabic, Persian, Hebrew, Greek and Russian normalizations. Not done: `indic-nukta` (NFC already decomposes
+    the nukta letters, which are composition exclusions; a nukta-removing fold for comparison would be a choice,
+    not a fact), CJK variants and traditional/simplified (Unihan's `kSimplifiedVariant`/`kTraditionalVariant` and
+    `kZVariant` would give a many-to-one comparison fold; Unihan is under the Unicode License v3, permissive with
+    its notice kept: the maintainer to decide whether a catalog entry may carry derived data with that notice;
+    OpenCC's phrase tables, Apache-2.0, go further but need a phrase matcher), kana iteration marks.
+  - 6: IIIF annotation pages and a TEI subset are read; line-level ground truth is a page with one line over the
+    whole image.
+  - Ordering by direction does not touch a layout model's learned order (PP-DocLayoutV3 keeps its own).
+  - The opt-in rule step that records inferred scripts and directions (planned) is not built: nothing needed it
+    yet, and a direction is needed before recognition, when there is no text to infer it from; a source or an
+    option states it.
 - **Transcription levels instead of `latin-historic`** (2026-11-14, the maintainer: "not fit for purpose anymore"):
   its eight replacements have no principle. To follow OCR-D's ground-truth levels 1, 2 and 3 (the rules as data in
   `OCR-D/gt-MufiLevelRules`, GPL-3.0: a catalog pin, not copied in), gaps filled from Unicode's decompositions, not
