@@ -152,17 +152,23 @@ def call_parts(call: str) -> tuple[str, dict[str, str]]:
     return name, params
 
 
-def mark_calls(text: str, pos: list[int]) -> tuple[str, list[int], list[tuple[str, dict[str, str]]]]:
+def mark_calls(text: str, pos: list[int], keep=None) -> tuple[str, list[int], list[tuple[str, dict[str, str]]]]:
     """``text`` with each top-level template call that begins a line (a block template, as ``{{ppoem}}`` stands)
     between its start mark and ``CALL_END``, the positions with the marks (each where its call starts or ends), and
-    each call's name and short parameters (``call_parts``). A call inside a line is not marked: in a tag's attribute,
-    a link or a table's attributes a mark would break what the parser reads."""
-    out, out_pos, calls, k = [], [], [], 0
+    each call's name and short parameters (``call_parts``). A call inside a line is not marked (in a tag's attribute,
+    a link or a table's attributes a mark would break what the parser reads), nor one inside a wikitext table (its
+    output may be the table's own syntax, which must begin the line); ``keep(start, end)``, where given, decides the
+    rest (the reader: not a call whose output is table syntax)."""
+    tables = [(m.start(), m.group(1)) for m in _TABLE_STRUCTURE.finditer(text) if m.group(1) in ("{|", "|}")]
+    out, out_pos, calls, k, t, depth = [], [], [], 0, 0, 0
     for a, b in top_level_calls(text):
         if len(calls) >= 0xFFFFD - CALL_FIRST:
             break
+        while t < len(tables) and tables[t][0] < a:
+            depth = depth + 1 if tables[t][1] == "{|" else max(0, depth - 1)
+            t += 1
         line = text[text.rfind("\n", 0, a) + 1:a]
-        if line.strip(" \t" + HEAD_END + FOOT_START):
+        if depth or line.strip(" \t" + HEAD_END + FOOT_START) or (keep is not None and not keep(a, b)):
             continue
         out.append(text[k:a])
         out_pos += pos[k:a]

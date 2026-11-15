@@ -95,9 +95,16 @@ class PageReader:
         page = PageSource(wikitext, *parts) if parts else PageSource.from_revision(wikitext)
         text, pos = page.parsed()
         w = self.site.wtp()
+        expanded = {}                                       # each top-level call's output, for the marks and anchors
+        for a, b in top_level_calls(text):
+            w.start_page(title)
+            expanded[(a, b)] = w.expand(text[a:b], quiet=True)
         w.start_page(title)
         w.wikidata_asked = []
-        marked, _, calls = mark_calls(text, pos)            # the calls' marks are for the build alone
+        def keep(a: int, b: int) -> bool:                  # a call whose output is a table's own syntax: no mark,
+            return not expanded[(a, b)].lstrip().startswith(("|", "!", "{|"))   # the syntax must begin its line
+
+        marked, _, calls = mark_calls(text, pos, keep)      # the calls' marks are for the build alone
         root = w.parse(marked, expand_all=True)
         built = HtmlBuilder(self.site, self.styles, calls).build(root)
         wikidata, w.wikidata_asked = sorted(set(w.wikidata_asked)), None
@@ -112,7 +119,7 @@ class PageReader:
                                           conventions_sha256=c.sha256 if c else None,
                                           settings={"texvc": TEXVC} if self.site.texvc() is not None else {}))
         reading = self.importer.read(built.root, t, people, rules)
-        anchored = self.anchor(t, text, pos, title)
+        anchored = self.anchor(t, text, pos, title, expanded)
         opens_plain, closes_plain = edges(built.root)
         ends = not reading.runs_on and (reading.ends_paragraph or not closes_plain or built.closes_block)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
@@ -126,7 +133,8 @@ class PageReader:
             t.annotators[rules].measurements["wikidata"] = wikidata
         return PageReading(t, ends, built.unexpanded, wikidata)
 
-    def anchor(self, t: Transcription, text: str, pos: list[int], title: str) -> float:
+    def anchor(self, t: Transcription, text: str, pos: list[int], title: str,
+               expanded: dict | None = None) -> float:
         """Anchors the lines and regions of ``t`` in the revision; returns the share of lines anchored."""
         w = self.site.wtp()
         m = SourceMap()                                 # verbatim pieces map character by character through pos
@@ -140,8 +148,12 @@ class PageReader:
                 m.starts.append(pos[i])
                 m.ends.append(pos[i] + 1)
             if b > a:
-                w.start_page(title)
-                out = _TAGS.sub("", w.expand(text[a:b], quiet=True))
+                if expanded is None or (a, b) not in expanded:
+                    w.start_page(title)
+                    out = w.expand(text[a:b], quiet=True)
+                else:
+                    out = expanded[(a, b)]
+                out = _TAGS.sub("", out)
                 m.opaque(out, pos[a], pos[b - 1] + 1)
             k = b
         lines = t.lines
