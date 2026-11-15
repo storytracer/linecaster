@@ -19,6 +19,7 @@ DUMP = """<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" version="
 <page><title>Template:End</title><ns>10</ns><id>3</id><revision><id>13</id><model>wikitext</model><text>&lt;div class="x-end"&gt;&lt;/div&gt;</text></revision></page>
 <page><title>Module:Twice</title><ns>828</ns><id>4</id><revision><id>14</id><model>Scribunto</model><text>local p = {{}}
 function p.twice(frame) return frame.args[1] .. frame.args[1] end
+function p.built(frame) return mw.html.create('div'):addClass('x-built'):wikitext(frame.args[1]) end
 return p</text></revision></page>
 <page><title>Template:Twice</title><ns>10</ns><id>5</id><revision><id>15</id><model>wikitext</model><text>{{{{#invoke:Twice|twice|{{{{{{1}}}}}}}}}}</text></revision></page>
 <page><title>Module:Wikidata link</title><ns>828</ns><id>6</id><revision><id>16</id><model>Scribunto</model><text>local p = {{}}
@@ -317,6 +318,14 @@ def test_a_body_starts_a_row_by_its_syntax_or_its_call():
     text = f"{{|{HEAD_END}{{{{Nothing}}}}\n{{{{Row|a}}}}"
     one, two = text.index("{{Nothing"), text.index("{{Row")
     assert body_starts_row(text, {(one, two - 1): "", (two, len(text)): "|-\n| a"})   # a call printing nothing
+
+
+def test_a_module_returning_an_html_builder_prints_its_html(site):
+    """Scribunto prints what a module returns with tostring: an mw.html builder its HTML (wikitextprocessor printed
+    any table as "table"; {{overfloat image}} lost its text)."""
+    w = site.wtp()
+    w.start_page("Page:Example.djvu/1")
+    assert w.expand("{{#invoke:Twice|built|Hello}}") == '<div class="x-built">Hello</div>'
 
 
 def test_a_call_says_what_its_html_does_not(site):

@@ -188,6 +188,12 @@ def _mark_unclosed() -> None:
     parser._parser_pop = _parser_pop
 
 
+#: A module's return value as MediaWiki's Scribunto prints it: what tostring gives, so an mw.html builder (a table
+#: whose metatable has __tostring) prints its HTML; wikitextprocessor prints any table as "table".
+TOSTRING = ('    if type(v) == "table" then\n        return st, "table"\n    end',
+            '    if type(v) == "table" then\n        local mt = getmetatable(v)\n        if mt and mt.__tostring then\n            return st, tostring(v)\n        end\n        return st, "table"\n    end')
+
+
 def open_context(folder: Path, lang: str):
     """A new wikitextprocessor context for the site in ``folder``, offline (``Site.wtp()`` keeps one per process)."""
     from wikitextprocessor import Wtp, luaexec
@@ -200,6 +206,9 @@ def open_context(folder: Path, lang: str):
         data = loader(ctx, modname)
         if modname.strip() == "mw_title" and data:
             data = data.replace("file = nil,", FILE_STUB)
+        if modname.strip() == "_sandbox_phase2" and data:
+            assert TOSTRING[0] in data, "wikitextprocessor's _sandbox_phase2 changed"
+            data = data.replace(*TOSTRING)
         if modname.strip() == "mw_wikibase" and data:
             for a, b in WIKIDATA:
                 assert a in data, f"wikitextprocessor's mw_wikibase changed: {a!r}"
