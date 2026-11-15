@@ -4,6 +4,15 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- **`divided-words`** paired a word's halves in the order of the document's blocks, so a first half in a page's
+  running foot (where Wikisource's editors sometimes put the last line, with `{{hws}}`) came after the paragraph
+  that continues onto the next page and was never paired: the body lost the word's first half (`subject` written
+  `ject`). Halves now pair in the order of the pages they stand on.
+
 ## 0.10.0 (2026-11-15)
 
 linecaster no longer changes a text unless it is asked to. Records and documents hold the text exactly as read; a

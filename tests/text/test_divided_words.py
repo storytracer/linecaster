@@ -93,3 +93,26 @@ def test_alto_subs_content_is_the_sources_divided_word():
     doc = build_document(r)
     assert to_text(apply(doc, "divided-words+flow")) == "The cicada depends upon it."
     assert to_text(apply(doc, "flow")) == "The cicada de-pends upon it."
+
+
+def test_halves_pair_in_page_order_not_block_order():
+    """A first half in a page's running foot (the editors' {{hws}} below the body) stands in a block that comes after
+    the paragraph continuing onto the next page; the halves still pair, by the pages they stand on."""
+    from linecaster.data import Link
+
+    one = page("A word divided is the", halves={})
+    a = one.annotators and 0
+    one.add_region(a, "foot", role="page_footer")
+    one.add_line(a, "f0", region="foot", text="sub-")
+    one.edits.append(Edit(annotator=a, target="f0[0:4]", kind="joined", text="subject"))
+    one.orders[-1].regions.append("foot")
+    one.orders[-1].lines.append("f0")
+    one.orders[-1].rows.append(0)
+    two = page("ject of this note.", halves={0: ("ject", "subject")})
+    one.links.append(Link(annotator=a, kind="runs_into", source="r0", target="p1#r0"))
+    two.links.append(Link(annotator=a, kind="continues", source="r0", target="p0#r0"))
+    doc = item(one, two)
+    assert [b.kind for b in doc.blocks] == ["paragraph", "page_footer"]          # the foot after the paragraph
+    written = apply(doc, "divided-words+flow")
+    assert written.blocks[0].text == "A word divided is the subject of this note."
+    assert written.blocks[1].text == ""

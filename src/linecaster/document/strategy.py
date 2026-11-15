@@ -142,33 +142,46 @@ def _last_half(half: str, whole: str) -> bool:
     return bool(half.strip()) and _nfkc(whole).endswith(_nfkc(half).strip())
 
 
+def _page_of(b: Block, pos: int) -> int:
+    """The page a character of ``b`` comes from: the origin whose span holds it (the first origin's page without
+    one; 0 without origins)."""
+    for o in b.origins:
+        if o.span and o.span[0] <= pos < max(o.span[1], o.span[0] + 1):
+            return o.page or 0
+    return (b.origins[0].page or 0) if b.origins else 0
+
+
 def _divided_words(doc: Document) -> None:
-    """The halves of each source-marked divided word paired in reading order, written as the whole word."""
+    """The halves of each source-marked divided word paired in the order of the pages they stand on (then of the
+    blocks, then within a block), written as the whole word. Page order, not block order: a first half in a page's
+    furniture (a running foot) comes after the paragraph that continues onto the next page in the document's blocks,
+    but before the second half on the page."""
     open_: dict[str, tuple[int, int]] = {}                   # whole word -> its first half: block, span index
     parts: dict[int, list[tuple[int, int, str]]] = {}
     applied: dict[int, set[int]] = {}
-    for bi, b in enumerate(doc.blocks):
-        for si, s in sorted(enumerate(b.spans), key=lambda x: x[1].start):
-            if s.edit != "joined" or not s.edit_text:
-                continue
-            half, whole = b.text[s.start:s.end], s.edit_text
-            first = open_.get(whole)
-            if first is not None and first != (bi, si) and _last_half(half, whole):
-                fb, fs = first
-                fspan = doc.blocks[fb].spans[fs]
-                ftext = doc.blocks[fb].text
-                a, row_end = fspan.start, ftext.find("\n", fspan.end)
-                rest = ftext[fspan.end:row_end if row_end >= 0 else len(ftext)]
-                if not rest.strip():                         # the half ends its row: the space before it goes too
-                    while a > 0 and ftext[a - 1] in " \t":
-                        a -= 1
-                parts.setdefault(fb, []).append((a, fspan.end, ""))
-                applied.setdefault(fb, set()).add(fs)
-                parts.setdefault(bi, []).append((s.start, s.end, whole))
-                applied.setdefault(bi, set()).add(si)
-                del open_[whole]
-            elif _first_half(half, whole):
-                open_[whole] = (bi, si)
+    halves = sorted((_page_of(b, s.start), bi, s.start, si) for bi, b in enumerate(doc.blocks)
+                    for si, s in enumerate(b.spans) if s.edit == "joined" and s.edit_text)
+    for _, bi, _, si in halves:
+        b = doc.blocks[bi]
+        s = b.spans[si]
+        half, whole = b.text[s.start:s.end], s.edit_text
+        first = open_.get(whole)
+        if first is not None and first != (bi, si) and _last_half(half, whole):
+            fb, fs = first
+            fspan = doc.blocks[fb].spans[fs]
+            ftext = doc.blocks[fb].text
+            a, row_end = fspan.start, ftext.find("\n", fspan.end)
+            rest = ftext[fspan.end:row_end if row_end >= 0 else len(ftext)]
+            if not rest.strip():                         # the half ends its row: the space before it goes too
+                while a > 0 and ftext[a - 1] in " \t":
+                    a -= 1
+            parts.setdefault(fb, []).append((a, fspan.end, ""))
+            applied.setdefault(fb, set()).add(fs)
+            parts.setdefault(bi, []).append((s.start, s.end, whole))
+            applied.setdefault(bi, set()).add(si)
+            del open_[whole]
+        elif _first_half(half, whole):
+            open_[whole] = (bi, si)
     for bi, ps in parts.items():
         _replace(doc.blocks[bi], ps, applied.get(bi, set()))
 
