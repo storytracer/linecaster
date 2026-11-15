@@ -252,3 +252,18 @@ def test_a_language_reaches_notes_and_cells():
              '<table lang="fr"><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>'
              '</body></html>').transcription
     assert writing(t, "language") == {"paragraph_0": "de", "footnote_0": "de", "table_0": "fr"}
+
+
+def test_auto_directionality_follows_the_text():
+    from linecaster.data import SourceDocument
+    from linecaster.engines.importers import HtmlImporter
+
+    t = HtmlImporter()(SourceDocument(data='<html dir="rtl"><body><p dir="auto">English text</p><p>שלום</p>'
+                                           '<p>English and <bdi>שלום עולם</bdi> here</p><p dir="auto">123</p>'
+                                           '</body></html>'))
+    assert [t.text_of(ln) for ln in t.lines][1] == "שלום"                 # text: parsed as the UTF-8 it is
+    assert [(r.id, t.direction(r.id)) for r in t.regions] == [
+        ("paragraph_0", "horizontal-lr"), ("paragraph_1", "horizontal-rl"), ("paragraph_2", "horizontal-rl"),
+        ("paragraph_3", "horizontal-rl")]                                  # digits only: the page's
+    spans = [(c.target, c.value) for c in t.classifications if c.scheme == "direction" and "[" in c.target]
+    assert spans == []                     # the bdi's Hebrew in a right-to-left page: nothing differs

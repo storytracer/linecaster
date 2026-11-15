@@ -15,6 +15,11 @@ the tags; the first is `v0.1.0`.
   dataset's.
 - `linecaster.formats.omnidocbench.reading_blocks`: a page's blocks in reading order (was private).
 
+### Fixed
+
+- The HTML importer parses HTML given as text (not bytes) as the UTF-8 it is encoded in; a page without a declared
+  charset had its non-ASCII text garbled.
+
 ### Changed outputs
 
 - **OmniDocBench scoring counts only data tables as tables** (`--tables data`, the default; `--tables all` as

@@ -217,7 +217,9 @@ class HtmlImporter(Importer):
         rules = t.add_annotator(self.annotator(options))
         if c is not None:
             t.annotators[rules].conventions, t.annotators[rules].conventions_sha256 = c.ref, c.sha256
-        reading = HtmlConverter(c).read(lxml_html.fromstring(source.as_bytes()), t, people, rules)
+        # text was decoded already: parsed as the UTF-8 it is encoded in (bytes: by their charset, as a browser)
+        parser = lxml_html.HTMLParser(encoding="utf-8") if isinstance(source.data, str) else None
+        reading = HtmlConverter(c).read(lxml_html.fromstring(source.as_bytes(), parser=parser), t, people, rules)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(),
                                                  "ends_paragraph": reading.ends_paragraph})
         if reading.ill_formed_languages:
