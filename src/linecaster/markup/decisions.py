@@ -154,6 +154,21 @@ class Break(Decision):
     run_on: bool = False
 
 
+class Continues(Decision):
+    """At the page's start: the block it holds continues the previous page's last block (a stanza, a paragraph the
+    source says goes on), though a block would otherwise begin anew. The page itself reads as it is; an item joins
+    them (``starts_paragraph``)."""
+
+    name: ClassVar[str] = "continues"
+
+
+class RunsOn(Decision):
+    """At the page's end: the block it holds runs on into the next page's first block, though a block would
+    otherwise end there. The page itself reads as it is; an item joins them (``ends_paragraph``)."""
+
+    name: ClassVar[str] = "runs_on"
+
+
 class Describe(Decision):
     """Not printed: what someone wrote about the page (an image's description, an editor's note), recorded as a
     ``Description`` of the region it stands in; its text is the element's, or ``attr``'s value."""
@@ -165,7 +180,8 @@ class Describe(Decision):
 
 #: linecaster's own decisions, by name
 DECISIONS: dict[str, type[Decision]] = {c.name: c for c in (Remove, Invisible, Unwrap, Block, Cell, Picture, Caption,
-                                                             Note, Edit, Language, Format, Break, Describe)}
+                                                             Note, Edit, Language, Format, Break, Continues, RunsOn,
+                                                             Describe)}
 
 
 @cache

@@ -250,8 +250,10 @@ def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     ("<noinclude><div class=\"j\"></noinclude>A paragraph that runs<noinclude></div></noinclude>",
      "<noinclude><div class=\"j\"></noinclude>on to the next page.<noinclude></div></noinclude>", True),
     # nested wrappers too
-    ("<noinclude><div class=\"q\"><div class=\"f\"></noinclude>A paragraph that runs<noinclude></div></div></noinclude>",
-     "<noinclude><div class=\"q\"><div class=\"f\"></noinclude>on to the next page.<noinclude></div></div></noinclude>",
+    ("<noinclude><div class=\"q\"><div class=\"f\"></noinclude>A paragraph that runs"
+     "<noinclude></div></div></noinclude>",
+     "<noinclude><div class=\"q\"><div class=\"f\"></noinclude>on to the next page."
+     "<noinclude></div></div></noinclude>",
      True),
     # the page's frame (a one-cell table the header opens and the footer closes) is unwrapped
     ("<noinclude>{| class=\"frame\"\n|-\n|</noinclude>A paragraph that runs<noinclude>\n|}</noinclude>",
@@ -270,6 +272,39 @@ def test_a_paragraph_runs_on_only_from_text_into_text(site, first, second, joine
                                    f"Page:Example.djvu/{i}").transcription) for i, w in enumerate((first, second))]
     assert (link_pages(pages) == 1) is joined
     assert not any("</div>" in ln.reading.text for _, t in pages for ln in t.lines)   # a stray end tag prints nothing
+
+
+def test_a_call_says_what_its_html_does_not(site):
+    """The first element a template call writes carries its name and short parameters; conventions match them to
+    join what each page writes whole (a stanza a template continues across the page break)."""
+    from linecaster_mediawiki import PageReader, link_pages
+    from linecaster_mediawiki.html import HtmlBuilder
+    from linecaster_mediawiki.proofread import PageSource, mark_calls
+
+    text, pos = PageSource.from_revision("{{Box|One line|end=follow}}").parsed()
+    marked, _, calls = mark_calls(text, pos)
+    w = site.wtp()
+    w.start_page("Page:Example.djvu/9")
+    box = HtmlBuilder(site, calls=calls).build(w.parse(marked, expand_all=True)).root.find(".//div")
+    assert (box.get("data-mw-template"), box.get("data-mw-param-1"), box.get("data-mw-param-end")) == \
+        ("Box", "One line", "follow")
+    c = resolve("example@2", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "example", "edition": 2, "format": "html",
+         "description": "the test wiki's box across pages", "rules": [
+             {"id": "box-continues", "decision": "continues", "why": "the box goes on from the previous page",
+              "match": {"kind": "tree", "css": "[data-mw-template=Box][data-mw-param-start=follow]"}},
+             {"id": "box-runs-on", "decision": "runs_on", "why": "the box goes on onto the next page",
+              "match": {"kind": "tree", "css": "[data-mw-template=Box][data-mw-param-end=follow]"}}]}))
+    texts = ("{{Box|A line that runs|end=follow}}", "{{Box|on to the next page.|start=follow}}")
+
+    def read(reader):
+        return [(f"p{i}", reader.read(f"<noinclude></noinclude>{x}", f"Page:Example.djvu/{i}").transcription)
+                for i, x in enumerate(texts)]
+
+    pages = read(PageReader(site, c))
+    assert [len(t.lines) for _, t in pages] == [1, 1]                    # each page reads as it is
+    assert link_pages(pages) == 1                                        # an item joins them
+    assert link_pages(read(PageReader(site))) == 0                       # without the rules a block ends it
 
 
 def test_a_literal_line_break_breaks_the_line(site):

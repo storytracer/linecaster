@@ -252,7 +252,7 @@ Markdown sidecar is required, with the headings `## Source`, `## How the markup 
 | `format` | the format whose importer applies it (`html`, `xml`, `json`, `text`, ...); its folder |
 | `extends` | the parent entry, pinned (`base@1`): the entry starts from the parent's resolved rules |
 | `description`, `source` | what it is for and what it was written against (prose, not functional) |
-| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `block` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
+| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `block` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
 | `disable` | a parent's rule id → why this source does not use it |
 
 **Layering.** A child's rule with a parent's id replaces it where it stands (or moves it, with `before`/`after`), a

@@ -269,6 +269,14 @@ def test_regions_continue_by_their_links():
     assert [(o.page, o.span) for o in joined[0].origins] == [(1, [0, 11]), (2, [10, 21])]
     assert [x.text for x in item("runs on to the", "next page.")] == ["runs on to the next page."]
     assert [x.text for x in item("the well-", "Known name")] == ["the well-Known name"]
+    verse = DocumentBuilder("item")                          # a block of several rows goes on with a new row
+    pages = [page_t(1, ["The night was dark,", "the wind was cold,"]), page_t(2, ["and all the trees"])]
+    pages[0].links.append(Link(annotator=0, kind="runs_into", source="text_1", target="p2#text_1"))
+    pages[1].links.append(Link(annotator=0, kind="continues", source="text_1", target="p1#text_1"))
+    for k, t in enumerate(pages):
+        verse.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
+    assert [x.text for x in verse.build().blocks if x.kind == "paragraph"] == [
+        "The night was dark,\nthe wind was cold,\nand all the trees"]
 
 
 def test_the_composer_adds_nothing_to_the_transcription():

@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
-from .proofread import FOOT_START, HEAD_END
+from .proofread import CALL_END, CALL_FIRST, CALL_MARKS, FOOT_START, HEAD_END
 
 BLOCK_TAGS = frozenset({"div", "p", "center", "blockquote", "table", "ul", "ol", "dl", "li", "dd", "dt", "h1", "h2",
                         "h3", "h4", "h5", "h6", "pre", "hr", "section", "figure", "caption", "tr", "td", "th",
@@ -68,9 +68,13 @@ class HtmlBuilder:
     """Builds the HTML of one parsed page. ``site`` tells file and category links apart; ``styles(title)`` gives a
     TemplateStyles style sheet's text."""
 
-    def __init__(self, site, styles=None):
+    def __init__(self, site, styles=None, calls: list | None = None):
+        """``calls``: the template calls the parsed text marks (``proofread.mark_calls``): the first element a call
+        writes gets its name (``data-mw-template``) and short parameters (``data-mw-param-<name>``), as Parsoid's
+        ``data-mw`` records a transclusion, for conventions to match."""
         self.site = site
         self.styles = styles or (lambda title: None)
+        self.calls = calls or []
         self.texvc = site.texvc() if hasattr(site, "texvc") else None
 
     def build(self, root) -> Built:
@@ -93,6 +97,7 @@ class _Writer:
         self.unexpanded: list[str] = []
         self.closes_block = False        # the body's last text is followed by the end of a block from an earlier page
         self.block_parts: dict = {}      # every block element -> the parts it is open in
+        self.call = None                 # the template call whose output is being read, until its first element
         self.texvc_rejected: list[str] = []
         self.pre = 0
         self.styles_seen: set[str] = set()
@@ -104,9 +109,21 @@ class _Writer:
         else:
             self.top[-1][1].add(self.part) if self.top else None
 
+    def _call_attrs(self, el) -> None:
+        """The first element a template call writes: the call's name and short parameters."""
+        if self.call is not None:
+            name, params = self.call
+            el.set("data-mw-template", name)
+            for k, v in params.items():
+                key = re.sub(r"[^a-z0-9_-]", "-", k.lower())
+                if key:
+                    el.set(f"data-mw-param-{key}", v)
+            self.call = None
+
     def ensure_p(self) -> etree._Element:
         if self.p is None:
             self.p = etree.SubElement(self.container, "p")
+            self._call_attrs(self.p)
             self._top_block(self.p)
             cur = self.p
             reopened = []
@@ -146,6 +163,16 @@ class _Writer:
             el = el.getparent()
 
     def text(self, s: str) -> None:
+        if CALL_MARKS.search(s):                        # a template call starts or ends here
+            for piece in CALL_MARKS.split(s):
+                if piece == CALL_END:
+                    self.call = None
+                elif len(piece) == 1 and ord(piece) >= CALL_FIRST:
+                    k = ord(piece) - CALL_FIRST
+                    self.call = self.b.calls[k] if k < len(self.b.calls) else None
+                elif piece:
+                    self.text(piece)
+            return
         if "templatestyles" in s.lower():               # left as text where wikitextprocessor does not take the tag
             s = TEMPLATESTYLES.sub(lambda m: self.style(m.group(1)) or "", s)
         if "nowiki" in s.lower():                       # an empty <nowiki/> separates wikitext and prints nothing
@@ -195,6 +222,7 @@ class _Writer:
     def open_block(self, tag: str, attrs: dict | None = None) -> tuple:
         self.paragraph_break()
         el = etree.SubElement(self.container, tag, _attrs(attrs or {}))
+        self._call_attrs(el)
         self.block_parts[el] = {self.part}
         self._top_block(el)
         saved = (self.container, self.p, self.inline, self.cursor)
@@ -234,6 +262,17 @@ class _Writer:
                 elif el in parts["body"]:
                     at = parts["body"].index(el)
                     parts["body"][at:at + 1] = kids
+        for top in [self.body, *parts["body"], parts["header"], parts["footer"]]:   # a call's mark the parser
+            for el in top.iter():                                                   # put where no text is read
+                if not isinstance(el.tag, str):
+                    continue
+                for name in ("text", "tail"):
+                    v = getattr(el, name)
+                    if v and CALL_MARKS.search(v):
+                        setattr(el, name, CALL_MARKS.sub("", v))
+                for k, v in el.attrib.items():
+                    if CALL_MARKS.search(v):
+                        el.set(k, CALL_MARKS.sub("", v))
         if len(parts["header"]):
             self.body.append(parts["header"])
         for el in parts["body"]:

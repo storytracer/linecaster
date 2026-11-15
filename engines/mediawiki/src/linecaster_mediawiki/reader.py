@@ -15,7 +15,7 @@ from linecaster.data import Anchor, Annotator, Source, Transcription
 from linecaster.engines.api import HtmlConverter, ResolvedConventions, SourceMap
 
 from .html import HtmlBuilder
-from .proofread import FOOT_START, HEAD_END, PageSource, top_level_calls
+from .proofread import FOOT_START, HEAD_END, PageSource, mark_calls, top_level_calls
 from .site import Site
 from .texvc import VERSION as TEXVC
 
@@ -97,8 +97,9 @@ class PageReader:
         w = self.site.wtp()
         w.start_page(title)
         w.wikidata_asked = []
-        root = w.parse(text, expand_all=True)
-        built = HtmlBuilder(self.site, self.styles).build(root)
+        marked, _, calls = mark_calls(text, pos)            # the calls' marks are for the build alone
+        root = w.parse(marked, expand_all=True)
+        built = HtmlBuilder(self.site, self.styles, calls).build(root)
         wikidata, w.wikidata_asked = sorted(set(w.wikidata_asked)), None
         t = Transcription(source=Source(kind="ground_truth", format="mediawiki", record=record or title,
                                         revision=revision, dataset=dataset))
@@ -113,9 +114,10 @@ class PageReader:
         reading = self.importer.read(built.root, t, people, rules)
         anchored = self.anchor(t, text, pos, title)
         opens_plain, closes_plain = edges(built.root)
-        ends = reading.ends_paragraph or not closes_plain or built.closes_block
+        ends = not reading.runs_on and (reading.ends_paragraph or not closes_plain or built.closes_block)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
-                                                 "ends_paragraph": ends, "starts_paragraph": not opens_plain})
+                                                 "ends_paragraph": ends,
+                                                 "starts_paragraph": not (opens_plain or reading.continues)})
         if built.unexpanded:
             t.annotators[rules].measurements["unexpanded"] = sorted(set(built.unexpanded))
         if built.texvc_rejected:

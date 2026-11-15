@@ -13,7 +13,7 @@ joined with ``\\n``; each line's text as written, its ``nfc`` and ``joined`` edi
 region's box. A text region that continues another (its own ``continues`` link: a transcription whose regions are
 its paragraphs, such as an imported ground truth) is appended to that one's block, joined as recomposition joins
 rows: a division mark before a lowercase letter removed (``resolve_mark``), else a space unless UAX #14 joins the
-words (``separator``).
+words (``separator``); a block of several rows (verse, a stanza across a page break) goes on with a new row.
 
 **With paragraphs** (a recomposition ran: its latest recomposition's, ``linecaster.text.recomposition.paragraphs``):
 one block per paragraph of a text region, an origin per row (its box and character span), a paragraph that continues
@@ -184,7 +184,9 @@ class DocumentBuilder:
         if continued is not None:
             block, _ = continued
             head = block.text
-            if ends_with_mark(head) and resolve_mark(head, text)[0]:
+            if "\n" in head or "\n" in text:          # verse: a block of several rows goes on with a new row
+                sep = "\n"
+            elif ends_with_mark(head) and resolve_mark(head, text)[0]:
                 head, sep = head.rstrip()[:-1], ""
             else:
                 sep = separator(head, text)
@@ -219,7 +221,8 @@ class DocumentBuilder:
             return
         grid = _grid(table, rules.fill_holes)
         last = self._last_table
-        if rules.merge_single_rows and table.num_rows == 1 and last is not None and last.grid.num_cols == table.num_cols:
+        if rules.merge_single_rows and table.num_rows == 1 and last is not None \
+                and last.grid.num_cols == table.num_cols:
             n = last.grid.num_rows
             last.grid.cells += [c.model_copy(update={"start_row": n, "end_row": n + 1}) for c in grid.cells]
             last.grid.num_rows += 1

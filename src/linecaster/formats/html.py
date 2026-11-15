@@ -37,7 +37,8 @@ from ..data.transcription import (
 )
 from ..markup.apply import Conventions, Coverage
 from ..markup.decisions import (
-    Block, Break, Caption, Cell, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture, Remove, Unwrap,
+    Block, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
+    Remove, RunsOn, Unwrap,
 )
 from ..markup.matchers import TreeMatcher
 from ..markup.resolve import ResolvedConventions
@@ -83,12 +84,15 @@ class TextBlock:
 
 @dataclass
 class HtmlReading:
-    """What an HTML tree was read into: the transcription, the coverage of the conventions, and whether the page's
-    last body block ends there (a ``break`` decision, or not a paragraph) or runs on."""
+    """What an HTML tree was read into: the transcription, the coverage of the conventions, whether the page's last
+    body block ends there (a ``break`` decision, or not a paragraph) or runs on (a ``runs_on`` decision about it), and
+    whether its first continues the previous page's (a ``continues`` decision about it)."""
 
     transcription: Transcription
     coverage: Coverage
     ends_paragraph: bool
+    continues: bool = False
+    runs_on: bool = False
 
 
 class _Cascade:
@@ -182,7 +186,7 @@ class HtmlConverter:
     """Reads an HTML tree into a transcription, by HTML's semantics and a source's resolved conventions."""
 
     DECISIONS = frozenset({"remove", "invisible", "unwrap", "block", "cell", "picture", "caption", "note", "edit",
-                           "language", "format", "break", "describe"})
+                           "language", "format", "break", "continues", "runs_on", "describe"})
 
     def __init__(self, conventions: ResolvedConventions | None = None):
         if conventions is not None:
@@ -201,8 +205,11 @@ class HtmlConverter:
         walk.element(root, frozenset(), None, "body")
         walk.flush()
         ends = walk.ends_paragraph()
+        body = [k for k, b in enumerate(walk.blocks) if b.part == "body" and b.status is None]
+        continues = bool(body) and body[0] in walk.continued
+        runs_on = bool(body) and body[-1] in walk.running
         _build(transcription, walk.blocks, walk.notes, people, rules)
-        return HtmlReading(transcription, coverage, ends)
+        return HtmlReading(transcription, coverage, ends and not runs_on, continues, runs_on)
 
 
 class _Walk:
@@ -217,6 +224,8 @@ class _Walk:
         self.prev = " "                       # the last character read, for capitalize
         self.groups = 0
         self.last_break = False                # a break decision was the last thing in the body
+        self.continued: set[int] = set()       # blocks inside a continues decision's element (their indices)
+        self.running: set[int] = set()         # blocks inside a runs_on decision's element
         self.removed: Counter = Counter()
 
     # -- blocks
@@ -384,6 +393,12 @@ class _Walk:
                 self.flush()
                 if part in ("body", "footer"):
                     self.last_break = not run_on
+            case Continues() | RunsOn():                # read as it is; the blocks it holds are noted
+                self.flush()
+                start = len(self.blocks)
+                self.children(el, fmt, case, part, attrs)
+                self.flush()
+                (self.continued if isinstance(d, Continues) else self.running).update(range(start, len(self.blocks)))
             case Describe(kind=kind, attr=attr):         # from an attribute: the element's own text is printed
                 text = el.get(attr) if attr else " ".join("".join(el.itertext()).split())
                 if text:

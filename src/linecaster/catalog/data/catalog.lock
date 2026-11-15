@@ -2230,6 +2230,213 @@ conventions:
           reason: editorial
           keep_text: true
         by: people
+  enwikisource@2:
+    sha256: sha256:662541a19184a6cd5d235fce3051dc89eb74fd10aec46e80e0ff6c0136342fdc
+    released: '2026-11-15'
+    linecaster: null
+    resolved:
+      format: html
+      extends: mediawiki@1
+      disable: []
+      rules:
+      - id: running-head-cells
+        match:
+          kind: tree
+          css: .wst-rh-cell
+        decision: cell
+        params: {}
+        by: people
+      - id: no-run-on
+        match:
+          kind: tree
+          css: .wst-nop
+        decision: break
+        params: {}
+        by: people
+      - id: corrections
+        match:
+          kind: tree
+          css: .wst-tooltip[title^='[sic]']
+        decision: edit
+        params:
+          kind: corrected
+          attr: title
+          extract: ^\[sic\]\s*'(.*)'$
+        by: people
+      - id: tooltips
+        match:
+          kind: tree
+          css: .wst-tooltip
+        decision: describe
+        params:
+          kind: note
+          attr: title
+        by: people
+      - id: sidenotes
+        match:
+          kind: tree
+          css: .wst-sidenote
+        decision: note
+        params:
+          role: marginalia
+        by: people
+      - id: ditto-hidden
+        match:
+          kind: tree
+          css: .__ditto_hidden
+        decision: invisible
+        params: {}
+        by: people
+      - id: dot-leaders
+        match:
+          kind: tree
+          css: .ws-noexport
+        decision: remove
+        params:
+          reason: generated
+        by: rule
+      - id: figure-captions
+        match:
+          kind: tree
+          css: .wst-freedimg-caption
+        decision: caption
+        params: {}
+        by: people
+      - id: figure-boxes
+        match:
+          kind: tree
+          css: span.wst-freedimg
+        decision: block
+        params:
+          role: picture
+        by: people
+      - id: errata-notes
+        match:
+          kind: tree
+          css: aside[data-group=errata]
+        decision: remove
+        params:
+          reason: editorial
+          keep_text: true
+        by: people
+      - id: stanza-continued
+        match:
+          kind: tree
+          css: '[data-mw-template=Ppoem][data-mw-param-start=follow]'
+        decision: continues
+        params: {}
+        by: people
+      - id: stanza-runs-on
+        match:
+          kind: tree
+          css: '[data-mw-template=Ppoem][data-mw-param-end=follow]'
+        decision: runs_on
+        params: {}
+        by: people
+  enwikisource@3:
+    sha256: sha256:09058dc47e45ba8c8b4d08a7fc743036d3945c79cf8569fab0f980c334c2c604
+    released: '2026-11-15'
+    linecaster: null
+    resolved:
+      format: html
+      extends: mediawiki@1
+      disable: []
+      rules:
+      - id: running-head-cells
+        match:
+          kind: tree
+          css: .wst-rh-cell
+        decision: cell
+        params: {}
+        by: people
+      - id: no-run-on
+        match:
+          kind: tree
+          css: .wst-nop
+        decision: break
+        params: {}
+        by: people
+      - id: corrections
+        match:
+          kind: tree
+          css: .wst-tooltip[title^='[sic]']
+        decision: edit
+        params:
+          kind: corrected
+          attr: title
+          extract: ^\[sic\]\s*'(.*)'$
+        by: people
+      - id: tooltips
+        match:
+          kind: tree
+          css: .wst-tooltip
+        decision: describe
+        params:
+          kind: note
+          attr: title
+        by: people
+      - id: sidenotes
+        match:
+          kind: tree
+          css: .wst-sidenote
+        decision: note
+        params:
+          role: marginalia
+        by: people
+      - id: ditto-hidden
+        match:
+          kind: tree
+          css: .__ditto_hidden
+        decision: invisible
+        params: {}
+        by: people
+      - id: dot-leaders
+        match:
+          kind: tree
+          css: .ws-noexport
+        decision: remove
+        params:
+          reason: generated
+        by: rule
+      - id: figure-captions
+        match:
+          kind: tree
+          css: .wst-freedimg-caption
+        decision: caption
+        params: {}
+        by: people
+      - id: figure-boxes
+        match:
+          kind: tree
+          css: span.wst-freedimg
+        decision: block
+        params:
+          role: picture
+        by: people
+      - id: errata-notes
+        match:
+          kind: tree
+          css: aside[data-group=errata]
+        decision: remove
+        params:
+          reason: editorial
+          keep_text: true
+        by: people
+      - id: stanza-continued
+        match:
+          kind: tree
+          css: '[data-mw-template=Ppoem][data-mw-param-start=follow]'
+        decision: continues
+        params: {}
+        by: people
+      - id: stanza-runs-on
+        match:
+          kind: tree
+          css: .ws-poem-stanza
+          inside: '[data-mw-template=Ppoem][data-mw-param-end=follow]'
+        decision: runs_on
+        params: {}
+        by: people
   mediawiki@1:
     sha256: sha256:b964fa231b338691a771387af39a7efb12ef4d2c05c93f321eff2c906555fd93
     released: '2026-11-14'

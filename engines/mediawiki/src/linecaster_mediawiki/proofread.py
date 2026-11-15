@@ -111,6 +111,65 @@ def _open_table(text: str) -> int | None:
     return stack[0] if stack and last in ("{|", "|-") else None
 
 
+#: around a top-level template call in the text the reader parses: its start (one character per call, its number
+#: from ``CALL_FIRST``) and its end; private-use characters, as the part markers
+CALL_END, CALL_FIRST = "\U000F7F03", 0xF7F10
+CALL_MARKS = re.compile("([\U000F7F03\U000F7F10-\U000FFFFD])")
+#: a parameter value as long as this or longer is content, not a setting: not written into the HTML
+CALL_VALUE_LIMIT = 80
+
+
+def call_parts(call: str) -> tuple[str, dict[str, str]]:
+    """A template call's name, as MediaWiki resolves it (the ``Template:`` prefix dropped, underscores as spaces,
+    the first letter upper case), and its short parameters (named, or positional by number; values under
+    ``CALL_VALUE_LIMIT`` characters, stripped). A parser function's name keeps its ``#``."""
+    inner = call[2:-2]
+    parts, depth, k = [], 0, 0
+    for i, ch in enumerate(inner):
+        if inner.startswith(("{{", "[["), i):
+            depth += 1
+        elif inner.startswith(("}}", "]]"), i) and depth:
+            depth -= 1
+        elif ch == "|" and depth == 0:
+            parts.append(inner[k:i])
+            k = i + 1
+    parts.append(inner[k:])
+    name = " ".join(parts[0].replace("_", " ").split())
+    if name.lower().startswith("template:"):
+        name = name[len("template:"):].strip()
+    name = name[:1].upper() + name[1:]
+    params, n = {}, 0
+    for p in parts[1:]:
+        key, eq, value = p.partition("=")
+        if eq and re.fullmatch(r"\s*[\w\- ]+\s*", key):
+            key, value = key.strip(), value
+        else:
+            n += 1
+            key, value = str(n), p
+        value = value.strip()
+        if len(value) < CALL_VALUE_LIMIT:
+            params[key] = value
+    return name, params
+
+
+def mark_calls(text: str, pos: list[int]) -> tuple[str, list[int], list[tuple[str, dict[str, str]]]]:
+    """``text`` with each top-level template call between its start mark and ``CALL_END``, the positions with the
+    marks (each where its call starts or ends), and each call's name and short parameters (``call_parts``)."""
+    out, out_pos, calls, k = [], [], [], 0
+    for a, b in top_level_calls(text):
+        if len(calls) >= 0xFFFFD - CALL_FIRST:
+            break
+        out.append(text[k:a])
+        out_pos += pos[k:a]
+        out.append(chr(CALL_FIRST + len(calls)) + text[a:b] + CALL_END)
+        out_pos += [pos[a]] + pos[a:b] + [pos[b - 1] + 1]
+        calls.append(call_parts(text[a:b]))
+        k = b
+    out.append(text[k:])
+    out_pos += pos[k:]
+    return "".join(out), out_pos, calls
+
+
 def top_level_calls(text: str) -> list[tuple[int, int]]:
     """The spans ``[start, end)`` of the template calls and parser functions that stand in ``text`` itself, not
     inside another call; comments, ``<nowiki>`` and the tags whose content is not wikitext are skipped. Template

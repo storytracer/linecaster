@@ -1,12 +1,13 @@
 # yaml-language-server: $schema=../../../schemas/conventions-1.json
 schema: linecaster.conventions/1
 id: enwikisource
-edition: 1
+edition: 3
 format: html
 extends: mediawiki@1
 description: >-
   English Wikisource's templates, as the classes and attributes their output carries: running heads, the end of a
-  page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures and editors' errata.
+  page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures, editors' errata and
+  stanzas across a page break.
 source:
   wiki: English Wikisource (en.wikisource.org)
   dump: enwikisource-20261101-pages-articles (Template, Module and Index namespaces)
@@ -84,3 +85,17 @@ rules:
     {{Errata}} shows the printed text and adds the editors' correction as a note of the group errata; the note is
     the editors', not the page's.
   decided: 2026-11-14
+- id: stanza-continued
+  match: {kind: tree, css: "[data-mw-template=Ppoem][data-mw-param-start=follow]"}
+  decision: continues
+  why: >-
+    {{ppoem|start=follow}}: the page's first stanza continues the previous page's last; the module writes a complete
+    poem on the Page: page, so only the call says it (the reader's data-mw-template and data-mw-param-start).
+  decided: 2026-11-15
+- id: stanza-runs-on
+  match: {kind: tree, css: .ws-poem-stanza, inside: "[data-mw-template=Ppoem][data-mw-param-end=follow]"}
+  decision: runs_on
+  why: >-
+    {{ppoem|end=follow}}: the page's last stanza runs on into the next page's first. Matched on the poem's stanzas,
+    since a call with start=follow too has its poem's element decided by stanza-continued.
+  decided: 2026-11-15

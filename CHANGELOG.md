@@ -99,8 +99,8 @@ extra. The decisions are in NOTES.md (2026-11-14).
   `status` classification (`hidden`, `invisible`, `generated`, `editorial`, `error`, `metadata`, `apparatus`,
   `elsewhere`, `layout`).
 - `linecaster.text.formulas`: LaTeX without its presentation commands (a formula's content), for importers.
-- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `unexpanded`, `wikidata`,
-  `texvc_rejected`.
+- Measurements `rules_matched`, `unmapped`, `anchored`, `ends_paragraph`, `starts_paragraph`, `unexpanded`,
+  `wikidata`, `texvc_rejected`.
 - **`linecaster-mediawiki`** (`engines/mediawiki`, 0.1.0): `import.mediawiki.v1` reads a ProofreadPage `Page:` page's
   wikitext through wikitextprocessor (pinned to a commit) in the wiki's own context (its templates, Lua modules and
   style sheets, taken in from a dump by `linecaster-mediawiki intake`), builds HTML by MediaWiki's rules (Cite's
@@ -111,8 +111,15 @@ extra. The decisions are in NOTES.md (2026-11-14).
   (measurement `wikidata`). Formulas are LaTeX as MediaWiki's TeX checker writes it (texvcjs, pinned, installed
   by `intake` into the site folder and run in Node: MediaWiki's own commands as standard LaTeX, every argument in
   braces), the TeX as written their `source`; what texvc rejects stays as written (measurement `texvc_rejected`).
-  `link_pages` links an item's pages where a paragraph runs on (the importer's `ends_paragraph`) or a footnote
-  continues (Cite's `<ref follow=...>`).
+  `link_pages` links an item's pages where a paragraph runs on or a footnote continues (Cite's
+  `<ref follow=...>`): as ProofreadPage joins a main-namespace page's pages, only from text into text (the importer's
+  `ends_paragraph` and `starts_paragraph`, from the page's first and last body blocks, seeing through a block the page
+  leaves open, a block across its parts, and its frame). The reader records each top-level template call on the
+  first element it writes (`data-mw-template`, `data-mw-param-<name>`, as Parsoid's `data-mw`), for conventions to
+  match what a page's HTML does not say; tags the parser left as text print nothing.
+- **The decisions `continues` and `runs_on`**: a page's first block continues the previous page's last, its last runs
+  on into the next, though a block would end there; the page reads as it is, an item joins them. `enwikisource@3`
+  uses them for `{{ppoem}}`'s stanzas across a page break (`start=follow`, `end=follow`).
 
 ### Changed
 

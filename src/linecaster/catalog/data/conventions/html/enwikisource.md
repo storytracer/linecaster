@@ -20,6 +20,12 @@ HTML does not.
 A page's last paragraph runs on onto the next page unless the page ends it: `{{nop}}` marks the end of a paragraph
 at a page's end.
 
+- **Stanzas across a page break** (editions 2 and 3): `{{ppoem}}` writes a complete poem on each `Page:` page, and
+  `start=follow` / `end=follow` join a stanza only in the main namespace. The reader records each top-level
+  template call on the first element it writes (`data-mw-template`, `data-mw-param-<name>`), so the rules match
+  the call: a page's first stanza `continues` (on the poem's element), its last `runs_on` (on its stanzas: one
+  element takes one decision, and a call can have both). Each page reads as it is; an item joins them.
+
 ## Not in the rules
 
 - Templates whose output has no class of its own cannot be matched in the HTML: `{{ua}}` (an editor's note, its
