@@ -80,3 +80,13 @@ def test_each_line_is_its_own_row():
              "<p>Prose in one line.</p></body></html>")
     paragraphs = [b.text for b in build_document(t.transcription).blocks if b.kind == "paragraph"]
     assert paragraphs == ["The night was dark,\nthe wind was cold,\nand all the trees", "Prose in one line."]
+    from linecaster.document import to_markdown
+    assert "The night was dark,\\\nthe wind was cold,\\\nand all the trees" in to_markdown(build_document(t.transcription))
+
+
+def test_an_inline_formula_is_not_escaped_in_markdown():
+    from linecaster.document import build_document, to_markdown
+
+    t = read('<html><body><p>The sum <math alttext="{\\displaystyle v_{1}+v_{2}}"></math> of snake_case.</p></body></html>')
+    md = to_markdown(build_document(t.transcription))
+    assert "v_{1}" in md and "snake\\_case" in md

@@ -20,6 +20,8 @@ reads it back).
 """
 from __future__ import annotations
 
+import re
+
 import html as htmllib
 
 from ..data.policy import MarkdownRules
@@ -155,11 +157,19 @@ def to_html(source, furniture: bool = False, layers=None) -> str:
 
 
 # ------------------------------------------------------------- Markdown
+_INLINE_FORMULA = re.compile(r"(\$[^$\n]+\$)")
+
+
 def _md_escape(s: str, rules: MarkdownRules) -> str:
+    """Markdown's specials escaped, except inside an inline formula (``$…$``), whose TeX stays as it is."""
     if not rules.escape:
         return s
-    s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    return s.replace("_", "\\_")
+    out = []
+    for k, piece in enumerate(_INLINE_FORMULA.split(s)):
+        if k % 2 == 0:
+            piece = piece.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("_", "\\_")
+        out.append(piece)
+    return "".join(out)
 
 
 def _md_inline(b: Block, rules: MarkdownRules) -> str:
@@ -197,13 +207,19 @@ def _pipe_table(b: Block, rules: MarkdownRules) -> str:
     return "\n".join(lines)
 
 
+def _md_lines(s: str) -> str:
+    """A block's rows as Markdown's hard line breaks (a backslash at the line's end, CommonMark's), which a plain
+    newline inside a paragraph is not."""
+    return "\\\n".join(s.split("\n"))
+
+
 def _md_block(b: Block, rules: MarkdownRules) -> str:
     if b.kind == "title":
-        return "# " + _md_inline(b, rules)
+        return "# " + " ".join(_md_inline(b, rules).split("\n"))
     if b.kind == "heading":
-        return "#" * min((b.level or 1) + 1, 6) + " " + _md_inline(b, rules)
+        return "#" * min((b.level or 1) + 1, 6) + " " + " ".join(_md_inline(b, rules).split("\n"))
     if b.kind == "list_item":
-        return "- " + _md_inline(b, rules)
+        return "- " + _md_lines(_md_inline(b, rules))
     if b.kind == "code":
         return f"```\n{b.text}\n```"
     if b.kind == "formula":
@@ -213,8 +229,8 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
         return table_html(b) if rules.tables == "html" or spans else _pipe_table(b, rules)
     if b.kind == "picture":
         parts = [rules.image_placeholder] if rules.image_placeholder else []
-        return "\n\n".join(parts + ([_md_inline(b, rules)] if b.text else []))
-    return _md_inline(b, rules)
+        return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules))] if b.text else []))
+    return _md_lines(_md_inline(b, rules))
 
 
 def to_markdown(source, furniture: bool = False, dividers: bool = False, rules: MarkdownRules | None = None,
