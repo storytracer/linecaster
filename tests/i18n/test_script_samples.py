@@ -168,3 +168,17 @@ def test_the_line_assigner_orders_rows_in_the_direction(sid, recorded):
     t = page_of(out).transcriptions["ocr_new"]
     assert [ln.id for ln in t.ordered_lines()] == [ln.id for ln in script_page(sid).ordered_lines()]
     assert ("direction" in t.annotators[-1].settings) is not recorded
+
+
+@pytest.mark.parametrize("sid", SAMPLES)
+def test_a_sample_is_drawn_where_a_font_has_its_characters(sid):
+    from linecaster.testing.scripts import PAGE_HEIGHT, PAGE_WIDTH, script_image
+
+    try:
+        image = script_image(sid)
+    except LookupError as e:
+        pytest.skip(str(e))
+    assert image.size == (PAGE_WIDTH, PAGE_HEIGHT)
+    for ln in script_page(sid).lines:                  # ink in every line's box
+        x, y, w, h = (round(v) for v in ln.box)
+        assert image.crop((x, y, x + w, y + h)).convert("L").getextrema()[0] < 128

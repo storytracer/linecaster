@@ -12,9 +12,16 @@ sample's language, script and direction (classifications by a ``source`` annotat
 line's text.
 
 The texts are short public-domain or common phrases; a sample's words are what ``scoring.tokens`` counts.
+
+``script_image(id)`` draws a sample's page as an image, each line in its box and direction, with an installed font
+that covers its characters (found through fontconfig's ``fc-list``, or given), shaped by Pillow's libraqm; a
+``LookupError`` where no font or no shaping is at hand (tests skip then). Vertical text is set top to bottom
+(Mongolian's rotated letters turned with their line).
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
 from dataclasses import dataclass
 
 from ..data import Annotator, Source, Transcription
@@ -122,4 +129,59 @@ def script_page(sample: str | ScriptSample) -> Transcription:
     return t
 
 
-__all__ = ["PAGE_HEIGHT", "PAGE_WIDTH", "SCRIPT_SAMPLES", "ScriptSample", "script_page"]
+def _font(s: ScriptSample) -> tuple[str, int]:
+    """An installed font (its file and index in a collection) that has every character of the sample: of the
+    sample's language first; an outline font, a regular style, DejaVu, then Noto before others."""
+    if shutil.which("fc-list") is None:
+        raise LookupError("fontconfig's fc-list is not installed")
+    chars = " ".join(f"{ord(c):x}" for c in sorted(set("".join(s.lines))) if not c.isspace())
+    for pattern in (f":lang={s.language.split('-')[0]}:charset={chars}", f":charset={chars}"):
+        listed = subprocess.run(["fc-list", pattern, "-f", "%{file}|%{index}|%{style}\n"], capture_output=True,
+                                text=True, check=False).stdout.split("\n")
+        fonts = sorted((not file.endswith((".ttf", ".otf", ".ttc")), "Regular" not in style and "Book" not in style,
+                        next((k for k, family in enumerate(("DejaVu", "Noto")) if family in file), 2), file,
+                        int(index or 0))
+                       for file, index, style in (line.split("|", 2) for line in listed if line.count("|") == 2))
+        if fonts:
+            return fonts[0][3], fonts[0][4]
+    raise LookupError(f"no installed font has every character of the {s.id} sample")
+
+
+def script_image(sample: str | ScriptSample, font: str | None = None, size: int = 28):
+    """The sample's page as an RGB image (``PAGE_WIDTH`` x ``PAGE_HEIGHT``, ``PIL.Image``), its lines drawn in their
+    boxes (``script_page``) in their direction.
+
+    Args:
+        sample: a sample or its id (``SCRIPT_SAMPLES``).
+        font: a font file; ``None``: an installed one that has the sample's characters.
+        size: the font size in pixels.
+    """
+    from PIL import Image, ImageDraw, ImageFont, features
+
+    s = SCRIPT_SAMPLES[sample] if isinstance(sample, str) else sample
+    if not features.check("raqm"):
+        raise LookupError("Pillow has no libraqm: complex scripts would not be shaped")
+    path, index = (font, 0) if font else _font(s)
+    face = ImageFont.truetype(path, size, index=index, layout_engine=ImageFont.Layout.RAQM)
+    image = Image.new("RGB", (PAGE_WIDTH, PAGE_HEIGHT), "white")
+    draw = ImageDraw.Draw(image)
+    t = script_page(s)
+    language = s.language.split("-")[0]
+    for ln in t.ordered_lines():
+        x, y, w, h = ln.box
+        text = t.text_of(ln) or ""
+        if s.direction.startswith("horizontal"):
+            rtl = s.direction == "horizontal-rl"
+            draw.text((x + w if rtl else x, y + h / 2), text, fill="black", font=face, anchor="rm" if rtl else "lm",
+                      direction="rtl" if rtl else "ltr", language=language)
+        elif s.script == "Mong":           # Mongolian: the line set horizontally, turned clockwise
+            strip = Image.new("RGB", (round(h), round(w)), "white")
+            ImageDraw.Draw(strip).text((0, w / 2), text, fill="black", font=face, anchor="lm", language=language)
+            image.paste(strip.rotate(-90, expand=True), (round(x), round(y)))
+        else:
+            draw.text((x + w / 2, y), text, fill="black", font=face, anchor="mt", direction="ttb",
+                      language=language)
+    return image
+
+
+__all__ = ["PAGE_HEIGHT", "PAGE_WIDTH", "SCRIPT_SAMPLES", "ScriptSample", "script_image", "script_page"]
