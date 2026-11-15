@@ -305,8 +305,8 @@ def paragraph_box(row, lines_by_id: dict[str, Line]) -> BBox | None:
 
 def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
     """A region's text, one visual row per line (``region_rows``' text: lines on a row joined with a space, rows
-    with ``\\n``), and its lines' formatting and languages as spans of it (a line whose text as written differs in
-    length from its reading keeps none)."""
+    with ``\\n``), and its lines' formatting, languages and inline formulas (``Transcription.formulas`` on a span of a
+    line) as spans of it (a line whose text as written differs in length from its reading keeps none)."""
     rows = t.rows()
     grouped: dict[int, list[Line]] = {}
     for ln in lines:
@@ -317,6 +317,12 @@ def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
             p = parse(str(c.target))
             if p.span is not None:
                 languages.setdefault(p.id, []).append((p.span[0], p.span[1], str(c.value)))
+    formulas: dict[str, list[tuple[int, int]]] = {}
+    for f in t.formulas:
+        if "[" in str(f.target):
+            p = parse(str(f.target))
+            if p.span is not None:
+                formulas.setdefault(p.id, []).append(p.span)
     text, spans, row_texts = "", [], []
     for k in sorted(grouped):
         parts = []
@@ -333,6 +339,8 @@ def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
                                       strikethrough=f.strikethrough, script=f.script))
             for a, e, lang in (languages.get(ln.id, []) if same else []):
                 spans.append(Span(start=at + a, end=at + e, language=lang))
+            for a, e in (formulas.get(ln.id, []) if same else []):
+                spans.append(Span(start=at + a, end=at + e, formula=True))
             parts.append(x)
         row = " ".join(parts)                  # a row of empty lines stays, as an empty row
         text += ("\n" if row_texts else "") + row

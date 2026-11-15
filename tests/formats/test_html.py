@@ -90,3 +90,19 @@ def test_an_inline_formula_is_not_escaped_in_markdown():
     t = read('<html><body><p>The sum <math alttext="{\\displaystyle v_{1}+v_{2}}"></math> of snake_case.</p></body></html>')
     md = to_markdown(build_document(t.transcription))
     assert "v_{1}" in md and "snake\\_case" in md
+
+
+def test_markdown_knows_formulas_by_their_spans():
+    """The document carries each inline formula as a span, so a dollar that is no formula can be written \\$, and
+    the dialect's line breaks and displayed formulas follow the rules."""
+    from linecaster.data.policy import MarkdownRules
+    from linecaster.document import build_document, to_markdown
+
+    t = read('<html><body><p>Another $50,000 for <math alttext="{\\displaystyle v_{1}}"></math> and $5.<br>'
+             'A new line.</p></body></html>')
+    doc = build_document(t.transcription)
+    para = next(b for b in doc.blocks if b.kind == "paragraph")
+    assert [para.text[s.start:s.end] for s in para.spans if s.formula] == ["$v_{1}$"]
+    dialect = MarkdownRules(escape=False, escape_dollar=True, line_break="spaces", formula_display="$")
+    assert to_markdown(doc, rules=dialect) == "Another \\$50,000 for $v_{1}$ and \\$5.  \nA new line."
+    assert to_markdown(doc) == "Another $50,000 for $v_{1}$ and $5.\\\nA new line."

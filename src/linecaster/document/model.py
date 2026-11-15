@@ -46,6 +46,7 @@ class Span(_Model):
     strikethrough: bool = False
     script: Literal["baseline", "sub", "super"] = "baseline"
     language: str | None = None
+    formula: bool = Field(False, description="the characters are an inline formula, its LaTeX between $ and $")
 
 
 class Origin(_Model):

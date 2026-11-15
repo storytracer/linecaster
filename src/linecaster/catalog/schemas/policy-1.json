@@ -32,6 +32,32 @@
           "description": "superscript, subscript and underline as <sup>, <sub>, <u>",
           "title": "Html Scripts",
           "type": "boolean"
+        },
+        "escape_dollar": {
+          "default": false,
+          "description": "a $ that is no formula's written \\$, so that $…$ is always a formula (needs the blocks' formula spans)",
+          "title": "Escape Dollar",
+          "type": "boolean"
+        },
+        "formula_display": {
+          "default": "$$",
+          "description": "a displayed formula between $$ and $$ on its own, or between $ and $ as an inline one",
+          "enum": [
+            "$$",
+            "$"
+          ],
+          "title": "Formula Display",
+          "type": "string"
+        },
+        "line_break": {
+          "default": "backslash",
+          "description": "a line break inside a block: a backslash or two spaces at the line's end (both CommonMark)",
+          "enum": [
+            "backslash",
+            "spaces"
+          ],
+          "title": "Line Break",
+          "type": "string"
         }
       },
       "title": "MarkdownRules",

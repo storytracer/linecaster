@@ -65,6 +65,8 @@ def _segments(text: str, spans: list[Span]) -> list[tuple[str, frozenset, str | 
                 if s.script != "baseline":
                     fmt.add(s.script)
                 lang = s.language or lang
+                if s.formula:
+                    fmt.add("formula")
         out.append((text[a:e], frozenset(fmt), lang))
     return out
 
@@ -160,22 +162,31 @@ def to_html(source, furniture: bool = False, layers=None) -> str:
 _INLINE_FORMULA = re.compile(r"(\$[^$\n]+\$)")
 
 
+def _md_specials(s: str, rules: MarkdownRules, dollar: bool) -> str:
+    if rules.escape:
+        s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("_", "\\_")
+    return s.replace("$", "\\$") if dollar and rules.escape_dollar else s
+
+
 def _md_escape(s: str, rules: MarkdownRules) -> str:
-    """Markdown's specials escaped, except inside an inline formula (``$…$``), whose TeX stays as it is."""
+    """Markdown's specials escaped in text whose formulas are not known (no formula spans: a table cell, a document
+    built before them), except inside what reads as an inline formula (``$…$``), whose TeX stays as it is."""
     if not rules.escape:
         return s
-    out = []
-    for k, piece in enumerate(_INLINE_FORMULA.split(s)):
-        if k % 2 == 0:
-            piece = piece.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("_", "\\_")
-        out.append(piece)
-    return "".join(out)
+    return "".join(_md_specials(p, rules, False) if k % 2 == 0 else p
+                   for k, p in enumerate(_INLINE_FORMULA.split(s)))
 
 
 def _md_inline(b: Block, rules: MarkdownRules) -> str:
     out = []
+    known = any(s.formula for s in b.spans)             # the block's formulas are known by their spans
     for piece, fmt, _lang in _segments(b.text, b.spans):
-        s = _md_escape(piece, rules)
+        if "formula" in fmt:
+            s = piece
+        elif known:
+            s = _md_specials(piece, rules, True)
+        else:
+            s = _md_escape(piece, rules)
         core = s.strip()
         if not core:
             out.append(s)
@@ -207,10 +218,11 @@ def _pipe_table(b: Block, rules: MarkdownRules) -> str:
     return "\n".join(lines)
 
 
-def _md_lines(s: str) -> str:
-    """A block's rows as Markdown's hard line breaks (a backslash at the line's end, CommonMark's), which a plain
-    newline inside a paragraph is not."""
-    return "\\\n".join(s.split("\n"))
+def _md_lines(s: str, rules: MarkdownRules | None = None) -> str:
+    """A block's rows as Markdown's hard line breaks (CommonMark's: a backslash, or with ``line_break: spaces`` two
+    spaces at the line's end), which a plain newline inside a paragraph is not."""
+    brk = "  \n" if rules is not None and rules.line_break == "spaces" else "\\\n"
+    return brk.join(s.split("\n"))
 
 
 def _md_block(b: Block, rules: MarkdownRules) -> str:
@@ -219,18 +231,18 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
     if b.kind == "heading":
         return "#" * min((b.level or 1) + 1, 6) + " " + " ".join(_md_inline(b, rules).split("\n"))
     if b.kind == "list_item":
-        return "- " + _md_lines(_md_inline(b, rules))
+        return "- " + _md_lines(_md_inline(b, rules), rules)
     if b.kind == "code":
         return f"```\n{b.text}\n```"
     if b.kind == "formula":
-        return f"$${b.text}$$"
+        return f"${b.text}$" if rules.formula_display == "$" else f"$${b.text}$$"
     if b.kind == "table":
         spans = any(c.row_span > 1 or c.col_span > 1 for c in b.grid.cells)
         return table_html(b) if rules.tables == "html" or spans else _pipe_table(b, rules)
     if b.kind == "picture":
         parts = [rules.image_placeholder] if rules.image_placeholder else []
-        return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules))] if b.text else []))
-    return _md_lines(_md_inline(b, rules))
+        return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules), rules)] if b.text else []))
+    return _md_lines(_md_inline(b, rules), rules)
 
 
 def to_markdown(source, furniture: bool = False, dividers: bool = False, rules: MarkdownRules | None = None,

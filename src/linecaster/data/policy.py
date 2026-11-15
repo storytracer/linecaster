@@ -163,6 +163,13 @@ class MarkdownRules(BaseModel):
     escape: bool = Field(True, description="escape characters Markdown would read (underscores, HTML)")
     image_placeholder: str = Field("<!-- image -->", description="what a picture writes; '' for nothing")
     html_scripts: bool = Field(False, description="superscript, subscript and underline as <sup>, <sub>, <u>")
+    escape_dollar: bool = Field(False, description="a $ that is no formula's written \\$, so that $…$ is always a "
+                                                   "formula (needs the blocks' formula spans)")
+    formula_display: Literal["$$", "$"] = Field("$$", description="a displayed formula between $$ and $$ on its own, "
+                                                                  "or between $ and $ as an inline one")
+    line_break: Literal["backslash", "spaces"] = Field("backslash", description="a line break inside a block: a "
+                                                                                "backslash or two spaces at the "
+                                                                                "line's end (both CommonMark)")
 
 
 class RenderingPolicy(BaseModel):
