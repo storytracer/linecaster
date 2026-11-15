@@ -153,12 +153,17 @@ def call_parts(call: str) -> tuple[str, dict[str, str]]:
 
 
 def mark_calls(text: str, pos: list[int]) -> tuple[str, list[int], list[tuple[str, dict[str, str]]]]:
-    """``text`` with each top-level template call between its start mark and ``CALL_END``, the positions with the
-    marks (each where its call starts or ends), and each call's name and short parameters (``call_parts``)."""
+    """``text`` with each top-level template call that begins a line (a block template, as ``{{ppoem}}`` stands)
+    between its start mark and ``CALL_END``, the positions with the marks (each where its call starts or ends), and
+    each call's name and short parameters (``call_parts``). A call inside a line is not marked: in a tag's attribute,
+    a link or a table's attributes a mark would break what the parser reads."""
     out, out_pos, calls, k = [], [], [], 0
     for a, b in top_level_calls(text):
         if len(calls) >= 0xFFFFD - CALL_FIRST:
             break
+        line = text[text.rfind("\n", 0, a) + 1:a]
+        if line.strip(" \t" + HEAD_END + FOOT_START):
+            continue
         out.append(text[k:a])
         out_pos += pos[k:a]
         out.append(chr(CALL_FIRST + len(calls)) + text[a:b] + CALL_END)
