@@ -126,7 +126,7 @@ def test_boxes_are_scaled_from_0_1000_to_the_page_image_once():
 def test_the_full_text_keeps_the_furniture_and_the_body_texts_leave_it_out():
     from linecaster.engines import UnicodeRecompositionEngine
     from linecaster.document import build_document, to_text
-    from linecaster.text.variants import variants
+    from linecaster.document.strategy import apply
 
     t = place(ground(PAGE, "stop"), 2000, 3000)
     assert t.text.startswith("THE HISTORY OF YACHTING.\n143\nCHAPTER IX.") and t.text.endswith("- 143 -")
@@ -135,9 +135,10 @@ def test_the_full_text_keeps_the_furniture_and_the_body_texts_leave_it_out():
     assert "THE HISTORY" in full and "THE HISTORY" not in body and "143" not in body
     assert "Built 1851." in body and "She won the cup" in body                # marginalia are body text
     (recomposed,) = UnicodeRecompositionEngine()([t])
-    v = variants([recomposed])
-    assert "THE HISTORY" in v["verbatim_txt"] and "THE HISTORY" not in v["readable_txt"]
-    assert "143" not in v["readable_txt"] and "She won the cup" in v["readable_txt"]
+    doc = build_document(recomposed, width=2000, height=3000)
+    flowed = apply(doc, "flow")
+    assert "THE HISTORY" in to_text(doc, furniture=True) and "THE HISTORY" not in to_text(flowed)
+    assert "143" not in to_text(flowed) and "She won the cup" in to_text(flowed)
 
 
 def test_what_the_model_writes_about_figures_is_kept_but_in_no_text():

@@ -23,10 +23,10 @@ from ..catalog.schema import RULE_STEPS, STEPS
 from .common import HEADER, Links, table
 from .docstrings import Docstring, markdown, parse
 
-FAMILIES = ("readers", "layout", "lines", "recognition", "conversion", "text", "composition", "binding", "validation",
-            "servers", "writers", "composites")
+FAMILIES = ("readers", "layout", "lines", "recognition", "conversion", "composition", "binding", "validation", "servers",
+            "writers", "composites")
 TITLES = {"readers": "Readers", "layout": "Layout", "lines": "Lines", "recognition": "Recognition",
-          "conversion": "Conversion", "text": "Text", "composition": "Composition", "binding": "Binding",
+          "conversion": "Conversion", "composition": "Composition", "binding": "Binding",
           "validation": "Validation", "servers": "Servers", "writers": "Writers", "composites": "Composites"}
 #: the backends a model block's ``backend`` annotation names
 BACKENDS = {"InProcess": "in-process", "Served": "served", "Chat": "chat"}

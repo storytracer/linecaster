@@ -12,7 +12,7 @@ class Binder(Contracted, PipelineStep):
 
     The item record is one datatrove document (``doc.id`` the item id, ``doc.metadata["item"]``,
     ``linecaster.blocks.base.item``) holding its pages in order (``Page.sequence``, then page id); a page without an
-    item is an item of its own. The item-unit blocks after it (``Recomposer``, ``CharacterNormalizer`` and
+    item is an item of its own. The item-unit blocks after it (``Recomposer`` and
     ``Composer`` with ``unit="item"``) and the item writers read it; the ``Splitter`` turns it back into pages. It
     changes the stream's unit from pages to items and touches no part: the item record holds its pages as they
     came, every transcription with every part (the builder's checks carry them past the binder), but not the page

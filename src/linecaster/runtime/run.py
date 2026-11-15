@@ -1265,7 +1265,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         from linecaster.runtime import run
 
         PIPELINE = "bind.v1"
-        SLOTS = {"recomposition": "recomposition", "normalization": "normalization", "composition": "composition"}
+        SLOTS = {"recomposition": "recomposition", "composition": "composition"}
 
         if __name__ == "__main__":
             run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)

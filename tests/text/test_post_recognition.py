@@ -9,6 +9,7 @@ from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageFileWriter
 from linecaster.data.page import Page
 from linecaster.document import build_document, to_markdown, to_text
+from linecaster.document.strategy import apply
 from linecaster.text.typography import retype
 
 from conftest import body_region, line, page_to_compose, page_with, recomposed, region
@@ -54,22 +55,21 @@ def test_headline_split_off_a_body_region():
     assert [t.text_of(ln) for ln in t.ordered_lines()][:2] == ["HEADLINE", "body a"]
 
 
-def test_drop_capital_glued_to_its_paragraph():
+def test_drop_capital_linked_to_its_line():
     b, bl = body_region("text_1", 1, 300)
     bl[0]["text"] = "ARLY in the morning"
     drop = region("drop_0", "text", 40, 290, 55, 60, 0, raw="drop-capital")
     t = page_with([drop, b], [line("drop_0", 0, 40, 290, 55, 60, "E"), *bl])
     stats = retype(t)
     assert stats.drop_capitals == 1
-    assert t.order("regions").regions == ["text_1"] and t.status("drop_0") == "removed"
+    assert t.order("regions").regions == ["text_1"] and t.status("drop_0") is None      # nothing removed
     first = t.line("text_1_l0")
-    assert t.text_of(first, ("nfc", "joined")) == "EARLY in the morning" and first.reading.text == "ARLY in the morning"
-    (joined,) = [e for e in t.edits if e.kind == "joined"]
-    assert joined.target == "text_1_l0" and joined.derived_from == ["drop_0_l0"]
+    assert t.text_of(first) == "ARLY in the morning" == first.reading.text and not t.edits   # literal: as read
+    assert t.link("drop_0", "part_of") == "text_1_l0"                    # the letter belongs to the line it begins
     assert t.region_of("drop_0_l0") == "drop_0"                          # the drop capital keeps its line
-    assert "drop_0_l0" not in t.order("lines").lines and "E" not in t.text.split("\n")
-    (removed,) = t.classifications_of("drop_0", "status")
-    assert removed.typography__reason == "drop capital merged into text_1_l0"
+    assert "drop_0_l0" not in t.order("lines").lines
+    doc = build_document(t)                                              # the document writes it with its line
+    assert any(b.text.startswith("EARLY in the morning") for b in apply(doc, "flow").blocks)
 
 
 @pytest.mark.parametrize("conf, kept", [(0.98, True), (0.74, False)])
@@ -150,7 +150,7 @@ def test_blocks_run_and_write_files(tmp_path):
 
 
 # -------------------------------------------------------- recomposition
-def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
+def test_reflow_continues_regions_and_a_strategy_joins_the_rows():
     rid, rid2 = "text_0", "text_1"
     t = page_with([region(rid, "text", 100, 100, 800, 200, 0), region(rid2, "text", 100, 400, 800, 100, 1),
                    region("number_2", "page_footer", 450, 900, 40, 20, 2, raw="number")], [
@@ -162,10 +162,17 @@ def test_reflow_joins_rows_removes_division_marks_and_continues_regions():
         line("number_2", 0, 450, 900, 40, 20, "12")])
     recomposed(t)
     doc = build_document(t, "p", 1000, 1000)
-    texts = [x.text for x in doc.blocks]
-    assert texts[0] == "The nest is built of dead grasses and bents, and the lining"
-    assert texts[1] == "A new paragraph starts indented and runs to the end of the column with its last words here."
+    texts = [x.text for x in doc.blocks]                                  # literal: the rows as laid out
+    assert texts[0] == "The nest is built of dead gras-\nses and bents, and the lining"
+    assert texts[1] == "A new paragraph starts indented and\nruns to the end of the column with\nits last words here."
     assert texts[2] == "12" and len(texts) == 3
     m = t.annotators[-1].measurements
-    assert (m["marks_removed"], m["continuations"], m["paragraphs"]) == (1, 1, 3)
+    assert (m["continuations"], m["paragraphs"]) == (1, 3)
     assert [o.span for o in doc.blocks[1].origins] == [[0, 35], [36, 70], [71, 91]]   # one per row, across regions
+    flowed = [x.text for x in apply(doc, "flow").blocks]                 # flow: the mark kept, nothing guessed
+    assert flowed[0] == "The nest is built of dead gras-ses and bents, and the lining"
+    marks = apply(doc, "unicode-marks+flow")                             # a named rule resolves it
+    assert [x.text for x in marks.blocks][:2] == [
+        "The nest is built of dead grasses and bents, and the lining",
+        "A new paragraph starts indented and runs to the end of the column with its last words here."]
+    assert [o.span for o in marks.blocks[1].origins] == [[0, 35], [36, 70], [71, 91]]

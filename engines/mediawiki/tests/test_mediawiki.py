@@ -388,18 +388,16 @@ def test_an_attributes_character_references_are_decoded(site):
     assert t.lines[0].reading.text == "A teh word." and [(e.kind, e.text) for e in t.edits] == [("corrected", "the")]
 
 
-@pytest.mark.parametrize("first, second, whole, joined", [
-    ("The cicada's food {{hws|de|depends}}", "{{hwe|pends|depends}} upon it.", "depends",
-     ["The cicada's food", "depends upon it."]),
-    ("such {{hws|inter|inter-crossing}}", "{{hwe|crossing|inter-crossing}} of races.", "inter-crossing",
-     ["such", "inter-crossing of races."]),
-    ("the hills {{hws|\ufb02ush|flushed}}", "{{hwe|ed|flushed}} red.", "flushed", ["the hills", "flushed red."]),
+@pytest.mark.parametrize("first, second, whole", [
+    ("The cicada's food {{hws|de|depends}}", "{{hwe|pends|depends}} upon it.", "depends"),
+    ("such {{hws|inter|inter-crossing}}", "{{hwe|crossing|inter-crossing}} of races.", "inter-crossing"),
+    ("the hills {{hws|ﬂush|flushed}}", "{{hwe|ed|flushed}} red.", "flushed"),
 ])
-def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second, whole, joined):
+def test_a_word_divided_across_pages_is_a_joined_edit_of_each_half(site, first, second, whole):
     """{{hws}}/{{hwe}} write each half as printed, the whole word in the span's title: a rule naming the templates
-    makes each half a joined edit (the reader marks a call inside a line when a rule names it), each page reads as
-    printed, and the item's pages read together write the whole word where the wiki does (each line's joined edit,
-    which the document builder writes), a compound's own hyphen kept."""
+    makes each half a joined edit of its span (the reader marks a call inside a line when a rule names it), each
+    page reads as printed, and linking the item's pages changes no text: a strategy with ``divided-words`` pairs the
+    halves when a text is written (linecaster's ``document.strategy``)."""
     from linecaster_mediawiki import PageReader, link_pages
 
     c = resolve("example", lambda ref: ConventionsDoc.model_validate(
@@ -414,19 +412,24 @@ def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second
                                       f"Page:Example.djvu/{20 + i}").transcription) for i, x in enumerate((first, second))]
 
     pages = read(PageReader(site, c))
-    assert [[e.text for e in t.edits] for _, t in pages] == [[whole], [whole]]
+    assert [[(e.kind, e.text) for e in t.edits] for _, t in pages] == [[("joined", whole)], [("joined", whole)]]
     printed = [t.text_of(t.lines[0]) for _, t in pages]
     assert printed[0].endswith("-") and not printed[1].startswith(whole)          # each page as printed
+    for _, t in pages:                                                           # each edit spans its half
+        (e,) = t.edits
+        line_id, span = e.target.split("[")
+        a, b = (int(x) for x in span.rstrip("]").split(":"))
+        assert line_id == t.lines[0].id and 0 <= a < b <= len(t.text_of(t.lines[0]))
     link_pages(pages)
-    assert [t.text_of(t.lines[0]) for _, t in pages] == joined
+    assert [t.text_of(t.lines[0]) for _, t in pages] == printed and all(len(t.edits) == 1 for _, t in pages)
     plain = read(PageReader(site))                                               # no rule: no edit, no mark
     assert not any(t.edits for _, t in plain)
 
 
-def test_a_word_divided_within_a_page_is_joined_too(site):
-    """The halves of a word may stand on one page (a transcription that keeps the print's lines); the item joins
-    them as it joins halves on two pages."""
-    from linecaster_mediawiki import PageReader, join_divided_words
+def test_a_word_divided_within_a_page_is_two_joined_edits(site):
+    """The halves of a word may stand on one page (a transcription that keeps the print's lines): two joined edits,
+    as on two pages."""
+    from linecaster_mediawiki import PageReader
 
     c = resolve("example", lambda ref: ConventionsDoc.model_validate(
         {"schema": "linecaster.conventions", "id": "example", "format": "html",
@@ -437,5 +440,5 @@ def test_a_word_divided_within_a_page_is_joined_too(site):
     t = PageReader(site, c).read("<noinclude></noinclude>giue thee the {{hws|furthe|furtherance}}<br />"
                                  "{{hwe|rance|furtherance}} of knowledge<noinclude></noinclude>",
                                  "Page:Example.djvu/30").transcription
-    assert join_divided_words([("p0", t)]) == 1
-    assert [t.text_of(ln) for ln in t.lines] == ["giue thee the", "furtherance of knowledge"]
+    assert [(e.kind, e.text) for e in t.edits] == [("joined", "furtherance")] * 2
+    assert [t.text_of(ln) for ln in t.lines] == ["giue thee the furthe-", "rance of knowledge"]

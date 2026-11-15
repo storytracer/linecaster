@@ -11,7 +11,16 @@ from pathlib import Path
 import pytest
 
 HERE = Path(__file__).parent / "page3"
-PAGES = {p["id"]: p["page"] for p in (json.loads(f.read_text(encoding="utf-8")) for f in HERE.glob("*.json"))}
+ROWS = [json.loads(f.read_text(encoding="utf-8")) for f in HERE.glob("*.json")]
+PAGES = {p["id"]: p["page"] for p in ROWS}
+
+
+def read_pages() -> dict:
+    """The fixtures as a reader reads them: upgraded to the current page format (``linecaster.data.upgrade``)."""
+    from linecaster.data import Page
+    from linecaster.data.upgrade import upgrade
+
+    return {r["id"]: Page.model_validate(upgrade(json.loads(json.dumps(r)))["page"]) for r in ROWS}
 REF = re.compile(r"^(?:(?P<page>[^#]+)#)?(?P<id>[^/\[#]*)(?:/(?P<word>\d+)(?:/(?P<glyph>\d+))?)?"
                  r"(?:\[(?P<start>\d+):(?P<end>\d+)\])?$")
 
@@ -77,21 +86,17 @@ def test_every_reference_resolves(page_id):
 
 
 def test_a_paragraph_continued_onto_the_next_page_is_linked_both_ways():
-    from linecaster.data import Page
 
-    pages = {pid: Page.model_validate(p) for pid, p in PAGES.items()}
+    pages = read_pages()
     first, second = (pages[f"library.test_item1_{n:04d}"].transcriptions["ground_truth"] for n in (12, 13))
     assert first.link("r2_p0", "runs_into") == "library.test_item1_0013#r2_p0"
     assert second.link("r2_p0", "continues") == "library.test_item1_0012#r2_p0"
-    for t in (first, second):
-        for p in t.paragraphs:
-            for row in p.rows:
-                assert 0 <= row.charspan[0] < row.charspan[1] <= len(p.text)
+    assert all(p.rows for t in (first, second) for p in t.paragraphs)
 
 
 @pytest.mark.parametrize("page_id", sorted(PAGES))
 def test_the_fixtures_are_valid_page_records(page_id):
     from linecaster.data import Page
 
-    page = Page.model_validate(PAGES[page_id])
+    page = read_pages()[page_id]
     assert page.record() == Page.model_validate(page.record()).record()

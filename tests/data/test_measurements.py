@@ -110,7 +110,7 @@ def test_linecaster_writes_only_known_measurements():
     assert computed == COMPUTED
     # the scan sees the steps it should (a scan that finds nothing passes trivially)
     assert {"seconds", "datetime", "prompt_tokens", "completion_tokens", "finish_reason", "regions", "failed",
-            "tables", "formulas", "changed"} <= set(keys)
+            "tables", "formulas"} <= set(keys)
 
 
 def test_computed_measurements_are_known():

@@ -118,7 +118,7 @@ class Edit(Decision):
     group is the reading within the attribute's value (no match: no edit)."""
 
     name: ClassVar[str] = "edit"
-    kind: Literal["corrected", "normalized", "expanded", "regularized", "joined"]
+    kind: Literal["corrected", "expanded", "regularized", "joined"]
     attr: str = "title"
     extract: str | None = None
 

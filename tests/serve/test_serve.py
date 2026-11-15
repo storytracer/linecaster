@@ -215,7 +215,7 @@ def test_a_client_checks_the_server_s_protocol():
     try:
         wait_for_health(endpoint, 60, route="/linecaster/ready", payload={}, accept=lambda r: r.status_code == 404,
                         poll_interval=0.1)
-        assert server_protocol(endpoint) == "linecaster.page/4"
+        assert server_protocol(endpoint) == "linecaster.page/5"
         Served(endpoint, model="tables").warm_up()
     finally:
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)

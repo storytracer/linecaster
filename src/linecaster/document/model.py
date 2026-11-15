@@ -1,5 +1,11 @@
-"""The document model (``linecaster.document/1``): a page or an item as a reader reads it, made from its
+"""The document model (``linecaster.document/2``): a page or an item as a reader reads it, made from its
 transcriptions by ``DocumentBuilder`` and written out by the serializers (HTML, Markdown, text, JSON).
+
+The builder's document is literal: each block's text is its lines' readings, rows as laid out (``\n``), the source's
+edits as spans next to the text; which of its row breaks are the layout's (``Block.wraps``: rows a recomposition
+found to run on, a paragraph continued on the next page) is recorded, not acted on. A transcription strategy writes
+the normalized document from it (``linecaster.document.strategy``, the catalog's strategies), and names itself
+(``Document.strategy``).
 
 A ``Document`` is its pages and its blocks in reading order. A **block** is one unit of the rendering: a title, a
 heading at its level, a paragraph (one across a page break when the pages say it runs on), a list item, a caption,
@@ -20,9 +26,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..data.transcription import Cell
 
-SCHEMA = "linecaster.document/1"
-#: the document formats this linecaster reads (older ones upgraded on read)
-FORMATS = (SCHEMA,)
+SCHEMA = "linecaster.document/2"
+#: the document formats this linecaster reads (a document/1 as it is: its block texts were flowed, its spans held
+#: no edits)
+FORMATS = (SCHEMA, "linecaster.document/1")
 
 #: what a block is (from its region's content role: ``block_kind``)
 KINDS = ("title", "heading", "paragraph", "list_item", "caption", "footnote", "toc_entry", "reference", "code",
@@ -49,6 +56,9 @@ class Span(_Model):
     script: Literal["baseline", "sub", "super"] = "baseline"
     language: str | None = None
     formula: bool = Field(False, description="the characters are an inline formula, its LaTeX between $ and $")
+    edit: Literal["corrected", "joined", "expanded", "regularized"] | None = Field(
+        None, description="the source states another reading of the characters (an edit of that kind): edit_text")
+    edit_text: str | None = Field(None, description="the edit's text: the correction, the whole word, ...")
 
 
 class Origin(_Model):
@@ -79,6 +89,9 @@ class Block(_Model):
     level: int | None = None                  # a heading's level (1 the highest below the title)
     text: str = ""                            # lines separated by "\n"; a formula block's text is its LaTeX
     spans: list[Span] = Field(default_factory=list)
+    # the offsets of the "\n" in text that are the layout's (rows of running text, a page break inside a paragraph):
+    # a strategy's flow joins them; every other "\n" is the text's own (a verse line, a source's line break)
+    wraps: list[int] = Field(default_factory=list)
     grid: Grid | None = None
     file: str | None = None                   # a picture's image, as its source names it
     section: str | None = None                # the heading block whose section this block is in
@@ -97,6 +110,9 @@ class Document(_Model):
     name: str = "document"
     producer: str | None = Field(None, description="the linecaster that wrote it (linecaster.data.transcription."
                                                    "producer)")
+    strategy: str | None = Field(None, description="the transcription strategy that wrote it: literal as the "
+                                                   "builder made it, else a strategy's id or normalizations joined "
+                                                   "by +; None: not stated (a linecaster.document/1 file)")
 
     @field_validator("schema_")
     @classmethod

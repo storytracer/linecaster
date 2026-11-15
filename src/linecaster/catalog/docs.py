@@ -201,14 +201,11 @@ def conventions_page(c: Catalog, cid: str) -> str:
 
 
 def policy_page(c: Catalog, pid: str) -> str:
-    """A rendering policy: its rules (what goes into which layer), precedence and edits per text."""
+    """A rendering policy: its rules (what goes into which layer)."""
     _, doc = c.policies[pid]
     lines = [f"# {pid}", "", "*Rendering policy*", "", _md(doc.description), ""]
     lines += ["## Rules", "", *_table(("Role", "Production", "Status", "Layer"), [
         (r.role or "any", r.production or "any", r.status or "any", f"`{r.to}`") for r in doc.rules])]
-    if doc.edits:
-        lines += ["## Edits", "", *_table(("Text", "Edits applied"), [
-            (f"`{k}`", ", ".join(v)) for k, v in doc.edits.items()])]
     return "\n".join(lines)
 
 

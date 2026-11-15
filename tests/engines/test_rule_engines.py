@@ -19,7 +19,7 @@ from linecaster.engines import scripts
 MODEL_STEP_ENGINES = {"layout.single-region.v1"}
 RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - MODEL_STEP_ENGINES)
 #: engines whose options have no defaults (a by-script engine's strategies come from its preset)
-NEEDS_OPTIONS = {"image.convert.v1", "normalization.by-script.v1", "recomposition.by-script.v1"}
+NEEDS_OPTIONS = {"image.convert.v1", "recomposition.by-script.v1"}
 
 
 def test_the_rule_based_steps_are_steps():
@@ -77,8 +77,7 @@ def test_options_default_to_todays_constants():
     assert LinkedCompositionEngine.Options().model_dump() == {"sections": False}
 
 
-@pytest.mark.parametrize("step,preset", [("image", "working-image"), ("normalization", "latin-historic"),
-                                         ("typography", "ratios"), ("recomposition", "unicode-recomposition"),
+@pytest.mark.parametrize("step,preset", [("image", "working-image"), ("typography", "ratios"), ("recomposition", "unicode-recomposition"),
                                          ("composition", "linked-composition")])
 def test_the_presets_are_the_engines_defaults(step, preset):
     """Each rule-based preset names every option of its engine, with the engine's defaults: today's behavior."""
@@ -161,35 +160,6 @@ def test_every_typography_threshold_is_an_option():
 
 # ------------------------------------------------------------------------------------- the others
 
-def test_normalization_fills_the_normalized_texts():
-    from linecaster.engines import LatinHistoricNormalizationEngine
-    from linecaster.text.variants import normalize
-
-    t = sample_transcription()
-    t.lines[0].reading.text = "Vnterſuchung der ﬁſche"
-    from conftest import recomposed
-
-    recomposed(t)
-    before = t.model_copy(deep=True)
-    LatinHistoricNormalizationEngine()(t)
-
-    def normalized(target, text):
-        return t.edit(target, ("normalized",)) or text
-
-    assert normalized("l0", None) == "Vntersuchung der fische"
-    assert [normalized(ln.id, t.text_of(ln)) for ln in t.lines] == [
-        None if ln.reading is None else normalize(ln.reading.text) for ln in t.lines]
-    assert [ln.reading for ln in t.lines] == [ln.reading for ln in before.lines]      # as written stays
-    assert [normalized(p.id, p.text) for p in t.paragraphs] == [normalize(p.text) for p in t.paragraphs]
-    assert normalized(t.paragraphs[0].id, None) == "Vntersuchung der fische"
-    assert t.paragraphs[0].text == "Vnterſuchung der ﬁſche"
-    assert {e.target for e in t.edits if e.kind == "normalized"} == {"l0", t.paragraphs[0].id}   # only what changed
-    m = t.annotators[-1]
-    assert (m.step, m.engine, m.name) == ("normalization", "normalization.latin-historic.v1",
-                                          "normalization.latin-historic.v1")
-    assert m.measurements["changed"] == 2 and all(e.annotator == len(t.annotators) - 1 for e in t.edits)
-
-
 def test_image_is_the_working_webp():
     from linecaster.engines import WebpLosslessImageEngine
     from linecaster.images.convert import to_working_webp
@@ -212,15 +182,20 @@ def test_composition_from_lines_and_from_paragraphs():
     body = lambda d: [b for b in d.blocks if b.kind == "paragraph"]       # noqa: E731
     assert body(lines)[0].text == ("The species described here were col-\nlected in the summer of 1887 by the "
                                    "author.\n\n") and len(body(lines)[0].origins) == 1    # two rows without text
-    assert body(flowed)[0].text == "The species described here were collected in the summer of 1887 by the author."
-    assert [o.span for o in body(flowed)[0].origins] == [[0, 35], [35, 78]]      # the mark removed
+    assert body(flowed)[0].text == "The species described here were col-\nlected in the summer of 1887 by the author."
+    assert [o.span for o in body(flowed)[0].origins] == [[0, 36], [37, 80]]      # literal: one row each
+    from linecaster.document.strategy import apply
+
+    written = body(apply(flowed, "unicode-marks+flow"))[0]
+    assert written.text == "The species described here were collected in the summer of 1887 by the author."
+    assert [o.span for o in written.origins] == [[0, 35], [35, 78]]              # the mark removed
     sections = build_document(recomposed(sample_transcription()), name="p1", sections=True)
     assert [b.text for b in sections.blocks if b.section == b.id] == ["Flora of the Northern Hills"]
 
 
-def test_pages_of_an_item_share_the_lexicon():
-    """The item's lexicon grows page by page in page order: a word attested hyphenated on page 1 keeps the hyphen
-    on page 2, not on page 1 (the lexicon of a page holds that page and the pages before it)."""
+def test_the_items_words_are_the_lexicon():
+    """``unicode-marks`` reads the document's words as its lexicon: a word attested hyphenated on page 1 keeps the
+    hyphen on page 2; the page alone has no such word."""
     from conftest import line, page_with, region
 
     from linecaster.engines import UnicodeRecompositionEngine
@@ -231,10 +206,17 @@ def test_pages_of_an_item_share_the_lexicon():
 
     first = page(["Die Nord-", "see liegt kalt.", "Die Nord-See ist kalt."])
     second = page(["Die Nord-", "see liegt kalt."])
-    pages = UnicodeRecompositionEngine()([first.model_copy(deep=True), second.model_copy(deep=True)])
-    assert [p.paragraphs[0].text[:12] for p in pages] == ["Die Nord-see"] * 2
+    from linecaster.document import build_document
+    from linecaster.document.strategy import apply
+    from linecaster.engines import LinkedCompositionEngine
+
+    ids = ["p1", "p2"]
+    pages = UnicodeRecompositionEngine()([first.model_copy(deep=True), second.model_copy(deep=True)], page_ids=ids)
+    doc = LinkedCompositionEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * 2)
+    texts = [b.text for b in apply(doc, "unicode-marks+flow").blocks]
+    assert [x[:12] for x in texts] == ["Die Nord-see"] * 2
     alone = UnicodeRecompositionEngine()([second.model_copy(deep=True)])
-    assert alone[0].paragraphs[0].text.startswith("Die Nordsee")
+    assert apply(build_document(alone[0]), "unicode-marks+flow").blocks[0].text.startswith("Die Nordsee")
     assert all(len(p.annotators) == 2 and p.annotators[-1].step == "recomposition" for p in pages)
     assert all(q.annotator == 1 for p in pages for q in p.paragraphs)
     assert Transcription.model_validate_json(pages[1].model_dump_json()) == pages[1]

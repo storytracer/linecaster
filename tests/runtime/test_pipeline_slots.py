@@ -1,5 +1,5 @@
-"""The rule-based slots of the pipeline shapes (``--typography``, ``--recomposition``, ``--normalization``,
-``--composition``), filled by hand or by a recipe, and the item stage they make: built in the describe mode."""
+"""The rule-based slots of the pipeline shapes (``--typography``, ``--recomposition``, ``--composition``), filled by
+hand or by a recipe, the item stage they make and the texts it writes (``--text``): built in the describe mode."""
 import pytest
 
 from linecaster.errors import PipelineConfigError
@@ -10,7 +10,7 @@ from linecaster.runtime import run
 MODELS = ["--layout", "single-region", "--lines", "pp-ocrv6-medium-det", "--recognition", "kraken-ppocrv6-medium"]
 
 #: the item stage's presets (bind.v1's slots)
-PRESETS = ("--recomposition", "unicode-recomposition", "--normalization", "latin-historic", "--composition",
+PRESETS = ("--recomposition", "unicode-recomposition", "--composition",
            "linked-composition")
 
 
@@ -22,13 +22,13 @@ def _stages(shape, argv):
 
 def test_the_modular_slots():
     (blocks,), _ = _stages(MODULAR, ["IN", "OUT", *MODELS])
-    assert not {"Typographer", "Recomposer", "Composer", "CharacterNormalizer"} & set(blocks)     # none picked
+    assert not {"Typographer", "Recomposer", "Composer"} & set(blocks)     # none picked
     (blocks,), plan = _stages(MODULAR, ["IN", "OUT", *MODELS, "--typography", "ratios", "--composition",
                                         "linked-composition", "--set", "composition.sections=true"])
     assert blocks[blocks.index("Typographer") + 1] == "Composer" and "Recomposer" not in blocks   # as laid out
     composer = next(b for b in plan.stages[0].blocks if type(b).__name__ == "Composer")
     assert composer.backend.overrides == {"sections": True}
-    with pytest.raises(PipelineConfigError, match="pick --recomposition and --normalization"):
+    with pytest.raises(PipelineConfigError, match="pick --composition"):
         run.describe(MODULAR, ["IN", "OUT", *MODELS, "--item-texts", "T", "--recomposition",
                                       "unicode-recomposition"])
     with pytest.raises(PipelineConfigError, match="no step 'composition'"):
@@ -51,25 +51,31 @@ def test_the_modular_page_files_are_named_by_item_or_flat_with_a_suffix():
 
 def test_the_squiddle_recipe_fills_the_rule_based_slots():
     (blocks,), _ = _stages(MODULAR, ["IN", "OUT", "--recipe", "squiddle"])
-    assert [b for b in blocks if b in ("Typographer", "Recomposer", "CharacterNormalizer", "Composer")] == [
-        "Typographer", "Recomposer", "Composer"]              # the normalization is the item texts'
-    (blocks,), _ = _stages(MODULAR, ["IN", "OUT", "--recipe", "squiddle", "--item-texts", "T"])
-    assert blocks[blocks.index("Binder"):] == ["Binder", "Recomposer", "CharacterNormalizer", "ItemTextWriter",
+    assert [b for b in blocks if b in ("Typographer", "Recomposer", "Composer")] == [
+        "Typographer", "Recomposer", "Composer"]
+    (blocks,), plan = _stages(MODULAR, ["IN", "OUT", "--recipe", "squiddle", "--item-texts", "T",
+                                        "--text", "literal:txt", "--text", "latin-historic+unicode-marks+flow:md"])
+    assert blocks[blocks.index("Binder"):] == ["Binder", "Recomposer", "Composer", "ItemDocumentWriter",
                                                "ItemTextWriter"]
+    writer = next(b for b in plan.stages[0].blocks if type(b).__name__ == "ItemDocumentWriter")
+    assert writer.texts == (("literal", "txt"), ("latin-historic+unicode-marks+flow", "md"))
     stages, plan = _stages(MODULAR, ["IN", "OUT", "--recipe", "squiddle", "--item-texts", "T", "--tasks", "2"])
     assert [s.name for s in plan.stages] == ["pages", "items"]
-    assert stages[1][:4] == ["PageRecordReader", "Binder", "Recomposer", "CharacterNormalizer"]
+    assert stages[1][:4] == ["PageRecordReader", "Binder", "Recomposer", "Composer"]
 
 
-def test_bind_takes_its_presets():
-    (blocks,), plan = _stages(BIND, ["P", "OUT", *PRESETS, "--files"])
-    assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "Recomposer", "CharacterNormalizer", "Composer",
-                      "ItemTextWriter", "ItemTextWriter", "ItemDocumentWriter"]
-    writer = plan.stages[0].blocks[-1]
-    assert writer.by_format and writer.formats == ("md", "txt", "json")
-    (blocks,), _ = _stages(BIND, ["P", "OUT", "--no-documents", "--variants", "verbatim_txt"])
-    assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "ItemTextWriter"]
-    with pytest.raises(PipelineConfigError, match="pick --recomposition and --normalization and --composition"):
+def test_bind_takes_its_presets_and_texts():
+    (blocks,), plan = _stages(BIND, ["P", "OUT", *PRESETS, "--text", "literal:txt", "--text", "nfc+flow:md", "--jsonl"])
+    assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "Recomposer", "Composer", "ItemDocumentWriter",
+                      "ItemTextWriter"]
+    writer = plan.stages[0].blocks[-2]
+    assert writer.texts == (("literal", "txt"), ("nfc+flow", "md"))
+    (blocks,), plan = _stages(BIND, ["P", "OUT", "--composition", "linked-composition"])
+    assert blocks == ["PageRecordReader", "RejectWriter", "Binder", "Composer", "ItemDocumentWriter"]
+    assert plan.stages[0].blocks[-1].texts == (("literal", "json"),)      # by default the document as it is
+    with pytest.raises(PipelineConfigError, match="pick --composition"):
         run.describe(BIND, ["P", "OUT"])
-    with pytest.raises(PipelineConfigError, match="nothing to write"):
-        run.describe(BIND, ["P", "OUT", "--no-texts", "--no-documents"])
+    with pytest.raises(PipelineConfigError, match="no-such"):
+        run.describe(BIND, ["P", "OUT", *PRESETS, "--text", "no-such:md"])
+    with pytest.raises(PipelineConfigError, match="<strategy>:<format>"):
+        run.describe(BIND, ["P", "OUT", *PRESETS, "--text", "literal"])

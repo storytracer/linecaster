@@ -52,14 +52,12 @@ MEASUREMENTS: dict[str, str] = {
     # tables and formulas
     "tables": "table regions given a structure",
     "formulas": "formula regions read",
-    # unicode and character normalization
-    "changed": "strings the step changed (line, word and alternative texts)",
     # typography
     "body_size": "the page's body type size: the median row height of its text regions, in pixels",
     "leveled": "headings given a level",
     "demoted": "section headers set in body type, made text",
     "split": "headlines split off the text region they were merged into",
-    "drop_capitals": "drop capitals joined to the line they begin",
+    "drop_capitals": "drop capitals linked to the line they begin (part_of)",
     "numbers_dropped": "page-number regions removed as uncertain (empty or below the confidence threshold)",
     # recomposition
     "paragraphs": "paragraphs made (a continued paragraph counts once)",

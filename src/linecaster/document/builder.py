@@ -6,19 +6,23 @@ content role, production and status: page headers, footers and page numbers in t
 serializers choose whether to include it), regions in ``none`` (removed, suppressed, duplicate, separators) and
 ``metadata`` left out, and lines it puts in ``none`` (a line assignment's duplicates); descriptions are never text.
 
-**Without paragraphs** (diplomatic composition): one block per region, in reading order (regions without an order
-last, in list order), its text one visual row per line (the region's lines on the same row joined with a space, rows
-joined with ``\\n``; each line's text as written, its ``nfc`` and ``joined`` edits applied:
-``linecaster.text.recomposition.region_rows``), its lines' formatting and languages as spans, one origin with the
-region's box. A text region that continues another (its own ``continues`` link: a transcription whose regions are
-its paragraphs, such as an imported ground truth) is appended to that one's block, joined as recomposition joins
-rows: a division mark before a lowercase letter removed (``resolve_mark``), else a space unless UAX #14 joins the
-words (``separator``); a block of several rows (verse, a stanza across a page break) goes on with a new row.
+The document is **literal**: a block's text is its lines' readings as the source or engine gave them, nothing
+normalized or joined (``linecaster.document.strategy`` writes a strategy's document from it). Each line's formatting,
+languages, inline formulas and the source's own edits (a correction, a word divided across lines or pages, an
+expansion) are spans of the text; a drop capital (a region ``part_of`` the line it begins) is written at that line's
+start.
+
+**Without paragraphs**: one block per region, in reading order (regions without an order last, in list order), its
+text one visual row per line (the region's lines on the same row joined with a space, rows joined with ``\\n``), one
+origin with the region's box. A text region that continues another (its own ``continues`` link: a transcription
+whose regions are its paragraphs, such as an imported ground truth) is appended to that one's block on a new row,
+which is a wrap (``Block.wraps``) unless either part has several rows (verse, a stanza across a page break).
 
 **With paragraphs** (a recomposition ran: its latest recomposition's, ``linecaster.text.recomposition.paragraphs``):
-one block per paragraph of a text region, an origin per row (its box and character span), a paragraph that continues
-another (its ``continues`` link by the same annotator, in an earlier region or on an earlier page) appended to that
-one's block. The recomposition decides; the builder only composes.
+one block per paragraph of a text region, its rows on rows of the text, every break between them a wrap, an origin
+per row (its box and character span), a paragraph that continues another (its ``continues`` link by the same
+annotator, in an earlier region or on an earlier page) appended to that one's block on a new row, a wrap. The
+recomposition decides where paragraphs break and run on; the strategy what joins them.
 
 The block's kind comes from the region's content role (``block_kind``): a title, a heading at the region's heading
 level (1 when unset), a paragraph, list item, caption, note, page header or footer; a region with a table structure
@@ -33,14 +37,12 @@ across pages (``Block.section``); blocks before the first stay outside.
 """
 from __future__ import annotations
 
-from difflib import SequenceMatcher
-
 from ..data.geometry import BBox
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.refs import parse
-from ..data.transcription import AS_WRITTEN, Cell, Line, Region, Table, Transcription
+from ..data.transcription import Cell, Line, Region, Table, Transcription
 from ..formats._xml import heading_level, hidden_line
-from ..text.recomposition import continuation, ends_with_mark, paragraphs as paragraphs_of, resolve_mark, separator
+from ..text.recomposition import continuation, paragraphs as paragraphs_of
 from ..text.typography import line_bbox, zone_bbox
 from .model import Block, Document, Grid, Origin, Page, Span
 
@@ -91,11 +93,11 @@ class DocumentBuilder:
     of the document is the ``n``-th page added."""
 
     def __init__(self, name: str = "document", sections: bool = False, policy: RenderingPolicy = DEFAULT_POLICY):
-        self.doc = Document(name=name)
+        self.doc = Document(name=name, strategy="literal")
         self.sections, self.policy = sections, policy
         self._section: str | None = None          # the heading block whose section is open
         self._last_table: Block | None = None      # the table a one-row table may join (merge_single_rows)
-        self._items: dict[tuple[str, str], tuple[Block, str | None]] = {}   # (page key, id) -> its block, separator
+        self._items: dict[tuple[str, str], Block] = {}     # (page key, id) -> the block it continues
         self.pages = 0
 
     # ------------------------------------------------------------------ pages
@@ -172,6 +174,8 @@ class DocumentBuilder:
             if f.latex.strip():
                 self._block("formula", page, f.latex, role=role, origins=[origin(f.latex)])
             return
+        if _drop_capital_of(t, r.id) is not None:
+            return                                  # written at the start of the line it begins
         text, spans = _region_text(t, lines)
         if kind in TEXT_KINDS:
             if text.strip():
@@ -187,18 +191,9 @@ class DocumentBuilder:
         t = page.t
         continued = self._items.get((page.key, r.id)) if _region_link(t, r.id, "continues") else None
         if continued is not None:
-            block, _ = continued
-            head = block.text
-            if "\n" in head or "\n" in text:          # verse: a block of several rows goes on with a new row
-                sep = "\n"
-            elif ends_with_mark(head) and resolve_mark(head, text)[0]:
-                head, sep = head.rstrip()[:-1], ""
-            else:
-                sep = separator(head, text)
-            offset = len(head) + len(sep)
-            block.text = head + sep + text
-            block.spans = [s for s in block.spans if s.start < len(head)] + \
-                [s.model_copy(update={"start": s.start + offset, "end": s.end + offset}) for s in spans]
+            block = continued
+            wrap = "\n" not in block.text and "\n" not in text        # verse goes on with a row of its own
+            offset = _append_row(block, text, spans, wrap)
             origin.span = [offset, len(block.text)]
             block.origins.append(origin)
         else:
@@ -206,7 +201,7 @@ class DocumentBuilder:
         runs_into = _region_link(t, r.id, "runs_into")
         if runs_into is not None:
             ref = parse(runs_into)
-            self._items[(ref.page or page.key, ref.id)] = (block, None)
+            self._items[(ref.page or page.key, ref.id)] = block
 
     def _add_table(self, page: "_PageContext", r: Region, table: Table, b, role) -> None:
         """A table by the policy's table rules: one cell as text, one column as lines, a single row joined to the
@@ -236,8 +231,8 @@ class DocumentBuilder:
             return
         grid = _grid(table, rules.fill_holes)
         continued = self._items.get((page.key, r.id)) if _region_link(page.t, r.id, "continues") else None
-        if continued is not None and continued[0].grid is not None:     # a table the previous page began
-            block = continued[0]
+        if continued is not None and continued.grid is not None:          # a table the previous page began
+            block = continued
             _continue_grid(block.grid, grid, any(ln.kind == "continues" and ln.source.startswith(f"{r.id}/")
                                                  for ln in page.t.links))
             block.origins.append(origin)
@@ -259,52 +254,48 @@ class DocumentBuilder:
         runs_into = _region_link(page.t, r.id, "runs_into")
         if runs_into is not None:
             ref = parse(runs_into)
-            self._items[(ref.page or page.key, ref.id)] = (block, None)
+            self._items[(ref.page or page.key, ref.id)] = block
 
     def _add_paragraphs(self, page: "_PageContext", r: Region | None, kind: str, paragraphs: list,
                         level: int | None = None) -> None:
-        """A text region's paragraphs: one block each; a region of one paragraph without a letter (a page number)
-        a block of its kind that opens no section; a paragraph that continues another appended to that one's
-        block, its rows' character spans after the text before it."""
+        """A text region's paragraphs: one block each, its rows on rows of the text (every break a wrap); a region of
+        one paragraph without a letter (a page number) a block of its kind that opens no section; a paragraph that
+        continues another appended to that one's block on a new row (a wrap)."""
         t = page.t
         role = t.role(r.id) if r is not None else None
-        standalone = len(paragraphs) == 1 and not any(ch.isalpha() for ch in paragraphs[0].text)
-        for p in paragraphs:
+        texts = [_paragraph_text(t, p, page.lines) for p in paragraphs]
+        standalone = len(paragraphs) == 1 and not any(ch.isalpha() for ch in texts[0][0])
+        for p, (text, spans, rows) in zip(paragraphs, texts):
             continues = continuation(t, p, "continues")
             continued = None if standalone or continues is None else self._items.get((page.key, p.id))
+            wraps = [rows[k][1] for k in range(len(rows) - 1)]          # every row's end but the last
             if continued is not None:
-                block, sep = continued
-                offset = len(block.text) + len(sep or "")
-                block.text = block.text + (sep or "") + p.text
-                block.origins.extend(self._row_origins(page, r, p, offset))
+                block = continued
+                offset = _append_row(block, text, spans, True)
+                block.wraps += [w + offset for w in wraps]
+                block.origins.extend(self._row_origins(page, r, p, rows, offset))
             else:
-                block = self._block(kind, page, p.text, opens=not standalone, role=role, level=level,
-                                    origins=self._row_origins(page, r, p))
+                block = self._block(kind, page, text, opens=not standalone, role=role, level=level, spans=spans,
+                                    wraps=wraps, origins=self._row_origins(page, r, p, rows))
             runs_into = continuation(t, p, "runs_into")
             if runs_into is not None:
                 ref = parse(runs_into)
-                sep = next((d.separator for d in reversed(p.decisions) if d.kind == "continuation"), None) or ""
-                self._items[(ref.page or page.key, ref.id)] = (block, sep)
+                self._items[(ref.page or page.key, ref.id)] = block
 
-    def _row_origins(self, page: "_PageContext", r: Region | None, p, offset: int = 0) -> list[Origin]:
-        """One origin per row of paragraph ``p`` that has a box, its character span shifted by ``offset``. A
-        division mark removed at a continuation stays in its row's span (the row's span as recognized, the mark
-        included), so the last row's span ends one character later then."""
-        last = len(p.rows) - 1
-        removed_at_end = continuation(page.t, p, "runs_into") is not None and any(
-            d.kind == "mark_removed" and d.row == last for d in p.decisions)
+    def _row_origins(self, page: "_PageContext", r: Region | None, p, rows: list[tuple[int, int]],
+                     offset: int = 0) -> list[Origin]:
+        """One origin per row of paragraph ``p`` that has a box, its character span (``rows``) shifted by
+        ``offset``."""
         out = []
-        for k, row in enumerate(p.rows):
+        for row, (start, end) in zip(p.rows, rows):
             b = paragraph_box(row, page.lines)
             if b is None:
                 continue
-            start, end = row.charspan
-            end += 1 if removed_at_end and k == last else 0
             out.append(Origin(page=page.page_no, region=r.id if r is not None else None, lines=list(row.lines),
                               box=_box(b), span=[start + offset, end + offset]))
         if not out and r is not None:            # text-only rows: the region's box
-            out.append(Origin(page=page.page_no, region=r.id, box=_box(_zone_box(r)),
-                              span=[offset, offset + len(p.text)]))
+            end = rows[-1][1] if rows else 0
+            out.append(Origin(page=page.page_no, region=r.id, box=_box(_zone_box(r)), span=[offset, offset + end]))
         return out
 
 
@@ -318,15 +309,76 @@ def paragraph_box(row, lines_by_id: dict[str, Line]) -> BBox | None:
     return BBox(min(x.x0 for x in boxes), min(x.y0 for x in boxes), max(x.x1 for x in boxes), max(x.y1 for x in boxes))
 
 
+def _append_row(block: Block, text: str, spans: list[Span], wrap: bool) -> int:
+    """``text`` (with its ``spans``) appended to ``block`` on a new row, the break a wrap when ``wrap``; returns
+    where it starts."""
+    if wrap:
+        block.wraps.append(len(block.text))
+    offset = len(block.text) + 1
+    block.text = block.text + "\n" + text
+    block.spans += [s.model_copy(update={"start": s.start + offset, "end": s.end + offset}) for s in spans]
+    return offset
+
+
+def _drop_capital_of(t: Transcription, region: str) -> str | None:
+    """The line a drop capital's region begins (its ``part_of`` link to a line), or None."""
+    return next((ln.target for ln in reversed(t.links) if ln.kind == "part_of" and ln.source == region
+                 and t.line(ln.target) is not None), None)
+
+
+def _paragraph_text(t: Transcription, p, lines: dict[str, Line]) -> tuple[str, list[Span], list[tuple[int, int]]]:
+    """A recomposed paragraph's literal text (``_rows_text`` of its rows), its spans and its rows' spans."""
+    return _rows_text(t, [[lines[i] for i in row.lines if i in lines] for row in p.rows])
+
+
 def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
-    """A region's text, one visual row per line (``region_rows``' text: lines on a row joined with a space, rows
-    with ``\\n``), and its lines' formatting, languages and inline formulas (``Transcription.formulas`` on a span of a
-    line) as spans of it; where a line's text as written differs from its reading (an edit of the whole line, as a
-    word joined across pages), the spans move with the text they cover (``_moved``), a span on removed text goes."""
+    """A region's literal text, one visual row per line (lines on a row joined with a space, rows with ``\\n``), and
+    its spans (``_rows_text``). Consecutive lines share a row when the order gives them the same one and their boxes
+    overlap vertically (``_side_by_side``): an order that gives no rows (every line row 0) or a line without geometry
+    leaves each line a row of its own."""
     rows = t.rows()
-    grouped: dict[int, list[Line]] = {}
+    grouped: list[list[Line]] = []
     for ln in lines:
-        grouped.setdefault(rows.get(ln.id, 0), []).append(ln)
+        prev = grouped[-1][-1] if grouped else None
+        if (prev is not None and ln.id in rows and rows.get(prev.id) == rows[ln.id]
+                and _side_by_side(prev, ln)):
+            grouped[-1].append(ln)
+        else:
+            grouped.append([ln])
+    text, spans, _ = _rows_text(t, grouped)
+    return text, spans
+
+
+def _side_by_side(a: Line, b: Line) -> bool:
+    """Two lines on one visual row: their boxes overlap vertically by half the lower one's height."""
+    if not (a.polygon or a.box) or not (b.polygon or b.box):
+        return False
+    x, y = line_bbox(a), line_bbox(b)
+    overlap = min(x.y1, y.y1) - max(x.y0, y.y0)
+    return overlap > 0.5 * min(x.y1 - x.y0, y.y1 - y.y0)
+
+
+def _rows_text(t: Transcription, rows: list[list[Line]]) -> tuple[str, list[Span], list[tuple[int, int]]]:
+    """Rows of lines as literal text (each line's reading; lines on a row joined with a space, rows with ``\\n``; a
+    drop capital's text at the start of the line it begins), each row's span of it, and the lines' formatting,
+    languages, inline formulas (``Transcription.formulas`` on a span of a line) and the source's edits of spans
+    (``Transcription.edits``: corrected, joined, expanded, regularized) as spans."""
+    drops: dict[str, str] = {}
+    for ln in t.links:
+        if ln.kind == "part_of" and t.line(ln.target) is not None and t.region(ln.source) is not None:
+            letters = "".join(t.text_of(x) or "" for x in t.lines if t.region_of(x) == ln.source).strip()
+            if letters:
+                drops[ln.target] = letters
+    edits: dict[str, list[tuple[int, int, str, str]]] = {}
+    for e in t.edits:
+        if "[" in str(e.target):
+            p = parse(str(e.target))
+            if p.span is not None:
+                edits.setdefault(p.id, []).append((p.span[0], p.span[1], e.kind, e.text))
+        elif "/" not in str(e.target) and "#" not in str(e.target):         # a whole line's edit: all its text
+            line = t.line(str(e.target))
+            if line is not None:
+                edits.setdefault(line.id, []).append((0, len(t.text_of(line) or ""), e.kind, e.text))
     languages: dict[str, list[tuple[int, int, str]]] = {}
     for c in t.classifications:
         if c.scheme == "language" and "[" in str(c.target):
@@ -339,50 +391,35 @@ def _region_text(t: Transcription, lines: list[Line]) -> tuple[str, list[Span]]:
             p = parse(str(f.target))
             if p.span is not None:
                 formulas.setdefault(p.id, []).append(p.span)
-    text, spans, row_texts = "", [], []
-    for k in sorted(grouped):
+    text, spans, row_spans = "", [], []
+    for k, row_lines in enumerate(rows):
+        start = len(text) + (1 if k else 0)
         parts = []
-        for ln in grouped[k]:
-            x = t.text_of(ln, AS_WRITTEN)
+        for ln in row_lines:
+            x = t.text_of(ln)
             if not x:
                 continue
-            at = len(text) + (1 if row_texts else 0) + sum(len(s) + 1 for s in parts)
-            move = _moved(ln.reading.text if ln.reading is not None else x, x)
+            drop = drops.get(ln.id, "")
+            at = start + sum(len(s) + 1 for s in parts) + len(drop)
             for f in (ln.reading.formatting if ln.reading is not None else []):
-                a, e = move(*(f.charspan or (0, len(ln.reading.text))))
+                a, e = f.charspan or (0, len(x))
                 if e > a and (f.bold or f.italic or f.underline or f.strikethrough or f.script != "baseline"):
                     spans.append(Span(start=at + a, end=at + e, bold=f.bold, italic=f.italic, underline=f.underline,
                                       strikethrough=f.strikethrough, script=f.script))
             for a, e, lang in languages.get(ln.id, []):
-                a, e = move(a, e)
                 if e > a:
                     spans.append(Span(start=at + a, end=at + e, language=lang))
             for a, e in formulas.get(ln.id, []):
-                a, e = move(a, e)
                 if e > a:
                     spans.append(Span(start=at + a, end=at + e, formula=True))
-            parts.append(x)
+            for a, e, kind, edit_text in edits.get(ln.id, []):
+                if e >= a:
+                    spans.append(Span(start=at + a, end=at + e, edit=kind, edit_text=edit_text))
+            parts.append(drop + x if not drop else drop + x.lstrip())
         row = " ".join(parts)                  # a row of empty lines stays, as an empty row
-        text += ("\n" if row_texts else "") + row
-        row_texts.append(row)
-    return text, spans
-
-
-def _moved(old: str, new: str):
-    """A function moving a span ``[start, end)`` of ``old`` onto ``new`` (another form of the same text): through
-    the parts both share unchanged; a span's start in a changed part goes to that part's start, its end to its end
-    (a span on a half that became the whole word covers the word; one on removed text is empty)."""
-    if old == new:
-        return lambda a, e: (a, e)
-    ops = SequenceMatcher(None, old, new, autojunk=False).get_opcodes()
-
-    def at(pos: int, end: bool) -> int:
-        for tag, i1, i2, j1, j2 in (reversed(ops) if end else ops):
-            if i1 <= pos <= i2:
-                return j1 + pos - i1 if tag == "equal" else (j2 if end else j1)
-        return len(new)
-
-    return lambda a, e: (at(a, False), at(e, True))
+        text += ("\n" if k else "") + row
+        row_spans.append((start, len(text)))
+    return text, spans, row_spans
 
 
 def _continue_grid(grid: Grid, more: Grid, in_cell: bool) -> None:

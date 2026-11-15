@@ -6,7 +6,7 @@ import pytest
 
 from linecaster.data import Annotator, RenderingPolicy, RenderingRule, Source, Transcription
 from linecaster.data.policy import DEFAULT_POLICY, region_label, role_of_label
-from linecaster.text.variants import page_text
+from linecaster.text.page import page_text
 
 
 def test_the_default_policy_is_the_catalog_s():

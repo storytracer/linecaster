@@ -17,6 +17,7 @@ from legacy_builder import LegacyDocumentBuilder  # noqa: E402
 from legacy_docling import page2  # noqa: E402
 from linecaster.data import Transcription  # noqa: E402
 from linecaster.data.upgrade import upgrade_transcription  # noqa: E402
+from linecaster.document.strategy import apply  # noqa: E402
 from linecaster.engines import LinkedCompositionEngine, UnicodeRecompositionEngine  # noqa: E402
 from linecaster.text.recomposition import paragraphs, split_ref  # noqa: E402
 
@@ -142,11 +143,27 @@ def _content(doc) -> list[tuple]:
     return out
 
 
+def _clipped(block: tuple) -> tuple:
+    """The legacy builder counted a division mark it removed in its row's span (``(26, 38)`` then ``(37, ...)``); a
+    strategy's span ends where the next row's begins."""
+    region, *origins = block[6]
+    clipped = [(pg, box, (a, min(e, origins[k + 1][2][0]) if k + 1 < len(origins) else e))
+               for k, (pg, box, (a, e)) in enumerate(origins)]
+    return (*block[:6], (region, *clipped))
+
+
 def legacy(pages, text, sections, name="item"):
     b = LegacyDocumentBuilder(name, text=text, sections=sections)
     for t in pages:
         b.add_page(page2(t), 1000, 2000)
-    return _legacy_content(b.build(), b.region_of)
+    out = _legacy_content(b.build(), b.region_of)
+    return [_clipped(x) for x in out] if text == "reflow" else out
+
+
+def _as_legacy(doc, text):
+    """The literal document as the legacy builder wrote it: reflowed, its division marks resolved by squiddleocr's
+    rule and the rows flowed (the strategy ``unicode-marks+flow``); laid out, as it is."""
+    return apply(doc, "unicode-marks+flow") if text == "reflow" else doc
 
 
 def ours(pages, text, sections, name="item"):
@@ -156,14 +173,14 @@ def ours(pages, text, sections, name="item"):
         UnicodeRecompositionEngine()(pages, page_ids=ids)
     doc = LinkedCompositionEngine(sections=sections).item_document(pages, name, page_ids=ids,
                                                                   sizes=[(1000, 2000)] * len(pages))
-    return _content(doc)
+    return _content(_as_legacy(doc, text))
 
 
 def ours_page(t, text, sections):
     t = t.model_copy(deep=True)
     if text == "reflow":
         UnicodeRecompositionEngine()([t])
-    return _content(LinkedCompositionEngine(sections=sections)(t, name="item", width=1000, height=2000))
+    return _content(_as_legacy(LinkedCompositionEngine(sections=sections)(t, name="item", width=1000, height=2000), text))
 
 
 def two_pages():
@@ -208,8 +225,6 @@ def test_random_items_exercise_the_rules():
             seen |= {(d.kind, d.reason) for p in paragraphs(t) for d in p.decisions}
             seen |= {("across pages", "") for p in paragraphs(t)
                      if (ref := t.link(p.id, "continues")) is not None and split_ref(ref)[0] is not None}
-    assert {("mark_removed", "letter_follows"), ("hyphen_kept", "capital_follows"),
-            ("hyphen_kept", "digit_follows"), ("hyphen_kept", "no_letter_follows"),
-            ("paragraph_break", "indent"), ("paragraph_break", "gap"), ("paragraph_break", "short_row"),
+    assert {("paragraph_break", "indent"), ("paragraph_break", "gap"), ("paragraph_break", "short_row"),
             ("continuation", "division_mark"),
             ("continuation", "end_margin"), ("across pages", "")} <= seen, seen

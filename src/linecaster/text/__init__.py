@@ -1,7 +1,6 @@
-"""Text transforms on transcriptions: the named text variants (``variants``), Unicode normalization
-(``unicode``), recomposition of lines into running text (``recomposition``) and the typographic hierarchy
-(``typography``). Import-light: no datatrove, saturate or engines."""
-from .unicode import FORMS, normalize_transcription
-from .variants import VARIANTS
+"""Text transforms on transcriptions: recomposition of lines into paragraphs (``recomposition``), the typographic
+hierarchy (``typography``), the character rules of normalizations (``normalize``) and offsets through a change of
+text (``offsets``). Nothing here changes a transcription's text: a text is changed only when it is written, by a
+transcription strategy (``linecaster.document.strategy``). Import-light: no datatrove, saturate or engines."""
 
-__all__ = ["FORMS", "VARIANTS", "normalize_transcription"]
+__all__: list[str] = []

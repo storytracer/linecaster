@@ -48,7 +48,7 @@ def test_json_is_the_complete_document():
     t.lines[0].reading.text = "THE TITLE ſ ä"
     doc = build_document(t, name="p1", width=1000, height=1000)
     data = json.loads(to_json(doc))
-    assert data["schema"] == "linecaster.document/1" and "ſ ä" in to_json(doc)
+    assert data["schema"] == "linecaster.document/2" and "ſ ä" in to_json(doc)
     assert {b["layer"] for b in data["blocks"]} == {"body", "furniture"}
     assert from_json(to_json(doc)) == doc and to_json(doc.model_dump(by_alias=True)) == to_json(doc)
 
@@ -166,12 +166,12 @@ def test_item_exports_every_format(tmp_path: Path):
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
     items = list(Composer("linked-composition", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
-    list(ItemDocumentWriter(str(tmp_path), formats=tuple(EXPORT_FORMATS), suffix=".x").run(iter(items)))
-    names = sorted(p.name for p in tmp_path.iterdir())
+    list(ItemDocumentWriter(str(tmp_path), texts=[f"literal:{f}" for f in EXPORT_FORMATS], suffix=".x").run(iter(items)))
+    names = sorted(p.name for p in (tmp_path / "literal").iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
     doc = load_document(items[0].metadata[DOCUMENT_KEY])
-    assert (tmp_path / "book.x.json").read_text() == to_json(doc)
-    assert json.loads((tmp_path / "book.x.json").read_text())["name"] == "book"
+    assert (tmp_path / "literal" / "book.x.json").read_text() == to_json(doc)
+    assert json.loads((tmp_path / "literal" / "book.x.json").read_text())["name"] == "book"
     body = doc.layer("body")
     assert [(b.kind, b.section) for b in body] == [("heading", "b0"), ("paragraph", "b0"), ("paragraph", "b0")]
     assert [o.page for b in body for o in b.origins if b.kind == "paragraph"] == [1, 2]
@@ -298,7 +298,7 @@ def test_paragraphs_continue_by_their_links():
 
     assert item() == ["The first page ends with a long sen-", "tence that ends here."]
     joined = item((0, "runs_into", "text_1_p0", "p2#text_1_p0"), (1, "continues", "text_1_p0", "p1#text_1_p0"))
-    assert joined == ["The first page ends with a long sen-tence that ends here."]
+    assert joined == ["The first page ends with a long sen-\ntence that ends here."]      # literal: one block, two rows
 
 
 def test_regions_continue_by_their_links():
@@ -317,12 +317,22 @@ def test_regions_continue_by_their_links():
             b.add_page(t, 1000, 1000, page_id=f"p{k + 1}")
         return [x for x in b.build().blocks if x.kind == "paragraph"]
 
+    def flowed(blocks, strategy="flow"):
+        from linecaster.document import Document
+        from linecaster.document.strategy import apply
+
+        return apply(Document(name="item", blocks=blocks), strategy).blocks
+
     assert [x.text for x in item("A long sen-", "tence ends.", linked=False)] == ["A long sen-", "tence ends."]
     joined = item("A long sen-", "tence ends.")
-    assert [x.text for x in joined] == ["A long sentence ends."]
-    assert [(o.page, o.span) for o in joined[0].origins] == [(1, [0, 11]), (2, [10, 21])]
-    assert [x.text for x in item("runs on to the", "next page.")] == ["runs on to the next page."]
-    assert [x.text for x in item("the well-", "Known name")] == ["the well-Known name"]
+    assert [x.text for x in joined] == ["A long sen-\ntence ends."] and joined[0].wraps == [11]   # literal: two rows
+    assert [(o.page, o.span) for o in joined[0].origins] == [(1, [0, 11]), (2, [12, 23])]
+    assert [x.text for x in flowed(joined)] == ["A long sen-tence ends."]           # flow: the mark kept, no space
+    marks = flowed(joined, "unicode-marks+flow")
+    assert [x.text for x in marks] == ["A long sentence ends."]                     # a named rule removes it
+    assert [(o.page, o.span) for o in marks[0].origins] == [(1, [0, 10]), (2, [10, 21])]
+    assert [x.text for x in flowed(item("runs on to the", "next page."))] == ["runs on to the next page."]
+    assert [x.text for x in flowed(item("the well-", "Known name"), "unicode-marks+flow")] == ["the well-Known name"]
     verse = DocumentBuilder("item")                          # a block of several rows goes on with a new row
     pages = [page_t(1, ["The night was dark,", "the wind was cold,"]), page_t(2, ["and all the trees"])]
     pages[0].links.append(Link(annotator=0, kind="runs_into", source="text_1", target="p2#text_1"))

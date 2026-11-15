@@ -2,9 +2,9 @@
 
 ``doc.id`` is the item id and ``doc.metadata["item"]`` the item record: ``{"item_id": ..., "pages": [...]}``, the
 page records (``Page`` as JSON-compatible dicts) in sequence order. The ``Binder`` makes it; the item-unit blocks
-(``Recomposer``, ``CharacterNormalizer`` and ``Composer`` with ``unit="item"``) read and extend it; a ``Composer``
+(``Recomposer`` and ``Composer`` with ``unit="item"``) read and extend it; a ``Composer``
 adds the item's document next to it (``doc.metadata["document"]``, ``["item_id"]``), which the
-``ItemDocumentWriter`` writes; the ``ItemTextWriter`` renders the text variants from its pages; the ``Splitter``
+``ItemDocumentWriter`` and the ``ItemTextWriter`` write by transcription strategies; the ``Splitter``
 passes its pages on as page documents.
 
 ``gather`` collects a page stream into items: a task must see whole items (linecaster's run layout buckets page

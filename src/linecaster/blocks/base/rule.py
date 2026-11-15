@@ -1,4 +1,4 @@
-"""``RuleBlock``: the base of the blocks of the rule-based steps (image, normalization, typography, recomposition,
+"""``RuleBlock``: the base of the blocks of the rule-based steps (image, typography, recomposition,
 composition), each on a built-in engine (``linecaster.engines``) that runs in the pipeline's process.
 
 A rule block takes its engine like a model block: a catalog preset (``"ratios"``, ``id@edition``; ``id`` alone

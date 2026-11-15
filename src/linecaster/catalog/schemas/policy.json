@@ -208,17 +208,6 @@
       "title": "Precedence",
       "type": "object"
     },
-    "edits": {
-      "additionalProperties": {
-        "items": {
-          "type": "string"
-        },
-        "type": "array"
-      },
-      "description": "per text variant: the edit kinds it applies",
-      "title": "Edits",
-      "type": "object"
-    },
     "tables": {
       "$ref": "#/$defs/TableRules",
       "description": "what counts as a table when written out"

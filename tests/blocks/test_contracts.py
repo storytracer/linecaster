@@ -43,7 +43,7 @@ def test_every_block_has_a_contract():
 
 def test_the_part_vocabulary():
     assert set(PRODUCES) < set(PARTS)
-    assert {"image", "metadata", "line_regions", "hierarchy", "nfc", "document"} <= set(PARTS)
+    assert {"image", "metadata", "line_regions", "hierarchy", "document"} <= set(PARTS) and "nfc" not in PARTS
     assert str(Part("lines", "ocr_new")) == "ocr_new:lines" and str(Part("image")) == "image"
     assert Part.parse("ocr_original:*") == Part("*", "ocr_original") and Part.parse("metadata") == Part("metadata")
     assert Part("*", "ocr_original").covers(Part("lines", "ocr_original"))
@@ -125,7 +125,6 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     from linecaster.blocks.lines import LineAssigner
     from linecaster.blocks.readers import ImageFolderReader, ManifestReader, PageRecordReader
     from linecaster.blocks.servers import ModelServer
-    from linecaster.blocks.text import CharacterNormalizer, UnicodeNormalizer
     from linecaster.blocks.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
 
     def names(ps):
@@ -140,7 +139,6 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert PageRecordReader(str(tmp_path), item_shards=True).whole_items
     a = LineAssigner().contract()
     assert names(a.adds) == ["ocr_new:line_regions"] and Part("lines", "ocr_new") in a.replaces
-    assert names(UnicodeNormalizer().contract().adds) == ["ocr_new:nfc"]
     assert names(Typographer("ratios").contract().adds) == ["ocr_new:hierarchy"]
     assert names(Composer("linked-composition").contract().adds) == ["ocr_new:document"]
     assert names(Composer("linked-composition").contract().reads) == ["ocr_new:lines", "ocr_new:regions"]
@@ -150,12 +148,10 @@ def test_contracts_of_the_blocks_without_a_model(tmp_path):
     assert names(r.adds) == ["ocr_new:paragraphs"] and names(r.reads) == ["ocr_new:lines", "ocr_new:regions"]
     assert r.replaces == r.adds                    # paragraphs made anew where they exist
     assert Recomposer("unicode-recomposition", unit="item").contract().unit == "item"
-    assert names(CharacterNormalizer("latin-historic").contract().adds) == ["ocr_new:normalized"]
-    assert CharacterNormalizer("latin-historic", unit="item").contract().unit == "item"
     assert Binder().contract() == Contract(unit="page", unit_out="item", role="binder")
     assert Splitter().contract() == Contract(unit="item", unit_out="page", role="splitter")
-    assert names(ItemTextWriter(str(tmp_path)).contract().reads) == [
-        "ocr_new:lines", "ocr_new:normalized", "ocr_new:paragraphs"]
+    assert ItemTextWriter(str(tmp_path)).contract() == Contract(unit="item", role="writer",
+                                                               reads=frozenset({Part("document")}))
     assert ItemDocumentWriter(str(tmp_path)).contract() == Contract(unit="item", role="writer",
                                                                    reads=frozenset({Part("document")}))
     files = PageFileWriter(str(tmp_path), formats=("hocr", "md", "json", "plot", "transcription")).contract()
@@ -258,7 +254,6 @@ def _one_of_each(tmp_path) -> list:
         "RuleBlock": {"preset": InProcess("pkg:Rules", x=1)}, "Typographer": {"preset": "ratios"},
         "Recomposer": {"preset": "unicode-recomposition", "unit": "item"},
         "Composer": {"preset": "linked-composition", "options": {"sections": True}},
-        "CharacterNormalizer": {"preset": "latin-historic"},
         "ImageConverter": {"output_folder": str(tmp_path / "webp"), "preset": "working-image"},
     }
     out = []
@@ -286,7 +281,7 @@ def test_every_block_family_goes_into_the_run_record_as_built(tmp_path, monkeypa
     monkeypatch.setenv("LC_TEST_KEY", "s3cret-value")
     blocks = _one_of_each(tmp_path)
     assert {family(type(b)) for b in blocks} >= {"base", "binding", "composition", "conversion", "layout", "lines",
-                                                 "readers", "recognition", "servers", "text", "validation", "writers"}
+                                                 "readers", "recognition", "servers", "validation", "writers"}
     composite = ModularTranscriber(InProcess("pkg:Lines"), InProcess("pkg:Text"), "single-region")
     plan = build([*blocks, composite])            # contracts need not fit: every block is described
     rec = provenance.run_record({"on": "local", "tasks": 1}, plan)

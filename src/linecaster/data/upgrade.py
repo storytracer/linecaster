@@ -12,12 +12,14 @@ from typing import Any
 
 from .policy import role_of_label
 from .transcription import (
-    RULE_STEPS, SCHEMA, Annotator, Cell, Classification, Decision, Description, Edit, Formula, Line, Link, Paragraph,
+    DECISIONS, RULE_STEPS, SCHEMA, Annotator, Cell, Classification, Decision, Description, Edit, Formula, Line, Link,
+    Paragraph,
     ParagraphRow, RawOutput, Reading, ReadingOrder, Region, Source, Table, Transcription, Word,
 )
 
 OLD = "linecaster.page/2"
 PAGE_3 = "linecaster.page/3"
+PAGE_4 = "linecaster.page/4"
 PAGE_KEY = "page"
 
 
@@ -60,10 +62,7 @@ def _table(d: dict, target: str, annotator: int, edits: list[Edit], edit_by: int
         cell = Cell(start_row=c["row"], end_row=c["row"] + c.get("row_span", 1), start_col=c["col"],
                     end_col=c["col"] + c.get("col_span", 1), text=c.get("text", ""), box=c.get("bbox"),
                     column_header=bool(c.get("header", False)))
-        cells.append(cell)
-        if c.get("normalized") is not None:
-            edits.append(Edit(annotator=edit_by, target=f"{target}/{cell.ref}", kind="normalized",
-                              text=c["normalized"]))
+        cells.append(cell)                     # a stored normalization of the cell is derived: not kept (page/5)
     known = {"cells", "num_rows", "num_cols", "html"}
     return Table(annotator=annotator, target=target, cells=cells, html=d.get("html"),
                  num_rows=d.get("num_rows") or max((c.end_row for c in cells), default=0),
@@ -159,8 +158,6 @@ def upgrade_transcription(d: dict, page_id: str | None = None) -> Transcription:
                             region=_id(ln["region_id"]) if ln.get("region_id") is not None else None,
                             box=ln.get("bbox"), polygon=ln.get("polygon"), baseline=ln.get("baseline"),
                             confidence=ln.get("score"), reading=reading, **_ext(ln.get("extra"))))
-        if ln.get("normalized") is not None:
-            t.edits.append(Edit(annotator=norm_by, target=lid, kind="normalized", text=ln["normalized"]))
     t.lines.extend(ln for ln in restored if t.line(ln.id) is None)
     ordered = sorted(enumerate(lines), key=lambda il: (il[1].get("reading_order", 0), il[0]))
     if regions or lines:
@@ -173,12 +170,10 @@ def upgrade_transcription(d: dict, page_id: str | None = None) -> Transcription:
     for p in d.get("paragraphs") or []:
         pid = _id(p["id"])
         t.ranges.append(Paragraph(annotator=rec, id=pid, parts=[_id(p["region_id"])] if p.get("region_id") else [],
-                                  text=p.get("text", ""),
-                                  rows=[ParagraphRow(lines=[_id(x) for x in row["lines"]],
-                                                     charspan=[row["start"], row["end"]]) for row in p.get("rows", [])],
-                                  decisions=[Decision(**dc) for dc in p.get("decisions", [])], **_ext(p.get("extra"))))
-        if p.get("normalized") is not None:
-            t.edits.append(Edit(annotator=norm_by, target=pid, kind="normalized", text=p["normalized"]))
+                                  rows=[ParagraphRow(lines=[_id(x) for x in row["lines"]]) for row in p.get("rows", [])],
+                                  decisions=[Decision(**{k: v for k, v in dc.items() if k != "separator"})
+                                             for dc in p.get("decisions", []) if dc.get("kind") in DECISIONS],
+                                  **_ext(p.get("extra"))))
         for key, kind in (("continues_from", "continues"), ("continues", "runs_into")):
             ref = p.get(key)
             if ref:
@@ -223,9 +218,54 @@ def _same(row: dict) -> dict:
     return row
 
 
+def _page_4_to_5_set(t: dict) -> dict:
+    """One annotation set of a page/4 row in page/5: what linecaster derived from the text goes (``nfc`` and
+    ``normalized`` edits, a paragraph's text and its rows' character spans, the decisions on division marks: a
+    strategy makes them when a text is written); a drop capital joined to its line (a whole-line ``joined`` edit
+    derived from the drop capital's lines) becomes its region's ``part_of`` link to that line, the region no longer
+    removed."""
+    edits, links, freed = [], list(t.get("links") or []), set()
+    lines = {ln["id"]: ln for ln in t.get("lines") or []}
+    for e in t.get("edits") or []:
+        kind = e.get("kind")
+        if kind in ("nfc", "normalized"):
+            continue
+        if kind == "joined" and "[" not in str(e.get("target", "")):
+            src = [lines[x]["region"] for x in e.get("derived_from") or [] if x in lines and lines[x].get("region")]
+            if src:                                                   # a drop capital, as typography joined it
+                links.append({"annotator": e["annotator"], "kind": "part_of", "source": src[0],
+                              "target": e["target"]})
+                freed.add(src[0])
+            continue                                                  # a whole line made over: derived, gone
+        edits.append(e)
+    t["edits"] = edits
+    t["links"] = links
+    if freed:
+        t["classifications"] = [c for c in t.get("classifications") or []
+                                if not (c.get("target") in freed and c.get("scheme") == "status")]
+    for r in t.get("ranges") or []:
+        if r.get("kind", "paragraph") != "paragraph":
+            continue
+        r.pop("text", None)
+        for row in r.get("rows") or []:
+            row.pop("charspan", None)
+        r["decisions"] = [{k: v for k, v in d.items() if k != "separator"} for d in r.get("decisions") or []
+                          if d.get("kind") in DECISIONS]
+    return t
+
+
+def page_4_to_5(row: dict) -> dict:
+    """A stored page/4 row in page/5 (``_page_4_to_5_set`` on every annotation set)."""
+    page = dict(row.get(PAGE_KEY) or {})
+    for key in ("transcriptions", "annotations"):
+        if page.get(key):
+            page[key] = {name: _page_4_to_5_set(dict(t)) for name, t in page[key].items()}
+    return {**row, PAGE_KEY: page}
+
+
 #: a stored row's ``schema`` -> the function that brings it to the next version, and that version
 UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, OLD),
-            OLD: (page_2_to_3, PAGE_3), PAGE_3: (_same, SCHEMA)}
+            OLD: (page_2_to_3, PAGE_3), PAGE_3: (_same, PAGE_4), PAGE_4: (page_4_to_5, SCHEMA)}
 
 
 def upgrade(row: dict) -> dict:

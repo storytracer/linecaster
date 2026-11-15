@@ -1,6 +1,8 @@
-"""Item writers, from item records (``linecaster.blocks.base.item``): the item's document (``ItemDocumentWriter``)
-and its text variants (``ItemTextWriter``: JSON Lines, one folder per variant, or files,
-``<variant>/<item_id>.txt|.md``)."""
+"""Item writers, from item records (``linecaster.blocks.base.item``): the item's document written by transcription
+strategies, a file per item and text (``ItemDocumentWriter``: ``<strategy>/<item_id>.<ext>``), or as JSON Lines, a row
+per item and text (``ItemTextWriter``). A text is ``<strategy>:<format>``: ``literal`` or a strategy of the catalog
+(``linecaster.catalog``: ``Catalog.strategy``; normalizations joined by ``+`` too), in ``md``, ``txt``, ``html`` or
+``json`` (``linecaster.document.export``). Nothing is normalized unless a text names a strategy."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -10,30 +12,63 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
-from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
-from ...data.policy import DEFAULT_POLICY
-from ...errors import PipelineConfigError
+from ...catalog.registry import DEFAULT_POLICY_REF, catalog, rendering_policy
+from ...errors import CatalogError, PipelineConfigError
 from ...document import DOCUMENT_KEY, EXPORT_FORMATS, export, load_document
-from ...text.variants import VARIANTS, variants
-from ..base.contract import Contract, Contracted, Part, parts
+from ...document.strategy import apply
+from ..base.contract import Contract, Contracted, Part
 from ..base.item import ITEM_KEY, item_pages
+
+#: what a run writes unless it names texts: the document as the builder made it
+DEFAULT_TEXTS = ("literal:json",)
+
+
+def parse_texts(texts) -> tuple[tuple[str, str], ...]:
+    """Text specs (``<strategy>:<format>``, a sequence or comma-separated) as (strategy, format) pairs, each checked:
+    a known output strategy, a known format; anything else is a ``PipelineConfigError``."""
+    specs = [x.strip() for x in (texts.split(",") if isinstance(texts, str) else texts) if x and x.strip()]
+    out = []
+    for spec in specs:
+        strategy, sep, fmt = spec.rpartition(":")
+        if not sep or not strategy or fmt not in EXPORT_FORMATS:
+            raise PipelineConfigError(f"text {spec!r}: <strategy>:<format>, the format one of "
+                                      f"{', '.join(EXPORT_FORMATS)} (e.g. literal:txt, latin-historic+flow:md)")
+        try:
+            catalog().strategy(strategy, use="output")
+        except CatalogError as e:
+            raise PipelineConfigError(f"text {spec!r}: {e.args[0]}") from None
+        out.append((strategy, fmt))
+    return tuple(out)
+
+
+class _Written:
+    """An item's document written by each strategy at most once."""
+
+    def __init__(self, doc):
+        self.doc, self.by = doc, {}
+
+    def __call__(self, strategy: str):
+        if strategy not in self.by:
+            self.by[strategy] = apply(self.doc, strategy)
+        return self.by[strategy]
 
 
 class ItemDocumentWriter(Contracted, PipelineStep):
-    """Writes the document of each item record, one file per format: Markdown, text, HTML, JSON.
+    """Writes the document of each item record by transcription strategies, one file per item and text.
 
-    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["document"]``) and writes
-    ``<item id><suffix>.<ext>`` (``linecaster.document.export``); an item record without a document is counted
-    (``no_document``). Item records pass through.
+    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["document"]``: the literal
+    document), writes it by each text's strategy (``linecaster.document.strategy``) in the text's format
+    (``linecaster.document.export``) to ``<strategy>/<item id><suffix>.<ext>``; an item record without a document is
+    counted (``no_document``). Item records pass through.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the documents go to.
-        formats: the formats to write: ``md``, ``txt``, ``html``, ``json``; an unknown one is a
-            ``PipelineConfigError``.
+        texts: the texts, ``<strategy>:<format>`` (default the literal document as JSON); an unknown strategy or
+            format is a ``PipelineConfigError``.
         suffix: added to each file's stem, before the extension.
         furniture: keep page headers and footers in md, txt and html.
         dividers: put ``---`` between the blocks of consecutive layout regions in md.
-        by_format: one folder per format, ``<format>/<item id><suffix>.<ext>``.
+        policy: the rendering policy whose Markdown rules the md is written by.
     """
 
     type = "💽 - WRITER"
@@ -44,16 +79,16 @@ class ItemDocumentWriter(Contracted, PipelineStep):
     def contract(self) -> Contract:
         return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
 
-    def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("md", "txt"), suffix: str = "",
-                 furniture: bool = False, dividers: bool = False, by_format: bool = False):
+    def __init__(self, output_folder: DataFolderLike, texts=DEFAULT_TEXTS, suffix: str = "", furniture: bool = False,
+                 dividers: bool = False, policy: str = DEFAULT_POLICY_REF):
         super().__init__()
-        unknown = set(formats) - set(EXPORT_FORMATS)
-        if unknown:
-            raise PipelineConfigError(f"unknown formats {sorted(unknown)}; choose from {', '.join(EXPORT_FORMATS)}")
-        self.folder, self.formats, self.suffix = get_datafolder(output_folder), tuple(formats), suffix
-        self.furniture, self.dividers, self.by_format = furniture, dividers, by_format
+        self.texts = parse_texts(texts)
+        self.folder, self.suffix = get_datafolder(output_folder), suffix
+        self.furniture, self.dividers, self.policy = furniture, dividers, policy
+        rendering_policy(policy)                      # an unknown policy fails at construction
 
     def run(self, data, rank: int = 0, world_size: int = 1):
+        rules = rendering_policy(self.policy).markdown
         for doc in data:
             meta = doc.metadata
             if DOCUMENT_KEY not in meta:
@@ -61,96 +96,79 @@ class ItemDocumentWriter(Contracted, PipelineStep):
                 yield doc
                 continue
             with self.track_time():
-                d = load_document(meta[DOCUMENT_KEY])
-                for fmt in self.formats:
-                    name = f"{meta['item_id']}{self.suffix}.{EXPORT_FORMATS[fmt]}"
-                    with self.folder.open(f"{fmt}/{name}" if self.by_format else name, "wt", encoding="utf-8") as f:
-                        f.write(export(d, fmt, self.furniture, self.dividers))
-                    self.stat_update(fmt)
+                written = _Written(load_document(meta[DOCUMENT_KEY]))
+                for strategy, fmt in self.texts:
+                    name = f"{strategy}/{meta['item_id']}{self.suffix}.{EXPORT_FORMATS[fmt]}"
+                    with self.folder.open(name, "wt", encoding="utf-8") as f:
+                        f.write(export(written(strategy), fmt, self.furniture, self.dividers, rules))
+                    self.stat_update(f"{strategy}:{fmt}")
             yield doc
 
 
-#: ``ItemTextWriter``'s formats
-ITEM_TEXT_FORMATS = ("jsonl", "files")
-
-
 def item_text_row(self, doc) -> dict:
-    """datatrove adapter for one variant of an item: ``id`` (item), ``text`` and the metadata columns."""
+    """datatrove adapter for one text of an item: ``id`` (item), ``text`` and the metadata columns."""
     return {"id": doc.id, "text": doc.text, **doc.metadata}
 
 
-def item_texts(doc: Document, variants_: tuple[str, ...] = tuple(VARIANTS), transcription: str = "ocr_new",
-               token_counter=None, policy=None) -> list[Document]:
-    """One datatrove document per text variant of the item record ``doc``: ``text`` the variant, the metadata the
-    columns ``ItemTextWriter`` writes (item id, variant, its dimensions and format, page ids, page count, and the
-    token count with a ``token_counter``). For a derivative writing the texts in a format of its own."""
+def item_texts(doc: Document, texts=(("literal", "txt"),), token_counter=None, policy=None) -> list[Document]:
+    """One datatrove document per text of the item record ``doc`` (``(strategy, format)`` pairs, ``parse_texts``):
+    ``text`` the item's document written by the strategy in the format, the metadata the columns ``ItemTextWriter``
+    writes (item id, strategy, its hash and normalizations, format, page ids, page count, and the token count with a
+    ``token_counter``). For a derivative writing the texts in a format of its own."""
     pages = item_pages(doc)
     item = doc.metadata[ITEM_KEY]["item_id"]
     ids = [p.page_id for p in pages]
-    texts = variants([p.transcription(transcription) for p in pages], ids, policy or DEFAULT_POLICY)
+    rules = (policy or rendering_policy(DEFAULT_POLICY_REF)).markdown
+    written = _Written(load_document(doc.metadata[DOCUMENT_KEY]))
     out = []
-    for variant in variants_:
-        fidelity, flow, scope, fmt = VARIANTS[variant]
-        meta = {"item_id": item, "variant": variant, "fidelity": fidelity, "flow": flow, "scope": scope,
-                "format": fmt, "page_ids": ids, "pages": len(pages)}
+    for strategy, fmt in texts:
+        s = catalog().strategy(strategy, use="output")
+        text = export(written(strategy), fmt, rules=rules)
+        meta = {"item_id": item, "spec": f"{strategy}:{fmt}", "strategy": s.id, "strategy_sha256": s.sha256,
+                "normalizations": [n.id for n in s.normalizations], "format": fmt, "page_ids": ids,
+                "pages": len(pages)}
         if token_counter is not None:
-            meta["token_count"] = token_counter(texts[variant])
-        out.append(Document(text=texts[variant], id=item, metadata=meta))
+            meta["token_count"] = token_counter(text)
+        out.append(Document(text=text, id=item, metadata=meta))
     return out
 
 
 class ItemTextWriter(Contracted, JsonlWriter):
-    """Writes the text variants of each item record as JSON Lines or as files.
+    """Writes the texts of each item record as JSON Lines, a row per item and text.
 
-    The variants (``linecaster.text.variants``): ``verbatim_txt`` from its pages' lines as laid out (pages joined
-    with a form feed; reads ``lines``), ``readable_txt`` and ``readable_md`` from the paragraphs of the item's
-    recomposition (``Recomposer(unit="item")``), normalized (``CharacterNormalizer``), body only (reads
-    ``paragraphs`` and ``normalized``). A JSON Lines row per item and variant holds ``id`` (the item), ``text`` and
-    ``item_id``, ``variant``, ``fidelity``, ``flow``, ``scope``, ``format``, ``page_ids``, ``pages`` (count) and
-    ``token_count`` with a ``token_counter``. A stream entry that is no item record is counted (``no_item``). Item
-    records pass through.
+    Each text (``<strategy>:<format>``) is the item's document (an item-level ``Composer``'s) written by the strategy
+    in the format (``item_texts``); a row holds ``id`` (the item), ``text`` and ``item_id``, ``strategy``,
+    ``strategy_sha256``, ``normalizations``, ``format``, ``page_ids``, ``pages`` (count) and ``token_count`` with a
+    ``token_counter``, in ``<strategy>.<format>/<rank>.jsonl.gz``. A stream entry that is no item record, or one
+    without a document, is counted (``no_item``, ``no_document``). Item records pass through.
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the texts go to.
-        format: ``jsonl`` (one folder per variant, ``<variant>/<rank>.jsonl.gz``) or ``files`` (one file per item
-            and variant, ``<variant>/<item_id>.<txt|md>``).
-        variants: the variants to write, names of ``VARIANTS``; an unknown one is a ``PipelineConfigError``.
-        transcription: the transcription the texts are made from.
+        texts: the texts, ``<strategy>:<format>``; an unknown strategy or format is a ``PipelineConfigError``.
         token_counter: counts a text's tokens for ``token_count`` (e.g. the length of a tiktoken encoding's
             ``encode``); default: no count.
-        policy: the rendering policy (a catalog ``policy`` edition) the texts are rendered under.
-        output_filename: the JSON Lines file name (``jsonl``), datatrove's template.
+        policy: the rendering policy whose Markdown rules the md texts are written by.
+        output_filename: the JSON Lines file name, datatrove's template.
         **kwargs: datatrove's ``JsonlWriter`` arguments (``compression``, ``max_file_size``, ...).
     """
 
     unit, role = "item", "writer"
-    docs_args = {"output_folder": "out/texts"}
+    name = "📚 item texts"
+    docs_args = {"output_folder": "out/texts", "texts": ("literal:txt",)}
 
     def contract(self) -> Contract:
-        names = {"lines"} if "verbatim_txt" in self.variants else set()
-        if any(v != "verbatim_txt" for v in self.variants):
-            names |= {"paragraphs", "normalized"}
-        return Contract(unit=self.unit, role=self.role, reads=parts(sorted(names), self.transcription))
+        return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
 
-    def __init__(self, output_folder: DataFolderLike, format: str = "jsonl",
-                 variants: tuple[str, ...] = tuple(VARIANTS), transcription: str = "ocr_new",
+    def __init__(self, output_folder: DataFolderLike, texts=("literal:txt",),
                  token_counter: Callable[[str], int] | None = None,
-                 output_filename: str = "${variant}/${rank}.jsonl.gz", policy: str = DEFAULT_POLICY_REF, **kwargs):
-        if format not in ITEM_TEXT_FORMATS:
-            raise PipelineConfigError(f"unknown format {format!r}; choose from {', '.join(ITEM_TEXT_FORMATS)}")
-        unknown = set(variants) - set(VARIANTS)
-        if unknown:
-            raise PipelineConfigError(f"unknown variants {sorted(unknown)}; known: {sorted(VARIANTS)}")
-        self.name = f"📚 item texts ({format})"     # before the base __init__, which names the stats
+                 output_filename: str = "${strategy}.${format}/${rank}.jsonl.gz", policy: str = DEFAULT_POLICY_REF,
+                 **kwargs):
+        self.texts = parse_texts(texts)
+        if not self.texts:
+            raise PipelineConfigError("ItemTextWriter: name the texts to write (<strategy>:<format>)")
         super().__init__(output_folder, output_filename, adapter=item_text_row, **kwargs)
-        self.format, self.variants, self.transcription, self.token_counter = \
-            format, tuple(variants), transcription, token_counter
-        self.policy = policy
+        self.token_counter, self.policy = token_counter, policy
         rendering_policy(policy)                      # an unknown policy fails at construction
-
-    def texts(self, doc: Document) -> list[Document]:
-        """One datatrove document per variant of the item record ``doc`` (``item_texts``)."""
-        return item_texts(doc, self.variants, self.transcription, self.token_counter, rendering_policy(self.policy))
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         with self:
@@ -159,16 +177,14 @@ class ItemTextWriter(Contracted, JsonlWriter):
                     self.stat_update("no_item")
                     yield doc
                     continue
+                if DOCUMENT_KEY not in doc.metadata:
+                    self.stat_update("no_document")
+                    yield doc
+                    continue
                 with self.track_time():
-                    for text in self.texts(doc):
-                        variant = text.metadata["variant"]
-                        if self.format == "jsonl":
-                            self.write(text, rank)
-                        else:
-                            ext = "md" if text.metadata["format"] == "text/markdown" else "txt"
-                            with self.output_folder.open(f"{variant}/{text.id}.{ext}", "wb") as f:
-                                f.write(text.text.encode("utf-8"))
-                        self.stat_update(variant)
-                        self.stat_update(f"{variant}_chars", value=len(text.text))
+                    for text in item_texts(doc, self.texts, self.token_counter, rendering_policy(self.policy)):
+                        self.write(text, rank)
+                        self.stat_update(text.metadata["spec"])
+                        self.stat_update(f"{text.metadata['spec']}_chars", value=len(text.text))
                 self.stat_update("items")
                 yield doc

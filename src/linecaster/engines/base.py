@@ -1,4 +1,4 @@
-"""The engine protocol of the rule-based steps (image, normalization, typography, recomposition, composition), and
+"""The engine protocol of the rule-based steps (image, typography, recomposition, composition), and
 the dispatch of their decisions by script.
 
 A rule-based engine (a **strategy**) is a class like a model engine, without weights:
@@ -17,7 +17,7 @@ A rule-based engine (a **strategy**) is a class like a model engine, without wei
 They run in the pipeline's process only (``linecaster.catalog.registry.IN_PROCESS_ONLY``): rules are cheaper than a
 request.
 
-**Dispatch by script.** A by-script engine (``recomposition.by-script.v1``, ``normalization.by-script.v1``) is
+**Dispatch by script.** A by-script engine (``recomposition.by-script.v1``) is
 constructed with ``strategies``: ISO 15924 code -> strategy, and ``"*"`` -> the default strategy, each as
 ``Strategy`` (the engine as ``module:Class``, its options, the preset edition it came from), which a preset's
 ``by_script`` resolves to. ``ScriptDispatch`` builds them and routes each decision to the strategy of the script

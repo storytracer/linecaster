@@ -1,26 +1,23 @@
-"""NFC step and the item-level document (sections, dividers, paragraphs across page breaks)."""
+"""The literal text and NFC as a normalization; the item-level document (sections, dividers, paragraphs across page\nbreaks)."""
 from __future__ import annotations
 
 import io
 import unicodedata
 
-import pytest
 from PIL import Image
 
 from linecaster.blocks.base.page import new_page_document, page_of, set_page
 from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition import Composer, Recomposer
-from linecaster.blocks.text.unicode import UnicodeNormalizer
 from linecaster.blocks.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Annotator, Transcription, Word
 from linecaster.engines import UnicodeRecompositionEngine
 from linecaster.document import DocumentBuilder, to_markdown, to_text
-from linecaster.text.unicode import normalize_transcription
 
 from conftest import page_t
 
 
-# ---------------------------------------------------------------------- NFC
+# ------------------------------------------------------- literal and NFC
 def _read(text, words=()):
     t = Transcription()
     a = t.add_annotator(Annotator(step="recognition", name="test"))
@@ -29,33 +26,20 @@ def _read(text, words=()):
     return t
 
 
-def test_normalize_unicode_nfc():
+def test_the_literal_text_is_the_reading_and_nfc_a_normalization():
+    """A recognizer's decomposed text (kraken writes a + U+0308) is the literal text as read: nothing composes it
+    unless a strategy names the normalization nfc."""
+    from linecaster.document import build_document
+    from linecaster.document.strategy import apply
+
     dec = "Extremita\u0308t"
-    t = _read(dec, [Word(text=dec, box=[1, 2, 3, 4], alternatives=["a\u0308"]), Word(text="und", box=[5, 2, 3, 4])])
-    assert normalize_transcription(t) == 2
-    ln = t.lines[0]
-    assert t.text_of(ln) == "Extremität" == unicodedata.normalize("NFC", dec)
-    assert ln.reading.text == dec and ln.reading.alternatives == [dec]           # the reading stays as read
-    assert [(e.target, e.kind, e.text) for e in t.edits] == [("l0", "nfc", "Extremität"), ("l0/0", "nfc", "Extremität")]
-    assert ln.reading.words[0].box == [1, 2, 3, 4] and t.text == "Extremität"
-    m = t.annotators[-1]
-    assert (m.kind, m.step, m.settings["form"], m.measurements["changed"]) == ("rule", "unicode", "NFC", 2)
-    assert all(e.annotator == 1 for e in t.edits)
-    assert normalize_transcription(_read("Extremität")) == 0                  # NFC already: no edit
-    with pytest.raises(ValueError):
-        normalize_transcription(t, "NFKC")                    # compatibility folding is refused
-
-
-def test_normalize_unicode_block_updates_doc_text():
-    buf = io.BytesIO()
-    Image.new("RGB", (10, 10)).save(buf, format="PNG")
-    doc = new_page_document("p", buf.getvalue())
-    page = page_of(doc)
-    page.transcriptions["ocr_new"] = _read("scho\u0308n")
-    set_page(doc, page)
-    out = list(UnicodeNormalizer().run(iter([doc])))
-    t = page_of(out[0]).transcriptions["ocr_new"]
-    assert out[0].text == "schön" and t.text_of(t.lines[0]) == "schön" and t.lines[0].reading.text == "scho\u0308n"
+    t = _read(dec, [Word(text=dec, box=[1, 2, 3, 4], alternatives=["a\u0308"])])
+    assert t.text_of(t.lines[0]) == dec == t.text and not t.edits
+    t = page_t(1, [dec, "und"])
+    doc = build_document(t)
+    assert to_text(doc).startswith(dec + "\nund")
+    assert to_text(apply(doc, "nfc")).startswith("Extremität\nund") and "Extremität" == unicodedata.normalize("NFC", dec)
+    assert apply(doc, "nfc").strategy == "nfc" and doc.strategy == "literal"
 
 
 # --------------------------------------------------------------- item level
@@ -78,7 +62,11 @@ def test_paragraph_continues_across_the_page_break_with_page_provenance():
         b.add_page(t, 1000, 1000, page_id=pid)
     doc = b.build()
     para = [x for x in doc.blocks if x.text.startswith("It was")][0]
-    assert "turned to the north, where the ice waited." in para.text
+    assert "turned to\nthe north, where the ice waited." in para.text                 # literal: rows as laid out
+    from linecaster.document.strategy import apply
+
+    flowed = [x for x in apply(doc, "flow").blocks if x.text.startswith("It was")][0]
+    assert "turned to the north, where the ice waited." in flowed.text
     assert sorted({o.page for o in para.origins}) == [1, 2]
     assert [t.annotators[-1].measurements["continuations"] for t in pages] == [0, 1]
     assert [p.page for p in doc.pages] == [1, 2]
@@ -117,14 +105,16 @@ def test_item_blocks_group_pages_and_write(tmp_path):
     stream = iter(docs)
     for block in (Binder(), Recomposer("unicode-recomposition", unit="item"),
                   Composer("linked-composition", unit="item", options={"sections": True}),
-                  ItemDocumentWriter(str(tmp_path), formats=("md", "txt", "json"), dividers=True)):
+                  ItemDocumentWriter(str(tmp_path), texts=("literal:md", "literal:txt", "literal:json", "flow:md"),
+                                     dividers=True)):
         stream = block.run(stream)
     out = list(stream)
     assert len(out) == 1 and out[0].id == "b1"
     assert [p["page_id"] for p in out[0].metadata["item"]["pages"]] == ["b1-1", "b1-2"]
-    md = (tmp_path / "b1.md").read_text()
-    assert md.startswith("### CHAPTER I") and "turned to the north" in md   # a level-2 heading
-    assert (tmp_path / "b1.txt").exists() and (tmp_path / "b1.json").exists()
+    md = (tmp_path / "literal" / "b1.md").read_text()
+    assert md.startswith("### CHAPTER I") and "turned to\nthe north" in md   # a level-2 heading; rows as laid out
+    assert "turned to the north" in (tmp_path / "flow" / "b1.md").read_text()
+    assert (tmp_path / "literal" / "b1.txt").exists() and (tmp_path / "literal" / "b1.json").exists()
 
 
 def test_a_title_opens_its_section_after_a_reflow():

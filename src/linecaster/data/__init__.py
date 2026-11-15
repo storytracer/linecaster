@@ -3,7 +3,7 @@ and annotations; content roles and rendering policies; references; the measureme
 stored page records; and the geometry helpers (``linecaster.data.geometry``). Import-light: pydantic and numpy; no
 datatrove, saturate or engines."""
 from .measurements import FINISH_REASONS, MEASUREMENTS
-from .page import PAGE_KEY, PAGE_SCHEMA, Item, Page, PageImage, Text
+from .page import PAGE_KEY, PAGE_SCHEMA, Item, Page, PageImage
 from .source import SourceDocument
 from .policy import DEFAULT_POLICY, LAYERS, ROLES, MarkdownRules, RenderingPolicy, RenderingRule, TableRules
 from .transcription import (
@@ -18,5 +18,5 @@ __all__ = [
     "Box", "Cell", "Classification", "Decision", "Description", "DocumentRange", "Edit", "Formatting", "Formula",
     "Glyph", "Item", "Line", "Link", "MarkdownRules", "Page", "PageImage", "Paragraph", "ParagraphRow", "Point",
     "Range", "RawOutput", "Reading", "ReadingOrder", "Ref", "Region", "RenderingPolicy", "RenderingRule", "Shape",
-    "Source", "SourceDocument", "Table", "TableRules", "Text", "Transcription", "Word", "Zone",
+    "Source", "SourceDocument", "Table", "TableRules", "Transcription", "Word", "Zone",
 ]

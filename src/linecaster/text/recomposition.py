@@ -1,7 +1,8 @@
 """Recomposition: running text from the visual rows of a region (the reading transcription).
 
 The engine ``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds
-documents and ``linecaster.text.variants`` the readable item texts from what it makes. Every threshold below is a field of
+documents from what it makes. It records structure only (paragraphs, their rows, breaks and continuations); a
+transcription strategy writes the text (``linecaster.document.strategy``). Every threshold below is a field of
 ``Thresholds`` (today's values its defaults), the engine's options.
 
 Typesetting turned the text into lines: it broke it at line ends, sometimes inside a word with a
@@ -39,7 +40,7 @@ kept, a paragraph break, with its reason). Rows without geometry (a text-only tr
 character rules alone: no paragraph breaks, a region is one paragraph, and only a division mark leaves it open.
 
 On a ``Transcription`` (``region_rows``, ``paragraphs``, ``continuation``): a region's rows are its lines on each
-visual row (``Transcription.rows``), their texts as written (the ``nfc`` and ``joined`` edits applied); the
+visual row (``Transcription.rows``), their texts as read; the
 paragraphs of a page are those of its latest recomposition (a later one makes them anew), and a paragraph's
 continuation is a link by the same annotator: ``runs_into`` the paragraph it runs on into, ``continues`` the one it
 continues, each a reference ``<id>`` on the same page or ``<page id>#<id>`` on another (``ref``, ``split_ref``).
@@ -61,7 +62,7 @@ from uniseg.wordbreak import words
 from ..data.geometry import BBox
 from ..data.transcription import Decision, Line, Transcription
 from ..data.transcription import Paragraph as ParagraphRange
-from .typography import AS_WRITTEN, line_bbox, union
+from .typography import line_bbox, union
 
 #: Marks by convention, unknown to Unicode as hyphens: the not sign, which some transcription
 #: conventions (and kraken models trained on them) write for a line-end hyphen.
@@ -134,7 +135,7 @@ class Row:
     index: int = 0        # position in the region's rows
 
 
-def region_rows(t: Transcription, lines: list[Line], kinds: tuple[str, ...] = AS_WRITTEN) -> list[Row]:
+def region_rows(t: Transcription, lines: list[Line], kinds: tuple[str, ...] = ()) -> list[Row]:
     """A region's visual rows: the texts of its ``lines`` on each row (``Transcription.rows``, in the order given)
     joined with a space, with ``kinds`` edits applied, the row's box the union of their boxes, in row order."""
     rows = t.rows()
@@ -403,14 +404,13 @@ UNICODE_RULES = Rules()
 
 # ---------------------------------------------------------------------------------------------- rows
 def mark_decision(rules, prev_text: str, next_text: str, lexicon: Lexicon | None,
-                  row: int) -> tuple[bool, str, Decision]:
-    """``rules``' decision on the division mark that ends ``prev_text`` before ``next_text``: (removed?, the attested
-    hyphenated form or "", the ``Decision`` at ``row``)."""
+                  row: int) -> tuple[bool, str, None]:
+    """``rules``' reading of the division mark that ends ``prev_text`` before ``next_text``: (removed?, the attested
+    hyphenated form or "", None). The recomposition uses it to lay out its own working text (whether a paragraph is
+    left open); it records no decision on marks (since linecaster.page/5 a strategy resolves them when a text is
+    written: ``linecaster.document.strategy``)."""
     removed, hyphenated = rules.resolve_mark(prev_text, next_text, lexicon)
-    if removed:
-        return True, "", Decision(kind="mark_removed", reason="letter_follows", row=row)
-    reason = getattr(rules, "kept_reason", kept_reason)(prev_text, next_text, hyphenated)
-    return False, hyphenated, Decision(kind="hyphen_kept", reason=reason, row=row)
+    return (True, "", None) if removed else (False, hyphenated, None)
 
 
 def reflow_rows(rows: Sequence[Row], rtl: bool = False, lexicon: Lexicon | None = None, single: bool = False,
@@ -441,8 +441,7 @@ def reflow_rows(rows: Sequence[Row], rtl: bool = False, lexicon: Lexicon | None 
             continue
         prev_text = current.text
         if ends_with_mark(prev_text, th.marks):
-            removed, hyphenated, decision = mark_decision(rules, prev_text, text, lexicon, len(current.spans) - 1)
-            current.decisions.append(decision)
+            removed, hyphenated, _ = mark_decision(rules, prev_text, text, lexicon, len(current.spans) - 1)
             if removed:
                 current.text = prev_text[:-1]
                 current.spans[-1].end -= 1

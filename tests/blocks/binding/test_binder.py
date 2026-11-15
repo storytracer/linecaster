@@ -52,7 +52,7 @@ def test_parts_carry_across_the_binder_and_the_splitter(tmp_path):
     records = PageRecordReader("p", fetch_images=False, provides=["ocr_new:regions", "ocr_new:lines"])
     ok = [records, Binder(), Recomposer("unicode-recomposition", unit="item"),
           Composer("linked-composition", unit="item"), ItemDocumentWriter(str(tmp_path)),
-          ItemTextWriter(str(tmp_path), variants=("verbatim_txt",)), Splitter(), PageJsonlWriter(str(tmp_path))]
+          ItemTextWriter(str(tmp_path), texts=("literal:txt",)), Splitter(), PageJsonlWriter(str(tmp_path))]
     assert build(ok).problems == []
     plot = PageFileWriter(str(tmp_path), formats=("plot",))
     assert build([ImageFolderReader("x"), Binder(), Splitter(), plot]).problems == [

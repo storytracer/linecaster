@@ -34,6 +34,6 @@ def test_annotator_names_its_conventions():
 
 def test_page3_rows_are_read_as_they_are():
     row = {"schema": "linecaster.page/3", "id": "p1", "text": "", "page": {"page_id": "p1"}}
-    assert upgrade(row) == {**row, "schema": "linecaster.page/4"}
+    assert upgrade(row) == {**row, "schema": "linecaster.page/5"}
     with pytest.raises(ValueError):
         upgrade({"schema": "linecaster.page/9", "id": "p1"})

@@ -23,7 +23,6 @@ from lxml import etree
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Annotator, Line, Reading, Region, Source, Transcription, Word
-from ..text.typography import AS_WRITTEN
 
 EXT_KEY = "linecaster"
 
@@ -442,9 +441,8 @@ def hidden_line(t: Transcription, line: Line, policy: RenderingPolicy = DEFAULT_
 def file_layout(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> tuple[list[FileRegion], list[FileLine]]:
     """What the writers write of ``t``: its regions and lines as a page file holds them, in list order.
 
-    Labels from the content roles (``file_label``), heading levels that still apply (``heading_level``), text as
-    written (``Transcription.text_of``, the ``nfc`` and ``joined`` edits applied:
-    ``linecaster.text.typography.AS_WRITTEN``), each line's region its resolved one (``region_of``). Regions
+    Labels from the content roles (``file_label``), heading levels that still apply (``heading_level``), each line's
+    literal text (its reading, ``Transcription.text_of``), each line's region its resolved one (``region_of``). Regions
     ``policy`` puts in layer ``none`` (removed, suppressed, duplicate, separators) are left out with their lines,
     and so are lines it puts there (a line assignment's duplicates); ranks are counted among what is written."""
     hidden = {r.id for r in t.regions if policy.layer_of(t, r.id) == "none"}
@@ -468,7 +466,7 @@ def file_layout(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> t
             FileWord(ln.word_id(k), w.text, w.box, w.confidence, w.alternatives, w.hyphen)
             for k, w in enumerate(reading.words)]
         out.append(FileLine(ln.id, t.region_of(ln), line_rank[ln.id], rows.get(ln.id, 0), bbox, ln.polygon,
-                            ln.baseline, ln.confidence, t.text_of(ln, AS_WRITTEN),
+                            ln.baseline, ln.confidence, t.text_of(ln),
                             reading.confidence if reading else None, reading.alternatives if reading else [], words))
     return regions, out
 

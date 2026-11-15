@@ -15,8 +15,8 @@ PAGE_FILE_EXTENSIONS = {
     "hocr": "hocr",                       # hOCR 1.2 (linecaster's serializer)
     "alto": "alto.xml",                   # ALTO 4.4
     "page": "page.xml",                   # PAGE-XML 2019
-    "txt": "txt",                         # the document's text, else the page text
-    "md": "md",                           # the document's Markdown, else the page text
+    "txt": "txt",                         # the document's text, else the page's literal text
+    "md": "md",                           # the document's Markdown, else the page's literal text
     "html": "html",                       # the document's HTML
     "json": "json",                       # the document (linecaster.document/1)
     "transcription": "transcription.json",  # the Transcription as linecaster JSON (as page records hold it)
@@ -43,11 +43,14 @@ class PageFileWriter(Contracted, PipelineStep):
 
     * ``hocr``, ``alto``, ``page``: linecaster's serializers (``to_hocr``/``to_alto``/``to_page``) at the
       page image's size; ``detail="line"`` leaves the words out (text per line);
-    * ``md``, ``txt``, ``html``, ``json``: the document's serializations (``linecaster.document.export``): the
+    * ``md``, ``txt``, ``html``, ``json``: the document's serializations (``linecaster.document.export``), written
+      by the transcription ``strategy`` (``literal`` by default: as read; ``linecaster.document.strategy``): the
       document a ``Composer`` composed for the page (``doc.metadata["document"]``), else the transcription rendered
       with the default options (``linecaster.document.build_document``) when it has regions or paragraphs; for a
-      page of lines only, md and txt fall back to ``Transcription.text`` (lines in reading order, tables as
-      Markdown/HTML; counted as ``<format>_from_page_text``) and the others are skipped (counted as ``no_document``);
+      page of lines only, md and txt fall back to its literal text (``linecaster.text.page.page_text``: lines in
+      reading order, tables as Markdown/HTML, the regions the policy puts nowhere left out; counted as
+      ``<format>_from_page_text``; only a strategy of character rules applies to it, others write none) and the
+      others are skipped (counted as ``no_document``);
     * ``transcription``: the ``Transcription`` itself as JSON;
     * ``plot``: a JPEG of the page image with the regions and lines drawn in (``linecaster.images.plots``).
 
@@ -66,8 +69,10 @@ class PageFileWriter(Contracted, PipelineStep):
             ``False`` writes them only from a document (the block then reads ``document``).
         skip_failed: write no files for a page that carries errors (``doc.metadata["errors"]``); the default writes
             them as for any page.
-        policy: the rendering policy (a catalog ``policy`` edition) of every file it writes: the layers of a
-            rendered document, the regions left out of the page files, the edits of the text fallback.
+        policy: the rendering policy (a catalog ``policy``) of every file it writes: the layers of a rendered
+            document, the regions left out of the page files.
+        strategy: the transcription strategy md, txt, html and json are written by: ``literal`` (the default), a
+            catalog strategy, or normalizations joined by ``+``.
     """
 
     type = "💽 - WRITER"
@@ -78,9 +83,17 @@ class PageFileWriter(Contracted, PipelineStep):
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
                  transcription: str = "ocr_new", suffix: str = "", furniture: bool = False, bucket_by_item: bool = True,
                  detail: str = "word", dividers: bool = False, text_fallback: bool = True, skip_failed: bool = False,
-                 policy: str = DEFAULT_POLICY_REF):
+                 policy: str = DEFAULT_POLICY_REF, strategy: str = "literal"):
         super().__init__()
         rendering_policy(policy)                      # an unknown policy fails at construction
+        from ...catalog.registry import catalog
+        from ...errors import CatalogError
+
+        try:
+            catalog().strategy(strategy, use="output")
+        except CatalogError as e:
+            raise PipelineConfigError(f"strategy {strategy!r}: {e.args[0]}") from None
+        self.strategy = strategy
         unknown = set(formats) - set(PAGE_FILE_EXTENSIONS)
         if unknown:
             raise PipelineConfigError(f"unknown formats {sorted(unknown)}; choose from {sorted(PAGE_FILE_EXTENSIONS)}")
@@ -140,14 +153,21 @@ class PageFileWriter(Contracted, PipelineStep):
             return plot_layout(decode_rgb(image_bytes(doc)), t)
         if document is not None:
             from ...document import export
+            from ...document.strategy import apply
 
-            return export(document, fmt, self.furniture, self.dividers, rendering_policy(self.policy).markdown)
+            written = apply(document, self.strategy) if self.strategy != "literal" else document
+            return export(written, fmt, self.furniture, self.dividers, rendering_policy(self.policy).markdown)
         if fmt == "json":
             return None
         if fmt in ("md", "txt") and self.text_fallback:
-            from ...text.variants import page_text
+            from ...catalog.registry import catalog
 
-            return page_text(t, rendering_policy(self.policy))
+            s = catalog().strategy(self.strategy, use="output")
+            if not all(n.text_rule for n in s.normalizations):
+                return None                    # its structure rules need a document: a page of lines has none
+            from ...text.page import page_text
+
+            return s.text(page_text(t, rendering_policy(self.policy)))
         return None
 
     def run(self, data, rank: int = 0, world_size: int = 1):

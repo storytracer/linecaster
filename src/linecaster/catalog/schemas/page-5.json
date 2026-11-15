@@ -441,12 +441,10 @@
     },
     "Decision": {
       "additionalProperties": false,
-      "description": "One decision of a recomposition, at one row of a paragraph (``row``: the index into ``Paragraph.rows``).\n``separator`` is, for a continuation, what joins this piece's text to the next piece's.",
+      "description": "One decision of a recomposition, at one row of a paragraph (``row``: the index into ``Paragraph.rows``): where\na paragraph breaks, and where it runs on (what joins the pieces is the output strategy's, ``flow``).",
       "properties": {
         "kind": {
           "enum": [
-            "mark_removed",
-            "hyphen_kept",
             "paragraph_break",
             "continuation"
           ],
@@ -461,18 +459,6 @@
           "default": 0,
           "title": "Row",
           "type": "integer"
-        },
-        "separator": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Separator"
         }
       },
       "required": [
@@ -638,7 +624,7 @@
     },
     "Edit": {
       "additionalProperties": true,
-      "description": "Another form of a target's text; the target's own text stays.",
+      "description": "Another form of a target's text, as the source states it; the target's own text (the literal) stays.",
       "properties": {
         "annotator": {
           "title": "Annotator",
@@ -681,8 +667,6 @@
         },
         "kind": {
           "enum": [
-            "nfc",
-            "normalized",
             "corrected",
             "joined",
             "expanded",
@@ -1228,7 +1212,7 @@
     },
     "Paragraph": {
       "additionalProperties": true,
-      "description": "The bottom range: running text recomposed from rows of lines, with the decisions that made it.",
+      "description": "The bottom range: the rows of lines a recomposition found to be one paragraph, with the decisions that made it.\nIts text is not stored (the lines' readings are): a strategy writes it (``literal``: the rows as laid out;\n``flow``: joined into running text).",
       "properties": {
         "annotator": {
           "title": "Annotator",
@@ -1306,11 +1290,6 @@
           "default": null,
           "title": "Title"
         },
-        "text": {
-          "default": "",
-          "title": "Text",
-          "type": "string"
-        },
         "rows": {
           "items": {
             "$ref": "#/$defs/ParagraphRow"
@@ -1335,7 +1314,7 @@
     },
     "ParagraphRow": {
       "additionalProperties": false,
-      "description": "One visual row of a paragraph: every line on the row, and the row's part of the paragraph's text.",
+      "description": "One visual row of a paragraph: every line on the row.",
       "properties": {
         "lines": {
           "items": {
@@ -1343,18 +1322,10 @@
           },
           "title": "Lines",
           "type": "array"
-        },
-        "charspan": {
-          "items": {
-            "type": "integer"
-          },
-          "title": "Charspan",
-          "type": "array"
         }
       },
       "required": [
-        "lines",
-        "charspan"
+        "lines"
       ],
       "title": "ParagraphRow",
       "type": "object"
@@ -1948,6 +1919,13 @@
           ],
           "default": null,
           "title": "Scale"
+        },
+        "normalized": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Normalized",
+          "type": "array"
         }
       },
       "title": "Source",

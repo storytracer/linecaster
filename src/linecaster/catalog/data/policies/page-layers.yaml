@@ -13,7 +13,3 @@ rules:
   to: none
 - status: removed
   to: none
-edits:
-  verbatim_txt: [nfc, joined]
-  readable_txt: [nfc, joined, normalized]
-  readable_md: [nfc, joined, normalized]

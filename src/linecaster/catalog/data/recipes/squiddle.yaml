@@ -10,7 +10,6 @@ presets:
   formulas: pp-formulanet-plus-l
   typography: ratios
   recomposition: unicode-recomposition
-  normalization: latin-historic
   composition: linked-composition
 provenance:
   authored_by:

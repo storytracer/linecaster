@@ -13,7 +13,7 @@ map, a page file's region types) classify through ``role_of_label``; writers tha
 """
 from __future__ import annotations
 
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -183,8 +183,6 @@ class RenderingPolicy(BaseModel):
     precedence: dict[str, list[str]] = Field(
         default_factory=dict, description="per scheme (role, heading_level, ...) or `order`: the steps or annotator "
                                           "names whose annotations count first; the latest annotator otherwise")
-    edits: dict[str, list[str]] = Field(default_factory=dict,
-                                        description="per text variant: the edit kinds it applies")
     tables: TableRules = Field(default_factory=TableRules, description="what counts as a table when written out")
     markdown: MarkdownRules = Field(default_factory=MarkdownRules, description="the Markdown a rendering writes")
 
@@ -210,17 +208,13 @@ class RenderingPolicy(BaseModel):
                           or t.classification("", "production", prec.get("production")),
                           t.classification(target, "status", prec.get("status")))
 
-    def kinds(self, variant: str, default: Iterable[str] = ("nfc",)) -> tuple[str, ...]:
-        return tuple(self.edits.get(variant, default))
 
 
 #: the default policy (the catalog's ``page-layers``): every role in its default layer, what is suppressed,
 #: duplicate or removed nowhere, descriptions in the metadata
 DEFAULT_POLICY = RenderingPolicy(
     id="page-layers",
-    rules=[RenderingRule(status=s, to="none") for s in ("suppressed", "duplicate", "removed")],
-    edits={"verbatim_txt": ["nfc", "joined"], "readable_txt": ["nfc", "joined", "normalized"],
-           "readable_md": ["nfc", "joined", "normalized"]})
+    rules=[RenderingRule(status=s, to="none") for s in ("suppressed", "duplicate", "removed")])
 
 
 def policy_dict(p: RenderingPolicy) -> dict[str, Any]:

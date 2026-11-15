@@ -26,7 +26,7 @@ Box = list[float]               # [x, y, width, height]
 Ref = str                       # a reference (linecaster.data.refs)
 
 #: the format of a stored page record
-SCHEMA = "linecaster.page/4"
+SCHEMA = "linecaster.page/5"
 
 _EXTENSION = re.compile(r"^[a-z][a-z0-9_]*__[a-z0-9_]+$")
 
@@ -132,6 +132,9 @@ class Source(_Extensible):
     image_width: int | None = None
     image_height: int | None = None
     scale: list[float] | None = None         # [sx, sy] the set was scaled by (AnnotationSet.scaled)
+    # the normalizations a ground truth's transcription already embodies (its conventions: ſ written s, divided
+    # words joined within a page, ...), catalog ids; scoring checks a lane against them
+    normalized: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------------------------- annotations
@@ -331,22 +334,24 @@ class Description(Annotation):
 
 
 #: edit kinds, in the order a text's forms are made
-EDITS = ("nfc", "joined", "corrected", "normalized", "expanded", "regularized")
-#: the edits of the as-written text: NFC, and a drop capital joined to its line
-AS_WRITTEN = ("nfc", "joined")
+#: the edits a source states (since linecaster.page/5 only these: what linecaster derives, NFC or a normalization,
+#: is a strategy's, applied when a text is written): its corrections, a word divided across lines or pages as
+#: the whole word (``joined``), its expansions and regularizations
+EDITS = ("joined", "corrected", "expanded", "regularized")
 
 
 class Edit(Annotation):
-    """Another form of a target's text; the target's own text stays."""
+    """Another form of a target's text, as the source states it; the target's own text (the literal) stays."""
 
     target: Ref
-    kind: Literal["nfc", "normalized", "corrected", "joined", "expanded", "regularized"]
+    kind: Literal["corrected", "joined", "expanded", "regularized"]
     text: str
 
 
 #: link kinds: ``source`` is ``target``'s caption, note; continues it (a paragraph or footnote from an earlier
 #: column or page); runs on into it; refers to it; is part of it (a line moved into another region by a later
-#: step: the line's region is the latest ``part_of`` target, else ``Line.region``)
+#: step: the line's region is the latest ``part_of`` target, else ``Line.region``; a drop capital's region, part of
+#: the line it begins: a document writes its letter there)
 LINKS = ("caption_of", "note_of", "continues", "runs_into", "refers_to", "part_of")
 
 
@@ -367,12 +372,8 @@ class ReadingOrder(Annotation):
 
 #: what a recomposition decided at a row end, and why: kind -> its reasons (``Decision``)
 DECISIONS: dict[str, tuple[str, ...]] = {
-    # a division mark the typesetter added, removed: the next row starts with a lowercase or caseless letter
-    "mark_removed": ("letter_follows",),
-    # a hyphen at a row end kept: the next row starts with a capital (a compound divided at its own hyphen), a
-    # digit, or no letter; the next row is in another script (a Hebrew letter before the mark); or the document
-    # attests the hyphenated form and not the joined one
-    "hyphen_kept": ("capital_follows", "digit_follows", "no_letter_follows", "script_change", "attested"),
+    # (a division mark is no decision of a recomposition since linecaster.page/5: a strategy resolves it when a text
+    # is written, linecaster.catalog normalizations divided-words and unicode-marks)
     # a new paragraph starts at this row: it is indented, a gap of about a blank line is above it, or (justified
     # text) the row before stopped short of the end margin
     "paragraph_break": ("indent", "gap", "short_row"),
@@ -383,13 +384,12 @@ DECISIONS: dict[str, tuple[str, ...]] = {
 
 
 class Decision(_Model):
-    """One decision of a recomposition, at one row of a paragraph (``row``: the index into ``Paragraph.rows``).
-    ``separator`` is, for a continuation, what joins this piece's text to the next piece's."""
+    """One decision of a recomposition, at one row of a paragraph (``row``: the index into ``Paragraph.rows``): where
+    a paragraph breaks, and where it runs on (what joins the pieces is the output strategy's, ``flow``)."""
 
-    kind: Literal["mark_removed", "hyphen_kept", "paragraph_break", "continuation"]
+    kind: Literal["paragraph_break", "continuation"]
     reason: str
     row: int = 0
-    separator: str | None = None
 
     @model_validator(mode="after")
     def _reason(self):
@@ -399,10 +399,9 @@ class Decision(_Model):
 
 
 class ParagraphRow(_Model):
-    """One visual row of a paragraph: every line on the row, and the row's part of the paragraph's text."""
+    """One visual row of a paragraph: every line on the row."""
 
     lines: list[str]
-    charspan: list[int]                      # [start, end] in Paragraph.text
 
 
 class Range(Annotation):
@@ -423,10 +422,11 @@ class DocumentRange(Range):
 
 
 class Paragraph(Range):
-    """The bottom range: running text recomposed from rows of lines, with the decisions that made it."""
+    """The bottom range: the rows of lines a recomposition found to be one paragraph, with the decisions that made it.
+    Its text is not stored (the lines' readings are): a strategy writes it (``literal``: the rows as laid out;
+    ``flow``: joined into running text)."""
 
     kind: Literal["paragraph"] = "paragraph"
-    text: str = ""
     rows: list[ParagraphRow] = Field(default_factory=list)
     decisions: list[Decision] = Field(default_factory=list)
 
@@ -706,19 +706,19 @@ class Transcription(AnnotationSet):
                     best = e
         return best.text if best is not None else None
 
-    def text_of(self, line: Line, kinds: Iterable[str] = AS_WRITTEN) -> str | None:
-        """A line's text with the latest of ``kinds`` edits of the whole line applied (by default the as-written
-        forms: NFC, a drop capital joined to its line); ``None`` until it was read. Edits of a span of the line (a
-        ground truth's word joined across lines) are not applied."""
+    def text_of(self, line: Line, kinds: Iterable[str] = ()) -> str | None:
+        """A line's text: its reading as recognized or transcribed (the literal), or with ``kinds`` the latest of
+        those edits the source states for the whole line; ``None`` until it was read. Edits of a span of the line
+        are a strategy's to apply (``linecaster.document.strategy``)."""
         if line.reading is None:
             return None
-        edited = self.edit(line.id, kinds)
+        edited = self.edit(line.id, kinds) if kinds else None
         return edited if edited is not None else line.reading.text
 
     # ------------------------------------------------------------------ derived
     @property
     def text(self) -> str:
-        """The page's text as written (NFC), as laid out, full page: the read lines in reading order, one per line;
+        """The page's literal text, as laid out, full page: the read lines in reading order, one per line;
         a region with a table structure is written as a Markdown table instead of its lines (an HTML table when a
         cell spans); regions the default policy puts nowhere (removed, suppressed, duplicate) left out."""
         from .policy import DEFAULT_POLICY

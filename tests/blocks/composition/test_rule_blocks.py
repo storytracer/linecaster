@@ -10,12 +10,10 @@ from linecaster.blocks.base.item import ITEM_KEY, item_pages
 from linecaster.blocks.base.page import page_of
 from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.text import CharacterNormalizer
 from linecaster.blocks.writers import ItemDocumentWriter
 from linecaster.catalog.registry import catalog
 from linecaster.errors import PipelineConfigError
 from linecaster.text.recomposition import paragraphs
-from linecaster.text.variants import normalize
 
 
 def run(blocks, docs):
@@ -46,17 +44,16 @@ def test_a_preset_or_an_engine_spec_with_options_over_it():
 
 
 def test_each_block_records_its_step():
-    (doc,) = run([Typographer("ratios"), Recomposer("unicode-recomposition"),
-                  CharacterNormalizer("latin-historic"), Composer("linked-composition")], [page_doc()])
+    (doc,) = run([Typographer("ratios"), Recomposer("unicode-recomposition"), Composer("linked-composition")],
+                 [page_doc()])
     t = page_of(doc).transcriptions["ocr_new"]
     added = t.annotators[1:]                        # after the page's own (the layout's)
     steps = [(s.kind, s.step, s.engine, s.preset) for s in added]
     assert steps == [("rule", "typography", "typography.ratios.v1", "ratios"),
-                     ("rule", "recomposition", "recomposition.unicode.v1", "unicode-recomposition"),
-                     ("rule", "normalization", "normalization.latin-historic.v1", "latin-historic")]   # composing adds none
+                     ("rule", "recomposition", "recomposition.unicode.v1", "unicode-recomposition")]  # composing adds none
     assert all({"seconds", "datetime"} <= set(s.measurements) and s.preset_sha256 for s in added)
     assert t.paragraphs and all(p.annotator == 2 for p in t.paragraphs)
-    assert all(e.annotator == 3 and e.kind == "normalized" for e in t.edits)
+    assert not t.edits                              # no step writes text: a strategy does, when a text is written
     assert doc.metadata["document"]["name"] == "p1"
 
 
@@ -79,7 +76,7 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
               Composer("linked-composition", unit="item", options={"sections": sections})]
     (item,) = run(blocks, list(reversed(_item_docs())))
     assert item.id == "b1" and item.metadata["item_id"] == "b1" and item.metadata["document"]["blocks"]
-    assert ("turned to the north" in item.text) is recomposed
+    assert ("turned to\nthe north" in item.text) is recomposed           # literal: one paragraph, its rows
     assert any(b["section"] for b in item.metadata["document"]["blocks"]) is sections
     pages = item_pages(item)
     assert [p.page_id for p in pages] == ["b1-1", "b1-2"] and item.metadata[ITEM_KEY]["item_id"] == "b1"
@@ -89,8 +86,8 @@ def test_item_blocks_compose_the_item(recomposed, sections, tmp_path):
         first, second = (p.transcriptions["ocr_new"] for p in pages)
         assert first.link(first.paragraphs[1].id, "runs_into") == f"b1-2#{second.paragraphs[0].id}"
         assert second.link(second.paragraphs[0].id, "continues") == f"b1-1#{first.paragraphs[1].id}"
-    list(ItemDocumentWriter(str(tmp_path), formats=("md", "json"), by_format=True).run(iter([item])))
-    assert (tmp_path / "md" / "b1.md").read_text().startswith("#") and (tmp_path / "json" / "b1.json").exists()
+    list(ItemDocumentWriter(str(tmp_path), texts=("literal:md", "literal:json")).run(iter([item])))
+    assert (tmp_path / "literal" / "b1.md").read_text().startswith("#") and (tmp_path / "literal" / "b1.json").exists()
 
 
 def test_the_item_recomposition_makes_the_paragraphs_anew():
@@ -101,18 +98,7 @@ def test_the_item_recomposition_makes_the_paragraphs_anew():
     item = [Binder(), Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item")]
     (flowed,) = run(item, docs)
     (fresh,) = run(item, _item_docs())
-    assert flowed.metadata["document"] == fresh.metadata["document"] and "turned to the north" in flowed.text
+    assert flowed.metadata["document"] == fresh.metadata["document"] and "turned to\nthe north" in flowed.text
     pages = [p.transcriptions["ocr_new"] for p in item_pages(flowed)]
     assert [sum(r.kind == "paragraph" for r in t.ranges) for t in pages] == [2 * len(paragraphs(t)) for t in pages]   # the earlier ones stay
     assert all(page_of(d).transcriptions["ocr_new"].annotators[-1].step == "recomposition" for d in docs)   # untouched
-
-
-def test_the_normalizer_on_item_records():
-    (item,) = run([Binder(), Recomposer("unicode-recomposition", unit="item"),
-                   CharacterNormalizer("latin-historic", unit="item")], _item_docs())
-    for p in item_pages(item):
-        t = p.transcriptions["ocr_new"]
-        assert t.annotators[-1].preset == "latin-historic"
-        assert paragraphs(t) and all((t.edit(x.id, ("normalized",)) or x.text) == normalize(x.text) for x in paragraphs(t))
-    with pytest.raises(PipelineConfigError):
-        CharacterNormalizer("latin-historic", unit="book")

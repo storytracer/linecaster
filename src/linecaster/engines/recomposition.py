@@ -5,7 +5,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Decision, Line, Link, Paragraph, ParagraphRow, Transcription
+from ..data.transcription import DECISIONS, Decision, Line, Link, Paragraph, ParagraphRow, Transcription
 from ..data.policy import TEXT_LABELS
 from ..text import recomposition as R
 from ..text.typography import hidden
@@ -31,7 +31,7 @@ def rows_of(t: Transcription, lines: list[Line]) -> tuple[list[R.Row], list[list
         return R.region_rows(t, lines), R.row_lines(t, lines)
     ranks = t.line_ranks()
     ordered = sorted(lines, key=lambda ln: ranks[ln.id])
-    return [R.Row(t.text_of(ln, R.AS_WRITTEN) or "", None, i) for i, ln in enumerate(ordered)], [[ln.id] for ln in ordered]
+    return [R.Row(t.text_of(ln) or "", None, i) for i, ln in enumerate(ordered)], [[ln.id] for ln in ordered]
 
 
 def digits_only(made: list[R.Paragraph]) -> bool:
@@ -155,9 +155,9 @@ class UnicodeRecompositionEngine(RuleEngine):
                 if not made:
                     continue
                 own = [Paragraph(annotator=a, id=f"{rid}_p{n}" if rid is not None else f"p{n}",
-                                 parts=[rid] if rid is not None else [], text=p.text,
-                                 rows=[ParagraphRow(lines=on_row[s.row], charspan=[s.start, s.end]) for s in p.spans],
-                                 decisions=list(p.decisions))
+                                 parts=[rid] if rid is not None else [],
+                                 rows=[ParagraphRow(lines=on_row[s.row]) for s in p.spans],
+                                 decisions=[d for d in p.decisions if d.kind in DECISIONS])
                        for n, p in enumerate(made)]
                 t.ranges.extend(own)
                 if digits_only(made):
@@ -174,27 +174,20 @@ class UnicodeRecompositionEngine(RuleEngine):
                 for p, para in zip(own, made):
                     if para.open_end and label == RUNNING_LABEL:
                         open_ = _Open(p, k, R.Paragraph(para.text, open_end=True), t)
-            t.annotators[a].measurements.update({
-                "paragraphs": stats.paragraphs, "continuations": stats.continuations,
-                "marks_removed": stats.marks_removed, "marks_kept": stats.marks_kept})
+            t.annotators[a].measurements.update({"paragraphs": stats.paragraphs,
+                                                 "continuations": stats.continuations})
         return pages
 
     @staticmethod
     def _continue(open_: _Open, page: int, t: Transcription, nxt: Paragraph, made: R.Paragraph, ids: list, lexicon,
                   stats, rules, th: R.Thresholds) -> None:
-        """``open_``'s paragraph runs on into ``nxt`` (on page ``page``, transcription ``t``): the decision on its
-        division mark (the mark gone from its text when removed), the continuation with its separator, the links
-        both ways."""
+        """``open_``'s paragraph runs on into ``nxt`` (on page ``page``, transcription ``t``): the continuation and
+        the links both ways. What joins the pieces, a division mark included, is the output strategy's."""
         prev = open_.paragraph
         last = len(prev.rows) - 1
         reason = "division_mark" if R.ends_with_mark(open_.chain.text, th.marks) else "end_margin"
-        joined, sep, decision = R.join(open_.chain, made, lexicon, stats, rules, th)
-        if decision is not None:
-            prev.decisions.append(decision.model_copy(update={"row": last}))
-            if decision.kind == "mark_removed":
-                prev.text = prev.text[:-1]
-                prev.rows[-1].charspan[1] -= 1
-        prev.decisions.append(Decision(kind="continuation", reason=reason, row=last, separator=sep))
+        joined, _sep, _decision = R.join(open_.chain, made, lexicon, stats, rules, th)
+        prev.decisions.append(Decision(kind="continuation", reason=reason, row=last))
         same_page = open_.page == page
         open_.t.links.append(Link(annotator=prev.annotator, kind="runs_into", source=prev.id,
                                   target=R.ref(None if same_page else ids[page], nxt.id)))

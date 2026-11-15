@@ -49,7 +49,7 @@ import numpy as np
 
 from ..data.geometry import BBox, bbox_of, xywh
 from ..data.policy import DEFAULT_POLICY, classify_label
-from ..data.transcription import AS_WRITTEN, Annotator, Edit, Line, Link, Region, Transcription, Zone
+from ..data.transcription import Annotator, Line, Link, Region, Transcription, Zone
 
 PAGE_NUMBER_MIN_CONF = 0.75
 DEMOTE = 1.2
@@ -133,7 +133,7 @@ class Content:
         return self.box
 
     def text_of(self, ln: Line) -> str | None:
-        return self.t.text_of(ln, AS_WRITTEN)
+        return self.t.text_of(ln)
 
     def rows(self) -> list[Row]:
         grouped: dict[int, list[Line]] = {}
@@ -251,13 +251,10 @@ def merge_drop_capitals(contents: list[Content], stats: RetypeStats, annotator: 
             target = min(below, key=lambda c: (abs(c.bbox.y0 - db.y0), c.bbox.x0 - db.x1))
         t = target.t
         first = target.lines[0]
-        joined = letter + (target.text_of(first) or "").lstrip()
-        t.edits.append(Edit(annotator=annotator, target=first.id, kind="joined", text=joined,
-                            derived_from=[ln.id for ln in d.lines]))
-        t.classify(annotator, d.region.id, "status", "removed", typography__reason="drop capital merged into " + first.id)
+        t.links.append(Link(annotator=annotator, kind="part_of", source=d.region.id, target=first.id))
         removed.add(id(d))
         stats.drop_capitals += 1
-        stats.note("drop capital", joined)
+        stats.note("drop capital", letter + (target.text_of(first) or "").lstrip())
     return [c for c in contents if id(c) not in removed]
 
 

@@ -1,4 +1,4 @@
-"""Per-page files (PageFileWriter), item texts with tables and NFC, item text writers."""
+"""Per-page files (PageFileWriter), item texts by strategies (literal and normalized, tables), item writers."""
 from __future__ import annotations
 
 import json
@@ -14,15 +14,14 @@ from linecaster.blocks.composition.composer import Composer
 from linecaster.blocks.composition.recomposer import Recomposer
 from linecaster.blocks.composition.typographer import Typographer
 from linecaster.blocks.writers.files import PageFileWriter
-from linecaster.blocks.text import CharacterNormalizer
-from linecaster.blocks.writers.items import ItemTextWriter
+from linecaster.blocks.writers.items import ItemDocumentWriter, ItemTextWriter
 from linecaster.data.transcription import Annotator, Transcription
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
 from linecaster.document import DOCUMENT_KEY, EXPORT_FORMATS, build_document, export, load_document
-from linecaster.text import variants as T
+from linecaster.document.strategy import apply
 
-from conftest import item_variants, page_doc, page_with
+from conftest import item_text, page_doc, page_with
 
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 
@@ -44,7 +43,7 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
         schema = etree.XMLSchema(etree.parse(str(SCHEMAS / xsd)))
         assert schema.validate(etree.parse(str(folder / name))), schema.error_log
     assert (folder / "p1.md").read_text().startswith("# THE TITLE")
-    assert json.loads((folder / "p1.json").read_text())["schema"] == "linecaster.document/1"
+    assert json.loads((folder / "p1.json").read_text())["schema"] == "linecaster.document/2"
     assert json.loads((folder / "p1.transcription.json").read_text())["regions"]
 
 
@@ -139,59 +138,64 @@ def _line(lid, region, order, text):
     return {"id": lid, "region_id": region, "reading_order": order, "text": text}
 
 
-def test_variants_render_tables_and_nfc_input():
+def test_texts_render_tables_and_keep_the_input_as_read():
     table = {"cells": [{"text": "Ort", "row": 0, "col": 0}, {"text": "Weſen", "row": 0, "col": 1},
                        {"text": "Koͤln", "row": 1, "col": 0}, {"text": "2", "row": 1, "col": 1}]}
     decomposed = unicodedata.normalize("NFD", "Über die Käfer")
-    t = page_with(
-        [_region("h", "page_header", 0), _region("a", "text", 1), _region("t", "table", 2, extra={"table": table})],
-        [_line("h0", "h", 0, "KOPF"), _line("a0", "a", 1, decomposed + " ſind"), _line("t0", "t", 2, "Ort Weſen"),
-         _line("t1", "t", 3, "Köln 2")])
-    v = item_variants([t])
-    assert v["verbatim_txt"] == "KOPF\nÜber die Käfer ſind\n| Ort | Weſen |\n|---|---|\n| Koͤln | 2 |"
-    assert unicodedata.is_normalized("NFC", v["verbatim_txt"])
-    assert v["readable_md"] == "Über die Käfer sind\n\n| Ort | Wesen |\n|---|---|\n| Köln | 2 |"
-    assert v["readable_txt"] == "Über die Käfer sind\n\nOrt\tWesen\nKöln\t2"
+
+    def page():
+        return page_with(
+            [_region("h", "page_header", 0), _region("a", "text", 1), _region("t", "table", 2, extra={"table": table})],
+            [_line("h0", "h", 0, "KOPF"), _line("a0", "a", 1, decomposed + " ſind"), _line("t0", "t", 2, "Ort Weſen"),
+             _line("t1", "t", 3, "Köln 2")])
+
+    literal = item_text([page()], "literal:txt", furniture=True)
+    assert literal == f"KOPF\n\n{decomposed} ſind\n\nOrt\tWeſen\nKoͤln\t2"         # as read: not even NFC
+    assert item_text([page()], "literal:txt") == f"{decomposed} ſind\n\nOrt\tWeſen\nKoͤln\t2"
+    assert item_text([page()], "latin-historic+flow:md") == "Über die Käfer sind\n\n| Ort | Wesen |\n|---|---|\n| Köln | 2 |"
+    assert item_text([page()], "latin-historic+flow:txt") == "Über die Käfer sind\n\nOrt\tWesen\nKöln\t2"
     # a table never joins a paragraph across a page break
     t2 = page_with([_region("a", "text", 0)], [_line("x", "a", 0, "weiter")])
-    assert item_variants([t, t2])["readable_txt"].endswith("Köln\t2\n\nweiter")
+    assert item_text([page(), t2], "latin-historic+flow:txt").endswith("Köln\t2\n\nweiter")
 
 
-def test_item_text_writers(tmp_path: Path):
+def test_item_writers(tmp_path: Path):
     pages = []
     for s, txt in ((1, "Die Unter-"), (2, "ſuchung.")):
         t = page_with([_region("a", "text", 0)], [_line("l", "a", 0, txt)])
         pages.append(page_doc(f"b_{s}", "b", t, seq=s))
+    texts = ("literal:txt", "latin-historic+flow:md", "latin-historic+unicode-marks+flow:md")
     stream = iter(pages)
-    for block in (Binder(), Recomposer("unicode-recomposition", unit="item"),
-                  CharacterNormalizer("latin-historic", unit="item"),
-                  ItemTextWriter(str(tmp_path / "files"), format="files"),
-                  ItemTextWriter(str(tmp_path / "jsonl"), compression=None, output_filename="${variant}/${rank}.jsonl",
-                                 token_counter=len)):
+    for block in (Binder(), Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item"),
+                  ItemDocumentWriter(str(tmp_path / "files"), texts=texts),
+                  ItemTextWriter(str(tmp_path / "jsonl"), texts=texts, compression=None,
+                                 output_filename="${strategy}.${format}/${rank}.jsonl", token_counter=len)):
         stream = block.run(stream)
     (item,) = list(stream)
     assert item.id == "b" and "item" in item.metadata                 # the item record passes through
-    assert (tmp_path / "files" / "verbatim_txt" / "b.txt").read_text() == "Die Unter-\fſuchung."
-    assert (tmp_path / "files" / "readable_txt" / "b.txt").read_text() == "Die Untersuchung."
-    assert (tmp_path / "files" / "readable_md" / "b.md").read_text() == "Die Untersuchung."
-    with pytest.raises(PipelineConfigError):
-        ItemTextWriter(str(tmp_path), format="csv")
-    row = json.loads((tmp_path / "jsonl" / "readable_md" / "00000.jsonl").read_text())
-    assert row["id"] == "b" and row["format"] == "text/markdown" and row["page_ids"] == ["b_1", "b_2"]
+    files = tmp_path / "files"
+    assert (files / "literal" / "b.txt").read_text() == "Die Unter-\nſuchung."           # as read, rows as laid out
+    assert (files / "latin-historic+flow" / "b.md").read_text() == "Die Unter-suchung."   # the mark kept
+    assert (files / "latin-historic+unicode-marks+flow" / "b.md").read_text() == "Die Untersuchung."
+    row = json.loads((tmp_path / "jsonl" / "latin-historic+unicode-marks+flow.md" / "00000.jsonl").read_text())
+    assert row["id"] == "b" and row["format"] == "md" and row["page_ids"] == ["b_1", "b_2"] and row["pages"] == 2
     assert row["text"] == "Die Untersuchung." and row["token_count"] == len(row["text"])
-    assert row["fidelity"] == "normalized" and row["pages"] == 2
-    verbatim = ItemTextWriter(str(tmp_path), variants=("verbatim_txt",)).contract()
-    assert {str(p) for p in verbatim.reads} == {"ocr_new:lines"}
-    assert {str(p) for p in ItemTextWriter(str(tmp_path)).contract().reads} == {
-        "ocr_new:lines", "ocr_new:paragraphs", "ocr_new:normalized"}
+    assert row["strategy"] == "latin-historic+unicode-marks+flow" and row["strategy_sha256"].startswith("sha256:")
+    assert row["normalizations"][-2:] == ["unicode-marks", "flow"] and row["normalizations"][0] == "nfc"
     with pytest.raises(PipelineConfigError):
-        ItemTextWriter(str(tmp_path), variants=("nope",))
+        ItemTextWriter(str(tmp_path), texts=("literal:csv",))
+    with pytest.raises(PipelineConfigError):
+        ItemDocumentWriter(str(tmp_path), texts=("nope:txt",))
+    assert {str(p) for p in ItemTextWriter(str(tmp_path)).contract().reads} == {"document"}
 
 
-def test_variants_flow_regions_without_paragraphs():
+def test_regions_without_paragraphs_flow_across_the_page_break():
     """A ground truth's regions are its paragraphs: without a recomposition they are blocks of their own, and their
-    continues / runs_into links (by any annotator) join them across the page break."""
+    continues / runs_into links (by any annotator) join them across the page break: a wrap, which flow joins, unless
+    a part has several rows (each line of the source is a line break of its own: verse goes on with a row of its
+    own)."""
     from linecaster.data.transcription import Annotator, Link
+    from linecaster.document import DocumentBuilder, to_markdown, to_text
 
     def gt(texts, heading=None):
         t = Transcription()
@@ -209,12 +213,21 @@ def test_variants_flow_regions_without_paragraphs():
         t.add_order(a, order, [ln.id for r in order for ln in t.lines if ln.region == r])
         return t, a
 
-    one, a1 = gt(["First paragraph.", "It runs on\nover the"], heading="CHAPTER I")
-    two, a2 = gt(["page break.", "New paragraph."])
-    rules = one.add_annotator(Annotator(kind="rule", step="transcription", name="links"))
-    one.links.append(Link(annotator=rules, kind="runs_into", source="p1", target="b#p0"))
-    two.links.append(Link(annotator=a2, kind="continues", source="p0", target="a#p1"))
-    v = T.variants([one, two], ["a", "b"])
-    assert v["readable_txt"] == "CHAPTER I\n\nFirst paragraph.\n\nIt runs on over the page break.\n\nNew paragraph."
-    assert v["readable_md"].startswith("## CHAPTER I\n\nFirst paragraph.")
-    assert v["verbatim_txt"] == "CHAPTER I\nFirst paragraph.\nIt runs on\nover the\fpage break.\nNew paragraph."
+    def item(last: str):
+        one, a1 = gt(["First paragraph.", last], heading="CHAPTER I")
+        two, a2 = gt(["page break.", "New paragraph."])
+        rules = one.add_annotator(Annotator(kind="rule", step="transcription", name="links"))
+        one.links.append(Link(annotator=rules, kind="runs_into", source="p1", target="b#p0"))
+        two.links.append(Link(annotator=a2, kind="continues", source="p0", target="a#p1"))
+        b = DocumentBuilder("item")
+        for t, pid in ((one, "a"), (two, "b")):
+            b.add_page(t, page_id=pid)
+        return b.build()
+
+    doc = item("It runs on over the")
+    assert to_text(doc) == "CHAPTER I\n\nFirst paragraph.\n\nIt runs on over the\npage break.\n\nNew paragraph."
+    flowed = apply(doc, "flow")
+    assert to_text(flowed) == "CHAPTER I\n\nFirst paragraph.\n\nIt runs on over the page break.\n\nNew paragraph."
+    assert to_markdown(flowed).startswith("## CHAPTER I\n\nFirst paragraph.")
+    verse = item("A line of verse\nand its next")                     # two source lines: rows of their own
+    assert to_text(apply(verse, "flow")) == to_text(verse) and "its next\npage break." in to_text(verse)

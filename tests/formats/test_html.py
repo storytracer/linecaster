@@ -135,8 +135,9 @@ def test_a_table_cell_knows_its_formulas():
 
 
 def test_a_line_edited_whole_keeps_its_spans():
-    """A ``joined`` edit of a whole line (a word joined across pages: its first half left out, its second written
-    whole) moves the line's formatting and formulas with their text; a span on removed text goes."""
+    """A source's edit of a whole line is a span of the literal text; a strategy that applies it (here a correction:
+    ``editors-corrections``) moves the line's formatting and formulas with their text; a span on removed text
+    goes."""
     from linecaster.data.transcription import Edit
     from linecaster.document import build_document
 
@@ -144,8 +145,14 @@ def test_a_line_edited_whole_keeps_its_spans():
              '</body></html>').transcription
     ln = t.lines[0]
     assert ln.reading.text == "The food $x$ de-"
-    t.edits.append(Edit(annotator=0, target=ln.id, kind="joined", text="The food $x$"))
-    para = next(b for b in build_document(t).blocks if b.kind == "paragraph")
+    t.edits.append(Edit(annotator=0, target=ln.id, kind="corrected", text="The food $x$"))
+    literal = next(b for b in build_document(t).blocks if b.kind == "paragraph")
+    assert literal.text == "The food $x$ de-"                                  # literal: as read
+    assert [(s.start, s.end, s.edit, s.edit_text) for s in literal.spans if s.edit] == [
+        (0, 16, "corrected", "The food $x$")]
+    from linecaster.document.strategy import apply
+
+    para = next(b for b in apply(build_document(t), "editors-corrections").blocks if b.kind == "paragraph")
     assert para.text == "The food $x$"
     assert [(para.text[s.start:s.end], s.italic, s.formula) for s in para.spans] == \
         [("food", True, False), ("$x$", False, True)]

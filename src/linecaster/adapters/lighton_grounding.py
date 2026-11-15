@@ -20,10 +20,10 @@ all by the step's annotator and naming the output they were parsed from:
   on the region, and a ``Link`` of kind ``continues`` to the last block of the same label on the page, where there is
   one; without one it continues the previous page or column). The blocks stay separate regions, linked.
 * **Text**: a block's content lines are its lines (``region``, rows in order), each read as it is, so the page's
-  text, the composition and the text variants see them like any layout's: tables stay HTML, formulas LaTeX
+  text, the composition and the transcription strategies see them like any layout's: tables stay HTML, formulas LaTeX
   (also a ``Formula``, without ``$$``). The model gives boxes for blocks, not lines: a line's box is the block's split
-  into equal rows, one per content line, and says so (``lighton__estimated``). ``verbatim_txt`` keeps the furniture,
-  ``readable_txt`` and ``readable_md`` leave it out (``linecaster.text.variants``). Each region keeps the box as the
+  into equal rows, one per content line, and says so (``lighton__estimated``). The page's text keeps the furniture,
+  the document's body leaves it out (``linecaster.document``). Each region keeps the box as the
   model wrote it (``lighton__box_1000``).
 * **Generated, not printed**: ``image``, ``header_image``, ``footer_image`` (``picture``) and ``chart`` (``chart``)
   carry what the model wrote about the figure, a description or the data read off a chart (an HTML table). It is a

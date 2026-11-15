@@ -25,7 +25,7 @@ def test_a_document_names_its_producer_and_its_format_is_checked():
     doc = build_document(Transcription())
     assert doc.producer == producer() and from_json(to_json(doc)).producer == producer()
     with pytest.raises(ValidationError, match="unknown document format 'linecaster.document/9'"):
-        from_json(to_json(doc).replace("linecaster.document/1", "linecaster.document/9"))
+        from_json(to_json(doc).replace("linecaster.document/2", "linecaster.document/9"))
 
 
 def test_scores_name_their_writer(tmp_path):

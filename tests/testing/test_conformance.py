@@ -16,7 +16,6 @@ from linecaster.backends import Chat, InProcess
 from linecaster.blocks.base.page import page_of
 from linecaster.catalog.registry import BUILTIN_ENGINES, SERVED_ONLY, catalog, engine_class, engine_ids, engine_spec
 from linecaster.data import Annotator
-from linecaster.engines.normalization import TextNormalization
 from linecaster.testing import (FAKE_ENGINES, FakeLineEngine, FakeRecognitionEngine, check_block, check_engine,
                                 fake_chat_server, register_fakes, sample_boxes, sample_document, sample_documents,
                                 sample_layout, sample_page, sample_png)
@@ -202,22 +201,8 @@ def test_overwritten_allows_what_was_none_to_be_set():
 
 # ------------------------------------------------------------------------------ the built-in engines
 
-class IdentityNormalizationEngine(TextNormalization):
-    """A default normalization strategy for every script: changes nothing."""
-
-    engine_id = "normalization.identity.v1"
-    step = "normalization"
-    capabilities = {"unit": "page", "produces": ["normalized"]}
-    scripts = ("*",)
-
-    def normalize(self, text):
-        return text
-
-
 #: a by-script engine needs strategies, which no preset gives yet
 BY_SCRIPT = {
-    "normalization.by-script.v1": {"Latn": {"engine": "linecaster.engines:LatinHistoricNormalizationEngine"},
-                                   "*": {"engine": f"{__name__}:IdentityNormalizationEngine"}},
     "recomposition.by-script.v1": {"*": {"engine": "linecaster.engines:UnicodeRecompositionEngine"}},
 }
 
@@ -356,7 +341,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     """One block of every public block class (and the composite), runnable here: fake engines, a fake chat server,
     sample inputs; with the ``check_block`` arguments each needs, by a label (the class, and what is special)."""
     from linecaster.blocks import binding, composites, composition, conversion, layout, lines, readers, recognition
-    from linecaster.blocks import servers, text, validation, writers
+    from linecaster.blocks import servers, validation, writers
     from linecaster.blocks.composition import Composer
 
     i = _inputs(tmp_path)
@@ -397,9 +382,6 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (conversion.ImageConverter(str(out / "webp2"), "working-image", keep_bytes=True), {}),
         (conversion.TranscriptionImporter("auto-import", transcription="ocr_original",
                                           options={"ground_truth": False}), {"docs": _alto_docs()}),
-        (text.UnicodeNormalizer(), {}),
-        (text.CharacterNormalizer("latin-historic"), {}),
-        (text.CharacterNormalizer("latin-historic", unit="item"), {}),
         (composition.Typographer("ratios"), {}),
         (composition.Recomposer("unicode-recomposition"), {}),
         (composition.Recomposer("unicode-recomposition", unit="item"), {}),
@@ -419,7 +401,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (writers.RejectWriter(str(out / "rejects")), {}),
         (writers.ResourceFilesWriter(str(out / "resources")), {}),
         (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
-        (writers.ItemTextWriter(str(out / "texts")), {}),
+        (writers.ItemTextWriter(str(out / "texts")), {"docs": item_docs}),
         (writers.ItemDocumentWriter(str(out / "documents")), {"docs": item_docs}),
         (composites.ModularTranscriber(fake["lines"], fake["recognition"], "single-region"), {}),
     ]
@@ -436,8 +418,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
 BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
-          "TranscriptionImporter", "UnicodeNormalizer", "CharacterNormalizer", "CharacterNormalizer+",
-          "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
+          "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
           "PageFileWriter", "ImageFilesWriter", "RejectWriter", "ResourceFilesWriter", "ResourceRecordWriter",
           "ItemTextWriter", "ItemDocumentWriter",

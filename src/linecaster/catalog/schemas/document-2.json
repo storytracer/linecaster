@@ -76,6 +76,13 @@
           "title": "Spans",
           "type": "array"
         },
+        "wraps": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Wraps",
+          "type": "array"
+        },
         "grid": {
           "anyOf": [
             {
@@ -415,6 +422,38 @@
           "description": "the characters are an inline formula, its LaTeX between $ and $",
           "title": "Formula",
           "type": "boolean"
+        },
+        "edit": {
+          "anyOf": [
+            {
+              "enum": [
+                "corrected",
+                "joined",
+                "expanded",
+                "regularized"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the source states another reading of the characters (an edit of that kind): edit_text",
+          "title": "Edit"
+        },
+        "edit_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the edit's text: the correction, the whole word, ...",
+          "title": "Edit Text"
         }
       },
       "required": [
@@ -428,7 +467,7 @@
   "additionalProperties": false,
   "properties": {
     "schema": {
-      "default": "linecaster.document/1",
+      "default": "linecaster.document/2",
       "title": "Schema",
       "type": "string"
     },
@@ -449,6 +488,19 @@
       "default": null,
       "description": "the linecaster that wrote it (linecaster.data.transcription.producer)",
       "title": "Producer"
+    },
+    "strategy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the transcription strategy that wrote it: literal as the builder made it, else a strategy's id or normalizations joined by +; None: not stated (a linecaster.document/1 file)",
+      "title": "Strategy"
     },
     "pages": {
       "items": {

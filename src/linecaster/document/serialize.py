@@ -236,11 +236,38 @@ def _pipe_table(b: Block, rules: MarkdownRules) -> str:
     return "\n".join(lines)
 
 
-def _md_lines(s: str, rules: MarkdownRules | None = None) -> str:
-    """A block's rows as Markdown's hard line breaks (CommonMark's: a backslash, or with ``line_break: spaces`` two
-    spaces at the line's end), which a plain newline inside a paragraph is not."""
+#: a row that Markdown would read as a block's start: a heading, quote, list item, ordered item, or a setext
+#: heading's underline (or a thematic break)
+_MD_ROW_START = re.compile(r"^([#>*+\-])(?=\s|$)")
+_MD_ORDERED = re.compile(r"^(\d{1,9})([.)])(?=\s|$)")
+_MD_UNDERLINE = re.compile(r"^(=+|-+|\*{3,}|_{3,})\s*$")
+
+
+def _md_row(row: str) -> str:
+    """One row of text escaped where Markdown would read its start as a block's (``# kein Titel``: ``\\# kein
+    Titel``; ``1. Mai``: ``1\\. Mai``; a row of ``---`` or ``===``)."""
+    lead = row[:len(row) - len(row.lstrip(" "))]
+    body = row[len(lead):]
+    if _MD_UNDERLINE.match(body) or _MD_ROW_START.match(body):
+        return f"{lead}\\{body}"
+    m = _MD_ORDERED.match(body)
+    return f"{lead}{m.group(1)}\\{body[len(m.group(1)):]}" if m else row
+
+
+def _md_lines(s: str, rules: MarkdownRules | None = None, b: Block | None = None) -> str:
+    """A block's rows in Markdown: a wrap of the layout (``Block.wraps``) as a plain newline (the lines kept in the
+    source, a renderer flows them), every other row break (a verse line) as a hard line break (CommonMark's: a
+    backslash, or with ``line_break: spaces`` two spaces at the line's end). ``s`` is ``b``'s text as Markdown: its
+    newlines are the text's, in order."""
     brk = "  \n" if rules is not None and rules.line_break == "spaces" else "\\\n"
-    return brk.join(s.split("\n"))
+    rows = s.split("\n")
+    if rules is None or rules.escape:
+        rows = [_md_row(r) for r in rows]
+    if b is None or not b.wraps:
+        return brk.join(rows)
+    wraps = set(b.wraps)
+    soft = {k for k, i in enumerate(i for i, c in enumerate(b.text) if c == "\n") if i in wraps}
+    return "".join(r + ("" if k == len(rows) - 1 else "\n" if k in soft else brk) for k, r in enumerate(rows))
 
 
 def _md_block(b: Block, rules: MarkdownRules) -> str:
@@ -249,7 +276,7 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
     if b.kind == "heading":
         return "#" * min((b.level or 1) + 1, 6) + " " + " ".join(_md_inline(b, rules).split("\n"))
     if b.kind == "list_item":
-        return "- " + _md_lines(_md_inline(b, rules), rules)
+        return "- " + _md_lines(_md_inline(b, rules), rules, b)
     if b.kind == "code":
         return f"```\n{b.text}\n```"
     if b.kind == "formula":
@@ -259,8 +286,8 @@ def _md_block(b: Block, rules: MarkdownRules) -> str:
         return table_html(b, rules.escape_dollar) if rules.tables == "html" or spans else _pipe_table(b, rules)
     if b.kind == "picture":
         parts = [rules.image_placeholder] if rules.image_placeholder else []
-        return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules), rules)] if b.text else []))
-    return _md_lines(_md_inline(b, rules), rules)
+        return "\n\n".join(parts + ([_md_lines(_md_inline(b, rules), rules, b)] if b.text else []))
+    return _md_lines(_md_inline(b, rules), rules, b)
 
 
 def to_markdown(source, furniture: bool = False, dividers: bool = False, rules: MarkdownRules | None = None,

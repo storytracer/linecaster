@@ -1,7 +1,7 @@
 """``Composer``: the document of a page or of an item, rendered from its regions, paragraphs or lines, and tables
 (``composition.*`` engines; ``composition.linked.v1``, ``linecaster.document``).
 
-In the modular pipeline's order: ... recognition -> ``UnicodeNormalizer`` -> tables -> ``Typographer`` ->
+In the modular pipeline's order: ... recognition -> tables -> ``Typographer`` ->
 ``Recomposer`` -> ``Composer`` -> writers. Without a ``Recomposer`` the document is diplomatic: each text region as
 laid out, one row per line.
 """

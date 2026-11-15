@@ -51,7 +51,7 @@ LINE_FIELDS = {
     "confidence": ("lines",), "baseline": ("lines", "baselines"), "parent": ("lines", "hierarchy"),
 }
 #: a line's reading field -> the parts that may change it (words: ``_word_changes``)
-READING_FIELDS = {"text": ("text", "nfc"), "alternatives": ("text", "nfc"), "confidence": ("line_confidences", "text"),
+READING_FIELDS = {"text": ("text",), "alternatives": ("text",), "confidence": ("line_confidences", "text"),
                   "formatting": ("text", "words")}
 #: region field -> the parts that may change it
 REGION_FIELDS = {"label": ("regions",), "box": ("regions", "hierarchy"), "polygon": ("regions", "hierarchy"),
@@ -60,9 +60,8 @@ REGION_FIELDS = {"label": ("regions",), "box": ("regions", "hierarchy"), "polygo
 SCHEME_PARTS = {"role": ("regions", "hierarchy"), "heading_level": ("hierarchy", "regions"),
                 "status": ("regions", "hierarchy"), "production": ("regions", "text")}
 #: an edit's kind -> the parts that may add it
-EDIT_PARTS = {"nfc": ("nfc", "text"), "normalized": ("normalized",),
-              "joined": ("text", "lines", "regions", "hierarchy", "paragraphs"), "corrected": ("text",),
-              "expanded": ("text", "normalized"), "regularized": ("text", "normalized")}
+EDIT_PARTS = {"joined": ("text", "lines", "regions", "hierarchy", "paragraphs"), "corrected": ("text",),
+              "expanded": ("text",), "regularized": ("text",)}
 #: a link's kind -> the parts that may add it
 LINK_PARTS = {"part_of": ("lines", "line_regions", "hierarchy"), "runs_into": ("paragraphs",),
               "continues": ("paragraphs",), "caption_of": ("hierarchy", "regions"),
@@ -76,7 +75,7 @@ def _word_changes(where: str, before: list[dict], after: list[dict], out: list) 
         return [{k: v for k, v in w.items() if k not in keys} for w in words]
 
     _changes(f"{where}.words", strip(before, "confidence", "hyphen"), strip(after, "confidence", "hyphen"),
-             ("words", "text", "nfc"), out)
+             ("words", "text"), out)
     _changes(f"{where}.words.confidence", [w.get("confidence") for w in before], [w.get("confidence") for w in after],
              ("word_confidences", "words"), out)
     _changes(f"{where}.words.hyphen", [w.get("hyphen") for w in before], [w.get("hyphen") for w in after],
@@ -216,7 +215,7 @@ OVERWRITE_PARTS = {
     "links": frozenset({"lines", "line_regions", "hierarchy", "paragraphs", "regions"}),
     "orders": frozenset({"reading_order", "regions", "lines", "line_regions", "hierarchy"}),
     "tables": frozenset({"tables", "html"}), "formulas": frozenset({"formulas", "latex"}),
-    "edits": frozenset({"nfc", "normalized", "text", "paragraphs", "lines"}),
+    "edits": frozenset({"text", "paragraphs", "lines"}),
     "regions": frozenset({"regions"}), "lines": frozenset({"lines"}), "ranges": frozenset({"paragraphs", "hierarchy"}),
 }
 

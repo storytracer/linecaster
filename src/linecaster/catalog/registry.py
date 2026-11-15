@@ -296,14 +296,16 @@ class Catalog:
                                     tuple(doc.subsumes), tuple(doc.languages))
 
     def strategy(self, ref: str, use: str | None = None) -> "ResolvedStrategy":
-        """The transcription strategy ``ref``: ``literal`` (no normalization), a strategy's id, or normalizations named
-        directly (``nfc+long-s+flow``: an unnamed strategy). With ``use`` (``output`` or ``comparison``), every
+        """The transcription strategy ``ref``: ``literal`` (no normalization), a strategy's id, or normalizations and
+        strategies joined by ``+`` (``latin-historic+flow``: an unnamed strategy, each strategy its normalizations). With ``use`` (``output`` or ``comparison``), every
         normalization must be meant for it; a named strategy is used as its ``use`` says."""
         ref = entry_id(ref)
         if ref == "literal":
             return ResolvedStrategy("literal", use or "output", ())
         if "+" in ref or ref in self.normalizations:
-            parts = tuple(self.normalization(n) for n in ref.split("+"))
+            parts = tuple(n for x in ref.split("+") for n in (
+                [self.normalization(m) for m in self.strategies[x][1].normalizations] if x in self.strategies
+                else [self.normalization(x)]))
             kind = use or ("output" if all("output" in n.use for n in parts) else "comparison")
         elif ref in self.strategies:
             doc = self.strategies[ref][1]
@@ -790,8 +792,6 @@ BUILTIN_ENGINES = {
     "image.convert.v1": "linecaster.engines:ImageConvertEngine",
     "image.webp-lossless.v1": "linecaster.engines:WebpLosslessImageEngine",
     "layout.single-region.v1": "linecaster.engines:SingleRegionLayoutEngine",
-    "normalization.latin-historic.v1": "linecaster.engines:LatinHistoricNormalizationEngine",
-    "normalization.by-script.v1": "linecaster.engines:ByScriptNormalizationEngine",
     "typography.ratios.v1": "linecaster.engines:RatiosTypographyEngine",
     "recomposition.unicode.v1": "linecaster.engines:UnicodeRecompositionEngine",
     "recomposition.by-script.v1": "linecaster.engines:ByScriptRecompositionEngine",

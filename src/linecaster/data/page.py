@@ -78,15 +78,3 @@ class Item(BaseModel):
     item_id: str
     title: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class Text(BaseModel):
-    """One text per item and variant (``verbatim_txt``, ``readable_txt``, ``readable_md``)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    item_id: str
-    variant: str
-    text: str
-    pages: list[str] = Field(default_factory=list)        # page ids in order
-    metadata: dict[str, Any] = Field(default_factory=dict)

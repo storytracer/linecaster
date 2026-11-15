@@ -107,9 +107,23 @@ def test_reading_is_the_old_lane_without_its_hyphen_join():
     assert s.text("de-\npends") == "de- pends" and lanes._reading("de-\npends") == "depends"
 
 
-def test_latin_historic_is_the_old_normalization_table():
-    from linecaster.text.variants import normalize
+#: linecaster 0.9's normalization table (``linecaster.text.variants.normalize``, removed in 0.10), frozen
+_OLD_MAP = str.maketrans({"ſ": "s", "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st",
+                          "ꝛ": "r", "Ꝛ": "R"})
+_OLD_UMLAUT = {"a": "ä", "o": "ö", "u": "ü", "A": "Ä", "O": "Ö", "U": "Ü"}
 
+
+def _old_normalize(s: str) -> str:
+    import re
+    import unicodedata
+
+    s = unicodedata.normalize("NFC", s)
+    s = re.sub("([aouAOU])\u0364", lambda m: _OLD_UMLAUT[m.group(1)], s)
+    return unicodedata.normalize("NFC", s.translate(_OLD_MAP))
+
+
+def test_latin_historic_is_the_old_normalization_table():
+    normalize = _old_normalize
     s = catalog().strategy("latin-historic", use="output")
     for text in corpus():
         assert s.text(text) == normalize(text), repr(text)

@@ -27,10 +27,10 @@ from ..runtime.record import RunRecord
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
 #: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
 #: reads a source document (a transcription file, a source's markup) into a transcription
-STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "normalization", "typography",
-         "recomposition", "composition", "import")
+STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "typography", "recomposition", "composition",
+         "import")
 #: the steps whose engines are rules (strategies), in the pipeline's process only
-RULE_STEPS = ("image", "normalization", "typography", "recomposition", "composition", "import")
+RULE_STEPS = ("image", "typography", "recomposition", "composition", "import")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
 #: post-processing (``linecaster.runtime.provenance.OCRD_FALLBACK_STEP``)
 OCRD_STEPS = {
@@ -50,8 +50,7 @@ PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "
 #: the parts of a page record (or item record) that block contracts name: the page image and record, a library's own
 #: transcription file delivered with the page, what presets produce, and what the blocks without a model add
 #: (``docs/reference/pipelines.md``)
-PARTS = ("image", "metadata", "transcription_file", *PRODUCES, "line_regions", "hierarchy", "nfc", "paragraphs",
-         "normalized", "document")
+PARTS = ("image", "metadata", "transcription_file", *PRODUCES, "line_regions", "hierarchy", "paragraphs", "document")
 #: what an engine's work is done on, per call (``capabilities.unit``)
 UNITS = ("line", "region", "page", "item")
 SUPPORT = ("core", "experimental", "legacy")

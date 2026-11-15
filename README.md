@@ -222,7 +222,6 @@ from linecaster.blocks.lines import (
     LineAssigner, LineDetector)
 from linecaster.blocks.readers import ImageFolderReader
 from linecaster.blocks.recognition import LineRecognizer
-from linecaster.blocks.text import UnicodeNormalizer
 from linecaster.blocks.writers import PageFileWriter
 
 pipeline = [
@@ -232,11 +231,11 @@ pipeline = [
     LineAssigner(),
     LineRecognizer(
         P("linecaster_paddlex:PaddleRecognitionEngine")),
-    UnicodeNormalizer(),
     Typographer("ratios"),
     Recomposer("unicode-recomposition"),
     Composer("linked-composition"),
-    PageFileWriter("out/", formats=("md", "alto")),
+    PageFileWriter("out/", formats=("md", "alto"),
+                   strategy="latin-historic+flow"),
 ]
 LocalPipelineExecutor(
     pipeline, logging_dir="out/logs").run()

@@ -21,9 +21,9 @@ from linecaster.blocks.writers.rejects import RejectWriter
 from linecaster.data import Annotator, Source, Transcription, Word
 from linecaster.data.page import PAGE_KEY, Page, PageImage
 from linecaster.errors import PipelineConfigError
-from linecaster.text import variants as T
+from linecaster.catalog.registry import catalog
 
-from conftest import item_variants, page_with
+from conftest import item_text, page_with
 
 
 def _doc(page: Page, media: bytes | None = None) -> Document:
@@ -111,11 +111,12 @@ def test_working_images_and_attach(tmp_path: Path):
 
 # ------------------------------------------------------------------ text
 
-def test_normalize_never_nfkc():
-    assert T.normalize("Weſen ﬁnden ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ ꝛecht Ꝛ") == "Wesen finden fl ff ffi ffl st st recht R"
-    assert T.normalize("Muͤller Koͤnig Gaͤrten Uͤber eͤ") == "Müller König Gärten Über eͤ"
-    assert T.normalize("Æsop œuvre søster år Straße ½ x² ¹") == "Æsop œuvre søster år Straße ½ x² ¹"
-    assert T.normalize("é") == "é"
+def test_latin_historic_never_nfkc():
+    normalize = catalog().strategy("latin-historic", use="output").text
+    assert normalize("Weſen ﬁnden ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ ꝛecht Ꝛ") == "Wesen finden fl ff ffi ffl st st recht R"
+    assert normalize("Muͤller Koͤnig Gaͤrten Uͤber eͤ") == "Müller König Gärten Über eͤ"
+    assert normalize("Æsop œuvre søster år Straße ½ x² ¹") == "Æsop œuvre søster år Straße ½ x² ¹"
+    assert normalize("é") == "é"
 
 
 def _page(regions, start=0) -> Transcription:
@@ -129,26 +130,31 @@ def _page(regions, start=0) -> Transcription:
     return page_with(rs, ls)
 
 
-def test_variants():
-    p1 = _page([("h", "page_header", ["12 KAPITEL"]), ("t", "title", ["Vom Weſen"]),
-                ("s", "section_header", ["Erſter Theil"]), ("a", "text", ["Die Unter-", "ſuchung der"]),
-                ("f", "page_footer", ["12"])])
-    p2 = _page([("h", "page_header", ["KAPITEL 13"]), ("a", "text", ["Kaͤfer zeigt.", "# Neuer Satz"]),
-                ("l", "list_item", ["erſtens"]), ("p", "picture", [])])
-    v = item_variants([p1, p2])
-    assert v["verbatim_txt"] == ("12 KAPITEL\nVom Weſen\nErſter Theil\nDie Unter-\nſuchung der\n12\f"
-                                 "KAPITEL 13\nKaͤfer zeigt.\n# Neuer Satz\nerſtens")
+def test_item_texts():
+    def pages():
+        p1 = _page([("h", "page_header", ["12 KAPITEL"]), ("t", "title", ["Vom Weſen"]),
+                    ("s", "section_header", ["Erſter Theil"]), ("a", "text", ["Die Unter-", "ſuchung der"]),
+                    ("f", "page_footer", ["12"])])
+        p2 = _page([("h", "page_header", ["KAPITEL 13"]), ("a", "text", ["Kaͤfer zeigt.", "# Neuer Satz"]),
+                    ("l", "list_item", ["erſtens"]), ("p", "picture", [])])
+        return [p1, p2]
+
+    assert item_text(pages(), "literal:txt", furniture=True) == (
+        "12 KAPITEL\n\nVom Weſen\n\nErſter Theil\n\nDie Unter-\nſuchung der\n\n12\n\nKAPITEL 13\n\n"
+        "Kaͤfer zeigt.\n# Neuer Satz\n\nerſtens")
     # text only: a paragraph runs on over the page break only after a division mark (no margins to read)
-    assert v["readable_txt"] == ("Vom Wesen\n\nErster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\n"
-                                 "erstens")
-    assert v["readable_md"] == ("# Vom Wesen\n\n## Erster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz"
-                                "\n\n- erstens")
-    over = item_variants([_page([("a", "text", ["Die Unter-"])]), _page([("a", "text", ["ſuchung."])])])
-    assert over["readable_txt"] == "Die Untersuchung."
-    assert item_variants([_page([("a", "text", ["Ende."])]), _page([("a", "text", ["neu"])])])["readable_txt"] == \
-        "Ende.\n\nneu"
-    assert item_variants([_page([("a", "text", ["# kein Titel"])])])["readable_md"] == "\\# kein Titel"
-    assert T.verbatim([Transcription(), p2]).startswith("\fKAPITEL")
+    normalized = "latin-historic+unicode-marks+flow"
+    assert item_text(pages(), f"{normalized}:txt") == (
+        "Vom Wesen\n\nErster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\nerstens")
+    assert item_text(pages(), f"{normalized}:md") == (
+        "# Vom Wesen\n\n## Erster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\n- erstens"
+        "\n\n<!-- image -->")
+    assert "Kaͤfer zeigt.\n\\# Neuer Satz" in item_text(pages(), "literal:md")    # a row read as a heading: escaped
+    over = [_page([("a", "text", ["Die Unter-"])]), _page([("a", "text", ["ſuchung."])])]
+    assert item_text(over, f"{normalized}:txt") == "Die Untersuchung."
+    two = [_page([("a", "text", ["Ende."])]), _page([("a", "text", ["neu"])])]
+    assert item_text(two, f"{normalized}:txt") == "Ende.\n\nneu"
+    assert item_text([_page([("a", "text", ["# kein Titel"])])], "literal:md") == "\\# kein Titel"
 
 
 # ------------------------------------------------------------------ readers

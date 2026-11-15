@@ -21,8 +21,7 @@ from linecaster.blocks.lines import LineAssigner, LineDetector
 from linecaster.blocks.readers import ImageFolderReader, PageRecordReader
 from linecaster.blocks.recognition import LineRecognizer, TableRecognizer
 from linecaster.blocks.servers import ModelServer
-from linecaster.blocks.text import CharacterNormalizer, UnicodeNormalizer
-from linecaster.blocks.writers import ItemTextWriter, PageFileWriter, PageJsonlWriter
+from linecaster.blocks.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
 from linecaster.catalog import yamlio
 from linecaster.data import Line
 from linecaster.errors import PipelineConfigError
@@ -41,7 +40,12 @@ TEMPLATE = "page {width}x{height} line {index}"
 
 
 #: the variant the fake engines' pages make (no recomposition here)
-VERBATIM = ("verbatim_txt",)
+
+
+def item_texts(folder: str) -> list:
+    """An item stage for pages of lines only (no regions, so no document to write texts from): the item records
+    split into pages again and written."""
+    return [Splitter(), PageJsonlWriter(f"{folder}/split")]
 
 
 def _lines():
@@ -97,14 +101,14 @@ def _records(folder: Path) -> dict[str, dict]:
 # ------------------------------------------------------------------------------------------------ checks
 
 def test_a_valid_pipeline_has_no_problems():
-    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region"), UnicodeNormalizer(),
+    p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region"),
                Typographer("ratios"), Composer("linked-composition"),
                PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
     assert p.problems == []
     p.check()
     assert [type(b).__name__ for b in p.stages[0].blocks] == [
         "ImageFolderReader", "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer",
-        "UnicodeNormalizer", "Typographer", "Composer", "PageFileWriter", "PageJsonlWriter"]
+        "Typographer", "Composer", "PageFileWriter", "PageJsonlWriter"]
 
 
 def test_a_recognizer_without_lines():
@@ -151,9 +155,8 @@ def test_a_page_block_after_an_item_stream():
     assert "Composer (composer) works on pages, but the stream carries items here" in problems
     # and an item writer before any binder
     assert _problems([ImageFolderReader("x"), _lines(), _text(), ItemTextWriter("t")]) == [
-        "ItemTextWriter (📚 item texts (jsonl)) works on items, but the stream carries pages here",
-        "ItemTextWriter (📚 item texts (jsonl)) reads ocr_new:normalized, which no block before it in the pipeline adds",
-        "ItemTextWriter (📚 item texts (jsonl)) reads ocr_new:paragraphs, which no block before it in the pipeline adds"]
+        "ItemTextWriter (📚 item texts) works on items, but the stream carries pages here",
+        "ItemTextWriter (📚 item texts) reads document, which no block before it in the pipeline adds"]
 
 
 def test_server_blocks_go_last():
@@ -186,7 +189,7 @@ def test_a_pipeline_starts_with_a_reader():
 
 def test_every_problem_is_listed():
     problems = _problems([ImageFolderReader("x"), _text(), ModelServer([]), Composer("linked-composition"),
-                          ItemTextWriter("t", variants=VERBATIM)],
+                          ItemTextWriter("t")],
                          until="Nothing")
     assert len(problems) == 8
     assert problems[0].startswith("--until Nothing: no block of that name")
@@ -332,10 +335,11 @@ def test_modular_transcriber_runs_as_its_blocks():
 
 def _transcribe(a, texts: str):
     """Pages, then the item stage of --item-texts: the parts the page stage added carry across the binder (and the
-    stage cut) to the item-level recomposition and normalization."""
-    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), UnicodeNormalizer(), run.pages(a), Binder(),
-            Recomposer("unicode-recomposition", unit="item"), CharacterNormalizer("latin-historic", unit="item"),
-            ItemTextWriter(texts, format="files"), ItemTextWriter(texts)]
+    stage cut) to the item-level recomposition and composition, and the texts written from the item's document."""
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
+            Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item"),
+            ItemDocumentWriter(texts, texts=("literal:txt", "latin-historic+flow:md")),
+            ItemTextWriter(texts, texts=("literal:txt", "latin-historic+flow:md"))]
 
 
 def _args(*argv):
@@ -344,14 +348,15 @@ def _args(*argv):
 
 
 def _texts(folder: Path) -> dict[str, str]:
-    return {f.relative_to(folder).as_posix(): f.read_text() for f in sorted(folder.rglob("*")) if f.suffix in (".txt", ".md")}
+    return {f.relative_to(folder).as_posix(): f.read_text() for f in sorted(folder.rglob("*"))
+            if f.is_file() and f.suffix in (".txt", ".md")}
 
 
 def _jsonl_texts(folder: Path) -> list:
     rows = []
     for f in folder.rglob("*.jsonl.gz"):
         rows += [json.loads(line) for line in gzip.open(f, "rt")]
-    return sorted((r["id"], r["variant"], r["text"], tuple(r["page_ids"])) for r in rows)
+    return sorted((r["id"], r["text"], tuple(r["page_ids"])) for r in rows)
 
 
 def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
@@ -368,9 +373,8 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
     assert [s.name for s in run.build_plan(one, _transcribe(one, "t")).stages] == ["pages and items"]
     run.run(one, _transcribe(one, str(tmp_path / "texts1")), __file__, argv=[])
     texts = _texts(tmp_path / "texts1")
-    assert sorted(texts) == ["readable_md/A.md", "readable_md/B.md", "readable_txt/A.txt", "readable_txt/B.txt",
-                             "verbatim_txt/A.txt", "verbatim_txt/B.txt"]
-    assert "page 40x30 line 0" in texts["verbatim_txt/A.txt"] and "page 44x30 line 1" in texts["verbatim_txt/B.txt"]
+    assert sorted(texts) == ["latin-historic+flow/A.md", "latin-historic+flow/B.md", "literal/A.txt", "literal/B.txt"]
+    assert "page 40x30 line 0" in texts["literal/A.txt"] and "page 44x30 line 1" in texts["literal/B.txt"]
     assert _texts(tmp_path / "texts2") == texts
     assert _jsonl_texts(tmp_path / "texts2") == _jsonl_texts(tmp_path / "texts1")
     out2 = tmp_path / "out2"
@@ -383,9 +387,9 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
 
 
 def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):
-    blocks = [PageRecordReader("p", item_shards=True), Binder(), ItemTextWriter("t", variants=VERBATIM)]
+    blocks = [PageRecordReader("p", item_shards=True), Binder(), *item_texts("t")]
     assert [s.name for s in build(blocks, tasks=4, run_folder=str(tmp_path)).stages] == ["pages and items"]
-    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), ItemTextWriter("t", variants=VERBATIM)]
+    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("t")]
     p = build(blocks, tasks=4)
     assert p.problems == ["Binder (📚 binder) binds items from pages that 4 tasks read: the cut into stages "
                           "needs a run folder"]
@@ -393,7 +397,7 @@ def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):
 
 def test_servers_go_with_the_model_stage(tmp_path: Path):
     blocks = [ImageFolderReader("x"), LineDetector(Served("http://127.0.0.1:8100/v1", model="lines")), _text(),
-              PageJsonlWriter(str(tmp_path / "pages")), Binder(), ItemTextWriter("t", variants=VERBATIM),
+              PageJsonlWriter(str(tmp_path / "pages")), Binder(), *item_texts("t"),
               ModelServer([{"name": "lines"}])]
     p = build(blocks, tasks=3, run_folder=str(tmp_path))
     assert p.problems == []
@@ -401,13 +405,14 @@ def test_servers_go_with_the_model_stage(tmp_path: Path):
                                                              "RejectWriter", "PageJsonlWriter", "ModelServer"]
     assert p.stages[0].blocks[3].output_folder == f"{tmp_path}/rejects"    # the pages that failed, before the writer
     assert p.stages[0].blocks[4].item_shards == 3                 # the run's page writer, now in item shards
-    assert [type(b).__name__ for b in p.stages[1].blocks] == ["PageRecordReader", "Binder", "ItemTextWriter"]
+    assert [type(b).__name__ for b in p.stages[1].blocks] == ["PageRecordReader", "Binder", "Splitter",
+                                                             "PageJsonlWriter"]
 
 
 # ------------------------------------------------------------------------------------------------ partial runs, taps
 
 def _modular(a):
-    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), UnicodeNormalizer(), Typographer("ratios"),
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), Typographer("ratios"),
             Composer("linked-composition"), run.pages(a)]
 
 
@@ -422,8 +427,8 @@ def test_until_after_and_taps(items, tmp_path: Path):
     run.run(first, _modular(first), __file__, argv=[])
     second = _args(str(tmp_path / "second"), "--pages", str(tmp_path / "first" / "pages"), "--after", "LineAssigner")
     p = run.build_plan(second, _modular(second))
-    assert [type(b).__name__ for b in p.blocks] == ["PageRecordReader", "LineRecognizer", "UnicodeNormalizer",
-                                                    "Typographer", "Composer", "RejectWriter", "PageJsonlWriter"]
+    assert [type(b).__name__ for b in p.blocks] == ["PageRecordReader", "LineRecognizer", "Typographer", "Composer",
+                                                    "RejectWriter", "PageJsonlWriter"]
     assert {str(x) for x in p.blocks[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
     run.run(second, _modular(second), __file__, argv=[])
     halfway = _records(tmp_path / "first" / "pages")
@@ -564,11 +569,11 @@ def test_linecaster_page_finds_the_script():
 
 def test_the_cut_keeps_the_pipelines_item_shards_and_its_file_system():
     blocks = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("memory://lc/out/pages", item_shards=5),
-              Binder(), ItemTextWriter("memory://lc/texts", variants=VERBATIM)]
+              Binder(), *item_texts("memory://lc/texts")]
     first, second = build(blocks, tasks=3, run_folder="memory://lc/out").stages
     assert (first.tasks, second.tasks) == (3, 5)
     assert second.blocks[0].data_folder is first.blocks[-1].output_folder
-    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), ItemTextWriter("memory://lc/texts", variants=VERBATIM)]
+    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("memory://lc/texts")]
     first, second = build(blocks, tasks=3, run_folder="memory://lc/out2").stages
     assert "memory" in first.blocks[-1].output_folder.fs.protocol and first.blocks[-1].item_shards == 3
     assert "memory" in second.blocks[0].data_folder.fs.protocol
@@ -581,7 +586,7 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     jobs = ["--namespace", "ns", "--commit", "abc"] if on == "hf-jobs" else []
     a = _args("images", out, "--tasks", "2", "--on", on, *jobs)
     blocks = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
-              ItemTextWriter("memory://lc/texts", variants=VERBATIM), ModelServer([])]
+              *item_texts("memory://lc/texts"), ModelServer([])]
     p = run.build_plan(a, blocks)
     last = run._executors(a, p, out, None, ["linecaster"])
     first = last.depends

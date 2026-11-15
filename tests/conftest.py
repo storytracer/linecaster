@@ -128,13 +128,15 @@ def recomposed(t: Transcription, **options) -> Transcription:
     return t
 
 
-def item_variants(pages: list[Transcription]) -> dict[str, str]:
-    """The text variants of consecutive pages (an item) as the item stage makes them: recomposed as one item,
-    normalized (``latin-historic``), rendered (``linecaster.text.variants.variants``)."""
-    from linecaster.engines import LatinHistoricNormalizationEngine, UnicodeRecompositionEngine
-    from linecaster.text.variants import variants
+def item_text(pages: list[Transcription], text: str = "literal:txt", furniture: bool = False) -> str:
+    """One text of consecutive pages (an item) as the item stage writes it: recomposed as one item, composed into
+    the item's document, written by the strategy in the format (``<strategy>:<format>``, ``ItemDocumentWriter``)."""
+    from linecaster.document import export
+    from linecaster.document.strategy import apply
+    from linecaster.engines import LinkedCompositionEngine, UnicodeRecompositionEngine
 
-    UnicodeRecompositionEngine()(pages)
-    for t in pages:
-        LatinHistoricNormalizationEngine()(t)
-    return variants(pages)
+    ids = [f"p{k}" for k in range(len(pages))]
+    UnicodeRecompositionEngine()(pages, page_ids=ids)
+    doc = LinkedCompositionEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * len(pages))
+    strategy, _, fmt = text.rpartition(":")
+    return export(apply(doc, strategy), fmt, furniture)

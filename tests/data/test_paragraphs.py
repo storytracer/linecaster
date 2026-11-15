@@ -1,6 +1,6 @@
 """Paragraphs and their decisions in the data model: the vocabulary is enforced, JSON round-trips exactly, and a
-paragraph's rows hold what a document's provenance needs (the rows' boxes and character spans: ``DocumentBuilder``
-makes a document's provenance from them)."""
+paragraph's rows hold what a document's provenance needs (the rows' boxes: ``DocumentBuilder`` makes a document's
+provenance from them, each row's characters in the block's literal text)."""
 import pytest
 from pydantic import ValidationError
 
@@ -40,8 +40,8 @@ def paragraphs_of(t: Transcription) -> list[Paragraph]:
     rows, on_row = region_rows(t, lines), row_lines(t, lines)
     lexicon = Lexicon()
     lexicon.add("\n".join(r.text for r in rows))
-    return [Paragraph(annotator=a, id=f"text_0_p{n}", parts=["text_0"], text=p.text,
-                      rows=[ParagraphRow(lines=on_row[s.row], charspan=[s.start, s.end]) for s in p.spans])
+    return [Paragraph(annotator=a, id=f"text_0_p{n}", parts=["text_0"],
+                      rows=[ParagraphRow(lines=on_row[s.row]) for s in p.spans])
             for n, p in enumerate(reflow_rows(rows, lexicon=lexicon))]
 
 
@@ -51,9 +51,6 @@ def test_paragraph_rows_give_the_documents_provenance():
 
     t = page()
     t.ranges.extend(paragraphs_of(t))
-    assert [p.text for p in t.paragraphs] == [
-        "Die Untersuchung der Gesteine zeigt, dass die Ablagerungen älter sind als man bisher annahm.",
-        "Ein neuer Absatz beginnt eingerückt und endet hier."]
     by_id = {ln.id: ln for ln in t.lines}
 
     def box(row: ParagraphRow) -> BBox:
@@ -61,10 +58,14 @@ def test_paragraph_rows_give_the_documents_provenance():
         return BBox(min(b.x0 for b in boxes), min(b.y0 for b in boxes), max(b.x1 for b in boxes),
                     max(b.y1 for b in boxes))
 
-    ours = [(p.text, [((b := box(r)).x0, b.y0, b.x1, b.y1, *r.charspan) for r in p.rows]) for p in t.paragraphs]
+    ours = [[((b := box(r)).x0, b.y0, b.x1, b.y1) for r in p.rows] for p in t.paragraphs]
     doc = build_document(t)
-    theirs = [(b.text, [(*o.box, *o.span) for o in b.origins]) for b in doc.blocks]
-    assert ours == theirs
+    assert [b.text for b in doc.blocks] == [                         # literal: the rows as laid out
+        "Die Untersuchung der Gesteine zeigt, dass die Ab-\nlagerungen älter sind als man bisher annahm.",
+        "Ein neuer Absatz beginnt eingerückt und\nendet hier."]
+    assert ours == [[tuple(o.box) for o in b.origins] for b in doc.blocks]
+    for b in doc.blocks:                                            # each origin spans its row
+        assert [b.text[slice(*o.span)] for o in b.origins] == b.text.split("\n")
     assert t.paragraphs[0].rows[1].lines == ["l1", "l2"]               # a row of two lines, one box
 
 
@@ -73,12 +74,11 @@ def test_paragraphs_round_trip_and_default_empty():
     assert t.paragraphs == [] and t.edits == [] and t.links == []
     t.ranges.extend(paragraphs_of(t))
     first, second = t.paragraphs
-    first.decisions = [Decision(kind="mark_removed", reason="letter_follows", row=0),
-                       Decision(kind="continuation", reason="end_margin", row=1, separator=" ")]
+    first.decisions = [Decision(kind="continuation", reason="division_mark", row=0),
+                       Decision(kind="continuation", reason="end_margin", row=1)]
     t.links.append(Link(annotator=1, kind="runs_into", source=first.id, target="b_0002#text_0_p0"))
     second.decisions = [Decision(kind="paragraph_break", reason="indent")]
-    t.edits += [Edit(annotator=1, target=second.id, kind="normalized", text=second.text),
-                Edit(annotator=1, target="l0", kind="normalized", text=t.lines[0].reading.text)]
+    t.edits += [Edit(annotator=1, target="l0", kind="corrected", text="Die Untersuchung")]
     assert Transcription.model_validate_json(t.model_dump_json()) == t
     assert Transcription.model_validate(t.model_dump(mode="json", by_alias=True, exclude_defaults=True)) == t
 
