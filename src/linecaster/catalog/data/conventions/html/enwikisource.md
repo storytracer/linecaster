@@ -25,18 +25,22 @@ at a page's end.
   template call on the first element it writes (`data-mw-template`, `data-mw-param-<name>`), so the rules match
   the call: a page's first stanza `continues` (on the poem's element), its last `runs_on` (on its stanzas: one
   element takes one decision, and a call can have both). Each page reads as it is; an item joins them.
+- **Words divided across a page break** (edition 4): `{{hws}}` and `{{hwe}}` (`{{hyphenated word start}}`,
+  `{{hyphenated word end}}`) write each half as printed, in a span whose `title` is the whole word; the main namespace
+  prints the whole word where `{{hwe}}` stands and nothing for `{{hws}}`. Each half is read as printed with a
+  `joined` edit giving the whole word; an item's pages read together (`link_pages`) pair the halves and write the
+  whole word, including a compound's own hyphen (`inter-crossing`), where the wiki does. The reader marks a call
+  inside a line too when a rule names its template, so the rule matches the span the call writes.
 
 ## Not in the rules
 
-- Templates whose output has no class of its own cannot be matched in the HTML: `{{ua}}` (an editor's note, its
-  text followed by "(Wikisource contributor note)") and `{{hws}}`/`{{hwe}}` (a word divided across pages, its whole
-  form in a `title`). Their text is read as printed text.
+- Templates whose output has no class of its own and that no rule names cannot be matched in the HTML: `{{ua}}` (an
+  editor's note, its text followed by "(Wikisource contributor note)"). Its text is read as printed text.
 - A word divided across two pages is joined only where an item's pages are read together, not on one page.
 - What `{{FreedImg}}` and a file link show is a picture region with the file's name; the importer has no image.
 
 ## Open questions
 
-- `{{ua}}` and `{{hws}}`/`{{hwe}}`: marking a few named templates' output in the HTML (an attribute the importer sets
-  when the template expands) would let rules match them by name.
+- `{{ua}}`: a rule naming the template (`[data-mw-template=Ua]`) would match its output as `{{hws}}`'s is.
 - Dot leaders (`ws-noexport`) are removed whole; a list of illustrations that sets credits inside the leader element
   loses them.

@@ -111,6 +111,21 @@ def table_edges(root, opens_table: bool, starts_row: bool = True) -> tuple[str |
     return start, runs_on
 
 
+_NAMED = re.compile(r"""data-mw-template\s*=\s*["']?([^"'\]]+)""")
+
+
+def named_templates(conventions: ResolvedConventions | None) -> frozenset[str]:
+    """The templates the conventions' rules name (``[data-mw-template=...]``): their calls are marked wherever they
+    stand, inside a line too (``{{hws}}`` at a line's end), for the rules to match the element each writes first."""
+    if conventions is None:
+        return frozenset()
+    out = set()
+    for r in conventions.rules:
+        css = getattr(r.match, "css", None) or (r.match.get("css") if isinstance(r.match, dict) else None)
+        out.update(m.group(1).strip() for m in _NAMED.finditer(css or ""))
+    return frozenset(out)
+
+
 @dataclass
 class PageReading:
     transcription: Transcription
@@ -126,6 +141,7 @@ class PageReader:
         self.site = site
         self.conventions = conventions
         self.importer = HtmlConverter(conventions)
+        self.inline = named_templates(conventions)
 
     def styles(self, src: str) -> str | None:
         """A TemplateStyles style sheet's text: ``src`` in the Template namespace unless it names one."""
@@ -153,7 +169,7 @@ class PageReader:
         def keep(a: int, b: int) -> bool:                  # a call whose output is a table's own syntax: no mark,
             return not _LEAD.sub("", expanded[(a, b)]).startswith(_ROW_SYNTAX)   # the syntax must begin its line
 
-        marked, _, calls = mark_calls(text, pos, keep)      # the calls' marks are for the build alone
+        marked, _, calls = mark_calls(text, pos, keep, self.inline)  # the calls' marks are for the build alone
         root = w.parse(marked, expand_all=True)
         built = HtmlBuilder(self.site, self.styles, calls).build(root)
         wikidata, w.wikidata_asked = sorted(set(w.wikidata_asked)), None

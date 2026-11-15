@@ -34,6 +34,8 @@ function p.link(frame)
 end
 return p</text></revision></page>
 <page><title>Template:Box</title><ns>10</ns><id>8</id><revision><id>18</id><model>wikitext</model><text>&lt;div class="x-box"&gt;{{{{{{1}}}}}}&lt;/div&gt;</text></revision></page>
+<page><title>Template:Hws</title><ns>10</ns><id>9</id><revision><id>19</id><model>wikitext</model><text>&lt;span title="{{{{{{2}}}}}}"&gt;{{{{{{1}}}}}}-&lt;/span&gt;</text></revision></page>
+<page><title>Template:Hwe</title><ns>10</ns><id>10</id><revision><id>20</id><model>wikitext</model><text>&lt;span title="{{{{{{2}}}}}}"&gt;{{{{{{1}}}}}}&lt;/span&gt;</text></revision></page>
 <page><title>Template:Wdl</title><ns>10</ns><id>7</id><revision><id>17</id><model>wikitext</model><text>{{{{#invoke:Wikidata link|link|wikidata={{{{{{1|}}}}}}|label={{{{{{2|}}}}}} }}}}</text></revision></page>
 </mediawiki>
 """.format(template="&lt;templatestyles src=\"Head/styles.css\" /&gt;&lt;div class=\"x-head\"&gt;&lt;div "
@@ -384,3 +386,37 @@ def test_an_attributes_character_references_are_decoded(site):
     t = PageReader(site, c).read("<noinclude></noinclude>A <span class=\"tip\" title=\"[sic]&#32;'the'\">teh</span> "
                                  "word.<noinclude></noinclude>", "Page:Example.djvu/7").transcription
     assert t.lines[0].reading.text == "A teh word." and [(e.kind, e.text) for e in t.edits] == [("corrected", "the")]
+
+
+@pytest.mark.parametrize("first, second, whole, joined", [
+    ("The cicada's food {{hws|de|depends}}", "{{hwe|pends|depends}} upon it.", "depends",
+     ["The cicada's food", "depends upon it."]),
+    ("such {{hws|inter|inter-crossing}}", "{{hwe|crossing|inter-crossing}} of races.", "inter-crossing",
+     ["such", "inter-crossing of races."]),
+])
+def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second, whole, joined):
+    """{{hws}}/{{hwe}} write each half as printed, the whole word in the span's title: a rule naming the templates
+    makes each half a joined edit (the reader marks a call inside a line when a rule names it), each page reads as
+    printed, and the item's pages read together write the whole word where the wiki does (each line's joined edit,
+    which the document builder writes), a compound's own hyphen kept."""
+    from linecaster_mediawiki import PageReader, link_pages
+
+    c = resolve("example@4", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "example", "edition": 4, "format": "html",
+         "description": "the test wiki's divided words", "rules": [
+             {"id": "divided-words", "decision": "edit", "why": "a word divided across a page break",
+              "match": {"kind": "tree", "css": "span[data-mw-template=Hws], span[data-mw-template=Hwe]"},
+              "params": {"kind": "joined", "attr": "title"}}]}))
+
+    def read(reader):
+        return [(f"p{i}", reader.read(f"<noinclude></noinclude>{x}<noinclude></noinclude>",
+                                      f"Page:Example.djvu/{20 + i}").transcription) for i, x in enumerate((first, second))]
+
+    pages = read(PageReader(site, c))
+    assert [[e.text for e in t.edits] for _, t in pages] == [[whole], [whole]]
+    printed = [t.text_of(t.lines[0]) for _, t in pages]
+    assert printed[0].endswith("-") and not printed[1].startswith(whole)          # each page as printed
+    link_pages(pages)
+    assert [t.text_of(t.lines[0]) for _, t in pages] == joined
+    plain = read(PageReader(site))                                               # no rule: no edit, no mark
+    assert not any(t.edits for _, t in plain)

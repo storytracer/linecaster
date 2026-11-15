@@ -209,8 +209,12 @@ class _Writer:
                         self.append_text(chunk)
 
     def open_inline(self, tag: str, attrs: dict) -> None:
-        cur = self.ensure_p()
+        call = self.call                                 # a call's first element: also the inline one it writes
+        cur = self.ensure_p()                            # (a new paragraph takes the call's attributes as well)
         el = etree.SubElement(cur, tag, _attrs(attrs))
+        if call is not None:
+            self.call = call
+            self._call_attrs(el)
         self.inline.append(el)
         self.cursor = el
 

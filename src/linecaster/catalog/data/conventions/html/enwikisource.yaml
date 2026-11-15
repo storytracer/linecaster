@@ -1,17 +1,17 @@
 # yaml-language-server: $schema=../../../schemas/conventions-1.json
 schema: linecaster.conventions/1
 id: enwikisource
-edition: 3
+edition: 4
 format: html
 extends: mediawiki@1
 description: >-
   English Wikisource's templates, as the classes and attributes their output carries: running heads, the end of a
-  page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures, editors' errata and
-  stanzas across a page break.
+  page's paragraph, corrections and tooltips, sidenotes, ditto marks, dot leaders, figures, editors' errata,
+  stanzas across a page break and words divided across a page break.
 source:
   wiki: English Wikisource (en.wikisource.org)
   dump: enwikisource-20261101-pages-articles (Template, Module and Index namespaces)
-  importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.0, wikitextprocessor 6f96ddf)
+  importer: import.mediawiki.v1 (linecaster-mediawiki 0.1.1, wikitextprocessor 6f96ddf)
 rules:
 - id: running-head-cells
   match: {kind: tree, css: .wst-rh-cell}
@@ -98,4 +98,18 @@ rules:
   why: >-
     {{ppoem|end=follow}}: the page's last stanza runs on into the next page's first. Matched on the poem's stanzas,
     since a call with start=follow too has its poem's element decided by stanza-continued.
+  decided: 2026-11-15
+- id: divided-words
+  match:
+    kind: tree
+    css: >-
+      span[data-mw-template=Hws], span[data-mw-template=Hwe], span[data-mw-template='Hyphenated word start'],
+      span[data-mw-template='Hyphenated word end']
+  decision: edit
+  params: {kind: joined, attr: title}
+  why: >-
+    {{hws}} and {{hwe}} write each half of a word divided across a page break as printed, the whole word in the
+    span's title ("de-", "pends": "depends"); in the main namespace the wiki prints the whole word in its place. Each
+    half is the page's text, the whole word a joined edit of it; an item joins the two (linecaster-mediawiki's
+    link_pages). Matched by the call (the reader's data-mw-template), since the span has no class of its own.
   decided: 2026-11-15

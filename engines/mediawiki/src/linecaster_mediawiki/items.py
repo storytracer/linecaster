@@ -10,11 +10,17 @@ links between the pages' regions (``<page_id>#<region>``): the last body paragra
 runs on (``table_runs_on``) ``runs_into`` the next page's first table where that one continues it (``table_continues``),
 and where the next page goes on in the middle of a cell (``cell``) its last cell into the next's first. linecaster's
 item texts (``linecaster.text.variants``) and documents flow them into one.
+
+A word divided across a page break (``{{hws}}``/``{{hwe}}``: each half a ``joined`` edit of its span, the whole word
+its text) is written as the wiki writes it in the main namespace: ``join_divided_words`` pairs the halves and gives
+each line a ``joined`` edit of the whole line, the first half left out and the second written as the whole word
+(the document builder writes a line's ``joined`` edit as its text). A compound divided at its own hyphen keeps it.
 """
 from __future__ import annotations
 
 from linecaster.data import Link, Transcription
-from linecaster.data.refs import cell as cell_ref
+from linecaster.data.refs import cell as cell_ref, parse
+from linecaster.data.transcription import Edit
 
 BODY = ("paragraph",)
 NOTES = ("footnote", "footnote_continued")
@@ -32,7 +38,8 @@ def _ordered(t: Transcription, roles: tuple[str, ...]) -> list[str]:
 def link_pages(pages: list[tuple[str, Transcription]]) -> int:
     """Links the consecutive pages of one item, given in order as ``(page_id, transcription)``; returns how many
     joins it recorded. A page's own annotator of step ``import`` makes the links (its ``ends_paragraph``, the next
-    page's ``starts_paragraph``)."""
+    page's ``starts_paragraph``). Divided words are joined too (``join_divided_words``)."""
+    join_divided_words(pages)
     joins = 0
     for (pid, t), (nid, n) in zip(pages, pages[1:]):
         a = _importer(t)
@@ -69,3 +76,52 @@ def link_pages(pages: list[tuple[str, Transcription]]) -> int:
             t.links.append(Link(annotator=a, kind="runs_into", source=notes[-1], target=f"{nid}#{first}"))
             joins += 1
     return joins
+
+
+def _first_half(half: str, whole: str) -> bool:
+    return bool(half.strip()) and whole.startswith(half.rstrip().rstrip("-\u00ad\u2010").rstrip())
+
+
+def join_divided_words(pages: list[tuple[str, Transcription]]) -> int:
+    """Pairs the halves of each word divided across a page break, given the item's pages in order: a ``joined`` edit
+    of a span of a line (the half as printed, the whole word its text) whose span begins the whole word, and the next
+    one with the same word on a later page whose span ends it. Each line with a half gets a ``joined`` edit of the
+    whole line (by the page's importer): the first half left out (with the space before it at the line's end), the
+    second written as the whole word, as the wiki writes them in the main namespace. Returns the words joined; a half
+    without its other half stays as printed."""
+    open_: dict[str, tuple[int, str, tuple[int, int]]] = {}         # whole word -> its first half: page, line, span
+    cuts: dict[tuple[int, str], list[tuple[int, int, str]]] = {}
+    words = 0
+    for i, (_, t) in enumerate(pages):
+        order = {lid: k for k, lid in enumerate(t.order().lines)} if t.order() else {}
+        halves = []
+        for e in t.edits:
+            if e.kind != "joined":
+                continue
+            ref = parse(e.target)
+            if ref.span is None or ref.page is not None:
+                continue
+            ln = t.line(ref.id)
+            if ln is None or ln.reading is None:
+                continue
+            halves.append((order.get(ln.id, len(order)), ref.span, ln.id, ln.reading.text[ref.span[0]:ref.span[1]],
+                           e.text))
+        for _, span, lid, half, whole in sorted(halves):
+            first = open_.get(whole)
+            if first is not None and first[0] < i and whole.endswith(half.strip()):
+                cuts.setdefault(first[:2], []).append((*first[2], ""))
+                cuts.setdefault((i, lid), []).append((*span, whole))
+                del open_[whole]
+                words += 1
+            elif _first_half(half, whole):
+                open_[whole] = (i, lid, span)
+    for (i, lid), parts in cuts.items():
+        t = pages[i][1]
+        text = t.line(lid).reading.text
+        for a, e, new in sorted(parts, reverse=True):
+            if not new and not text[e:].strip():
+                text = text[:a].rstrip()
+            else:
+                text = text[:a] + new + text[e:]
+        t.edits.append(Edit(annotator=_importer(t), target=lid, kind="joined", text=text))
+    return words

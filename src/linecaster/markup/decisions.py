@@ -113,11 +113,12 @@ class Note(Decision):
 
 
 class Edit(Decision):
-    """Printed as it is, with another reading of it in an attribute (``corrected``, ``expanded``, ...); ``extract``:
-    a regular expression whose first group is the reading within the attribute's value (no match: no edit)."""
+    """Printed as it is, with another reading of it in an attribute (``corrected``, ``expanded``, ...; ``joined``:
+    the whole word a part divided across lines or pages belongs to); ``extract``: a regular expression whose first
+    group is the reading within the attribute's value (no match: no edit)."""
 
     name: ClassVar[str] = "edit"
-    kind: Literal["corrected", "normalized", "expanded", "regularized"]
+    kind: Literal["corrected", "normalized", "expanded", "regularized", "joined"]
     attr: str = "title"
     extract: str | None = None
 

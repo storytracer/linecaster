@@ -67,7 +67,7 @@ def test_resolution_refuses_what_it_cannot_resolve():
 
 def test_decisions_are_checked():
     assert make("remove", {"reason": "editorial"}) == Remove(reason="editorial")
-    for name, params in (("block", {"role": "nonsense"}), ("edit", {"kind": "joined"}), ("remove", {})):
+    for name, params in (("block", {"role": "nonsense"}), ("edit", {"kind": "nfc"}), ("remove", {})):
         with pytest.raises(ValidationError):
             make(name, params)
 
