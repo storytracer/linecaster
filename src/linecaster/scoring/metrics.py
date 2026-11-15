@@ -25,13 +25,13 @@ def _overlap(a: Counter, b: Counter) -> int:
 
 
 def role_words(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY, lane: str = DEFAULT_LANE,
-               strategy: str = "literal", tokenizer: str = "whitespace") -> dict[str, Counter]:
+               strategy="literal", tokenizer: str = "whitespace") -> dict[str, Counter]:
     """Content role -> the words (by ``lane`` and ``tokenizer``) of the lines in regions of that role (lines in no
     region: ``paragraph``), each line written as the scored texts are: its illegible spans as U+FFFD, then the output
-    ``strategy``."""
+    ``strategy`` (a reference, or the strategy resolved)."""
     from ..catalog.registry import catalog
 
-    written = catalog().strategy(strategy, use="output")
+    written = catalog().strategy(strategy, use="output") if isinstance(strategy, str) else strategy
     prec = policy.precedence.get("role")
     illegible = illegible_spans(t)
     out: dict[str, Counter] = {}
@@ -107,8 +107,8 @@ def score_page(truth: Transcription, output: Transcription | None, texts=tuple(T
                          "words_both": _overlap(wt, wo),
                          "conventions": uncovered(truth.source.normalized, ln, strategy)})
     first = lane_of(lanes[0]) if lanes else DEFAULT_LANE
-    rt = role_words(truth, policy, first, strategy, tokenizer)
-    ro = role_words(output, policy, first, strategy, tokenizer)
+    rt = role_words(truth, policy, first, written, tokenizer)
+    ro = role_words(output, policy, first, written, tokenizer)
     roles = {role: {"true": sum(rt.get(role, Counter()).values()), "output": sum(ro.get(role, Counter()).values()),
                     "both": _overlap(rt.get(role, Counter()), ro.get(role, Counter()))}
              for role in sorted(set(rt) | set(ro))}
