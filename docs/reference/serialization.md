@@ -1,11 +1,20 @@
 # Serialization and working images
 
 `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml,
-`linecaster.formats.iiif` writes an annotation set as an IIIF annotation page, `linecaster.document` writes a page's
-or an item's document as HTML, Markdown, text and JSON, `linecaster.formats.docling` reads a DoclingDocument (the
-`docling` extra) and `linecaster.formats.tei` a page of a TEI P5 document; `linecaster.images.convert` turns any
-page image into the working image. None of them imports datatrove, saturate or an engine. Each writer renders an annotation set under a [rendering
-policy](data-model.md#rendering); what it writes is a rendering, not stored in the page record.
+`linecaster.formats.iiif` writes an annotation set as an IIIF annotation page and reads one, `linecaster.document`
+writes a page's or an item's document as HTML, Markdown, text and JSON, `linecaster.formats.docling` reads a
+DoclingDocument (the `docling` extra), `linecaster.formats.tei` a page of a TEI P5 document and
+`linecaster.formats.text` plain text (a line per line, or the text of a line image); `linecaster.images.convert`
+turns any page image into the working image. None of them imports datatrove, saturate or an engine. Each writer
+renders an annotation set under a [rendering policy](data-model.md#rendering); what it writes is a rendering, not
+stored in the page record.
+
+The importers (`linecaster.engines.importers`, step `import`) read these formats into transcriptions. A source
+document's `context` may state the page's writing system, as a line-level dataset's columns do (`language`, a BCP
+47 tag; `script`, an ISO 15924 code; `direction`): each becomes the page's classification by the importer where the
+file records none of its own. `text-import` with the option `line_image` reads the text of an image of one line: the
+page is that line, its box the whole image (`import_transcriptions --read-images` gives the importer the image's
+size).
 
 ## Common rules for ALTO, PAGE and hOCR
 
@@ -247,6 +256,26 @@ output is validated against the IIIF Presentation 3 JSON Schema in the tests.
 A body's language is the one its target records ([data model](data-model.md#classifications): `Transcription.language`,
 its own `language` classification, else its line's, its region's or the page's), never an inferred one; a body
 without one has no `language`, and a region's body never has one.
+
+`from_annotation_page(data, uri=None, ground_truth=False, image_width=None, image_height=None)` reads an annotation
+page back (`import.iiif.v1`, preset `iiif-import`; `auto-import` tells a JSON annotation page apart): linecaster's
+own and other software's that follow the same conventions.
+
+| Annotation | Transcription |
+|---|---|
+| `classifying` with a box | a region, the body's value its role |
+| `supplementing` (also `transcribing`, `commenting` and `painting` with `textGranularity` `line`), `line` or no granularity | a line, the body's value its text |
+| `textGranularity` `word` | a word of the line whose box holds most of it |
+| `editing` whose body's purpose is an edit kind (`corrected`, `expanded`, `regularized`, `joined`), targeting a line's annotation | an edit of that line |
+| `describing` with a region's box | a description of that region, the purpose its kind |
+
+A target is a media fragment (`#xywh=`, in pixels, or `percent:` of the canvas's size where `image_width` and
+`image_height` give it), a `SpecificResource` with a `FragmentSelector` or an `SvgSelector` with a polygon, or the
+canvas itself (a line without a box). A line belongs to the region whose box holds more than half of its own. The
+bodies' languages are recorded on the page where every line states the same one, else on each line, and on a word
+that states another. Annotators are the annotations' `creator` (people, kind `human`) and `generator` (software,
+kind `model`; with `ground_truth`, people too); without either, the file. A comment without a granularity is no line, and an annotation of another
+motivation is left out.
 
 ## HTML import (`linecaster.formats.html`)
 
