@@ -16,6 +16,7 @@ from ..data.sample import listing_sha256
 from .counts import UNITS
 from .lanes import DEFAULT_LANE, LEGACY, lane, resolve
 from .render import TEXTS
+from .tokens import WORDS
 
 SCHEMA = "linecaster.benchmark/2"
 METRICS = ("cer", "token_recall", "over_extraction", "role_words", "confusion")
@@ -90,6 +91,9 @@ class Benchmark(_Model):
     lanes: list[str] = Field(default_factory=lambda: [DEFAULT_LANE], description="the lanes: comparison strategies")
     unit: Literal[UNITS] = Field("grapheme", description="what a character error counts: a grapheme cluster (what a "
                                                          "reader sees as one character) or a code point")
+    words: Literal[WORDS] = Field("whitespace", description="the tokenizer of the word metrics (linecaster.scoring."
+                                                            "tokens): whitespace, uax29 (Unicode's word boundaries) or "
+                                                            "characters")
     metrics: list[str] = Field(default_factory=lambda: ["cer", "token_recall", "over_extraction"])
     bootstrap: Bootstrap = Field(default_factory=Bootstrap)
     strata: list[str] = Field(default_factory=list, description="page or item fields to report rates by")
@@ -110,9 +114,13 @@ class Benchmark(_Model):
         from ..errors import CatalogError
 
         try:
-            catalog().strategy(self.output, use="output")      # known, and meant for writing texts
+            written = catalog().strategy(self.output, use="output")      # known, and meant for writing texts
         except CatalogError as e:
             raise ValueError(f"output: {e.args[0]}") from None
+        structural = [n.id for n in written.normalizations if not n.text_rule]
+        if structural:
+            raise ValueError(f"output: {self.output} holds normalizations of a document's structure "
+                             f"({', '.join(structural)}), which scoring cannot apply to a page's text")
         if "role_words" in self.metrics and not self.supports.roles:
             raise ValueError("role_words needs roles the ground truth marks (supports.roles)")
         if "confusion" in self.metrics and not self.supports.boxes:
@@ -126,10 +134,12 @@ class Benchmark(_Model):
     @property
     def sha256(self) -> str:
         """The hash of what it does: everything but ``description``, with each lane's and the output strategy's
-        hash (a change of a lane in a release changes it)."""
+        hash (a change of a lane in a release changes it); ``words`` only where it is not the default tokenizer."""
         from ..catalog.registry import catalog
 
         content = self.model_dump(mode="json", by_alias=True, exclude={"description"})
+        if content["words"] == "whitespace":
+            del content["words"]                               # the default: benchmarks from before keep their hash
         content["lanes"] = [{"id": x, "sha256": resolve(x).sha256} for x in self.lanes]
         content["output"] = {"id": self.output, "sha256": catalog().strategy(self.output, use="output").sha256}
         return "sha256:" + hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()

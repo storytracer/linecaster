@@ -185,6 +185,18 @@
           "title": "Unit",
           "type": "string"
         },
+        "words": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Words"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the word metrics' tokenizer and the version of their rules; absent (records from before 0.11): whitespace, version 1"
+        },
         "scorer": {
           "description": "the linecaster that scored (linecaster.scoring.scorer())",
           "title": "Scorer",
@@ -314,6 +326,31 @@
         "id"
       ],
       "title": "Named",
+      "type": "object"
+    },
+    "Words": {
+      "additionalProperties": false,
+      "description": "How the word metrics (recall, over-extraction, role words) cut a text into words.",
+      "properties": {
+        "tokenizer": {
+          "default": "whitespace",
+          "description": "linecaster.scoring.tokens",
+          "enum": [
+            "whitespace",
+            "uax29",
+            "characters"
+          ],
+          "title": "Tokenizer",
+          "type": "string"
+        },
+        "version": {
+          "default": 1,
+          "description": "the version of the word metrics' rules (linecaster.scoring.WORDS_VERSION): 1 dropped combining marks, 2 keeps them in their words",
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "title": "Words",
       "type": "object"
     }
   },

@@ -80,7 +80,7 @@ def score_pair(pid: str, truth_row: dict, out_row: dict | None, benchmark: Bench
                                            if "finish_reason" in a.measurements), None)
     roles = bool(benchmark.supports.roles) and "role_words" in benchmark.metrics
     got = score_page(gt, out, benchmark.texts, benchmark.lanes, policy, boxes="confusion" in benchmark.metrics,
-                     unit=benchmark.unit, strategy=benchmark.output)
+                     unit=benchmark.unit, strategy=benchmark.output, tokenizer=benchmark.words)
     item_id = truth_page.item_id
     records = [{"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags, "run_id": run_id,
                 "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256, "policy": policy.ref,

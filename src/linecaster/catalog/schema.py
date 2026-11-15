@@ -577,6 +577,15 @@ class Named(_Doc):
     sha256: str | None = None
 
 
+class Words(_Doc):
+    """How the word metrics (recall, over-extraction, role words) cut a text into words."""
+
+    tokenizer: Literal["whitespace", "uax29", "characters"] = Field("whitespace", description="linecaster.scoring."
+                                                                                               "tokens")
+    version: int = Field(1, description="the version of the word metrics' rules (linecaster.scoring.WORDS_VERSION): "
+                                        "1 dropped combining marks, 2 keeps them in their words")
+
+
 class EvidenceScoring3(_Doc):
     """How the run was scored: two records are comparable when these (every hash known) and the benchmark agree."""
 
@@ -584,6 +593,8 @@ class EvidenceScoring3(_Doc):
     output: Named = Field(description="the output strategy both texts were written with (literal: as read)")
     lanes: list[Named] = Field(description="the lanes (comparison strategies)")
     unit: Literal["grapheme", "codepoint"] = Field(description="what a character error counts")
+    words: Words | None = Field(None, description="the word metrics' tokenizer and the version of their rules; absent "
+                                                  "(records from before 0.11): whitespace, version 1")
     scorer: str = Field(description="the linecaster that scored (linecaster.scoring.scorer())")
 
 
@@ -638,14 +649,16 @@ class Evidence3(_Doc):
         return self.preset or self.recipe
 
     def comparable(self, other: "Evidence3") -> bool:
-        """Scored the same way: the same benchmark (hash), policy, output strategy, lanes (by hash) and unit; a record
-        with a hash missing (upgraded from evidence/2) is comparable to none."""
+        """Scored the same way: the same benchmark (hash), policy, output strategy, lanes (by hash), unit and word
+        metrics (tokenizer and rules); a record with a hash missing (upgraded from evidence/2) is comparable to
+        none."""
         def key(e):
             sc = e.scoring
             named = [sc.policy, sc.output, *sc.lanes] if sc else []
             if e.benchmark is None or sc is None or any(n.sha256 is None for n in named):
                 return None
-            return (e.benchmark.sha256, *((n.id, n.sha256) for n in named), sc.unit)
+            words = sc.words or Words()
+            return (e.benchmark.sha256, *((n.id, n.sha256) for n in named), sc.unit, words.tokenizer, words.version)
         a, b = key(self), key(other)
         return a is not None and a == b
 

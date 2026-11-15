@@ -14,7 +14,8 @@ from .lanes import REPLACEMENT
 TEXTS = {"full": ("body", "furniture"), "body": ("body",)}
 
 
-def _illegible(t: Transcription) -> dict[str, list[tuple[int, int]]]:
+def illegible_spans(t: Transcription) -> dict[str, list[tuple[int, int]]]:
+    """Line id -> its illegible spans (``status`` ``illegible`` on a span of the line)."""
     out: dict[str, list[tuple[int, int]]] = {}
     for c in t.classifications:
         if c.scheme == "status" and c.value == "illegible":
@@ -30,7 +31,7 @@ def text(t: Transcription, layers: tuple[str, ...] | str, policy: RenderingPolic
     formula, in place of its lines; such a region without lines (a layout's formula read by a formula model) takes
     its place in the regions' reading order, before the first line of a later region."""
     layers = TEXTS[layers] if isinstance(layers, str) else layers
-    illegible = _illegible(t)
+    illegible = illegible_spans(t)
     layer = {r.id: policy.layer_of(t, r.id) for r in t.regions}
     tables = {tb.target: tb for tb in t.tables if tb.cells}
     formulas = {f.target: f for f in t.formulas if f.target in layer and f.latex.strip()}
@@ -59,11 +60,19 @@ def text(t: Transcription, layers: tuple[str, ...] | str, policy: RenderingPolic
                 done.add(region)
                 out.append(whole(region))
             continue
-        s = t.text_of(ln)
+        s = line_text(t, ln, illegible)
         if s is None:
             continue
-        for start, end in illegible.get(ln.id, ()):
-            s = s[:start] + REPLACEMENT * (end - start) + s[end:]
         out.append(s)
     before(len(rank) + 1)
     return "\n".join(out)
+
+
+def line_text(t: Transcription, ln, illegible: dict[str, list[tuple[int, int]]]) -> str | None:
+    """A line's text as scored: its reading, its illegible spans as U+FFFD, one per character."""
+    s = t.text_of(ln)
+    if s is None:
+        return None
+    for start, end in illegible.get(ln.id, ()):
+        s = s[:start] + REPLACEMENT * (end - start) + s[end:]
+    return s

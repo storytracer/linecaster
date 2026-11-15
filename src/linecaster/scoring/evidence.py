@@ -36,6 +36,7 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
     from ..catalog.registry import catalog, canonical_sha256, entry_id
     from ..catalog.schema import Evidence3
     from .lanes import resolve
+    from .tokens import WORDS_VERSION
 
     record, record_sha = _run_record(run)
     recipe = (record.get("recipe") or {}) if preset is None else {}
@@ -64,7 +65,8 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
         "scoring": {"policy": {"id": entry_id(benchmark.policy), "sha256": policy_sha},
                     "output": {"id": benchmark.output, "sha256": c.strategy(benchmark.output, use="output").sha256},
                     "lanes": [{"id": ln, "sha256": resolve(ln).sha256} for ln in benchmark.lanes],
-                    "unit": benchmark.unit, "scorer": scorer()},
+                    "unit": benchmark.unit, "words": {"tokenizer": benchmark.words, "version": WORDS_VERSION},
+                    "scorer": scorer()},
         "metrics": metrics,
         "slices": {name: {"definition": sl["definition"], "pages": sl["pages"],
                           "metrics": {k: {key: v.get(key) for key in ("value", "lo", "hi", "n") if key in v}

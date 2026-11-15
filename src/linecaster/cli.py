@@ -187,7 +187,7 @@ def _evidence(a) -> None:
     base = new[0][1]
     apart = [p for p, e in new[1:] if not base.comparable(e)]
     if apart or not base.comparable(base):
-        sys.exit(f"not scored like {new[0][0]} (benchmark, policy, output strategy, lanes or unit differ, or a "
+        sys.exit(f"not scored like {new[0][0]} (benchmark, policy, output strategy, lanes, unit or word metrics differ, or a "
                  f"record from before 0.10 names no hashes): {', '.join(apart) or new[0][0]}")
     names = sorted({k for _, e in new for k in e.metrics})
     print("metric".ljust(32) + "".join(e.subject[:24].rjust(26) for _, e in new))
@@ -406,9 +406,9 @@ def main(argv: list[str] | None = None) -> None:
                                       "records and an evidence record (docs/reference/evaluation.md)")
     sc.add_argument("run", help="the run folder (OUT) or its pages/")
     sc.add_argument("truth", help="the ground truth's page records")
-    sc.add_argument("--benchmark", required=True, help="the benchmark definition (linecaster.benchmark/1 YAML)")
+    sc.add_argument("--benchmark", required=True, help="the benchmark definition (linecaster.benchmark/2 YAML; /1 is read)")
     sc.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
-    sc.add_argument("--preset", help="the preset edition measured (id@edition), when the run follows no recipe")
+    sc.add_argument("--preset", help="the preset measured (its id), when the run follows no recipe")
     sc.add_argument("--context", help="for a preset measured inside a pipeline: the rest of it")
     sc.add_argument("--out", help="where scores.parquet and evidence.yaml go; default RUN/scores")
     hs = sub.add_parser("harness", help="a benchmark's own harness scoring a run against a linecaster ground truth "

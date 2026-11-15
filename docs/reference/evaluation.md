@@ -4,7 +4,7 @@ linecaster scores transcriptions against ground truths and writes the result as 
 lanes (comparison strategies of the catalog), the score pipeline and the formats (`linecaster.benchmark/2`,
 `linecaster.score/1`, `linecaster.evidence/3`); it ships no benchmark and no evidence: those live with the evaluation
 that made them ([catalog](catalog.md#measurements-live-elsewhere)). Any two evidence records with the same benchmark,
-policy, output strategy, lanes (by hash), unit and scorer are comparable, whatever model, pipeline or machine
+policy, output strategy, lanes (by hash), unit and word metrics are comparable, whatever model, pipeline or machine
 produced the runs they measure.
 
 ```text
@@ -97,7 +97,7 @@ Per page, per text (`full`, `body`) and per lane:
 |---|---|
 | `s`, `d`, `i`, `h` | substitutions, deletions, insertions and hits of the alignment of output against ground truth (Levenshtein, U+FFFD as above), in the benchmark's `unit`: grapheme clusters (the default: a base letter with its combining marks is one character) or codepoints; `n = s + d + h` |
 | `cer` | `(s + d + i) / n` |
-| `token_recall` | the share of the ground truth's words (whitespace tokens of the lane's text) the output has, as multisets |
+| `token_recall` | the share of the ground truth's words (the benchmark's tokenizer on the lane's text, below) the output has, as multisets |
 | `over_extraction` | the share of the output's words the ground truth does not have |
 
 Per page and role, where the ground truth marks the role (no boxes needed):
@@ -106,19 +106,30 @@ Per page and role, where the ground truth marks the role (no boxes needed):
 |---|---|
 | `role_words_true`, `role_words_output`, `role_words_both` | the words (as for `token_recall`) the ground truth puts in the role, those the output puts there, and their multiset intersection; precision and recall per role follow |
 
+**Words.** The word metrics cut the lane's text into words by the benchmark's tokenizer (`words`,
+`linecaster.scoring.tokens`); a word with an illegible character is left out:
+
+| Tokenizer | Words |
+|---|---|
+| `whitespace` (default) | runs between whitespace, everything but letters, combining marks, digits and the underscore a boundary: a word keeps its combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels); a text without spaces (Chinese, Japanese, Thai) is one word per run |
+| `uax29` | Unicode's word boundaries (UAX #29): Chinese ideographs, Hiragana and Thai one word per character (Unicode leaves those scripts to a dictionary), Katakana runs whole, the other scripts by their own boundaries |
+| `characters` | grapheme clusters with a letter, mark or digit |
+
+Role words are each line's words written as the scored texts are: its illegible spans as U+FFFD, then the output
+strategy, then the first lane and the tokenizer.
+
 Per page, where both sides have boxes: regions matched one to one by IoU (greedy, highest first, IoU ≥ 0.5), and a
 confusion table of their roles (`role_true`, `role_output`, `count`), with the unmatched on either side as `none`.
 
-Per page, always: the output's `finish_reason`s, whether it was repaired, its errors, `seconds` and tokens (from its
-annotators' measurements), so that truncation and cost are read next to the scores.
+Per page, always: whether the output is missing, its error and the `finish_reason` of its last annotator that
+recorded one, so that missing, failed and truncated pages are read next to the scores.
 
 ## Score records (`linecaster.score/1`)
 
-One row per page, text and lane, in `OUT/scores/*.parquet`: `page_id`, `item_id`, `text`, `lane`, `s`, `d`, `i`,
-`h`, `n`, `token_recall` counts, `over_extraction` counts, the role word counts as a map, the confusion rows as a
-list, the page's flags (`finish_reason`, `repaired`, `error`) and measurements, and the ids that tie the row to its
-sources: `run_id`, `benchmark_sha256`, `policy`, `output`, `lane`, `unit`, `scorer`, and `conventions` (the
-conventions check). Rates are not stored: they are derived from the
+One row per page, text and lane, in `OUT/scores/*.parquet`: `page_id`, `item_id`, `text`, `lane`, `unit`, `words`
+(the tokenizer), `s`, `d`, `i`, `h`, `n`, the word counts `words_true`, `words_output`, `words_both`, the page's flags
+(`missing`, `error`, `finish_reason`), and the ids that tie the row to its sources: `run_id`, `benchmark`,
+`benchmark_sha256`, `policy`, `output`, `scorer`, and `conventions` (the conventions check). Rates are not stored: they are derived from the
 counts, so corpus rates are exact.
 
 ## Aggregation
@@ -160,6 +171,7 @@ A benchmark definition is a YAML file in the evaluation's repository:
 | `texts`, `lanes` | which texts and lanes are scored |
 | `output` | the output strategy both texts are written with (`literal` by default) |
 | `unit` | `grapheme` (default) or `codepoint`: what a character error counts; part of the hash |
+| `words` | the word metrics' tokenizer: `whitespace` (default), `uax29` or `characters`; part of the hash where it is not the default (so benchmarks that name none keep theirs) |
 | `metrics` | which metrics, of those the ground truth supports |
 | `bootstrap` | `seed`, `resamples`, `level` |
 | `strata` | fields to report rates by |
@@ -175,8 +187,8 @@ One measurement per file, kept by the evaluation:
 | `source` | `own-run`, `card-claim`, `vendor-benchmark` |
 | `run` | `uri` (the run folder), `run_id`, `pipeline_sha256`, `record_sha256` (of `run.yaml`) |
 | `benchmark` | `id@edition` and its `sha256` |
-| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `scorer` (the linecaster that scored, version and commit) |
-| `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `recall_header`, ... (`<metric>_<text>_<lane>`, `<metric>_<role>`) |
+| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `words` (the tokenizer and the version of the word metrics' rules: 1 dropped combining marks, 2 keeps them; absent: whitespace, 1), `scorer` (the linecaster that scored, version and commit) |
+| `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `role_recall_header`, ... (`<metric>_<text>_<lane>`, `role_precision_<role>`, `role_recall_<role>`) |
 | `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has data tables (`tables`, `linecaster.scoring.tables`), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
@@ -185,7 +197,7 @@ One measurement per file, kept by the evaluation:
 `linecaster.evidence/1` and `/2` records stay readable, upgraded when read (their lanes by today's names, `unit:
 codepoint`, marked not comparable with evidence/3 where a hash is missing); `linecaster evidence check` validates a
 file of any version, and `linecaster evidence compare` puts evidence records side by side, only those scored the same
-way (benchmark, policy, output strategy, lanes by hash, unit).
+way (benchmark, policy, output strategy, lanes by hash, unit, word metrics).
 
 ## Omni Parse Bench (`pipelines/omniparsebench.py`)
 

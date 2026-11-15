@@ -217,6 +217,17 @@
       "title": "Unit",
       "type": "string"
     },
+    "words": {
+      "default": "whitespace",
+      "description": "the tokenizer of the word metrics (linecaster.scoring.tokens): whitespace, uax29 (Unicode's word boundaries) or characters",
+      "enum": [
+        "whitespace",
+        "uax29",
+        "characters"
+      ],
+      "title": "Words",
+      "type": "string"
+    },
     "metrics": {
       "items": {
         "type": "string"

@@ -8,6 +8,7 @@ from .counts import UNITS, EditCounts, edit_counts
 from .lanes import DEFAULT_LANE, LEGACY, REPLACEMENT, lane, normalize
 from .metrics import confusion, role_words, score_page, words
 from .render import TEXTS, text
+from .tokens import WORDS, WORDS_VERSION, tokens
 
 
 def scorer() -> str:
@@ -20,4 +21,4 @@ def scorer() -> str:
 
 __all__ = ["DEFAULT_LANE", "LEGACY", "RATES", "REPLACEMENT", "TEXTS", "UNITS", "EditCounts", "confusion",
            "edit_counts", "lane", "normalize", "rates", "role_rates", "role_words", "score_page", "scorer", "text",
-           "words"]
+           "tokens", "WORDS", "WORDS_VERSION", "words"]

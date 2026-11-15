@@ -2,7 +2,6 @@
 over-extraction, the words per content role, and the role confusion of regions matched by their boxes."""
 from __future__ import annotations
 
-import re
 from collections import Counter
 from typing import Any
 
@@ -10,34 +9,39 @@ from ..data.policy import DEFAULT_POLICY, RenderingPolicy
 from ..data.transcription import Transcription
 from .counts import edit_counts
 from .lanes import DEFAULT_LANE, REPLACEMENT, normalize
-from .render import TEXTS, text
+from .render import TEXTS, illegible_spans, line_text, text
+from .tokens import tokens
 
-_PUNCT = re.compile(rf"[^\w\s{REPLACEMENT}]")
 
-
-def words(s: str, lane: str = DEFAULT_LANE) -> Counter:
-    """The words of a text for recall and role agreement: whitespace tokens of the lane (the one scored), punctuation
-    dropped; a word with an illegible character is left out (no output can be required to have it)."""
-    return Counter(w for w in _PUNCT.sub(" ", normalize(s, lane)).split() if REPLACEMENT not in w)
+def words(s: str, lane: str = DEFAULT_LANE, tokenizer: str = "whitespace") -> Counter:
+    """The words of a text for recall and role agreement: the ``tokenizer``'s tokens (``linecaster.scoring.tokens``)
+    of the lane's text (the one scored); a word with an illegible character is left out (no output can be required to
+    have it)."""
+    return Counter(w for w in tokens(normalize(s, lane), tokenizer) if REPLACEMENT not in w)
 
 
 def _overlap(a: Counter, b: Counter) -> int:
     return sum((a & b).values())
 
 
-def role_words(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY, lane: str = DEFAULT_LANE
-               ) -> dict[str, Counter]:
-    """Content role -> the words (by ``lane``) of the lines in regions of that role (lines in no region:
-    ``paragraph``)."""
+def role_words(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY, lane: str = DEFAULT_LANE,
+               strategy: str = "literal", tokenizer: str = "whitespace") -> dict[str, Counter]:
+    """Content role -> the words (by ``lane`` and ``tokenizer``) of the lines in regions of that role (lines in no
+    region: ``paragraph``), each line written as the scored texts are: its illegible spans as U+FFFD, then the output
+    ``strategy``."""
+    from ..catalog.registry import catalog
+
+    written = catalog().strategy(strategy, use="output")
     prec = policy.precedence.get("role")
+    illegible = illegible_spans(t)
     out: dict[str, Counter] = {}
     for ln in t.ordered_lines():
-        s = t.text_of(ln)
+        s = line_text(t, ln, illegible)
         if not s:
             continue
         region = t.region_of(ln)
         role = (t.classification(region, "role", prec) if region else None) or "paragraph"
-        out.setdefault(role, Counter()).update(words(s, lane))
+        out.setdefault(role, Counter()).update(words(written.text(s), lane, tokenizer))
     return out
 
 
@@ -77,9 +81,10 @@ def confusion(truth: Transcription, output: Transcription, threshold: float = 0.
 
 def score_page(truth: Transcription, output: Transcription | None, texts=tuple(TEXTS), lanes=(DEFAULT_LANE,),
                policy: RenderingPolicy = DEFAULT_POLICY, boxes: bool = True, unit: str = "grapheme",
-               strategy: str = "literal") -> dict[str, Any]:
+               strategy: str = "literal", tokenizer: str = "whitespace") -> dict[str, Any]:
     """One page's counts: ``rows`` (one per text and lane: ``s``, ``d``, ``i``, ``h``, ``n`` in ``unit``s, the
-    word counts ``words_true``, ``words_output``, ``words_both`` by that lane, and ``conventions``: the
+    word counts ``words_true``, ``words_output``, ``words_both`` by that lane and the ``tokenizer``
+    (``linecaster.scoring.tokens``), and ``conventions``: the
     normalizations the ground truth declares (``Source.normalized``) that the lane and the output strategy do not
     apply, ``linecaster.scoring.lanes.uncovered``), ``roles`` (role -> true, output, both
     word counts, by the first lane) and, with ``boxes``, ``confusion``. Both texts are written by the output
@@ -95,14 +100,15 @@ def score_page(truth: Transcription, output: Transcription | None, texts=tuple(T
         ref, hyp = written.text(text(truth, name, policy)), written.text(text(output, name, policy))
         for ln in lanes:
             ln = lane_of(ln)
-            wt, wo = words(ref, ln), words(hyp, ln)
+            wt, wo = words(ref, ln, tokenizer), words(hyp, ln, tokenizer)
             c = edit_counts(normalize(ref, ln), normalize(hyp, ln), unit)
-            rows.append({"text": name, "lane": ln, "unit": unit, "s": c.s, "d": c.d, "i": c.i, "h": c.h, "n": c.n,
+            rows.append({"text": name, "lane": ln, "unit": unit, "words": tokenizer, "s": c.s, "d": c.d, "i": c.i, "h": c.h, "n": c.n,
                          "words_true": sum(wt.values()), "words_output": sum(wo.values()),
                          "words_both": _overlap(wt, wo),
                          "conventions": uncovered(truth.source.normalized, ln, strategy)})
     first = lane_of(lanes[0]) if lanes else DEFAULT_LANE
-    rt, ro = role_words(truth, policy, first), role_words(output, policy, first)
+    rt = role_words(truth, policy, first, strategy, tokenizer)
+    ro = role_words(output, policy, first, strategy, tokenizer)
     roles = {role: {"true": sum(rt.get(role, Counter()).values()), "output": sum(ro.get(role, Counter()).values()),
                     "both": _overlap(rt.get(role, Counter()), ro.get(role, Counter()))}
              for role in sorted(set(rt) | set(ro))}
