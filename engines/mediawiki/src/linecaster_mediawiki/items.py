@@ -18,6 +18,8 @@ each line a ``joined`` edit of the whole line, the first half left out and the s
 """
 from __future__ import annotations
 
+import unicodedata
+
 from linecaster.data import Link, Transcription
 from linecaster.data.refs import cell as cell_ref, parse
 from linecaster.data.transcription import Edit
@@ -78,14 +80,23 @@ def link_pages(pages: list[tuple[str, Transcription]]) -> int:
     return joins
 
 
+def _nfkc(s: str) -> str:
+    return unicodedata.normalize("NFKC", s)                     # a ligature as printed ("\ufb02ush": "flushed")
+
+
 def _first_half(half: str, whole: str) -> bool:
-    return bool(half.strip()) and whole.startswith(half.rstrip().rstrip("-\u00ad\u2010").rstrip())
+    return bool(half.strip()) and _nfkc(whole).startswith(_nfkc(half).rstrip().rstrip("-\u00ad\u2010").rstrip())
+
+
+def _last_half(half: str, whole: str) -> bool:
+    return bool(half.strip()) and _nfkc(whole).endswith(_nfkc(half).strip())
 
 
 def join_divided_words(pages: list[tuple[str, Transcription]]) -> int:
     """Pairs the halves of each word divided across a page break, given the item's pages in order: a ``joined`` edit
     of a span of a line (the half as printed, the whole word its text) whose span begins the whole word, and the next
-    one with the same word on a later page whose span ends it. Each line with a half gets a ``joined`` edit of the
+    one with the same word whose span ends it, on a later page or later on the same page (the halves compared in
+    Unicode's compatibility form: a ligature as printed). Each line with a half gets a ``joined`` edit of the
     whole line (by the page's importer): the first half left out (with the space before it at the line's end), the
     second written as the whole word, as the wiki writes them in the main namespace. Returns the words joined; a half
     without its other half stays as printed."""
@@ -108,7 +119,7 @@ def join_divided_words(pages: list[tuple[str, Transcription]]) -> int:
                            e.text))
         for _, span, lid, half, whole in sorted(halves):
             first = open_.get(whole)
-            if first is not None and first[0] < i and whole.endswith(half.strip()):
+            if first is not None and (first[0], first[1], first[2]) != (i, lid, span) and _last_half(half, whole):
                 cuts.setdefault(first[:2], []).append((*first[2], ""))
                 cuts.setdefault((i, lid), []).append((*span, whole))
                 del open_[whole]

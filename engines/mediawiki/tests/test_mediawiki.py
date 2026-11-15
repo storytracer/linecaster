@@ -393,6 +393,7 @@ def test_an_attributes_character_references_are_decoded(site):
      ["The cicada's food", "depends upon it."]),
     ("such {{hws|inter|inter-crossing}}", "{{hwe|crossing|inter-crossing}} of races.", "inter-crossing",
      ["such", "inter-crossing of races."]),
+    ("the hills {{hws|\ufb02ush|flushed}}", "{{hwe|ed|flushed}} red.", "flushed", ["the hills", "flushed red."]),
 ])
 def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second, whole, joined):
     """{{hws}}/{{hwe}} write each half as printed, the whole word in the span's title: a rule naming the templates
@@ -420,3 +421,21 @@ def test_a_word_divided_across_pages_is_one_word_in_the_item(site, first, second
     assert [t.text_of(t.lines[0]) for _, t in pages] == joined
     plain = read(PageReader(site))                                               # no rule: no edit, no mark
     assert not any(t.edits for _, t in plain)
+
+
+def test_a_word_divided_within_a_page_is_joined_too(site):
+    """The halves of a word may stand on one page (a transcription that keeps the print's lines); the item joins
+    them as it joins halves on two pages."""
+    from linecaster_mediawiki import PageReader, join_divided_words
+
+    c = resolve("example@4", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "example", "edition": 4, "format": "html",
+         "description": "the test wiki's divided words", "rules": [
+             {"id": "divided-words", "decision": "edit", "why": "a word divided across a line",
+              "match": {"kind": "tree", "css": "span[data-mw-template=Hws], span[data-mw-template=Hwe]"},
+              "params": {"kind": "joined", "attr": "title"}}]}))
+    t = PageReader(site, c).read("<noinclude></noinclude>giue thee the {{hws|furthe|furtherance}}<br />"
+                                 "{{hwe|rance|furtherance}} of knowledge<noinclude></noinclude>",
+                                 "Page:Example.djvu/30").transcription
+    assert join_divided_words([("p0", t)]) == 1
+    assert [t.text_of(ln) for ln in t.lines] == ["giue thee the", "furtherance of knowledge"]
