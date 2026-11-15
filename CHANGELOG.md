@@ -4,6 +4,15 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.9.2 (2026-11-15)
+
+### Fixed
+
+- The document builder kept no formatting, languages or inline formulas of a line edited as a whole (a `joined`
+  edit whose text differs in length from the reading): with 0.9.1's divided words, every paragraph of an item that
+  holds a word joined across a page break lost its italics and formulas. The spans now move with the text they cover;
+  a span on removed text goes, one on a half written as the whole word covers the word.
+
 ## 0.9.1 (2026-11-15)
 
 ### Added
