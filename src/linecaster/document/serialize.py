@@ -57,21 +57,22 @@ def _blocks(doc: Document, furniture: bool, layers) -> list[Block]:
     return [b for b in doc.blocks if b.layer in keep]
 
 
-def _segments(text: str, spans: list[Span]) -> list[tuple[str, frozenset, str | None]]:
-    """The text cut at every span boundary: (piece, its formatting, its language)."""
+def _segments(text: str, spans: list[Span]) -> list[tuple[str, frozenset, str | None, str | None]]:
+    """The text cut at every span boundary: (piece, its formatting, its language, its writing direction)."""
     cuts = sorted({0, len(text), *(max(0, min(len(text), x)) for s in spans for x in (s.start, s.end))})
     out = []
     for a, e in zip(cuts, cuts[1:]):
-        fmt, lang = set(), None
+        fmt, lang, direction = set(), None, None
         for s in spans:
             if s.start <= a and e <= s.end:
                 fmt |= {k for k in ("bold", "italic", "underline", "strikethrough") if getattr(s, k)}
                 if s.script != "baseline":
                     fmt.add(s.script)
                 lang = s.language or lang
+                direction = s.direction or direction
                 if s.formula:
                     fmt.add("formula")
-        out.append((text[a:e], frozenset(fmt), lang))
+        out.append((text[a:e], frozenset(fmt), lang, direction))
     return out
 
 
@@ -82,13 +83,15 @@ _HTML_TAGS = (("bold", "b"), ("italic", "i"), ("underline", "u"), ("strikethroug
 
 def _html_inline(b: Block) -> str:
     out = []
-    for piece, fmt, lang in _segments(b.text, b.spans):
+    for piece, fmt, lang, direction in _segments(b.text, b.spans):
         s = htmllib.escape(piece, quote=False).replace("\n", "<br>")
         for k, tag in reversed(_HTML_TAGS):
             if k in fmt:
                 s = f"<{tag}>{s}</{tag}>"
-        if lang:
-            s = f'<span lang="{htmllib.escape(lang)}">{s}</span>'
+        bidi = {"horizontal-rl": "rtl", "horizontal-lr": "ltr"}.get(direction or "")
+        if lang or bidi:
+            attrs = (f' lang="{htmllib.escape(lang)}"' if lang else "") + (f' dir="{bidi}"' if bidi else "")
+            s = f"<span{attrs}>{s}</span>"
         out.append(s)
     return "".join(out)
 
@@ -230,7 +233,7 @@ def _md_escape(s: str, rules: MarkdownRules) -> str:
 
 def _md_inline(b: Block, rules: MarkdownRules) -> str:
     out = []
-    for piece, fmt, _lang in _segments(b.text, b.spans):          # a block's formulas are its formula spans
+    for piece, fmt, _lang, _direction in _segments(b.text, b.spans):     # a block's formulas are its formula spans
         s = piece if "formula" in fmt else _md_specials(piece, rules, True)
         core = s.strip()
         if not core:

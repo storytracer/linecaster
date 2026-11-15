@@ -64,3 +64,22 @@ def test_json_keeps_the_fields_and_leaves_out_unstated_ones():
 def test_markdown_and_text_do_not_change():
     doc = build_document(transcription())
     assert "lang" not in to_markdown(doc) and "<" not in to_text(doc)
+
+
+def test_a_span_of_another_direction_is_written_as_one():
+    from linecaster.data import Annotator, Transcription
+    from linecaster.document import Document
+    from linecaster.document.builder import build_document
+    from linecaster.document.serialize import to_html
+
+    t = Transcription()
+    a = t.add_annotator(Annotator(step="transcription", name="people", kind="human"))
+    t.add_region(a, "r0", role="paragraph")
+    t.add_line(a, "l0", region="r0", text="The word שלום means peace.")
+    t.classify(a, "l0[9:13]", "direction", "horizontal-rl")
+    t.classify(a, "l0[9:13]", "language", "he")
+    doc = build_document(t)
+    assert '<p>The word <span lang="he" dir="rtl">שלום</span> means peace.</p>' in to_html(doc)
+    back = Document.model_validate_json(doc.model_dump_json())
+    assert [s.direction for s in back.blocks[0].spans] == [None, "horizontal-rl"]
+    assert '"direction": null' not in doc.model_dump_json(indent=1)       # unstated: left out

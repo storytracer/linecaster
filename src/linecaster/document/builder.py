@@ -39,7 +39,8 @@ across pages (``Block.section``); blocks before the first stay outside.
 Writing: only what the transcriptions record (``Transcription.language``, ``.direction``), never an inferred value.
 The document's language and direction are its pages' (their ``""`` classifications) where every page records the
 same one; a block's are its region's (as resolved: the region's own, else what encloses it) where they differ from
-the document's; a span's language is a ``language`` classification of a span of a line.
+the document's; a span's language and direction are a ``language`` and ``direction`` classification of a span of a
+line.
 """
 from __future__ import annotations
 
@@ -379,7 +380,7 @@ def _side_by_side(a: Line, b: Line) -> bool:
 def _rows_text(t: Transcription, rows: list[list[Line]]) -> tuple[str, list[Span], list[tuple[int, int]]]:
     """Rows of lines as literal text (each line's reading; lines on a row joined with a space, rows with ``\\n``; a
     drop capital's text at the start of the line it begins), each row's span of it, and the lines' formatting,
-    languages, inline formulas (``Transcription.formulas`` on a span of a line) and the source's edits of spans
+    languages, writing directions, inline formulas (``Transcription.formulas`` on a span of a line) and the source's edits of spans
     (``Transcription.edits``: corrected, joined, expanded, regularized) as spans."""
     drops: dict[str, str] = {}
     for ln in t.links:
@@ -398,11 +399,13 @@ def _rows_text(t: Transcription, rows: list[list[Line]]) -> tuple[str, list[Span
             if line is not None:
                 edits.setdefault(line.id, []).append((0, len(t.text_of(line) or ""), e.kind, e.text))
     languages: dict[str, list[tuple[int, int, str]]] = {}
+    directions: dict[str, list[tuple[int, int, str]]] = {}
     for c in t.classifications:
-        if c.scheme == "language" and "[" in str(c.target):
+        if c.scheme in ("language", "direction") and "[" in str(c.target):
             p = parse(str(c.target))
             if p.span is not None:
-                languages.setdefault(p.id, []).append((p.span[0], p.span[1], str(c.value)))
+                (languages if c.scheme == "language" else directions).setdefault(p.id, []).append(
+                    (p.span[0], p.span[1], str(c.value)))
     formulas: dict[str, list[tuple[int, int]]] = {}
     for f in t.formulas:
         if "[" in str(f.target):
@@ -427,6 +430,9 @@ def _rows_text(t: Transcription, rows: list[list[Line]]) -> tuple[str, list[Span
             for a, e, lang in languages.get(ln.id, []):
                 if e > a:
                     spans.append(Span(start=at + a, end=at + e, language=lang))
+            for a, e, direction in directions.get(ln.id, []):
+                if e > a:
+                    spans.append(Span(start=at + a, end=at + e, direction=direction))
             for a, e in formulas.get(ln.id, []):
                 if e > a:
                     spans.append(Span(start=at + a, end=at + e, formula=True))

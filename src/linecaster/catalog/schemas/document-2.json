@@ -449,6 +449,25 @@
           "default": null,
           "title": "Language"
         },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "horizontal-lr",
+                "horizontal-rl",
+                "vertical-rl",
+                "vertical-lr"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the characters' writing direction where it is not their block's (right-to-left words in a left-to-right line)",
+          "title": "Direction"
+        },
         "formula": {
           "default": false,
           "description": "the characters are an inline formula, its LaTeX between $ and $",

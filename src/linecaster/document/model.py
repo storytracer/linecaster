@@ -64,6 +64,9 @@ class Span(_Model):
     strikethrough: bool = False
     script: Literal["baseline", "sub", "super"] = "baseline"
     language: str | None = None
+    direction: Direction | None = Field(None, exclude_if=_UNSTATED,
+                                        description="the characters' writing direction where it is not their block's "
+                                                    "(right-to-left words in a left-to-right line)")
     formula: bool = Field(False, description="the characters are an inline formula, its LaTeX between $ and $")
     edit: Literal["corrected", "joined", "expanded", "regularized"] | None = Field(
         None, description="the source states another reading of the characters (an edit of that kind): edit_text")
