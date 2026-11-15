@@ -485,7 +485,7 @@ class EvidenceScoring(_Doc):
 
     policy: str = Field(description="the rendering policy edition both sides were rendered with")
     lanes: list[str] = Field(description="the lane editions")
-    scorer: str = Field(description="linecaster's scorer edition (linecaster.scoring.SCORER)")
+    scorer: str = Field(description="linecaster's scorer (linecaster-scorer@1 before 0.10)")
     linecaster: str | None = Field(None, description="the linecaster version and commit that scored")
 
 
@@ -550,9 +550,103 @@ class Evidence2(_Doc):
                 == (other.scoring.policy, other.scoring.lanes, other.scoring.scorer))
 
 
-def read_evidence(data: dict) -> Evidence | Evidence2:
-    """An evidence record of either edition, by its ``schema``."""
-    return (Evidence2 if data.get("schema") == "linecaster.evidence/2" else Evidence).model_validate(data)
+class Named(_Doc):
+    """A catalog entry as a score names it: its id and the hash of its functional content (``None`` in a record
+    upgraded from before 0.10, which named an edition)."""
+
+    id: str
+    sha256: str | None = None
+
+
+class EvidenceScoring3(_Doc):
+    """How the run was scored: two records are comparable when these (every hash known) and the benchmark agree."""
+
+    policy: Named = Field(description="the rendering policy both sides were rendered with")
+    output: Named = Field(description="the output strategy both texts were written with (literal: as read)")
+    lanes: list[Named] = Field(description="the lanes (comparison strategies)")
+    unit: Literal["grapheme", "codepoint"] = Field(description="what a character error counts")
+    scorer: str = Field(description="the linecaster that scored (linecaster.scoring.scorer())")
+
+
+class Evidence3(_Doc):
+    """One measurement of a preset or recipe (``linecaster.evidence/3``): ``evidence/2`` with entries named by id and
+    hash (the release versions the catalog), the scoring's output strategy, lanes and unit. Kept by an evaluation,
+    never in linecaster's catalog. An ``evidence/2`` record is read as one (``read_evidence``), its lanes by name and
+    its unit ``codepoint``, without the hashes that make it comparable to records written since."""
+
+    schema_: Literal["linecaster.evidence/3"] = Field(alias="schema")
+    preset: str | None = Field(None, description="the preset measured, by id (id@edition before 0.10)")
+    recipe: str | None = Field(None, description="or the recipe measured, by id")
+    sha256: str | None = Field(None, description="its hash in the release that ran it (the run record's)")
+    context: str | None = Field(None, description="for a preset measured inside a pipeline: the rest of it")
+    source: Literal["own-run", "card-claim", "vendor-benchmark"]
+    run: EvidenceRun | None = None
+    benchmark: EvidenceBenchmark | None = Field(None, description="the benchmark it was scored by (own runs)")
+    dataset: str | None = Field(None, description="for claims without a benchmark: repo@revision or a description")
+    scoring: EvidenceScoring3 | None = None
+    metrics: dict[str, Metric]
+    counts: dict[str, int] = Field(default_factory=dict, description="pages scored, missing, failed, ...")
+    date: dt.date
+    hardware: EvidenceHardware | None = None
+    software: dict[str, str] = Field(default_factory=dict)
+    notes: str | None = None
+    upgraded_from: str | None = Field(None, description="the format it was read from (an older record, upgraded)")
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    @model_validator(mode="after")
+    def _one(self):
+        if (self.preset is None) == (self.recipe is None):
+            raise ValueError("evidence measures one preset or one recipe")
+        if self.source == "own-run" and (self.benchmark is None or self.scoring is None):
+            raise ValueError("an own run's evidence names its benchmark and its scoring")
+        return self
+
+    @property
+    def subject(self) -> str:
+        return self.preset or self.recipe
+
+    def comparable(self, other: "Evidence3") -> bool:
+        """Scored the same way: the same benchmark (hash), policy, output strategy, lanes (by hash) and unit; a record
+        with a hash missing (upgraded from evidence/2) is comparable to none."""
+        def key(e):
+            sc = e.scoring
+            named = [sc.policy, sc.output, *sc.lanes] if sc else []
+            if e.benchmark is None or sc is None or any(n.sha256 is None for n in named):
+                return None
+            return (e.benchmark.sha256, *((n.id, n.sha256) for n in named), sc.unit)
+        a, b = key(self), key(other)
+        return a is not None and a == b
+
+
+def upgrade_evidence_2(data: dict) -> dict:
+    """An ``evidence/2`` record as ``evidence/3``: lanes by their strategy (``linecaster.scoring.lanes.LEGACY``),
+    the unit ``codepoint``, the output ``literal``, no hashes (it is comparable to no record written since)."""
+    from ..scoring.lanes import LEGACY
+
+    out = {k: v for k, v in data.items() if k != "schema"}
+    out["schema"] = "linecaster.evidence/3"
+    out["upgraded_from"] = "linecaster.evidence/2"
+    sc = data.get("scoring")
+    if sc:
+        out["scoring"] = {"policy": {"id": sc["policy"].split("@", 1)[0]}, "output": {"id": "literal"},
+                          "lanes": [{"id": LEGACY.get(x, x.split("@", 1)[0])} for x in sc.get("lanes", [])],
+                          "unit": "codepoint", "scorer": sc.get("scorer", "")}
+    return out
+
+
+def read_evidence(data: dict) -> Evidence | Evidence3:
+    """An evidence record, by its ``schema``: ``evidence/3`` as it is, ``evidence/2`` upgraded to it; ``evidence/1``
+    (claims, no scoring) as it is."""
+    sid = data.get("schema")
+    if sid == "linecaster.evidence/3":
+        return Evidence3.model_validate(data)
+    if sid == "linecaster.evidence/2":
+        Evidence2.model_validate(data)                       # a valid evidence/2, or the error says why not
+        return Evidence3.model_validate(upgrade_evidence_2(data))
+    if sid == "linecaster.evidence/1":
+        return Evidence.model_validate(data)
+    raise ValueError(f"unknown evidence format {sid!r}; this linecaster reads evidence/1, /2 and /3")
 
 
 # ---------------------------------------------------------------------------------------------- schemas
@@ -570,7 +664,8 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.strategy": StrategyDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.evidence/2": Evidence2,
-    "linecaster.benchmark/1": Benchmark,
+    "linecaster.evidence/3": Evidence3,
+    "linecaster.benchmark/2": Benchmark,
     "linecaster.run-record/1": RunRecord,
     PAGE_SCHEMA: Page,                   # a page record's `page` (the row: schema, id, text, page, errors)
     DOCUMENT_SCHEMA: Document,

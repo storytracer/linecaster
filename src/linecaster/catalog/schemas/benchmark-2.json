@@ -148,11 +148,11 @@
     }
   },
   "additionalProperties": false,
-  "description": "A benchmark definition (``linecaster.benchmark/1``).",
+  "description": "A benchmark definition (``linecaster.benchmark/2``): ``benchmark/1`` with the lanes as comparison strategies of\nthe catalog, the output strategy both texts are written with, and the unit a character error counts.\n``read_benchmark`` reads a ``benchmark/1`` as one: its lanes by the strategy that does the same, the unit\n``codepoint``.",
   "properties": {
     "schema": {
-      "const": "linecaster.benchmark/1",
-      "default": "linecaster.benchmark/1",
+      "const": "linecaster.benchmark/2",
+      "default": "linecaster.benchmark/2",
       "title": "Schema",
       "type": "string"
     },
@@ -182,7 +182,7 @@
     },
     "policy": {
       "default": "page-layers",
-      "description": "the rendering policy edition both sides are rendered with",
+      "description": "the rendering policy both sides are rendered with",
       "title": "Policy",
       "type": "string"
     },
@@ -193,12 +193,29 @@
       "title": "Texts",
       "type": "array"
     },
+    "output": {
+      "default": "literal",
+      "description": "the output strategy both texts are written with (literal: as read)",
+      "title": "Output",
+      "type": "string"
+    },
     "lanes": {
+      "description": "the lanes: comparison strategies",
       "items": {
         "type": "string"
       },
       "title": "Lanes",
       "type": "array"
+    },
+    "unit": {
+      "default": "grapheme",
+      "description": "what a character error counts: a grapheme cluster (what a reader sees as one character) or a code point",
+      "enum": [
+        "grapheme",
+        "codepoint"
+      ],
+      "title": "Unit",
+      "type": "string"
     },
     "metrics": {
       "items": {

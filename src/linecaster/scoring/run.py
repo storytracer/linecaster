@@ -44,6 +44,12 @@ def read_records(folder: str | Path) -> Iterator[dict]:
                 yield upgrade(row)
 
 
+def scorer() -> str:
+    from . import scorer as named
+
+    return named()
+
+
 def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcription: str = "ocr_new",
               policy: RenderingPolicy = DEFAULT_POLICY, run_id: str | None = None) -> dict[str, Any]:
     """Scores the run's page records against the ground truth's. Returns ``records`` (score records), ``pages``
@@ -82,12 +88,13 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
             elif out is not None and out.annotators:
                 flags["finish_reason"] = next((a.measurements.get("finish_reason") for a in reversed(out.annotators)
                                                if "finish_reason" in a.measurements), None)
-        got = score_page(gt, out, benchmark.texts, benchmark.lanes, policy, boxes=boxes)
+        got = score_page(gt, out, benchmark.texts, benchmark.lanes, policy, boxes=boxes, unit=benchmark.unit,
+                         strategy=benchmark.output)
         item_id = truth_page.item_id
         for r in got["rows"]:
             records.append({"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags,
                             "run_id": run_id, "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256,
-                            "policy": policy.ref})
+                            "policy": policy.ref, "output": benchmark.output, "scorer": scorer()})
         pages.append({"page_id": pid, "item_id": item_id, "roles": got["roles"] if roles else {},
                       "confusion": got.get("confusion", [])})
     b = benchmark.bootstrap
@@ -97,7 +104,7 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
             sel = [r for r in records if r["text"] == name and r["lane"] == ln]
             for metric in ("cer", "token_recall", "over_extraction"):
                 if metric in benchmark.metrics:
-                    key = f"{metric}_{name}_{ln.split('@')[0]}"
+                    key = f"{metric}_{name}_{ln}"
                     out_rates[key] = rates(sel, metric, b.seed, b.resamples, b.level)
     return {"records": records, "pages": pages, "rates": out_rates,
             "roles": role_rates([p["roles"] for p in pages]) if roles else {},

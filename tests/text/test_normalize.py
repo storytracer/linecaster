@@ -6,8 +6,74 @@ import pytest
 
 from linecaster.catalog.registry import catalog
 from linecaster.errors import CatalogError
-from linecaster.scoring import lanes
 from linecaster.text.normalize import StructureRule, apply_rule
+
+# ---- the lanes as linecaster 0.9 computed them (frozen here: the reference the strategies must match) ----
+import re  # noqa: E402
+import unicodedata  # noqa: E402
+
+REPLACEMENT = "�"
+_WS = re.compile(r"\s+")
+_INVISIBLE = {ord(c): None for c in "­​‌‍⁠﻿"}
+_QUOTES = {ord(c): "'" for c in "'\u2019\u2018\u02bc`\u00b4"}
+_QUOTES.update({ord(c): '"' for c in "\u201c\u201d"})
+_HYPHENS = {ord(c): "-" for c in "\u2010\u2011\u2012\u2013\u2014\u2015"}
+_DEHYPHENATE = re.compile(r"-\s*\n\s*")
+
+
+def _diplomatic(t: str) -> str:
+    return _WS.sub(" ", unicodedata.normalize("NFC", t)).strip()
+
+
+#: HTML tag names the reading lane removes (a fixed list: angle brackets around other words are text)
+_HTML_TAGS = ("a|b|big|blockquote|br|caption|center|code|col|colgroup|div|em|figcaption|figure|font|h[1-6]|hr|i|img|"
+              "li|mark|ol|p|pre|s|small|span|strike|strong|sub|sup|table|tbody|td|tfoot|th|thead|tr|tt|u|ul")
+#: markup the reading lane removes, as a space: special tokens, box arrays, HTML tags, Markdown headings, bullets
+#: and rules, LaTeX macros, and the marks of emphasis, tables and formulas
+_MARKUP = [re.compile(r"<\|/?[A-Za-z0-9_]+\|>"), re.compile(r"\[\[\s*\d[\d,\s]*\]\]"),
+           re.compile(rf"</?(?:{_HTML_TAGS})(?:\s[^>\n]{{0,80}})?\s*/?>", re.I),
+           re.compile(r"^[ \t]*#{1,6}[ \t]+", re.M), re.compile(r"^[ \t]*[-*+][ \t]+", re.M),
+           re.compile(r"^[ \t]*[-=_*]{3,}[ \t]*$", re.M), re.compile(r"\\[a-zA-Z]+\*?"),
+           re.compile(r"[`*|~{}$\\]")]
+#: the markup ``reading@1`` and ``alnum@2`` remove, public for callers that must keep positions (replace each
+#: match by as many spaces, then normalize the pieces)
+MARKUP = tuple(_MARKUP)
+
+
+def _reading(t: str) -> str:
+    for rx in _MARKUP:
+        t = rx.sub(" ", t)
+    t = unicodedata.normalize("NFKC", t).translate(_INVISIBLE).translate(_QUOTES).translate(_HYPHENS)
+    return _WS.sub(" ", _DEHYPHENATE.sub("", t).casefold()).strip()
+
+
+_TAG = re.compile(r"<[^>]+>")
+_ASCII_WORD = re.compile(r"[a-z0-9\ufffd]+")
+
+
+def _ascii_alnum(t: str) -> str:
+    return " ".join(_ASCII_WORD.findall(_TAG.sub(" ", t).lower()))
+
+
+def _alnum(t: str) -> str:
+    t = unicodedata.normalize("NFC", t).casefold()
+    kept = "".join(c if c == REPLACEMENT or unicodedata.category(c)[0] in "LN" else " " for c in t)
+    return _WS.sub(" ", kept).strip()
+
+
+def _alnum2(t: str) -> str:
+    for rx in _MARKUP:
+        t = rx.sub(" ", t)
+    t = unicodedata.normalize("NFKC", unicodedata.normalize("NFKC", t).translate(_INVISIBLE).casefold())
+    kept = "".join(c if c == REPLACEMENT or unicodedata.category(c)[0] in "LMN" else " " for c in t)
+    return _WS.sub(" ", kept).strip()
+
+
+
+
+class lanes:  # noqa: N801 - the old module's names
+    _diplomatic, _reading, _alnum, _alnum2, _ascii_alnum = (staticmethod(f) for f in (
+        _diplomatic, _reading, _alnum, _alnum2, _ascii_alnum))
 
 CASES = [
     "", "  The  ſtrange\tcaſe\n of  ﬁne ﬂour  ", "Straße ΣΊΣΥΦΟΣ ῆ", "क्षत्रिय नमस्ते", "ä ä é",

@@ -174,7 +174,7 @@
           "type": "array"
         },
         "scorer": {
-          "description": "linecaster's scorer edition (linecaster.scoring.SCORER)",
+          "description": "linecaster's scorer (linecaster-scorer@1 before 0.10)",
           "title": "Scorer",
           "type": "string"
         },

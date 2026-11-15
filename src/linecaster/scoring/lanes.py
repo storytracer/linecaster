@@ -1,45 +1,22 @@
-"""Lanes: versioned normalizations a rendered text goes through before it is counted, the same for both sides of a
-comparison. A lane is named ``<id>@<edition>``; a released edition never changes (a change is a new edition).
+"""Lanes: the comparison strategies both sides of a scored text go through before it is counted (catalog strategies
+with ``use: comparison``, made of the same normalizations a written text may use; ``linecaster.catalog``,
+``Catalog.strategy``). A lane is named by its strategy's id: ``alnum`` (the default), ``reading``, ``diplomatic``,
+``alnum-nonmark``, ``ascii-alnum``, or normalizations joined by ``+``. The release versions them, as every catalog
+entry; a score names each lane with its hash.
 
-* ``diplomatic@1``: NFC; whitespace runs to one space; trimmed. Case, punctuation, ſ, ligatures, diacritics kept.
-* ``reading@1``: markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings,
-  bullets and rules, LaTeX macros, and the characters `` ` * | ~ { } $ \\ ``); NFKC; invisible format characters
-  removed (soft hyphen, zero-width characters, word joiner, BOM); single quotes, apostrophes, backtick and acute
-  accent to ``'``, curly double quotes to ``"``, the dashes U+2010 to U+2015 to ``-``; a hyphen at a line end joined
-  to the next line; casefolded; whitespace runs to one space; trimmed.
-* ``alnum@1``: NFC; casefolded; only letters and digits (Unicode categories L and N) kept, every run of anything
-  else one space; trimmed.
-* ``alnum@2`` (the default lane): ``reading@1``'s markup removed (special tokens, box arrays, HTML tags of its fixed
-  list, Markdown marks, LaTeX macros); NFKC (ſ to s, ligatures split, superscript digits to digits, full-width forms
-  to their plain ones); invisible format characters removed; casefolded (ß to ss) and NFKC again (folding can
-  decompose: ῆ); only letters, combining marks and
-  digits of any script (Unicode categories L, M and N) kept, every run of anything else one space; trimmed. Unlike
-  ``alnum@1``, a combining mark stays in its word (Devanagari vowel signs, a decomposed accent) and a long s or a
-  ligature matches its plain letters.
-* ``ascii-alnum@1``: HTML tags removed; lowercased; only the ASCII letters and digits kept (``[a-z0-9]+``), the
-  runs joined by single spaces: what is not ASCII (accented letters, ſ, ligatures) separates words.
+The lane names from before 0.10 (``alnum@2``) resolve to the strategy that does the same, with a warning
+(``LEGACY``): ``alnum@2`` is ``alnum``, ``alnum@1`` ``alnum-nonmark``, ``diplomatic@1`` ``diplomatic``,
+``ascii-alnum@1`` ``ascii-alnum``, and ``reading@1`` ``reading``, which no longer joins a hyphen at a line's end (no
+dehyphenation by default; a strategy may name one).
 
 U+FFFD (an illegible character in a ground truth) survives every lane.
 """
 from __future__ import annotations
 
 import re
-import unicodedata
-from typing import Callable
+import warnings
 
-REPLACEMENT = "�"
-_WS = re.compile(r"\s+")
-_INVISIBLE = {ord(c): None for c in "­​‌‍⁠﻿"}
-_QUOTES = {ord(c): "'" for c in "'\u2019\u2018\u02bc`\u00b4"}
-_QUOTES.update({ord(c): '"' for c in "\u201c\u201d"})
-_HYPHENS = {ord(c): "-" for c in "\u2010\u2011\u2012\u2013\u2014\u2015"}
-_DEHYPHENATE = re.compile(r"-\s*\n\s*")
-
-
-def _diplomatic(t: str) -> str:
-    return _WS.sub(" ", unicodedata.normalize("NFC", t)).strip()
-
-
+REPLACEMENT = "\ufffd"
 #: HTML tag names the reading lane removes (a fixed list: angle brackets around other words are text)
 _HTML_TAGS = ("a|b|big|blockquote|br|caption|center|code|col|colgroup|div|em|figcaption|figure|font|h[1-6]|hr|i|img|"
               "li|mark|ol|p|pre|s|small|span|strike|strong|sub|sup|table|tbody|td|tfoot|th|thead|tr|tt|u|ul")
@@ -50,57 +27,46 @@ _MARKUP = [re.compile(r"<\|/?[A-Za-z0-9_]+\|>"), re.compile(r"\[\[\s*\d[\d,\s]*\
            re.compile(r"^[ \t]*#{1,6}[ \t]+", re.M), re.compile(r"^[ \t]*[-*+][ \t]+", re.M),
            re.compile(r"^[ \t]*[-=_*]{3,}[ \t]*$", re.M), re.compile(r"\\[a-zA-Z]+\*?"),
            re.compile(r"[`*|~{}$\\]")]
-#: the markup ``reading@1`` and ``alnum@2`` remove, public for callers that must keep positions (replace each
-#: match by as many spaces, then normalize the pieces)
+#: the markup the ``markup`` normalization removes (``reading``, ``alnum``), public for callers that must keep
+#: positions (replace each match by as many spaces, then normalize the pieces); the catalog entry holds the same
 MARKUP = tuple(_MARKUP)
 
-
-def _reading(t: str) -> str:
-    for rx in _MARKUP:
-        t = rx.sub(" ", t)
-    t = unicodedata.normalize("NFKC", t).translate(_INVISIBLE).translate(_QUOTES).translate(_HYPHENS)
-    return _WS.sub(" ", _DEHYPHENATE.sub("", t).casefold()).strip()
-
-
-_TAG = re.compile(r"<[^>]+>")
-_ASCII_WORD = re.compile(r"[a-z0-9\ufffd]+")
-
-
-def _ascii_alnum(t: str) -> str:
-    return " ".join(_ASCII_WORD.findall(_TAG.sub(" ", t).lower()))
-
-
-def _alnum(t: str) -> str:
-    t = unicodedata.normalize("NFC", t).casefold()
-    kept = "".join(c if c == REPLACEMENT or unicodedata.category(c)[0] in "LN" else " " for c in t)
-    return _WS.sub(" ", kept).strip()
-
-
-def _alnum2(t: str) -> str:
-    for rx in _MARKUP:
-        t = rx.sub(" ", t)
-    t = unicodedata.normalize("NFKC", unicodedata.normalize("NFKC", t).translate(_INVISIBLE).casefold())
-    kept = "".join(c if c == REPLACEMENT or unicodedata.category(c)[0] in "LMN" else " " for c in t)
-    return _WS.sub(" ", kept).strip()
-
-
-#: lane edition -> its normalization
-LANES: dict[str, Callable[[str], str]] = {"diplomatic@1": _diplomatic, "reading@1": _reading, "alnum@1": _alnum,
-                                          "alnum@2": _alnum2, "ascii-alnum@1": _ascii_alnum}
+#: lane names from before 0.10 -> the comparison strategy that does the same
+LEGACY = {"diplomatic@1": "diplomatic", "reading@1": "reading", "alnum@1": "alnum-nonmark", "alnum@2": "alnum",
+          "ascii-alnum@1": "ascii-alnum"}
 #: the lane scored when a benchmark or a call names none
-DEFAULT_LANE = "alnum@2"
+DEFAULT_LANE = "alnum"
+_CACHE: dict = {}
 
 
 def lane(name: str) -> str:
-    """The lane edition ``name`` stands for (an id alone: its latest edition); unknown is a ``KeyError``."""
-    if name in LANES:
-        return name
-    editions = sorted((k for k in LANES if k.split("@")[0] == name), key=lambda k: int(k.split("@")[1]))
-    if not editions:
-        raise KeyError(f"unknown lane {name!r}; lanes: {sorted(LANES)}")
-    return editions[-1]
+    """The comparison strategy ``name`` stands for: a strategy's id, normalizations joined by ``+``, or a lane name
+    from before 0.10 (``LEGACY``, with a warning); an unknown one is a ``KeyError``."""
+    from ..catalog.registry import EditionWarning
+
+    if name in LEGACY:
+        warnings.warn(f"lane {name}: lanes are catalog strategies since linecaster 0.10; it is {LEGACY[name]!r}"
+                      + (" (without its hyphen join)" if name == "reading@1" else ""), EditionWarning, stacklevel=2)
+        return LEGACY[name]
+    try:
+        resolve(name)
+    except Exception as e:  # noqa: BLE001 - CatalogError: not a comparison strategy
+        raise KeyError(f"unknown lane {name!r}: {e}") from None
+    return name
+
+
+def resolve(name: str):
+    """The resolved comparison strategy of lane ``name`` (``linecaster.catalog.registry.ResolvedStrategy``), cached
+    per catalog."""
+    from ..catalog.registry import catalog
+
+    c = catalog()
+    key = (id(c), name)
+    if key not in _CACHE:
+        _CACHE[key] = c.strategy(LEGACY.get(name, name), use="comparison")
+    return _CACHE[key]
 
 
 def normalize(text: str, name: str) -> str:
     """``text`` through the lane ``name``."""
-    return LANES[lane(name)](text or "")
+    return resolve(lane(name)).text(text or "")

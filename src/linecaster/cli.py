@@ -145,11 +145,11 @@ def _score(a) -> None:
 
     from .catalog import yamlio
     from .catalog.registry import rendering_policy
-    from .scoring.benchmark import Benchmark
+    from .scoring.benchmark import read_benchmark
     from .scoring.evidence import evidence, write_evidence
     from .scoring.run import score_run, write_scores
 
-    bench = Benchmark.model_validate(yamlio.read(a.benchmark))
+    bench = read_benchmark(yamlio.read(a.benchmark))
     pages = Path(a.run) / "pages" if (Path(a.run) / "pages").is_dir() else Path(a.run)
     result = score_run(pages, a.truth, bench, transcription=a.transcription, policy=rendering_policy(bench.policy))
     out = Path(a.out) if a.out else Path(a.run) / "scores"
@@ -167,7 +167,7 @@ def _score(a) -> None:
 def _evidence(a) -> None:
     """``linecaster evidence check|compare``: evidence records validated, or put side by side."""
     from .catalog import yamlio
-    from .catalog.schema import Evidence2, read_evidence
+    from .catalog.schema import Evidence3, read_evidence
 
     records = []
     for path in a.files:
@@ -179,13 +179,14 @@ def _evidence(a) -> None:
         for path, ev in records:
             print(f"{path}: {ev.schema_} {ev.subject} OK")
         return
-    new = [(p, e) for p, e in records if isinstance(e, Evidence2)]
+    new = [(p, e) for p, e in records if isinstance(e, Evidence3)]
     if len(new) != len(records):
-        sys.exit("compare: only linecaster.evidence/2 records say how they were scored")
+        sys.exit("compare: an evidence/1 record does not say how it was scored")
     base = new[0][1]
     apart = [p for p, e in new[1:] if not base.comparable(e)]
-    if apart:
-        sys.exit(f"not scored like {new[0][0]} (benchmark, policy, lanes or scorer differ): {', '.join(apart)}")
+    if apart or not base.comparable(base):
+        sys.exit(f"not scored like {new[0][0]} (benchmark, policy, output strategy, lanes or unit differ, or a "
+                 f"record from before 0.10 names no hashes): {', '.join(apart) or new[0][0]}")
     names = sorted({k for _, e in new for k in e.metrics})
     print("metric".ljust(32) + "".join(e.subject[:24].rjust(26) for _, e in new))
     for k in names:

@@ -12,35 +12,52 @@ from linecaster.scoring import (confusion, edit_counts, normalize, rates, role_r
 
 
 @pytest.mark.parametrize("lane,raw,want", [
-    ("diplomatic@1", "  The  ſhip\n of\tSteers ", "The ſhip of Steers"),
+    ("diplomatic", "  The  ſhip\n of\tSteers ", "The ſhip of Steers"),
     ("diplomatic", "Café", "Café"),
-    ("reading@1", "The \u2018ſhip\u2019 \u2014 co-\noperative\u00ad", "the 'ship' - cooperative"),
-    ("reading@1", "\u201cquoted\u201d \u2212 1", '"quoted" \u2212 1'),
-    ("reading@1", "## A *b* <b>c</b> $x$ <Hand>", "a b c x <hand>"),
-    ("reading@1", "ﬁne", "fine"),
-    ("alnum@1", "Hello, World! 3rd—ed.", "hello world 3rd ed"),
-    ("alnum@1", "a\ufffdc!", "a\ufffdc"),
-    ("ascii-alnum@1", "The <b>Café</b>, 3rd—ſhip", "the caf 3rd hip"),
-    ("alnum@2", "The <b>Café</b>, 3rd—ſhip", "the café 3rd ship"),
-    ("alnum@2", "\ufb01ne Stra\u00dfe", "fine strasse"),
-    ("alnum@2", "cafe\u0301 na\u0131\u0308ve", "café naı\u0308ve"),
-    ("alnum@2", "\u1f08\u03b8\u1fc6\u03bd\u03b1\u03b9, x\u00b2", "\u1f00\u03b8\u1fc6\u03bd\u03b1\u03b9 x2"),
-    ("alnum@2", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e"),
-    ("alnum@2", "a\ufffdc! $\\frac{a}{b}$ <br/>x", "a\ufffdc a b x"),
-    ("alnum@2", "co\u00adop\u200bera", "coopera"),
+    ("reading", "The \u2018ſhip\u2019 \u2014 co-\noperative\u00ad", "the 'ship' - co- operative"),
+    ("reading", "\u201cquoted\u201d \u2212 1", '"quoted" \u2212 1'),
+    ("reading", "## A *b* <b>c</b> $x$ <Hand>", "a b c x <hand>"),
+    ("reading", "ﬁne", "fine"),
+    ("alnum-nonmark", "Hello, World! 3rd—ed.", "hello world 3rd ed"),
+    ("alnum-nonmark", "a\ufffdc!", "a\ufffdc"),
+    ("ascii-alnum", "The <b>Café</b>, 3rd—ſhip", "the caf 3rd hip"),
+    ("alnum", "The <b>Café</b>, 3rd—ſhip", "the café 3rd ship"),
+    ("alnum", "\ufb01ne Stra\u00dfe", "fine strasse"),
+    ("alnum", "cafe\u0301 na\u0131\u0308ve", "café naı\u0308ve"),
+    ("alnum", "\u1f08\u03b8\u1fc6\u03bd\u03b1\u03b9, x\u00b2", "\u1f00\u03b8\u1fc6\u03bd\u03b1\u03b9 x2"),
+    ("alnum", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092d\u093e\u0937\u093e"),
+    ("alnum", "a\ufffdc! $\\frac{a}{b}$ <br/>x", "a\ufffdc a b x"),
+    ("alnum", "co\u00adop\u200bera", "coopera"),
     ("alnum", "x", "x"),
 ])
 def test_lanes(lane, raw, want):
     assert normalize(raw, lane) == want
 
 
-def test_alnum1_splits_words_at_combining_marks():
-    assert normalize("\u0939\u093f\u0928\u094d\u0926\u0940", "alnum@1") != "\u0939\u093f\u0928\u094d\u0926\u0940"
+def test_alnum_nonmark_splits_words_at_combining_marks():
+    assert normalize("\u0939\u093f\u0928\u094d\u0926\u0940", "alnum-nonmark") != "\u0939\u093f\u0928\u094d\u0926\u0940"
 
 
-def test_the_default_lane():
+def test_the_default_lane_and_the_lane_names_from_before_0_10():
+    """Lanes are comparison strategies of the catalog; a name from before 0.10 is the strategy that does the same,
+    with a warning (reading@1 without its hyphen join: no dehyphenation by default)."""
+    from linecaster.catalog.registry import EditionWarning
     from linecaster.scoring import DEFAULT_LANE, lane
-    assert DEFAULT_LANE == "alnum@2" == lane("alnum")
+
+    assert DEFAULT_LANE == "alnum" == lane("alnum")
+    for old, new in (("alnum@2", "alnum"), ("alnum@1", "alnum-nonmark"), ("reading@1", "reading"),
+                     ("diplomatic@1", "diplomatic"), ("ascii-alnum@1", "ascii-alnum")):
+        with pytest.warns(EditionWarning, match=old):
+            assert lane(old) == new
+
+
+def test_a_character_is_a_grapheme_cluster_unless_the_unit_says_code_point():
+    """OCR-D counts grapheme clusters: a letter with a combining mark is one character, one error."""
+    from linecaster.scoring import edit_counts
+
+    g, c = edit_counts("a\u0308bc", "abc"), edit_counts("a\u0308bc", "abc", unit="codepoint")
+    assert (g.s, g.d, g.n) == (1, 0, 3) and (c.s, c.d, c.n) == (0, 1, 4)
+    assert edit_counts("x\ufffd\u0301y", "xzy").errors == 0          # an illegible cluster counts nowhere
 
 
 def test_an_unknown_lane_is_refused():
@@ -89,10 +106,10 @@ def test_a_removed_region_is_in_no_text_and_illegible_spans_are_replaced():
 def test_score_page_counts_each_text_and_lane_and_the_roles():
     truth = _page([("header", "THE HISTORY"), ("paragraph", "The ship sailed."), ("page_number", "12")])
     out = _page([("paragraph", "THE HISTORY"), ("paragraph", "The shjp sailed."), ("footer", "12")])
-    got = score_page(truth, out, lanes=("diplomatic@1", "alnum@1"))
+    got = score_page(truth, out, lanes=("diplomatic", "alnum-nonmark"))
     rows = {(r["text"], r["lane"]): r for r in got["rows"]}
-    assert rows[("full", "diplomatic@1")]["s"] == 1
-    assert rows[("body", "diplomatic@1")]["i"] == len("THE HISTORY\n")      # its head read as body text
+    assert rows[("full", "diplomatic")]["s"] == 1 and rows[("full", "diplomatic")]["unit"] == "grapheme"
+    assert rows[("body", "diplomatic")]["i"] == len("THE HISTORY\n")      # its head read as body text
     assert got["roles"]["header"] == {"true": 2, "output": 0, "both": 0}
     assert got["roles"]["paragraph"]["output"] == 5
     conf = {(c["role_true"], c["role_output"]): c["count"] for c in got["confusion"]}

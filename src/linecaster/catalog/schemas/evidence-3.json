@@ -1,0 +1,478 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "EvidenceBenchmark": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "description": "the benchmark edition: id@edition",
+          "title": "Ref",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "the benchmark's hash (linecaster.scoring.benchmark.Benchmark.sha256)",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "sha256"
+      ],
+      "title": "EvidenceBenchmark",
+      "type": "object"
+    },
+    "EvidenceHardware": {
+      "additionalProperties": false,
+      "properties": {
+        "gpu": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Gpu",
+          "type": "array"
+        },
+        "gpu_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Count"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Driver"
+        },
+        "cuda": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cuda"
+        },
+        "cpu": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cpu"
+        },
+        "machine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Machine"
+        }
+      },
+      "title": "EvidenceHardware",
+      "type": "object"
+    },
+    "EvidenceRun": {
+      "additionalProperties": false,
+      "description": "The run an evidence record measured: where its run folder is, and the hashes that name what ran.",
+      "properties": {
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the run folder (OUT)",
+          "title": "Uri"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the run record's run_id, stamped on every annotator it added",
+          "title": "Run Id"
+        },
+        "pipeline_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the run record's pipeline_sha256",
+          "title": "Pipeline Sha256"
+        },
+        "record_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sha256 of the run record file (run.yaml)",
+          "title": "Record Sha256"
+        }
+      },
+      "title": "EvidenceRun",
+      "type": "object"
+    },
+    "EvidenceScoring3": {
+      "additionalProperties": false,
+      "description": "How the run was scored: two records are comparable when these (every hash known) and the benchmark agree.",
+      "properties": {
+        "policy": {
+          "$ref": "#/$defs/Named",
+          "description": "the rendering policy both sides were rendered with"
+        },
+        "output": {
+          "$ref": "#/$defs/Named",
+          "description": "the output strategy both texts were written with (literal: as read)"
+        },
+        "lanes": {
+          "description": "the lanes (comparison strategies)",
+          "items": {
+            "$ref": "#/$defs/Named"
+          },
+          "title": "Lanes",
+          "type": "array"
+        },
+        "unit": {
+          "description": "what a character error counts",
+          "enum": [
+            "grapheme",
+            "codepoint"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "scorer": {
+          "description": "the linecaster that scored (linecaster.scoring.scorer())",
+          "title": "Scorer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy",
+        "output",
+        "lanes",
+        "unit",
+        "scorer"
+      ],
+      "title": "EvidenceScoring3",
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "lo": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lo"
+        },
+        "hi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hi"
+        },
+        "n": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the pages it was computed over",
+          "title": "N"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "Named": {
+      "additionalProperties": false,
+      "description": "A catalog entry as a score names it: its id and the hash of its functional content (``None`` in a record\nupgraded from before 0.10, which named an edition).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Named",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One measurement of a preset or recipe (``linecaster.evidence/3``): ``evidence/2`` with entries named by id and\nhash (the release versions the catalog), the scoring's output strategy, lanes and unit. Kept by an evaluation,\nnever in linecaster's catalog. An ``evidence/2`` record is read as one (``read_evidence``), its lanes by name and\nits unit ``codepoint``, without the hashes that make it comparable to records written since.",
+  "properties": {
+    "schema": {
+      "const": "linecaster.evidence/3",
+      "title": "Schema",
+      "type": "string"
+    },
+    "preset": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the preset measured, by id (id@edition before 0.10)",
+      "title": "Preset"
+    },
+    "recipe": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "or the recipe measured, by id",
+      "title": "Recipe"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "its hash in the release that ran it (the run record's)",
+      "title": "Sha256"
+    },
+    "context": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "for a preset measured inside a pipeline: the rest of it",
+      "title": "Context"
+    },
+    "source": {
+      "enum": [
+        "own-run",
+        "card-claim",
+        "vendor-benchmark"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "run": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceRun"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "benchmark": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceBenchmark"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the benchmark it was scored by (own runs)"
+    },
+    "dataset": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "for claims without a benchmark: repo@revision or a description",
+      "title": "Dataset"
+    },
+    "scoring": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceScoring3"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Metric"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "pages scored, missing, failed, ...",
+      "title": "Counts",
+      "type": "object"
+    },
+    "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "hardware": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceHardware"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "software": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Software",
+      "type": "object"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    },
+    "upgraded_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "the format it was read from (an older record, upgraded)",
+      "title": "Upgraded From"
+    }
+  },
+  "required": [
+    "schema",
+    "source",
+    "metrics",
+    "date"
+  ],
+  "title": "Evidence3",
+  "type": "object"
+}

@@ -1,11 +1,17 @@
-"""Character edit counts of an output against a ground truth: the codepoint alignment's substitutions, deletions,
-insertions and hits. A U+FFFD in the ground truth (an illegible character) is excluded from the errors and from the
-reference length, whatever it is aligned with."""
+"""Character edit counts of an output against a ground truth: the alignment's substitutions, deletions, insertions and
+hits, by grapheme cluster (what a reader sees as one character, Unicode's extended grapheme clusters, as OCR-D counts:
+a letter with a combining mark is one) or, with ``unit="codepoint"``, by code point (as before 0.10). A U+FFFD in
+the ground truth (an illegible character) is excluded from the errors and from the reference length, whatever it is
+aligned with."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from .lanes import REPLACEMENT
+
+#: the units a character error rate counts in
+UNITS = ("grapheme", "codepoint")
 
 
 @dataclass(frozen=True)
@@ -32,17 +38,36 @@ class EditCounts:
         return EditCounts(self.s + other.s, self.d + other.d, self.i + other.i, self.h + other.h)
 
 
-def edit_counts(reference: str, output: str) -> EditCounts:
-    """The edit counts of ``output`` against ``reference`` (both already normalized by one lane), codepoint by
-    codepoint (Levenshtein, ``rapidfuzz``)."""
+def units(text: str, unit: Literal["grapheme", "codepoint"] = "grapheme") -> list[str]:
+    """``text`` as the units counted: its grapheme clusters, or its code points."""
+    if unit == "codepoint":
+        return list(text)
+    if unit != "grapheme":
+        raise ValueError(f"unit {unit!r}: one of {UNITS}")
+    from uniseg.graphemecluster import grapheme_clusters
+
+    return list(grapheme_clusters(text))
+
+
+def edit_counts(reference: str, output: str, unit: Literal["grapheme", "codepoint"] = "grapheme") -> EditCounts:
+    """The edit counts of ``output`` against ``reference`` (both already normalized by one lane), unit by unit
+    (``units``; Levenshtein, ``rapidfuzz``)."""
     try:
         from rapidfuzz.distance import Levenshtein
     except ImportError as e:            # pragma: no cover - the extra
         raise ImportError("scoring needs rapidfuzz: install linecaster[rapidfuzz]") from e
-    wild = {k for k, c in enumerate(reference) if c == REPLACEMENT}
+    if unit == "codepoint":
+        ref, out = reference, output
+    else:
+        ids: dict[str, int] = {}
+        a, b = units(reference, unit), units(output, unit)
+        ref = [ids.setdefault(x, len(ids)) for x in a]
+        out = [ids.setdefault(x, len(ids)) for x in b]
+        reference = a                                  # the units, for the illegible ones and the length
+    wild = {k for k, c in enumerate(reference) if REPLACEMENT in c}
     s = d = i = 0
     touched = set()
-    for op in Levenshtein.editops(reference, output):
+    for op in Levenshtein.editops(ref, out):
         if op.tag == "insert":
             i += 1
             continue
