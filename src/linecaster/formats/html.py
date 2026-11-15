@@ -628,4 +628,10 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
     for n in notes:
         region(n)
     part("footer")
-    t.add_order(people, order, line_order)
+    region_of = {ln.id: ln.region for ln in t.lines}
+    rows, seen = [], {}                         # each line its own row: a line of the source is a line break
+    for lid in line_order:
+        reg = region_of.get(lid)
+        rows.append(seen.get(reg, 0))
+        seen[reg] = rows[-1] + 1
+    t.add_order(people, order, line_order, rows)

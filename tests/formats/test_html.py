@@ -69,3 +69,14 @@ def test_a_page_without_conventions_reads_by_html_alone():
     r = read("<body><p>One</p><p>Two runs on</p></body>")
     assert [ln.reading.text for ln in r.transcription.lines] == ["One", "Two runs on"]
     assert not r.ends_paragraph and not r.coverage.matched
+
+
+def test_each_line_is_its_own_row():
+    """A line of the source (a ``<br>`` inside a block) is a line break of the document, not a row joined with a
+    space, as verse needs."""
+    from linecaster.document import build_document
+
+    t = read("<html><body><p>The night was dark,<br>the wind was cold,<br>and all the trees</p>"
+             "<p>Prose in one line.</p></body></html>")
+    paragraphs = [b.text for b in build_document(t.transcription).blocks if b.kind == "paragraph"]
+    assert paragraphs == ["The night was dark,\nthe wind was cold,\nand all the trees", "Prose in one line."]
