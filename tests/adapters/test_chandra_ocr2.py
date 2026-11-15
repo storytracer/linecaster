@@ -87,14 +87,39 @@ def test_serve_args_match_the_card():
     assert "--trust-remote-code" not in args and "--served-model-name" not in args
 
 
-def test_parse_keeps_the_html_verbatim():
+def test_parse_keeps_the_html_as_the_raw_output():
     raw = ('<div data-bbox="102 61 898 90" data-label="Page-Header"><p>PROCEEDINGS</p></div>\n'
            '<div data-bbox="100 120 900 400" data-label="Text"><p>Helix rotundata, <i>Müll.</i></p></div>')
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 6700, "completion_tokens": 80}}
     t = chat_model("chandra-ocr-2").parse(body, backend="served x")
-    assert t.text == raw and t.outputs[0].content == raw                     # HTML -> Markdown is left to the consumer
+    assert t.outputs[0].content == raw                                       # the completion verbatim
+    assert t.text == "PROCEEDINGS\nHelix rotundata, Müll."                   # its blocks read as text
     m = t.annotators[0]
     assert (m.step, m.name, m.revision) == ("recognition", "datalab-to/chandra-ocr-2", REVISION)
     assert m.measurements == {"prompt_tokens": 6700, "completion_tokens": 80, "finish_reason": "stop"}
     assert m.settings["attempts"] == 1
+
+
+def test_the_layout_blocks_are_read_by_the_html_importer():
+    """chandra's layout HTML becomes regions with roles and their text (the running head and foot as furniture,
+    footnotes as notes, a blank page as nothing); the completion stays the raw output; a completion without any
+    layout block is read line by line."""
+    from linecaster.scoring.render import text
+
+    a = chat_model("chandra-ocr-2")
+    raw = ('<div data-bbox="10 5 90 9" data-label="Page-Header">28 MR. DARWIN</div>'
+           '<div data-bbox="10 10 990 200" data-label="Text"><p>The petioles are <i>sensitive</i>.</p></div>'
+           '<div data-bbox="10 210 990 260" data-label="Section-Header"><h2>Clematis</h2></div>'
+           '<div data-bbox="10 900 990 960" data-label="Footnote"><p>1 A note.</p></div>'
+           '<div data-bbox="400 980 600 990" data-label="Page-Footer">12</div>')
+    t = a.parse({"choices": [{"message": {"content": raw}, "finish_reason": "stop"}], "usage": {}})
+    assert t.outputs[0].content == raw and t.annotators[0].measurements["finish_reason"] == "stop"
+    assert "data-bbox" not in text(t, "full") and "<" not in text(t, "full")
+    assert text(t, "full").startswith("28 MR. DARWIN\nThe petioles are sensitive.\nClematis")
+    assert "28 MR. DARWIN" not in text(t, "body") and "12" not in text(t, "body").split("\n")
+    assert {t.role(r.id) for r in t.regions} >= {"header", "footer", "paragraph"}
+    blank = a.parse({"choices": [{"message": {"content": '<div data-label="Blank-Page"></div>'}}], "usage": {}})
+    assert text(blank, "full") == ""
+    cut = a.parse({"choices": [{"message": {"content": "plain\nlines"}, "finish_reason": "length"}], "usage": {}})
+    assert cut.text == "plain\nlines"

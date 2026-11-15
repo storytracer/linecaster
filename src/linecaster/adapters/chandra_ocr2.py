@@ -10,16 +10,49 @@
 * ONE attempt per page: the vendor client retries a page up to six times at a raised temperature when it
   detects a repetition loop; linecaster does not, so a loop shows as a loop.
 
-The model answers with HTML layout blocks (``<div data-bbox=.. data-label=..>``), stored verbatim; converting
-them to Markdown (the vendor's ``parse_markdown``) is left to the consumer.
+The model answers with HTML layout blocks (``<div data-bbox=.. data-label=..>``), stored verbatim as the raw output
+and read into the transcription by linecaster's HTML importer (``parse``): each block's content by HTML's semantics
+(paragraphs, headings, lists, tables, formulas, emphasis), the running head and foot and footnotes by their labels
+(``Page-Header``, ``Page-Footer``, ``Footnote`` as DPUB-ARIA roles), a ``Blank-Page`` block as nothing. The text is
+the model's, read literally; nothing is dropped (the vendor's ``parse_markdown`` drops running heads and feet). The
+blocks' boxes are not placed.
 """
 from __future__ import annotations
 
 import hashlib
 from typing import Any, ClassVar
 
+from ..data import Transcription
 from ..errors import CatalogError
-from . import ChatAdapter, data_url, png_bytes
+from . import ChatAdapter, data_url, png_bytes, text_lines
+
+#: chandra's block labels that HTML's semantics do not tell, as the DPUB-ARIA roles the HTML importer reads
+ROLES = {"Page-Header": "doc-pageheader", "Page-Footer": "doc-pagefooter", "Footnote": "doc-footnote"}
+
+
+def read_layout(raw: str, t: Transcription, annotator: int) -> bool:
+    """``raw`` (chandra's layout HTML) read into ``t`` by ``annotator``: True, or False when it holds no layout
+    block (``t`` untouched)."""
+    from lxml import html as H
+
+    from ..formats.html import HtmlConverter
+
+    try:
+        root = H.fromstring(f"<html><body>{raw}</body></html>")
+    except Exception:  # noqa: BLE001 - lxml refuses an empty or broken document
+        return False
+    body = root.find("body")
+    blocks = [d for d in body if d.tag == "div" and d.get("data-label")] if body is not None else []
+    if not blocks:
+        return False
+    for d in blocks:
+        label = d.get("data-label")
+        if label == "Blank-Page":
+            d.drop_tree()
+        elif label in ROLES:
+            d.set("role", ROLES[label])
+    HtmlConverter().read(root, t, annotator, annotator)
+    return True
 
 
 def scale_to_fit(img, max_size=(3072, 2048), min_size=(1792, 28), grid_size: int = 28):
@@ -92,6 +125,14 @@ class ChandraOCRAdapter(ChatAdapter):
             "messages": [{"role": "user", "content": [data_url("image/png", b64), {"type": "text", "text": self.prompt}]}],
             **self.sampling,
         }
+
+    def parse(self, body: dict, backend: str | None = None) -> Transcription:
+        """The completion's layout blocks read by linecaster's HTML importer (``read_layout``); a completion without
+        any (cut off before its first block) one line per text line, as the other adapters read theirs."""
+        t = self.begin(body, backend)
+        if not read_layout(t.outputs[0].content, t, 0):
+            text_lines(t, 0, 0)
+        return t
 
     def settings(self) -> dict[str, Any]:
         i = self.config["image"]

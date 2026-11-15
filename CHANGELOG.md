@@ -4,6 +4,15 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed outputs
+
+- **`chandra-ocr-2`**: the adapter reads the model's layout HTML (`<div data-bbox data-label>` blocks) with
+  linecaster's HTML importer: regions with roles and their text (running head and foot as furniture, footnotes as
+  notes), the completion still kept verbatim as the raw output. Before, the HTML itself was the page's text, so a
+  score counted the markup and the boxes' numbers. Stored runs can be read again from their raw outputs.
+
 ## 0.10.1 (2026-11-15)
 
 ### Fixed
