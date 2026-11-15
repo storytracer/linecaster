@@ -368,3 +368,19 @@ def test_a_literal_line_break_breaks_the_line(site):
     t = PageReader(site).read("<noinclude></noinclude>{{Twice|ab}}<br />two</div><noinclude></noinclude>",
                               "Page:Example.djvu/8").transcription
     assert [ln.reading.text for ln in t.lines] == ["abab", "two"]
+
+
+def test_an_attributes_character_references_are_decoded(site):
+    """A template writes a tooltip's title with a character reference (``{{SIC}}``: "[sic]&#32;'the'"); MediaWiki
+    decodes it, and a rule that matches the title reads it decoded."""
+    from linecaster_mediawiki import PageReader
+
+    c = resolve("example@3", lambda ref: ConventionsDoc.model_validate(
+        {"schema": "linecaster.conventions/1", "id": "example", "edition": 3, "format": "html",
+         "description": "the test wiki's corrections", "rules": [
+             {"id": "corrections", "decision": "edit", "why": "a correction in the tooltip",
+              "match": {"kind": "tree", "css": ".tip[title^='[sic]']"},
+              "params": {"kind": "corrected", "attr": "title", "extract": "^\\[sic\\]\\s*'(.*)'$"}}]}))
+    t = PageReader(site, c).read("<noinclude></noinclude>A <span class=\"tip\" title=\"[sic]&#32;'the'\">teh</span> "
+                                 "word.<noinclude></noinclude>", "Page:Example.djvu/7").transcription
+    assert t.lines[0].reading.text == "A teh word." and [(e.kind, e.text) for e in t.edits] == [("corrected", "the")]

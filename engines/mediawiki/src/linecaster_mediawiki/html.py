@@ -537,8 +537,9 @@ INTERWIKI_LANGUAGES = frozenset({"de", "fr", "es", "it", "la", "ru", "pl", "pt",
 
 
 def _attrs(attrs: dict) -> dict:
-    """Attributes as lxml takes them: string values, names that are XML names."""
-    return {k: str(v) for k, v in attrs.items() if re.match(r"^[A-Za-z_][\w.-]*$", str(k))}
+    """Attributes as lxml takes them: string values with their character references decoded (as MediaWiki's
+    sanitizer does: a title "[sic]&#32;'the'" is "[sic] 'the'"), names that are XML names."""
+    return {k: htmllib.unescape(str(v)) for k, v in attrs.items() if re.match(r"^[A-Za-z_][\w.-]*$", str(k))}
 
 
 def _unquote(text: str) -> str:
