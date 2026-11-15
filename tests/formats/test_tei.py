@@ -271,5 +271,12 @@ def test_blocks_inside_a_cell_or_a_caption_are_their_text():
     t = from_tei(ns.format('<figure><head>Fig</head><p>cap <list><item>x</item></list></p></figure>'))
     assert [t.text_of(ln) for ln in t.lines] == ["Fig", "cap x"]
     assert [(ln.kind, ln.target) for ln in t.links] == [("caption_of", "picture_0")] * 2
-    t = from_tei(ns.format('<figure><head>Fig <pb/> after</head></figure>'))       # a page break in a caption
+    t = from_tei(ns.format('<figure><head>Fig <pb/> after</head></figure><p>next</p>'))   # a page break in a caption
     assert [t.text_of(ln) for ln in t.lines] == ["Fig"]
+    t = from_tei(ns.format('<figure><head>Fig <pb/> after</head></figure><p>next</p>'), page=2)
+    assert [t.text_of(ln) for ln in t.lines] == ["next"]                       # the break counted, the page read
+    t = from_tei(ns.format('<table><row><cell><p>alpha</p><p>beta</p></cell><cell><list><item>a</item>'
+                           '<item>b</item></list></cell></row></table>'))
+    assert [t.text_of(ln) for ln in t.lines] == ["alpha beta a b"]           # blocks as text: not glued
+    t = from_tei(ns.format('<table><row><cell>\n<l>Line one</l>\n<l>Line two</l>\n</cell><cell>B</cell></row></table>'))
+    assert [t.text_of(ln) for ln in t.lines] == ["Line one", "Line two", "B"]  # verse lines stay lines

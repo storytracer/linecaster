@@ -23,8 +23,9 @@ three forms the document has:
    have no geometry, as the text importer's.
 
 **Pages.** A ``sourceDoc`` page is a surface; in a text, ``pb`` begins a page (text before the first ``pb``, where
-there is any, is a page of its own). The reader reads one page: ``page``, a number (1-based) or the ``xml:id`` of the
-page's ``surface`` or ``pb``; by default the first.
+there is any, is a page of its own; after a ``pb`` inside a figure or table, the rest of it is not read). The reader
+reads one page: ``page``, a number (1-based) or the ``xml:id`` of the page's ``surface`` or ``pb``; by default the
+first.
 
 **Furniture and notes.** ``fw`` is the page's furniture by its ``@type``: ``header`` (and ``running-title`` and
 the like) a header, ``pageNum`` a page number, ``catch`` a catchword, ``sig`` a signature mark, ``footer`` a footer;
@@ -128,7 +129,7 @@ CONTAINERS = frozenset({"text", "front", "body", "back", "group", "div", "div1",
                         "div6", "div7", "titlePage", "docTitle", "list", "listBibl", "opener", "closer", "epigraph",
                         "argument", "floatingText", "sp", "postscript", "castList"})
 #: elements read for their text alone inside a table's cell or a caption (no block of their own there)
-NESTED_AS_TEXT = frozenset(BLOCKS) | CONTAINERS | {"figure", "table", "cb", "l"}
+NESTED_AS_TEXT = frozenset(BLOCKS) | CONTAINERS | {"figure", "table", "cb"}
 #: division marks a divided word's first half may end with (left out of the whole word)
 DIVISION_MARKS = "-­‐¬⸗="
 #: roles a region keeps without text
@@ -359,7 +360,9 @@ class _Walk:
             self.in_line(el, ctx)
             return
         if self.nested and tag in NESTED_AS_TEXT:     # a paragraph or list in a cell or caption: its text
+            self.emit(" ", ctx)
             self.children(el, ctx)
+            self.emit(" ", ctx)
             return
         if tag == "lb":
             self.line_break(el, ctx, joins=el.get("break") == "no")
@@ -474,9 +477,15 @@ class _Walk:
         self.flush()
         self.language = saved
 
+    def _pages_in(self, el) -> None:
+        """The page breaks inside ``el`` (a figure or table on a page not being read) counted."""
+        for pb in el.iter("pb"):
+            self.page_break(pb)
+
     def figure(self, el, ctx: dict) -> None:
         self.flush()
         if not self.on:
+            self._pages_in(el)
             return
         self.begin(el, "picture", ctx)
         pic, self.cur = self.cur, None
@@ -507,6 +516,7 @@ class _Walk:
     def table(self, el, ctx: dict) -> None:
         self.flush()
         if not self.on:
+            self._pages_in(el)
             return
         self.begin(el, "table", ctx)
         tb = self.cur
