@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
+id: iiif-import
+step: import
+engine: import.iiif.v1
+capabilities:
+  unit: page
+  produces:
+  - regions
+  - reading_order
+  - lines
+  - text
+  - words
+provenance:
+  created: 2026-11-16
+support: core

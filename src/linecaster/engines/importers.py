@@ -11,8 +11,9 @@ scaled to the page's). The formats themselves
 are ``linecaster.formats``; the importers are thin.
 
 Built in: ``import.alto.v1``, ``import.page.v1``, ``import.hocr.v1``, ``import.text.v1``, ``import.docling.v1``,
-``import.html.v1`` (with a source's ``conventions``), ``import.tei.v1`` (one page of a TEI P5 document) and
-``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR, TEI and text apart and reads each with its importer). Engine
+``import.html.v1`` (with a source's ``conventions``), ``import.tei.v1`` (one page of a TEI P5 document),
+``import.iiif.v1`` (an IIIF annotation page) and ``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR, TEI, IIIF annotation
+pages and text apart and reads each with its importer). Engine
 packages add importers for formats that need more (a wiki's wikitext: ``linecaster-mediawiki``).
 """
 from __future__ import annotations
@@ -23,11 +24,21 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..data.source import SourceDocument
 from ..data.transcription import Annotator, Transcription
+from ..data.writing import language_tag
 from .base import RuleEngine
+
+#: the context keys that state a page's writing system
+WRITING = ("language", "script", "direction")
+
 
 class Importer(RuleEngine):
     """Base of the importers. A subclass states ``engine_id``, ``format`` and ``Options``, and implements
-    ``read(source, options)``."""
+    ``read(source, options)``.
+
+    A source document's ``context`` may state the page's writing system (``language``, a BCP 47 tag; ``script``, an
+    ISO 15924 code; ``direction``, one of ``linecaster.data.writing.DIRECTIONS``), as a line-level dataset's columns
+    do: each becomes the page's classification by the importer, where the file records none of its own; a value that
+    is none is a ``ValueError``."""
 
     step: ClassVar[str] = "import"
     format: ClassVar[str]
@@ -46,6 +57,15 @@ class Importer(RuleEngine):
         t = self.read(source, o)
         if not any(a.kind == "rule" and a.step == "import" for a in t.annotators):
             t.add_annotator(self.annotator(o))            # who read the file: the importer, with its options
+        stated = {k: source.context[k] for k in WRITING if source.context.get(k) not in (None, "")}
+        if stated:
+            importer = next(i for i, a in enumerate(t.annotators) if a.kind == "rule" and a.step == "import")
+            for scheme, value in stated.items():
+                value = str(value).strip()
+                if scheme == "language":
+                    value = language_tag(value) or value      # en_US as en-US; an ill-formed one fails below
+                if t.classification("", scheme) is None:
+                    t.classify(importer, "", scheme, value)
         s = t.source
         s.kind = "ground_truth" if o.ground_truth else "converted"
         s.format = s.format or self.format
@@ -119,7 +139,8 @@ class HocrImporter(Importer):
 
 
 class TextImporter(Importer):
-    """Plain text: a line per line, no geometry.
+    """Plain text: a line per line, no geometry; or, with ``line_image``, the text of an image of one line (a
+    line-level dataset's row: a page whose one line is the whole image).
 
     Args:
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
@@ -131,10 +152,17 @@ class TextImporter(Importer):
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["reading_order", "lines", "text"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
+    class Options(Importer.Options):
+        line_image: bool = Field(False, exclude_if=lambda v: not v,
+                                 description="the text is an image's one line: the page is the line, its box the "
+                                             "whole image (a line-level dataset)")
+
     def read(self, source, options):
         from ..formats.text import from_text
 
-        return from_text(source.data, uri=source.uri, ground_truth=options.ground_truth)
+        return from_text(source.data, uri=source.uri, ground_truth=options.ground_truth,
+                         line_image=getattr(options, "line_image", False), image_width=source.image_width,
+                         image_height=source.image_height)
 
 
 class DoclingImporter(Importer):
@@ -192,6 +220,8 @@ class HtmlImporter(Importer):
         reading = HtmlConverter(c).read(lxml_html.fromstring(source.as_bytes()), t, people, rules)
         t.annotators[rules].measurements.update({**reading.coverage.measurements(),
                                                  "ends_paragraph": reading.ends_paragraph})
+        if reading.ill_formed_languages:
+            t.annotators[rules].measurements["ill_formed_languages"] = dict(reading.ill_formed_languages)
         return t
 
 
@@ -222,8 +252,29 @@ class TeiImporter(Importer):
                         ground_truth=options.ground_truth)
 
 
+class IiifImporter(Importer):
+    """IIIF annotation pages (``linecaster.formats.iiif.from_annotation_page``: linecaster's own and other software's
+    that follow the same conventions); boxes in percent of the canvas by the page image's size.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
+
+    engine_id: ClassVar[str] = "import.iiif.v1"
+    step: ClassVar[str] = "import"
+    format: ClassVar[str] = "iiif"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order", "lines", "text", "words"]}
+    scripts: ClassVar[tuple[str, ...]] = ("*",)
+
+    def read(self, source, options):
+        from ..formats.iiif import from_annotation_page
+
+        return from_annotation_page(source.as_text(), uri=source.uri, ground_truth=options.ground_truth,
+                                    image_width=source.image_width, image_height=source.image_height)
+
+
 class AutoImporter(Importer):
-    """ALTO, PAGE-XML, hOCR, TEI or text, told apart by the document's format, else by its content (TEI: its first
+    """ALTO, PAGE-XML, hOCR, TEI, IIIF annotation pages or text, told apart by the document's format, else by its content (TEI: its first
     page).
 
     Args:
@@ -237,7 +288,7 @@ class AutoImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
     BY_FORMAT: ClassVar[dict[str, type[Importer]]] = {"alto": AltoImporter, "page": PageXmlImporter,
                                                        "hocr": HocrImporter, "tei": TeiImporter,
-                                                       "text": TextImporter}
+                                                       "iiif": IiifImporter, "text": TextImporter}
 
     def read(self, source, options):
         from ..formats.text import sniff
@@ -248,4 +299,4 @@ class AutoImporter(Importer):
 
 #: the built-in importers, by engine id
 IMPORTERS = {c.engine_id: c for c in (AltoImporter, PageXmlImporter, HocrImporter, TextImporter, DoclingImporter,
-                                       HtmlImporter, TeiImporter, AutoImporter)}
+                                       HtmlImporter, TeiImporter, IiifImporter, AutoImporter)}

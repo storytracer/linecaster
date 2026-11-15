@@ -8,15 +8,15 @@ from .base import RuleEngine, ScriptDispatch, Strategy
 from .composition import LinkedCompositionEngine
 from .image import ImageConvertEngine, WebpLosslessImageEngine
 from .importers import (
-    AltoImporter, AutoImporter, DoclingImporter, HocrImporter, HtmlImporter, Importer, PageXmlImporter, TeiImporter,
-    TextImporter,
+    AltoImporter, AutoImporter, DoclingImporter, HocrImporter, HtmlImporter, IiifImporter, Importer, PageXmlImporter,
+    TeiImporter, TextImporter,
 )
 from .layout import SingleRegionLayoutEngine
 from .recomposition import ByScriptRecompositionEngine, UnicodeRecompositionEngine
 from .typography import RatiosTypographyEngine
 
 __all__ = [
-    "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "Importer", "PageXmlImporter",
+    "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "IiifImporter", "Importer", "PageXmlImporter",
     "TeiImporter", "TextImporter", "ByScriptRecompositionEngine", "LinkedCompositionEngine", "ImageConvertEngine",
     "RatiosTypographyEngine", "RuleEngine", "ScriptDispatch",
     "SingleRegionLayoutEngine", "Strategy", "UnicodeRecompositionEngine", "WebpLosslessImageEngine",

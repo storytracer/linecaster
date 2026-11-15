@@ -647,7 +647,8 @@ def _policy_rate_limited(a: argparse.Namespace) -> bool:
 
 
 def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
-           reuse_folder: str | None = None, read_images: bool = True, reuse_index: str | None = None):
+           reuse_folder: str | None = None, read_images: bool = True, reuse_index: str | None = None,
+           read_metadata: bool | None = None):
     """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
     reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
     (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
@@ -655,7 +656,9 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
     options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
     ``manifest_folder``, by default ``OUT/manifests``. ``reuse_index``: the index of earlier harvests' page images a
     page-image reader reads copies from (``linecaster.blocks.readers.earlier``). Without ``read_images`` an image folder's pages carry only
-    their images' addresses and page records are read without their images (a block reads them itself)."""
+    their images' addresses and page records are read without their images (a block reads them itself).
+    ``read_metadata``: a Parquet table's other columns go into the pages' metadata; ``None``: when the images are
+    not read."""
     from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
     from ..blocks.readers.records import PageRecordReader
 
@@ -707,7 +710,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                                   max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
                                   reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None),
                                   sample=sample, reuse_index=reuse_index, read_images=read_images,
-                                  read_metadata=not read_images)
+                                  read_metadata=not read_images if read_metadata is None else read_metadata)
     return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
                              item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
                              sequence=a.item_from_parent and not a.paths_file, sample=sample,

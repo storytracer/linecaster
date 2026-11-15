@@ -7,13 +7,17 @@ page's wikitext), in a file a column names (``--uri-key``), or delivered with th
 importer is a preset of step ``import`` (``auto-import``, ``alto-import``, ...) or an importer's engine id
 (``import.mediawiki.v1`` from ``linecaster-mediawiki``); ``--set import.OPTION=VALUE`` sets its options (``ground_truth``,
 ``conventions``, an engine's own such as ``site``). ``--context-key`` columns go to the importer as the document's
-context; ``record``, ``revision`` and ``dataset`` columns go to the transcription's source. The page images are named,
-not read (``--image-key``, or none). Page records in OUT/pages, failed pages in OUT/rejects.
+context (``language``, ``script`` and ``direction`` state the page's writing system); ``record``, ``revision`` and
+``dataset`` columns go to the transcription's source. The page images are named, not read (``--image-key``, or none),
+unless ``--read-images`` reads them for their size (a transcription is fitted to it; a line image's line is the whole
+image). Page records in OUT/pages, failed pages in OUT/rejects.
 
     uv run pipelines/import_transcriptions.py OUT --parquet pages.parquet --id-key page --item-key item \\
         --data-key wikitext --context-key title --context-key revision \\
         --importer import.mediawiki.v1 --set import.site=SITE --set import.conventions=example
     uv run pipelines/import_transcriptions.py OUT --parquet ocr.parquet --data-key alto --importer alto-import
+    uv run pipelines/import_transcriptions.py OUT --parquet lines.parquet --data-key text --context-key language \\
+        --importer text-import --set import.line_image=true --read-images
 """
 from ..blocks.conversion.transcriptions import TranscriptionImporter
 from ..errors import PipelineConfigError
@@ -30,6 +34,9 @@ def options(ap):
     ap.add_argument("--context-key", action="append", default=[],
                     help="a column given to the importer as the document's context (record, revision and dataset go "
                          "to the transcription's source); repeatable")
+    ap.add_argument("--read-images", action="store_true",
+                    help="read each page's image for its size and hash (the transcription is fitted to it; a line "
+                         "image's line is the whole image)")
     ap.add_argument("--transcription", default="ground_truth", help="the transcription it fills (default "
                                                                     "ground_truth)")
 
@@ -58,7 +65,7 @@ def pipeline(a, script: str):
     over = run.overrides(a.set, steps=["import"])
     block = TranscriptionImporter(importer(a), source=source, transcription=a.transcription, uri_key=a.uri_key,
                                   data_key=a.data_key, context_keys=tuple(a.context_key), options=over.get("import"))
-    return [run.reader(a, read_images=False), block, run.pages(a)], {"engines": False}
+    return [run.reader(a, read_images=a.read_images, read_metadata=True), block, run.pages(a)], {"engines": False}
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots

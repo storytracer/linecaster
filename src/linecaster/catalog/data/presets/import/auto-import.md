@@ -1,1 +1,1 @@
-Reads ALTO, PAGE-XML, hOCR, TEI or plain text, told apart by the file's format or its content into a transcription (`import.auto.v1`): a ground truth by default (the option `ground_truth`), fitted to the page image where the file states another size.
+Reads ALTO, PAGE-XML, hOCR, TEI, IIIF annotation pages or plain text, told apart by the file's format or its content into a transcription (`import.auto.v1`): a ground truth by default (the option `ground_truth`), fitted to the page image where the file states another size.

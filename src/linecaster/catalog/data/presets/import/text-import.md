@@ -1,1 +1,1 @@
-Reads plain text, a line per line into a transcription (`import.text.v1`): a ground truth by default (the option `ground_truth`), fitted to the page image where the file states another size.
+Reads plain text, a line per line into a transcription (`import.text.v1`), or, with the option `line_image`, the text of an image of one line (a row of a line-level dataset: the page is that line, its box the whole image); a ground truth by default (the option `ground_truth`), fitted to the page image where the file states another size.

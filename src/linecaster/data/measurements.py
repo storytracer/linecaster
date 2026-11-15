@@ -46,6 +46,7 @@ MEASUREMENTS: dict[str, str] = {
     "table_runs_on": "an importer: the page's last block is a table the next page continues",
     "starts_paragraph": "an importer: the page begins with a new paragraph or a block (true), not one that continues "
                         "the previous page's",
+    "ill_formed_languages": "an importer: language values of the source that are no BCP 47 tag, skipped -> how often",
     "unexpanded": "an importer of a template language: the template calls it could not expand, by name",
     "wikidata": "a wiki's importer: the Wikidata ids a module asked about, which the importer never asks Wikidata",
     "texvc_rejected": "a wiki's importer: formulas MediaWiki's TeX checker (texvc) rejects, kept as written",
