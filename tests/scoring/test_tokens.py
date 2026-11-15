@@ -23,6 +23,12 @@ def test_whitespace_words_keep_their_marks(text, whole):
     assert tokens(text) == whole
 
 
+def test_format_characters_stay_in_their_word_but_the_zero_width_space_separates():
+    assert tokens("می\u200cخواهم") == ["می\u200cخواهم"]                  # Persian: a zero-width non-joiner
+    assert tokens("ᠪᠠᠢᠨ\u180eᠠ") == ["ᠪᠠᠢᠨ\u180eᠠ"]                      # Mongolian: the vowel separator
+    assert tokens("ไทย\u200bภาษา \u00ad") == ["ไทย", "ภาษา"]             # a lone soft hyphen is no word
+
+
 def test_whitespace_is_one_word_per_run_in_scripts_without_spaces():
     assert tokens("東京は晴れです") == ["東京は晴れです"]
 

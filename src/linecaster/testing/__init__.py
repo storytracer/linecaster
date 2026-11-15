@@ -3,6 +3,8 @@
 * sample pages: ``sample_page`` (a synthetic page image with printed lines at known boxes, ``sample_boxes``),
   ``sample_png``, ``sample_layout`` (its regions and lines), ``sample_document`` and ``sample_documents`` (its
   datatrove documents), ``sample_transcription`` (a realistic transcription exercising every serializer feature);
+* script samples: ``SCRIPT_SAMPLES`` and ``script_page``, pages in twelve writing systems and all four writing
+  directions (``linecaster.testing.scripts``);
 * fake engines, one per model step, deterministic CPU code: ``FakeLayoutEngine``, ``FakeLineEngine``,
   ``FakeRecognitionEngine``, ``FakePageEngine`` (a page engine), ``FakeTableEngine``, ``FakeFormulaEngine``,
   registered under ``fake.<step>[.<variant>].v1`` by ``register_fakes()``; ``fake_chat_server()``, an
@@ -22,12 +24,13 @@ from .fakes import (FAKE_ENGINES, FakeFormulaEngine, FakeLayoutEngine, FakeLineE
                     FakeRecognitionEngine, FakeTableEngine, register_fakes)
 from .samples import (SAMPLE_LINES, box, sample_boxes, sample_document, sample_documents, sample_layout, sample_page,
                       sample_png, sample_transcription)
+from .scripts import SCRIPT_SAMPLES, ScriptSample, script_page
 from .service import FakeService, fake_service
 
 __all__ = [
-    "FAKE_ENGINES", "SAMPLE_LINES", "FakeChatServer", "FakeFormulaEngine", "FakeLayoutEngine", "FakeLineEngine",
-    "FakePageEngine", "FakeRecognitionEngine", "FakeService", "FakeTableEngine", "box", "check_block",
+    "FAKE_ENGINES", "SAMPLE_LINES", "SCRIPT_SAMPLES", "FakeChatServer", "FakeFormulaEngine", "FakeLayoutEngine", "FakeLineEngine",
+    "FakePageEngine", "FakeRecognitionEngine", "FakeService", "FakeTableEngine", "ScriptSample", "box", "check_block",
     "check_engine", "completion", "fake_chat_server", "fake_service", "overwritten", "page_changes", "register_fakes",
     "sample_boxes", "sample_document", "sample_documents", "sample_layout", "sample_page", "sample_png",
-    "sample_transcription", "transcription_changes",
+    "sample_transcription", "script_page", "transcription_changes",
 ]

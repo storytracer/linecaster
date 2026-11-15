@@ -18,6 +18,7 @@ from typing import Literal
 import regex
 
 REPLACEMENT = "�"
+ZERO_WIDTH_SPACE = "\u200b"
 #: the tokenizers a benchmark may name
 WORDS = ("whitespace", "uax29", "characters")
 #: the version of the word metrics' rules, in evidence: 2 since combining marks stay in their words
@@ -27,8 +28,13 @@ _WORDLIKE = regex.compile(r"[\p{L}\p{M}\p{N}�]")
 
 
 def _in_word(c: str) -> bool:
-    """Python's ``\\w`` (``str.isalnum`` and the underscore), whitespace, U+FFFD, and a combining mark."""
-    return c.isalnum() or c == "_" or c.isspace() or c == REPLACEMENT or unicodedata.category(c)[0] == "M"
+    """Python's ``\\w`` (``str.isalnum`` and the underscore), whitespace, U+FFFD, a combining mark, and a format
+    character (zero-width joiner and non-joiner, the Mongolian vowel separator, the soft hyphen) other than the zero
+    width space, which separates words; UAX #29 keeps format characters in their word too."""
+    if c.isalnum() or c == "_" or c.isspace() or c == REPLACEMENT:
+        return True
+    category = unicodedata.category(c)
+    return category[0] == "M" or (category == "Cf" and c != ZERO_WIDTH_SPACE)
 
 
 def _uax29_property(c: str):
@@ -40,7 +46,8 @@ def _uax29_property(c: str):
 def tokens(s: str, words: Literal["whitespace", "uax29", "characters"] = "whitespace") -> list[str]:
     """The tokens of ``s`` by the tokenizer ``words`` (``WORDS``), in order."""
     if words == "whitespace":
-        return "".join(c if _in_word(c) else " " for c in s).split()
+        return [w for w in "".join(c if _in_word(c) else " " for c in s).split()
+                if any(unicodedata.category(c) != "Cf" for c in w)]
     if words == "uax29":
         from uniseg.wordbreak import words as uax29_words
 

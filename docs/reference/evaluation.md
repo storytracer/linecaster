@@ -111,7 +111,7 @@ Per page and role, where the ground truth marks the role (no boxes needed):
 
 | Tokenizer | Words |
 |---|---|
-| `whitespace` (default) | runs between whitespace, everything but letters, combining marks, digits and the underscore a boundary: a word keeps its combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels); a text without spaces (Chinese, Japanese, Thai) is one word per run |
+| `whitespace` (default) | runs between whitespace, everything but letters, combining marks, format characters, digits and the underscore a boundary: a word keeps its combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels) and its joiners (the zero-width non-joiner and joiner, the Mongolian vowel separator), while the zero width space separates words; a text without spaces (Chinese, Japanese, Thai) is one word per run |
 | `uax29` | Unicode's word boundaries (UAX #29): Chinese ideographs, Hiragana and Thai one word per character (Unicode leaves those scripts to a dictionary), Katakana runs whole, the other scripts by their own boundaries |
 | `characters` | grapheme clusters with a letter, mark or digit |
 
@@ -187,7 +187,7 @@ One measurement per file, kept by the evaluation:
 | `source` | `own-run`, `card-claim`, `vendor-benchmark` |
 | `run` | `uri` (the run folder), `run_id`, `pipeline_sha256`, `record_sha256` (of `run.yaml`) |
 | `benchmark` | `id@edition` and its `sha256` |
-| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `words` (the tokenizer and the version of the word metrics' rules: 1 dropped combining marks, 2 keeps them; absent: whitespace, 1), `scorer` (the linecaster that scored, version and commit) |
+| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `words` (the tokenizer and the version of the word metrics' rules: 1 dropped combining marks and format characters, 2 keeps them; absent: whitespace, 1), `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `role_recall_header`, ... (`<metric>_<text>_<lane>`, `role_precision_<role>`, `role_recall_<role>`) |
 | `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has data tables (`tables`, `linecaster.scoring.tables`), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
