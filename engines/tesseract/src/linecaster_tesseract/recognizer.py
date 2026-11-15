@@ -7,7 +7,8 @@ direction is vertical (``Transcription.direction``: ``vertical-rl``, ``vertical-
 vertical text), for tessdata's vertical models (``script/HanT_vert``, ``script/Japanese_vert``). The line's text is
 Tesseract's own (in logical order, spaced as Tesseract spaces it: no spaces between the letters of scripts written
 without them, right-to-left words in reading order); words and their boxes come from Tesseract (``RIL.WORD``), moved
-back into page coordinates; confidences are Tesseract's, scaled to 0–1.
+back into page coordinates and grouped as the words of the line's text where Tesseract's differ (``as_text_words``);
+confidences are Tesseract's, scaled to 0–1.
 """
 from __future__ import annotations
 
@@ -37,6 +38,31 @@ def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, in
         ImageDraw.Draw(mask).polygon([(float(x - x0), float(y - y0)) for x, y in poly], fill=1)
         crop[np.asarray(mask) == 0] = 255
     return crop, x0, y0
+
+
+def as_text_words(words: list[Word], text: str) -> list[Word]:
+    """Tesseract's words of a line as the words of its line text: where they differ (a right-to-left word's letters
+    in visual order, Thai or Chinese letters as words of their own), consecutive words are grouped by their number of
+    characters into each of the text's words, which takes their joined box and their mean confidence; words that
+    cannot be grouped so stay Tesseract's."""
+    tokens = text.split()
+    if [w.text for w in words] == tokens:
+        return words
+    out, k = [], 0
+    for token in tokens:
+        group, n = [], 0
+        while k < len(words) and n < len(token):
+            group.append(words[k])
+            n += len(words[k].text)
+            k += 1
+        if n != len(token):
+            return words
+        boxes = [BBox(x, y, x + w, y + h) for x, y, w, h in (g.box for g in group)]
+        box = BBox(min(b.x0 for b in boxes), min(b.y0 for b in boxes), max(b.x1 for b in boxes),
+                   max(b.y1 for b in boxes))
+        out.append(Word(text=token, box=[float(v) for v in xywh(box)],
+                        confidence=float(np.mean([g.confidence for g in group]))))
+    return out if k == len(words) else words
 
 
 class TesseractRecognitionEngine:
@@ -143,6 +169,8 @@ class TesseractRecognitionEngine:
                 poly = BBox(x, y, x + w, y + h).polygon.tolist()
             crop, dx, dy = crop_line(image, poly, self.pad) if poly else (np.zeros((0, 0)), 0, 0)
             words = self.read(crop, dx, dy, ln.id in vertical) if crop.size else []
-            t.read(a, ln, self.text() if crop.size else "",
+            text = self.text() if crop.size else ""
+            words = as_text_words(words, text)
+            t.read(a, ln, text,
                    float(np.mean([w.confidence for w in words])) if words else 0.0, words=words)
         return t

@@ -84,3 +84,22 @@ def test_a_script_model_reads_its_script_in_its_direction(lang, spaces, sample, 
         right = [w for w in out.split() if w in ref.split()]
         assert right == [w for w in ref.split() if w in right]
     assert any(w in pairs[0][0].split() for w in pairs[0][1].split())
+    for out in t.lines:                                  # the words are the line text's
+        assert [w.text for w in out.reading.words] == t.text_of(out).split()
+
+
+def test_words_are_grouped_as_the_line_text_s_words():
+    from linecaster.data import Word
+    from linecaster_tesseract.recognizer import as_text_words
+
+    def w(text, x):
+        return Word(text=text, box=[x, 0, 10, 10], confidence=0.5)
+
+    same = [w("The", 0), w("ship", 20)]
+    assert as_text_words(same, "The ship") is same
+    rtl = as_text_words([w("مسب", 0), w("هللا", 20)], "بسم الله")            # letters in visual order
+    assert [(x.text, x.box) for x in rtl] == [("بسم", [0.0, 0, 10, 10]), ("الله", [20.0, 0, 10, 10])]
+    thai = as_text_words([w("ส", 0), w("ว", 10), w("ั", 20), w("ส", 30)], "สวัส")
+    assert [(x.text, x.box) for x in thai] == [("สวัส", [0.0, 0.0, 40.0, 10.0])]
+    odd = [w("ab", 0)]
+    assert as_text_words(odd, "abc") is odd                                 # not groupable: Tesseract's
