@@ -269,7 +269,12 @@ take the value recorded on a span or word, else on its line, else on the line's 
 else on the page (`""`); `None` where nothing records one. A value is never guessed into a record: a source or a step
 records it, and `linecaster.text.scripts` infers a text's script (`dominant_script`, with ISO 15924's `Jpan` and
 `Kore` for the combinations) or direction (`first_strong_direction`, the Unicode bidirectional algorithm's paragraph
-level) where a caller asks.
+level) where a caller asks. What orders zones follows the direction (`linecaster.data.geometry.frames`: XY-cut,
+XY-Cut++, the line assigner's rows, unordered regions slotted in, the recomposition's margins, drop capitals): boxes
+are seen in the direction's frame, mirrored for `horizontal-rl` and turned for the vertical directions, so that
+right-to-left text reads from the right and vertical text by columns, from the right for `vertical-rl` and from the
+left for `vertical-lr`. The direction is a block's or engine's option where it has one, else the one recorded for
+the region or page; without either, `horizontal-lr`.
 
 A `status` classification's `reason` says why something present in a source is no text of the page
 (`linecaster.data.REASONS`): `hidden` (not seen and taking no space), `invisible` (not seen but taking its space),
@@ -437,10 +442,12 @@ content role: `title`, `heading` (with its `level`), `paragraph`, `list_item`, `
 cells) or `picture` (its `file` and the text read inside it). Each block has its content `role`, the `layer` the
 policy put it in, its `text` (literal: the readings as read, rows separated by `\n`; `wraps`: the positions of the
 `\n` that are breaks of the layout, which `flow` joins) with formatting, languages, inline formulas and the source's
-edits over `spans` of it (an edit span: `edit`, `edit_text`), the
-`section` it is in (the heading block that opens it, with sections), and an `Origin` per piece: the page, the region
-and lines it comes from, its box on the page image (clamped to the page; none without geometry) and the characters
-of the block's text it gives.
+edits over `spans` of it (an edit span: `edit`, `edit_text`), its `language` and `direction` where they are not
+the document's, the `section` it is in (the heading block that opens it, with sections), and an `Origin` per piece:
+the page, the region and lines it comes from, its box on the page image (clamped to the page; none without geometry)
+and the characters of the block's text it gives. The document's `language` and `direction` are its pages' where every page records the
+same one; like a block's, they are only what the transcriptions record (`Transcription.language`, `.direction`),
+never inferred, and absent from the JSON where nothing records one.
 
 `DocumentBuilder` makes it ([composition](#steps-and-what-they-add)), literal (`strategy: literal`): one block per
 region as laid out (one row per visual row: lines share a row when the order says so and their boxes overlap), or
