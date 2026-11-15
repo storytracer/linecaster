@@ -28,6 +28,9 @@ class ModularTranscriber(Composite):
         layout: a ``LayoutDetector``, its backend, or a layout preset's ref; ``"single-region"`` reads the page as
             one region.
         formulas_separately: formula regions take no lines, for a formula step after it.
+        direction: the writing direction the line assigner orders rows in (``horizontal-rl``: right to left;
+            ``vertical-rl``, ``vertical-lr``: columns); ``None``: each region's recorded direction, else
+            ``horizontal-lr`` (``LineAssigner``).
         transcription: the transcription every step works on (blocks given as blocks keep their own).
         name: the composite's name in the graph and the plan.
 
@@ -39,11 +42,11 @@ class ModularTranscriber(Composite):
                  "layout": "pp-doclayoutv3"}
 
     def __init__(self, lines, recognition, layout, formulas_separately: bool = False,
-                 transcription: str = "ocr_new", name: str = "modular transcriber"):
+                 transcription: str = "ocr_new", name: str = "modular transcriber", direction: str | None = None):
         blocks = [
             _block(layout, LayoutDetector, transcription),
             _block(lines, LineDetector, transcription),
-            LineAssigner(transcription=transcription, formulas_separately=formulas_separately),
+            LineAssigner(transcription=transcription, formulas_separately=formulas_separately, direction=direction),
             _block(recognition, LineRecognizer, transcription),
         ]
         super().__init__(name, blocks)

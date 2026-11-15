@@ -135,3 +135,36 @@ def test_written_page_xml_and_alto_are_valid(sid):
                       ("alto-4-4.xsd", to_alto(script_page(sid)))):
         schema = etree.XMLSchema(etree.parse(str(schemas / name)))
         assert schema.validate(etree.fromstring(xml)), schema.error_log
+
+
+def _detected(sid: str, record_direction: bool):
+    """The sample as a line detector and a layout model leave it: regions in order, lines without regions, shuffled."""
+    from linecaster.data import Annotator, Transcription
+
+    s, laid = SCRIPT_SAMPLES[sid], script_page(sid)
+    t = Transcription(source=laid.source)
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    if record_direction:
+        t.classify(a, "", "direction", s.direction)
+    for r in laid.ordered_regions():
+        t.add_region(a, r.id, r.box, role="paragraph")
+    t.add_order(a, [r.id for r in laid.ordered_regions()])
+    for ln in random.Random(3).sample(laid.lines, len(laid.lines)):
+        t.add_line(a, ln.id, ln.box)
+    return t
+
+
+@pytest.mark.parametrize("sid", ["arabic", "japanese", "mongolian"])
+@pytest.mark.parametrize("recorded", [True, False])
+def test_the_line_assigner_orders_rows_in_the_direction(sid, recorded):
+    from conftest import page_doc
+
+    from linecaster.blocks.base.page import page_of
+    from linecaster.blocks.lines.assigner import LineAssigner
+
+    s = SCRIPT_SAMPLES[sid]
+    block = LineAssigner() if recorded else LineAssigner(direction=s.direction)
+    (out,) = block.run(iter([page_doc(t=_detected(sid, recorded), item=None)]))
+    t = page_of(out).transcriptions["ocr_new"]
+    assert [ln.id for ln in t.ordered_lines()] == [ln.id for ln in script_page(sid).ordered_lines()]
+    assert ("direction" in t.annotators[-1].settings) is not recorded

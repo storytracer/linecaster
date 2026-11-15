@@ -53,6 +53,10 @@ def options(ap):
     ap.add_argument("--tables", help="table preset (reads the layout's table regions)")
     ap.add_argument("--formulas", help="formula preset (reads the layout's formula regions; without, they are read "
                                        "as text)")
+    ap.add_argument("--direction", choices=["horizontal-lr", "horizontal-rl", "vertical-rl", "vertical-lr"],
+                    help="the pages' writing direction the line assigner orders rows in (default: each region's "
+                         "recorded direction, else horizontal-lr); a layout model without learned order takes its "
+                         "own option (--set layout.direction=...)")
     ap.add_argument("--typography", help="typography preset: headings and their levels, initials (e.g. ratios)")
     ap.add_argument("--recomposition", help="recomposition preset: the text regions as running text, in paragraphs "
                                             "(e.g. unicode-recomposition; none: the page stays as laid out)")
@@ -131,7 +135,8 @@ def pipeline(a, script: str) -> list:
         run.reader(a),
         # layout (or the page as one region) -> lines -> line assignment -> line recognition
         ModularTranscriber(lines=LineDetector(b["lines"]), recognition=LineRecognizer(b["recognition"]),
-                           layout=LayoutDetector(b["layout"]), formulas_separately="formulas" in b),
+                           layout=LayoutDetector(b["layout"]), formulas_separately="formulas" in b,
+                           direction=a.direction),
         *([TableRecognizer(b["tables"])] if "tables" in b else []),
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
         *([Typographer(a.typography, options=over.get("typography"))] if a.typography else []),
