@@ -25,6 +25,43 @@ REVIEW = {0: "without_text", 1: "transcribed", 2: "problematic", 3: "proofread",
 _TAGS = re.compile(r"<[^>]*>|'{2,}|\[\[[^|\]]*\||\]\]|\[\[")
 
 
+#: elements of the body that are no block of the page's text
+_NOT_TEXT = ("style", "link", "meta", "header", "footer", "aside")
+
+
+def _text_children(el) -> list:
+    return [c for c in el if isinstance(c.tag, str) and c.tag not in _NOT_TEXT
+            and c.get("role") not in ("doc-footnote", "doc-pageheader", "doc-pagefooter")
+            and "".join(c.itertext()).strip()]
+
+
+def edges(root) -> tuple[bool, bool]:
+    """Whether the page's body begins and ends with a plain paragraph: one the previous page's last paragraph can
+    continue into, one that can run on into the next page's. ProofreadPage joins a main-namespace page's pages with a
+    space, so text continues text, and a block (a centred heading, a table, a poem, a list) ends a paragraph. A block
+    that goes on across the page break in the main namespace is no edge, its first or last block is: at the page's
+    end one the page does not close (``data-unclosed``) or that the footer closes (``data-parts`` with ``footer``: the
+    footer only closes it for the page's own view), at its start one the header opens (``data-parts`` with
+    ``header``: reopened for the page's view, opened on an earlier page). One the body opens or closes is a block."""
+    body = root.find("body")
+
+    def plain(el, last: bool) -> bool:
+        while el is not None:
+            if el.tag == "p":
+                return True
+            parts = (el.get("data-parts") or "").split()
+            if not (("footer" in parts or el.get("data-unclosed")) if last else "header" in parts):
+                return False
+            kids = _text_children(el)
+            el = (kids[-1] if last else kids[0]) if kids else None
+        return False
+
+    kids = _text_children(body) if body is not None else []
+    if not kids:
+        return False, False
+    return plain(kids[0], False), plain(kids[-1], True)
+
+
 @dataclass
 class PageReading:
     transcription: Transcription
@@ -75,15 +112,17 @@ class PageReader:
                                           settings={"texvc": TEXVC} if self.site.texvc() is not None else {}))
         reading = self.importer.read(built.root, t, people, rules)
         anchored = self.anchor(t, text, pos, title)
+        opens_plain, closes_plain = edges(built.root)
+        ends = reading.ends_paragraph or not closes_plain or built.closes_block
         t.annotators[rules].measurements.update({**reading.coverage.measurements(), "anchored": anchored,
-                                                 "ends_paragraph": reading.ends_paragraph})
+                                                 "ends_paragraph": ends, "starts_paragraph": not opens_plain})
         if built.unexpanded:
             t.annotators[rules].measurements["unexpanded"] = sorted(set(built.unexpanded))
         if built.texvc_rejected:
             t.annotators[rules].measurements["texvc_rejected"] = sorted(set(built.texvc_rejected))
         if wikidata:                                    # ids a module asked Wikidata about, unanswered
             t.annotators[rules].measurements["wikidata"] = wikidata
-        return PageReading(t, reading.ends_paragraph, built.unexpanded, wikidata)
+        return PageReading(t, ends, built.unexpanded, wikidata)
 
     def anchor(self, t: Transcription, text: str, pos: list[int], title: str) -> float:
         """Anchors the lines and regions of ``t`` in the revision; returns the share of lines anchored."""

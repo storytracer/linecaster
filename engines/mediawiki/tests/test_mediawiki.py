@@ -240,3 +240,35 @@ def test_pages_of_an_item_are_linked_where_a_paragraph_runs_on(site):
     t0, t1 = pages[0][1], pages[1][1]
     assert [(x.kind, x.target) for x in t0.links] == [("runs_into", "p1#paragraph_0")]
     assert [(x.kind, x.target) for x in t1.links] == [("continues", "p0#paragraph_0")]
+
+
+@pytest.mark.parametrize("first, second, joined", [
+    # a block at the page's end, or at the next page's start, ends the paragraph
+    ("A paragraph that runs", "<div class=\"c\">A CENTRED HEADING</div>\n\nText.", False),
+    ("<div class=\"c\">THE TITLE</div>", "on to the next page.", False),
+    # a wrapper the header opens and the footer closes is the page's own view: the paragraphs inside run on
+    ("<noinclude><div class=\"j\"></noinclude>A paragraph that runs<noinclude></div></noinclude>",
+     "<noinclude><div class=\"j\"></noinclude>on to the next page.<noinclude></div></noinclude>", True),
+    # a block the page opens and does not close goes on onto the next page, which closes it
+    ("<div class=\"b\">\nA paragraph that runs", "on to the next page.</div>\n\nText.", True),
+    # a block the header reopens and the body closes ends on this page
+    ("<noinclude><div class=\"b\"></noinclude>Its last line.</div>", "Next page's paragraph.", False),
+])
+def test_a_paragraph_runs_on_only_from_text_into_text(site, first, second, joined):
+    """ProofreadPage joins a main-namespace page's pages with a space: text continues text, a block ends it."""
+    from linecaster_mediawiki import PageReader, link_pages
+
+    reader = PageReader(site)
+    pages = [(f"p{i}", reader.read(w if w.startswith("<noinclude>") else f"<noinclude></noinclude>{w}",
+                                   f"Page:Example.djvu/{i}").transcription) for i, w in enumerate((first, second))]
+    assert (link_pages(pages) == 1) is joined
+    assert not any("</div>" in ln.reading.text for _, t in pages for ln in t.lines)   # a stray end tag prints nothing
+
+
+def test_a_literal_line_break_breaks_the_line(site):
+    """A ``<br />`` the parser left as text is a line break."""
+    from linecaster_mediawiki import PageReader
+
+    t = PageReader(site).read("<noinclude></noinclude>{{Twice|ab}}<br />two</div><noinclude></noinclude>",
+                              "Page:Example.djvu/8").transcription
+    assert [ln.reading.text for ln in t.lines] == ["abab", "two"]

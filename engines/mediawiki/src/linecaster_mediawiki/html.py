@@ -42,6 +42,16 @@ PARAGRAPH = re.compile(r"\n[ \t]*\n\s*")
 PARTS = ("header", "body", "footer")
 EMPTY_NOWIKI = re.compile(r"<nowiki\s*/>|<nowiki\s*>\s*</nowiki\s*>", re.I)
 TEMPLATESTYLES = re.compile(r"<templatestyles\s+src\s*=\s*[\"']?([^\"'/>]+(?:/[^\"'/>]+)*)[\"']?\s*/?>", re.I)
+#: HTML's own elements as wikitext uses them
+_HTML_NAMES = (r"div|span|p|center|small|big|font|b|i|u|s|strike|sup|sub|blockquote|section|poem|ref|table|tr|td|th|"
+               r"ul|ol|li|dl|dd|dt|h[1-6]|code|tt|em|strong|abbr|cite|q|ins|del")
+#: an element's tag that the parser left as text: a closing tag whose element opened on an earlier page (a block
+#: opened on one page and closed on another), an opening tag inside a template's argument; MediaWiki's HTML cleanup
+#: drops a stray end tag, and the element's text is all that is left to read
+STRAY_TAG = re.compile(rf"</?(?:{_HTML_NAMES})(?:\s[^<>]*)?/?>", re.I)
+#: the end of a block that opened on an earlier page: the paragraph ends there, as the block's end would end it
+STRAY_BLOCK_END = re.compile(r"</(?:div|p|center|blockquote|table|ul|ol|dl|section|poem|h[1-6])\s*>", re.I)
+LITERAL_BR = re.compile(r"<br\s*/?\s*/?\s*>", re.I)
 
 
 @dataclass
@@ -51,6 +61,7 @@ class Built:
     root: etree._Element
     unexpanded: list[str] = field(default_factory=list)
     texvc_rejected: list[str] = field(default_factory=list)
+    closes_block: bool = False
 
 
 class HtmlBuilder:
@@ -65,7 +76,7 @@ class HtmlBuilder:
     def build(self, root) -> Built:
         w = _Writer(self)
         w.nodes(root.children)
-        return Built(w.finish(), w.unexpanded, w.texvc_rejected)
+        return Built(w.finish(), w.unexpanded, w.texvc_rejected, w.closes_block)
 
 
 class _Writer:
@@ -80,6 +91,7 @@ class _Writer:
         self.cursor: etree._Element | None = None
         self.part = "header"
         self.unexpanded: list[str] = []
+        self.closes_block = False        # the body's last text is followed by the end of a block from an earlier page
         self.texvc_rejected: list[str] = []
         self.pre = 0
         self.styles_seen: set[str] = set()
@@ -108,6 +120,8 @@ class _Writer:
     def append_text(self, text: str) -> None:
         if not text:
             return
+        if text.strip() and self.part == "body":
+            self.closes_block = False
         cur = self.ensure_p()
         if len(cur):
             last = cur[-1]
@@ -131,6 +145,21 @@ class _Writer:
             s = TEMPLATESTYLES.sub(lambda m: self.style(m.group(1)) or "", s)
         if "nowiki" in s.lower():                       # an empty <nowiki/> separates wikitext and prints nothing
             s = EMPTY_NOWIKI.sub("", s)
+        if "<" in s:                                    # tags the parser left as text (before entities are decoded:
+            if LITERAL_BR.search(s):                    # an editor's &lt;div&gt; stays text)
+                for k, piece in enumerate(LITERAL_BR.split(s)):
+                    if k:
+                        etree.SubElement(self.ensure_p(), "br")
+                    self.text(piece)
+                return
+            if STRAY_BLOCK_END.search(s):
+                for k, piece in enumerate(STRAY_BLOCK_END.split(s)):
+                    if k:
+                        self.paragraph_break()
+                        self.closes_block = self.closes_block or self.part == "body"
+                    self.text(piece)
+                return
+            s = STRAY_TAG.sub("", s)
         s = htmllib.unescape(s)
         if self.pre:
             self.append_text(s)
@@ -182,6 +211,8 @@ class _Writer:
             elif where == {"footer"}:
                 parts["footer"].append(el)
             else:
+                if len(where) > 1:                     # a block across the parts: the page's own wrapper
+                    el.set("data-parts", " ".join(p for p in PARTS if p in where))
                 parts["body"].append(el)
         if len(parts["header"]):
             self.body.append(parts["header"])

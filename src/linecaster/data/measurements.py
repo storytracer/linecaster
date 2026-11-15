@@ -41,6 +41,8 @@ MEASUREMENTS: dict[str, str] = {
     "unmapped": "an importer's conventions: features of nodes no rule matched (an element's classes) -> how many",
     "anchored": "an importer: lines anchored in the source text, of all lines",
     "ends_paragraph": "an importer: the page's last paragraph ends on the page (true) or runs on onto the next",
+    "starts_paragraph": "an importer: the page begins with a new paragraph or a block (true), not one that continues "
+                        "the previous page's",
     "unexpanded": "an importer of a template language: the template calls it could not expand, by name",
     "wikidata": "a wiki's importer: the Wikidata ids a module asked about, which the importer never asks Wikidata",
     "texvc_rejected": "a wiki's importer: formulas MediaWiki's TeX checker (texvc) rejects, kept as written",

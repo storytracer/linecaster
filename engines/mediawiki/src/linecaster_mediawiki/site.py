@@ -168,11 +168,32 @@ def _offline(siteinfo: dict) -> None:
             setattr(module, name, _unknown(name.removeprefix("mw_wikibase_")))
 
 
+def _mark_unclosed() -> None:
+    """An HTML element the page does not close (a block template's opening half, ``{{block center/s}}``, whose
+    closing half is on a later page) is marked ``data-unclosed``: the parser closes it at the page's end, and the
+    reader must know the page does not (``reader.edges``). wikitextprocessor closes it in ``_parser_pop(ctx, True)``,
+    the call it warns from; wrapped once."""
+    from wikitextprocessor import parser
+    from wikitextprocessor.parser import NodeKind
+
+    pop = getattr(parser._parser_pop, "wrapped", parser._parser_pop)
+
+    def _parser_pop(ctx, warn_unclosed):
+        node = ctx.parser_stack[-1]
+        if warn_unclosed and node.kind == NodeKind.HTML and isinstance(node.attrs, dict):
+            node.attrs["data-unclosed"] = "1"
+        return pop(ctx, warn_unclosed)
+
+    _parser_pop.wrapped = pop
+    parser._parser_pop = _parser_pop
+
+
 def open_context(folder: Path, lang: str):
     """A new wikitextprocessor context for the site in ``folder``, offline (``Site.wtp()`` keeps one per process)."""
     from wikitextprocessor import Wtp, luaexec
 
     _offline(json.loads((folder / "siteinfo.json").read_text(encoding="utf-8")))
+    _mark_unclosed()
     loader = getattr(luaexec.lua_loader, "wrapped", luaexec.lua_loader)   # wrapped once, whatever the contexts
 
     def lua_loader(ctx, modname):

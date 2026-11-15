@@ -2,7 +2,8 @@
 
 ProofreadPage transcribes a scanned book page by page; a paragraph that runs on onto the next page is two pieces, and
 the wiki joins them when it transcludes the pages into a main-namespace page, unless the page ends the paragraph
-(``{{nop}}``: the importer's measurement ``ends_paragraph``). ``link_pages`` records the joins as the data model's
+(``{{nop}}``, or a block at the page's end: the importer's measurement ``ends_paragraph``) or the next page begins
+with a block (a centred heading, a table: ``starts_paragraph``). ``link_pages`` records the joins as the data model's
 links between the pages' regions (``<page_id>#<region>``): the last body paragraph of a page that runs on
 ``runs_into`` the next page's first body paragraph, which ``continues`` it; a page's first continued footnote
 (``footnote_continued``: Cite's ``<ref follow=...>``) ``continues`` the last footnote of the page before. linecaster's
@@ -27,11 +28,13 @@ def _ordered(t: Transcription, roles: tuple[str, ...]) -> list[str]:
 
 def link_pages(pages: list[tuple[str, Transcription]]) -> int:
     """Links the consecutive pages of one item, given in order as ``(page_id, transcription)``; returns how many
-    joins it recorded. A page's own annotator of step ``import`` makes the links (its ``ends_paragraph``)."""
+    joins it recorded. A page's own annotator of step ``import`` makes the links (its ``ends_paragraph``, the next
+    page's ``starts_paragraph``)."""
     joins = 0
     for (pid, t), (nid, n) in zip(pages, pages[1:]):
         a = _importer(t)
-        ends = t.annotators[a].measurements.get("ends_paragraph", True)
+        ends = t.annotators[a].measurements.get("ends_paragraph", True) or \
+            n.annotators[_importer(n)].measurements.get("starts_paragraph", False)
         body, following = _ordered(t, BODY + ("heading", "title", "table")), _ordered(n, BODY + ("heading", "title",
                                                                                                 "table"))
         if not ends and body and following and t.role(body[-1]) == "paragraph" and n.role(following[0]) == "paragraph":
