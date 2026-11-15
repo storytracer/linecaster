@@ -1,6 +1,6 @@
-"""The IIIF annotation page of a transcription: its annotations, and validity against the IIIF Presentation 3 JSON
-Schema of the IIIF presentation validator, fetched at a pinned commit (the file states no licence, so it is not
-copied into this repository)."""
+"""The IIIF annotation page of a transcription: its annotations, reading it back (and foreign pages), and validity
+against the IIIF Presentation 3 JSON Schema of the IIIF presentation validator, fetched at a pinned commit (the file
+states no licence, so it is not copied into this repository)."""
 from __future__ import annotations
 
 import hashlib
@@ -59,3 +59,55 @@ def test_the_page_is_valid_iiif():
         data = r.read()
     assert hashlib.sha256(data).hexdigest() == SCHEMA_SHA256
     jsonschema.validate(page(), json.loads(data))
+
+
+def test_an_annotation_page_reads_back_as_written():
+    import json
+
+    from linecaster.formats.iiif import from_annotation_page
+    from linecaster.testing import sample_transcription
+    from linecaster.testing.scripts import script_page
+
+    for t in (sample_transcription(), script_page("arabic")):
+        page = to_annotation_page(t, "https://library.test/canvas/1", "https://library.test/anno/1")
+        back = from_annotation_page(json.dumps(page))
+        assert [back.text_of(ln) for ln in back.ordered_lines()] == [
+            t.text_of(ln) for ln in t.ordered_lines() if ln.reading is not None]
+        assert to_annotation_page(back, "https://library.test/canvas/1", "https://library.test/anno/1") == page
+    assert back.language("r1l0") == "ar" and back.region_of(back.lines[2]) == "r1"
+
+
+def test_a_foreign_annotation_page_with_selectors_percent_boxes_and_languages():
+    from linecaster.formats.iiif import from_annotation_page
+
+    canvas = "https://example.org/iiif/canvas/p1"
+    person = {"creator": {"id": "https://example.org/people/1", "type": "Person", "name": "Transcriber"}}
+
+    def anno(n, motivation, body, target, **extra):
+        return {"id": f"https://example.org/anno/{n}", "type": "Annotation", "motivation": motivation, "body": body,
+                "target": target, **person, **extra}
+
+    page = {"id": "https://example.org/anno", "type": "AnnotationPage", "items": [
+        anno(0, "classifying", {"type": "TextualBody", "value": "paragraph"}, f"{canvas}#xywh=percent:10,10,80,40"),
+        anno(1, "supplementing", {"type": "TextualBody", "value": "The ship sailed", "language": "en"},
+             {"type": "SpecificResource", "source": {"id": canvas, "type": "Canvas"},
+              "selector": {"type": "FragmentSelector", "value": "xywh=110,120,700,40"}}, textGranularity="line"),
+        anno(2, "transcribing", [{"type": "TextualBody", "value": "Ἐν ἀρχῇ", "language": "grc"}],
+             {"type": "SpecificResource", "source": canvas,
+              "selector": {"type": "SvgSelector", "value": "<svg><polygon points='110,200 500,200 500,240 110,240'/>"
+                                                            "</svg>"}}, textGranularity="line"),
+        anno(3, "supplementing", {"type": "TextualBody", "value": "ship", "language": "en"},
+             f"{canvas}#xywh=200,120,100,40", textGranularity="word"),
+        anno(4, "editing", {"type": "TextualBody", "value": "The ship sailed.", "purpose": "corrected"},
+             "https://example.org/anno/1"),
+        anno(5, "commenting", {"type": "TextualBody", "value": "a note on the scan"}, canvas),
+    ]}
+    t = from_annotation_page(page, image_width=1000, image_height=1000)
+    assert [t.text_of(ln) for ln in t.ordered_lines()] == ["The ship sailed", "Ἐν ἀρχῇ"]
+    assert t.regions[0].box == [100.0, 100.0, 800.0, 400.0] and t.role("r0") == "paragraph"
+    assert [t.region_of(ln) for ln in t.lines] == ["r0", "r0"]
+    assert t.lines[1].polygon == [[110.0, 200.0], [500.0, 200.0], [500.0, 240.0], [110.0, 240.0]]
+    assert (t.language("l0"), t.language("l1"), t.language("")) == ("en", "grc", None)
+    assert [w.text for w in t.lines[0].reading.words] == ["ship"]
+    assert [(e.target, e.kind, e.text) for e in t.edits] == [("l0", "corrected", "The ship sailed.")]
+    assert {a.kind for a in t.annotators} == {"human"} and t.annotators[0].name == "Transcriber"
