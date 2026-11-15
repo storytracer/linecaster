@@ -402,6 +402,43 @@ written, the run record naming `squiddle@1` and its hash.
 
 ## Open items
 
+- **Internationalization: the long-term plan** (2026-11-15, the maintainer: English texts first, this as soon as
+  possible). linecaster's defaults are now free of Latin-historic assumptions (nothing normalized unless a strategy
+  says so, grapheme-cluster errors, the `alnum` lane over letters, marks and digits of any script), but other scripts
+  and ground-truth traditions need, in this order:
+  1. **Script, language and direction as data**: page, region and line carry an ISO 15924 script, a BCP 47 language
+     and a writing direction (left to right, right to left, vertical), from the source where it says so (PAGE-XML's
+     `primaryScript`, `primaryLanguage`, `readingDirection`, `textLineOrder`; HTML `lang`/`dir`; TEI `xml:lang`),
+     else from Unicode's Script property; renderings write them back (HTML `lang` and `dir`, PAGE's attributes).
+  2. **A script test set**: fake pages in Latin, Fraktur, Greek, Cyrillic, Arabic, Hebrew, Devanagari, Thai,
+     Chinese, Japanese (vertical), Korean and Mongolian, covering combining marks, scripts without spaces, right to
+     left, mixed direction, vertical writing and division marks; every scorer, renderer and importer test runs over
+     it.
+  3. **A scorer for any script**: `scoring.metrics.words` strips combining marks (its `[^\w\s]` has no `\p{M}`):
+     Devanagari, vocalized Arabic, pointed Hebrew and Thai words fall apart, so word recall, over-extraction and role
+     words are wrong for them (the CER is not affected). Words by Unicode's word boundaries (UAX #29), a declared
+     tokenizer per script where those are not enough (Thai, Lao, Khmer, Myanmar need a dictionary), a character
+     unit where words mean little (Chinese, Japanese: a line counts as one word today); benchmarks name their
+     tokenizer.
+  4. **Geometry and order by writing direction**: the line assigner's rows (sorted by `x0`), XY-cut and XY-Cut++
+     (left group first) and the recomposition's margins follow the direction; vertical writing as columns, right to
+     left; a layout model's learned order stays first. Imported ground truths keep their source's order already.
+  5. **Normalizations per writing tradition**, as catalog data with their source named (Unicode data, Unihan,
+     established mapping tables): Arabic (tatweel, vowel marks, alef and hamza forms, Persian and Arabic yeh and kaf),
+     Hebrew points, Greek polytonic to monotonic, Cyrillic pre-reform letters, CJK variant and traditional and
+     simplified characters, kana iteration marks, Indic nukta; with comparison strategies built from them.
+  6. **Importers where such ground truth lives**: TEI (with conventions for `choice`, `sic`/`corr`,
+     `abbr`/`expan`), line-level datasets (a line image and its text without a page: a line-only transcription in
+     the data model), IIIF annotation pages (linecaster writes them, reads none), and conventions entries for further
+     source families, each declaring what its text already is.
+  7. **Benchmarks across traditions**: one definition per ground truth in its evaluation's repository, with
+     conventions, lanes and tokenizer stated; evidence compared like with like within a script.
+  8. **Recognizers per script**: presets for models that cover other scripts, with their scripts declared, routed by
+     the existing by-script dispatch.
+
+  Start with 1, 2 and 3 (they define the contract and make later results trustworthy), then 6 (ground truth drives
+  the rest); 4, 5 and 8 as languages come in. Scripts, languages and directions are standards (Unicode, ISO 15924,
+  BCP 47); a source's conventions are catalog data, never code.
 - **Transcription levels instead of `latin-historic`** (2026-11-14, the maintainer: "not fit for purpose anymore"):
   its eight replacements have no principle. To follow OCR-D's ground-truth levels 1, 2 and 3 (the rules as data in
   `OCR-D/gt-MufiLevelRules`, GPL-3.0: a catalog pin, not copied in), gaps filled from Unicode's decompositions, not
