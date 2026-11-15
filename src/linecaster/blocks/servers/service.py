@@ -50,6 +50,9 @@ class ServiceServer(Contracted, PipelineStep):
         host: the address vLLM binds to; default loopback only.
         vllm: the vLLM command (default ``vllm`` on the service's ``PATH``: the job image's).
         boot_timeout: seconds the service may take until it is ready.
+        server_env: for ``server: vllm``, where vLLM comes from: ``"path"`` (``vllm`` above) or ``"uv"`` (the
+            preset's vLLM release, linecaster's ``VLLM_VERSION`` unless it names another, in an environment uv builds
+            once per machine: ``linecaster.blocks.servers.provision``), its ``bin`` first on the service's ``PATH``.
     """
 
     type = "🔠 - LINECASTER"
@@ -58,8 +61,10 @@ class ServiceServer(Contracted, PipelineStep):
     docs_args = {"preset": "falcon-ocr"}
 
     def __init__(self, preset: str, port: int = 8000, host: str = "127.0.0.1", vllm: str = "vllm",
-                 boot_timeout: int = 1800):
+                 boot_timeout: int = 1800, server_env: str = "path"):
         super().__init__()
+        if server_env not in ("path", "uv"):
+            raise PipelineConfigError(f"ServiceServer: server_env {server_env!r} (path or uv)")
         from ...catalog.registry import catalog
 
         r = catalog().resolve(preset)
@@ -77,6 +82,7 @@ class ServiceServer(Contracted, PipelineStep):
         self.weights = ({"model": model.id, "source": model.source.model_dump(), "revision": pin["revision"],
                          "files": pin["files"]} if pin else None)
         self.port, self.host, self.vllm, self.boot_timeout = port, host, vllm, boot_timeout
+        self.server_env, self._env_dir = server_env, None
         self._proc = None
 
     @property
@@ -107,8 +113,9 @@ class ServiceServer(Contracted, PipelineStep):
         ``PATH``), with the preset's ``env``."""
         env = {k: v for k, v in os.environ.items() if k not in PIPELINE_ENV}
         own = os.path.realpath(os.path.join(sys.prefix, "bin"))
-        env["PATH"] = os.pathsep.join(p for p in env.get("PATH", "").split(os.pathsep)
-                                      if p and os.path.realpath(p) != own)
+        env["PATH"] = os.pathsep.join(([os.path.join(self._env_dir, "bin")] if self._env_dir else [])
+                                      + [p for p in env.get("PATH", "").split(os.pathsep)
+                                         if p and os.path.realpath(p) != own])
         env.update(self.serve.get("env") or {})
         return env
 
@@ -121,6 +128,12 @@ class ServiceServer(Contracted, PipelineStep):
         from ...catalog.fetch import check, hf_snapshot
 
         if self.server == "vllm":
+            if self.server_env == "uv":
+                from ...catalog.schema import Serve
+                from .provision import server_env
+
+                folder = server_env("vllm", Serve.model_validate(self.serve).version)
+                self._env_dir, self.vllm = str(folder), str(folder / "bin" / "vllm")
             return str(hf_snapshot(self.weights))
         folder = self.serve.get("weights_dir")
         if folder and self.weights is not None:

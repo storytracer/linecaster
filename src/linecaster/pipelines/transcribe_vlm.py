@@ -4,7 +4,7 @@ region it finds (``RegionRecognizer``, a region preset), on the ``Chat`` backend
 serves the layout model (``--backend``, ``--endpoint`` as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
 
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # needs `vllm` on PATH
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # vLLM built by uv
     uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
     uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
@@ -14,6 +14,11 @@ model's raw answer is in each page's transcription.
     ... --set recognition.repetition_detection.min_count=12   # one of its settings over the defaults
     uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b
                                                           # the repair pass over page records written before
+
+The server is the preset's release (vLLM: linecaster's ``VLLM_VERSION`` unless the preset names another; SGLang:
+its ``serve.version``, with the preset's ``server_packages``), in an environment uv builds once per machine
+(``--server-env uv``, the default here and on Ray), or the one on ``PATH`` or in the image (``--server-env path``,
+the default on HF Jobs).
 
 --recognition takes a chat preset of the catalog (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
@@ -136,7 +141,7 @@ def pipeline(a, script: str):
         gmu = a.gpu_memory_utilization if a.gpu_memory_utilization is not None or sglang else 0.8
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
         servers.append(ChatModelServer(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
-                                      outside_venv=sglang or regions))
+                                      outside_venv=sglang or regions, server_env=run.server_env(a)))
     return steps + [run.pages(a)] + servers, {"image": spec.job_image, "engines": regions}
 
 

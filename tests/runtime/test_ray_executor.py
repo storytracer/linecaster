@@ -1,6 +1,8 @@
 """RayExecutor and RayGPUExecutor: a run stops at an error that is not the pages' and fails with unfinished tasks;
 each GPU task finds its GPU and moves its servers to their own port; a launch checks that a node can run a task, and
 a task sizes its thread pools to its CPUs."""
+from pathlib import Path
+
 import pytest
 
 from linecaster.backends import Served
@@ -125,10 +127,42 @@ def test_connect_ray_joins_the_given_cluster_once(monkeypatch):
 
     calls = []
     monkeypatch.setattr(ray, "is_initialized", lambda: bool(calls))
-    monkeypatch.setattr(ray, "init", lambda address: calls.append(address))
+    monkeypatch.setattr(ray, "init", lambda address, runtime_env=None: calls.append((address, runtime_env)))
     run.connect_ray("ray-head:6379")
     run.connect_ray("ray-head:6379")
-    assert calls == ["ray-head:6379"]
+    assert calls == [("ray-head:6379", None)]
+
+
+def test_a_job_s_workers_run_the_script_s_own_environment(monkeypatch):
+    """A script's job uploads its checkout and starts each worker as ``uv run --locked <script> python``; ``node``
+    leaves the workers in the node's Python."""
+    import ray
+
+    from linecaster.runtime import run
+
+    root = Path(__file__).resolve().parents[2]
+    env = run.worker_env(str(root / "pipelines" / "transcribe_vlm.py"))
+    assert env["working_dir"] == str(root)
+    assert env["py_executable"] == "uv run --quiet --locked pipelines/transcribe_vlm.py python"
+    assert run.worker_env(str(root / "pipelines" / "transcribe_vlm.py"), "node") == {} == run.worker_env(None)
+    calls = []
+    monkeypatch.setattr(ray, "is_initialized", lambda: bool(calls))
+    monkeypatch.setattr(ray, "init", lambda address, runtime_env=None: calls.append(runtime_env))
+    run.connect_ray("auto", str(root / "recipes" / "squiddle.py"))
+    assert calls[0]["py_executable"] == "uv run --quiet --locked recipes/squiddle.py python"
+
+
+def test_the_python_pass_through_runs_the_script_s_interpreter(tmp_path):
+    """``<script> python ARGS`` runs this environment's Python with ARGS (a Ray worker's command)."""
+    import subprocess
+    import sys
+
+    script = tmp_path / "s.py"
+    script.write_text("from linecaster.runtime import run\n"
+                      "run.main(__file__, None, lambda ap: None, lambda a: [], lambda a, s: [], 'x', {})\n")
+    out = subprocess.run([sys.executable, str(script), "python", "-c", "import sys; print(sys.executable)"],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    assert out == sys.executable
 
 
 def _stop_executor(tmp_path, monkeypatch, outcome):

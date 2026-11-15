@@ -6,6 +6,20 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Added
+
+- **Servers built by uv** (`--server-env uv`, the default except on HF Jobs; `linecaster.blocks.servers.provision`):
+  `ChatModelServer` and `ServiceServer` install the server a preset names at its release (vLLM: linecaster's; SGLang:
+  its `serve.version` with the preset's `server_packages`) into an environment of its own, once per machine
+  (`LINECASTER_SERVER_ENVS`, else `~/.cache/linecaster/servers`), resolved as of the day after the release was
+  uploaded to PyPI. SGLang's environment also gets a CUDA toolkit from PyPI (the compiler, headers and runtime at
+  torch's `cuda-toolkit` release, laid out as a toolkit) for the kernels it compiles as it starts, as `CUDA_HOME`.
+  `--server-env path` keeps the server on `PATH` or in the image.
+- **Each Ray job's workers run its script's own environment** (`--worker-env script`, the default): the job uploads
+  its checkout and starts every worker as `uv run --locked <script> python ...` (the scripts' new `python`
+  pass-through), built on each node the first time. One cluster of nodes with uv and linecaster's Ray then runs any
+  pipeline script's jobs, from any commit. `--worker-env node` keeps the node's Python.
+
 ### Changed
 
 - **One vLLM for every preset: linecaster's, 0.30.0** (`linecaster.catalog.schema.VLLM_VERSION`). A vLLM `serve`

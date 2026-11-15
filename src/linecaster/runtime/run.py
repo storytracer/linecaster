@@ -115,6 +115,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
     g.add_argument("--endpoint", default=None, help="a running server for the engines")
+    g.add_argument("--server-env", choices=["uv", "path"], default=None,
+                   help="where a model's server (vLLM, SGLang) comes from: uv (its preset's release, built by uv "
+                        "once per machine) or path (the one on PATH or in the image); default: path on HF Jobs (the "
+                        "preset's image), uv elsewhere")
     g = ap.add_argument_group("Ray")
     g.add_argument("--address", default="auto",
                    help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
@@ -126,6 +130,10 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--mem-per-task-gb", type=float, default=None,
                    help="memory a task reserves, in GiB, whatever its CPUs (default: --mem-per-cpu-gb per CPU; "
                         "start the workers with ray start --memory at least this)")
+    g.add_argument("--worker-env", choices=["script", "node"], default="script",
+                   help="the Python a task's Ray worker runs: script (this script's locked environment, built on each "
+                        "node by uv from the job's code, which the job uploads: any job on any cluster of nodes "
+                        "with uv and linecaster's Ray) or node (the Python the node's Ray runs)")
     g.add_argument("--no-fit-check", dest="fit_check", action="store_false",
                    help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
                         "demand)")
@@ -618,7 +626,7 @@ def starts_vlm_server(pipeline: list) -> bool:
 def ray_gpus(a: argparse.Namespace) -> int:
     """The GPUs of the Ray cluster at ``--address`` (joined here, as the launch joins it), 0 if it cannot be read."""
     try:
-        connect_ray(a.address)
+        connect_ray(a.address, getattr(a, "script_path", None), getattr(a, "worker_env", "script"))
         import ray
 
         return int(ray.cluster_resources().get("GPU", 0))
@@ -1039,7 +1047,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         for note in run_notes(a):
             logger.info(note)
     if a.on == "ray":
-        connect_ray(a.address)
+        connect_ray(a.address, script, getattr(a, "worker_env", "script"))
     _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
@@ -1086,16 +1094,47 @@ def sample(argv: list[str]) -> None:
     print(json.dumps({**found.record(), "path": path}, indent=1))
 
 
-def connect_ray(address: str) -> None:
+def server_env(a: argparse.Namespace) -> str:
+    """``--server-env``: as given, else ``path`` on HF Jobs (the preset's image has the server) and ``uv``
+    elsewhere."""
+    return getattr(a, "server_env", None) or ("path" if getattr(a, "on", "local") == "hf-jobs" else "uv")
+
+
+def code_root(script: str) -> Path:
+    """The folder a job uploads for its workers: the nearest folder above the script with a ``pyproject.toml`` (a
+    linecaster checkout, for its own scripts, whose sources point into it), else the script's own folder."""
+    path = Path(script).resolve()
+    for d in path.parents:
+        if (d / "pyproject.toml").exists():
+            return d
+    return path.parent
+
+
+def worker_env(script: str | None, worker: str = "script") -> dict:
+    """The runtime environment of a job's Ray workers. ``script``: the job's code (``code_root``) as Ray's
+    ``working_dir``, and each worker started as ``uv run --locked <script> python ...`` there: the script's own
+    locked environment, built on the node by uv the first time and reused (the script runs its ``python``
+    pass-through, ``main``). ``node`` (or no script): nothing, the workers run the Python the node's Ray runs."""
+    if worker != "script" or not script:
+        return {}
+    import shlex
+
+    root = code_root(script)
+    rel = Path(script).resolve().relative_to(root).as_posix()
+    return {"working_dir": str(root), "py_executable": f"uv run --quiet --locked {shlex.quote(rel)} python",
+            "excludes": [".venv/", ".git/", "**/__pycache__/"]}
+
+
+def connect_ray(address: str, script: str | None = None, worker: str = "script") -> None:
     """Joins the Ray cluster at ``address`` (``--address``: ``auto``, the cluster on this machine or ``RAY_ADDRESS``;
-    ``host:6379``; ``ray://host:10001``), unless this process has joined one already (inside a Ray job). Ray's own
-    ``uv run`` support is off here too (``RAY_UV``): a driver started by ``uv run`` would otherwise start the tasks'
-    workers with ``uv run`` in its folder, so a uv project there replaces the script's environment."""
+    ``host:6379``; ``ray://host:10001``), unless this process has joined one already, with the workers'
+    environment (``worker_env``). Ray's own ``uv run`` support is off (``RAY_UV``): it would start the workers with
+    ``uv run`` in the driver's folder, where a uv project replaces the script's environment."""
     os.environ.setdefault(RAY_UV, "0")
     import ray
 
     if not ray.is_initialized():
-        ray.init(address=address)
+        ray.init(address=address, runtime_env=worker_env(script, worker) or None)
 
 
 def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
@@ -1277,10 +1316,13 @@ def main(script: str, description: str | None, options: Callable, models: Callab
 
         sys.argv = ["ray", *argv[1:]]
         sys.exit(ray_cli())
+    if argv[:1] == ["python"]:              # a Ray worker in this script's environment (worker_env)
+        os.execv(sys.executable, [sys.executable, *argv[1:]])
     try:
         if argv[:1] == ["serve"]:
             return serve(argv[1:], options, models, pipeline_id, slots)
         a = parse(argv, description, options, pipeline_id, slots)
+        a.script_path = str(Path(script).resolve())
         check_commit(a, script)
         a.has_engines = bool(models(a))
         built = build(a, str(Path(script).resolve()))

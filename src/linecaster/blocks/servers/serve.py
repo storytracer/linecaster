@@ -126,6 +126,10 @@ class ChatModelServer(Contracted, PipelineStep):
             uv environment on top (HF Jobs); the server's helpers (``ninja``, ``python``) then come from the image.
         python: the Python that has SGLang (default ``python3``, looked up on the server's ``PATH``, then in the
             usual image locations).
+        server_env: where the server comes from: ``"path"`` (the command on ``PATH``, or the image's Python, as
+            above) or ``"uv"`` (its release, ``spec.server_version``, with the preset's ``server_packages``, in an
+            environment uv builds once per machine: ``linecaster.blocks.servers.provision``); the server then runs
+            outside this interpreter's environment, its environment's ``bin`` first on ``PATH``.
     """
 
     type = "🔠 - LINECASTER"
@@ -135,8 +139,10 @@ class ChatModelServer(Contracted, PipelineStep):
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,
-                 outside_venv: bool = False, python: str = "python3"):
+                 outside_venv: bool = False, python: str = "python3", server_env: str = "path"):
         super().__init__()
+        if server_env not in ("path", "uv"):
+            raise PipelineConfigError(f"ChatModelServer: server_env {server_env!r} (path or uv)")
         if isinstance(spec, str):
             from ...adapters import chat_model
 
@@ -144,6 +150,10 @@ class ChatModelServer(Contracted, PipelineStep):
         self.spec, self.port, self.host = spec, port, host
         self.gpu_memory_utilization, self.extra_args = gpu_memory_utilization, list(extra_args or [])
         self.vllm, self.boot_timeout, self.outside_venv, self.python = vllm, boot_timeout, outside_venv, python
+        self.server_env = server_env
+        if server_env == "uv":
+            self.outside_venv = True
+        self._env_dir: str | None = None
         self._server = None
 
     @property
@@ -179,7 +189,10 @@ class ChatModelServer(Contracted, PipelineStep):
         # only this interpreter's own environment: an image may set VIRTUAL_ENV to the environment that has
         # the server (the SGLang image: /opt/sglang), which must stay on the PATH
         own = os.path.realpath(os.path.join(sys.prefix, "bin"))
-        return os.pathsep.join(p for p in path.split(os.pathsep) if os.path.realpath(p) != own)
+        path = os.pathsep.join(p for p in path.split(os.pathsep) if os.path.realpath(p) != own)
+        if self._env_dir:                                    # the server's own environment first (ninja, python)
+            path = os.pathsep.join([os.path.join(self._env_dir, "bin"), path])
+        return path
 
     def tracing_args(self) -> tuple[list[str], dict[str, str]]:
         """vLLM's own tracing when the ``OTEL_*`` variables ask for an OTLP export: ``--otlp-traces-endpoint`` (the
@@ -220,7 +233,13 @@ class ChatModelServer(Contracted, PipelineStep):
             import shlex
 
             cmd = cmd + args if cmd[0] != "bash" else [*cmd[:-1], cmd[-1] + " " + shlex.join(args)]
-        env = [f"{k}={v}" for k, v in {**(getattr(self.spec, "server_env", None) or {}), **trace_env,
+        toolkit = {}
+        if self._env_dir:                                    # a server environment's own CUDA toolkit
+            from .provision import cuda_home
+
+            home = cuda_home(self._env_dir)
+            toolkit = {"CUDA_HOME": home} if home else {}
+        env = [f"{k}={v}" for k, v in {**toolkit, **(getattr(self.spec, "server_env", None) or {}), **trace_env,
                                        **self.flashinfer_env()}.items()]
         if self.outside_venv:
             env = ["-u", "VIRTUAL_ENV", f"PATH={self.server_path()}", *env]
@@ -267,6 +286,15 @@ class ChatModelServer(Contracted, PipelineStep):
         spec = self.spec
         if spec.revision and not getattr(spec, "revision_flag", True):
             check_default_branch(spec.model, spec.revision, getattr(spec, "pin_ignore", ()))
+        if self.server_env == "uv":                         # the server's packages are part of its environment
+            from .provision import server_env
+
+            folder = server_env(self.server, getattr(spec, "server_version", None), spec.server_packages())
+            self._env_dir = str(folder)
+            if self.server == "vllm":
+                self.vllm = str(folder / "bin" / "vllm")
+                return None
+            return str(folder / "bin" / "python")
         python = self.server_python() if self.server == "sglang" else None
         installs = self.install_commands(python or self.python)
         if installs:
