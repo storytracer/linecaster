@@ -127,6 +127,8 @@ BLOCKS = {
 CONTAINERS = frozenset({"text", "front", "body", "back", "group", "div", "div1", "div2", "div3", "div4", "div5",
                         "div6", "div7", "titlePage", "docTitle", "list", "listBibl", "opener", "closer", "epigraph",
                         "argument", "floatingText", "sp", "postscript", "castList"})
+#: elements read for their text alone inside a table's cell or a caption (no block of their own there)
+NESTED_AS_TEXT = frozenset(BLOCKS) | CONTAINERS | {"figure", "table", "cb", "l"}
 #: division marks a divided word's first half may end with (left out of the whole word)
 DIVISION_MARKS = "-­‐¬⸗="
 #: roles a region keeps without text
@@ -283,6 +285,7 @@ class _Walk:
         self.language: str | None = None               # the language of the block-level element being read
         self.line_text = False                         # the line being read has text (lines given)
         self.join_next = False                         # the next line continues this one's last word
+        self.nested = 0                                # reading a table's cell or a caption: blocks are their text
 
     @property
     def on(self) -> bool:
@@ -354,6 +357,9 @@ class _Walk:
             return
         if self.lines_given:
             self.in_line(el, ctx)
+            return
+        if self.nested and tag in NESTED_AS_TEXT:     # a paragraph or list in a cell or caption: its text
+            self.children(el, ctx)
             return
         if tag == "lb":
             self.line_break(el, ctx, joins=el.get("break") == "no")
@@ -485,10 +491,18 @@ class _Walk:
                 self.figure(c, _scope(c, ctx))
             elif c.tag not in SKIPPED:
                 self.begin(c, "caption", _scope(c, ctx))
-                self.children(c, _scope(c, ctx))
+                self._nested(c, _scope(c, ctx))
                 cap, self.cur = self.cur, None
-                if cap.has_text():
+                if cap is not None and cap.has_text():
                     pic.captions.append(cap)
+
+    def _nested(self, el, ctx: dict) -> None:
+        """``el``'s content read into the block being read (a cell, a caption): its blocks as text."""
+        self.nested += 1
+        try:
+            self.children(el, ctx)
+        finally:
+            self.nested -= 1
 
     def table(self, el, ctx: dict) -> None:
         self.flush()
@@ -502,9 +516,9 @@ class _Walk:
             if c.tag == "head":
                 self.cur = None
                 self.begin(c, "caption", _scope(c, ctx))
-                self.children(c, _scope(c, ctx))
+                self._nested(c, _scope(c, ctx))
                 cap = self.cur
-                if cap.has_text():
+                if cap is not None and cap.has_text():
                     tb.captions.append(cap)
             elif c.tag == "row":
                 self.cur = tb
@@ -512,7 +526,7 @@ class _Walk:
                 for k, cell in enumerate(x for x in c if isinstance(x.tag, str) and x.tag == "cell"):
                     if k:
                         self.emit(" ", ctx)
-                    self.children(cell, _scope(cell, ctx))
+                    self._nested(cell, _scope(cell, ctx))
         self.cur = tb
         self.flush()
 

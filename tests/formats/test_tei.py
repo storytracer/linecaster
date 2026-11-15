@@ -261,3 +261,15 @@ def test_a_tei_page_scored_against_itself():
     scored = score_page(d, d)
     assert {"header", "page_number", "paragraph", "footnote"} <= set(scored["roles"])
     assert all(r["s"] == r["d"] == r["i"] == 0 for r in scored["rows"])
+
+
+def test_blocks_inside_a_cell_or_a_caption_are_their_text():
+    ns = '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>{}</body></text></TEI>'
+    t = from_tei(ns.format('<table><row><cell><p>A1</p></cell><cell>B1</cell></row>'
+                           '<row><cell>A2</cell><cell>B2</cell></row></table>'))
+    assert ([t.role(r.id) for r in t.regions], [t.text_of(ln) for ln in t.lines]) == (["table"], ["A1 B1", "A2 B2"])
+    t = from_tei(ns.format('<figure><head>Fig</head><p>cap <list><item>x</item></list></p></figure>'))
+    assert [t.text_of(ln) for ln in t.lines] == ["Fig", "cap x"]
+    assert [(ln.kind, ln.target) for ln in t.links] == [("caption_of", "picture_0")] * 2
+    t = from_tei(ns.format('<figure><head>Fig <pb/> after</head></figure>'))       # a page break in a caption
+    assert [t.text_of(ln) for ln in t.lines] == ["Fig"]
