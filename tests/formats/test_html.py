@@ -1,4 +1,5 @@
 """The HTML importer: HTML's semantics, DPUB-ARIA furniture and notes, CSS, and conventions' decisions."""
+import pytest
 from lxml import html
 
 from linecaster.data import Annotator, Source, Transcription
@@ -267,3 +268,22 @@ def test_auto_directionality_follows_the_text():
         ("paragraph_3", "horizontal-rl")]                                  # digits only: the page's
     spans = [(c.target, c.value) for c in t.classifications if c.scheme == "direction" and "[" in c.target]
     assert spans == []                     # the bdi's Hebrew in a right-to-left page: nothing differs
+
+
+@pytest.mark.parametrize("html, directions", [
+    ('<div dir="auto"><p>Hello</p><p>שלום</p></div>', []),                       # resolved once, on the div
+    ('<ul dir="auto"><li>שלום</li><li>abc</li></ul>', [("list_item_0", "horizontal-rl"),
+                                                      ("list_item_1", "horizontal-rl")]),
+    ('<p dir="auto">abc<br>שלום</p>', []),
+    ('<p dir="auto"><span dir="ltr">abc</span> שלום</p>', [("paragraph_0", "horizontal-rl"),
+                                                          ("paragraph_0_l0[0:3]", "horizontal-lr")]),
+    ('<p>Hi <bdi>user</bdi> there</p>', []),                                     # as inherited: nothing recorded
+    ('<p dir="auto">Hello</p>', []),
+    ('<p>Hi <bdi>שלום</bdi> there</p>', [("paragraph_0_l0[3:7]", "horizontal-rl")]),
+])
+def test_auto_directionality_is_resolved_on_its_element(html, directions):
+    from linecaster.data import SourceDocument
+    from linecaster.engines.importers import HtmlImporter
+
+    t = HtmlImporter()(SourceDocument(data=html))
+    assert [(c.target, c.value) for c in t.classifications if c.scheme == "direction"] == directions

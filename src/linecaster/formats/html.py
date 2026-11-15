@@ -19,8 +19,8 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
   ``text-transform`` sets the letters' case; ``style``, ``script``, ``head`` and the like are removed
   (``metadata``);
 - writing: ``lang`` (``xml:lang`` before it) the language of the text inside, ``dir`` (``rtl``, ``ltr``; ``auto``
-  and a ``bdi`` without one leave it to the text: the direction of its first strong character, as HTML resolves it,
-  none without one and none on the root; ``bdo``'s too) its direction, CSS's ``writing-mode`` (``vertical-rl``,
+  and a ``bdi`` without one leave it to the element's text, resolved as HTML resolves it: the direction of its first
+  strong character outside descendants with a ``dir`` of their own, else the parent's; ``bdo``'s too) its direction, CSS's ``writing-mode`` (``vertical-rl``,
   ``vertical-lr``; not on inline elements) a vertical one. Each is recorded (``language``, ``direction``
   classifications, by whoever the text is by) on the narrowest thing it differs on: the page (``""``) for the root's
   (``html``, its ``body``), a region for a block's that differs from the page's, a span of a line for runs of a line
@@ -249,26 +249,36 @@ class HtmlConverter:
                            walk.ill_formed)
 
 
-#: a directionality HTML leaves to the text (``dir="auto"``, a ``bdi``): resolved where the text is known
-AUTO = "auto"
+#: elements whose text an ``auto`` directionality does not look at (HTML's rule), besides those with a ``dir``
+_NOT_AUTO = frozenset({"bdi", "script", "style", "textarea"})
 
 
 def _direction(bidi: str | None, mode: str | None) -> str | None:
-    """A writing direction (``DIRECTIONS``) from HTML's directionality (``ltr``, ``rtl``, ``auto``: ``AUTO``; None:
-    not stated) and CSS's writing mode: a vertical mode whatever the directionality, else the directionality's."""
+    """A writing direction (``DIRECTIONS``) from HTML's directionality (``ltr``, ``rtl``; None: not stated) and
+    CSS's writing mode: a vertical mode whatever the directionality, else the directionality's."""
     if mode in ("vertical-rl", "vertical-lr"):
         return mode
-    return {"rtl": "horizontal-rl", "ltr": "horizontal-lr", AUTO: AUTO}.get(bidi)
+    return {"rtl": "horizontal-rl", "ltr": "horizontal-lr"}.get(bidi)
 
 
-def _by_text(direction: str | None, text: str, enclosing: str | None = None) -> str | None:
-    """``direction`` with ``AUTO`` resolved as HTML resolves it, by the text's first strong character (Unicode's
-    bidirectional algorithm, ``linecaster.text.scripts.first_strong_direction``); a text without one: ``enclosing``."""
-    if direction != AUTO:
-        return direction
+def _auto(el) -> str | None:
+    """The directionality HTML gives an element with ``dir="auto"`` (or a ``bdi`` without ``dir``): its text's first
+    strong character (``linecaster.text.scripts.first_strong_direction``), descendants that have a ``dir`` or are
+    ``bdi``, scripts and the like skipped; ``None`` without one (the element takes its parent's)."""
     from ..text.scripts import first_strong_direction
 
-    return {"ltr": "horizontal-lr", "rtl": "horizontal-rl"}.get(first_strong_direction(text), enclosing)
+    def walk(e) -> str | None:
+        found = first_strong_direction(e.text or "")
+        for c in e:
+            if found:
+                return found
+            tag = c.tag.lower() if isinstance(c.tag, str) else ""
+            if tag and c.get("dir") is None and tag not in _NOT_AUTO:
+                found = walk(c)
+            found = found or first_strong_direction(c.tail or "")
+        return found
+
+    return walk(el)
 
 
 def _writing(attrs: dict) -> dict:
@@ -354,10 +364,16 @@ class _Walk:
         attrs = self.language(next((v for v in (el.get(XML_LANG), el.get("xml:lang"), el.get("lang"))
                                     if v is not None), None), attrs, count)
         d = (el.get("dir") or "").strip().lower()
-        if d in ("ltr", "rtl") or d == "auto" or (tag == "bdi" and not d):
-            bidi = d if d in ("ltr", "rtl") else AUTO
-            if bidi != attrs.get("bidi"):
-                attrs = {**attrs, "bidi": bidi}
+        if d in ("ltr", "rtl"):
+            bidi = d
+        elif d == "auto" or (tag == "bdi" and not d):          # by the element's text, as HTML resolves it
+            bidi = _auto(el)
+            if bidi is None or bidi == (attrs.get("bidi") or "ltr"):
+                bidi = attrs.get("bidi")                       # as inherited: nothing new to record
+        else:
+            bidi = attrs.get("bidi")
+        if bidi != attrs.get("bidi"):
+            attrs = {**attrs, "bidi": bidi}
         mode = self.case.writing_mode(el) if tag not in INLINE_TAGS else None
         if mode is not None and mode != attrs.get("mode"):
             attrs = {**attrs, "mode": mode}
@@ -680,13 +696,12 @@ def _differing(text: str, spans: list[tuple[int, int, Run]], scheme: str, enclos
             merged.append([a, e, v])
     out = []
     for a, e, v in merged:
+        if v is None or v == enclosing:
+            continue
         while a < e and text[a].isspace():
             a += 1
         while e > a and text[e - 1].isspace():
             e -= 1
-        v = _by_text(v, text[a:e], enclosing) if scheme == "direction" else v
-        if v is None or v == enclosing:
-            continue
         if e > a:
             out.append((a, e, v))
     return out
@@ -700,8 +715,6 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
     order: list[str] = []
     line_order: list[str] = []
     counter: Counter = Counter()
-    if page["direction"] == AUTO:                     # the root's: no text of its own to resolve it by
-        page = {**page, "direction": None}
     for scheme in ("language", "direction"):
         if page[scheme] is not None:
             t.classify(people, "", scheme, page[scheme])
@@ -747,9 +760,6 @@ def _build(t: Transcription, blocks: list[TextBlock], notes: list[TextBlock], pe
                      heading_level=b.heading_level, parent=parent)
         if b.status is not None:
             t.classify(rules, rid, "status", b.status[0], reason=b.status[1])
-        if b.direction == AUTO:
-            b.direction = _by_text(AUTO, "".join(r.text for r in b.runs) or " ".join(
-                text for row in b.rows or () for text, *_ in row), page["direction"])
         for scheme in ("language", "direction"):
             if getattr(b, scheme) is not None and getattr(b, scheme) != page[scheme]:
                 t.classify(who, rid, scheme, getattr(b, scheme))
