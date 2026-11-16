@@ -5,6 +5,7 @@ cluster or code point (``counts``, ``metrics``) and aggregated into corpus rates
 alignment needs ``rapidfuzz`` (the extra ``linecaster[rapidfuzz]``), imported when counting."""
 from .aggregate import RATES, rates, role_rates
 from .counts import UNITS, EditCounts, edit_counts
+from .elements import ELEMENTS_VERSION
 from .lanes import DEFAULT_LANE, LEGACY, REPLACEMENT, lane, normalize
 from .metrics import confusion, role_words, score_page, words
 from .render import TEXTS, text
@@ -19,6 +20,6 @@ def scorer() -> str:
     return f"linecaster {producer()}"
 
 
-__all__ = ["DEFAULT_LANE", "LEGACY", "RATES", "REPLACEMENT", "TEXTS", "UNITS", "EditCounts", "confusion",
+__all__ = ["DEFAULT_LANE", "ELEMENTS_VERSION", "LEGACY", "RATES", "REPLACEMENT", "TEXTS", "UNITS", "EditCounts", "confusion",
            "edit_counts", "lane", "normalize", "rates", "role_rates", "role_words", "score_page", "scorer", "text",
            "tokens", "WORDS", "WORDS_VERSION", "words"]

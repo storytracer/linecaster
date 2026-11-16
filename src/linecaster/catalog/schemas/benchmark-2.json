@@ -60,6 +60,80 @@
       "title": "Dataset",
       "type": "object"
     },
+    "ElementSettings": {
+      "additionalProperties": false,
+      "description": "How elements are cut and matched (``linecaster.scoring.elements``, ``linecaster.scoring.matching``).",
+      "properties": {
+        "lane": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the lane elements are matched by; None: the benchmark's first lane",
+          "title": "Lane"
+        },
+        "tables": {
+          "default": "data",
+          "description": "which tables are tables: data (printed as tables; linecaster.scoring.tables) or all; the rest is text",
+          "enum": [
+            "data",
+            "all"
+          ],
+          "title": "Tables",
+          "type": "string"
+        },
+        "containment": {
+          "default": 0.5,
+          "description": "the least share of an element that must lie in its match",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Containment",
+          "type": "number"
+        },
+        "short": {
+          "default": 4,
+          "description": "an element shorter than this many units needs that similarity instead",
+          "minimum": 1,
+          "title": "Short",
+          "type": "integer"
+        },
+        "ngram": {
+          "default": 3,
+          "description": "the n-grams of units candidates share",
+          "minimum": 1,
+          "title": "Ngram",
+          "type": "integer"
+        },
+        "candidates": {
+          "default": 8,
+          "description": "candidates per element",
+          "minimum": 1,
+          "title": "Candidates",
+          "type": "integer"
+        },
+        "stop": {
+          "default": 64,
+          "description": "an n-gram in more elements than this counts for none",
+          "minimum": 1,
+          "title": "Stop",
+          "type": "integer"
+        },
+        "max_cells": {
+          "default": 500000000,
+          "description": "past this many aligned units a page is one group",
+          "minimum": 1,
+          "title": "Max Cells",
+          "type": "integer"
+        }
+      },
+      "title": "ElementSettings",
+      "type": "object"
+    },
     "PageSet": {
       "additionalProperties": false,
       "description": "The pages scored: a sample rule (``linecaster.data.sample``) or an explicit list, with its hash.",
@@ -234,6 +308,10 @@
       },
       "title": "Metrics",
       "type": "array"
+    },
+    "elements": {
+      "$ref": "#/$defs/ElementSettings",
+      "description": "how elements are cut and matched (with element metrics)"
     },
     "bootstrap": {
       "$ref": "#/$defs/Bootstrap"

@@ -94,8 +94,10 @@ def _bench(**fields):
 
 def test_a_benchmark_names_its_tokenizer_and_keeps_its_hash_with_the_default():
     assert _bench().words == "uax29" and _bench().sha256 == _bench(words="uax29").sha256
-    # the hash of a benchmark/2 with the defaults, as written by 0.10.5
-    assert _bench().sha256 == "sha256:0098ab3838d45cb503fe940ae30becdf0eacde58b447e1262d8d21a045b2f056"
+    # a benchmark/2 naming 0.10.5's default metrics keeps 0.10.5's hash (the default now adds element metrics)
+    old = ["cer", "token_recall", "over_extraction"]
+    assert _bench(metrics=old).sha256 == "sha256:0098ab3838d45cb503fe940ae30becdf0eacde58b447e1262d8d21a045b2f056"
+    assert _bench().sha256 != _bench(metrics=old).sha256
     assert _bench(words="whitespace").sha256 != _bench().sha256
     with pytest.raises(ValueError):
         _bench(words="nowhere")

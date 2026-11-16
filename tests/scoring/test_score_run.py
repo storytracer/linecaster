@@ -157,3 +157,21 @@ def test_the_conventions_check_warns_where_a_lane_does_not_apply_the_ground_trut
     rows = pq.read_table(tmp_path / "run" / "scores" / "scores.parquet").to_pylist()
     assert {r["lane"]: tuple(r["conventions"]) for r in rows} == {"diplomatic": ("long-s",),
                                                                  "alnum-nonmark": ("long-s",)}
+
+
+def test_a_benchmark_s_sample_rule_chooses_its_pages(tmp_path):
+    from linecaster.data.sample import SampleRule, sample_pairs
+    from linecaster.scoring.benchmark import read_benchmark
+    from linecaster.scoring.run import score_run, wanted_pages
+
+    _setup(tmp_path)
+    rule = {"pages": 1, "seed": 3}
+    want = [s.page_id for s in sample_pairs([("library.test_item1", p) for p in IDS], SampleRule(**rule)).selected]
+    bench = yamlio.read(tmp_path / "bench.yaml")
+    bench["pages"] = {"rule": rule, "sha256": listing_sha256(want)}
+    bench = read_benchmark(bench)
+    assert wanted_pages(bench, tmp_path / "gt") == want
+    assert score_run(tmp_path / "run" / "pages", tmp_path / "gt", bench)["pages_scored"] == 1
+    bench.pages.sha256 = listing_sha256(IDS)
+    with pytest.raises(ValueError, match="page set"):
+        wanted_pages(bench, tmp_path / "gt")

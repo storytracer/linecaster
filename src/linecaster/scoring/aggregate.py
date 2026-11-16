@@ -19,20 +19,35 @@ RATES: dict[str, tuple[Callable[[dict], float], Callable[[dict], float]]] = {
     "cer": (lambda r: r["s"] + r["d"] + r["i"], lambda r: r["n"]),
     "token_recall": (lambda r: r["words_both"], lambda r: r["words_true"]),
     "over_extraction": (lambda r: r["words_output"] - r["words_both"], lambda r: r["words_output"]),
+    # element rows (linecaster.scoring.metrics.score_elements)
+    "element_cer": (lambda r: r["s"] + r["d"] + r["i"], lambda r: r["n"]),
+    "element_ned": (lambda r: r["s"] + r["d"] + r["i"], lambda r: r["m"]),
+    "teds": (lambda r: r["teds"], lambda r: 1),
+    "teds_s": (lambda r: r["teds_s"], lambda r: 1),
+    "table_recall": (lambda r: 1 if r["as_table"] else 0, lambda r: 1),
+    "formula_cer": (lambda r: r["latex_s"] + r["latex_d"] + r["latex_i"], lambda r: r["latex_n"]),
+    "formula_ned": (lambda r: r["latex_s"] + r["latex_d"] + r["latex_i"], lambda r: r["latex_m"]),
+    # pages' element summaries
+    "order_kendall": (lambda r: r["order_discordant"], lambda r: r["order_pairs"]),
+    "order_edit": (lambda r: r["order_edits"], lambda r: r["order_len"]),
+    "table_precision": (lambda r: r["tables_output_matched"], lambda r: r["tables_output"]),
 }
 
 
 def rates(records: list[dict[str, Any]], metric: str, seed: int = 0, resamples: int = 1000,
           level: float = 0.95) -> dict[str, Any]:
     """The corpus (micro) rate of ``metric`` over ``records`` (rows of one text and lane), and its percentile
-    bootstrap interval over items (an item's pages drawn together): ``{value, lo, hi, n}`` (``n``: pages)."""
+    bootstrap interval over items (an item's pages drawn together): ``{value, lo, hi, n}`` (``n``: pages; element
+    rows also ``elements``)."""
     num, den = RATES[metric]
     by_item: dict[str, list[dict]] = defaultdict(list)
     for r in records:
         by_item[r.get("item_id") or r["page_id"]].append(r)
     items = sorted(by_item)
     value = _rate(records, num, den)
-    out = {"value": value, "n": len(records)}
+    out = {"value": value, "n": len({r["page_id"] for r in records})}
+    if records and records[0].get("level") == "element":
+        out["elements"] = len(records)
     if resamples and items:
         rnd = random.Random(seed)
         sums = [(sum(num(r) for r in by_item[i]), sum(den(r) for r in by_item[i])) for i in items]

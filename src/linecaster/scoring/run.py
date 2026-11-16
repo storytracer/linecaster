@@ -21,8 +21,9 @@ from ..data.sample import listing_sha256
 from ..data.upgrade import upgrade
 from .aggregate import rates, role_rates
 from .benchmark import Benchmark
-from .metrics import score_page
+from .metrics import score_elements, score_page
 from .slices import SLICES
+from .strata import group as strata_group, page_strata
 
 SCORE_SCHEMA = "linecaster.score/1"
 
@@ -89,7 +90,14 @@ def score_pair(pid: str, truth_row: dict, out_row: dict | None, benchmark: Bench
 
     summary = {"page_id": pid, "item_id": item_id, "roles": got["roles"] if roles else {},
                "confusion": got.get("confusion", []), "missing": out_row is None,
-               "failed": flags["error"] is not None, "slices": page_slices(gt)}
+               "failed": flags["error"] is not None, "slices": page_slices(gt), "strata": page_strata(gt)}
+    if benchmark.element_metrics:
+        el = score_elements(gt, out, benchmark.texts, benchmark.lanes, policy, benchmark.unit, benchmark.output,
+                            benchmark.elements.matching(), benchmark.elements.tables, benchmark.elements.lane)
+        records += [{"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags, "run_id": run_id,
+                     "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256, "policy": policy.ref,
+                     "output": benchmark.output, "scorer": scorer()} for r in el["rows"]]
+        summary["elements"] = el["page"]
     return records, summary
 
 
@@ -103,7 +111,8 @@ def summarize(records: list[dict], pages: list[dict], benchmark: Benchmark, warn
     b = benchmark.bootstrap
     by: dict[tuple[str, str], list[dict]] = {}
     for r in records:
-        by.setdefault((r["text"], r["lane"]), []).append(r)
+        if r.get("level") != "element":
+            by.setdefault((r["text"], r["lane"]), []).append(r)
     out_rates: dict[str, Any] = {}
     for name in benchmark.texts:
         for ln in benchmark.lanes:
@@ -134,20 +143,123 @@ def summarize(records: list[dict], pages: list[dict], benchmark: Benchmark, warn
             warnings.warn(f"lane {ln}: the ground truth already applies {', '.join(missing_n)} (its conventions), "
                           f"the lane does not: the output's differences there are counted as errors",
                           ConventionsWarning, stacklevel=3)
+    if benchmark.element_metrics:
+        el_rates, el_strata = _element_results(records, pages, benchmark)
+        out_rates.update(el_rates)
+    else:
+        el_strata = {}
+    strata = {**el_strata, **_page_strata(by, pages, benchmark)}
     roles = bool(benchmark.supports.roles) and "role_words" in benchmark.metrics
     missing = sum(1 for p in pages if p.get("missing"))
     failed = sum(1 for p in pages if p.get("failed"))
-    return {"records": records, "pages": pages, "rates": out_rates, "slices": slices, "conventions": conventions,
+    return {"records": records, "pages": pages, "rates": out_rates, "slices": slices, "strata": strata,
+            "conventions": conventions,
             "roles": role_rates([p["roles"] for p in pages]) if roles else {},
             "pages_scored": len(pages), "missing": missing, "failed": failed, "eligible": missing == 0}
 
 
-def wanted_pages(benchmark: Benchmark, truth_ids=None) -> list[str]:
-    """The benchmark's page set (its ids, else every ground-truth page), checked against its hash."""
-    wanted = benchmark.pages.ids if benchmark.pages.ids is not None else sorted(truth_ids or ())
-    if listing_sha256(wanted) != benchmark.pages.sha256:
-        raise ValueError(f"the ground truth's pages are not the benchmark's page set ({benchmark.pages.sha256})")
+#: element rates by metric: (rate, the rows it is over)
+_ELEMENT_RATES = {
+    "elements": (("element_cer", None), ("element_ned", None)),
+    "tables": (("teds", "table"), ("teds_s", "table"), ("table_recall", "table")),
+}
+
+
+def _element_results(records: list[dict], pages: list[dict], benchmark: Benchmark) -> tuple[dict, dict]:
+    """The element rates (``score_elements``' rows and the pages' ``elements`` summaries) and their strata: by role
+    and kind always, and by the benchmark's ``strata``."""
+    b = benchmark.bootstrap
+    rows = [r for r in records if r.get("level") == "element"]
+    by: dict[tuple[str, str], list[dict]] = {}
+    for r in rows:
+        by.setdefault((r["text"], r["lane"]), []).append(r)
+    out: dict[str, Any] = {}
+
+    def rated(sel: list[dict], into: dict, suffix: str) -> None:
+        for metric, needs in (x for m in ("elements", "tables") if m in benchmark.metrics for x in _ELEMENT_RATES[m]):
+            chosen = [r for r in sel if r["side"] == "truth" and r["kind"] == needs] if needs else sel
+            if chosen:
+                into[f"{metric}{suffix}"] = rates(chosen, metric, b.seed, b.resamples, b.level)
+
+    for name in benchmark.texts:
+        for ln in benchmark.lanes:
+            rated(by.get((name, ln), []), out, f"_{name}_{ln}")
+    first = by.get((benchmark.texts[0], benchmark.lanes[0]), []) if benchmark.texts and benchmark.lanes else []
+    if "formulas" in benchmark.metrics:
+        formulas = [r for r in first if r["side"] == "truth" and r["kind"] == "formula"]
+        if formulas:
+            for metric in ("formula_cer", "formula_ned"):
+                out[metric] = rates(formulas, metric, b.seed, b.resamples, b.level)
+    summaries = [{"page_id": p["page_id"], "item_id": p.get("item_id"), **p["elements"]} for p in pages
+                 if p.get("elements")]
+    if "tables" in benchmark.metrics and any(s["tables_output"] for s in summaries):
+        out["table_precision"] = rates(summaries, "table_precision", b.seed, b.resamples, b.level)
+    if "reading_order" in benchmark.metrics and summaries:
+        for metric in ("order_kendall", "order_edit"):
+            out[metric] = rates(summaries, metric, b.seed, b.resamples, b.level)
+    by_page = {p["page_id"]: p for p in pages}
+    strata: dict[str, Any] = {}
+    for dim in dict.fromkeys(["role", "kind", *benchmark.strata]):
+        if dim == "slice":
+            continue
+        groups = strata_group(first, dim, by_page)
+        strata[dim] = {}
+        for value, sel in groups.items():
+            got: dict[str, Any] = {}
+            rated(sel, got, "")
+            strata[dim][value] = {"pages": len({r["page_id"] for r in sel}), "elements": len(sel), "rates": got}
+    return out, strata
+
+
+def _page_strata(by: dict[tuple[str, str], list[dict]], pages: list[dict], benchmark: Benchmark) -> dict:
+    """The page-level rates (CER, word recall) by the benchmark's page strata: ``slice`` and recorded schemes."""
+    b = benchmark.bootstrap
+    by_page = {p["page_id"]: p for p in pages}
+    first = by.get((benchmark.texts[0], benchmark.lanes[0]), []) if benchmark.texts and benchmark.lanes else []
+    out: dict[str, Any] = {}
+    for dim in benchmark.strata:
+        if dim in ("role", "kind", "layer", "match", "table_kind"):
+            continue
+        groups = strata_group(first, dim, by_page, element=False)
+        key = f"pages:{dim}"
+        out[key] = {}
+        for value, sel in groups.items():
+            got = {m: rates(sel, m, b.seed, b.resamples, b.level) for m in ("cer", "token_recall")
+                   if m in benchmark.metrics and sel}
+            out[key][value] = {"pages": len({r["page_id"] for r in sel}), "elements": 0, "rates": got}
+    return out
+
+
+def wanted_pages(benchmark: Benchmark, truths=None) -> list[str]:
+    """The benchmark's page set, checked against its hash: its ids; else its sample rule (``linecaster.data.sample``)
+    applied to the ground truth, ``truths`` its rows by id or the folder of its page records (a rule that
+    ``stratify``s by the pages' values, ``linecaster.scoring.truth.page_values``); else every ground-truth page."""
+    ps = benchmark.pages
+    if ps.ids is not None:
+        wanted = ps.ids
+    elif ps.rule is not None and truths is not None:
+        wanted = _sampled(ps.rule, truths, benchmark.dataset.transcription)
+    else:
+        wanted = sorted(truths or ())
+    if listing_sha256(wanted) != ps.sha256:
+        raise ValueError(f"the ground truth's pages are not the benchmark's page set ({ps.sha256})")
     return wanted
+
+
+def _sampled(rule: dict, truths, transcription: str) -> list[str]:
+    from ..data.page import Page
+    from ..data.sample import SampleRule, sample_pairs
+    from .truth import page_values, read_rows
+
+    rows = truths.values() if isinstance(truths, dict) else read_rows(str(truths))
+    pairs, strata = [], {}
+    r = SampleRule(**{k: v for k, v in rule.items() if v is not None})
+    for row in rows:
+        page = Page.model_validate(row["page"])
+        pairs.append((page.item_id, row["id"]))
+        if r.stratify:
+            strata[row["id"]] = page_values(page, r.stratify, transcription)
+    return [s.page_id for s in sample_pairs(pairs, r, strata if r.stratify else None).selected]
 
 
 def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcription: str = "ocr_new",
@@ -232,7 +344,7 @@ def aggregate(scores: str, truth: str, benchmark: Benchmark, transcription: str 
         return got
 
     records, pages = rows("records"), rows("pages")
-    wanted = wanted_pages(benchmark)
+    wanted = wanted_pages(benchmark, truth if benchmark.pages.ids is None and benchmark.pages.rule else None)
     want = set(wanted)
     seen = {p["page_id"] for p in pages}
     records = [r for r in records if r["page_id"] in want]
@@ -252,21 +364,32 @@ def aggregate(scores: str, truth: str, benchmark: Benchmark, transcription: str 
 
 
 def write_scores(records: list[dict], path: str | Path) -> Path:
-    """The score records as Parquet (zstd), the file's metadata naming the linecaster that wrote it."""
+    """The score records as Parquet (zstd), the file's metadata naming the linecaster that wrote it; element rows
+    (``score_elements``) in ``elements.parquet`` beside it, a table of their own (their fields are not a page row's)."""
+    page_rows = [r for r in records if r.get("level") != "element"]
+    element_rows = [r for r in records if r.get("level") == "element"]
+    _write_parquet(page_rows, path)
+    if element_rows:
+        text = str(path)
+        sibling = text[:text.rstrip("/").rfind("/") + 1] + "elements.parquet" if "/" in text else "elements.parquet"
+        _write_parquet(element_rows, sibling)
+    return path
+
+
+def _write_parquet(rows: list[dict], path: str | Path) -> None:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
     from ..data.transcription import producer
 
-    table = pa.Table.from_pylist(records)
+    table = pa.Table.from_pylist(rows)
     table = table.replace_schema_metadata({**(table.schema.metadata or {}), b"linecaster": producer().encode()})
     if "://" in str(path):                                  # object storage: through fsspec
         import fsspec
 
         with fsspec.open(str(path), "wb") as fh:
             pq.write_table(table, fh, compression="zstd")
-        return path
+        return
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, path, compression="zstd")
-    return path

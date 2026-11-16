@@ -22,6 +22,27 @@
       "title": "EvidenceBenchmark",
       "type": "object"
     },
+    "EvidenceElements": {
+      "additionalProperties": false,
+      "description": "How the element metrics matched elements (``linecaster.scoring.matching``).",
+      "properties": {
+        "version": {
+          "description": "the version of the element scorer's rules (linecaster.scoring.ELEMENTS_VERSION)",
+          "title": "Version",
+          "type": "integer"
+        },
+        "lane": {
+          "$ref": "#/$defs/Named",
+          "description": "the lane elements were matched by"
+        }
+      },
+      "required": [
+        "version",
+        "lane"
+      ],
+      "title": "EvidenceElements",
+      "type": "object"
+    },
     "EvidenceHardware": {
       "additionalProperties": false,
       "properties": {
@@ -197,6 +218,18 @@
           "default": null,
           "description": "the word metrics' tokenizer and the version of their rules; absent (records from before 0.11): whitespace, version 1"
         },
+        "elements": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceElements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "how elements were matched, when the element metrics were scored"
+        },
         "scorer": {
           "description": "the linecaster that scored (linecaster.scoring.scorer())",
           "title": "Scorer",
@@ -241,6 +274,36 @@
         "metrics"
       ],
       "title": "EvidenceSlice",
+      "type": "object"
+    },
+    "EvidenceStratum": {
+      "additionalProperties": false,
+      "description": "The rates of a run on one stratum (``linecaster.scoring.strata``): elements or pages with one value.",
+      "properties": {
+        "pages": {
+          "description": "the pages with elements in it (page strata: its pages)",
+          "title": "Pages",
+          "type": "integer"
+        },
+        "elements": {
+          "default": 0,
+          "description": "the ground truth's and output's elements in it (page strata: 0)",
+          "title": "Elements",
+          "type": "integer"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Metric"
+          },
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pages",
+        "metrics"
+      ],
+      "title": "EvidenceStratum",
       "type": "object"
     },
     "Metric": {
@@ -483,6 +546,17 @@
       },
       "description": "the rates on slices of the pages: those with tables, formulas, neither (linecaster.scoring.slices)",
       "title": "Slices",
+      "type": "object"
+    },
+    "strata": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "$ref": "#/$defs/EvidenceStratum"
+        },
+        "type": "object"
+      },
+      "description": "the rates by stratum: dimension (pages:<dimension> for page rates) -> value -> rates (linecaster.scoring.strata)",
+      "title": "Strata",
       "type": "object"
     },
     "counts": {

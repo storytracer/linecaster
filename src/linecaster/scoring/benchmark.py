@@ -19,7 +19,11 @@ from .render import TEXTS
 from .tokens import DEFAULT_WORDS, WORDS
 
 SCHEMA = "linecaster.benchmark/2"
-METRICS = ("cer", "token_recall", "over_extraction", "role_words", "confusion")
+#: element metrics (``linecaster.scoring.metrics.score_elements``): text per element, tables, formulas, reading order
+ELEMENT_METRICS = ("elements", "tables", "formulas", "reading_order")
+METRICS = ("cer", "token_recall", "over_extraction", "role_words", "confusion", *ELEMENT_METRICS)
+#: the metrics of a benchmark that names none (``reading_order`` only where the ground truth orders its blocks)
+DEFAULT_METRICS = ("cer", "token_recall", "over_extraction", *ELEMENT_METRICS)
 
 
 class _Model(BaseModel):
@@ -65,6 +69,25 @@ class Supports(_Model):
     continuations: bool = Field(False, description="it marks paragraphs continued across pages")
 
 
+class ElementSettings(_Model):
+    """How elements are cut and matched (``linecaster.scoring.elements``, ``linecaster.scoring.matching``)."""
+
+    lane: str | None = Field(None, description="the lane elements are matched by; None: the benchmark's first lane")
+    tables: Literal["data", "all"] = Field("data", description="which tables are tables: data (printed as tables; "
+                                                               "linecaster.scoring.tables) or all; the rest is text")
+    containment: float = Field(0.5, gt=0, le=1, description="the least share of an element that must lie in its match")
+    short: int = Field(4, ge=1, description="an element shorter than this many units needs that similarity instead")
+    ngram: int = Field(3, ge=1, description="the n-grams of units candidates share")
+    candidates: int = Field(8, ge=1, description="candidates per element")
+    stop: int = Field(64, ge=1, description="an n-gram in more elements than this counts for none")
+    max_cells: int = Field(500_000_000, ge=1, description="past this many aligned units a page is one group")
+
+    def matching(self):
+        from .matching import Settings
+
+        return Settings(self.containment, self.short, self.ngram, self.candidates, self.stop, self.max_cells)
+
+
 class Bootstrap(_Model):
     seed: int = 0
     resamples: int = Field(1000, ge=0)
@@ -94,7 +117,9 @@ class Benchmark(_Model):
     words: Literal[WORDS] = Field(DEFAULT_WORDS, description="the tokenizer of the word metrics (linecaster.scoring."
                                                              "tokens): uax29 (Unicode's word boundaries, the default), "
                                                              "whitespace or characters")
-    metrics: list[str] = Field(default_factory=lambda: ["cer", "token_recall", "over_extraction"])
+    metrics: list[str] = Field(default_factory=lambda: list(DEFAULT_METRICS))
+    elements: ElementSettings = Field(default_factory=ElementSettings,
+                                      description="how elements are cut and matched (with element metrics)")
     bootstrap: Bootstrap = Field(default_factory=Bootstrap)
     strata: list[str] = Field(default_factory=list, description="page or item fields to report rates by")
 
@@ -121,11 +146,25 @@ class Benchmark(_Model):
         if structural:
             raise ValueError(f"output: {self.output} holds normalizations of a document's structure "
                              f"({', '.join(structural)}), which scoring cannot apply to a page's text")
+        if "metrics" not in self.model_fields_set and not self.supports.reading_order:
+            self.metrics = [m for m in self.metrics if m != "reading_order"]      # the default, where it holds
+        if "reading_order" in self.metrics and not self.supports.reading_order:
+            raise ValueError("reading_order needs a ground truth that orders its blocks (supports.reading_order)")
+        if self.elements.lane is not None:
+            try:
+                self.elements.lane = lane(self.elements.lane)
+            except KeyError as e:
+                raise ValueError(f"elements.lane: {e.args[0]}") from None
         if "role_words" in self.metrics and not self.supports.roles:
             raise ValueError("role_words needs roles the ground truth marks (supports.roles)")
         if "confusion" in self.metrics and not self.supports.boxes:
             raise ValueError("confusion needs a ground truth with boxes (supports.boxes)")
         return self
+
+    @property
+    def element_metrics(self) -> bool:
+        """Whether any element metric is scored."""
+        return any(m in ELEMENT_METRICS for m in self.metrics)
 
     @property
     def ref(self) -> str:
@@ -140,6 +179,8 @@ class Benchmark(_Model):
         content = self.model_dump(mode="json", by_alias=True, exclude={"description"})
         if content["words"] == DEFAULT_WORDS:
             del content["words"]                               # the default: benchmarks that name none keep their hash
+        if not self.element_metrics:
+            del content["elements"]                            # settings of what is not scored
         content["lanes"] = [{"id": x, "sha256": resolve(x).sha256} for x in self.lanes]
         content["output"] = {"id": self.output, "sha256": catalog().strategy(self.output, use="output").sha256}
         return "sha256:" + hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()

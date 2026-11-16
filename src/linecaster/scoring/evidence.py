@@ -1,6 +1,7 @@
 """An evidence record (``linecaster.evidence/3``) from a scored run: the subject (the run's recipe, or the preset
 named) with its hash, the run (from its run record), the benchmark, the scoring (policy, output strategy, lanes, each
-with its hash; the unit; the scorer), the metrics with their intervals, the counts and the hardware."""
+with its hash; the unit; the word and element metrics' rules; the scorer), the metrics with their intervals, the
+slices and strata, the counts and the hardware."""
 from __future__ import annotations
 
 import datetime as dt
@@ -35,6 +36,7 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
     ``linecaster.catalog.schema.Evidence3``."""
     from ..catalog.registry import catalog, canonical_sha256, entry_id
     from ..catalog.schema import Evidence3
+    from .elements import ELEMENTS_VERSION
     from .lanes import resolve
     from .tokens import WORDS_VERSION
 
@@ -48,11 +50,15 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
     c = catalog()
     policy_sha = canonical_sha256(c.policy_functional(c.policies[entry_id(benchmark.policy)][1]))
     hw = record.get("hardware") or None
-    metrics = {k: {key: v.get(key) for key in ("value", "lo", "hi", "n") if key in v}
-               for k, v in result["rates"].items()}
+
+    def picked(rates_: dict) -> dict:
+        return {k: {key: v.get(key) for key in ("value", "lo", "hi", "n") if key in v} for k, v in rates_.items()}
+
+    metrics = picked(result["rates"])
     for role, r in (result.get("roles") or {}).items():
         for key in ("precision", "recall"):
             metrics[f"role_{key}_{role}"] = {"value": r[key], "n": result["pages_scored"]}
+    matching = (benchmark.elements.lane or benchmark.lanes[0]) if benchmark.element_metrics else None
     software = {k: v for k, v in (record.get("software") or {}).get("packages", {}).items()
                 if k in ("vllm", "sglang", "linecaster-kraken", "linecaster-paddlex", "torch")}
     return Evidence3.model_validate({
@@ -66,12 +72,16 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
                     "output": {"id": benchmark.output, "sha256": c.strategy(benchmark.output, use="output").sha256},
                     "lanes": [{"id": ln, "sha256": resolve(ln).sha256} for ln in benchmark.lanes],
                     "unit": benchmark.unit, "words": {"tokenizer": benchmark.words, "version": WORDS_VERSION},
+                    "elements": {"version": ELEMENTS_VERSION, "lane": {"id": matching,
+                                                                       "sha256": resolve(matching).sha256}}
+                    if matching else None,
                     "scorer": scorer()},
         "metrics": metrics,
-        "slices": {name: {"definition": sl["definition"], "pages": sl["pages"],
-                          "metrics": {k: {key: v.get(key) for key in ("value", "lo", "hi", "n") if key in v}
-                                      for k, v in sl["rates"].items()}}
+        "slices": {name: {"definition": sl["definition"], "pages": sl["pages"], "metrics": picked(sl["rates"])}
                    for name, sl in (result.get("slices") or {}).items()},
+        "strata": {dim: {value: {"pages": st["pages"], "elements": st["elements"], "metrics": picked(st["rates"])}
+                         for value, st in values.items()}
+                   for dim, values in (result.get("strata") or {}).items()},
         "counts": {k: int(result[k]) for k in ("pages_scored", "missing", "failed")},
         "date": date or dt.date.today(), "hardware": hw, "software": software, "notes": notes})
 
