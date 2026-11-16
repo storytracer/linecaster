@@ -109,7 +109,7 @@ def test_the_summary_reads_the_harness_result():
               "display_formula": {"all": {"Edit_dist": {"ALL_page_avg": 0.25}}},
               "reading_order": {"all": {"Edit_dist": {"ALL_page_avg": 0.05}}}}
     s = summarize(result)
-    assert (s["text_edit"], s["table_teds"], s["table_teds_s"], s["formula_edit"]) == (0.1, 0.8, 0.9, 0.25)
+    assert (s["text_edit"], s["table_teds"], s["formula_edit"]) == (0.1, 0.8, 0.25) and "table_teds_s" not in s
     assert "formula_cdm" not in s and s["groups"] == {"tables: yes": {"text_edit": 0.3}}
 
 
@@ -140,7 +140,7 @@ def test_in_process_a_ground_truth_against_itself_is_perfect_and_tasks_do_not_ma
     pages = [truth_page("pa", a), truth_page("pb", b)]
     together = score_pages([(p, prediction_markdown(t)) for p, t in zip(pages, (a, b))])
     r = summarize(aggregate(together, [page_summary(p) for p in pages]))
-    assert (r["text_edit"], r["formula_edit"], r["table_teds"], r["table_teds_s"]) == (0.0, 0.0, 1.0, 1.0)
+    assert (r["text_edit"], r["formula_edit"], r["table_teds"]) == (0.0, 0.0, 1.0)
     apart = {}
     for p, t in zip(pages, (a, b)):
         for element, ss in score_pages([(p, prediction_markdown(t))]).items():

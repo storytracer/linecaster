@@ -215,7 +215,7 @@ the reference: it needs TeX Live, ImageMagick and Ghostscript.
 | Module | Metrics |
 |---|---|
 | text (`text_block`) | edit distance, page-averaged |
-| tables (`table`) | TEDS, TEDS-S, edit distance |
+| tables (`table`) | TEDS, edit distance (the harness's structure-only TEDS-S stays in `result.json`, not in the summary) |
 | display formulas (`display_formula`) | edit distance |
 | reading order (`reading_order`) | edit distance |
 

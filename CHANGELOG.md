@@ -15,6 +15,8 @@ the tags; the first is `v0.1.0`.
   practice, a brace grouping lines), by `linecaster.scoring.tables.table_kind`, computed from the table alone. A
   contents or layout table is exported as its text, so its words are still scored as text. On English Wikisource's
   ground truth: 3,028 data, 1,466 contents and 16,924 layout tables of 21,418.
+- **`harness.yaml` reports no TEDS-S** (structure-only TEDS): TEDS and edit distance are the table scores; the
+  harness's full result (`result.json`) keeps it.
 - **The slice `tables`** counts only data tables, and the slice `table-heavy` is gone (also as an OmniDocBench page
   attribute): a table is a data table, wherever it is on the page. `page_slices(gt)` takes the ground truth alone.
 

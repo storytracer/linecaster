@@ -11,7 +11,7 @@ the ground truth as its ground-truth pages (``write_shard``: ``truth.json``), th
     linecaster harness omnidocbench OUT --pages RUN/pages --truth TRUTH/pages [--ids IDS]      # the reference
 
 Harnesses (``HARNESSES``): ``omnidocbench``, OmniDocBench's end-to-end evaluation: text edit distance, tables by TEDS,
-TEDS-S and edit distance, display formulas by edit distance (CDM with ``--cdm`` in the reference, which needs TeX
+edit distance, display formulas by edit distance (CDM with ``--cdm`` in the reference, which needs TeX
 Live, ImageMagick and Ghostscript on the machine), reading order. Its text score keeps only letters and digits and
 leaves out running heads and feet, page numbers, footnotes and captions: another view than linecaster's literal
 lanes, not a replacement. Pages carry linecaster's page slices (``linecaster.scoring.slices``) as the attributes
@@ -225,7 +225,6 @@ def summarize(result: dict) -> dict:
     out = {
         "text_edit": get("text_block", "all", "Edit_dist", "ALL_page_avg"),
         "table_teds": get("table", "all", "TEDS", "all"),
-        "table_teds_s": get("table", "all", "TEDS_structure_only", "all"),
         "table_edit": get("table", "all", "Edit_dist", "ALL_page_avg"),
         "formula_edit": get("display_formula", "all", "Edit_dist", "ALL_page_avg"),
         "formula_cdm": get("display_formula", "all", "CDM", "all"),
