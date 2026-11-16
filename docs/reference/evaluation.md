@@ -187,6 +187,39 @@ codepoint`, marked not comparable with evidence/3 where a hash is missing); `lin
 file of any version, and `linecaster evidence compare` puts evidence records side by side, only those scored the same
 way (benchmark, policy, output strategy, lanes by hash, unit).
 
+## A benchmark's own harness (`linecaster harness`)
+
+linecaster's scorer is literal and page-based; a benchmark's harness scores the way that benchmark publishes its
+numbers. `linecaster harness` runs such a harness, unchanged, on a linecaster run against **any linecaster ground
+truth**: the ground truth is written in the harness's ground-truth format, the run's pages as its predictions, and
+the harness runs at a pinned commit in its own environment (built once by uv, under `LINECASTER_HARNESS_ENVS`,
+default `~/.cache/linecaster/harnesses`).
+
+    linecaster harness omnidocbench OUT --pages RUN/pages --truth TRUTH/pages [--ids IDS] [--cdm] [--workers N]
+
+| Harness | Commit | What it scores |
+|---|---|---|
+| `omnidocbench` | opendatalab/OmniDocBench `7ddb8df` | text edit distance, tables by TEDS, TEDS-S and edit distance, display formulas by edit distance (CDM with `--cdm`, which needs TeX Live, ImageMagick and Ghostscript), reading order |
+
+**OmniDocBench** (`linecaster.formats.omnidocbench`): the ground truth's regions in reading order become its
+elements, their roles its categories (paragraphs `text_block`, headings `title`, running heads and feet `header`
+and `footer`, page numbers `page_number`, footnotes `page_footnote`, captions `figure_caption`, tables `table` with
+their HTML, formula regions `equation_isolated`); a line a formula fills (an equation number may follow) is its own
+`equation_isolated`, an inline formula stays in its text as `$…$`. No boxes are written: the harness scores by
+text and order. A run's page is Markdown: blocks in reading order, a heading `#` at its level, tables as HTML,
+formula regions `$$…$$`; a transcription without regions (a VLM's completion) as the model wrote it. A page the
+run lacks is an empty prediction. Pages carry the attributes `tables`, `table-heavy` and `formulas` (`yes`/`no`,
+the [slices](#aggregation)), by which the harness groups its page results.
+
+Its text score keeps only letters and digits (punctuation and spaces go) and leaves out running heads and feet,
+page numbers, footnotes and captions: another view than the literal lanes, not one of them. Its reading-order
+distance is not 0 for a page scored against itself where its matching splits or merges blocks, nor for a page with
+no body text (1); its own demo against itself gives 0.059.
+
+`OUT/result/` holds the harness's results as it writes them; `OUT/harness.yaml` (`linecaster.harness-run/1`)
+names the harness, its commit and the pins linecaster adds (packages it leaves open that have since moved past what
+it works with), the inputs, the page counts and the headline metrics, overall and per page group.
+
 ## Run records
 
 A run record (`OUT/run.yaml`) carries what evidence names: `run_id` (stamped on every annotator the run adds),

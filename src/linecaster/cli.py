@@ -411,6 +411,17 @@ def main(argv: list[str] | None = None) -> None:
     sc.add_argument("--preset", help="the preset edition measured (id@edition), when the run follows no recipe")
     sc.add_argument("--context", help="for a preset measured inside a pipeline: the rest of it")
     sc.add_argument("--out", help="where scores.parquet and evidence.yaml go; default RUN/scores")
+    hs = sub.add_parser("harness", help="a benchmark's own harness scoring a run against a linecaster ground truth "
+                                        "(omnidocbench: text, tables by TEDS, formulas, reading order)")
+    hs.add_argument("name", choices=["omnidocbench"], help="the harness")
+    hs.add_argument("out", help="where the harness's inputs, results and harness.yaml go")
+    hs.add_argument("--pages", required=True, help="the run's page records (a folder: local or fsspec URI)")
+    hs.add_argument("--truth", required=True, help="the ground truth's page records")
+    hs.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
+    hs.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
+    hs.add_argument("--ids", help="a file of page ids (one per line): only these pages")
+    hs.add_argument("--cdm", action="store_true", help="formulas by CDM too (needs TeX Live, ImageMagick, Ghostscript)")
+    hs.add_argument("--workers", type=int, default=8, help="processes for the export and the harness's stages")
     ev = sub.add_parser("evidence", help="evidence records: check (validate) or compare (side by side, only those "
                                          "scored the same way)")
     ev.add_argument("action", choices=["check", "compare"])
@@ -473,10 +484,25 @@ def main(argv: list[str] | None = None) -> None:
             _score(a)
         elif a.command == "evidence":
             _evidence(a)
+        elif a.command == "harness":
+            _harness(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))
 
+
+
+def _harness(a) -> None:
+    from pathlib import Path
+
+    from .scoring.harness import run
+
+    ids = set(Path(a.ids).read_text().split()) if a.ids else None
+    r = run(a.name, a.out, a.pages, a.truth, a.transcription, a.truth_transcription, ids, a.cdm, a.workers)
+    for k, v in r["metrics"].items():
+        if k != "groups":
+            print(f"{k:22} {v:.4f}")
+    print(f"pages {r['counts']['pages']:,}, missing {r['counts']['missing']:,}; {a.out}/harness.yaml")
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,17 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Added
+
+- **A benchmark's own harness on any linecaster ground truth** (`linecaster harness`, `linecaster.scoring.harness`):
+  the ground truth written in the harness's format, the run's pages as its predictions, the harness run unchanged
+  at a pinned commit in an environment uv builds once. First harness: `omnidocbench` (OmniDocBench at `7ddb8df`:
+  text edit distance, TEDS and TEDS-S, display formulas by edit distance, CDM with `--cdm`, reading order), with its
+  formats in `linecaster.formats.omnidocbench`; its results grouped by the page slices. Checked: a ground truth
+  scored against itself gives text and formula edit distance 0 and TEDS 1.
+
 ## 0.10.4 (2026-11-16)
 
 ### Upgrade notes
