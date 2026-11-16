@@ -86,7 +86,7 @@ def test_a_shard_is_the_truth_json_and_one_prediction_per_page(tmp_path):
     assert counts == {"pages": 3, "missing": 1}
     pages = json.loads((tmp_path / "s/truth.json").read_text())
     assert [p["page_info"]["image_path"] for p in pages] == ["p0.png", "p1.png", "p2.png"]
-    assert pages[0]["page_info"]["page_attribute"] == {"tables": "no", "table-heavy": "no", "formulas": "no"}
+    assert pages[0]["page_info"]["page_attribute"] == {"tables": "no", "formulas": "no"}
     assert [(tmp_path / f"s/predictions/p{i}.md").read_text() for i in range(3)] == ["page 0", "", ""]
 
 

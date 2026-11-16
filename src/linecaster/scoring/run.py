@@ -85,12 +85,11 @@ def score_pair(pid: str, truth_row: dict, out_row: dict | None, benchmark: Bench
     records = [{"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags, "run_id": run_id,
                 "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256, "policy": policy.ref,
                 "output": benchmark.output, "scorer": scorer()} for r in got["rows"]]
-    from .render import text as render_text
     from .slices import page_slices
 
     summary = {"page_id": pid, "item_id": item_id, "roles": got["roles"] if roles else {},
                "confusion": got.get("confusion", []), "missing": out_row is None,
-               "failed": flags["error"] is not None, "slices": page_slices(gt, render_text(gt, "full", policy))}
+               "failed": flags["error"] is not None, "slices": page_slices(gt)}
     return records, summary
 
 

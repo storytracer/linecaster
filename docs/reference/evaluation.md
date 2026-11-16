@@ -177,7 +177,7 @@ One measurement per file, kept by the evaluation:
 | `benchmark` | `id@edition` and its `sha256` |
 | `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `recall_header`, ... (`<metric>_<text>_<lane>`, `<metric>_<role>`) |
-| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has tables (`tables`, `table-heavy`: a table of at least 2 x 2 with 6 cells or more, its cells at least 30 % of the page's text), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
+| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has data tables (`tables`, `linecaster.scoring.tables`), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
 | `date`, `notes` | |
@@ -234,7 +234,7 @@ their HTML, formula regions `equation_isolated`); a line a formula fills (an equ
 `equation_isolated`, an inline formula stays in its text as `$…$`. No boxes are written: the harness scores by
 text and order. A run's page is Markdown: blocks in reading order, a heading `#` at its level, tables as HTML,
 formula regions `$$…$$`; a transcription without regions (a VLM's completion) as the model wrote it. Pages carry
-the attributes `tables`, `table-heavy` and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which the harness
+the attributes `tables` (data tables) and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which the harness
 groups its page results.
 
 Its text score keeps only letters and digits (punctuation and spaces go) and leaves out running heads and feet,

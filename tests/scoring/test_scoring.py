@@ -125,14 +125,13 @@ def test_a_page_is_in_every_slice_its_ground_truth_meets():
     from linecaster.scoring.slices import page_slices
 
     t = _page([("paragraph", "Body text."), ("table", "x")])
-    assert page_slices(t, text(t, "full")) == ["plain"]
+    assert page_slices(t) == ["plain"]
     grid = [Cell(start_row=r, end_row=r + 1, start_col=c, end_col=c + 1, text=f"cell {r}{c}")
             for r in range(3) for c in range(2)]
     t.tables.append(Table(annotator=0, target="r1", num_rows=3, num_cols=2, cells=grid))
-    assert page_slices(t, "short") == ["tables", "table-heavy"]
-    assert page_slices(t, "x" * 1000) == ["tables"]                                  # cells under 30 % of the text
+    assert page_slices(t) == ["tables"]                                  # a data table: 3 x 2 cells of text
     t.formulas.append(Formula(annotator=0, target="l0[0:4]", latex="x"))
-    assert page_slices(t, "x" * 1000) == ["tables", "formulas"]
+    assert page_slices(t) == ["tables", "formulas"]
 
 
 def test_score_page_counts_each_text_and_lane_and_the_roles():

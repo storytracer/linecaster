@@ -15,7 +15,7 @@ TEDS-S and edit distance, display formulas by edit distance (CDM with ``--cdm`` 
 Live, ImageMagick and Ghostscript on the machine), reading order. Its text score keeps only letters and digits and
 leaves out running heads and feet, page numbers, footnotes and captions: another view than linecaster's literal
 lanes, not a replacement. Pages carry linecaster's page slices (``linecaster.scoring.slices``) as the attributes
-``tables``, ``table-heavy`` and ``formulas``, by which the harness groups its page results.
+``tables`` (data tables, ``linecaster.scoring.tables``) and ``formulas``, by which the harness groups its page results.
 
 Source and environment live in ``LINECASTER_HARNESS_ENVS`` (default ``~/.cache/linecaster/harnesses``), one folder per
 harness commit; the environment adds ``pins`` where the harness leaves a package open that has since moved past
@@ -104,11 +104,10 @@ def environment(name: str) -> Path:
 
 def _attributes(gt) -> dict[str, str]:
     """A ground-truth page's slices as page attributes (``yes``/``no``), by which the harness groups pages."""
-    from .render import text
     from .slices import page_slices
 
-    sl = page_slices(gt, text(gt, "full"))
-    return {k: "yes" if k in sl else "no" for k in ("tables", "table-heavy", "formulas")}
+    sl = page_slices(gt)
+    return {k: "yes" if k in sl else "no" for k in ("tables", "formulas")}
 
 
 def write_shard(folder: str | Path, truth_rows: dict[str, dict], run_rows: dict[str, dict | None],

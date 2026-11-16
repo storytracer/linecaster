@@ -70,7 +70,7 @@ def test_score_writes_scores_and_evidence_that_name_what_was_measured(tmp_path, 
     # the slices: every page in those its ground truth meets, each slice with its rates
     from linecaster.scoring.slices import SLICES, page_slices
 
-    want = page_slices(sample_transcription(), "")
+    want = page_slices(sample_transcription())
     assert set(ev["slices"]) == set(want) and all(ev["slices"][k]["pages"] == 2 for k in want)
     assert {ev["slices"][k]["definition"] for k in want} <= set(SLICES.values())
     assert ev["slices"][want[0]]["metrics"]["cer_full_diplomatic"] == cer
