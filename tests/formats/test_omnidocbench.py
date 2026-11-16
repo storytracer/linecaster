@@ -24,10 +24,13 @@ def _page(blocks: list[tuple[str, list[str]]]) -> Transcription:
 
 
 def _grid() -> Table:
-    cells = [Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Chapter & page", column_header=True),
-             Cell(start_row=1, end_row=2, start_col=0, end_col=1, text="I. Grasshopper"),
-             Cell(start_row=1, end_row=2, start_col=1, end_col=2, text="1")]
-    return Table(annotator=0, target="r2", num_rows=2, num_cols=2, cells=cells)
+    """A data table (``linecaster.scoring.tables``): a heading over two columns, then two rows of text."""
+    cells = [Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Officers & offices", column_header=True),
+             Cell(start_row=1, end_row=2, start_col=0, end_col=1, text="Sarah C. Mink"),
+             Cell(start_row=1, end_row=2, start_col=1, end_col=2, text="President"),
+             Cell(start_row=2, end_row=3, start_col=0, end_col=1, text="Emma R. Wallace"),
+             Cell(start_row=2, end_row=3, start_col=1, end_col=2, text="Secretary")]
+    return Table(annotator=0, target="r2", num_rows=3, num_cols=2, cells=cells)
 
 
 def test_a_ground_truth_page_is_omnidocbench_elements_in_reading_order():
@@ -47,8 +50,9 @@ def test_a_ground_truth_page_is_omnidocbench_elements_in_reading_order():
 
 
 def test_a_table_is_html_with_its_spans_and_headers():
-    assert table_html(_grid()) == ('<table><tr><th colspan="2">Chapter &amp; page</th></tr>'
-                                   "<tr><td>I. Grasshopper</td><td>1</td></tr></table>")
+    assert table_html(_grid()) == ('<table><tr><th colspan="2">Officers &amp; offices</th></tr>'
+                                   "<tr><td>Sarah C. Mink</td><td>President</td></tr>"
+                                   "<tr><td>Emma R. Wallace</td><td>Secretary</td></tr></table>")
 
 
 def test_a_prediction_is_markdown_blocks_and_a_completion_stays_as_written():
@@ -142,3 +146,18 @@ def test_in_process_a_ground_truth_against_itself_is_perfect_and_tasks_do_not_ma
         for element, ss in score_pages([(p, prediction_markdown(t))]).items():
             apart.setdefault(element, []).extend(ss)
     assert summarize(aggregate(apart, [page_summary(p) for p in pages])) == r
+
+
+def test_only_data_tables_are_tables_to_the_harness_the_rest_is_their_text():
+    from linecaster.formats.omnidocbench import table_text
+
+    t = _page([("table", ["x"]), ("table", ["y"])])
+    t.tables.append(Table(**{**_grid().model_dump(), "target": "r0"}))
+    layout = Table(annotator=0, target="r1", num_rows=1, num_cols=2, cells=[
+        Cell(start_row=0, end_row=1, start_col=0, end_col=1, text="Executive Mansion,"),
+        Cell(start_row=0, end_row=1, start_col=1, end_col=2, text="}")])
+    t.tables.append(layout)
+    got = [(d["category_type"], d.get("html") or d.get("text")) for d in truth_page("p", t)["layout_dets"]]
+    assert got == [("table", table_html(_grid())), ("text_block", "Executive Mansion, }")]
+    assert [d["category_type"] for d in truth_page("p", t, tables="all")["layout_dets"]] == ["table", "table"]
+    assert table_text(_grid()) == "Officers & offices\nSarah C. Mink President\nEmma R. Wallace Secretary"

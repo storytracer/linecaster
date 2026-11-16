@@ -22,6 +22,8 @@ def options(ap):
     ap.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
     ap.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
     ap.add_argument("--ids", help="a file of page ids (one per line): only these pages")
+    ap.add_argument("--tables", choices=["data", "all"], default="data",
+                    help="which ground-truth tables are tables: data (printed as tables: not contents lists or layout; linecaster.scoring.tables) or all")
 
 
 def models(a) -> list[dict]:
@@ -46,10 +48,11 @@ def pipeline(a, script: str):
             ids = sorted(set(fh.read().split()))
     out = a.out.rstrip("/")
     blocks = [run.reader(a, read_images=False),
-              OmniDocBenchScorer(a.truth, a.transcription, a.truth_transcription, ids), OmniDocBenchWriter(out)]
+              OmniDocBenchScorer(a.truth, a.transcription, a.truth_transcription, ids, a.tables), OmniDocBenchWriter(out)]
 
     def after() -> None:
-        r = report(out, a.pages, a.truth, a.transcription, a.truth_transcription, set(ids) if ids is not None else None)
+        r = report(out, a.pages, a.truth, a.transcription, a.truth_transcription, set(ids) if ids is not None else None,
+                   a.tables)
         for k, v in r["metrics"].items():
             if k != "groups":
                 print(f"{k:22} {v:.4f}")
@@ -59,7 +62,7 @@ def pipeline(a, script: str):
 
 
 def report(out: str, pages: str, truth: str, transcription: str = "ocr_new", truth_transcription: str = "ground_truth",
-           ids: set[str] | None = None) -> dict:
+           ids: set[str] | None = None, tables: str = "data") -> dict:
     """Every task's samples put together: the ground truth's pages the run lacks scored as empty predictions, the
     harness's aggregation, OUT/result.json and OUT/harness.yaml. A page of the run with ground truth that no task
     scored is an error (a task failed), never a missing page."""
@@ -100,7 +103,7 @@ def report(out: str, pages: str, truth: str, transcription: str = "ocr_new", tru
     lacking = sorted(wanted - in_run)
     if lacking:                                  # the run lacks them: the harness scores an empty prediction
         rows = read_truth(truth, set(lacking))
-        gts = [truth_page(pid, g, attributes=_attributes(g)) for pid, g in
+        gts = [truth_page(pid, g, attributes=_attributes(g), tables=tables) for pid, g in
                ((pid, Page.model_validate(upgrade(rows[pid])["page"]).transcriptions[truth_transcription])
                 for pid in lacking)]
         for element, ss in score_pages([(g, "") for g in gts]).items():
@@ -110,7 +113,7 @@ def report(out: str, pages: str, truth: str, transcription: str = "ocr_new", tru
     h = HARNESSES[NAME]
     record = {"schema": "linecaster.harness-run/1", "harness": NAME, "repo": h["repo"], "commit": h["commit"],
               "process": "in linecaster (linecaster.scoring.omnidocbench)", "pages": str(pages), "truth": str(truth),
-              "transcription": transcription, "truth_transcription": truth_transcription,
+              "transcription": transcription, "truth_transcription": truth_transcription, "tables": tables,
               "counts": {"pages": len(summaries), "missing": len(lacking)}, "metrics": summarize(result),
               "scorer": scorer(), "date": dt.date.today().isoformat()}
     with fsspec.open(f"{out}/result.json", "wt", encoding="utf-8") as fh:

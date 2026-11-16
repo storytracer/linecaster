@@ -8,15 +8,17 @@ from ..data.transcription import Transcription
 #: slice -> what puts a page in it (written into the evidence record)
 SLICES = {
     "plain": "no table and no formula in the ground truth",
-    "tables": "a table with cells in the ground truth",
-    "table-heavy": "a table of at least 2 x 2 with at least 6 cells, its cells at least 30 % of the page's full text",
+    "tables": "a data table in the ground truth (linecaster.scoring.tables: printed as a table, not a contents list or layout)",
+    "table-heavy": "a data table of at least 2 x 2 with at least 6 cells, its cells at least 30 % of the page's full text",
     "formulas": "a formula in the ground truth (a formula region or a formula span of a line)",
 }
 
 
 def page_slices(gt: Transcription, full_text: str) -> list[str]:
     """The slices of a page with ground truth ``gt`` (``full_text``: its full text as the benchmark renders it)."""
-    tables = [tb for tb in gt.tables if tb.cells]
+    from .tables import table_kind
+
+    tables = [tb for tb in gt.tables if tb.cells and table_kind(tb) == "data"]     # printed as tables
     out = []
     if not tables and not gt.formulas:
         out.append("plain")

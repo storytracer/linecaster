@@ -7,7 +7,8 @@ linecaster run against any linecaster ground truth (``linecaster.scoring.harness
   ``page_attribute``, the groups the harness reports by). Roles map to OmniDocBench's categories (``CATEGORIES``); a
   line a formula fills (``display_formula``) is its own ``equation_isolated``, splitting its paragraph; an inline
   formula stays in the text as the ground truth writes it (``$…$``), as OmniDocBench's own ground truth has it. The
-  harness reads no boxes (``poly`` is left out).
+  harness reads no boxes (``poly`` is left out). Only the ground truth's data tables are tables to the harness
+  (``tables="data"``, ``linecaster.scoring.tables``): a contents list or a layout table is its text.
 * ``prediction_markdown``: a run's page as the Markdown OmniDocBench's models write: blocks in reading order, a
   heading ``#`` at its level, a table as HTML, a formula region ``$$…$$`` and so a line a formula fills (as in
   ``truth_page``: the same rule on both sides); furniture written as it is (the harness
@@ -110,10 +111,23 @@ def display_formula(t: Transcription, line_id: str, text: str) -> str | None:
     return None
 
 
+def table_text(table: Table) -> str:
+    """A table's text as lines: each row's cells in order, separated by spaces (a table not scored as a table)."""
+    rows: dict[int, list] = {}
+    for c in sorted(table.cells, key=lambda c: (c.start_row, c.start_col)):
+        if (c.text or "").strip():
+            rows.setdefault(c.start_row, []).append(" ".join(c.text.split()))
+    return "\n".join(" ".join(r) for _, r in sorted(rows.items()))
+
+
 def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY,
-               attributes: dict[str, Any] | None = None) -> dict:
+               attributes: dict[str, Any] | None = None, tables: str = "data") -> dict:
     """The ground truth ``t`` of page ``page_id`` as an entry of OmniDocBench's ground-truth JSON (module docstring);
-    ``attributes`` its ``page_attribute`` (the groups the harness reports by)."""
+    ``attributes`` its ``page_attribute`` (the groups the harness reports by). ``tables``: which of its tables are
+    tables to the harness: ``data`` (``linecaster.scoring.tables.table_kind``: printed as tables; a contents list
+    or layout table is its text, ``text_block``, so its words are still scored) or ``all``."""
+    from ..scoring.tables import table_kind
+
     dets: list[dict] = []
 
     def add(category: str, **content) -> None:
@@ -122,7 +136,10 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
 
     for region, role, what in _blocks(t, policy):
         if isinstance(what, Table):
-            add("table", html=table_html(what), text="")
+            if tables == "all" or table_kind(what) == "data":
+                add("table", html=table_html(what), text="")
+            elif table_text(what).strip():
+                add("text_block", text=table_text(what))
         elif not isinstance(what, list):                            # a formula region
             add("equation_isolated", latex=f"$${what.latex.strip()}$$")
         else:

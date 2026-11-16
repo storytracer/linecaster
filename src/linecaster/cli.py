@@ -422,6 +422,8 @@ def main(argv: list[str] | None = None) -> None:
     hs.add_argument("--ids", help="a file of page ids (one per line): only these pages")
     hs.add_argument("--cdm", action="store_true", help="formulas by CDM too (needs TeX Live, ImageMagick, Ghostscript)")
     hs.add_argument("--workers", type=int, default=8, help="processes for the export and the harness's stages")
+    hs.add_argument("--tables", choices=["data", "all"], default="data",
+                    help="which ground-truth tables are tables: data (printed as tables; linecaster.scoring.tables) or all")
     ev = sub.add_parser("evidence", help="evidence records: check (validate) or compare (side by side, only those "
                                          "scored the same way)")
     ev.add_argument("action", choices=["check", "compare"])
@@ -498,7 +500,7 @@ def _harness(a) -> None:
     from .scoring.harness import run
 
     ids = set(Path(a.ids).read_text().split()) if a.ids else None
-    r = run(a.name, a.out, a.pages, a.truth, a.transcription, a.truth_transcription, ids, a.cdm, a.workers)
+    r = run(a.name, a.out, a.pages, a.truth, a.transcription, a.truth_transcription, ids, a.cdm, a.workers, a.tables)
     for k, v in r["metrics"].items():
         if k != "groups":
             print(f"{k:22} {v:.4f}")

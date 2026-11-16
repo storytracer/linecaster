@@ -219,6 +219,14 @@ the reference: it needs TeX Live, ImageMagick and Ghostscript.
 | display formulas (`display_formula`) | edit distance |
 | reading order (`reading_order`) | edit distance |
 
+**Which tables are tables** (`--tables`, default `data`; `linecaster.scoring.tables`): a ground truth's table is
+`data` (printed as a table: at least two rows and two columns of filled cells, text or numbers alike), `contents` (a
+table of contents or an index laid out as a table: entries with page, chapter or section references, the references
+rising or the entries in alphabetical order) or `layout` (one row, one column or one cell, one column in practice, a
+brace grouping lines). Only data tables are tables to the harness; the others are their text. A source like
+Wikisource lays out far more than it tabulates (English Wikisource: 3,028 data tables of 21,418), and a table metric
+means something only on what is printed as a table. `--tables all` counts every table.
+
 **The formats** (`linecaster.formats.omnidocbench`): the ground truth's regions in reading order become its
 elements, their roles its categories (paragraphs `text_block`, headings `title`, running heads and feet `header`
 and `footer`, page numbers `page_number`, footnotes `page_footnote`, captions `figure_caption`, tables `table` with

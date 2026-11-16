@@ -25,6 +25,8 @@ class OmniDocBenchScorer(Contracted, PipelineStep):
         transcription: the run's transcription scored.
         truth_transcription: the ground truth's transcription.
         ids: only these pages (the benchmark's page set), or every page of the run.
+        tables: which ground-truth tables are tables to the harness: ``data`` (``linecaster.scoring.tables``) or
+            ``all``.
     """
 
     type = "🔠 - LINECASTER"
@@ -32,10 +34,11 @@ class OmniDocBenchScorer(Contracted, PipelineStep):
     docs_args = {"truth": "truth/pages"}
 
     def __init__(self, truth: str, transcription: str = "ocr_new", truth_transcription: str = "ground_truth",
-                 ids: list[str] | None = None):
+                 ids: list[str] | None = None, tables: str = "data"):
         super().__init__()
         self.truth, self.transcription, self.truth_transcription = truth, transcription, truth_transcription
         self.ids = set(ids) if ids is not None else None
+        self.tables = tables
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from ...data import Page
@@ -60,7 +63,7 @@ class OmniDocBenchScorer(Contracted, PipelineStep):
                     self.stat_update("no_truth")
                     continue
                 gt = Page.model_validate(upgrade(truths[d.id])["page"]).transcriptions[self.truth_transcription]
-                gt_page = truth_page(d.id, gt, attributes=_attributes(gt))
+                gt_page = truth_page(d.id, gt, attributes=_attributes(gt), tables=self.tables)
                 t = None
                 if not d.metadata.get("errors") and d.metadata.get("page"):
                     t = Page.model_validate(d.metadata["page"]).transcriptions.get(self.transcription)

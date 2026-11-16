@@ -4,6 +4,19 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed outputs
+
+- **OmniDocBench scoring counts only data tables as tables** (`--tables data`, the default; `--tables all` as
+  before): a ground-truth table is `data` (printed as a table: at least two rows and two columns of filled cells,
+  text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries with
+  page, chapter or section references) or `layout` (one row, one column or one cell, a table that is one column in
+  practice, a brace grouping lines), by `linecaster.scoring.tables.table_kind`, computed from the table alone. A
+  contents or layout table is exported as its text, so its words are still scored as text. On English Wikisource's
+  ground truth: 3,028 data, 1,466 contents and 16,924 layout tables of 21,418.
+- **The slices `tables` and `table-heavy`** count only data tables.
+
 ## 0.10.5 (2026-11-16)
 
 ### Added

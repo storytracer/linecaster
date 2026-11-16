@@ -112,7 +112,7 @@ def _attributes(gt) -> dict[str, str]:
 
 
 def write_shard(folder: str | Path, truth_rows: dict[str, dict], run_rows: dict[str, dict | None],
-                transcription: str = "ocr_new", truth_transcription: str = "ground_truth") -> dict:
+                transcription: str = "ocr_new", truth_transcription: str = "ground_truth", tables: str = "data") -> dict:
     """A shard: ``truth.json`` (OmniDocBench's ground truth of ``truth_rows``, page records by id) and
     ``predictions/<id>.md`` (each page of ``run_rows``; a page without a row, or with errors, an empty prediction)."""
     from ..data import Page
@@ -124,7 +124,7 @@ def write_shard(folder: str | Path, truth_rows: dict[str, dict], run_rows: dict[
     pages, missing = [], 0
     for pid, row in truth_rows.items():
         gt = Page.model_validate(upgrade(row)["page"]).transcriptions[truth_transcription]
-        pages.append(truth_page(pid, gt, attributes=_attributes(gt)))
+        pages.append(truth_page(pid, gt, attributes=_attributes(gt), tables=tables))
         out_row = run_rows.get(pid)
         t = None
         if out_row is not None and not out_row.get("errors"):
@@ -182,7 +182,7 @@ def _truth_ids(folder: str) -> set[str]:
 
 def run(name: str, out: str | Path, pages: str, truth: str, transcription: str = "ocr_new",
         truth_transcription: str = "ground_truth", ids: set[str] | None = None, cdm: bool = False,
-        workers: int = 8) -> dict:
+        workers: int = 8, tables: str = "data") -> dict:
     """The pinned harness, unchanged, in its own environment and one process, on every page of ``ids`` (default:
     every ground-truth page; a page the run lacks: an empty prediction): ``linecaster harness``, the reference the
     in-process scoring (``linecaster.scoring.omnidocbench``, the pipeline ``harness.v1``) is checked against.
@@ -201,14 +201,14 @@ def run(name: str, out: str | Path, pages: str, truth: str, transcription: str =
     shutil.rmtree(out / "result", ignore_errors=True)
     shutil.rmtree(out / "predictions", ignore_errors=True)
     run_rows = read_truth(pages, wanted)
-    counts = write_shard(out, read_truth(truth, wanted), run_rows, transcription, truth_transcription)
+    counts = write_shard(out, read_truth(truth, wanted), run_rows, transcription, truth_transcription, tables)
     run_shard(name, out, cdm, workers)
     result = json.loads((out / f"result/{SAVE}_metric_result.json").read_text())
     h = HARNESSES[name]
     record = {"schema": "linecaster.harness-run/1", "harness": name, "repo": h["repo"], "commit": h["commit"],
               "pins": h["pins"], "process": "the pinned harness, one process", "cdm": cdm, "pages": str(pages),
               "truth": str(truth), "transcription": transcription, "truth_transcription": truth_transcription,
-              "counts": counts, "metrics": summarize(result), "exporter": scorer(), "date": dt.date.today().isoformat()}
+              "tables": tables, "counts": counts, "metrics": summarize(result), "exporter": scorer(), "date": dt.date.today().isoformat()}
     (out / "harness.yaml").write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True))
     return record
 
