@@ -8,15 +8,15 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
-- **A benchmark's own harness on any linecaster ground truth** (`linecaster harness`, `linecaster.scoring.harness`):
-  the ground truth written in the harness's format, the run's pages as its predictions, the harness run unchanged
-  at a pinned commit in an environment uv builds once. First harness: `omnidocbench` (OmniDocBench at `7ddb8df`:
-  text edit distance, TEDS and TEDS-S, display formulas by edit distance, CDM with `--cdm`, reading order), with its
-  formats in `linecaster.formats.omnidocbench`; its results grouped by the page slices. Sharded as a pipeline
-  (`pipelines/harness.py`, `harness.v1`, block `HarnessWriter`): each task runs the harness on its pages, and the
-  shards' per-sample results are put together by the harness's own aggregation, equal value for value to one run
-  on every page (OmniDocBench's workers are threads: one process uses one core). Checked: a ground truth scored
-  against itself gives text and formula edit distance 0 and TEDS 1.
+- **OmniDocBench's own evaluation on any linecaster ground truth** (`pipelines/harness.py`, `harness.v1`;
+  `linecaster.scoring.omnidocbench`): OmniDocBench's code at a pinned commit (`7ddb8df`), imported and run in
+  linecaster's process on pages in memory: its matching per page, its metric classes (text, tables by TEDS and
+  TEDS-S, display formulas, reading order) per task, its aggregation at the end, into `OUT/result.json` and
+  `OUT/harness.yaml`. Blocks `OmniDocBenchScorer` and `OmniDocBenchWriter`; formats in
+  `linecaster.formats.omnidocbench`; the extra `omnidocbench` (what its code imports). `linecaster harness` runs the
+  pinned harness itself, unchanged, in its own environment: the reference the in-process scoring is checked
+  against, value for value. Checked: a ground truth scored against itself gives text and formula edit distance 0
+  and TEDS 1.
 
 ## 0.10.4 (2026-11-16)
 

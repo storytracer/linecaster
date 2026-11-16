@@ -53,6 +53,11 @@ pypdfium2 = ["pypdfium2>=4.30"]
 # scoring against ground truths (linecaster.scoring): the codepoint alignment's edit operations; importers' anchors
 # into their source text (linecaster.markup.anchors)
 rapidfuzz = ["rapidfuzz>=3.9"]
+# OmniDocBench's evaluation, imported (linecaster.scoring.omnidocbench): what its code imports; the parity check
+# against its pinned harness holds these versions to its own pins' results
+omnidocbench = ["apted>=1.0.3", "beautifulsoup4>=4.11", "evaluate>=0.4.3", "func-timeout>=4.3.5", "levenshtein>=0.25",
+                "lxml>=4.9", "numpy>=1.24", "pandas>=2.0", "pylatexenc==2.10", "scipy>=1.10", "tabulate>=0.9",
+                "tqdm>=4.66", "matplotlib>=3.7", "pillow>=10"]   # matplotlib, Pillow: imported by its CDM modules
 # conventions of JSON formats: JSONPath queries, RFC 9535 (linecaster.markup.JsonMatcher)
 jsonpath-rfc9535 = ["jsonpath-rfc9535>=2.0"]
 # DoclingDocuments as a source (the importer import.docling.v1, linecaster.formats.docling) and SmolDocling's DocTags

@@ -9,7 +9,8 @@ linecaster run against any linecaster ground truth (``linecaster.scoring.harness
   formula stays in the text as the ground truth writes it (``$…$``), as OmniDocBench's own ground truth has it. The
   harness reads no boxes (``poly`` is left out).
 * ``prediction_markdown``: a run's page as the Markdown OmniDocBench's models write: blocks in reading order, a
-  heading ``#`` at its level, a table as HTML, a formula region ``$$…$$``; furniture written as it is (the harness
+  heading ``#`` at its level, a table as HTML, a formula region ``$$…$$`` and so a line a formula fills (as in
+  ``truth_page``: the same rule on both sides); furniture written as it is (the harness
   sets aside what matches the ground truth's furniture). A transcription without regions (a VLM's completion read as
   lines) is its text as the model wrote it.
 
@@ -160,12 +161,23 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
             out.append(f"$$\n{what.latex.strip()}\n$$")
         elif CATEGORIES.get(role or "") == "figure":
             continue
-        else:
-            text = "\n".join(t.text_of(ln) or "" for ln in what).strip()
-            if not text:
-                continue
-            if role in ("heading", "title"):
+        elif role in ("heading", "title"):
+            text = " ".join("\n".join(t.text_of(ln) or "" for ln in what).split())
+            if text:
                 level = t.heading_level(region) if region else None
-                text = "#" * max(1, min(level or 2, 6)) + " " + " ".join(text.split())
-            out.append(text)
+                out.append("#" * max(1, min(level or 2, 6)) + " " + text)
+        else:
+            run: list[str] = []                     # a line a formula fills is a display formula, as in truth_page
+            for ln in what:
+                s = t.text_of(ln) or ""
+                latex = display_formula(t, ln.id, s)
+                if latex is None:
+                    run.append(s)
+                    continue
+                if "\n".join(run).strip():
+                    out.append("\n".join(run).strip())
+                run = []
+                out.append(f"$$\n{latex}\n$$")
+            if "\n".join(run).strip():
+                out.append("\n".join(run).strip())
     return "\n\n".join(out)

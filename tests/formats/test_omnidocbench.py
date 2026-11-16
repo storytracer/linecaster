@@ -107,3 +107,38 @@ def test_the_summary_reads_the_harness_result():
     s = summarize(result)
     assert (s["text_edit"], s["table_teds"], s["table_teds_s"], s["formula_edit"]) == (0.1, 0.8, 0.9, 0.25)
     assert "formula_cdm" not in s and s["groups"] == {"tables: yes": {"text_edit": 0.3}}
+
+
+def _harness_source():
+    import pytest
+
+    from linecaster.scoring.harness import HARNESSES, envs_root
+
+    root = envs_root() / f"omnidocbench-{HARNESSES['omnidocbench']['commit'][:8]}"
+    if not (root / ".linecaster-source").exists():
+        pytest.skip("OmniDocBench's source is not fetched here (linecaster.scoring.harness.source)")
+    pytest.importorskip("apted")
+    return root
+
+
+def test_in_process_a_ground_truth_against_itself_is_perfect_and_tasks_do_not_matter():
+    """OmniDocBench's own code in linecaster's process: a page against itself scores text and formula edit 0 and
+    TEDS 1; two pages scored in one task or in two and then put together give the same result."""
+    from linecaster.formats.omnidocbench import truth_page
+    from linecaster.scoring.harness import summarize
+    from linecaster.scoring.omnidocbench import aggregate, page_summary, score_pages
+
+    _harness_source()
+    a = _page([("paragraph", ["the forces", "$F_{1}dq_{1}$", "where $n$ is"]), ("table", ["x"])])
+    a.formulas.append(Formula(annotator=0, target="r0_l1[0:13]", latex="F_{1}dq_{1}"))
+    a.tables.append(Table(**{**_grid().model_dump(), "target": "r1"}))
+    b = _page([("heading", ["CHAPTER I."]), ("paragraph", ["We shall use Hamilton's form."])])
+    pages = [truth_page("pa", a), truth_page("pb", b)]
+    together = score_pages([(p, prediction_markdown(t)) for p, t in zip(pages, (a, b))])
+    r = summarize(aggregate(together, [page_summary(p) for p in pages]))
+    assert (r["text_edit"], r["formula_edit"], r["table_teds"], r["table_teds_s"]) == (0.0, 0.0, 1.0, 1.0)
+    apart = {}
+    for p, t in zip(pages, (a, b)):
+        for element, ss in score_pages([(p, prediction_markdown(t))]).items():
+            apart.setdefault(element, []).extend(ss)
+    assert summarize(aggregate(apart, [page_summary(p) for p in pages])) == r
