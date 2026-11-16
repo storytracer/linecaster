@@ -57,6 +57,20 @@ the tags; the first is `v0.1.0`.
   olmocr-2-7b-1025-fp8, ovisocr2, ovisocr3, paddleocr-vl-1.6, qianfan-ocr, qwen3.5-9b, smoldocling-256m-preview,
   surya-ocr-2.5, unlimited-ocr. The LightOnOCR-3 presets already ran on 0.30.0.
 
+### Fixed
+
+- **The served backend on a Ray worker in the script's environment**: `linecaster serve` was started from the
+  script's path on the job's driver, which a worker does not have (it runs Ray's copy of the job's code): every
+  task of a `--backend served` job failed to start its model server (`can't open file`). The job now tells its
+  workers where its code was (`LINECASTER_CODE_ROOT`), and a worker runs the same file in its copy
+  (`linecaster.runtime.run.here`).
+
+### Not yet run on a GPU
+
+The server-environment fixes for olmOCR-2 (the CUDA libraries on `LD_LIBRARY_PATH`) and Surya (vLLM with a CUDA
+toolkit), and the vLLM fallbacks of `lightonocr-2-1b` (0.26.0) and `minicpm-ocr-1.0` (0.33.0), are tested only in
+unit tests; the Ray worker environments ran LightOnOCR-3-0.8B and squiddle (in-process).
+
 ## 0.10.2 (2026-11-15)
 
 ### Changed

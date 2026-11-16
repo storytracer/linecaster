@@ -17,7 +17,9 @@ def serve_command(models: list[dict], port: int = 8100, python: str | None = Non
     ``-m linecaster.cli serve``. ``env``: variables for the server (``env K=V ...`` before the command), e.g. the
     task's trace file (``linecaster.tracing.TRACES_ENV``)."""
     if script:
-        cmd = ["uv", "run", "--quiet", "--script", str(script), "serve"]
+        from ..runtime.run import here               # a Ray worker's copy of the job's code
+
+        cmd = ["uv", "run", "--quiet", "--script", here(str(script)), "serve"]
     else:
         cmd = [python or sys.executable, "-m", "linecaster.cli", "serve"]
     cmd = cmd + ["--port", str(port), "--max-queue", str(max_queue)] + model_args(models)

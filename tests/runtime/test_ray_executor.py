@@ -144,6 +144,7 @@ def test_a_job_s_workers_run_the_script_s_own_environment(monkeypatch):
     env = run.worker_env(str(root / "pipelines" / "transcribe_vlm.py"))
     assert env["working_dir"] == str(root)
     assert env["py_executable"] == "uv run --quiet --locked pipelines/transcribe_vlm.py python"
+    assert env["env_vars"] == {run.CODE_ROOT_ENV: str(root)}
     assert run.worker_env(str(root / "pipelines" / "transcribe_vlm.py"), "node") == {} == run.worker_env(None)
     calls = []
     monkeypatch.setattr(ray, "is_initialized", lambda: bool(calls))
@@ -224,3 +225,23 @@ def test_a_launch_fails_when_the_run_stopped_or_tasks_did_not_finish(tmp_path, m
     for rank in range(3):
         ex.mark_rank_as_completed(rank)
     ex.run()                                              # every task finished: the launch succeeds
+
+
+def test_a_worker_finds_the_driver_s_script_in_its_copy_of_the_code(tmp_path, monkeypatch):
+    """A Ray worker runs in Ray's copy of the job's code: a path under the code's folder on the driver is the same
+    file there (the served backend's ``linecaster serve`` script); other paths, and paths that exist, stay."""
+    from linecaster.runtime import run
+    from linecaster.serve import serve_command
+
+    copy = tmp_path / "ray-copy"
+    (copy / "recipes").mkdir(parents=True)
+    (copy / "recipes" / "squiddle.py").write_text("")
+    monkeypatch.chdir(copy)
+    monkeypatch.setenv(run.CODE_ROOT_ENV, "/work/code/abc")
+    assert run.here("/work/code/abc/recipes/squiddle.py") == str(copy / "recipes" / "squiddle.py")
+    assert run.here("/elsewhere/x.py") == "/elsewhere/x.py"
+    assert run.here(str(copy / "recipes" / "squiddle.py")) == str(copy / "recipes" / "squiddle.py")
+    cmd = serve_command([], script="/work/code/abc/recipes/squiddle.py")
+    assert cmd[:5] == ["uv", "run", "--quiet", "--script", str(copy / "recipes" / "squiddle.py")]
+    monkeypatch.delenv(run.CODE_ROOT_ENV)
+    assert run.here("/work/code/abc/recipes/squiddle.py") == "/work/code/abc/recipes/squiddle.py"

@@ -1126,7 +1126,26 @@ def worker_env(script: str | None, worker: str = "script") -> dict:
     root = code_root(script)
     rel = Path(script).resolve().relative_to(root).as_posix()
     return {"working_dir": str(root), "py_executable": f"uv run --quiet --locked {shlex.quote(rel)} python",
-            "excludes": [".venv/", ".git/", "**/__pycache__/"]}
+            "excludes": [".venv/", ".git/", "**/__pycache__/"], "env_vars": {CODE_ROOT_ENV: str(root)}}
+
+
+#: where a Ray job's code was on its driver: a worker finds the same files in Ray's working directory (``here``)
+CODE_ROOT_ENV = "LINECASTER_CODE_ROOT"
+
+
+def here(path: str | None) -> str | None:
+    """``path`` on this machine: a path under the job's code on its driver (``CODE_ROOT_ENV``, set for a Ray job's
+    workers by ``worker_env``) is the same file in the worker's working directory (Ray's copy of that code, the
+    worker's current folder); any other path, or one that exists here, as it is."""
+    root = os.environ.get(CODE_ROOT_ENV)
+    if not path or not root or os.path.exists(path):
+        return path
+    try:
+        rel = Path(path).relative_to(root)
+    except ValueError:
+        return path
+    local = Path.cwd() / rel
+    return str(local) if local.exists() else path
 
 
 def connect_ray(address: str, script: str | None = None, worker: str = "script") -> None:
