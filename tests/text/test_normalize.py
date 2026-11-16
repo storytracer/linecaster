@@ -283,3 +283,150 @@ def test_composite_strategies_of_the_new_normalizations():
     for nid, scripts in (("arabic-tatweel", ("Arab",)), ("hebrew-points", ("Hebr",)),
                          ("greek-monotonic", ("Grek",)), ("cyrillic-prereform", ("Cyrl",))):
         assert tuple(c.normalizations[nid][1].scripts) == scripts
+
+
+# ---- international typography (Omni Parse Bench's comparison fold as normalizations) and the typographic lane ----
+
+def test_typography():
+    out = _n("typography", "comparison")
+    assert out("„Ja“ «oui» ‹non› ‚x‛ ꞌaˈb") == "\"Ja“ \"oui\" 'non' 'x' 'a'b"           # “ is quotes'
+    assert out("5′3″ 4‴ ‶x‵ ′′ ‘‘tex’’ ``tex''") == "5'3\" 4\" \"x' \" \"tex\" \"tex\""
+    assert out("−4 a⸺b ﹣1 －2") == "-4 a-b -1 -2"
+    assert out("a–b a—b") == "a–b a—b"                                                  # dashes' own
+    assert out("1⁄2 ½ a…b") == "1/2 ½ a...b"                                            # ½ is nfkc's
+    assert out("a b c d e f g　h i​j") == "a b c d e f g h i​j"
+    assert out("3·5 2∙7 a·b 3 · 5 3⋅5") == "3.5 2.7 a·b 3 · 5 3⋅5"                  # a decimal only between digits
+    assert out("x≦y ♢ ∗") == "x≤y ◊ *"
+    assert out("a⇒b ⟶ ➡ c⟵d ⇐ ⬆ ⇑ ⇓ ⬇ → ←") == "a→b → → c←d ← ↑ ↑ ↓ ↓ → ←"
+    assert out("Straße ÆØ 12 ABC") == "Straße ÆØ 12 ABC"
+    assert _n("nfkc+typography", "comparison")("½ ″") == "1/2 \""                         # what NFKC leaves
+    with pytest.raises(CatalogError, match="not for output"):
+        _n("typography", "output")
+
+
+def test_cjk_punctuation():
+    out = _n("cjk-punctuation", "comparison")
+    assert out("「東京」、『大阪』。") == "\"東京\",\"大阪\"."
+    assert out("【注】〔一〕《書》〈章〉") == "[注][一]\"書\"'章'"
+    assert out("（括弧）！？：；，．％＝〜～") == "(括弧)!?:;,.%=~~"
+    assert out("｢半角｣｡､") == "\"半角\".,"
+    assert out("ＡＢ１２・ー々") == "ＡＢ１２・ー々"                              # letters, digits, marks: nfkc's or kept
+    assert out("東京, 大阪. (x)") == "東京, 大阪. (x)"
+    assert _n("nfkc+cjk-punctuation", "comparison")("「ＡＢ」。") == "\"AB\"."
+
+
+def test_checkboxes():
+    out = _n("checkboxes", "comparison")
+    assert out("- [x] done [X] [checked] [CHECKED] [✓] [✗]") == "- ☒ done ☒ ☒ ☒ ☒ ☒"
+    assert out("- [ ] todo [] [unchecked] [Unchecked]") == "- ☐ todo ☐ ☐ ☐"
+    assert out("☑ ☒ ■ ▣ ✓ ✔ ✗ ✘") == " ".join("☒" * 8)
+    assert out("☐ □ ◻ ◼ ❏ ▢ ⬜") == " ".join("☐" * 7)
+    assert out("a[i] [12] [xx] [ x ] x") == "a[i] [12] [xx] [ x ] x"                  # other brackets stay
+
+
+def test_footnote_markers():
+    out = _n("footnote-markers", "comparison")
+    assert out("12.3%[1] word[^a] x[ 12 ] y[^ 3 ] [999]") == "12.3% 1 word a x 12 y 3  999"
+    assert out("[1234] [1, 2] [12a] [^abcd] [a] 1") == "[1234] [1, 2] [12a] [^abcd] [a] 1"
+
+
+def test_bullets():
+    out = _n("bullets", "comparison")
+    assert out("• one\n  ▪ two\n◦ ‣ ▶ ∙\n●") == "  one\n    two\n  ‣ ▶ ∙\n "
+    assert out("a • b\n•x\n■ box\n- dash") == "a • b\n•x\n■ box\n- dash"        # inside a line, glued, ■ and -
+
+
+def test_leaders():
+    out = _n("leaders", "comparison")
+    assert out("Chapter 1 ........ 5") == "Chapter 1  5"
+    assert out("Name: ____ here. ____") == "Name:  here.  "                       # a full stop beside a blank stays
+    assert out("x . . . y ……… z ··· w") == "x  y  z  w"
+    assert out("a ===== b ***** c ∗∗∗ d ——— e") == "a  b  c  d  e"
+    assert out("hospital......-.-") == "hospital "                                    # dots and dashes: one run
+    assert out("....... -4.8%") == " -4.8%"                                           # a sign before a digit stays
+    assert out("-----5") == " 5"                                                     # glued to the run: a leader
+    assert out("Wait... yes.. no -- x __ y == z ** w") == "Wait yes.. no -- x __ y == z ** w"
+
+
+def test_superscript_digits():
+    out = _n("superscript-digits", "comparison")
+    assert out("1,240¹ 10³⁴") == "1,240 ¹ 10 ³⁴"
+    assert out("m² x³ ¹2 a ¹") == "m² x³ ¹2 a ¹"                                      # only after a digit
+    assert _n("superscript-digits+nfkc", "comparison")("1,240¹") == "1,240 1"
+    assert _n("nfkc", "comparison")("1,240¹") == "1,2401"                               # why it runs before nfkc
+
+
+def test_romanian_comma_below():
+    c = catalog()
+    for use in ("output", "comparison"):
+        out = _n("romanian-comma-below", use)
+        assert out("ştiinţă ŞŢ") == "știință ȘȚ"
+        assert out("şţŞŢ") == "șțȘȚ"                           # decomposed cedillas too
+        assert out("știință çÇ ğ") == "știință çÇ ğ"                                   # comma below and others stay
+    assert c.normalization("romanian-comma-below").languages == ("ro",)
+
+
+def test_line_end_hyphens():
+    out = _n("line-end-hyphens", "comparison")
+    assert out("develop-\ners") == "developers"
+    assert out("Prä-\nüberlegt x‐\nyz x‑ \r\n  ab é-\nla") == "Präüberlegt xyz xab éla"  # any \p{Ll}, any hyphen
+    assert out("é-\nla") == "éla"                                        # a letter with a mark before
+    assert out("the A-\nTeam") == "the A-\nTeam"                                       # uppercase: stays
+    assert out("page 1-\nb") == "page 1-\nb"                                           # after a digit: stays
+    assert out("end-\n4 x-\n(y) x- y") == "end-\n4 x-\n(y) x- y"             # digit, punctuation, paragraph
+    assert out("well-known x —\nand x–\nb") == "well-known x —\nand x–\nb"            # inside a line; dashes
+    with pytest.raises(CatalogError, match="not for output"):
+        _n("line-end-hyphens", "output")
+    c = catalog()
+    assert all("line-end-hyphens" not in [n.id for n in c.strategy(s).normalizations] for s in c.strategies)
+
+
+def test_pattern_engine():
+    from pydantic import ValidationError
+
+    from linecaster.catalog.schema import Pattern
+
+    assert Pattern(match="a").model_dump(mode="json") == {"match": "a", "flags": [], "replace": " "}
+    assert Pattern(match=r"\p{Ll}", engine="regex").model_dump(mode="json")["engine"] == "regex"
+    with pytest.raises(ValidationError, match="bad escape"):
+        Pattern(match=r"\p{Ll}")                                                    # re has no \p
+    with pytest.raises(ValidationError):
+        Pattern(match="(", engine="regex")
+    rule = {"patterns": [{"match": r"\p{Lu}", "flags": [], "replace": "_", "engine": "regex"},
+                         {"match": "B", "flags": ["I"], "replace": "-"}]}
+    assert apply_rule("aÄb", rule) == "a_-"
+
+
+def test_existing_pattern_normalizations_keep_their_hashes():
+    # Note: the hashes before Pattern had an engine; the default engine is left out of the functional content.
+    c = catalog()
+    assert {nid: c.normalization(nid).sha256 for nid in ("markup", "html-tags", "cyrillic-prereform",
+                                                       "japanese-iteration-marks")} == {
+        "markup": "sha256:516d354c6fdab10842f8717e472cc81326e2ca2107b6b39e257f5d789cfc12b4",
+        "html-tags": "sha256:07e3aaf8543aa12583378a8f25380a28872ca7307074f35451792f892e9f2dae",
+        "cyrillic-prereform": "sha256:dff7c942fda00f00f42cd594165756d1c357a91bca6f8afb5af6a8d558e8974a",
+        "japanese-iteration-marks": "sha256:2b48cd7d9e26411d73b2d5db02e2ccc0a2d3e1e3c476abe08a4e0c593b62a839"}
+    assert c.strategy("reading").sha256 == "sha256:48661b424f32b9d5f1772f9144802e38e3bc59793c2904802c4aca6ad4f00cb5"
+
+
+def test_typographic_lane():
+    c = catalog()
+    lane = c.strategy("typographic", use="comparison")
+    reading = [n.id for n in c.strategy("reading").normalizations]
+    ids = [n.id for n in lane.normalizations]
+    assert [i for i in ids if i in reading] == reading                                 # reading's, in its order
+    assert ids.index("superscript-digits") < ids.index("nfkc") < ids.index("typography")
+    assert ids.index("markup") < ids.index("footnote-markers") and ids[-2:] == ["casefold", "whitespace"]
+    assert "line-end-hyphens" not in ids and "romanian-comma-below" not in ids
+    text = lane.text
+    assert text("„Ein Test“ — «oui»") == "\"ein test\" - \"oui\""
+    assert text("1,240¹ und 12.3%[1] word[^a]") == "1,240 1 und 12.3% 1 word a"
+    assert text("• Punkt ........ 5\n- [x] erledigt\n☑ ok [ ] offen") == "punkt 5 ☒ erledigt ☒ ok ☐ offen"
+    assert text("「東京」。 ½ ３·５ a⇒b") == "\"東京\". 1/2 3.5 a→b"
+    assert text("**bold** <b>x</b> $x^{2}$") == text("bold x x²")
+    assert text("develop-\ners") == "develop- ers"                                     # no dehyphenation
+    assert text("ştiinţă") == "ştiinţă"                                                # language-specific: opt-in
+    assert text("Äpfel ＡＢ　ＣＤ") == "äpfel ab cd"
+    # the same text written two ways compares equal
+    assert text("Ce „mai“ face?\n• Bine ........ 3") == text('Ce "mai" face? Bine 3')
+    assert c.strategy("typographic+romanian-comma-below", use="comparison").text("Ştiinţă") == "știință"

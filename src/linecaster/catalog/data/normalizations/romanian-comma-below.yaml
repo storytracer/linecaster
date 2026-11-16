@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: romanian-comma-below
+description: 'Romanian s and t with a cedilla (ş ţ Ş Ţ, composed or as a letter and U+0327) as the letters with a comma below that Romanian writes (ș ț Ș Ț, U+0219, U+021B, U+0218, U+021A), as keyboards and fonts long gave the cedilla forms. Only for Romanian: the cedilla forms are the letters of Turkish, Azerbaijani, Gagauz and others. Other letters stay. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- Latn
+languages:
+- ro
+use:
+- output
+- comparison
+subsumes: []
+rule:
+  map:
+    ş: ș
+    ţ: ț
+    Ş: Ș
+    Ţ: Ț
+    ş: ș
+    ţ: ț
+    Ş: Ș
+    Ţ: Ț

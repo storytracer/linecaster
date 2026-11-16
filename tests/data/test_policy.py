@@ -56,3 +56,44 @@ def test_a_policy_moves_marginalia_out_of_the_text():
     assert notes.layer("marginalia") == "none" and DEFAULT_POLICY.layer("marginalia") == "body"
     assert DEFAULT_POLICY.layer("header") == "furniture" and DEFAULT_POLICY.layer(None, motivation="describing") == \
         "metadata"
+
+
+def _described() -> Transcription:
+    from linecaster.data.transcription import Description
+
+    t = Transcription(source=Source(image_width=1000, image_height=1000))
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    t.add_region(a, "r0", [0, 0, 1000, 90], role="paragraph")
+    t.add_line(a, "l0", region="r0", text="Before the figure.")
+    t.add_region(a, "r1", [0, 100, 1000, 90], role="picture")
+    t.add_region(a, "r2", [0, 200, 1000, 90], role="paragraph")
+    t.add_line(a, "l1", region="r2", text="After the figure.")
+    t.add_region(a, "r3", [0, 300, 1000, 90], role="picture")
+    t.add_order(a, ["r0", "r1", "r2", "r3"], ["l0", "l1"])
+    t.classify(a, "r3", "status", "suppressed")
+    t.descriptions.append(Description(annotator=a, target="r1", text="A ship at sea."))
+    t.descriptions.append(Description(annotator=a, target="r3", text="A suppressed picture."))
+    t.descriptions.append(Description(annotator=a, target="", text="A page of a log book."))
+    return t
+
+
+def test_page_layers_described_renders_descriptions_after_their_region():
+    from linecaster.catalog.registry import rendering_policy
+    from linecaster.document import to_markdown
+    from linecaster.document.builder import build_document
+    from linecaster.scoring.elements import elements
+    from linecaster.scoring.render import text
+
+    t, described = _described(), rendering_policy("page-layers-described")
+    assert text(t, "full") == "Before the figure.\nAfter the figure."              # by default, in the metadata
+    assert text(t, "full", described) == ("Before the figure.\nA ship at sea.\nAfter the figure.\n"
+                                          "A page of a log book.")
+    assert [(e.kind, e.role, e.content) for e in elements(t, described)] == [
+        ("text", "paragraph", "Before the figure."), ("description", "picture", "A ship at sea."),
+        ("text", "paragraph", "After the figure."), ("description", None, "A page of a log book.")]
+    assert [e.kind for e in elements(t)] == ["text", "text"]
+    doc = build_document(t, policy=described)
+    assert [(b.kind, b.role, b.text) for b in doc.blocks if b.role == "description"] == [
+        ("paragraph", "description", "A ship at sea."), ("paragraph", "description", "A page of a log book.")]
+    assert "A ship at sea.\n\nAfter the figure." in to_markdown(doc)
+    assert not [b for b in build_document(t).blocks if b.role == "description"]

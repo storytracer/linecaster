@@ -44,7 +44,7 @@
       "additionalProperties": false,
       "properties": {
         "match": {
-          "description": "a regular expression (Python's re)",
+          "description": "a regular expression (Python's re, or the regex package's with engine regex)",
           "title": "Match",
           "type": "string"
         },
@@ -65,6 +65,16 @@
           "default": " ",
           "description": "what a match becomes",
           "title": "Replace",
+          "type": "string"
+        },
+        "engine": {
+          "default": "re",
+          "description": "the engine: Python's re, or the regex package (Unicode properties such as \\p{Ll}, variable-width lookbehind)",
+          "enum": [
+            "re",
+            "regex"
+          ],
+          "title": "Engine",
           "type": "string"
         }
       },

@@ -1,7 +1,8 @@
 """The texts a benchmark scores, rendered from an annotation set under a rendering policy: ``full`` (the layers
 ``body`` and ``furniture``: everything printed on the page) and ``body`` (the body alone), as laid out (the read
 lines in reading order, one per line; a region with a table as its table). What an annotator wrote about a figure
-(descriptions) is in neither. A ground truth's illegible spans (``status`` ``illegible`` on a span of a line)
+(descriptions) is in the layer the policy puts it in (``RenderingPolicy.described``; ``metadata``, in neither, by
+default), after its region's text. A ground truth's illegible spans (``status`` ``illegible`` on a span of a line)
 become U+FFFD, one per character; its corrections are not applied."""
 from __future__ import annotations
 
@@ -29,7 +30,8 @@ def text(t: Transcription, layers: tuple[str, ...] | str, policy: RenderingPolic
     """The text of ``t``'s regions in ``layers`` (a ``TEXTS`` name or the layers themselves), as laid out. A region
     with a table is its table, one with a formula (a ``Formula`` of the region) ``$LaTeX$``, as a ground truth writes a
     formula, in place of its lines; such a region without lines (a layout's formula read by a formula model) takes
-    its place in the regions' reading order, before the first line of a later region."""
+    its place in the regions' reading order, before the first line of a later region. A description in ``layers``
+    follows its region (a picture without lines in the picture's place), one per line; the page's come last."""
     layers = TEXTS[layers] if isinstance(layers, str) else layers
     illegible = illegible_spans(t)
     layer = {r.id: policy.layer_of(t, r.id) for r in t.regions}
@@ -37,8 +39,12 @@ def text(t: Transcription, layers: tuple[str, ...] | str, policy: RenderingPolic
     formulas = {f.target: f for f in t.formulas if f.target in layer and f.latex.strip()}
     rank = t.region_ranks()
     with_lines = {t.region_of(ln) for ln in t.lines}
+    described = {region: [s for lr, s in ds if lr in layers] for region, ds in policy.described(t).items()}
+    described = {region: ds for region, ds in described.items() if ds}
     pending = [r.id for r in sorted(t.regions, key=lambda r: rank.get(r.id, len(rank)))
-               if (r.id in tables or r.id in formulas) and r.id not in with_lines]
+               if (r.id in tables or r.id in formulas or r.id in described) and r.id not in with_lines]
+    ordered = t.ordered_lines()
+    last = {region: ln.id for ln in ordered if (region := t.region_of(ln)) is not None}
     out, done = [], set()
 
     def whole(region: str) -> str:
@@ -47,24 +53,27 @@ def text(t: Transcription, layers: tuple[str, ...] | str, policy: RenderingPolic
     def before(r: int) -> None:
         while pending and rank.get(pending[0], len(rank)) < r:
             region = pending.pop(0)
-            if layer.get(region, policy.layer(None)) in layers:
+            if (region in tables or region in formulas) and layer.get(region, policy.layer(None)) in layers:
                 out.append(whole(region))
+            out.extend(described.pop(region, ()))
 
-    for ln in t.ordered_lines():
+    for ln in ordered:
         region = t.region_of(ln)
         before(rank.get(region, len(rank)))
-        if layer.get(region, policy.layer(None)) not in layers:
-            continue
-        if region in tables or region in formulas:
-            if region not in done:
-                done.add(region)
-                out.append(whole(region))
-            continue
-        s = line_text(t, ln, illegible)
-        if s is None:
-            continue
-        out.append(s)
+        if layer.get(region, policy.layer(None)) in layers:
+            if region in tables or region in formulas:
+                if region not in done:
+                    done.add(region)
+                    out.append(whole(region))
+            else:
+                s = line_text(t, ln, illegible)
+                if s is not None:
+                    out.append(s)
+        if last.get(region) == ln.id:
+            out.extend(described.pop(region, ()))
     before(len(rank) + 1)
+    for ds in described.values():                  # the page's, and those of regions the order leaves out
+        out.extend(ds)
     return "\n".join(out)
 
 

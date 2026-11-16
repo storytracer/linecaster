@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: typography
+description: 'Typographic forms beyond quotes and dashes unified, for comparison: double primes (″ ‴ ‶ ‷ ⁗, and two to four primes ′′ as NFKC writes ″) and TeX''s quotes (‘‘ ’’ `` '''') as "; the low and reversed quotes „ ‟ and the guillemets « » as "; the low, reversed and single angle quotes ‚ ‛ ‹ ›, the prime and reversed prime ′ ‵, the saltillo ꞌ Ꞌ and the IPA stress mark ˈ as ''; the minus sign U+2212, the two- and three-em dashes and the small and full-width hyphen-minus and em dash as -; the fraction slash ⁄ as / (½ after NFKC reads 1/2); the ellipsis … as ...; the no-break, en to hair, narrow, medium mathematical and ideographic spaces as a space; the asterisk operator ∗ as *; a middle dot (· ∙) between two digits as a decimal point; ≦ as ≤, ♢ as ◊; each family of arrows (double, white, heavy, long, harpoons) as its plain arrow → ← ↑ ↓. What `quotes` and `dashes` fold (curly quotes, U+2010 to U+2015) is theirs, so a strategy names them too; a middle dot elsewhere, letters, digits and case stay. Runs after nfkc in a lane (it folds what NFKC leaves, ⁄ and ′′) and works without it. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: '[″‴‶‷⁗]|[′‵]{2,4}|‘‘|’’|``|'''''
+    flags: []
+    replace: '"'
+  - match: '[‚‛′‵ꞌꞋˈ‹›]'
+    flags: []
+    replace: ''''
+  - match: '[„‟«»]'
+    flags: []
+    replace: '"'
+  - match: '[\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]'
+    flags: []
+    replace: '-'
+  - match: \u2044
+    flags: []
+    replace: /
+  - match: …
+    flags: []
+    replace: '...'
+  - match: '[\u00A0\u2000-\u200A\u202F\u205F\u3000]'
+    flags: []
+    replace: ' '
+  - match: ∗
+    flags: []
+    replace: '*'
+  - match: (?<=\d)[·∙](?=\d)
+    flags: []
+    replace: .
+  - match: ≦
+    flags: []
+    replace: ≤
+  - match: ♢
+    flags: []
+    replace: ◊
+  - match: '[↠↣↦↪↬↳⇀⇁⇉⇒⇛⇝⇢⇥⇨⇰⇾➡➔➘-➯➱-➾⟶⟹⟼⟾⮕⭢⭬⭲⮊⮩]'
+    flags: []
+    replace: →
+  - match: '[↞↢↤↩↫↲↼↽⇇⇐⇚⇜⇠⇤⇦⇽⟵⟸⟻⟽⬅⭠⭪⭰⮈]'
+    flags: []
+    replace: ←
+  - match: '[↟↥↾↿⇈⇑⇞⇡⇧⇪⬆⭡⭫⭱⮉]'
+    flags: []
+    replace: ↑
+  - match: '[↡↧⇂⇃⇊⇓⇟⇣⇩⬇⭣⭭⭳⮋]'
+    flags: []
+    replace: ↓

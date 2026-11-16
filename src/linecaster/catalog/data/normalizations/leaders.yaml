@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: leaders
+description: 'Leaders and blanks as a space, for comparison: a run of three or more dots, ellipses or middle dots (. … ·), of dashes (- and U+2010 to U+2015, the minus sign), of underscores, of = or of asterisks (* ∗), optionally spaced (. . .), as one space, so that a table of contents'' dot leaders or a form''s blank compare equal however long they are. Dots and dashes form one mixed run; a dash before a digit after a space is a sign, not a leader (....... -4.8% keeps its -4.8%). Three dots are a leader too (an ellipsis compares as a space). Runs of fewer than three and single characters stay. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: (?:(?:[.…·]|(?<=\S)[-\u2010-\u2015\u2212]|[-\u2010-\u2015\u2212](?!\d))\s*){3,}|(?:_\s*){3,}|(?:=\s*){3,}|(?:[*∗]\s*){3,}
+    flags: []
+    replace: ' '

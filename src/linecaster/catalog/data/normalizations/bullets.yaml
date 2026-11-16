@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: bullets
+description: 'A bullet glyph (• ‣ ◦ ▪ ▶ ∙ ●) starting a line, after any indentation and before whitespace or the line''s end, as a space, for comparison: a list item compares equal with or without its bullet. The same glyphs elsewhere in a line stay, as do Markdown''s - * + (markup''s) and ■ (a checked box: checkboxes). Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: ^([ \t]*)[•‣◦▪▶∙●](?=\s|$)
+    flags:
+    - M
+    replace: '\1 '

@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: line-end-hyphens
+description: 'Dehyphenation, for comparison only: a hyphen (- ‐ ‑) ending a line after a letter, followed on the next line by a lowercase letter (Unicode Ll), is removed with the line break, joining the word (develop-\ners as developers). A hyphen before an uppercase letter, a digit or anything else stays, as do dashes, a hyphen inside a line and one at a paragraph''s end. A guess: a compound divided at its own hyphen (self-\nevident) is joined wrongly, so no default lane names it; a lane opts in by name. Needs the regex engine (\p{Ll}). Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0), restricted to line ends.'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: (?<=\p{L}\p{M}*)[-\u2010\u2011][ \t]*(?:\r\n|[\n\r\u2028])[ \t]*(?=\p{Ll})
+    flags: []
+    replace: ''
+    engine: regex

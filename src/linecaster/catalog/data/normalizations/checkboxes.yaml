@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: checkboxes
+description: 'Checkboxes as two glyphs, for comparison: a checked box (☑ ☒ ■ ▣ ✓ ✔ ✗ ✘, and [x], [X], [✓], [✗], [checked] in any case) as ☒; an unchecked one (☐ □ ◻ ◼ ❏ ▢ ⬜, and [ ], [], [unchecked] in any case) as ☐. Every such glyph is read as a box wherever it stands (■ too, which some texts use as a bullet); other brackets stay. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: \[(?:[xX✓✗]|checked)\]
+    flags:
+    - I
+    replace: ☒
+  - match: \[ ?\]|\[unchecked\]
+    flags:
+    - I
+    replace: ☐
+  - match: '[☑☒■▣✓✔✗✘]'
+    flags: []
+    replace: ☒
+  - match: '[☐□◻◼❏▢⬜]'
+    flags: []
+    replace: ☐

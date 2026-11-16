@@ -6,7 +6,9 @@ texts are compared:
 - ``unicode``: a Unicode normalization form, ``NFC`` or ``NFKC``;
 - ``map``: a table, each key (a character or a sequence; the longest first) replaced by its value (``""`` removes
   it);
-- ``patterns``: regular expressions, in order, each match replaced (by a space unless said otherwise);
+- ``patterns``: regular expressions, in order, each match replaced (by a space unless said otherwise); each compiled
+  with Python's ``re``, or with the ``regex`` package when its ``engine`` says so (Unicode properties such as
+  ``\\p{Ll}``);
 - ``case``: Unicode case folding (``fold``) or lowercasing (``lower``);
 - ``keep``: only the characters of the given Unicode categories, ranges and further characters; every run of others
   becomes one space;
@@ -25,7 +27,6 @@ from functools import lru_cache
 from typing import Any
 
 _WS = re.compile(r"\s+")
-_FLAGS = {"I": re.I, "M": re.M, "S": re.S}
 
 
 class StructureRule(ValueError):
@@ -39,13 +40,17 @@ def _map_rx(items: tuple[tuple[str, str], ...]) -> re.Pattern:
 
 
 @lru_cache(maxsize=256)
-def _patterns(items: tuple[tuple[str, tuple[str, ...], str], ...]) -> tuple[tuple[re.Pattern, str], ...]:
+def _patterns(items: tuple[tuple[str, tuple[str, ...], str, str], ...]) -> tuple[tuple[Any, str], ...]:
     out = []
-    for match, flags, replace in items:
+    for match, flags, replace, engine in items:
+        if engine == "regex":
+            import regex as rx_engine
+        else:
+            rx_engine = re
         f = 0
         for x in flags:
-            f |= _FLAGS[x]
-        out.append((re.compile(match, f), replace))
+            f |= getattr(rx_engine, x)
+        out.append((rx_engine.compile(match, f), replace))
     return tuple(out)
 
 
@@ -72,8 +77,8 @@ def apply_rule(text: str, rule: dict[str, Any]) -> str:
         rx = _map_rx(tuple(sorted(value.items())))
         return rx.sub(lambda m: value[m.group(0)], text)
     if kind == "patterns":
-        for rx, replace in _patterns(tuple((p["match"], tuple(p.get("flags") or ()), p.get("replace", " "))
-                                           for p in value)):
+        for rx, replace in _patterns(tuple((p["match"], tuple(p.get("flags") or ()), p.get("replace", " "),
+                                            p.get("engine", "re")) for p in value)):
             text = rx.sub(replace, text)
         return text
     if kind == "case":

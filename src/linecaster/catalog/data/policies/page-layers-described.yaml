@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/policy.json
+schema: linecaster.policy
+id: page-layers-described
+description: >-
+  page-layers, with what an annotator wrote about a figure (a description, alt text) in the body, after its region:
+  for scoring outputs that describe pictures against a ground truth that does, and for documents that read them.
+  What is suppressed, duplicate or removed goes nowhere, its descriptions too.
+rules:
+- status: suppressed
+  to: none
+- status: duplicate
+  to: none
+- status: removed
+  to: none
+- motivation: describing
+  to: body

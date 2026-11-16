@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../schemas/strategy.json
+schema: linecaster.strategy
+id: typographic
+description: 'What a reader reads, with international typography folded (Omni Parse Bench''s comparison fold, Apache-2.0, as catalog normalizations): reading''s normalizations, and superscript digits after a digit set apart before nfkc; checkboxes as ☒ ☐, footnote markers [1] [^1] as their label, bullet glyphs and leaders as spaces after markup is removed; quote, prime, dash, space, arrow and CJK punctuation forms as ASCII or their plain form after nfkc; case folded and whitespace collapsed last. A hyphen at a line''s end stays (no dehyphenation: line-end-hyphens opts in by name), as do language-specific letters (romanian-comma-below).'
+use: comparison
+normalizations:
+- latex-text
+- superscript-digits
+- markup
+- nfkc
+- invisible
+- checkboxes
+- footnote-markers
+- bullets
+- leaders
+- quotes
+- dashes
+- typography
+- cjk-punctuation
+- casefold
+- whitespace

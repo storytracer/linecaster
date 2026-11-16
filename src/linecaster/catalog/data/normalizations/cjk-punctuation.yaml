@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: cjk-punctuation
+description: 'CJK and full-width punctuation as ASCII, for comparison: the ideographic full stop 。 and the full-width full stop ． as ., the ideographic comma 、 and the full-width comma ， as ,, the full-width : ; ! ? ( ) % = # $ & * + - / < > @ \ ^ _ ` | ~ [ ] { } and their half-width forms (｡ ､ ｢ ｣) as their ASCII characters; the corner brackets 「」『』, the double prime quotation marks 〝〞〟 and the double angle brackets 《》 as ", the single angle brackets 〈〉 as '' (as typography folds « » and ‹ ›); the lenticular and tortoise shell brackets 【】〔〕〖〗〘〙〚〛 as [ ]; the wave dash 〜 as ~. A table, so it works without nfkc (which folds the full-width forms but not 。、「」 or the brackets). Full-width letters and digits (nfkc''s), the middle dots ・ ･ and the iteration and prolonged sound marks stay. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0), extended to the brackets and quotation marks.'
+scripts:
+- Hani
+- Hira
+- Kana
+- Hang
+- Bopo
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  map:
+    。: .
+    ｡: .
+    ．: .
+    、: ','
+    ､: ','
+    ，: ','
+    ：: ':'
+    ；: ;
+    ！: '!'
+    ？: '?'
+    （: (
+    ）: )
+    ％: '%'
+    ＝: '='
+    「: '"'
+    」: '"'
+    ｢: '"'
+    ｣: '"'
+    『: '"'
+    』: '"'
+    〝: '"'
+    〞: '"'
+    〟: '"'
+    ＂: '"'
+    《: '"'
+    》: '"'
+    〈: ''''
+    〉: ''''
+    ＇: ''''
+    【: '['
+    】: ']'
+    〔: '['
+    〕: ']'
+    〖: '['
+    〗: ']'
+    〘: '['
+    〙: ']'
+    〚: '['
+    〛: ']'
+    ［: '['
+    ］: ']'
+    ｛: '{'
+    ｝: '}'
+    ｟: (
+    ｠: )
+    〜: '~'
+    ～: '~'
+    ＃: '#'
+    ＄: $
+    ＆: '&'
+    ＊: '*'
+    ＋: +
+    －: '-'
+    ／: /
+    ＜: <
+    ＞: '>'
+    ＠: '@'
+    ＼: \
+    ＾: ^
+    ＿: _
+    ｀: '`'
+    ｜: '|'

@@ -4,7 +4,9 @@ The document is a rendering of the annotation sets, made again whenever it is ne
 **rendering policy** (``linecaster.data.policy``, ``DEFAULT_POLICY`` by default) puts each region in a layer by its
 content role, production and status: page headers, footers and page numbers in the **furniture** layer (the
 serializers choose whether to include it), regions in ``none`` (removed, suppressed, duplicate, separators) and
-``metadata`` left out, and lines it puts in ``none`` (a line assignment's duplicates); descriptions are never text.
+``metadata`` left out, and lines it puts in ``none`` (a line assignment's duplicates). What an annotator wrote about
+a zone (a description) is left out too, unless the policy puts it in a rendered layer (``page-layers-described``):
+then it is a ``paragraph`` block with the role ``description`` after its region's block (the page's after the last).
 
 The document is **literal**: a block's text is its lines' readings as the source or engine gave them, nothing
 normalized or joined (``linecaster.document.strategy`` writes a strategy's document from it). Each line's formatting,
@@ -126,16 +128,29 @@ class DocumentBuilder:
         paragraphs: dict[str | None, list] = {}
         for p in page.paragraphs:
             paragraphs.setdefault(p.region, []).append(p)
+        described = self.policy.described(t)
         for r in t.ordered_regions():
             layer = self.policy.layer_of(t, r.id)
-            if layer in NOT_RENDERED:
-                continue
-            page.layer, page.region = layer, r.id
-            self._add_region(page, r, by_region.get(r.id, []), paragraphs.get(r.id) if page.recomposed else None)
+            if layer not in NOT_RENDERED:
+                page.layer, page.region = layer, r.id
+                self._add_region(page, r, by_region.get(r.id, []), paragraphs.get(r.id) if page.recomposed else None)
+            self._add_descriptions(page, r, described.pop(r.id, ()))
         if None in paragraphs and not t.regions:          # a text-only page: its paragraphs without a region
             page.layer, page.region = "body", None
             self._add_paragraphs(page, None, "paragraph", paragraphs[None])
+        self._add_descriptions(page, None, described.pop(None, ()))
         return page_no
+
+    def _add_descriptions(self, page: "_PageContext", r: Region | None, descriptions) -> None:
+        """A region's descriptions the policy renders, each a ``paragraph`` block with the role ``description``."""
+        for layer, text in descriptions:
+            if layer in NOT_RENDERED:
+                continue
+            page.layer, page.region = layer, r.id if r is not None else None
+            self._last_table = None
+            self._block("paragraph", page, text, role="description",
+                        origins=[Origin(page=page.page_no, region=r.id if r is not None else None, lines=[],
+                                        box=_box(_zone_box(r)) if r is not None else None, span=[0, len(text)])])
 
     def build(self) -> Document:
         """The document, every origin's box clamped to its page (a layout box often reaches a few pixels past the

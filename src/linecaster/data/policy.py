@@ -199,15 +199,31 @@ class RenderingPolicy(BaseModel):
             return "metadata"
         return default_layer(role)
 
-    def layer_of(self, t, target: str) -> str:
-        """The layer of an annotation set's ``target`` (a region): its role, production and status, resolved by
-        the policy's precedence."""
+    def layer_of(self, t, target: str, motivation: str = "transcribing") -> str:
+        """The layer of an annotation set's ``target`` (a region; ``""`` the page): its role, production and status,
+        resolved by the policy's precedence; ``motivation`` ``describing`` for what an annotator wrote about it."""
         prec = self.precedence
         return self.layer(t.classification(target, "role", prec.get("role")),
                           t.classification(target, "production", prec.get("production"))
                           or t.classification("", "production", prec.get("production")),
-                          t.classification(target, "status", prec.get("status")))
+                          t.classification(target, "status", prec.get("status")), motivation)
 
+    def described(self, t) -> dict[str | None, list[tuple[str, str]]]:
+        """The descriptions of ``t`` (text an annotator wrote about a zone, ``Transcription.descriptions``) by their
+        region (a line's: its region's; the page's: ``None``), each as (layer, text): the layer this policy puts it
+        in, matched as ``describing`` with its region's role, production and status."""
+        from .refs import parse
+
+        regions = {r.id for r in t.regions}
+        out: dict[str | None, list[tuple[str, str]]] = {}
+        for d in t.descriptions:
+            if not d.text.strip():
+                continue
+            zone = parse(d.target).id
+            region = zone if zone in regions else (t.region_of(zone) if t.line(zone) is not None else None)
+            layer = self.layer_of(t, region if region is not None else "", "describing")
+            out.setdefault(region, []).append((layer, d.text.strip()))
+        return out
 
 
 #: the default policy (the catalog's ``page-layers``): every role in its default layer, what is suppressed,

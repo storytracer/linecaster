@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: superscript-digits
+description: 'Superscript digits (⁰ to ⁹) right after a digit set apart by a space, for comparison: 1,240¹ as "1,240 ¹", so that a footnote marker never joins the number it follows once nfkc folds it (1,240 1, not 1,2401), as a <sup> set apart by markup reads. Superscripts after anything else (m², x³) stay. Runs before nfkc. Adopted from Omni Parse Bench''s comparison fold (omni_parse_bench.normalize, Apache-2.0).'
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  patterns:
+  - match: (?<=\d)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)
+    flags: []
+    replace: ' \1'
