@@ -63,21 +63,45 @@ class EditionWarning(UserWarning):
     """A reference names a catalog edition (``id@N``, before linecaster 0.10); it resolves to this release's entry."""
 
 
+class RenamedWarning(UserWarning):
+    """A reference names an entry by the id it had before a release renamed it; it resolves to the new id."""
+
+
 _WARNED: set[str] = set()
 
+#: entries a release renamed: old id -> (new id, release). LightOnOCR-3's grounding mode became its bare preset in
+#: 0.10.4; the plain mode (the card's transcription call), the bare preset until then, became ``-plain``
+RENAMED = {"lightonocr-3-0.8b-grounding": ("lightonocr-3-0.8b", "0.10.4"),
+           "lightonocr-3-4b-grounding": ("lightonocr-3-4b", "0.10.4")}
+#: preset ids whose editions from before 0.10 (``id@N``) are another entry today: LightOnOCR-3's plain mode
+PRESET_EDITIONS_RENAMED = {"lightonocr-3-0.8b": "lightonocr-3-0.8b-plain", "lightonocr-3-4b": "lightonocr-3-4b-plain"}
 
-def entry_id(ref: str) -> str:
-    """The entry a reference names: ``id``, or ``id@N`` from before 0.10, whose edition is dropped with a warning
-    (once per reference): catalog entries carry no edition, the release versions them, so ``squiddle`` is this
-    release's ``squiddle``, which may differ from what 0.9 ran (reproduce that with the version its record names)."""
-    eid, at, edition = ref.rpartition("@")
-    if not at or not edition.isdigit():
-        return ref
+
+def _warn_once(ref: str, message: str, category: type[Warning]) -> None:
     if ref not in _WARNED:
         _WARNED.add(ref)
-        warnings.warn(f"{ref}: catalog entries carry no edition since linecaster 0.10; it resolves to this release's "
-                      f"{eid!r}", EditionWarning, stacklevel=2)
-    return eid
+        warnings.warn(message, category, stacklevel=3)
+
+
+def entry_id(ref: str, kind: str | None = None) -> str:
+    """The entry a reference names: ``id``, or ``id@N`` from before 0.10, whose edition is dropped with a warning
+    (once per reference): catalog entries carry no edition, the release versions them, so ``squiddle`` is this
+    release's ``squiddle``, which may differ from what 0.9 ran (reproduce that with the version its record names).
+    An id a release renamed (``RENAMED``) resolves to its new id, with a warning. For a preset (``kind``
+    ``preset``), ``id@N`` of an id that names another entry today (``PRESET_EDITIONS_RENAMED``) resolves to the entry
+    it was: ``lightonocr-3-0.8b@3`` is ``lightonocr-3-0.8b-plain``."""
+    eid, at, edition = ref.rpartition("@")
+    if not at or not edition.isdigit():
+        if ref in RENAMED:
+            new, release = RENAMED[ref]
+            _warn_once(ref, f"{ref} is {new!r} since linecaster {release}", RenamedWarning)
+            return new
+        return ref
+    new = PRESET_EDITIONS_RENAMED.get(eid, eid) if kind == "preset" else eid
+    _warn_once(ref, f"{ref}: catalog entries carry no edition since linecaster 0.10; it resolves to this release's "
+                    f"{new!r}" + (f" ({eid!r} names another preset since linecaster 0.10.4)" if new != eid else ""),
+               EditionWarning)
+    return RENAMED.get(new, (new,))[0]
 
 
 def modeline(path: str | Path, schema_id: str) -> str:
@@ -369,7 +393,7 @@ class Catalog:
 
     def preset(self, pid: str) -> PresetDoc:
         try:
-            return self.presets[entry_id(pid)][1]
+            return self.presets[entry_id(pid, "preset")][1]
         except KeyError:
             raise CatalogError(f"unknown preset {pid!r}; known: {sorted(self.presets)}") from None
 
@@ -441,7 +465,7 @@ class Catalog:
     def resolve(self, ref: str, sha256: str | None = None) -> "Resolved":
         """The preset ``ref`` as this release has it: its functional content and hash. With ``sha256`` (what a run
         record names), a different hash is a warning: the preset changed since that run."""
-        pid = entry_id(ref)
+        pid = entry_id(ref, "preset")
         if pid not in self.presets:
             raise CatalogError(f"unknown preset {pid!r}; known: {sorted(self.presets)}")
         content = self.functional(self.presets[pid][1])

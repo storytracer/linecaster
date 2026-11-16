@@ -574,8 +574,8 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     from ..catalog.registry import catalog as installed, entry_id
 
     c = catalog or installed()
-    if entry_id(ref) in c.presets:
-        return entry_id(ref)
+    if entry_id(ref, "preset") in c.presets:
+        return entry_id(ref, "preset")
     ids = [pid for pid, repo in chat_presets(c).items() if repo == ref]
     if not ids:
         raise CatalogError(f"no chat preset for {ref!r}; chat presets: {sorted(chat_presets(c))}")

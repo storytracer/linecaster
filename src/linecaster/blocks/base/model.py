@@ -47,10 +47,10 @@ STEP_PRODUCES = {"layout": ("regions", "reading_order"), "lines": ("lines",), "r
 
 @lru_cache(maxsize=None)
 def _preset_produces(ref: str) -> tuple[str, ...] | None:
-    from ...catalog.registry import catalog, entry_id
+    from ...catalog.registry import catalog
 
     try:
-        p = catalog().preset(entry_id(ref))
+        p = catalog().preset(ref)
     except (CatalogError, ValueError):     # unknown, or not an id@edition
         return None
     return tuple(p.capabilities.produces) or None

@@ -1,5 +1,5 @@
-"""Adapter ``lighton-ocr-3``: LightOnOCR-3's transcription call (presets ``lightonocr-3-4b`` and
-``lightonocr-3-0.8b``, which differ only in the checkpoint).
+"""Adapter ``lighton-ocr-3``: LightOnOCR-3's transcription call, its plain mode (presets ``lightonocr-3-4b-plain``
+and ``lightonocr-3-0.8b-plain``, which differ only in the checkpoint; the bare presets run grounding mode).
 
 * message = the page image ONLY, no text part (the card's transcription call; grounding is another output);
 * the image RGB-converted and ``thumbnail((n, n))``-ed with ``n = settings.image.longest_side_px`` (2048),

@@ -6,6 +6,23 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Upgrade notes
+
+- **LightOnOCR-3 runs in grounding mode by default.** Who is affected: anyone running `lightonocr-3-0.8b` or
+  `lightonocr-3-4b`, by id or by the model's Hugging Face id. What to do: nothing to get grounding mode, which
+  labels furniture, headings and footnotes and keeps figure descriptions out of the text; for the card's plain
+  transcription call (the page as Markdown) name `lightonocr-3-0.8b-plain` or `lightonocr-3-4b-plain`. Records name
+  the preset with its hash, so a run of 0.10.3 or earlier that names `lightonocr-3-0.8b` ran the plain mode (hash
+  `sha256:86ddce22…`, now `-plain`'s).
+
+### Changed outputs
+
+- **`lightonocr-3-0.8b`, `lightonocr-3-4b`**: now grounding mode, the presets `lightonocr-3-0.8b-grounding` and
+  `lightonocr-3-4b-grounding` were (same settings, same hashes). The plain mode they ran until 0.10.3 is
+  `lightonocr-3-0.8b-plain` and `lightonocr-3-4b-plain`, with the hashes the bare ids had. The `-grounding` ids
+  resolve to the bare ones with a warning (`RenamedWarning`); `lightonocr-3-0.8b@N` from before 0.10 resolves to
+  `lightonocr-3-0.8b-plain`, the mode it ran.
+
 ### Changed
 
 - **On Ray, a run without engines runs every task at once by default** (`--workers`): Ray's reservations

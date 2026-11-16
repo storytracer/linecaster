@@ -1,12 +1,23 @@
-LightOnOCR-3-4B on whole pages, following the model card (the two LightOnOCR-3 presets differ only in the
-checkpoint).
+LightOnOCR-3-4B in its grounding mode on whole pages, following the model card's "Prompt Modes": every block of
+the page comes back with a label and a box, so page furniture (running heads, page numbers) is labelled instead of
+written into the text. linecaster's default for LightOnOCR-3 (this preset was `lightonocr-3-4b-grounding` until
+linecaster 0.10.4). Otherwise identical to the plain mode, `lightonocr-3-4b-plain` (revision, image size,
+sampling, repair, serve flags).
 
-- The page image only, no text part (the card's transcription call; grounding is another output, not run).
-- RGB, `thumbnail((2048, 2048))`, PNG: the card's target longest dimension. `thumbnail` only downscales, so a
-  smaller page is sent as it is (unlike LightOnOCR-2's forced 1540 px).
-- Sampling from the card: temperature 0.2, top_p 0.9, max_tokens 4096; thinking off per request and
-  server-side (`--default-chat-template-kwargs`).
-- Serve flags: `--max-model-len 16384` (linecaster's choice; a 2048-px page is at most 4096 image tokens), one
-  image and no video per prompt, no multimodal processor cache, no prefix caching; no `--trust-remote-code`.
-- linecaster's vLLM, 0.30.0 or later: LightOn's repository says 0.27.1 makes these models loop.
-- The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Experimental.
+- The page image, then the text part `grounding` (the card's vLLM call); the image as for transcription: RGB,
+  `thumbnail((2048, 2048))`, PNG.
+- Sampling from the card's grounding call: temperature 0.2, top_p 0.9, max_tokens 4096 (the card's, although
+  grounding writes about 25 % more tokens than transcription; a different cap waits for a measurement).
+- The completion: a placeholder `![label](x1,y1,x2,y2)` before each block, its box in 0-1000 page coordinates, then
+  its content (Markdown; tables HTML). linecaster makes one region per block (adapter `lighton-ocr-3-grounding`,
+  `linecaster.adapters.lighton_grounding`), the boxes scaled to the page image read, in the order emitted:
+  each block's content role: `header`, `footer` and `page_number` are `header`, `footer` and `page_number` (a page
+  number's Docling label is `page_header` in the top 15 % of the page and `page_footer` below, as PP-DocLayout's
+  page numbers); `aside_text` is `marginalia` (body text under the default policy); `title` is `heading` at the
+  level of its `#`. The model's label stays the region's `label`.
+- The full text (`verbatim_txt`) keeps the furniture; the body texts (`readable_txt`, `readable_md`) leave it out.
+- What the model writes about a figure (`image`, `header_image`, `footer_image`: a description; `chart`: data read
+  off it) is no printed text: kept as the region's description, in no text of the page.
+- The raw completion is stored verbatim (the transcription's raw output). Experimental.
+
+Editions: 1 is the first.

@@ -21,7 +21,7 @@ from linecaster.errors import PipelineConfigError
 from linecaster.testing import fake_chat_server
 from linecaster.testing.chat import completion
 
-PRESET = "lightonocr-3-0.8b"          # vLLM 0.30.0; repairs at 8192, then 12288
+PRESET = "lightonocr-3-0.8b-plain"    # vLLM 0.30.0; repairs at 8192, then 12288
 DEFAULTS = {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}
 #: page width -> the fake model: finishes, needs more room than 4096 tokens, or loops (which vLLM's check ends)
 STOPS, LONG, LOOPS = 300, 400, 500

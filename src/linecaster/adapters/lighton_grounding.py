@@ -1,5 +1,5 @@
-"""Adapter ``lighton-ocr-3-grounding``: LightOnOCR-3's grounding call (presets ``lightonocr-3-0.8b-grounding`` and
-``lightonocr-3-4b-grounding``; the card's "Prompt Modes", model card at 36d8636).
+"""Adapter ``lighton-ocr-3-grounding``: LightOnOCR-3's grounding call (presets ``lightonocr-3-0.8b`` and
+``lightonocr-3-4b``, LightOnOCR-3's default in linecaster; the card's "Prompt Modes", model card at 36d8636).
 
 The request is the transcription call's (``lighton-ocr-3``: the page thumbnailed to 2048 px, PNG, the same sampling)
 with the text part ``grounding`` after the image, as the card's vLLM example sends it. The model then puts a

@@ -13,6 +13,8 @@ from linecaster.data.transcription import Transcription
 
 REVISIONS = {"lightonai/LightOnOCR-3-4B": "b71010f095dc3735de7ee6b9969bff8f8f50b39a",
              "lightonai/LightOnOCR-3-0.8B": "36d8636925327c671bd8e479c517a004f7566bd9"}
+#: each model's plain-mode preset (the card's transcription call; the bare preset runs grounding mode)
+PLAIN = {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b-plain", "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b-plain"}
 
 
 def image(w: int, h: int, fmt: str = "WEBP", mode: str = "L") -> bytes:
@@ -39,8 +41,9 @@ def reference_encode_png(data: bytes) -> bytes:
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_registry_and_revisions(model):
     spec = chat_model(model)
-    assert spec.adapter == "lighton-ocr-3" and spec.preset == {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b",
-                                                                "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b"}[model]
+    # a model's Hugging Face id is its bare preset: grounding mode, linecaster's default for LightOnOCR-3
+    assert spec.adapter == "lighton-ocr-3-grounding" and spec.preset == {
+        "lightonai/LightOnOCR-3-4B": "lightonocr-3-4b", "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b"}[model]
     assert spec.model == model and spec.revision == REVISIONS[model]
 
 
@@ -51,21 +54,21 @@ def test_registry_and_revisions(model):
     ((2048, 1000), (2048, 1000)),    # already at the target: untouched
 ])
 def test_request_thumbnails_to_2048(size, expected):
-    im = Image.open(io.BytesIO(sent_png(chat_model("lightonocr-3-4b").request(image(*size)))))
+    im = Image.open(io.BytesIO(sent_png(chat_model("lightonocr-3-4b-plain").request(image(*size)))))
     assert im.format == "PNG" and im.mode == "RGB" and im.size == expected
 
 
 @pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA")])
 def test_request_image_bytes_equal_the_reference(fmt, mode):
     data = image(2600, 3900, fmt, mode)
-    sent, reference = sent_png(chat_model("lightonocr-3-0.8b").request(data)), reference_encode_png(data)
+    sent, reference = sent_png(chat_model("lightonocr-3-0.8b-plain").request(data)), reference_encode_png(data)
     with Image.open(io.BytesIO(sent)) as a, Image.open(io.BytesIO(reference)) as b:   # zlib's level differs, the
         assert a.size == b.size and a.mode == b.mode and a.tobytes() == b.tobytes()  # pixels are the reference's
 
 
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_request_body_is_the_reference(model):
-    body = chat_model(model).request(image(800, 1200, "JPEG"))
+    body = chat_model(PLAIN[model]).request(image(800, 1200, "JPEG"))
     assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p", "chat_template_kwargs"}
     assert body["model"] == model
     assert len(body["messages"]) == 1 and body["messages"][0]["role"] == "user"
@@ -93,8 +96,8 @@ def test_serve_args_match_the_card(model):
 
 
 def test_the_08b_serves_its_context():
-    new = chat_model("lightonocr-3-0.8b")
-    assert new.preset == "lightonocr-3-0.8b"
+    new = chat_model("lightonocr-3-0.8b-plain")
+    assert new.preset == "lightonocr-3-0.8b-plain"
     assert new.flag("--max-model-len") == "18000" and new.served_context() == 18000
     assert new.repair_temperature == 0.1
     # a 2048-px page: at most 64 x 64 image tokens, and the margin for the text
@@ -105,7 +108,7 @@ def test_parse_keeps_the_completion_verbatim():
     raw = "\n# THE HAWFINCH\n\nnest itself  \n"
     body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 3100, "completion_tokens": 9}}
-    t = chat_model("lightonocr-3-0.8b").parse(body, backend="served x")
+    t = chat_model("lightonocr-3-0.8b-plain").parse(body, backend="served x")
     assert t.outputs[0].content == raw and t.text == raw                       # not even a strip
     m = t.annotators[0]
     assert (m.name, m.revision) == ("lightonai/LightOnOCR-3-0.8B", REVISIONS["lightonai/LightOnOCR-3-0.8B"])

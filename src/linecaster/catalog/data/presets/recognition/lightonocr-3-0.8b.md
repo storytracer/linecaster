@@ -1,22 +1,23 @@
-LightOnOCR-3-0.8B on whole pages, following the model card (the two LightOnOCR-3 presets differ only in the
-checkpoint).
+LightOnOCR-3-0.8B in its grounding mode on whole pages, following the model card's "Prompt Modes": every block of
+the page comes back with a label and a box, so page furniture (running heads, page numbers) is labelled instead of
+written into the text. linecaster's default for LightOnOCR-3 (this preset was `lightonocr-3-0.8b-grounding` until
+linecaster 0.10.4). Otherwise identical to the plain mode, `lightonocr-3-0.8b-plain` (revision, image size,
+sampling, repair, serve flags).
 
-- The page image only, no text part (the card's transcription call; grounding is another output, not run).
-- RGB, `thumbnail((2048, 2048))`, PNG: the card's target longest dimension. `thumbnail` only downscales, so a
-  smaller page is sent as it is (unlike LightOnOCR-2's forced 1540 px).
-- Sampling from the card: temperature 0.2, top_p 0.9, max_tokens 4096; thinking off per request and
-  server-side (`--default-chat-template-kwargs`).
-- Serve flags: `--max-model-len 18000` (LightOn's README for the 0.8B, and the reference script
-  uv-scripts/ocr `lighton-ocr3-saturate.py` at e2b0aa5; a 2048-px page is at most 4096 image tokens), one image and
-  no video per prompt, no multimodal processor cache, no prefix caching; no `--trust-remote-code`.
-- Repair passes on demand (`settings.repair.max_tokens: [8192, 12288]`, twice and three times the first 4096): a
-  page whose completion stopped at `max_tokens` is sent again at 8192 tokens, and, if that stops at its cap too, at
-  12,288; never more (three passes at most). Temperature 0.1 (`settings.repair.temperature`, the reference script's);
-  the same image, prompt and `top_p`. The page keeps the first completion that finished (`stop`), otherwise its first
-  one. The second repair is linecaster's addition to the reference script's one; CHANGELOG.md names the evidence.
-  `--set recognition.repair_max_tokens=0` turns the passes off.
-- linecaster's vLLM, 0.30.0 or later: LightOn's repository says 0.27.1 makes these models loop.
-- The completion is stored verbatim; `--gpu-memory-utilization` is the deployment's choice. Experimental.
+- The page image, then the text part `grounding` (the card's vLLM call); the image as for transcription: RGB,
+  `thumbnail((2048, 2048))`, PNG.
+- Sampling from the card's grounding call: temperature 0.2, top_p 0.9, max_tokens 4096 (the card's, although
+  grounding writes about 25 % more tokens than transcription; a different cap waits for a measurement).
+- The completion: a placeholder `![label](x1,y1,x2,y2)` before each block, its box in 0-1000 page coordinates, then
+  its content (Markdown; tables HTML). linecaster makes one region per block (adapter `lighton-ocr-3-grounding`,
+  `linecaster.adapters.lighton_grounding`), the boxes scaled to the page image read, in the order emitted:
+  each block's content role: `header`, `footer` and `page_number` are `header`, `footer` and `page_number` (a page
+  number's Docling label is `page_header` in the top 15 % of the page and `page_footer` below, as PP-DocLayout's
+  page numbers); `aside_text` is `marginalia` (body text under the default policy); `title` is `heading` at the
+  level of its `#`. The model's label stays the region's `label`.
+- The full text (`verbatim_txt`) keeps the furniture; the body texts (`readable_txt`, `readable_md`) leave it out.
+- What the model writes about a figure (`image`, `header_image`, `footer_image`: a description; `chart`: data read
+  off it) is no printed text: kept as the region's description, in no text of the page.
+- The raw completion is stored verbatim (the transcription's raw output). Experimental.
 
-Editions: 1 served with `--max-model-len 16384` (linecaster's choice then); 2 serves with LightOn's 18000, so that a
-repair pass has room, and states the repair settings (off); 3 turns the repair passes on at 8192 and 12,288 tokens.
+Editions: 1 is the first.

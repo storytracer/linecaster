@@ -408,7 +408,7 @@ def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) 
         if isinstance(x, dict):
             for k, v in x.items():
                 if k in CATALOG_KEYS and isinstance(v, str) and v:
-                    found[(CATALOG_KEYS[k], v if k == "strategy" else entry_id(v))] = None
+                    found[(CATALOG_KEYS[k], v if k == "strategy" else entry_id(v, CATALOG_KEYS[k]))] = None
                 elif k == "texts" and isinstance(v, (list, tuple)):
                     for spec in v:
                         name = spec.rpartition(":")[0] if isinstance(spec, str) else spec[0] if spec else ""

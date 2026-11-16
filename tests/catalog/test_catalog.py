@@ -295,6 +295,27 @@ def test_a_reference_from_before_0_10_resolves_with_a_warning():
     with pytest.warns(EditionWarning, match="changed since that run"):
         c.resolve_recipe("squiddle", sha256="sha256:" + "0" * 64)
 
+
+def test_lightonocr_3_grounding_is_the_bare_preset_since_0_10_4():
+    """0.10.4 renamed LightOnOCR-3's presets: grounding mode is ``lightonocr-3-0.8b`` (was ``-grounding``), the plain
+    mode ``lightonocr-3-0.8b-plain`` (was ``lightonocr-3-0.8b``). The old grounding id resolves with a warning, and a
+    pre-0.10 ``lightonocr-3-0.8b@3`` (the plain mode then) to the plain preset; the hashes moved with the entries."""
+    from linecaster.catalog.registry import EditionWarning, RenamedWarning
+
+    c = Catalog()
+    index = c.dirs[0].read_index()["presets"]
+    for size in ("0.8b", "4b"):
+        assert c.preset(f"lightonocr-3-{size}").options["adapter"] == "lighton-ocr-3-grounding"
+        assert c.preset(f"lightonocr-3-{size}-plain").options["adapter"] == "lighton-ocr-3"
+        with pytest.warns(RenamedWarning, match=f"lightonocr-3-{size}-grounding is 'lightonocr-3-{size}'"):
+            assert c.resolve(f"lightonocr-3-{size}-grounding").ref == f"lightonocr-3-{size}"
+        with pytest.warns(EditionWarning, match="names another preset"):
+            assert c.resolve(f"lightonocr-3-{size}@3").ref == f"lightonocr-3-{size}-plain"
+        assert f"lightonocr-3-{size}-grounding" not in index
+    # the plain mode keeps the hash the bare id had in 0.10.3, grounding the one -grounding had
+    assert index["lightonocr-3-0.8b-plain"] == "sha256:86ddce22a55d5fe753e3ba28b862de4cc75093a190bf5dfbaec4295d6bc129c9"
+    assert index["lightonocr-3-0.8b"] == "sha256:07c39f81b7cc4332fbfcbecb11d4aa57fb616b95f9f592c38ea6ceae5be14ad2"
+
 def test_whole_page_vlms_are_recognition_presets():
     """There is no step ``page``: a VLM reading whole pages is ``recognition`` with ``unit: page`` (a page preset)."""
     from linecaster.catalog import STEPS

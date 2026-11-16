@@ -35,7 +35,7 @@ def repair_catalog(tmp_path_factory):
     from linecaster.catalog.registry import CORE, Catalog, active, catalog
 
     folder = tmp_path_factory.mktemp("catalog")
-    base = yaml.safe_load((CORE / "presets/recognition/lightonocr-3-0.8b.yaml").read_text())
+    base = yaml.safe_load((CORE / "presets/recognition/lightonocr-3-0.8b-plain.yaml").read_text())
     (folder / "presets/recognition").mkdir(parents=True)
     off = {**base, "id": PRESET, "settings": {**base["settings"], "repair": {"max_tokens": 0, "temperature": 0.1}}}
     short = {**off, "id": SHORT, "serve": {**base["serve"], "flags": [

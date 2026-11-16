@@ -7,8 +7,9 @@ model:
   revision: 36d8636925327c671bd8e479c517a004f7566bd9
 engine: chat.v1
 options:
-  adapter: lighton-ocr-3
+  adapter: lighton-ocr-3-grounding
 settings:
+  prompt: grounding
   sampling:
     max_tokens: 4096
     temperature: 0.2
@@ -38,6 +39,9 @@ serve:
 capabilities:
   unit: page
   produces:
+  - regions
+  - reading_order
+  - text
   - markdown
 provenance:
   derived_from:
@@ -45,5 +49,5 @@ provenance:
   - github.com/lightonai/LightOnOCR@36755d461be079737860a5f03ae0c803501269e9:README.md (--max-model-len 18000)
   - huggingface.co/datasets/uv-scripts/ocr@e2b0aa514f433998f1e7ad00d0c37df0796574e4:lighton-ocr3-saturate.py (SERVING
     context 18000 and repair_temperature 0.1)
-  created: 2026-11-03
+  created: 2026-11-13
 support: experimental

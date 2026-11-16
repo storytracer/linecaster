@@ -1,15 +1,14 @@
 # yaml-language-server: $schema=../../../schemas/preset.json
 schema: linecaster.preset
-id: lightonocr-3-4b-grounding
+id: lightonocr-3-4b-plain
 step: recognition
 model:
   id: lightonocr-3-4b
   revision: b71010f095dc3735de7ee6b9969bff8f8f50b39a
 engine: chat.v1
 options:
-  adapter: lighton-ocr-3-grounding
+  adapter: lighton-ocr-3
 settings:
-  prompt: grounding
   sampling:
     max_tokens: 4096
     temperature: 0.2
@@ -34,12 +33,9 @@ serve:
 capabilities:
   unit: page
   produces:
-  - regions
-  - reading_order
-  - text
   - markdown
 provenance:
   derived_from:
   - lightonai/LightOnOCR-3-4B@b71010f095dc3735de7ee6b9969bff8f8f50b39a:README.md
-  created: 2026-11-13
+  created: 2026-11-03
 support: experimental

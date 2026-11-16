@@ -13,7 +13,7 @@ from PIL import Image
 from linecaster.adapters import chat_model
 from linecaster.adapters.lighton_grounding import ground, place
 
-PRESETS = ("lightonocr-3-0.8b-grounding", "lightonocr-3-4b-grounding")
+PRESETS = ("lightonocr-3-0.8b", "lightonocr-3-4b")
 
 #: a book page as the model answers in grounding mode (the card's format)
 PAGE = """![header](100,30,800,60)
@@ -63,7 +63,7 @@ def image(w: int = 200, h: int = 300) -> bytes:
 
 @pytest.mark.parametrize("ref", PRESETS)
 def test_the_request_is_the_cards_grounding_call(ref):
-    """The image, then the text part ``grounding``; the transcription preset's thumbnail and sampling."""
+    """The image, then the text part ``grounding``; the plain preset's thumbnail and sampling."""
     a = chat_model(ref)
     body = a.request(image(3000, 4000))
     image_part, text_part = body["messages"][0]["content"]
@@ -72,10 +72,10 @@ def test_the_request_is_the_cards_grounding_call(ref):
     assert max(png.size) == 2048
     assert (body["max_tokens"], body["temperature"], body["top_p"]) == (4096, 0.2, 0.9)
     assert a.settings()["prompt"] == "grounding" and a.settings()["mode"] == "grounding"
-    transcription = chat_model(ref.removesuffix("-grounding"))
-    assert transcription.adapter == "lighton-ocr-3" and transcription.revision == a.revision
-    assert transcription.serve_args == a.serve_args and transcription.repair_caps == a.repair_caps
-    assert chat_model("lightonai/LightOnOCR-3-0.8B").adapter == "lighton-ocr-3"      # the model's id: transcription
+    plain = chat_model(f"{ref}-plain")
+    assert plain.adapter == "lighton-ocr-3" and plain.revision == a.revision
+    assert plain.serve_args == a.serve_args and plain.repair_caps == a.repair_caps
+    assert chat_model("lightonai/LightOnOCR-3-0.8B").adapter == "lighton-ocr-3-grounding"  # the model's id: grounding
 
 
 def texts(t, region_id):
