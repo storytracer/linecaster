@@ -177,7 +177,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **line image** | An image of one line with its text, as line-level ground-truth datasets give them: imported as a page whose one line is the whole image (`text-import`'s `line_image`). | not a line's crop from a page image |
 | **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
 | **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
-| **tokenizer** | How the word metrics cut a lane's text into words (`linecaster.scoring.tokens`): `whitespace` (the default), `uax29` (Unicode's word boundaries) or `characters`, named by a benchmark (`words`). | not a model's tokenizer (tokens of a VLM) |
+| **tokenizer** | How the word metrics cut a lane's text into words (`linecaster.scoring.tokens`): `uax29` (Unicode's word boundaries, the default), `whitespace` or `characters`, named by a benchmark (`words`). | not a model's tokenizer (tokens of a VLM) |
 | **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, the default, `reading`, `alnum`, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
 | **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |

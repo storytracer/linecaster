@@ -16,7 +16,7 @@ from ..data.sample import listing_sha256
 from .counts import UNITS
 from .lanes import DEFAULT_LANE, LEGACY, lane, resolve
 from .render import TEXTS
-from .tokens import WORDS
+from .tokens import DEFAULT_WORDS, WORDS
 
 SCHEMA = "linecaster.benchmark/2"
 METRICS = ("cer", "token_recall", "over_extraction", "role_words", "confusion")
@@ -91,9 +91,9 @@ class Benchmark(_Model):
     lanes: list[str] = Field(default_factory=lambda: [DEFAULT_LANE], description="the lanes: comparison strategies")
     unit: Literal[UNITS] = Field("grapheme", description="what a character error counts: a grapheme cluster (what a "
                                                          "reader sees as one character) or a code point")
-    words: Literal[WORDS] = Field("whitespace", description="the tokenizer of the word metrics (linecaster.scoring."
-                                                            "tokens): whitespace, uax29 (Unicode's word boundaries) or "
-                                                            "characters")
+    words: Literal[WORDS] = Field(DEFAULT_WORDS, description="the tokenizer of the word metrics (linecaster.scoring."
+                                                             "tokens): uax29 (Unicode's word boundaries, the default), "
+                                                             "whitespace or characters")
     metrics: list[str] = Field(default_factory=lambda: ["cer", "token_recall", "over_extraction"])
     bootstrap: Bootstrap = Field(default_factory=Bootstrap)
     strata: list[str] = Field(default_factory=list, description="page or item fields to report rates by")
@@ -138,8 +138,8 @@ class Benchmark(_Model):
         from ..catalog.registry import catalog
 
         content = self.model_dump(mode="json", by_alias=True, exclude={"description"})
-        if content["words"] == "whitespace":
-            del content["words"]                               # the default: benchmarks from before keep their hash
+        if content["words"] == DEFAULT_WORDS:
+            del content["words"]                               # the default: benchmarks that name none keep their hash
         content["lanes"] = [{"id": x, "sha256": resolve(x).sha256} for x in self.lanes]
         content["output"] = {"id": self.output, "sha256": catalog().strategy(self.output, use="output").sha256}
         return "sha256:" + hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()

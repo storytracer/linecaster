@@ -218,8 +218,8 @@
       "type": "string"
     },
     "words": {
-      "default": "whitespace",
-      "description": "the tokenizer of the word metrics (linecaster.scoring.tokens): whitespace, uax29 (Unicode's word boundaries) or characters",
+      "default": "uax29",
+      "description": "the tokenizer of the word metrics (linecaster.scoring.tokens): uax29 (Unicode's word boundaries, the default), whitespace or characters",
       "enum": [
         "whitespace",
         "uax29",

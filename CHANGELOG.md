@@ -19,6 +19,11 @@ records a language and where *Changed outputs* says.
   *Who:* anyone scoring runs with OmniDocBench through linecaster. *What to do:* `linecaster export omnidocbench OUT
   --truth TRUTH --pages RUN` and OmniDocBench's own evaluation on `OUT` (its `README.md` says how), in OmniDocBench's
   environment.
+- **Words are Unicode's words (`uax29`) by default.** A benchmark that names no tokenizer counts words by UAX #29's
+  word boundaries: a word keeps its apostrophe (`note's` one word, was two) and its number punctuation (`1,887.5`),
+  and Chinese and Japanese count by character instead of a line as one word. *Who:* anyone comparing word recall or
+  over-extraction with earlier scores. *What to do:* score again, or name `words: whitespace` in the benchmark for
+  the earlier cut (with marks kept, below).
 - **Word metrics keep combining marks and joiners.** 0.10's word metrics cut words at every combining mark and
   format character, so Devanagari, vocalized Arabic, pointed Hebrew and Thai words fell apart; they are whole now
   (version 2 of the word metrics' rules). *Who:* anyone comparing word metrics of such texts with earlier scores.
@@ -39,8 +44,8 @@ records a language and where *Changed outputs* says.
   folder OmniDocBench's own evaluation reads (`truth.json`, `predictions/`), with `export.yaml` and a `README.md`;
   `--strategy` applies an output strategy (`nfc`) to both sides; a run's tables follow the ground truth's rule
   (`--tables`).
-- **Tokenizers for the word metrics**: `whitespace` (the default), `uax29` (Unicode's word boundaries: Chinese and
-  Japanese by character, Katakana runs whole) and `characters` (grapheme clusters), `linecaster.scoring.tokens`. A
+- **Tokenizers for the word metrics**: `uax29` (Unicode's word boundaries, the default: Chinese and Japanese by
+  character, Katakana runs whole), `whitespace` and `characters` (grapheme clusters), `linecaster.scoring.tokens`. A
   benchmark names its tokenizer (`words`; a benchmark that names the default keeps its hash), score rows name it
   (`words`), and evidence records it with the rules' version (`scoring.words`).
 - **Role word counts as the texts count them**: `role_words` writes each region's text by the output strategy and

@@ -20,17 +20,17 @@ IDS = ["library.test_item1_0001"]
     ("The ship, x² a_b", ["The", "ship", "x²", "a_b"]),       # English as before: \w, the underscore
 ])
 def test_whitespace_words_keep_their_marks(text, whole):
-    assert tokens(text) == whole
+    assert tokens(text, "whitespace") == whole
 
 
 def test_format_characters_stay_in_their_word_but_the_zero_width_space_separates():
-    assert tokens("می\u200cخواهم") == ["می\u200cخواهم"]                  # Persian: a zero-width non-joiner
-    assert tokens("ᠪᠠᠢᠨ\u180eᠠ") == ["ᠪᠠᠢᠨ\u180eᠠ"]                      # Mongolian: the vowel separator
-    assert tokens("ไทย\u200bภาษา \u00ad") == ["ไทย", "ภาษา"]             # a lone soft hyphen is no word
+    assert tokens("می\u200cخواهم", "whitespace") == ["می\u200cخواهم"]      # Persian: a zero-width non-joiner
+    assert tokens("ᠪᠠᠢᠨ\u180eᠠ", "whitespace") == ["ᠪᠠᠢᠨ\u180eᠠ"]          # Mongolian: the vowel separator
+    assert tokens("ไทย\u200bภาษา \u00ad", "whitespace") == ["ไทย", "ภาษา"] # a lone soft hyphen is no word
 
 
 def test_whitespace_is_one_word_per_run_in_scripts_without_spaces():
-    assert tokens("東京は晴れです") == ["東京は晴れです"]
+    assert tokens("東京は晴れです", "whitespace") == ["東京は晴れです"]
 
 
 def test_uax29_cuts_by_unicode_s_word_boundaries():
@@ -79,8 +79,9 @@ def test_score_page_names_its_tokenizer():
     o = _page([("paragraph", "東京は晴れでず")])
     (row, _body) = score_page(t, o, tokenizer="uax29")["rows"]
     assert (row["words"], row["words_true"], row["words_both"]) == ("uax29", 7, 6)
-    (row, _body) = score_page(t, o)["rows"]
+    (row, _body) = score_page(t, o, tokenizer="whitespace")["rows"]
     assert (row["words"], row["words_true"], row["words_both"]) == ("whitespace", 1, 0)
+    assert score_page(t, o)["rows"][0]["words"] == "uax29"                  # the default
 
 
 def _bench(**fields):
@@ -92,10 +93,10 @@ def _bench(**fields):
 
 
 def test_a_benchmark_names_its_tokenizer_and_keeps_its_hash_with_the_default():
-    assert _bench().sha256 == _bench(words="whitespace").sha256
+    assert _bench().words == "uax29" and _bench().sha256 == _bench(words="uax29").sha256
     # the hash of a benchmark/2 with the defaults, as written by 0.10.5
     assert _bench().sha256 == "sha256:0098ab3838d45cb503fe940ae30becdf0eacde58b447e1262d8d21a045b2f056"
-    assert _bench(words="uax29").sha256 != _bench().sha256
+    assert _bench(words="whitespace").sha256 != _bench().sha256
     with pytest.raises(ValueError):
         _bench(words="nowhere")
 

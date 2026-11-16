@@ -48,9 +48,9 @@ def test_a_sample_s_text_says_its_script_and_direction(sid):
 @pytest.mark.parametrize("sid", SAMPLES)
 def test_words_by_each_tokenizer(sid):
     text = " ".join(SCRIPT_SAMPLES[sid].lines)
-    assert (len(tokens(text)), len(tokens(text, "uax29"))) == WORDS[sid]
+    assert (len(tokens(text, "whitespace")), len(tokens(text, "uax29"))) == WORDS[sid]
     # whitespace words are what lies between spaces, punctuation aside: no word falls apart at its marks
-    assert all(w in text.split() or any(w in part for part in text.split()) for w in tokens(text))
+    assert all(w in text.split() or any(w in part for part in text.split()) for w in tokens(text, "whitespace"))
 
 
 @pytest.mark.parametrize("sid", SAMPLES)

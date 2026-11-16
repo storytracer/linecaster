@@ -21,6 +21,8 @@ REPLACEMENT = "�"
 ZERO_WIDTH_SPACE = "\u200b"
 #: the tokenizers a benchmark may name
 WORDS = ("whitespace", "uax29", "characters")
+#: the tokenizer of a benchmark that names none: Unicode's word boundaries
+DEFAULT_WORDS = "uax29"
 #: the version of the word metrics' rules, in evidence: 2 since combining marks stay in their words
 WORDS_VERSION = 2
 
@@ -43,7 +45,7 @@ def _uax29_property(c: str):
     return WordBreak.ALETTER if c == REPLACEMENT else word_break(c)
 
 
-def tokens(s: str, words: Literal["whitespace", "uax29", "characters"] = "whitespace") -> list[str]:
+def tokens(s: str, words: Literal["whitespace", "uax29", "characters"] = DEFAULT_WORDS) -> list[str]:
     """The tokens of ``s`` by the tokenizer ``words`` (``WORDS``), in order."""
     if words == "whitespace":
         return [w for w in "".join(c if _in_word(c) else " " for c in s).split()

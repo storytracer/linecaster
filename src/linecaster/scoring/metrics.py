@@ -10,10 +10,10 @@ from ..data.transcription import Transcription
 from .counts import edit_counts
 from .lanes import DEFAULT_LANE, REPLACEMENT, normalize
 from .render import TEXTS, illegible_spans, line_text, text
-from .tokens import tokens
+from .tokens import DEFAULT_WORDS, tokens
 
 
-def words(s: str, lane: str = DEFAULT_LANE, tokenizer: str = "whitespace") -> Counter:
+def words(s: str, lane: str = DEFAULT_LANE, tokenizer: str = DEFAULT_WORDS) -> Counter:
     """The words of a text for recall and role agreement: the ``tokenizer``'s tokens (``linecaster.scoring.tokens``)
     of the lane's text (the one scored); a word with an illegible character is left out (no output can be required to
     have it)."""
@@ -25,7 +25,7 @@ def _overlap(a: Counter, b: Counter) -> int:
 
 
 def role_words(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY, lane: str = DEFAULT_LANE,
-               strategy="literal", tokenizer: str = "whitespace") -> dict[str, Counter]:
+               strategy="literal", tokenizer: str = DEFAULT_WORDS) -> dict[str, Counter]:
     """Content role -> the words (by ``lane`` and ``tokenizer``) of the lines in regions of that role (lines in no
     region: ``paragraph``), each line written as the scored texts are: its illegible spans as U+FFFD, then the output
     ``strategy`` (a reference, or the strategy resolved)."""
@@ -81,7 +81,7 @@ def confusion(truth: Transcription, output: Transcription, threshold: float = 0.
 
 def score_page(truth: Transcription, output: Transcription | None, texts=tuple(TEXTS), lanes=(DEFAULT_LANE,),
                policy: RenderingPolicy = DEFAULT_POLICY, boxes: bool = True, unit: str = "grapheme",
-               strategy: str = "literal", tokenizer: str = "whitespace") -> dict[str, Any]:
+               strategy: str = "literal", tokenizer: str = DEFAULT_WORDS) -> dict[str, Any]:
     """One page's counts: ``rows`` (one per text and lane: ``s``, ``d``, ``i``, ``h``, ``n`` in ``unit``s, the
     word counts ``words_true``, ``words_output``, ``words_both`` by that lane and the ``tokenizer``
     (``linecaster.scoring.tokens``), and ``conventions``: the

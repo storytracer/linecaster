@@ -111,8 +111,8 @@ Per page and role, where the ground truth marks the role (no boxes needed):
 
 | Tokenizer | Words |
 |---|---|
-| `whitespace` (default) | runs between whitespace, everything but letters, combining marks, format characters, digits and the underscore a boundary: a word keeps its combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels) and its joiners (the zero-width non-joiner and joiner, the Mongolian vowel separator), while the zero width space separates words; a text without spaces (Chinese, Japanese, Thai) is one word per run |
-| `uax29` | Unicode's word boundaries (UAX #29): Chinese ideographs, Hiragana and Thai one word per character (Unicode leaves those scripts to a dictionary), Katakana runs whole, the other scripts by their own boundaries |
+| `whitespace` | runs between whitespace, everything but letters, combining marks, format characters, digits and the underscore a boundary: a word keeps its combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels) and its joiners (the zero-width non-joiner and joiner, the Mongolian vowel separator), while the zero width space separates words; a text without spaces (Chinese, Japanese, Thai) is one word per run |
+| `uax29` (default) | Unicode's word boundaries (UAX #29): Chinese ideographs, Hiragana and Thai one word per character (Unicode leaves those scripts to a dictionary), Katakana runs whole, the other scripts by their own boundaries |
 | `characters` | grapheme clusters with a letter, mark or digit |
 
 Role words are each line's words written as the scored texts are: its illegible spans as U+FFFD, then the output
@@ -171,7 +171,7 @@ A benchmark definition is a YAML file in the evaluation's repository:
 | `texts`, `lanes` | which texts and lanes are scored |
 | `output` | the output strategy both texts are written with (`literal` by default) |
 | `unit` | `grapheme` (default) or `codepoint`: what a character error counts; part of the hash |
-| `words` | the word metrics' tokenizer: `whitespace` (default), `uax29` or `characters`; part of the hash where it is not the default (so benchmarks that name none keep theirs) |
+| `words` | the word metrics' tokenizer: `uax29` (default), `whitespace` or `characters`; part of the hash where it is not the default (so benchmarks that name none keep theirs) |
 | `metrics` | which metrics, of those the ground truth supports |
 | `bootstrap` | `seed`, `resamples`, `level` |
 | `strata` | fields to report rates by |
